@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+env/
+venv/
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite3
+subsidy.db
+instance/
+*.log
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 前端构建输出
+dist/
+build/
+static/                # 后端静态文件输出目录（对应 vite.config.ts 中的 outDir）
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# 项目特定
+.deps_installed        # 启动脚本生成的标记文件
+coverage/
+.nyc_output/
+*.bak
+
+# 环境变量
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 日志文件
+logs/
+*.log
+npm-debug.log*
+
+# 压缩包
+*.zip
+*.tar.gz
+*.rar
+
+# 测试产物
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
