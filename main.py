@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import engine
 from models import Base
-from routers import farmers, subsidies, ai_analyze, settings, precheck, households
+from routers import farmers, subsidies, ai_analyze, settings, precheck, households, external_links
 
 Base.metadata.create_all(bind=engine)
 
@@ -29,6 +29,7 @@ app.include_router(ai_analyze.router)
 app.include_router(settings.router)
 app.include_router(precheck.router)
 app.include_router(households.router)
+app.include_router(external_links.router)
 
 @app.get("/api/health")
 def health():

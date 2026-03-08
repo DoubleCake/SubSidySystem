@@ -13,7 +13,7 @@ export default function ApplicationsPage() {
   const [apps, setApps] = useState<ApplicationOut[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [yearFilter, setYearFilter] = useState(2024)
+  const [yearFilter, setYearFilter] = useState(new Date().getFullYear())
   const [villageFilter, setVillageFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [villages, setVillages] = useState<string[]>([])

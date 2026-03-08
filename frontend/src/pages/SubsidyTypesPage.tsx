@@ -13,7 +13,7 @@ const UNITS = ['元/亩', '元/人', '元/户']
 export default function SubsidyTypesPage() {
   const { toast, show } = useToast()
   const [types, setTypes] = useState<SubsidyType[]>([])
-  const [yearFilter, setYearFilter] = useState(2024)
+  const [yearFilter, setYearFilter] = useState(new Date().getFullYear())
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<SubsidyType | null>(null)
   const [form, setForm] = useState<Partial<SubsidyTypeCreate>>({

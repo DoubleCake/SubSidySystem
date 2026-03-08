@@ -23,8 +23,8 @@ export const FARMER_STATUS: Record<number, { label: string; color: string }> = {
 }
 
 export const PAY_STATUS: Record<number, { label: string; color: string }> = {
-  0: { label: '待审核',  color: 'amber'  },
-  1: { label: '审核通过', color: 'blue'   },
+  0: { label: '待发放',  color: 'amber'  },
+  1: { label: '部分发放', color: 'blue'   },
   2: { label: '已发放',  color: 'green'  },
   3: { label: '驳回',    color: 'red'    },
 }
@@ -35,7 +35,8 @@ export const SUBSIDY_PAY_STATUS: Record<number, { label: string; color: string }
   2: { label: '已完成',   color: 'green'  },
 }
 
-export const years = [2025, 2024, 2023, 2022, 2021]
+// 动态年份：当年往前8年+往后1年，不写死
+export const years: number[] = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() + 1 - i)
 
 // 从 Excel 行猜测村组 ID
 export const guessVillageGroupId = (

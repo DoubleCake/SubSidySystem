@@ -44,6 +44,11 @@ export const batchImportFarmers = (rows: FarmerCreate[]) =>
 export const getSubsidyTypes = (year?: number) =>
   req<SubsidyType[]>('/api/subsidies/types' + (year ? `?year=${year}` : ''))
 
+export const getSubsidyTypesWithStats = (year?: number) =>
+  req<(SubsidyType & { app_count: number; beneficiary_count: number; total_apply: number; total_actual: number })[]>(
+    '/api/subsidies/types-with-stats' + (year ? `?year=${year}` : '')
+  )
+
 export const createSubsidyType = (data: SubsidyTypeCreate) =>
   req<{ id: number }>('/api/subsidies/types', { method: 'POST', body: JSON.stringify(data) })
 
@@ -53,6 +58,11 @@ export const updateSubsidyType = (id: number, data: Partial<SubsidyTypeCreate>) 
 // ── 补贴申请 ──
 export const getApplications = (params: Record<string, string | number>) =>
   req<PageResult<ApplicationOut>>('/api/subsidies/applications?' + new URLSearchParams(params as Record<string, string>))
+
+export const searchApplications = (params: Record<string, string | number>) =>
+  req<PageResult<ApplicationOut & { id_card_masked?: string; village?: string; calc_mode?: string }>>(
+    '/api/subsidies/applications/search?' + new URLSearchParams(params as Record<string, string>)
+  )
 
 export const createApplication = (data: ApplicationCreate) =>
   req<{ id: number }>('/api/subsidies/applications', { method: 'POST', body: JSON.stringify(data) })

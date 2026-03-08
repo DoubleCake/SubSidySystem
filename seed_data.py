@@ -1,176 +1,177 @@
 """
-初始化模拟数据脚本
-运行方式：python seed_data.py
+模拟数据脚本 v2 —— 追加模式（不重复插入已有身份证）
+运行：cd D:\Tools\subsidy_system && python seed_data.py
+生成约 120 名农户，覆盖多个村组，含 2023/2024 年度补贴记录
 """
-from database import engine, SessionLocal
+import random, sys, os, datetime
+sys.path.insert(0, os.path.dirname(__file__))
+from database import SessionLocal, engine
 from models import Base, VillageGroup, FamilyHousehold, FarmerProfile, SubsidyType, SubsidyApplication
-from utils import parse_id_card, gen_household_code
-from datetime import date
+from utils import gen_household_code, parse_id_card
+from sqlalchemy import func
 
-def seed():
+random.seed(42)
+
+VILLAGES = [
+    ("红星村",  ["一组","二组","三组","四组"]),
+    ("青山村",  ["一组","二组","三组"]),
+    ("幸福村",  ["一组","二组","四组","五组"]),
+    ("民主村",  ["一组","二组","三组"]),
+    ("新建村",  ["一组","二组"]),
+]
+SURNAMES = list("王李张刘陈杨黄赵周吴徐孙马朱胡郭林何高梁唐郑罗宋谢韩曹许邓萧冯曾程蔡彭潘袁于董余苏叶")
+GIVEN_M = ["国强","建国","志明","文军","海波","建华","荣华","卫东","振宇","立新","光明","永强","文斌","胜利","建设","大勇","志刚","军民","长江","明德","发强","庆丰","国华","文杰","建平","忠诚","永福","玉林","金山","正平"]
+GIVEN_F = ["秀英","桂花","凤英","玉兰","淑芬","翠花","丽华","桂英","春梅","玉珍","凤仙","秀珍","梅花","彩霞","香花","淑英","桂珍","凤凰","美珍","素英","文华","惠芳","淑珍","春花","玉华","秀华","月英","桂兰","翠云"]
+BANKS  = ["中国农业银行","中国工商银行","中国建设银行","中国邮政储蓄银行","农村商业银行"]
+RELATIONS = ["妻子","儿子","女儿","父亲","母亲","兄弟","姐妹"]
+
+def rand_id(y,m,d,gender,seq):
+    area = random.choice(["510123","510124","510125","510126","510181"])
+    body = f"{area}{y:04d}{m:02d}{d:02d}{(seq*2-1 if gender==1 else seq*2)%999+1:03d}"
+    w=[7,9,10,5,8,4,2,1,6,3,7,9,10,5,8,4,2]; ck="10X98765432"
+    return body + ck[sum(int(body[i])*w[i] for i in range(17))%11]
+
+def rand_phone():
+    return random.choice(["138","139","150","151","158","159","186","187"])+str(random.randint(10000000,99999999))
+
+def rand_bank():
+    return "6228"+"".join([str(random.randint(0,9)) for _ in range(15)])
+
+def rand_name(g):
+    return random.choice(SURNAMES)+(random.choice(GIVEN_M) if g==1 else random.choice(GIVEN_F))
+
+def main():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
 
-    if db.query(FarmerProfile).count() > 0:
-        print("数据库已有数据，跳过初始化")
-        db.close()
-        return
+    print("=== 模拟数据生成（追加模式）===")
 
-    print("开始写入模拟数据...")
-
-    # ── 村组 ──
-    vgs = [
-        VillageGroup(village_name="红星村", group_no="一组", full_name="红星村一组"),
-        VillageGroup(village_name="红星村", group_no="二组", full_name="红星村二组"),
-        VillageGroup(village_name="红星村", group_no="三组", full_name="红星村三组"),
-        VillageGroup(village_name="光明村", group_no="一组", full_name="光明村一组"),
-        VillageGroup(village_name="光明村", group_no="二组", full_name="光明村二组"),
-        VillageGroup(village_name="和平村", group_no="一组", full_name="和平村一组"),
-    ]
-    db.add_all(vgs)
-    db.flush()
-    vg = {v.full_name: v.id for v in vgs}
-
-    # ── 农户原始数据 ──
-    raw = [
-        ("张国强", "510123196503154231", "13812340001", "6222021234560001", "农业银行红星支行", "红星村一组", "红星村一组12号", 3.5, 1),
-        ("李秀英", "510123197208224562", "13812340002", "6222021234560002", "农业银行红星支行", "红星村一组", "红星村一组15号", 2.8, 1),
-        ("王建军", "510123198001073891", "13812340003", "6222021234560003", "建设银行光明支行", "红星村二组", "红星村二组3号",  5.2, 1),
-        ("赵梅",   "510123197512185124", "13812340004", "6222021234560004", "农业银行红星支行", "红星村二组", "红星村二组7号",  1.9, 1),
-        ("陈志远", "510123196811224517", "13812340005", "6222021234560005", "邮储银行和平支行", "红星村三组", "红星村三组20号", 4.1, 1),
-        ("刘翠花", "510123196205314528", "13812340006", "6222021234560006", "农业银行光明支行", "光明村一组", "光明村一组8号",  2.3, 1),
-        ("孙大海", "510123197709124539", "13812340007", "6222021234560007", "农业银行光明支行", "光明村一组", "光明村一组11号", 6.7, 1),
-        ("周小燕", "510123198807185540", "13812340008", "6222021234560008", "建设银行光明支行", "光明村二组", "光明村二组2号",  1.5, 1),
-        ("吴长贵", "510123195904224551", "13812340009", "6222021234560009", "邮储银行和平支行", "光明村二组", "光明村二组9号",  8.0, 1),
-        ("郑芳",   "510123199103074562", "13812340010", "6222021234560010", "农业银行和平支行", "和平村一组", "和平村一组5号",  2.1, 1),
-        ("冯德胜", "510123197406154573", "13812340011", "6222021234560011", "农业银行和平支行", "和平村一组", "和平村一组18号", 3.8, 1),
-        ("蒋淑华", "510123196702284584", "13812340012", "6222021234560012", "建设银行红星支行", "红星村一组", "红星村一组33号", 2.6, 2),  # 注销
-        ("韩明亮", "510123198503134595", "13812340013", "6222021234560013", "邮储银行光明支行", "光明村一组", "光明村一组22号", 4.4, 1),
-        ("杨春梅", "510123197001215606", "13812340014", "6222021234560014", "农业银行红星支行", "红星村三组", "红星村三组6号",  3.0, 1),
-        ("胡大柱", "510123196309274617", "13812340015", "6222021234560015", "农业银行和平支行", "和平村一组", "和平村一组30号", 5.5, 3),  # 迁出
-    ]
-
-    farmers = []
-    for name, id_card, phone, bank_card, bank_name, vg_name, address, land_area, status in raw:
-        parsed = parse_id_card(id_card)
-        farmer = FarmerProfile(
-            household_id=0,
-            real_name=name,
-            gender=parsed["gender"],
-            id_card=id_card,
-            birth_date=parsed["birth_date"],
-            phone=phone,
-            bank_card=bank_card,
-            bank_name=bank_name,
-            is_head=1,
-            relation="本人",
-            farmer_status=status,
-        )
-        db.add(farmer)
-        db.flush()
-
-        hh = FamilyHousehold(
-            household_code=gen_household_code(farmer.id),
-            household_name=f"{name}户",
-            head_farmer_id=farmer.id,
-            village_group_id=vg[vg_name],
-            address=address,
-            land_area=land_area,
-            status=status,
-            member_count=1,
-        )
-        db.add(hh)
-        db.flush()
-
-        farmer.household_id = hh.id
-        farmers.append(farmer)
-
-    db.flush()
-    print(f"  ✓ 写入 {len(farmers)} 名农户")
-
-    # ── 补贴类型 ──
-    types = [
-        SubsidyType(subsidy_name="粮食直补",         subsidy_year=2024, standard_amount=120, standard_unit="元/亩", fund_source="中央", pay_status=2),
-        SubsidyType(subsidy_name="农机购置补贴",     subsidy_year=2024, standard_amount=500, standard_unit="元/户", fund_source="省级", pay_status=1),
-        SubsidyType(subsidy_name="低保生活补助",     subsidy_year=2024, standard_amount=800, standard_unit="元/人", fund_source="县级", pay_status=2),
-        SubsidyType(subsidy_name="耕地地力保护补贴", subsidy_year=2024, standard_amount=90,  standard_unit="元/亩", fund_source="中央", pay_status=0),
-        SubsidyType(subsidy_name="粮食直补",         subsidy_year=2023, standard_amount=110, standard_unit="元/亩", fund_source="中央", pay_status=2),
-        SubsidyType(subsidy_name="农机购置补贴",     subsidy_year=2023, standard_amount=480, standard_unit="元/户", fund_source="省级", pay_status=2),
-        SubsidyType(subsidy_name="低保生活补助",     subsidy_year=2023, standard_amount=750, standard_unit="元/人", fund_source="县级", pay_status=2),
-    ]
-    db.add_all(types)
-    db.flush()
-
-    # id映射
-    t24_grain   = types[0].id
-    t24_machine = types[1].id
-    t24_welfare = types[2].id
-    t24_land    = types[3].id
-    t23_grain   = types[4].id
-    t23_machine = types[5].id
-    t23_welfare = types[6].id
-
-    # farmer id 映射（按 raw 顺序）
-    fid = {raw[i][0]: farmers[i].id for i in range(len(raw))}
-
-    # ── 补贴申请（2024） ──
-    apps_2024 = [
-        (fid["张国强"], t24_grain,   2024, 420,  420,  3.5,  2, date(2024,7,15)),
-        (fid["张国强"], t24_machine, 2024, 500,  500,  None, 2, date(2024,8,20)),
-        (fid["李秀英"], t24_grain,   2024, 336,  336,  2.8,  2, date(2024,7,15)),
-        (fid["王建军"], t24_grain,   2024, 624,  624,  5.2,  2, date(2024,7,15)),
-        (fid["王建军"], t24_land,    2024, 468,  None, 5.2,  0, None),
-        (fid["赵梅"],   t24_welfare, 2024, 800,  800,  None, 2, date(2024,6,1)),
-        (fid["陈志远"], t24_grain,   2024, 492,  492,  4.1,  2, date(2024,7,15)),
-        (fid["刘翠花"], t24_grain,   2024, 276,  276,  2.3,  2, date(2024,7,15)),
-        (fid["孙大海"], t24_grain,   2024, 804,  804,  6.7,  2, date(2024,7,15)),
-        (fid["孙大海"], t24_machine, 2024, 500,  500,  None, 1, None),
-        (fid["周小燕"], t24_welfare, 2024, 800,  800,  None, 2, date(2024,6,1)),
-        (fid["吴长贵"], t24_grain,   2024, 960,  960,  8.0,  2, date(2024,7,15)),
-        (fid["郑芳"],   t24_grain,   2024, 252,  252,  2.1,  2, date(2024,7,15)),
-        (fid["冯德胜"], t24_grain,   2024, 456,  456,  3.8,  2, date(2024,7,15)),
-        (fid["韩明亮"], t24_machine, 2024, 500,  500,  None, 2, date(2024,8,20)),
-        (fid["杨春梅"], t24_grain,   2024, 360,  360,  3.0,  2, date(2024,7,15)),
-    ]
-
-    # ── 补贴申请（2023） ──
-    apps_2023 = [
-        (fid["张国强"], t23_grain,   2023, 385,  385,  3.5,  2, date(2023,7,10)),
-        (fid["张国强"], t23_machine, 2023, 480,  480,  None, 2, date(2023,8,15)),
-        (fid["李秀英"], t23_grain,   2023, 308,  308,  2.8,  2, date(2023,7,10)),
-        (fid["王建军"], t23_grain,   2023, 572,  572,  5.2,  2, date(2023,7,10)),
-        (fid["陈志远"], t23_grain,   2023, 451,  451,  4.1,  2, date(2023,7,10)),
-        (fid["刘翠花"], t23_grain,   2023, 253,  253,  2.3,  2, date(2023,7,10)),
-        (fid["孙大海"], t23_grain,   2023, 737,  737,  6.7,  2, date(2023,7,10)),
-        (fid["吴长贵"], t23_grain,   2023, 880,  880,  8.0,  2, date(2023,7,10)),
-        (fid["冯德胜"], t23_grain,   2023, 418,  418,  3.8,  2, date(2023,7,10)),
-        (fid["蒋淑华"], t23_grain,   2023, 286,  286,  2.6,  2, date(2023,7,10)),  # 已注销
-        (fid["杨春梅"], t23_grain,   2023, 330,  330,  3.0,  2, date(2023,7,10)),
-        (fid["赵梅"],   t23_welfare, 2023, 750,  750,  None, 2, date(2023,6,1)),
-        (fid["周小燕"], t23_welfare, 2023, 750,  750,  None, 2, date(2023,6,1)),
-    ]
-
-    for farmer_id, st_id, year, apply_a, actual_a, area, pay_s, pay_d in apps_2024 + apps_2023:
-        f = db.get(FarmerProfile, farmer_id)
-        app = SubsidyApplication(
-            farmer_id=farmer_id,
-            subsidy_type_id=st_id,
-            apply_year=year,
-            apply_amount=apply_a,
-            actual_amount=actual_a,
-            apply_area=area,
-            pay_status=pay_s,
-            pay_date=pay_d,
-            bank_card_snapshot=f"****{f.bank_card[-4:]}" if f and f.bank_card else None,
-        )
-        db.add(app)
-
+    # 1. 村组
+    vg_map = {}
+    for vname, groups in VILLAGES:
+        for gno in groups:
+            ex = db.query(VillageGroup).filter_by(village_name=vname, group_no=gno).first()
+            if ex: vg_map[(vname,gno)]=ex.id; continue
+            vg = VillageGroup(village_name=vname, group_no=gno, full_name=f"{vname}{gno}")
+            db.add(vg); db.flush(); vg_map[(vname,gno)]=vg.id
     db.commit()
-    print(f"  ✓ 写入 {len(apps_2024)} 条2024年补贴记录")
-    print(f"  ✓ 写入 {len(apps_2023)} 条2023年补贴记录")
-    print("\n✅ 模拟数据初始化完成！")
+    print(f"  村组: {len(vg_map)} 个")
+
+    # 2. 补贴类型
+    permu_types = [("粮食直补",150),("耕地地力保护补贴",180),("农机购置补贴",120)]
+    fixed_types = [("农村低保补助",800),("高龄老人补贴",1200),("残疾人补贴",500),("生育补贴",2000)]
+    st_ids_permu, st_ids_fixed = [], []
+    for year in [2023,2024]:
+        for name,amt in permu_types:
+            ex = db.query(SubsidyType).filter_by(subsidy_name=name,subsidy_year=year).first()
+            if not ex:
+                ex = SubsidyType(subsidy_name=name,subsidy_year=year,calc_mode="per_mu",
+                    standard_amount=amt,standard_unit="元/亩",fund_source=random.choice(["中央","省级","县级"]),
+                    pay_status=2 if year==2023 else random.choice([0,1,2]))
+                db.add(ex); db.flush()
+            st_ids_permu.append((ex.id,year,float(ex.standard_amount or amt),ex.pay_status))
+        for name,amt in fixed_types:
+            ex = db.query(SubsidyType).filter_by(subsidy_name=name,subsidy_year=year).first()
+            if not ex:
+                ex = SubsidyType(subsidy_name=name,subsidy_year=year,calc_mode="fixed",
+                    standard_amount=amt,standard_unit="元/人",fund_source="县级",
+                    pay_status=2 if year==2023 else random.choice([0,1,2]))
+                db.add(ex); db.flush()
+            st_ids_fixed.append((ex.id,year,float(ex.standard_amount or amt),ex.pay_status))
+    db.commit()
+    print(f"  补贴类型: {len(st_ids_permu)+len(st_ids_fixed)} 个")
+
+    # 3. 农户 + 家庭户
+    created_f, created_hh = 0, 0
+    all_farmer_ids = []
+    for (vname,gno), vg_id in vg_map.items():
+        for hh_i in range(random.randint(7,11)):
+            g_head = random.choice([1,1,1,2])
+            by = random.randint(1950,1985)
+            bm, bd = random.randint(1,12), random.randint(1,28)
+            id_head = rand_id(by,bm,bd,g_head,hh_i+1)
+            if db.query(FarmerProfile).filter_by(id_card=id_head).first(): continue
+
+            name_head = rand_name(g_head)
+            land = round(random.uniform(0.5,8.0),2)
+            hh = FamilyHousehold(household_code="TEMP",household_name=f"{name_head}户",
+                village_group_id=vg_id,address=f"{vname}{gno}{hh_i+1}号",
+                land_area=land,status=1,member_count=1)
+            db.add(hh); db.flush()
+            hh.household_code = gen_household_code(hh.id)
+            parsed = parse_id_card(id_head)
+            head = FarmerProfile(household_id=hh.id,real_name=name_head,gender=g_head,
+                id_card=id_head,birth_date=parsed.get("birth_date") if parsed else None,
+                phone=rand_phone() if random.random()>0.2 else None,
+                bank_card=rand_bank(),bank_name=random.choice(BANKS),
+                is_head=1,relation="本人",farmer_status=1)
+            db.add(head); db.flush()
+            hh.head_farmer_id = head.id
+            all_farmer_ids.append((head.id, hh.id, land))
+            created_f += 1
+
+            for mi in range(random.randint(0,2)):
+                mg = random.choice([1,2]); mby = random.randint(1960,2005)
+                mid = rand_id(mby,random.randint(1,12),random.randint(1,28),mg,hh_i*10+mi+1)
+                if db.query(FarmerProfile).filter_by(id_card=mid).first(): continue
+                mp = parse_id_card(mid)
+                m = FarmerProfile(household_id=hh.id,real_name=rand_name(mg),gender=mg,
+                    id_card=mid,birth_date=mp.get("birth_date") if mp else None,
+                    phone=rand_phone() if random.random()>0.5 else None,
+                    bank_card=rand_bank() if random.random()>0.4 else None,
+                    bank_name=random.choice(BANKS) if random.random()>0.4 else None,
+                    is_head=0,relation=random.choice(RELATIONS),
+                    farmer_status=random.choices([1,1,1,2,3],weights=[80,5,5,5,5])[0])
+                db.add(m); db.flush()
+                all_farmer_ids.append((m.id, hh.id, land))
+                created_f += 1
+            hh.member_count = db.query(func.count(FarmerProfile.id)).filter_by(household_id=hh.id).scalar() or 1
+            created_hh += 1
+    db.commit()
+    print(f"  农户: {created_f} 人, 家庭户: {created_hh} 户")
+
+    # 4. 补贴申请
+    created_app = 0
+    # 取所有户主（每家庭户代表申请耕地补贴）
+    heads = db.query(FarmerProfile).filter_by(is_head=1,farmer_status=1).all()
+    for h in heads:
+        hh = db.get(FamilyHousehold, h.household_id)
+        land = float(hh.land_area or 0) if hh else 0
+        if land <= 0: continue
+        for (st_id,year,amt_per_mu,pay_s_default) in st_ids_permu:
+            if random.random() > 0.88: continue
+            ex = db.query(SubsidyApplication).filter_by(farmer_id=h.id,subsidy_type_id=st_id,apply_year=year).first()
+            if ex: continue
+            area = round(land*random.uniform(0.6,1.0),2)
+            amount = round(area*amt_per_mu,2)
+            ps = 2 if year==2023 else pay_s_default
+            pdate = datetime.date(year,random.randint(7,11),random.randint(1,28)) if ps==2 else None
+            db.add(SubsidyApplication(farmer_id=h.id,subsidy_type_id=st_id,apply_year=year,
+                apply_area=area,apply_amount=amount,actual_amount=amount if ps>=1 else None,
+                pay_status=ps,pay_date=pdate,
+                bank_card_snapshot=h.bank_card[-4:] if h.bank_card else None))
+            created_app += 1
+
+    all_fp = db.query(FarmerProfile).filter_by(farmer_status=1).all()
+    for (st_id,year,amt,pay_s_default) in st_ids_fixed:
+        chosen = random.sample(all_fp, min(int(len(all_fp)*random.uniform(0.2,0.4)),len(all_fp)))
+        for f in chosen:
+            if db.query(SubsidyApplication).filter_by(farmer_id=f.id,subsidy_type_id=st_id,apply_year=year).first(): continue
+            ps = 2 if year==2023 else pay_s_default
+            pdate = datetime.date(year,random.randint(7,11),random.randint(1,28)) if ps==2 else None
+            db.add(SubsidyApplication(farmer_id=f.id,subsidy_type_id=st_id,apply_year=year,
+                apply_amount=amt,actual_amount=amt if ps==2 else None,
+                pay_status=ps,pay_date=pdate,
+                bank_card_snapshot=f.bank_card[-4:] if f.bank_card else None))
+            created_app += 1
+    db.commit()
+    print(f"  补贴记录: {created_app} 条")
+
+    tf = db.query(FarmerProfile).count()
+    th = db.query(FamilyHousehold).count()
+    ta = db.query(SubsidyApplication).count()
+    print(f"\n=== 完成 === 数据库总计: {tf} 农户 / {th} 家庭户 / {ta} 补贴记录")
     db.close()
 
-
 if __name__ == "__main__":
-    seed()
+    main()

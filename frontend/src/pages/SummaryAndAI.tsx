@@ -7,7 +7,7 @@ import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 
 export function SummaryPage() {
-  const [year, setYear] = useState(2024)
+  const [year, setYear] = useState(new Date().getFullYear())
   const [compare, setCompare] = useState<YearCompare | null>(null)
   const [byVillage, setByVillage] = useState<VillageSummary[]>([])
   const [loading, setLoading] = useState(false)
@@ -34,13 +34,10 @@ export function SummaryPage() {
   return (
     <div>
       <div className="flex gap-2 mb-5 items-center">
-        {[2024, 2023, 2022].map(y => (
-          <button key={y} onClick={() => setYear(y)}
-            className={`px-3 py-1.5 text-sm rounded-lg border transition-colors
-              ${year === y ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white border-stone-200 text-stone-600'}`}>
-            {y}年度
-          </button>
-        ))}
+        <select value={year} onChange={e => setYear(Number(e.target.value))}
+          className="border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+          {Array.from({length:8},(_,i)=>new Date().getFullYear()+1-i).map(y => <option key={y} value={y}>{y}年</option>)}
+        </select>
         <button onClick={load} className="ml-2 px-3 py-1.5 text-sm border border-stone-200 rounded-lg bg-white text-stone-500 hover:bg-stone-50">刷新</button>
       </div>
 
@@ -129,7 +126,7 @@ export function SummaryPage() {
 // ─── AI 分析页 ───
 export function AIPage() {
   const { toast, show } = useToast()
-  const [year, setYear] = useState(2024)
+  const [year, setYear] = useState(new Date().getFullYear())
   const [village, setVillage] = useState('')
   const [question, setQuestion] = useState('请分析本年度补贴发放情况，指出异常并与上年对比，列出主要变化。')
   const [result, setResult] = useState('')
@@ -161,7 +158,7 @@ export function AIPage() {
             <label className="block text-xs text-stone-400 mb-1">分析年度</label>
             <select value={year} onChange={e => setYear(Number(e.target.value))}
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
-              {[2024, 2023, 2022].map(y => <option key={y} value={y}>{y}年</option>)}
+              {Array.from({length:8},(_,i)=>new Date().getFullYear()+1-i).map(y => <option key={y} value={y}>{y}年</option>)}
             </select>
           </div>
           <div>

@@ -451,3 +451,289 @@ def list_overdrawn_households(
         "total": len(overdrawn),
         "items": overdrawn,
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+#  成员管理 CRUD（在已有路由文件中追加）
+# ═══════════════════════════════════════════════════════════════
+
+from schemas import FarmerCreate, FarmerUpdate
+from utils import mask_id_card, mask_phone, mask_bank_card, parse_id_card, gen_household_code
+
+
+class MemberCreate(BaseModel):
+    """向家庭户新增成员（可以是已有农户或全新农户）"""
+    # --- 新农户信息 ---
+    real_name: str
+    id_card: str
+    gender: Optional[int] = None          # 不传则从身份证推断
+    phone: Optional[str] = None
+    bank_card: Optional[str] = None
+    bank_name: Optional[str] = None
+    relation: Optional[str] = "成员"      # 与户主关系
+    is_head: Optional[int] = 0
+    farmer_status: Optional[int] = 1
+    remark: Optional[str] = None
+
+
+class MemberUpdate(BaseModel):
+    """更新成员信息"""
+    real_name: Optional[str] = None
+    phone: Optional[str] = None
+    bank_card: Optional[str] = None
+    bank_name: Optional[str] = None
+    relation: Optional[str] = None
+    is_head: Optional[int] = None
+    farmer_status: Optional[int] = None
+    remark: Optional[str] = None
+
+
+def _member_out(m: FarmerProfile) -> dict:
+    """成员信息序列化（脱敏）"""
+    return {
+        "id": m.id,
+        "household_id": m.household_id,
+        "real_name": m.real_name,
+        "gender": m.gender,
+        "id_card_masked": mask_id_card(m.id_card),
+        "id_card": m.id_card,              # 详情页需要完整号（设置页读取）
+        "phone_masked": mask_phone(m.phone) if m.phone else None,
+        "bank_card_masked": mask_bank_card(m.bank_card) if m.bank_card else None,
+        "bank_name": m.bank_name,
+        "is_head": m.is_head,
+        "relation": m.relation,
+        "farmer_status": m.farmer_status,
+        "remark": m.remark,
+        "created_at": m.created_at.isoformat() if m.created_at else None,
+    }
+
+
+@router.get("/{household_id}/members")
+def list_members(household_id: int, db: Session = Depends(get_db)):
+    """获取家庭户所有成员"""
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh:
+        raise HTTPException(404, "家庭户不存在")
+    members = (
+        db.query(FarmerProfile)
+          .filter(FarmerProfile.household_id == household_id)
+          .order_by(FarmerProfile.is_head.desc(), FarmerProfile.id)
+          .all()
+    )
+    return [_member_out(m) for m in members]
+
+
+@router.post("/{household_id}/members")
+def add_member(household_id: int, data: MemberCreate, db: Session = Depends(get_db)):
+    """
+    向家庭户新增成员。
+    - 如果身份证已存在于其他家庭户，直接将其迁入（改变 household_id）
+    - 如果身份证全新，创建新 FarmerProfile
+    - 如果 is_head=1，原户主降为普通成员
+    """
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh:
+        raise HTTPException(404, "家庭户不存在")
+
+    id_card_clean = data.id_card.strip().upper()
+
+    # 检查身份证是否已存在
+    existing = db.query(FarmerProfile).filter(FarmerProfile.id_card == id_card_clean).first()
+
+    if existing:
+        if existing.household_id == household_id:
+            raise HTTPException(400, f"「{existing.real_name}」已是本户成员")
+        # 从原家庭户迁入
+        old_hh = db.get(FamilyHousehold, existing.household_id)
+        existing.household_id = household_id
+        existing.relation = data.relation or "成员"
+        if data.is_head == 1:
+            existing.is_head = 1
+        # 更新原户成员计数
+        if old_hh:
+            old_hh.member_count = max(0, (old_hh.member_count or 1) - 1)
+        member = existing
+    else:
+        # 从身份证推断性别和生日
+        parsed = parse_id_card(id_card_clean)
+        gender = data.gender if data.gender is not None else (parsed.get("gender", 1) if parsed else 1)
+
+        member = FarmerProfile(
+            household_id=household_id,
+            real_name=data.real_name,
+            gender=gender,
+            id_card=id_card_clean,
+            birth_date=parsed.get("birth_date") if parsed else None,
+            phone=data.phone,
+            bank_card=data.bank_card,
+            bank_name=data.bank_name,
+            relation=data.relation,
+            is_head=data.is_head or 0,
+            farmer_status=data.farmer_status or 1,
+            remark=data.remark,
+        )
+        db.add(member)
+
+    # 如果新成员是户主，原户主降级
+    if (data.is_head == 1):
+        old_head = (
+            db.query(FarmerProfile)
+              .filter(FarmerProfile.household_id == household_id,
+                      FarmerProfile.is_head == 1)
+              .first()
+        )
+        if old_head and old_head.id != (existing.id if existing else -1):
+            old_head.is_head = 0
+            old_head.relation = "成员"
+
+    # 更新户成员计数
+    db.flush()
+    hh.member_count = db.query(func.count(FarmerProfile.id)).filter(
+        FarmerProfile.household_id == household_id
+    ).scalar() or 1
+
+    db.commit()
+    db.refresh(member)
+    return {"message": "添加成功", "member": _member_out(member)}
+
+
+@router.put("/{household_id}/members/{farmer_id}")
+def update_member(household_id: int, farmer_id: int, data: MemberUpdate, db: Session = Depends(get_db)):
+    """更新成员信息（姓名、电话、银行卡、关系、状态等）"""
+    member = db.query(FarmerProfile).filter(
+        FarmerProfile.id == farmer_id,
+        FarmerProfile.household_id == household_id
+    ).first()
+    if not member:
+        raise HTTPException(404, "成员不存在或不属于该家庭户")
+
+    # 如果要设为户主，先把原户主降级
+    if data.is_head == 1 and member.is_head != 1:
+        old_head = db.query(FarmerProfile).filter(
+            FarmerProfile.household_id == household_id,
+            FarmerProfile.is_head == 1
+        ).first()
+        if old_head:
+            old_head.is_head = 0
+            old_head.relation = "成员"
+
+    if data.real_name    is not None: member.real_name    = data.real_name
+    if data.phone        is not None: member.phone        = data.phone or None
+    if data.bank_card    is not None: member.bank_card    = data.bank_card or None
+    if data.bank_name    is not None: member.bank_name    = data.bank_name or None
+    if data.relation     is not None: member.relation     = data.relation
+    if data.is_head      is not None: member.is_head      = data.is_head
+    if data.farmer_status is not None: member.farmer_status = data.farmer_status
+    if data.remark       is not None: member.remark       = data.remark or None
+
+    db.commit()
+    return {"message": "更新成功", "member": _member_out(member)}
+
+
+@router.delete("/{household_id}/members/{farmer_id}")
+def remove_member(
+    household_id: int,
+    farmer_id: int,
+    action: str = Query("detach", description="detach=迁出, delete=彻底删除（需无补贴记录）"),
+    db: Session = Depends(get_db)
+):
+    """
+    从家庭户移除成员。
+    - action=detach：将成员标记为"迁出"（farmer_status=3），但保留数据
+    - action=delete：彻底删除（仅允许无任何补贴记录的成员）
+    注意：户主不能被移除，需先将其他成员设为户主。
+    """
+    member = db.query(FarmerProfile).filter(
+        FarmerProfile.id == farmer_id,
+        FarmerProfile.household_id == household_id
+    ).first()
+    if not member:
+        raise HTTPException(404, "成员不存在")
+    if member.is_head == 1:
+        raise HTTPException(400, "户主不能被移除，请先将其他成员设为户主后再操作")
+
+    hh = db.get(FamilyHousehold, household_id)
+
+    if action == "delete":
+        # 检查是否有补贴记录
+        app_count = db.query(func.count(SubsidyApplication.id)).filter(
+            SubsidyApplication.farmer_id == farmer_id
+        ).scalar() or 0
+        if app_count > 0:
+            raise HTTPException(400, f"该成员有 {app_count} 条补贴记录，不能彻底删除，请使用「迁出」操作")
+        db.delete(member)
+        msg = "已彻底删除"
+    else:
+        # 标记迁出
+        member.farmer_status = 3
+        msg = "已标记为迁出"
+
+    if hh:
+        hh.member_count = max(0, (hh.member_count or 1) - 1)
+
+    db.commit()
+    return {"message": msg}
+
+
+@router.get("/{household_id}/area-by-year")
+def get_area_by_year(household_id: int, db: Session = Depends(get_db)):
+    """
+    获取该家庭户历年面积占用情况，用于前端按年度展示
+    返回每个有数据的年份的面积明细
+    """
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh:
+        raise HTTPException(404, "家庭户不存在")
+
+    member_ids = [
+        f.id for f in db.query(FarmerProfile.id)
+                         .filter(FarmerProfile.household_id == household_id).all()
+    ]
+    if not member_ids:
+        return {"contracted_area": float(hh.land_area or 0), "years": []}
+
+    rows = (
+        db.query(
+            SubsidyApplication.apply_year,
+            SubsidyType.subsidy_name,
+            SubsidyType.calc_mode,
+            func.sum(SubsidyApplication.apply_area).label("total_area"),
+            func.sum(SubsidyApplication.actual_amount).label("total_amount"),
+            func.count(SubsidyApplication.id).label("app_count"),
+        )
+        .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
+        .filter(
+            SubsidyApplication.farmer_id.in_(member_ids),
+            SubsidyType.calc_mode == "per_mu",
+            SubsidyApplication.apply_area.isnot(None),
+            SubsidyApplication.pay_status.in_([0, 1, 2]),
+        )
+        .group_by(SubsidyApplication.apply_year, SubsidyType.subsidy_name, SubsidyType.calc_mode)
+        .order_by(SubsidyApplication.apply_year.desc())
+        .all()
+    )
+
+    # 按年份聚合
+    year_map: dict = {}
+    contracted = float(hh.land_area or 0)
+    for r in rows:
+        y = r.apply_year
+        if y not in year_map:
+            year_map[y] = {"year": y, "total_used": 0.0, "details": []}
+        area = float(r.total_area or 0)
+        year_map[y]["total_used"] = round(year_map[y]["total_used"] + area, 2)
+        year_map[y]["details"].append({
+            "subsidy_name": r.subsidy_name,
+            "used_area": round(area, 2),
+            "total_amount": float(r.total_amount or 0),
+            "app_count": r.app_count,
+        })
+
+    year_list = sorted(year_map.values(), key=lambda x: -x["year"])
+    for y in year_list:
+        y["contracted_area"] = contracted
+        y["remaining_area"]  = round(contracted - y["total_used"], 2)
+        y["is_overdrawn"]    = contracted > 0 and y["total_used"] > contracted
+        y["overdraw_amount"] = round(max(0, y["total_used"] - contracted), 2)
+
+    return {"contracted_area": contracted, "years": year_list}

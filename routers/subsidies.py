@@ -255,3 +255,112 @@ def summary_by_village(
         })
 
     return sorted(result, key=lambda x: x["total_amount"], reverse=True)
+
+
+# ════════════════════════════════
+#  补贴类型 + 统计数据（首页用）
+# ════════════════════════════════
+
+@router.get("/types-with-stats")
+def list_types_with_stats(
+    year: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """补贴类型列表，附带每项的申请人数/金额统计，供首页和项目页使用"""
+    q = db.query(SubsidyType)
+    if year:
+        q = q.filter(SubsidyType.subsidy_year == year)
+    types = q.order_by(SubsidyType.subsidy_year.desc(), SubsidyType.id).all()
+
+    result = []
+    for st in types:
+        apps = db.query(SubsidyApplication).filter(
+            SubsidyApplication.subsidy_type_id == st.id
+        ).all()
+        total_apply  = sum(float(a.apply_amount  or 0) for a in apps)
+        total_actual = sum(float(a.actual_amount or 0) for a in apps)
+        beneficiaries = len(set(a.farmer_id for a in apps))
+        result.append({
+            "id": st.id,
+            "subsidy_name":    st.subsidy_name,
+            "subsidy_year":    st.subsidy_year,
+            "calc_mode":       st.calc_mode,
+            "standard_amount": st.standard_amount,
+            "standard_unit":   st.standard_unit,
+            "fund_source":     st.fund_source,
+            "apply_deadline":  st.apply_deadline,
+            "pay_status":      st.pay_status,
+            "description":     st.description,
+            "app_count":       len(apps),
+            "beneficiary_count": beneficiaries,
+            "total_apply":     round(total_apply, 2),
+            "total_actual":    round(total_actual, 2),
+        })
+    return result
+
+
+# ════════════════════════════════
+#  应用内补贴查询（外联查询页用）
+# ════════════════════════════════
+
+@router.get("/applications/search")
+def search_applications(
+    search:           Optional[str] = Query(None,  description="姓名或身份证号"),
+    year:             Optional[int] = Query(None),
+    subsidy_type_id:  Optional[int] = Query(None),
+    village_name:     Optional[str] = Query(None),
+    page:     int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    """补贴申请搜索：支持姓名/身份证、年度、补贴类型、村组筛选"""
+    from sqlalchemy import or_
+
+    q = db.query(SubsidyApplication)
+
+    if year:
+        q = q.filter(SubsidyApplication.apply_year == year)
+    if subsidy_type_id:
+        q = q.filter(SubsidyApplication.subsidy_type_id == subsidy_type_id)
+    if village_name:
+        vg_ids  = [v.id for v in db.query(VillageGroup).filter(VillageGroup.village_name == village_name).all()]
+        hh_ids  = [h.id for h in db.query(FamilyHousehold).filter(FamilyHousehold.village_group_id.in_(vg_ids)).all()]
+        f_ids   = [f.id for f in db.query(FarmerProfile).filter(FarmerProfile.household_id.in_(hh_ids)).all()]
+        q = q.filter(SubsidyApplication.farmer_id.in_(f_ids))
+    if search:
+        matched = db.query(FarmerProfile.id).filter(
+            or_(FarmerProfile.real_name.contains(search),
+                FarmerProfile.id_card.contains(search))
+        ).all()
+        matched_ids = [r.id for r in matched]
+        q = q.filter(SubsidyApplication.farmer_id.in_(matched_ids))
+
+    total = q.count()
+    apps  = q.order_by(SubsidyApplication.apply_year.desc(), SubsidyApplication.id.desc())\
+             .offset((page-1)*page_size).limit(page_size).all()
+
+    rows = []
+    for a in apps:
+        f  = db.get(FarmerProfile, a.farmer_id)
+        st = db.get(SubsidyType, a.subsidy_type_id)
+        vg = None
+        if f and f.household:
+            vg = db.get(VillageGroup, f.household.village_group_id)
+        rows.append({
+            "id":              a.id,
+            "farmer_id":       a.farmer_id,
+            "farmer_name":     f.real_name    if f  else "—",
+            "id_card_masked":  (f.id_card[:6] + "********" + f.id_card[-4:]) if f and f.id_card else "—",
+            "village":         vg.full_name   if vg else "—",
+            "subsidy_type_id": a.subsidy_type_id,
+            "subsidy_name":    st.subsidy_name if st else "—",
+            "calc_mode":       st.calc_mode    if st else "fixed",
+            "apply_year":      a.apply_year,
+            "apply_area":      a.apply_area,
+            "apply_amount":    a.apply_amount,
+            "actual_amount":   a.actual_amount,
+            "pay_status":      a.pay_status,
+            "pay_date":        str(a.pay_date) if a.pay_date else None,
+            "remark":          a.remark,
+        })
+    return {"total": total, "page": page, "page_size": page_size, "items": rows}
