@@ -228,7 +228,7 @@ export default function SubsidyProjectsPage() {
         </div>
       </Modal>
 
-      <Toast {...toast} />
+      {toast && <Toast msg={toast.msg} type={toast.type} visible={true} />}
     </div>
   )
 }
@@ -240,7 +240,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
   subsidyType: StatsType
   onBack: () => void
   show: (msg: string, type?: 'ok' | 'err') => void
-  toast: { msg: string; type: 'ok' | 'err'; visible: boolean }
+  toast: { msg: string; type: 'ok' | 'err' } | null
 }) {
   const [apps, setApps] = useState<ApplicationOut[]>([])
   const [total, setTotal] = useState(0)
@@ -327,7 +327,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
   const IMPORT_HEADERS = ['身份证号*', '年度*', '实发金额', '面积(亩)', '打款日期', '备注']
   const IMPORT_EXAMPLE = [{ '身份证号*': '510123196503154231', '年度*': subsidyType.subsidy_year, '实发金额': 420, '面积(亩)': 3.5, '打款日期': `${subsidyType.subsidy_year}-07-15`, '备注': '' }]
 
-  const handleImport = async (rows: Record<string, unknown>[]) => {
+  const handleImport = async (rows: Record<string, unknown>[]): Promise<{ created: number; skipped: number; errors: string[] }> => {
     const toCreate: ApplicationCreate[] = []
     const errors: string[] = []
     for (let i = 0; i < rows.length; i++) {
@@ -348,10 +348,11 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
         remark: String(row['备注'] || '').trim() || undefined,
       })
     }
-    if (errors.length) { show(errors.slice(0,3).join('\n') + (errors.length>3?`…等${errors.length}个错误`:''), 'err'); return }
+    if (errors.length) { show(errors.slice(0,3).join('\n') + (errors.length>3?`…等${errors.length}个错误`:''), 'err'); return { created: 0, skipped: 0, errors } }
     const res = await api.batchImportApplications(toCreate)
     show(`✓ 导入成功 ${res.created} 条，跳过 ${res.skipped} 条`)
     load()
+    return res
   }
 
   const totalAmt = apps.reduce((s, a) => s + Number(a.actual_amount || 0), 0)
@@ -484,7 +485,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
         templateHeaders={IMPORT_HEADERS} templateExample={IMPORT_EXAMPLE}
         onImport={handleImport} onSuccess={load} />
 
-      <Toast {...toast} />
+      {toast && <Toast msg={toast.msg} type={toast.type} visible={true} />}
     </div>
   )
 }

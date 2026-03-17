@@ -1,50 +1,51 @@
 import { useState, useEffect, useRef } from 'react'
 import FarmersPage from './pages/FarmersPage'
-import SubsidyTypesPage from './pages/SubsidyTypesPage'
-import ApplicationsPage from './pages/ApplicationsPage'
-import { SummaryPage, AIPage } from './pages/SummaryAndAI'
+import SubsidyProjectsPage from './pages/SubsidyProjectsPage'
+import DashboardPage from './pages/DashboardPage'
+import { AIPage } from './pages/SummaryAndAI'
 import SettingsPage from './pages/SettingsPage'
 import PreCheckPage from './pages/PreCheckPage'
 import ExternalLinksPage from './pages/ExternalLinksPage'
 import HouseholdsPage from './pages/HouseholdsPage'
 import { healthCheck } from './api'
 
-type MainTab = 'farmers' | 'applications' | 'summary' | 'ai' | 'precheck' | 'links'
-type SettingTab = 'village-groups' | 'subsidy-types' | 'households'
+type MainTab = 'dashboard' | 'farmers' | 'projects' | 'precheck' | 'ai' | 'links'
+type SettingTab = 'village-groups' | 'households'
 type Tab = MainTab | SettingTab
 
 const mainTabs: { id: MainTab; label: string; icon: string }[] = [
-  { id: 'farmers',      label: '农户档案', icon: '👤' },
-  { id: 'applications', label: '补贴申请', icon: '📋' },
-  { id: 'summary',      label: '数据统计', icon: '📊' },
-  { id: 'precheck',     label: '数据预检', icon: '🔍' },
-  { id: 'ai',           label: 'AI 分析',  icon: '🤖' },
-  { id: 'links',        label: '外联查询', icon: '🔗' },
+  { id: 'dashboard', label: '首页',     icon: '📊' },
+  { id: 'farmers',   label: '农户档案', icon: '👤' },
+  { id: 'projects',  label: '补贴项目', icon: '💰' },
+  { id: 'precheck',  label: '数据预检', icon: '🔍' },
+  { id: 'links',     label: '外联查询', icon: '🔗' },
+  { id: 'ai',        label: 'AI 分析',  icon: '🤖' },
 ]
 
 const settingTabs: { id: SettingTab; label: string; icon: string }[] = [
   { id: 'households',     label: '家庭户管理', icon: '🏠' },
   { id: 'village-groups', label: '村组管理',   icon: '🏘️' },
-  { id: 'subsidy-types',  label: '补贴项目',   icon: '💰' },
 ]
 
 const PAGE_TITLES: Record<Tab, string> = {
-  'farmers': '农户档案', 'applications': '补贴申请记录',
-  'summary': '数据统计', 'ai': 'AI 智能分析',
-  'precheck': '数据预检查',
-  'links': '外联查询 · 查询记录',
-  'households': '家庭户管理', 'village-groups': '村组管理',
-  'subsidy-types': '补贴项目管理',
+  'dashboard':     '首页概览',
+  'farmers':       '农户档案',
+  'projects':      '补贴项目管理',
+  'precheck':      '数据预检查',
+  'links':         '外联查询',
+  'ai':            'AI 智能分析',
+  'households':    '家庭户管理',
+  'village-groups':'村组管理',
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('farmers')
+  const [tab, setTab] = useState<Tab>('dashboard')
   const [online, setOnline] = useState<boolean | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
 
   const isSettingTab = (t: Tab): t is SettingTab =>
-    t === 'village-groups' || t === 'subsidy-types' || t === 'households'
+    t === 'village-groups' || t === 'households'
 
   useEffect(() => {
     healthCheck().then(() => setOnline(true)).catch(() => setOnline(false))
@@ -78,7 +79,6 @@ export default function App() {
             ))}
           </nav>
           <div className="flex items-center gap-3 shrink-0">
-            {/* 设置下拉 */}
             <div className="relative" ref={settingsRef}>
               <button onClick={() => setSettingsOpen(o => !o)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded transition-colors
@@ -100,13 +100,11 @@ export default function App() {
                 </div>
               )}
             </div>
-            {/* 连接状态 */}
             <div className={`text-xs font-mono whitespace-nowrap ${online === true ? 'text-emerald-300' : online === false ? 'text-red-300' : 'text-emerald-500'}`}>
               {online === null ? '○ 连接中' : online ? '● 已连接' : '● 离线'}
             </div>
           </div>
         </div>
-        {/* 设置子标签栏 */}
         {isSettingTab(tab) && (
           <div className="bg-emerald-900/50 border-t border-emerald-700/50">
             <div className="max-w-screen-xl mx-auto px-5 flex items-center gap-1" style={{ height: 36 }}>
@@ -127,17 +125,15 @@ export default function App() {
         <div className="flex items-center gap-3 mb-4">
           <h1 className="text-sm font-semibold text-stone-500 tracking-wide">{PAGE_TITLES[tab]}</h1>
           {tab === 'precheck' && <span className="text-xs text-stone-300">— 正式申请前请先通过预检查，确保数据零错误</span>}
-          {isSettingTab(tab) && <span className="text-xs text-stone-300">— 低频配置</span>}
         </div>
+        {tab === 'dashboard'      && <DashboardPage onGoTab={goTab} />}
         {tab === 'farmers'        && <FarmersPage />}
-        {tab === 'applications'   && <ApplicationsPage />}
-        {tab === 'summary'        && <SummaryPage />}
+        {tab === 'projects'       && <SubsidyProjectsPage />}
         {tab === 'precheck'       && <PreCheckPage />}
-        {tab === 'ai'             && <AIPage />}
         {tab === 'links'          && <ExternalLinksPage />}
+        {tab === 'ai'             && <AIPage />}
         {tab === 'households'     && <HouseholdsPage />}
         {tab === 'village-groups' && <SettingsPage />}
-        {tab === 'subsidy-types'  && <SubsidyTypesPage />}
       </main>
     </div>
   )
