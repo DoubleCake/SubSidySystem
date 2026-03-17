@@ -6,3 +6,5 @@ python-multipart==0.0.9
 openpyxl==3.1.2
 anthropic==0.26.0
 pydantic==2.7.1
+uvicorn==0.42.0
+SQLAlchemy=2.0.48
