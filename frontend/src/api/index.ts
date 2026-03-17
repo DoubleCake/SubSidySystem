@@ -39,7 +39,12 @@ export const batchImportFarmers = (rows: FarmerCreate[]) =>
     '/api/farmers/batch-import',
     { method: 'POST', body: JSON.stringify({ rows }) }
   )
-
+// 修正后的定义：使用项目统一的 req 函数，并匹配后端需要的路径格式
+export const assignFarmerGroup = (farmerId: number, groupId: number) => 
+  req<{ message: string; village_group_id: number }>(
+    `/api/farmers/${farmerId}/assign-group?village_group_id=${groupId}`, 
+    { method: 'POST' }
+  )
 // ── 补贴类型 ──
 export const getSubsidyTypes = (year?: number) =>
   req<SubsidyType[]>('/api/subsidies/types' + (year ? `?year=${year}` : ''))

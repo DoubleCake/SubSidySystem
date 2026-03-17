@@ -228,7 +228,7 @@ export default function SubsidyProjectsPage() {
         </div>
       </Modal>
 
-      {toast && <Toast msg={toast.msg} type={toast.type} visible={true} />}
+      {toast && <Toast msg={toast.msg} type={toast.type} />}
     </div>
   )
 }
@@ -485,7 +485,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
         templateHeaders={IMPORT_HEADERS} templateExample={IMPORT_EXAMPLE}
         onImport={handleImport} onSuccess={load} />
 
-      {toast && <Toast msg={toast.msg} type={toast.type} visible={true} />}
+      {toast && <Toast msg={toast.msg} type={toast.type} />}
     </div>
   )
 }

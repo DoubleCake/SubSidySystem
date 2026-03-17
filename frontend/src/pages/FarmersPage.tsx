@@ -34,17 +34,28 @@ export default function FarmersPage() {
   const [form, setForm] = useState<Partial<FarmerCreate>>({ farmer_status: 1, gender: 1 })
   const [idHint, setIdHint] = useState('')
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params: Record<string, string | number> = { page, page_size: 20 }
-      if (search) params.search = search
-      if (villageFilter) params.village_name = villageFilter
-      if (statusFilter) params.status = statusFilter
-      const res = await api.getFarmers(params)
-      setFarmers(res.items); setTotal(res.total)
-    } finally { setLoading(false) }
-  }, [page, search, villageFilter, statusFilter])
+const load = useCallback(async () => {
+  setLoading(true)
+  try {
+    const params: Record<string, string | number> = { 
+      page, 
+      page_size: 20 
+    }
+    if (search) params.search = search
+    if (villageFilter) params.village_name = villageFilter
+    // 只有当 statusFilter 有值时才传给后端
+    if (statusFilter !== '') params.status = statusFilter
+    
+    const res = await api.getFarmers(params)
+    setFarmers(res.items)
+    setTotal(res.total)
+  } catch (e) {
+    console.error("加载失败:", e)
+    show("无法获取农户数据，请检查网络或后端服务", "err")
+  } finally { 
+    setLoading(false) 
+  }
+}, [page, search, villageFilter, statusFilter])
 
   useEffect(() => { load() }, [load])
 
@@ -87,23 +98,34 @@ export default function FarmersPage() {
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
+
+
   // Excel 导入处理
   const handleImport = async (rows: Record<string, unknown>[]) => {
-    const toCreate: FarmerCreate[] = []
+    const toCreate: any[] = [] // 这里改为 any 或者你去 types.ts 扩展 FarmerCreate 类型
     const errors: string[] = []
+    
     rows.forEach((row, i) => {
       const name = String(row['姓名*'] || row['姓名'] || '').trim()
       const idCard = String(row['身份证号*'] || row['身份证号'] || '').trim()
       if (!name || !idCard) { errors.push(`第${i + 2}行：姓名或身份证号为空`); return }
-      const vgId = guessVillageGroupId(groups, String(row['所在村*'] || row['所在村'] || ''), String(row['所在组*'] || row['所在组'] || ''))
-      if (!vgId) { errors.push(`第${i + 2}行 ${name}：找不到匹配的村组`); return }
+      
+      const villageName = String(row['所在村*'] || row['所在村'] || '').trim()
+      const groupName = String(row['所在组*'] || row['所在组'] || '').trim()
+      
+      // 依然尝试匹配现有的 ID，匹配不到就是 undefined
+      const vgId = guessVillageGroupId(groups, villageName, groupName)
+      
       const info = parseIdCardInfo(idCard)
       const statusMap: Record<string, number> = { '在册': 1, '注销': 2, '迁出': 3, '死亡': 4 }
+      
       toCreate.push({
         real_name: name,
         id_card: idCard,
         gender: info?.gender ?? (String(row['性别'] || '').includes('女') ? 2 : 1),
-        village_group_id: vgId,
+        village_group_id: vgId || undefined, // 如果没有匹配到，传 undefined
+        village_name: villageName,           // ✅ 新增：把原生村名传给后端
+        group_name: groupName,               // ✅ 新增：把原生组名传给后端
         phone: String(row['手机号'] || '').trim() || undefined,
         bank_card: String(row['银行卡号'] || '').trim() || undefined,
         bank_name: String(row['开户行'] || '').trim() || undefined,
@@ -112,11 +134,37 @@ export default function FarmersPage() {
         farmer_status: statusMap[String(row['状态'] || '')] ?? 1,
       })
     })
+    
     if (errors.length > 0 && toCreate.length === 0) return { created: 0, skipped: 0, errors }
+    
+    // 此时 toCreate 里包含了没有 village_group_id 但是有 village_name 的数据
+    // 后端接口 (api.batchImportFarmers) 接收到之后去执行自动建组逻辑
     const res = await api.batchImportFarmers(toCreate)
+    
+    // 导入成功后，重新加载一次村组列表，确保下拉菜单能看到新创建的村组
+    api.getVillageGroups().then(g => {
+      setGroups(g)
+      setVillages([...new Set(g.map(v => v.village_name))])
+    })
+    
     return { ...res, errors: [...errors, ...res.errors] }
   }
 
+  // 修正/调整农户所属村组（一键归籍）
+  const handleAssignGroup = async (farmerId: number, groupId: number) => {
+    if (!groupId) return
+    try {
+      // 假设你在 api.ts 中已经定义了 assignFarmerGroup
+      // 或者直接临时用 api.post(`/farmers/${farmerId}/assign-group?village_group_id=${groupId}`)
+      await api.assignFarmerGroup(farmerId, groupId) 
+      show('✓ 村组关系调整成功')
+      // 重新刷新详情和列表，确保数据同步
+      openDetail(farmerId)
+      load()
+    } catch (e: any) {
+      show(e.message || '调整失败', 'err')
+    }
+  }
   // 年度对比（详情用）
   const y24 = detailApps.filter((a: unknown) => (a as { apply_year: number }).apply_year === 2024).reduce((s: number, a: unknown) => s + Number((a as { actual_amount: string | null }).actual_amount || 0), 0)
   const y23 = detailApps.filter((a: unknown) => (a as { apply_year: number }).apply_year === 2023).reduce((s: number, a: unknown) => s + Number((a as { actual_amount: string | null }).actual_amount || 0), 0)
@@ -140,10 +188,37 @@ export default function FarmersPage() {
               <Tag label={FARMER_STATUS[detail.farmer_status]?.label ?? '未知'} color={FARMER_STATUS[detail.farmer_status]?.color as 'green'} />
             </div>
             <div className="divide-y divide-stone-50 px-5">
+              {/* 1. 顶部基础信息 */}
               {[
                 ['身份证', <span className="font-mono text-amber-600 text-xs">{detail.id_card}</span>],
                 ['手机号', <span className="font-mono text-xs">{detail.phone || '—'}</span>],
-                ['所在位置', detail.village_full_name],
+              ].map(([k, v], i) => (
+                <div key={i} className="flex justify-between items-center py-2.5 text-sm">
+                  <span className="text-stone-400">{k}</span>
+                  <span className="text-stone-700">{v as React.ReactNode}</span>
+                </div>
+              ))}
+
+              {/* 2. 核心调整项：所在位置（单独编写，不参与循环） */}
+              <div className="flex justify-between items-center py-2.5 text-sm">
+                <span className="text-stone-400">所在位置</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-stone-700 font-medium">{detail.village_full_name}</span>
+                  <select 
+                    className="text-[11px] border border-stone-200 rounded px-1.5 py-0.5 bg-stone-50 text-emerald-700 outline-none focus:border-emerald-500 cursor-pointer"
+                    value={groups.find(g => g.full_name === detail.village_full_name)?.id || ''}
+                    onChange={(e) => handleAssignGroup(detail.id, Number(e.target.value))}
+                  >
+                    <option value="">点击调整...</option>
+                    {groups.map(g => (
+                      <option key={g.id} value={g.id}>{g.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* 3. 底部次要信息 */}
+              {[
                 ['详细地址', detail.address || '—'],
                 ['家庭编号', <span className="font-mono text-xs">HH{String(detail.id).padStart(4, '0')}</span>],
                 ['土地面积', detail.land_area ? `${detail.land_area} 亩` : '—'],
@@ -242,7 +317,7 @@ export default function FarmersPage() {
         </select>
         <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); load() }}
           className="border border-stone-200 rounded-lg px-2 py-2 text-sm bg-white outline-none">
-          <option value="">全部状态</option>
+          <option value="">全部状态 (含死亡/注销)</option>
           <option value="1">在册</option><option value="2">注销</option><option value="3">迁出</option>
         </select>
         <button onClick={() => setImportOpen(true)} className="px-3 py-2 text-sm border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50">↑ Excel导入</button>

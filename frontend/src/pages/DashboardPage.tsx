@@ -28,7 +28,8 @@ const PS_CFG: Record<number, { label: string; cls: string }> = {
   2: { label: '已完成',   cls: 'bg-emerald-100 text-emerald-700' },
 }
 
-export default function DashboardPage({ onGoTab }: { onGoTab: (t: string) => void }) {
+type Tab = 'dashboard'|'farmers'|'projects'|'precheck'|'links'|'ai'|'village-groups'|'households'
+export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }) {
   const [year, setYear] = useState(thisYear)
   const [compare, setCompare] = useState<YearCompare | null>(null)
   const [byVillage, setByVillage] = useState<VillageSummary[]>([])

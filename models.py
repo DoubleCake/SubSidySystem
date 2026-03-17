@@ -5,7 +5,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
-
+from sqlalchemy import JSON
 
 class VillageGroup(Base):
     """村组字典表"""
@@ -138,3 +138,20 @@ class AuditLog(Base):
     after_data    = Column(Text, nullable=True, comment="修改后JSON")
     ip_address    = Column(String(50), nullable=True)
     created_at    = Column(DateTime, default=func.now())
+
+class QueryFavorite(Base):
+    """查询记录收藏表"""
+    __tablename__ = "query_favorite"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    remark = Column(String(200), nullable=False, comment="收藏说明/事项名称")
+    
+    # query_params 存储查询参数，如 {"village_name": "红星村", "status": 1, "search": "张"}
+    # 如果你的数据库不支持 JSON 类型，可以改用 Text，存取时用 json.dumps/loads
+    query_params = Column(JSON, nullable=False, comment="查询参数快照")
+    
+    is_batch = Column(SmallInteger, default=0, comment="是否是批量操作相关的查询")
+    created_at = Column(DateTime, default=func.now())
+
+    def __repr__(self):
+        return f"<QueryFavorite {self.remark}>"
