@@ -58,9 +58,13 @@ if has_index(static_dir):
     # 所有非 /api 路由都返回 index.html（SPA 路由支持）
     @app.get("/{full_path:path}")
     def serve_spa(full_path: str):
-        # API 路由不走这里（已被上面的 router 拦截）
+        # /api/* 路由若走到这里说明接口不存在，返回 JSON 404 而不是 HTML
+        if full_path.startswith("api"):
+            return JSONResponse(
+                status_code=404,
+                content={"detail": f"接口不存在: /{full_path}"}
+            )
         index_file = os.path.join(static_dir, "index.html")
-        # 如果请求的是具体静态文件
         requested = os.path.join(static_dir, full_path)
         if os.path.isfile(requested):
             return FileResponse(requested)

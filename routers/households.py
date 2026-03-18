@@ -227,6 +227,120 @@ def list_households(
 #  接口：家庭户详情
 # ─────────────────────────────────────
 
+@router.get("/alert/overdrawn")
+def list_overdrawn_households(
+    year: Optional[int] = Query(None, description="指定年度，不传则取最近有补贴的年度"),
+    village_name: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    列出所有已补贴面积 > 承包面积的家庭户。
+    这是高优先级预警，正式申请前必须全部处理。
+    """
+    # 如果没传年度，取数据库中最近的有补贴年度
+    if not year:
+        latest = db.query(func.max(SubsidyApplication.apply_year)).scalar()
+        year = latest or 2024
+
+    query = db.query(FamilyHousehold).join(
+        VillageGroup, VillageGroup.id == FamilyHousehold.village_group_id
+    )
+    if village_name:
+        query = query.filter(VillageGroup.village_name == village_name)
+
+    all_hh = query.filter(
+        FamilyHousehold.land_area.isnot(None),
+        FamilyHousehold.land_area > 0,
+    ).all()
+
+    overdrawn = []
+    for hh in all_hh:
+        area_info = calc_household_area_usage(hh.id, db, year)
+        if area_info.get("is_overdrawn"):
+            head = db.query(FarmerProfile).filter(
+                FarmerProfile.household_id == hh.id,
+                FarmerProfile.is_head == 1
+            ).first()
+            overdrawn.append({
+                "household_id": hh.id,
+                "household_code": hh.household_code,
+                "household_name": hh.household_name,
+                "head_name": head.real_name if head else "—",
+                "village": hh.village_group.full_name if hh.village_group else "",
+                "contracted_area": float(hh.land_area),
+                "used_area": area_info["used_area"],
+                "overdraw_amount": area_info["overdraw_amount"],
+                "subsidy_breakdown": area_info["subsidy_breakdown"],
+                "year": year,
+            })
+
+    # 按超领面积降序
+    overdrawn.sort(key=lambda x: -x["overdraw_amount"])
+
+    return {
+        "year": year,
+        "total": len(overdrawn),
+        "items": overdrawn,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+#  成员管理 CRUD（在已有路由文件中追加）
+# ═══════════════════════════════════════════════════════════════
+
+from schemas import FarmerCreate, FarmerUpdate
+from utils import mask_id_card, mask_phone, mask_bank_card, parse_id_card, gen_household_code
+
+
+class MemberCreate(BaseModel):
+    """向家庭户新增成员（可以是已有农户或全新农户）"""
+    # --- 新农户信息 ---
+    real_name: str
+    id_card: str
+    gender: Optional[int] = None          # 不传则从身份证推断
+    phone: Optional[str] = None
+    bank_card: Optional[str] = None
+    bank_name: Optional[str] = None
+    relation: Optional[str] = "成员"      # 与户主关系
+    is_head: Optional[int] = 0
+    farmer_status: Optional[int] = 1
+    remark: Optional[str] = None
+
+
+class MemberUpdate(BaseModel):
+    """更新成员信息"""
+    real_name: Optional[str] = None
+    phone: Optional[str] = None
+    bank_card: Optional[str] = None
+    bank_name: Optional[str] = None
+    relation: Optional[str] = None
+    is_head: Optional[int] = None
+    farmer_status: Optional[int] = None
+    remark: Optional[str] = None
+
+
+def _member_out(m: FarmerProfile) -> dict:
+    """成员信息序列化（脱敏）"""
+    return {
+        "id": m.id,
+        "household_id": m.household_id,
+        "real_name": m.real_name,
+        "gender": m.gender,
+        "id_card_masked": mask_id_card(m.id_card),
+        "id_card": m.id_card,              # 详情页需要完整号（设置页读取）
+        "phone_masked": mask_phone(m.phone) if m.phone else None,
+        "bank_card_masked": mask_bank_card(m.bank_card) if m.bank_card else None,
+        "bank_name": m.bank_name,
+        "is_head": m.is_head,
+        "relation": m.relation,
+        "farmer_status": m.farmer_status,
+        "remark": m.remark,
+        "created_at": m.created_at.isoformat() if m.created_at else None,
+    }
+
+
+
+
 @router.get("/{household_id}")
 def get_household(
     household_id: int,
@@ -395,118 +509,6 @@ def move_member(req: MemberMoveRequest, db: Session = Depends(get_db)):
 # ─────────────────────────────────────
 #  接口：超领预警列表
 # ─────────────────────────────────────
-
-@router.get("/alert/overdrawn")
-def list_overdrawn_households(
-    year: Optional[int] = Query(None, description="指定年度，不传则取最近有补贴的年度"),
-    village_name: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
-):
-    """
-    列出所有已补贴面积 > 承包面积的家庭户。
-    这是高优先级预警，正式申请前必须全部处理。
-    """
-    # 如果没传年度，取数据库中最近的有补贴年度
-    if not year:
-        latest = db.query(func.max(SubsidyApplication.apply_year)).scalar()
-        year = latest or 2024
-
-    query = db.query(FamilyHousehold).join(
-        VillageGroup, VillageGroup.id == FamilyHousehold.village_group_id
-    )
-    if village_name:
-        query = query.filter(VillageGroup.village_name == village_name)
-
-    all_hh = query.filter(
-        FamilyHousehold.land_area.isnot(None),
-        FamilyHousehold.land_area > 0,
-    ).all()
-
-    overdrawn = []
-    for hh in all_hh:
-        area_info = calc_household_area_usage(hh.id, db, year)
-        if area_info.get("is_overdrawn"):
-            head = db.query(FarmerProfile).filter(
-                FarmerProfile.household_id == hh.id,
-                FarmerProfile.is_head == 1
-            ).first()
-            overdrawn.append({
-                "household_id": hh.id,
-                "household_code": hh.household_code,
-                "household_name": hh.household_name,
-                "head_name": head.real_name if head else "—",
-                "village": hh.village_group.full_name if hh.village_group else "",
-                "contracted_area": float(hh.land_area),
-                "used_area": area_info["used_area"],
-                "overdraw_amount": area_info["overdraw_amount"],
-                "subsidy_breakdown": area_info["subsidy_breakdown"],
-                "year": year,
-            })
-
-    # 按超领面积降序
-    overdrawn.sort(key=lambda x: -x["overdraw_amount"])
-
-    return {
-        "year": year,
-        "total": len(overdrawn),
-        "items": overdrawn,
-    }
-
-
-# ═══════════════════════════════════════════════════════════════
-#  成员管理 CRUD（在已有路由文件中追加）
-# ═══════════════════════════════════════════════════════════════
-
-from schemas import FarmerCreate, FarmerUpdate
-from utils import mask_id_card, mask_phone, mask_bank_card, parse_id_card, gen_household_code
-
-
-class MemberCreate(BaseModel):
-    """向家庭户新增成员（可以是已有农户或全新农户）"""
-    # --- 新农户信息 ---
-    real_name: str
-    id_card: str
-    gender: Optional[int] = None          # 不传则从身份证推断
-    phone: Optional[str] = None
-    bank_card: Optional[str] = None
-    bank_name: Optional[str] = None
-    relation: Optional[str] = "成员"      # 与户主关系
-    is_head: Optional[int] = 0
-    farmer_status: Optional[int] = 1
-    remark: Optional[str] = None
-
-
-class MemberUpdate(BaseModel):
-    """更新成员信息"""
-    real_name: Optional[str] = None
-    phone: Optional[str] = None
-    bank_card: Optional[str] = None
-    bank_name: Optional[str] = None
-    relation: Optional[str] = None
-    is_head: Optional[int] = None
-    farmer_status: Optional[int] = None
-    remark: Optional[str] = None
-
-
-def _member_out(m: FarmerProfile) -> dict:
-    """成员信息序列化（脱敏）"""
-    return {
-        "id": m.id,
-        "household_id": m.household_id,
-        "real_name": m.real_name,
-        "gender": m.gender,
-        "id_card_masked": mask_id_card(m.id_card),
-        "id_card": m.id_card,              # 详情页需要完整号（设置页读取）
-        "phone_masked": mask_phone(m.phone) if m.phone else None,
-        "bank_card_masked": mask_bank_card(m.bank_card) if m.bank_card else None,
-        "bank_name": m.bank_name,
-        "is_head": m.is_head,
-        "relation": m.relation,
-        "farmer_status": m.farmer_status,
-        "remark": m.remark,
-        "created_at": m.created_at.isoformat() if m.created_at else None,
-    }
-
 
 @router.get("/{household_id}/members")
 def list_members(household_id: int, db: Session = Depends(get_db)):

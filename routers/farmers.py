@@ -1,325 +1,229 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import text
 from typing import Optional
 
 from database import get_db
 from models import FarmerProfile, FamilyHousehold, VillageGroup
-from schemas import FarmerCreate, FarmerUpdate, FarmerOut, FarmerDetail
+from schemas import FarmerCreate, FarmerUpdate
 from utils import mask_id_card, mask_phone, mask_bank_card, parse_id_card, gen_household_code
 
 router = APIRouter(prefix="/api/farmers", tags=["农户管理"])
-def _to_out(farmer: FarmerProfile, db: Session) -> dict:
-    # 逐层安全获取，防止 NoneType 错误
-    household = farmer.household
-    village_full_name = "未划定村组"
-    land_area = 0
-    address = "地址缺失"
 
-    if household:
-        land_area = household.land_area
-        address = household.address
-        # 尝试获取村组信息
-        vg = db.get(VillageGroup, household.village_group_id)
-        if vg:
-            village_full_name = vg.full_name
+# ══════════════════════════════════════
+# 核心改动：全部用原生 SQL + LEFT JOIN，
+# 完全绕开 ORM relationship lazy load，
+# 无论 household 关联是否完整都能正常返回数据
+# ══════════════════════════════════════
 
+_COLS = """
+    fp.id, fp.household_id, fp.real_name, fp.gender, fp.id_card,
+    fp.phone, fp.bank_card, fp.bank_name, fp.is_head, fp.relation,
+    fp.farmer_status, fp.remark, fp.created_at, fp.birth_date,
+    hh.land_area, hh.address, hh.household_code,
+    COALESCE(vg.full_name, vg.village_name || vg.group_no, '未知村组') AS village_full_name,
+    vg.village_name, vg.group_no
+FROM farmer_profile fp
+LEFT JOIN family_household hh ON fp.household_id = hh.id
+LEFT JOIN village_group    vg ON hh.village_group_id = vg.id
+"""
+
+def _to_list(r) -> dict:
+    m = dict(r._mapping)
     return {
-        "id": farmer.id,
-        "household_id": farmer.household_id,
-        "real_name": farmer.real_name,
-        "gender": farmer.gender,
-        "id_card_masked": mask_id_card(farmer.id_card),
-        "phone_masked": mask_phone(farmer.phone) if farmer.phone else None,
-        "bank_card_masked": mask_bank_card(farmer.bank_card) if farmer.bank_card else None,
-        "bank_name": farmer.bank_name,
-        "is_head": farmer.is_head,
-        "relation": farmer.relation,
-        "farmer_status": farmer.farmer_status,
-        "village_full_name": village_full_name, # 如果没组，就显示“未划定村组”
-        "land_area": land_area,
-        "address": address,
-        "remark": farmer.remark,
-        "created_at": farmer.created_at,
+        "id":               m.get("id"),
+        "household_id":     m.get("household_id") or 0,
+        "real_name":        m.get("real_name") or "—",
+        "gender":           m.get("gender") or 1,
+        "id_card_masked":   mask_id_card(m["id_card"]) if m.get("id_card") else "—",
+        "phone_masked":     mask_phone(m["phone"]) if m.get("phone") else None,
+        "bank_card_masked": mask_bank_card(m["bank_card"]) if m.get("bank_card") else None,
+        "bank_name":        m.get("bank_name"),
+        "is_head":          m.get("is_head") or 0,
+        "relation":         m.get("relation"),
+        "farmer_status":    m.get("farmer_status") or 1,
+        "village_full_name":m.get("village_full_name") or "—",
+        "land_area":        m.get("land_area"),
+        "address":          m.get("address"),
+        "remark":           m.get("remark"),
+        "created_at":       str(m["created_at"]) if m.get("created_at") else None,
+        "birth_date":       str(m["birth_date"])  if m.get("birth_date")  else None,
+        "household_code":   m.get("household_code"),
+        "village_name":     m.get("village_name"),
+        "group_no":         m.get("group_no"),
     }
 
-# ─── 查询列表 ───
-@router.get("/")
+def _to_detail(r) -> dict:
+    d = _to_list(r)
+    m = dict(r._mapping)
+    d.update({"id_card": m.get("id_card"), "phone": m.get("phone"), "bank_card": m.get("bank_card")})
+    return d
+
+# ── 列表 ──
+@router.get("")
 def list_farmers(
-    search: Optional[str] = Query(None),
+    search:       Optional[str] = Query(None),
     village_name: Optional[str] = Query(None),
-    status: Optional[int] = Query(None),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    status:       Optional[int] = Query(None),
+    page:         int = Query(1, ge=1),
+    page_size:    int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    # 【核心修改】使用 outerjoin，保证即便 household_id=0 或关联失效，人也能显示出来
-    query = db.query(FarmerProfile).outerjoin(
-        FamilyHousehold, FarmerProfile.household_id == FamilyHousehold.id
-    ).outerjoin(
-        VillageGroup, FamilyHousehold.village_group_id == VillageGroup.id
-    )
-
-    # 搜索过滤
+    where, params = [], {}
     if search:
-        query = query.filter(or_(
-            FarmerProfile.real_name.contains(search),
-            FarmerProfile.id_card.contains(search),
-        ))
-
-    # 状态过滤：如果前端传了 status 就过滤，不传就显示所有（含死亡、注销）
+        where.append("(fp.real_name LIKE :s OR fp.id_card LIKE :s)")
+        params["s"] = f"%{search}%"
     if status is not None:
-        query = query.filter(FarmerProfile.farmer_status == status)
-
-    # 村庄名称过滤
+        where.append("fp.farmer_status = :st"); params["st"] = status
     if village_name:
-        query = query.filter(VillageGroup.village_name == village_name)
+        where.append("vg.village_name = :vn");  params["vn"] = village_name
 
-    total = query.count()
-    farmers = query.order_by(FarmerProfile.id.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    w = ("WHERE " + " AND ".join(where)) if where else ""
+    total = db.execute(text(
+        f"SELECT COUNT(*) FROM farmer_profile fp "
+        f"LEFT JOIN family_household hh ON fp.household_id=hh.id "
+        f"LEFT JOIN village_group vg ON hh.village_group_id=vg.id {w}"
+    ), params).scalar() or 0
 
-    # 使用 db 实例传递给 _to_out 辅助函数
-    return {
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "items": [_to_out(f, db) for f in farmers],
-    }
-    
-    
-# ─── 查询详情（含完整敏感字段） ───
+    params["lim"] = page_size
+    params["off"] = (page - 1) * page_size
+    rows = db.execute(text(
+        f"SELECT {_COLS} {w} ORDER BY fp.id DESC LIMIT :lim OFFSET :off"
+    ), params).fetchall()
+
+    return {"total": total, "page": page, "page_size": page_size,
+            "items": [_to_list(r) for r in rows]}
+
+# ── 详情 ──
 @router.get("/{farmer_id}")
 def get_farmer(farmer_id: int, db: Session = Depends(get_db)):
-    farmer = db.get(FarmerProfile, farmer_id)
-    if not farmer:
+    row = db.execute(text(f"SELECT {_COLS} WHERE fp.id = :id"), {"id": farmer_id}).fetchone()
+    if not row:
         raise HTTPException(status_code=404, detail="农户不存在")
-    vg = db.get(VillageGroup, farmer.household.village_group_id) if farmer.household else None
-    base = _to_out(farmer, db)
-    # 详情额外返回完整敏感字段
-    base.update({
-        "id_card": farmer.id_card,
-        "phone": farmer.phone,
-        "bank_card": farmer.bank_card,
-    })
-    return base
+    detail = _to_detail(row)
+    hh_id = dict(row._mapping).get("household_id")
 
+    # 补贴记录
+    apps = db.execute(text("""
+        SELECT sa.id, sa.apply_year, sa.apply_amount, sa.actual_amount,
+               sa.apply_area, sa.pay_status, sa.pay_date, sa.remark,
+               st.subsidy_name, st.calc_mode
+        FROM subsidy_application sa
+        LEFT JOIN subsidy_type st ON sa.subsidy_type_id = st.id
+        WHERE sa.farmer_id = :fid
+        ORDER BY sa.apply_year DESC, sa.id DESC
+    """), {"fid": farmer_id}).fetchall()
+    detail["applications"] = [dict(a._mapping) for a in apps]
 
-# ─── 新增农户（自动创建独立家庭户） ───
+    # 同户成员
+    if hh_id:
+        mems = db.execute(text("""
+            SELECT id, real_name, gender, is_head, relation, farmer_status,
+                   birth_date,
+                   SUBSTR(id_card,1,6)||'********'||SUBSTR(id_card,-4) AS id_card_masked
+            FROM farmer_profile
+            WHERE household_id = :hid AND id != :fid
+            ORDER BY is_head DESC, id
+        """), {"hid": hh_id, "fid": farmer_id}).fetchall()
+        detail["household_members"] = [dict(m._mapping) for m in mems]
+    else:
+        detail["household_members"] = []
+
+    return detail
+
+# ── 新增 ──
 @router.post("/")
 def create_farmer(data: FarmerCreate, db: Session = Depends(get_db)):
-    # 身份证唯一检查
-    if db.query(FarmerProfile).filter(FarmerProfile.id_card == data.id_card).first():
+    if db.execute(text("SELECT id FROM farmer_profile WHERE id_card=:ic"), {"ic": data.id_card}).fetchone():
         raise HTTPException(status_code=400, detail="该身份证号已存在")
-
-    # 从身份证解析性别和出生日期
-    parsed = parse_id_card(data.id_card)
-    gender = parsed["gender"] or data.gender
-    birth_date = parsed["birth_date"]
-
-    # 1. 先创建农户（拿到 id）
+    parsed = parse_id_card(data.id_card) or {}
     farmer = FarmerProfile(
-        household_id=0,          # 临时占位，下面更新
-        real_name=data.real_name,
-        gender=gender,
-        id_card=data.id_card,
-        birth_date=birth_date,
-        phone=data.phone,
-        bank_card=data.bank_card,
-        bank_name=data.bank_name,
-        is_head=1,
-        relation="本人",
-        farmer_status=data.farmer_status,
-        remark=data.remark,
+        household_id=0, real_name=data.real_name,
+        gender=parsed.get("gender") or data.gender,
+        id_card=data.id_card, birth_date=parsed.get("birth_date"),
+        phone=data.phone, bank_card=data.bank_card, bank_name=data.bank_name,
+        is_head=1, relation="本人", farmer_status=data.farmer_status, remark=data.remark,
     )
-    db.add(farmer)
-    db.flush()  # 获得 farmer.id，但不提交
-
-    # 2. 自动创建独立家庭户
-    household = FamilyHousehold(
+    db.add(farmer); db.flush()
+    hh = FamilyHousehold(
         household_code=gen_household_code(farmer.id),
-        household_name=f"{data.real_name}户",
-        head_farmer_id=farmer.id,
-        village_group_id=data.village_group_id,
-        address=data.address,
-        land_area=data.land_area,
-        status=data.farmer_status,
-        member_count=1,
+        household_name=f"{data.real_name}户", head_farmer_id=farmer.id,
+        village_group_id=data.village_group_id, address=data.address,
+        land_area=data.land_area, status=data.farmer_status, member_count=1,
     )
-    db.add(household)
-    db.flush()
+    db.add(hh); db.flush()
+    farmer.household_id = hh.id; db.commit()
+    return {"id": farmer.id, "household_id": hh.id, "message": "创建成功"}
 
-    # 3. 回填 household_id
-    farmer.household_id = household.id
-    db.commit()
-    db.refresh(farmer)
-
-    return {"id": farmer.id, "household_id": household.id, "message": "创建成功"}
-
-
-# ─── 修改农户 ───
+# ── 修改 ──
 @router.put("/{farmer_id}")
 def update_farmer(farmer_id: int, data: FarmerUpdate, db: Session = Depends(get_db)):
     farmer = db.get(FarmerProfile, farmer_id)
-    if not farmer:
-        raise HTTPException(status_code=404, detail="农户不存在")
+    if not farmer: raise HTTPException(status_code=404, detail="农户不存在")
+    upd = data.model_dump(exclude_unset=True)
+    hh_fields = {k: upd.pop(k) for k in ("village_group_id","address","land_area") if k in upd}
+    for k, v in upd.items(): setattr(farmer, k, v)
+    if hh_fields:
+        hh = db.get(FamilyHousehold, farmer.household_id)
+        if hh:
+            for k, v in hh_fields.items(): setattr(hh, k, v)
+    db.commit(); return {"message": "更新成功"}
 
-    update_data = data.model_dump(exclude_unset=True)
-
-    # 村组/地址/面积更新到家庭户
-    hh_fields = {}
-    if "village_group_id" in update_data:
-        hh_fields["village_group_id"] = update_data.pop("village_group_id")
-    if "address" in update_data:
-        hh_fields["address"] = update_data.pop("address")
-    if "land_area" in update_data:
-        hh_fields["land_area"] = update_data.pop("land_area")
-
-    for k, v in update_data.items():
-        setattr(farmer, k, v)
-
-    if hh_fields and farmer.household:
-        for k, v in hh_fields.items():
-            setattr(farmer.household, k, v)
-
-    db.commit()
-    return {"message": "更新成功"}
-
-# ─── 批量导入（支持自动创建新村组） ───
+# ── 批量导入 ──
 @router.post("/batch-import")
 def batch_import_farmers(payload: dict, db: Session = Depends(get_db)):
     rows = payload.get("rows", [])
     created, skipped, errors = 0, 0, []
-    
+
+    def get_or_create_vg(vname: str, gno: str) -> int:
+        vg = db.query(VillageGroup).filter_by(village_name=vname, group_no=gno).first()
+        if vg: return vg.id
+        vg = VillageGroup(village_name=vname, group_no=gno, full_name=f"{vname}{gno}")
+        db.add(vg); db.flush(); return vg.id
+
     for row in rows:
         try:
-            # 1. 身份证唯一性检查
-            if db.query(FarmerProfile).filter(FarmerProfile.id_card == row["id_card"]).first():
-                skipped += 1
-                continue
+            ic = str(row.get("id_card", "")).strip()
+            if not ic: errors.append(f"{row.get('real_name','?')}: 缺少身份证号"); continue
+            if db.execute(text("SELECT id FROM farmer_profile WHERE id_card=:ic"), {"ic": ic}).fetchone():
+                skipped += 1; continue
 
-            # 2. 【核心修改】动态获取或创建村组 ID
             vg_id = row.get("village_group_id")
-            
-            # 如果前端没匹配到 ID，但传了村名和组名
-            if not vg_id and row.get("village_name") and row.get("group_name"):
-                v_name = str(row["village_name"]).strip()
-                g_name = str(row["group_name"]).strip()
-                
-                # 去数据库查一下这个组是否存在
-                vg = db.query(VillageGroup).filter(
-                    VillageGroup.village_name == v_name,
-                    VillageGroup.group_no == g_name
-                ).first()
-                
-                if not vg:
-                    # 不存在则自动创建一个新的村组
-                    new_vg = VillageGroup(
-                        village_name=v_name,
-                        group_no=g_name,
-                        full_name=f"{v_name}{g_name}"
-                    )
-                    db.add(new_vg)
-                    db.flush() # 立即获取 ID
-                    vg_id = new_vg.id
-                else:
-                    vg_id = vg.id
-
-            # 如果到这里还是没有 vg_id，说明 Excel 数据缺失村组信息，记录错误
             if not vg_id:
-                errors.append(f"{row.get('real_name','?')}: 缺失有效的村组信息")
-                continue
+                vn = str(row.get("village_name", "")).strip()
+                gn = str(row.get("group_no",   "")).strip()
+                if not vn or not gn: errors.append(f"{row.get('real_name','?')}: 缺少村组"); continue
+                vg_id = get_or_create_vg(vn, gn)
 
-            # 3. 解析身份证信息
-            parsed = parse_id_card(row["id_card"])
-            
-            # 4. 创建农户档案
+            parsed = parse_id_card(ic) or {}
             farmer = FarmerProfile(
-                household_id=0,
-                real_name=row["real_name"],
-                gender=parsed["gender"] or row.get("gender", 1),
-                id_card=row["id_card"],
-                birth_date=parsed["birth_date"],
-                phone=row.get("phone"),
-                bank_card=row.get("bank_card"),
-                bank_name=row.get("bank_name"),
-                is_head=1, 
-                relation="本人",
-                farmer_status=row.get("farmer_status", 1),
-                remark=row.get("remark"),
+                household_id=0, real_name=row.get("real_name"), gender=parsed.get("gender") or row.get("gender", 1),
+                id_card=ic, birth_date=parsed.get("birth_date"), phone=row.get("phone"),
+                bank_card=row.get("bank_card"), bank_name=row.get("bank_name"),
+                is_head=1, relation="本人", farmer_status=row.get("farmer_status", 1),
             )
-            db.add(farmer)
-            db.flush()
-
-            # 5. 创建关联的家庭户
+            db.add(farmer); db.flush()
             hh = FamilyHousehold(
                 household_code=gen_household_code(farmer.id),
-                household_name=f"{row['real_name']}户",
-                head_farmer_id=farmer.id,
-                village_group_id=vg_id, # 使用上面获取到的 vg_id
-                address=row.get("address"),
-                land_area=row.get("land_area"),
-                status=row.get("farmer_status", 1),
-                member_count=1,
+                household_name=f"{row.get('real_name','未知')}户", head_farmer_id=farmer.id,
+                village_group_id=vg_id, address=row.get("address"),
+                land_area=row.get("land_area"), status=row.get("farmer_status", 1), member_count=1,
             )
-            db.add(hh)
-            db.flush()
-
-            # 6. 回填农户的家庭户 ID
-            farmer.household_id = hh.id
-            created += 1
-
+            db.add(hh); db.flush()
+            farmer.household_id = hh.id; created += 1
         except Exception as e:
-            db.rollback() # 出错回滚本条记录
-            errors.append(f"{row.get('real_name','?')}: {str(e)}")
-            
-    db.commit() # 统一提交
+            try: db.rollback()
+            except: pass
+            errors.append(f"{row.get('real_name','?')}: {e}")
+    db.commit()
     return {"created": created, "skipped": skipped, "errors": errors}
 
-
-
-# ─── 注销农户 ───
+# ── 注销 ──
 @router.delete("/{farmer_id}")
-def deactivate_farmer(
-    farmer_id: int,
-    status: int = Query(2, description="2注销 3迁出 4死亡"),
-    db: Session = Depends(get_db),
-):
+def deactivate_farmer(farmer_id: int, status: int = Query(2), db: Session = Depends(get_db)):
     farmer = db.get(FarmerProfile, farmer_id)
-    if not farmer:
-        raise HTTPException(status_code=404, detail="农户不存在")
+    if not farmer: raise HTTPException(status_code=404, detail="农户不存在")
     farmer.farmer_status = status
-    if farmer.household:
-        farmer.household.status = status
-    db.commit()
-    return {"message": "状态已更新"}
-
-@router.post("/{farmer_id}/assign-group")
-def assign_village_group(
-    farmer_id: int, 
-    village_group_id: int, 
-    db: Session = Depends(get_db)
-):
-    farmer = db.get(FarmerProfile, farmer_id)
-    if not farmer:
-        raise HTTPException(status_code=404, detail="农户不存在")
-
-    # 1. 检查或补全家庭户 (FamilyHousehold)
-    if not farmer.household or farmer.household_id == 0:
-        # 如果是彻彻底底的游离人员，新建一个家庭户
-        new_hh = FamilyHousehold(
-            household_code=gen_household_code(farmer.id),
-            household_name=f"{farmer.real_name}户",
-            head_farmer_id=farmer.id,
-            village_group_id=village_group_id,
-            status=1,
-            member_count=1
-        )
-        db.add(new_hh)
-        db.flush()
-        farmer.household_id = new_hh.id
-    else:
-        # 如果已有家庭户，只是想换个村组
-        farmer.household.village_group_id = village_group_id
-
-    db.commit()
-    return {"message": "归籍成功", "village_group_id": village_group_id}
+    hh = db.get(FamilyHousehold, farmer.household_id)
+    if hh: hh.status = status
+    db.commit(); return {"message": "状态已更新"}

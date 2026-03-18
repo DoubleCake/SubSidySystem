@@ -71,6 +71,14 @@ export default function ExternalLinksPage() {
   const [batchOperator, setBatchOperator] = useState('操作员')
   const [batchTags, setBatchTags] = useState('')
 
+  // ── 查询结果收藏 ──
+  const [favorOpen, setFavorOpen] = useState(false)
+  const [favorContext, setFavorContext] = useState<{
+    inputs: string[]; type: string; source: string
+  } | null>(null)
+  const [favorPurpose, setFavorPurpose] = useState('')
+  const [favorTags, setFavorTags] = useState('')
+
   useEffect(()=>{ loadSites() },[])
   useEffect(()=>{
     api.getVillageGroups().then(g=>setVillages([...new Set(g.map(v=>v.village_name))]))
@@ -147,6 +155,24 @@ export default function ExternalLinksPage() {
   const deleteSite = async(id:number)=>{
     if(!confirm('确认删除？')) return
     await req(`/api/external/sites/${id}`,{method:'DELETE'}); show('✓ 已删除'); loadSites()
+  }
+
+  // 收藏查询结果
+  const saveFavor = async () => {
+    if (!favorContext) return
+    const siteName = favorContext.source || '系统内查询'
+    try {
+      await req('/api/external/records', { method: 'POST', body: JSON.stringify({
+        site_id: null, site_name: siteName,
+        query_type: favorContext.type,
+        query_inputs: favorContext.inputs,
+        purpose: favorPurpose || null,
+        operator: '操作员',
+        tags: favorTags || null,
+      })})
+      show('✓ 已收藏到查询记录')
+      setFavorOpen(false); setFavorPurpose(''); setFavorTags('')
+    } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
   // Toggle tag
@@ -261,11 +287,19 @@ export default function ExternalLinksPage() {
             <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
               <div className="px-4 py-2.5 bg-stone-50 border-b border-stone-100 flex justify-between items-center">
                 <span className="text-sm font-semibold text-stone-700">查询结果</span>
-                <span className="text-xs text-stone-400">共 {srchTotal} 条</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-stone-400">共 {srchTotal} 条</span>
+                  <button onClick={()=>{
+                    setFavorContext({ inputs: srch ? [srch] : ['综合查询'], type: srch.length===18?'身份证查询':'姓名查询', source:'系统内查询' })
+                    setFavorOpen(true)
+                  }} className="text-xs text-amber-600 border border-amber-200 px-2.5 py-1 rounded-lg hover:bg-amber-50">
+                    ★ 收藏本次查询
+                  </button>
+                </div>
               </div>
               <table className="w-full border-collapse">
                 <thead><tr className="border-b border-stone-100">
-                  {['姓名','身份证','所在村','补贴项目','年度','面积','申请金额','实发金额','状态'].map(h=>(
+                  {['姓名','身份证','所在村','补贴项目','年度','面积','申请金额','实发金额','状态',''].map(h=>(
                     <th key={h} className="px-3.5 py-2.5 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr></thead>
@@ -282,6 +316,14 @@ export default function ExternalLinksPage() {
                       <td className="px-3.5 py-2.5 text-sm font-mono text-stone-500">{fmt(a.apply_amount)}</td>
                       <td className="px-3.5 py-2.5 text-sm font-mono font-bold text-emerald-700">{fmt(a.actual_amount)}</td>
                       <td className="px-3.5 py-2.5"><Tag label={PAY_STATUS[a.pay_status]?.label||'—'} color={PAY_STATUS[a.pay_status]?.color as 'green'}/></td>
+                      <td className="px-3.5 py-2.5">
+                        <button onClick={()=>{
+                          setFavorContext({ inputs:[a.farmer_name + (a.id_card_masked?' '+a.id_card_masked:'')], type:'综合查询', source:'系统内查询' })
+                          setFavorOpen(true)
+                        }} className="text-xs text-amber-600 border border-amber-200 px-2.5 py-1 rounded-lg hover:bg-amber-50 whitespace-nowrap">
+                          ★ 收藏
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -441,7 +483,7 @@ export default function ExternalLinksPage() {
             <textarea rows={5} value={batchText} onChange={e=>setBatchText(e.target.value)}
               placeholder={"510123196503154231\n张三\n李四"}
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm font-mono outline-none focus:border-emerald-400 resize-none"/>
-            <p className="text-xs text-stone-300 mt-1">已输入 {batchText.split(/[\n,，;；]/).map(s=>s.trim()).filter(Boolean).length} 条</p>
+            <p className="text-xs text-stone-300 mt-1">已输入 {batchText.split(/[\n,，;；]/).map(s=>s.trim()).filter(Boolean).length} 条 · 保存后将记录到查询记录，可随时查阅</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-xs text-stone-400 mb-1">查询类型</label>
@@ -498,6 +540,38 @@ export default function ExternalLinksPage() {
               ))}
             </div>
             <input value={recForm.tags} onChange={e=>setRecForm(f=>({...f,tags:e.target.value}))}
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"/>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 收藏查询结果弹窗 */}
+      <Modal open={favorOpen} title="收藏查询记录" onClose={()=>setFavorOpen(false)} onConfirm={saveFavor} confirmText="确认收藏">
+        <div className="space-y-3">
+          <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs text-amber-700">
+            <strong>本次查询内容：</strong>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {favorContext?.inputs.map((inp,i)=>(
+                <span key={i} className="bg-white border border-amber-200 text-amber-800 font-mono px-2 py-0.5 rounded text-xs">{inp}</span>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">查询事项 / 原因 *</label>
+            <textarea rows={3} value={favorPurpose} onChange={e=>setFavorPurpose(e.target.value)}
+              placeholder="如：核查张三2024年粮食直补是否重复申领&#10;如：年度数据比对，核实身份证与姓名匹配情况"
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-amber-400 resize-none" />
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">标签</label>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {TAGS_PRESET.map(t=>(
+                <button key={t} onClick={()=>toggleTag(t,favorTags,setFavorTags)}
+                  className={`text-xs px-2 py-0.5 rounded border transition-colors
+                    ${favorTags.includes(t)?'bg-amber-100 border-amber-300 text-amber-700':'bg-stone-50 border-stone-200 text-stone-500 hover:border-stone-300'}`}>{t}</button>
+              ))}
+            </div>
+            <input value={favorTags} onChange={e=>setFavorTags(e.target.value)} placeholder="自由输入，逗号分隔"
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"/>
           </div>
         </div>
