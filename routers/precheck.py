@@ -421,3 +421,112 @@ def get_template_headers():
             }
         ]
     }
+
+
+# ─────────────────────────────────────
+#  历史错误库（黑名单）
+# ─────────────────────────────────────
+
+from pydantic import BaseModel as PM
+from typing import Optional as Opt
+
+class ErrorEntry(PM):
+    id_card:  str
+    real_name: str
+    error_reason: str
+
+class ErrorMatchRequest(PM):
+    rows: list[dict]   # 每行含 id_card / real_name
+
+@router.get("/error-library")
+def list_error_library(db = Depends(get_db)):
+    from sqlalchemy import text
+    rows = db.execute(text("""
+        SELECT id, id_card, real_name, error_reason, created_at
+        FROM precheck_error_library ORDER BY id DESC
+    """)).fetchall()
+    return [dict(r._mapping) for r in rows]
+
+@router.post("/error-library")
+def add_error_entry(entry: ErrorEntry, db = Depends(get_db)):
+    from sqlalchemy import text
+    # 建表（如不存在）
+    db.execute(text("""
+        CREATE TABLE IF NOT EXISTS precheck_error_library (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_card TEXT NOT NULL,
+            real_name TEXT NOT NULL,
+            error_reason TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """))
+    db.execute(text("""
+        INSERT INTO precheck_error_library (id_card, real_name, error_reason)
+        VALUES (:ic, :name, :reason)
+    """), {"ic": entry.id_card, "name": entry.real_name, "reason": entry.error_reason})
+    db.commit()
+    return {"message": "添加成功"}
+
+@router.delete("/error-library/{entry_id}")
+def delete_error_entry(entry_id: int, db = Depends(get_db)):
+    from sqlalchemy import text
+    db.execute(text("DELETE FROM precheck_error_library WHERE id=:id"), {"id": entry_id})
+    db.commit()
+    return {"message": "删除成功"}
+
+@router.post("/error-library/match")
+def match_error_library(req: ErrorMatchRequest, db = Depends(get_db)):
+    """把上传的名单与历史错误库比对，返回命中记录"""
+    from sqlalchemy import text
+    # 建表保险
+    db.execute(text("""
+        CREATE TABLE IF NOT EXISTS precheck_error_library (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_card TEXT NOT NULL, real_name TEXT NOT NULL,
+            error_reason TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """))
+    lib = db.execute(text(
+        "SELECT id_card, real_name, error_reason FROM precheck_error_library"
+    )).fetchall()
+    lib_map = {r.id_card.strip(): dict(r._mapping) for r in lib}
+
+    hits = []
+    for row in req.rows:
+        ic   = str(row.get("id_card",   "")).strip()
+        name = str(row.get("real_name", "") or row.get("name", "")).strip()
+        if ic in lib_map:
+            hits.append({
+                "id_card":      ic,
+                "real_name":    name or lib_map[ic]["real_name"],
+                "error_reason": lib_map[ic]["error_reason"],
+                "library_name": lib_map[ic]["real_name"],
+            })
+    return {"total": len(hits), "hits": hits}
+
+@router.post("/error-library/batch-import")
+def batch_import_error_library(payload: dict, db = Depends(get_db)):
+    from sqlalchemy import text
+    db.execute(text("""
+        CREATE TABLE IF NOT EXISTS precheck_error_library (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_card TEXT NOT NULL, real_name TEXT NOT NULL,
+            error_reason TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """))
+    rows = payload.get("rows", [])
+    created = 0
+    for r in rows:
+        ic  = str(r.get("id_card","")).strip()
+        nm  = str(r.get("real_name","")).strip()
+        rsn = str(r.get("error_reason","")).strip()
+        if not ic or not nm: continue
+        db.execute(text("""
+            INSERT OR IGNORE INTO precheck_error_library (id_card, real_name, error_reason)
+            VALUES (:ic,:nm,:rsn)
+        """), {"ic":ic,"nm":nm,"rsn":rsn})
+        created += 1
+    db.commit()
+    return {"created": created}

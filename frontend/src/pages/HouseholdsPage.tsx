@@ -1,17 +1,19 @@
 /**
- * 家庭户管理页面（完整版）
- * - 列表：筛选/搜索/面积进度条/超领预警
- * - 详情：成员增删改查、设户主、面积按年份分组、补贴记录筛选分页
+ * 家庭户管理页 — 含批量组建 Excel 导入
  */
 import { useState, useEffect, useCallback } from 'react'
+import * as XLSX from 'xlsx'
 import Tag from '../components/Tag'
 import Modal from '../components/Modal'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
-import { fmt, FARMER_STATUS, PAY_STATUS } from '../utils'
 
-const thisYear = new Date().getFullYear()
-const yearOpts = Array.from({ length: 8 }, (_, i) => thisYear - i + 1)
+interface HH {
+  id: number; household_code: string; household_name: string
+  village_full_name: string; land_area: string | null
+  contracted_area: number; used_area: number; remaining_area: number
+  is_overdrawn: boolean; member_count: number; status: number
+}
 
 async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const r = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts })
@@ -19,439 +21,242 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
   return r.json() as Promise<T>
 }
 
-interface HouseholdItem {
-  id:number; household_code:string; household_name:string
-  village_full_name:string; village_name:string
-  head_name:string; member_count:number; status:number
-  address:string|null; contracted_area:number; used_area:number
-  remaining_area:number; is_overdrawn:boolean; overdraw_amount:number
+const STATUS_MAP: Record<number,{label:string;color:'green'|'amber'|'red'|'gray'}> = {
+  1:{label:'正常',color:'green'}, 2:{label:'注销',color:'red'},
+  3:{label:'迁出',color:'amber'}, 4:{label:'冻结',color:'gray'},
 }
-interface Member {
-  id:number; household_id:number; real_name:string; gender:number
-  id_card_masked:string; id_card:string; phone_masked:string|null
-  bank_card_masked:string|null; bank_name:string|null
-  is_head:number; relation:string|null; farmer_status:number; remark:string|null
-}
-interface HouseholdDetail {
-  id:number; household_code:string; household_name:string
-  village_full_name:string; address:string|null
-  contracted_area:number; status:number; remark:string|null
-  members:Member[]
-  area_usage:{ contracted_area:number; used_area:number; remaining_area:number; is_overdrawn:boolean; overdraw_amount:number; subsidy_breakdown:{subsidy_name:string;apply_year:number;used_area:number;total_amount:number;app_count:number}[] }
-  app_summary:{ apply_year:number; farmer_name:string; subsidy_name:string; calc_mode:string; apply_area:number|null; apply_amount:number|null; actual_amount:number|null; pay_status:number }[]
-}
-interface YearArea {
-  contracted_area:number
-  years:{ year:number; total_used:number; remaining_area:number; is_overdrawn:boolean; overdraw_amount:number; contracted_area:number; details:{subsidy_name:string;used_area:number;total_amount:number;app_count:number}[] }[]
-}
-interface Overdrawn { household_id:number; household_code:string; household_name:string; head_name:string; village:string; contracted_area:number; used_area:number; overdraw_amount:number; year:number; subsidy_breakdown:{subsidy_name:string;apply_year:number;used_area:number}[] }
 
-const SC:{[k:number]:{label:string;color:'green'|'red'|'amber'}} = {1:{label:'在册',color:'green'},2:{label:'注销',color:'red'},3:{label:'迁出',color:'amber'}}
-
-// ════════════════ 列表页 ════════════════
 export default function HouseholdsPage() {
   const { toast, show } = useToast()
-  const [tab, setTab] = useState<'list'|'overdrawn'>('list')
-  const [items, setItems] = useState<HouseholdItem[]>([])
-  const [total, setTotal] = useState(0); const [page, setPage] = useState(1)
+  const [list, setList] = useState<HH[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
-  const [year, setYear] = useState(thisYear)
-  const [vf, setVf] = useState(''); const [search, setSearch] = useState('')
-  const [villages, setVillages] = useState<string[]>([])
-  const [detail, setDetail] = useState<HouseholdDetail|null>(null)
-  const [overdrawn, setOverdrawn] = useState<Overdrawn[]>([])
-  const [odLoading, setOdLoading] = useState(false)
+  const [search, setSearch] = useState('')
+  const [yearFilter, setYearFilter] = useState(new Date().getFullYear())
+  const [overdrawnOnly, setOverdrawnOnly] = useState(false)
+  const [buildOpen, setBuildOpen] = useState(false)
+  const [buildFile, setBuildFile] = useState<File|null>(null)
+  const [buildPreview, setBuildPreview] = useState<Record<string,unknown>[]>([])
+  const [buildResult, setBuildResult] = useState<{built:number;updated:number;errors:string[];total_groups:number}|null>(null)
+  const [buildLoading, setBuildLoading] = useState(false)
 
-  useEffect(() => { req<{village_name:string}[]>('/api/village-groups').then(g=>setVillages([...new Set(g.map(v=>v.village_name))])) }, [])
-
-  const loadList = useCallback(async()=>{
+  const load = useCallback(async () => {
     setLoading(true)
     try {
-      const p = new URLSearchParams({page:String(page),page_size:'20',year:String(year)})
-      if(vf) p.set('village_name',vf); if(search) p.set('search',search)
-      const res = await req<{total:number;items:HouseholdItem[]}>(`/api/households?${p}`)
-      setItems(res.items); setTotal(res.total)
+      const p = new URLSearchParams({ page: String(page), page_size: '20', year: String(yearFilter) })
+      if (search)       p.set('search', search)
+      if (overdrawnOnly) p.set('overdrawn_only', '1')
+      const r = await req<{ total: number; items: HH[] }>(`/api/households?${p}`)
+      setList(r.items); setTotal(r.total)
     } finally { setLoading(false) }
-  }, [page,year,vf,search])
+  }, [page, search, yearFilter, overdrawnOnly])
 
-  useEffect(()=>{ if(tab==='list') loadList() },[loadList,tab])
+  useEffect(() => { load() }, [load])
 
-  const loadOD = useCallback(async()=>{
-    setOdLoading(true)
+  // ── Excel 家庭户组建模板下载 ──
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['家庭户编号*', '身份证号*', '姓名（可选，仅供核对）', '是否户主*', '与户主关系', '土地面积(亩，户主行填写)'],
+      ['HH001', '510123196503154231', '张国强', '1', '本人', '3.5'],
+      ['HH001', '510123197808224567', '李秀英', '0', '妻子', ''],
+      ['HH001', '510123200212153456', '张小明', '0', '儿子', ''],
+      ['HH002', '510123197012185678', '王建国', '1', '本人', '2.8'],
+      ['HH002', '510123197305224321', '陈凤英', '0', '妻子', ''],
+    ])
+    ws['!cols'] = [14,20,14,10,12,16].map(w=>({wch:w}))
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '家庭户组建模板')
+    XLSX.writeFile(wb, '家庭户组建模板.xlsx')
+  }
+
+  // ── 解析 Excel ──
+  const handleFileChange = (file: File) => {
+    setBuildFile(file); setBuildResult(null)
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const wb = XLSX.read(e.target?.result, { type: 'array' })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' }) as Record<string,unknown>[]
+      setBuildPreview(rows.slice(0, 5))
+    }
+    reader.readAsArrayBuffer(file)
+  }
+
+  // ── 提交组建 ──
+  const submitBuild = async () => {
+    if (!buildFile) return show('请先上传 Excel 文件', 'err')
+    setBuildLoading(true)
     try {
-      const p = new URLSearchParams({year:String(year)}); if(vf) p.set('village_name',vf)
-      const res = await req<{items:Overdrawn[]}>(`/api/households/alert/overdrawn?${p}`)
-      setOverdrawn(res.items)
-    } finally { setOdLoading(false) }
-  }, [year,vf])
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        const wb = XLSX.read(e.target?.result, { type: 'array' })
+        const ws = wb.Sheets[wb.SheetNames[0]]
+        const raw = XLSX.utils.sheet_to_json(ws, { defval: '' }) as Record<string,unknown>[]
 
-  useEffect(()=>{ if(tab==='overdrawn') loadOD() },[tab,loadOD])
+        const rows = raw.map(r => ({
+          household_id: String(r['家庭户编号*'] || r['家庭户编号'] || '').trim(),
+          id_card:      String(r['身份证号*']   || r['身份证号']   || '').trim(),
+          real_name:    String(r['姓名（可选，仅供核对）'] || r['姓名'] || '').trim() || undefined,
+          is_head:      Number(r['是否户主*'] || r['是否户主'] || 0),
+          relation:     String(r['与户主关系'] || '成员').trim() || '成员',
+          land_area:    Number(r['土地面积(亩，户主行填写)'] || r['土地面积'] || 0) || undefined,
+        })).filter(r => r.household_id && r.id_card)
 
-  const openDetail = async(id:number)=>{ const d=await req<HouseholdDetail>(`/api/households/${id}`); setDetail(d) }
-
-  if(detail) return <DetailPage detail={detail} onBack={()=>{setDetail(null);loadList()}} show={show}/>
-
-  const FilterBar = ()=>(
-    <div className="flex items-center gap-2 flex-wrap mb-4">
-      {[{id:'list',label:'家庭户列表',icon:'🏠'},{id:'overdrawn',label:'超领预警',icon:'⚠️'}].map(t=>(
-        <button key={t.id} onClick={()=>setTab(t.id as 'list'|'overdrawn')}
-          className={`px-4 py-2 text-sm rounded-lg border transition-colors flex items-center gap-1.5
-            ${tab===t.id?(t.id==='overdrawn'?'bg-red-600 text-white border-red-600':'bg-emerald-700 text-white border-emerald-700'):'bg-white border-stone-200 text-stone-600'}`}>
-          {t.icon}{t.label}
-          {t.id==='overdrawn'&&overdrawn.length>0&&tab!=='overdrawn'&&<span className="bg-red-100 text-red-600 text-xs px-1.5 rounded-full font-mono">{overdrawn.length}</span>}
-        </button>
-      ))}
-      <div className="ml-auto flex gap-2">
-        <select value={year} onChange={e=>setYear(Number(e.target.value))} className="border border-stone-200 rounded-lg px-2.5 py-1.5 text-sm bg-white outline-none">
-          {yearOpts.map(y=><option key={y} value={y}>{y}年</option>)}
-        </select>
-        <select value={vf} onChange={e=>setVf(e.target.value)} className="border border-stone-200 rounded-lg px-2.5 py-1.5 text-sm bg-white outline-none">
-          <option value="">全部村庄</option>{villages.map(v=><option key={v} value={v}>{v}</option>)}
-        </select>
-      </div>
-    </div>
-  )
-
-  return (
-    <div>
-      <FilterBar/>
-      {tab==='list'&&(
-        <>
-          <div className="mb-3"><input value={search} onChange={e=>{setSearch(e.target.value);setPage(1)}} placeholder="搜索户名或户主姓名…" className="w-80 border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 bg-white"/></div>
-          <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-            <table className="w-full border-collapse">
-              <thead><tr className="bg-stone-50 border-b-2 border-stone-200">
-                {['户编码','家庭名称','所在位置','户主','成员','承包面积',`${year}年占用`,'剩余','状态','操作'].map(h=>(
-                  <th key={h} className="px-3.5 py-2.5 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {loading&&<tr><td colSpan={10} className="text-center py-12 text-stone-300">加载中…</td></tr>}
-                {!loading&&items.length===0&&<tr><td colSpan={10} className="text-center py-12 text-stone-300">暂无数据</td></tr>}
-                {!loading&&items.map(hh=>(
-                  <tr key={hh.id} className={`border-b border-stone-50 hover:bg-stone-50 transition-colors ${hh.is_overdrawn?'bg-red-50/40':''}`}>
-                    <td className="px-3.5 py-2.5 text-xs font-mono text-stone-400">{hh.household_code}</td>
-                    <td className="px-3.5 py-2.5 text-sm font-semibold">{hh.household_name}{hh.is_overdrawn&&<span className="text-red-500 ml-1">⚠️</span>}</td>
-                    <td className="px-3.5 py-2.5 text-xs text-stone-400">{hh.village_full_name}</td>
-                    <td className="px-3.5 py-2.5 text-sm">{hh.head_name}</td>
-                    <td className="px-3.5 py-2.5 text-sm text-center">{hh.member_count}</td>
-                    <td className="px-3.5 py-2.5 text-sm font-mono">{hh.contracted_area>0?`${hh.contracted_area}亩`:<span className="text-stone-300">未设</span>}</td>
-                    <td className="px-3.5 py-2.5 min-w-32"><MiniBar c={hh.contracted_area} u={hh.used_area} od={hh.is_overdrawn}/></td>
-                    <td className="px-3.5 py-2.5 text-sm font-mono">{hh.contracted_area>0?<span className={hh.remaining_area<0?'text-red-600 font-bold':'text-emerald-700'}>{hh.remaining_area}亩</span>:'—'}</td>
-                    <td className="px-3.5 py-2.5"><Tag label={SC[hh.status as 1]?.label||'—'} color={SC[hh.status as 1]?.color||'gray'}/></td>
-                    <td className="px-3.5 py-2.5"><button onClick={()=>openDetail(hh.id)} className="text-xs text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-lg hover:bg-emerald-50">详情</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="px-4 py-2 border-t border-stone-100 bg-stone-50/50 flex justify-between text-xs text-stone-400">
-              <span>共{total}户</span>
-              <div className="flex gap-1">
-                <button disabled={page<=1} onClick={()=>setPage(p=>p-1)} className="px-2.5 py-1 border border-stone-200 rounded disabled:opacity-40">‹</button>
-                <span className="px-2 py-1">第{page}/{Math.max(1,Math.ceil(total/20))}页</span>
-                <button disabled={page*20>=total} onClick={()=>setPage(p=>p+1)} className="px-2.5 py-1 border border-stone-200 rounded disabled:opacity-40">›</button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-      {tab==='overdrawn'&&(
-        <div>
-          {odLoading&&<div className="text-center py-16 text-stone-300">计算中…</div>}
-          {!odLoading&&overdrawn.length===0&&<div className="text-center py-16 bg-white border border-stone-200 rounded-xl text-stone-300"><div className="text-5xl mb-3">✅</div><p className="text-sm">{year}年无超领家庭</p></div>}
-          {!odLoading&&overdrawn.length>0&&(
-            <>
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-sm text-red-700"><strong>⚠️ {year}年发现{overdrawn.length}户超领</strong> — 正式申请前请核实处理</div>
-              <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-                <table className="w-full border-collapse">
-                  <thead><tr className="bg-red-50 border-b-2 border-red-200">
-                    {['家庭名称','户主','所在位置','承包面积','已补贴','超领量','涉及补贴项','操作'].map(h=>(
-                      <th key={h} className="px-3.5 py-2.5 text-left text-xs text-stone-500 font-semibold whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr></thead>
-                  <tbody>
-                    {overdrawn.map(hh=>(
-                      <tr key={hh.household_id} className="border-b border-red-50 hover:bg-red-50/50">
-                        <td className="px-3.5 py-2.5 text-sm font-semibold">{hh.household_name}</td>
-                        <td className="px-3.5 py-2.5 text-sm">{hh.head_name}</td>
-                        <td className="px-3.5 py-2.5 text-xs text-stone-400">{hh.village}</td>
-                        <td className="px-3.5 py-2.5 font-mono text-sm">{hh.contracted_area}亩</td>
-                        <td className="px-3.5 py-2.5 font-mono text-sm text-amber-600">{hh.used_area}亩</td>
-                        <td className="px-3.5 py-2.5"><Tag label={`超${hh.overdraw_amount}亩`} color="red"/></td>
-                        <td className="px-3.5 py-2.5 text-xs text-stone-500">{[...new Set(hh.subsidy_breakdown.map(b=>b.subsidy_name))].join('、')}</td>
-                        <td className="px-3.5 py-2.5"><button onClick={()=>openDetail(hh.household_id)} className="text-xs text-red-600 border border-red-200 px-2.5 py-1 rounded-lg hover:bg-red-50">查看</button></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-      <Toast {...toast}/>
-    </div>
-  )
-}
-
-// ════════════════ 详情页 ════════════════
-function DetailPage({ detail:init, onBack, show }:{detail:HouseholdDetail;onBack:()=>void;show:(m:string,t?:'ok'|'err')=>void}) {
-  const [detail, setDetail] = useState(init)
-  const [members, setMembers] = useState<Member[]>(init.members)
-  const [areaByYear, setAreaByYear] = useState<YearArea|null>(null)
-  const [dtab, setDtab] = useState<'members'|'area'|'apps'>('members')
-  const [appYear, setAppYear] = useState<number|''>('')
-  const [appSearch, setAppSearch] = useState('')
-  const [appPage, setAppPage] = useState(1)
-  const PS = 10
-
-  const [editOpen, setEditOpen] = useState(false)
-  const [ef, setEf] = useState({land_area:init.contracted_area,address:init.address??'',remark:init.remark??''})
-  const [addOpen, setAddOpen] = useState(false)
-  const [mf, setMf] = useState({real_name:'',id_card:'',phone:'',bank_card:'',bank_name:'',relation:'成员',is_head:0,farmer_status:1,remark:''})
-  const [editMember, setEditMember] = useState<Member|null>(null)
-  const [emf, setEmf] = useState<Partial<Member&{farmer_status:number}>>({})
-
-  const reload = async()=>{ const d=await req<HouseholdDetail>(`/api/households/${detail.id}`); setDetail(d); setMembers(d.members) }
-  const loadArea = async()=>{ const d=await req<YearArea>(`/api/households/${detail.id}/area-by-year`); setAreaByYear(d) }
-
-  useEffect(()=>{ if(dtab==='area') loadArea() },[dtab])
-
-  const filtered = detail.app_summary.filter(a=>{
-    if(appYear && a.apply_year!==appYear) return false
-    if(appSearch && !a.farmer_name.includes(appSearch) && !a.subsidy_name.includes(appSearch)) return false
-    return true
-  })
-  const paged = filtered.slice((appPage-1)*PS, appPage*PS)
-
-  const submitEdit = async()=>{ await req(`/api/households/${detail.id}`,{method:'PUT',body:JSON.stringify(ef)}); show('✓ 更新成功'); setEditOpen(false); reload() }
-
-  const submitAdd = async()=>{
-    if(!mf.real_name||!mf.id_card) return show('姓名和身份证号必填','err')
-    try { await req(`/api/households/${detail.id}/members`,{method:'POST',body:JSON.stringify(mf)}); show('✓ 已添加'); setAddOpen(false); setMf({real_name:'',id_card:'',phone:'',bank_card:'',bank_name:'',relation:'成员',is_head:0,farmer_status:1,remark:''}); reload() }
-    catch(e:unknown){ show((e as Error).message,'err') }
-  }
-
-  const submitEditMember = async()=>{
-    if(!editMember) return
-    try { await req(`/api/households/${detail.id}/members/${editMember.id}`,{method:'PUT',body:JSON.stringify(emf)}); show('✓ 更新成功'); setEditMember(null); reload() }
-    catch(e:unknown){ show((e as Error).message,'err') }
-  }
-
-  const removeMember = async(m:Member,action:'detach'|'delete')=>{
-    if(!confirm(`确认将「${m.real_name}」${action==='delete'?'彻底删除':'迁出'}？`)) return
-    try { await req(`/api/households/${detail.id}/members/${m.id}?action=${action}`,{method:'DELETE'}); show('✓ 完成'); reload() }
-    catch(e:unknown){ show((e as Error).message,'err') }
-  }
-
-  const setHead = async(m:Member)=>{
-    if(!confirm(`确认将「${m.real_name}」设为户主？`)) return
-    try { await req(`/api/households/${detail.id}/members/${m.id}`,{method:'PUT',body:JSON.stringify({is_head:1})}); show('✓ 已设为户主'); reload() }
-    catch(e:unknown){ show((e as Error).message,'err') }
+        const res = await req<{built:number;updated:number;errors:string[];total_groups:number}>(
+          '/api/households/batch-build', { method:'POST', body: JSON.stringify({ rows }) }
+        )
+        setBuildResult(res)
+        if (res.built + res.updated > 0) { show(`✓ 组建 ${res.built} 个，更新 ${res.updated} 个`); load() }
+        else show('没有成功组建任何家庭户，请查看错误信息', 'err')
+        setBuildLoading(false)
+      }
+      reader.readAsArrayBuffer(buildFile)
+    } catch (e: unknown) { show((e as Error).message, 'err'); setBuildLoading(false) }
   }
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-4">
-        <button onClick={onBack} className="text-sm text-emerald-700 hover:underline">← 返回列表</button>
-        <span className="text-stone-300">|</span>
-        <span className="font-bold text-stone-800">{detail.household_name}</span>
-        <span className="text-xs font-mono text-stone-400">{detail.household_code}</span>
-        <Tag label={detail.village_full_name} color="blue"/>
-        <button onClick={()=>{setEf({land_area:detail.contracted_area,address:detail.address??'',remark:detail.remark??''});setEditOpen(true)}} className="ml-auto text-xs text-stone-400 border border-stone-200 px-3 py-1 rounded-lg hover:text-emerald-700 hover:border-emerald-200">✏️ 编辑基础信息</button>
-      </div>
-
-      {/* 概览 */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
-        {[
-          {label:'承包面积',val:detail.contracted_area>0?`${detail.contracted_area}亩`:'未设置',color:'text-emerald-700'},
-          {label:'家庭成员',val:`${members.length}人`,color:'text-blue-600'},
-          {label:'详细地址',val:detail.address||'—',color:'text-stone-600'},
-          {label:'户籍状态',val:({1:'在册',2:'注销',3:'迁出'} as Record<number,string>)[detail.status]||'—',color:'text-stone-600'},
-        ].map(s=>(
-          <div key={s.label} className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
-            <div className={`text-lg font-bold ${s.color} truncate`}>{s.val}</div>
-            <div className="text-xs text-stone-400 mt-1">{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Tab */}
-      <div className="flex gap-1 mb-4">
-        {[{id:'members',label:`成员管理（${members.length}人）`},{id:'area',label:'面积占用（按年）'},{id:'apps',label:`补贴记录（${detail.app_summary.length}条）`}].map(t=>(
-          <button key={t.id} onClick={()=>setDtab(t.id as typeof dtab)}
-            className={`px-4 py-2 text-sm rounded-lg border transition-colors ${dtab===t.id?'bg-stone-800 text-white border-stone-800':'bg-white border-stone-200 text-stone-600 hover:border-stone-300'}`}>
-            {t.label}
+      {/* 工具栏 */}
+      <div className="flex gap-2 mb-4 flex-wrap items-center">
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索家庭户…"
+          className="border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 bg-white w-52" />
+        <select value={yearFilter} onChange={e => setYearFilter(Number(e.target.value))}
+          className="border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+          {Array.from({length:6},(_,i)=>new Date().getFullYear()-i).map(y=><option key={y} value={y}>{y}年</option>)}
+        </select>
+        <label className="flex items-center gap-1.5 text-sm text-stone-600 cursor-pointer">
+          <input type="checkbox" checked={overdrawnOnly} onChange={e=>setOverdrawnOnly(e.target.checked)} />
+          仅看超领
+        </label>
+        <span className="text-xs text-stone-400">共 {total} 户</span>
+        <div className="ml-auto flex gap-2">
+          <button onClick={() => { setBuildOpen(true); setBuildFile(null); setBuildPreview([]); setBuildResult(null) }}
+            className="px-3 py-2 text-sm border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50">
+            🏠 批量组建家庭户
           </button>
-        ))}
+        </div>
       </div>
 
-      {/* ── 成员管理 ── */}
-      {dtab==='members'&&(
-        <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-3 border-b border-stone-100 bg-stone-50 flex justify-between items-center">
-            <span className="text-sm font-semibold text-stone-700">家庭成员</span>
-            <button onClick={()=>setAddOpen(true)} className="text-xs bg-emerald-700 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-600">＋ 新增成员</button>
+      {/* 列表 */}
+      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+        <table className="w-full border-collapse">
+          <thead><tr className="bg-stone-50 border-b-2 border-stone-200">
+            {['户编码','户名','所在位置','成员','承包面积','已用面积','剩余','状态'].map(h=>(
+              <th key={h} className="px-3.5 py-2.5 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>
+            ))}
+          </tr></thead>
+          <tbody>
+            {loading && <tr><td colSpan={8} className="text-center py-12 text-stone-300">加载中…</td></tr>}
+            {!loading && list.length===0 && <tr><td colSpan={8} className="text-center py-12 text-stone-300 text-sm">暂无数据</td></tr>}
+            {list.map(h=>(
+              <tr key={h.id} className="border-b border-stone-50 hover:bg-stone-50">
+                <td className="px-3.5 py-2.5 text-xs font-mono text-blue-600">{h.household_code}</td>
+                <td className="px-3.5 py-2.5 text-sm font-semibold">{h.household_name}</td>
+                <td className="px-3.5 py-2.5 text-xs text-stone-500">{h.village_full_name}</td>
+                <td className="px-3.5 py-2.5 text-sm">{h.member_count}人</td>
+                <td className="px-3.5 py-2.5 text-sm font-mono">{h.contracted_area>0?`${h.contracted_area}亩`:'—'}</td>
+                <td className="px-3.5 py-2.5 text-sm font-mono">{h.used_area>0?`${h.used_area}亩`:'—'}</td>
+                <td className="px-3.5 py-2.5 text-sm font-mono">
+                  {h.is_overdrawn
+                    ? <span className="text-red-600 font-bold">超 {(h.used_area-h.contracted_area).toFixed(2)}亩</span>
+                    : h.remaining_area>0?`${h.remaining_area.toFixed(2)}亩`:'—'}
+                </td>
+                <td className="px-3.5 py-2.5">
+                  <Tag label={STATUS_MAP[h.status]?.label||'正常'} color={STATUS_MAP[h.status]?.color||'green'} />
+                  {h.is_overdrawn && <span className="ml-1 text-xs text-red-500">⚠️</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="px-4 py-2 border-t border-stone-100 bg-stone-50/50 flex justify-between text-xs text-stone-400">
+          <span>共{total}条</span>
+          <div className="flex gap-1">
+            <button disabled={page<=1} onClick={()=>setPage(p=>p-1)} className="px-2.5 py-1 border border-stone-200 rounded disabled:opacity-40">‹</button>
+            <span className="px-2">{page}/{Math.max(1,Math.ceil(total/20))}</span>
+            <button disabled={page*20>=total} onClick={()=>setPage(p=>p+1)} className="px-2.5 py-1 border border-stone-200 rounded disabled:opacity-40">›</button>
           </div>
-          <table className="w-full border-collapse">
-            <thead><tr className="border-b border-stone-100">
-              {['姓名','性别','身份证','手机','银行卡','开户行','关系','状态','操作'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs text-stone-400 font-semibold">{h}</th>)}
-            </tr></thead>
-            <tbody>
-              {members.map(m=>(
-                <tr key={m.id} className={`border-b border-stone-50 hover:bg-stone-50 ${m.farmer_status!==1?'opacity-60':''}`}>
-                  <td className="px-4 py-2.5"><span className="text-sm font-semibold">{m.real_name}</span>{m.is_head===1&&<Tag label="户主" color="purple"/>}</td>
-                  <td className="px-4 py-2.5"><Tag label={m.gender===1?'男':'女'} color={m.gender===1?'blue':'purple'}/></td>
-                  <td className="px-4 py-2.5 text-xs font-mono text-stone-400">{m.id_card_masked}</td>
-                  <td className="px-4 py-2.5 text-xs font-mono text-stone-400">{m.phone_masked||'—'}</td>
-                  <td className="px-4 py-2.5 text-xs font-mono text-stone-400">{m.bank_card_masked||'—'}</td>
-                  <td className="px-4 py-2.5 text-xs text-stone-400">{m.bank_name||'—'}</td>
-                  <td className="px-4 py-2.5 text-xs">{m.relation||'—'}</td>
-                  <td className="px-4 py-2.5"><Tag label={FARMER_STATUS[m.farmer_status]?.label||'—'} color={FARMER_STATUS[m.farmer_status]?.color as 'green'}/></td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex gap-1 flex-wrap">
-                      <button onClick={()=>{setEditMember(m);setEmf({real_name:m.real_name,bank_name:m.bank_name||'',relation:m.relation||'',farmer_status:m.farmer_status,remark:m.remark||''})}} className="text-xs text-stone-400 border border-stone-200 px-2 py-0.5 rounded hover:text-emerald-700 hover:border-emerald-200">编辑</button>
-                      {m.is_head!==1&&<>
-                        <button onClick={()=>setHead(m)} className="text-xs text-purple-500 border border-purple-200 px-2 py-0.5 rounded hover:bg-purple-50">设户主</button>
-                        <button onClick={()=>removeMember(m,'detach')} className="text-xs text-amber-500 border border-amber-200 px-2 py-0.5 rounded hover:bg-amber-50">迁出</button>
-                        <button onClick={()=>removeMember(m,'delete')} className="text-xs text-red-400 border border-red-200 px-2 py-0.5 rounded hover:bg-red-50">删</button>
-                      </>}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
-      )}
+      </div>
 
-      {/* ── 面积按年 ── */}
-      {dtab==='area'&&(
-        <div className="space-y-3">
-          {!areaByYear&&<div className="text-center py-12 text-stone-300">加载中…</div>}
-          {areaByYear&&areaByYear.years.length===0&&<div className="text-center py-12 bg-white border border-stone-200 rounded-xl text-stone-300"><div className="text-4xl mb-2">📋</div><p className="text-sm">暂无按亩补贴记录</p></div>}
-          {areaByYear?.years.map(y=>(
-            <div key={y.year} className={`bg-white border rounded-xl overflow-hidden shadow-sm ${y.is_overdrawn?'border-red-300':'border-stone-200'}`}>
-              <div className={`px-5 py-3 flex items-center justify-between border-b ${y.is_overdrawn?'bg-red-50 border-red-200':'bg-stone-50 border-stone-100'}`}>
-                <div className="flex items-center gap-3">
-                  <span className="font-bold text-stone-800">{y.year}年</span>
-                  <span className="text-sm text-stone-500">承包{y.contracted_area}亩 · 已用<strong className={y.is_overdrawn?'text-red-600':'text-amber-600'}>{y.total_used}亩</strong></span>
-                </div>
-                <div className="flex items-center gap-3">
-                  {y.is_overdrawn?<Tag label={`⚠️超领${y.overdraw_amount}亩`} color="red"/>:<Tag label={`剩余${y.remaining_area}亩`} color="green"/>}
-                  <div className="w-28 bg-stone-200 rounded-full h-2 overflow-hidden">
-                    <div className={`h-full rounded-full ${y.is_overdrawn?'bg-red-500':'bg-emerald-500'}`} style={{width:`${y.contracted_area>0?Math.min(100,y.total_used/y.contracted_area*100):0}%`}}/>
+      {/* 批量组建弹窗 */}
+      <Modal open={buildOpen} title="批量组建家庭户" onClose={()=>setBuildOpen(false)}
+        onConfirm={buildResult?undefined:submitBuild} confirmText={buildLoading?'处理中…':'开始组建'}>
+        <div className="space-y-4">
+          {!buildResult ? (
+            <>
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-700">
+                <p className="font-semibold mb-2">📋 使用步骤</p>
+                <ol className="list-decimal ml-4 space-y-1 text-xs">
+                  <li>下载模板，按格式填写：每行一人，同一家庭户填相同的「家庭户编号」</li>
+                  <li>is_head=1 表示户主，每个家庭户只能有一个户主</li>
+                  <li>土地面积只需在户主那行填写</li>
+                  <li>上传填好的 Excel，系统自动按身份证号匹配已有农户并完成组建</li>
+                </ol>
+              </div>
+              <button onClick={downloadTemplate}
+                className="w-full py-2.5 border-2 border-dashed border-emerald-300 text-emerald-700 rounded-xl text-sm hover:bg-emerald-50 flex items-center justify-center gap-2">
+                ⬇️ 下载家庭户组建模板 (.xlsx)
+              </button>
+              <div>
+                <label className="block text-xs text-stone-400 mb-1">上传填写好的 Excel *</label>
+                <input type="file" accept=".xlsx,.xls"
+                  onChange={e => { if(e.target.files?.[0]) handleFileChange(e.target.files[0]) }}
+                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              {buildPreview.length>0&&(
+                <div>
+                  <p className="text-xs text-stone-400 mb-1">预览（前{buildPreview.length}行）</p>
+                  <div className="overflow-x-auto rounded-lg border border-stone-200">
+                    <table className="text-xs w-full border-collapse">
+                      <thead><tr className="bg-stone-50">{Object.keys(buildPreview[0]).map(k=>(
+                        <th key={k} className="px-2 py-1.5 text-left text-stone-400 whitespace-nowrap border-b border-stone-200">{k}</th>
+                      ))}</tr></thead>
+                      <tbody>{buildPreview.map((r,i)=>(
+                        <tr key={i} className="border-b border-stone-100">{Object.values(r).map((v,j)=>(
+                          <td key={j} className="px-2 py-1.5 text-stone-600 whitespace-nowrap">{String(v)}</td>
+                        ))}</tr>
+                      ))}</tbody>
+                    </table>
                   </div>
                 </div>
+              )}
+            </>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-3 text-center">
+                {[
+                  { label:'识别家庭户', val:buildResult.total_groups, color:'text-blue-600' },
+                  { label:'成功组建',   val:buildResult.built,        color:'text-emerald-700' },
+                  { label:'更新已有',   val:buildResult.updated,      color:'text-amber-600' },
+                ].map(s=>(
+                  <div key={s.label} className="bg-stone-50 rounded-xl p-3">
+                    <div className={`text-2xl font-bold font-mono ${s.color}`}>{s.val}</div>
+                    <div className="text-xs text-stone-400 mt-1">{s.label}</div>
+                  </div>
+                ))}
               </div>
-              <table className="w-full border-collapse text-sm">
-                <thead><tr className="border-b border-stone-100">
-                  {['补贴项目','占用面积','实发金额','申请笔数'].map(h=><th key={h} className="px-5 py-2 text-left text-xs text-stone-400 font-medium">{h}</th>)}
-                </tr></thead>
-                <tbody>
-                  {y.details.map((d,i)=>(
-                    <tr key={i} className="border-b border-stone-50">
-                      <td className="px-5 py-2">{d.subsidy_name}</td>
-                      <td className="px-5 py-2 font-mono font-bold text-amber-600">{d.used_area}亩</td>
-                      <td className="px-5 py-2 font-mono text-emerald-700">{fmt(d.total_amount)}</td>
-                      <td className="px-5 py-2 text-stone-400">{d.app_count}笔</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── 补贴记录（筛选+分页）── */}
-      {dtab==='apps'&&(
-        <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-3 border-b border-stone-100 bg-stone-50 flex gap-3 flex-wrap items-center">
-            <select value={appYear} onChange={e=>{setAppYear(e.target.value?Number(e.target.value):'');setAppPage(1)}} className="border border-stone-200 rounded-lg px-2.5 py-1.5 text-sm bg-white outline-none">
-              <option value="">全部年度</option>{yearOpts.map(y=><option key={y} value={y}>{y}年</option>)}
-            </select>
-            <input value={appSearch} onChange={e=>{setAppSearch(e.target.value);setAppPage(1)}} placeholder="搜索姓名/补贴名称…" className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-emerald-400 w-48"/>
-            <span className="text-xs text-stone-400">共{filtered.length}条</span>
-          </div>
-          <table className="w-full border-collapse">
-            <thead><tr className="border-b border-stone-100">
-              {['年度','成员','补贴项目','方式','面积','申请金额','实发金额','状态'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs text-stone-400 font-semibold">{h}</th>)}
-            </tr></thead>
-            <tbody>
-              {paged.length===0&&<tr><td colSpan={8} className="text-center py-10 text-stone-300">暂无记录</td></tr>}
-              {paged.map((a,i)=>(
-                <tr key={i} className="border-b border-stone-50 hover:bg-stone-50">
-                  <td className="px-4 py-2.5 font-bold text-blue-600 text-sm">{a.apply_year}</td>
-                  <td className="px-4 py-2.5 text-sm">{a.farmer_name}</td>
-                  <td className="px-4 py-2.5 text-sm">{a.subsidy_name}</td>
-                  <td className="px-4 py-2.5"><Tag label={a.calc_mode==='per_mu'?'按亩':'固定'} color={a.calc_mode==='per_mu'?'blue':'purple'}/></td>
-                  <td className="px-4 py-2.5 text-sm font-mono">{a.apply_area!=null?`${a.apply_area}亩`:'—'}</td>
-                  <td className="px-4 py-2.5 text-sm font-mono text-stone-500">{fmt(a.apply_amount)}</td>
-                  <td className="px-4 py-2.5 text-sm font-mono font-bold text-emerald-700">{fmt(a.actual_amount)}</td>
-                  <td className="px-4 py-2.5"><Tag label={PAY_STATUS[a.pay_status]?.label||'—'} color={PAY_STATUS[a.pay_status]?.color as 'green'}/></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length>PS&&(
-            <div className="px-4 py-2 border-t border-stone-100 bg-stone-50/50 flex justify-between text-xs text-stone-400">
-              <span>第{appPage}/{Math.ceil(filtered.length/PS)}页</span>
-              <div className="flex gap-1">
-                <button disabled={appPage<=1} onClick={()=>setAppPage(p=>p-1)} className="px-2.5 py-1 border border-stone-200 rounded disabled:opacity-40">‹</button>
-                <button disabled={appPage*PS>=filtered.length} onClick={()=>setAppPage(p=>p+1)} className="px-2.5 py-1 border border-stone-200 rounded disabled:opacity-40">›</button>
-              </div>
+              {buildResult.errors.length>0&&(
+                <div className="bg-red-50 border border-red-100 rounded-xl p-3">
+                  <p className="text-xs font-semibold text-red-700 mb-2">⚠️ {buildResult.errors.length} 条错误：</p>
+                  <div className="max-h-40 overflow-y-auto space-y-1">
+                    {buildResult.errors.map((e,i)=>(
+                      <p key={i} className="text-xs text-red-600">{e}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <button onClick={()=>{ setBuildResult(null); setBuildFile(null); setBuildPreview([]) }}
+                className="w-full py-2 border border-stone-200 text-stone-500 rounded-lg text-sm hover:bg-stone-50">
+                重新上传
+              </button>
             </div>
           )}
         </div>
-      )}
-
-      {/* 编辑家庭户 */}
-      <Modal open={editOpen} title={`编辑家庭户·${detail.household_name}`} onClose={()=>setEditOpen(false)} onConfirm={submitEdit}>
-        <div className="space-y-3">
-          <div><label className="block text-xs text-stone-400 mb-1">承包土地面积（亩）</label><input type="number" step="0.01" min="0" value={ef.land_area||''} onChange={e=>setEf(f=>({...f,land_area:Number(e.target.value)}))} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"/></div>
-          <div><label className="block text-xs text-stone-400 mb-1">详细地址</label><input value={ef.address} onChange={e=>setEf(f=>({...f,address:e.target.value}))} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"/></div>
-          <div><label className="block text-xs text-stone-400 mb-1">备注</label><textarea rows={2} value={ef.remark} onChange={e=>setEf(f=>({...f,remark:e.target.value}))} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none"/></div>
-        </div>
       </Modal>
 
-      {/* 新增成员 */}
-      <Modal open={addOpen} title="新增家庭成员" onClose={()=>setAddOpen(false)} onConfirm={submitAdd} confirmText="添加">
-        <p className="text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mb-3">若身份证已存在于其他家庭户，将自动迁入本户</p>
-        <div className="grid grid-cols-2 gap-3">
-          {[{l:'姓名 *',k:'real_name',t:'text'},{l:'身份证号 *',k:'id_card',t:'text'},{l:'手机号',k:'phone',t:'text'},{l:'银行卡号',k:'bank_card',t:'text'},{l:'开户行',k:'bank_name',t:'text'}].map(f=>(
-            <div key={f.k}><label className="block text-xs text-stone-400 mb-1">{f.l}</label><input type={f.t} value={(mf as Record<string,string|number>)[f.k] as string} onChange={e=>setMf(p=>({...p,[f.k]:e.target.value}))} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"/></div>
-          ))}
-          <div><label className="block text-xs text-stone-400 mb-1">与户主关系</label><input value={mf.relation} onChange={e=>setMf(p=>({...p,relation:e.target.value}))} list="rl" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"/><datalist id="rl">{['妻子','丈夫','儿子','女儿','父亲','母亲','兄弟','姐妹','孙子','孙女'].map(r=><option key={r} value={r}/>)}</datalist></div>
-          <div><label className="block text-xs text-stone-400 mb-1">设为户主</label><select value={mf.is_head} onChange={e=>setMf(p=>({...p,is_head:Number(e.target.value)}))} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none"><option value={0}>否</option><option value={1}>是（原户主降级）</option></select></div>
-          <div><label className="block text-xs text-stone-400 mb-1">在册状态</label><select value={mf.farmer_status} onChange={e=>setMf(p=>({...p,farmer_status:Number(e.target.value)}))} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none"><option value={1}>在册</option><option value={2}>注销</option><option value={3}>迁出</option><option value={4}>死亡</option></select></div>
-        </div>
-      </Modal>
-
-      {/* 编辑成员 */}
-      <Modal open={!!editMember} title={`编辑成员·${editMember?.real_name}`} onClose={()=>setEditMember(null)} onConfirm={submitEditMember}>
-        <div className="grid grid-cols-2 gap-3">
-          {[{l:'姓名',k:'real_name'},{l:'开户行',k:'bank_name'}].map(f=>(
-            <div key={f.k}><label className="block text-xs text-stone-400 mb-1">{f.l}</label><input value={(emf as Record<string,string>)[f.k]??''} onChange={e=>setEmf(p=>({...p,[f.k]:e.target.value}))} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"/></div>
-          ))}
-          <div><label className="block text-xs text-stone-400 mb-1">在册状态</label><select value={emf.farmer_status??1} onChange={e=>setEmf(p=>({...p,farmer_status:Number(e.target.value)}))} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none"><option value={1}>在册</option><option value={2}>注销</option><option value={3}>迁出</option><option value={4}>死亡</option></select></div>
-          <div><label className="block text-xs text-stone-400 mb-1">与户主关系</label><input value={emf.relation??''} onChange={e=>setEmf(p=>({...p,relation:e.target.value}))} list="rl2" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"/><datalist id="rl2">{['妻子','丈夫','儿子','女儿','父亲','母亲','兄弟','姐妹'].map(r=><option key={r} value={r}/>)}</datalist></div>
-          <div className="col-span-2"><label className="block text-xs text-stone-400 mb-1">备注</label><input value={emf.remark??''} onChange={e=>setEmf(p=>({...p,remark:e.target.value}))} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"/></div>
-        </div>
-      </Modal>
-    </div>
-  )
-}
-
-function MiniBar({c,u,od}:{c:number;u:number;od:boolean}) {
-  if(c<=0) return <span className="text-xs text-stone-300">—</span>
-  const pct = Math.min(100,Math.round(u/c*100))
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 min-w-12 bg-stone-100 rounded-full h-1.5 overflow-hidden">
-        <div className={`h-full rounded-full ${od?'bg-red-500':pct>80?'bg-amber-400':'bg-emerald-400'}`} style={{width:`${pct}%`}}/>
-      </div>
-      <span className={`text-xs font-mono whitespace-nowrap ${od?'text-red-600 font-bold':'text-stone-400'}`}>{u}亩</span>
+      <Toast {...toast} />
     </div>
   )
 }

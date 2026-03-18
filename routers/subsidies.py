@@ -178,51 +178,69 @@ def year_compare(
     year: int = Query(..., description="当前年度"),
     db: Session = Depends(get_db),
 ):
+    from sqlalchemy import text
     last_year = year - 1
 
-    def get_summary(y: int) -> dict:
-        apps = db.query(SubsidyApplication).filter(SubsidyApplication.apply_year == y).all()
-        total = sum(float(a.actual_amount or 0) for a in apps)
-        farmers = set(a.farmer_id for a in apps)
-        return {
-            "year": y,
-            "total_amount": round(total, 2),
-            "farmer_count": len(farmers),
-            "application_count": len(apps),
-            "farmer_ids": farmers,
-        }
+    # 一条 SQL 同时算两年的汇总，完全在数据库完成
+    sql_summary = text("""
+        SELECT apply_year,
+               ROUND(SUM(COALESCE(actual_amount, 0)), 2) AS total_amount,
+               COUNT(DISTINCT farmer_id)                 AS farmer_count,
+               COUNT(*)                                  AS application_count
+        FROM subsidy_application
+        WHERE apply_year IN (:y, :ly)
+        GROUP BY apply_year
+    """)
+    rows = {r.apply_year: r for r in db.execute(sql_summary, {"y": year, "ly": last_year})}
+    cur_r  = rows.get(year)
+    prev_r = rows.get(last_year)
 
-    cur  = get_summary(year)
-    prev = get_summary(last_year)
+    cur  = {"year": year,      "total_amount": float(cur_r.total_amount  if cur_r  else 0),
+            "farmer_count": int(cur_r.farmer_count  if cur_r  else 0),
+            "application_count": int(cur_r.application_count  if cur_r  else 0)}
+    prev = {"year": last_year, "total_amount": float(prev_r.total_amount if prev_r else 0),
+            "farmer_count": int(prev_r.farmer_count if prev_r else 0),
+            "application_count": int(prev_r.application_count if prev_r else 0)}
 
-    # 新增：今年有、去年没有
-    new_ids  = cur["farmer_ids"] - prev["farmer_ids"]
-    exit_ids = prev["farmer_ids"] - cur["farmer_ids"]
-
-    def id_to_info(fid):
-        f = db.get(FarmerProfile, fid)
-        if not f:
-            return {"id": fid, "name": "未知"}
-        vg = db.get(VillageGroup, f.household.village_group_id) if f.household else None
-        return {
-            "id": f.id,
-            "name": f.real_name,
-            "village": vg.full_name if vg else "",
-            "status": f.farmer_status,
-        }
+    # 新增/退出 也用 SQL 算，只取最多 50 条避免返回太多
+    sql_diff = text("""
+        SELECT fp.id, fp.real_name, fp.farmer_status,
+               COALESCE(vg.full_name, '') AS village
+        FROM farmer_profile fp
+        LEFT JOIN family_household hh ON fp.household_id = hh.id
+        LEFT JOIN village_group    vg ON hh.village_group_id = vg.id
+        WHERE fp.id IN (
+            SELECT DISTINCT farmer_id FROM subsidy_application WHERE apply_year = :y
+        ) AND fp.id NOT IN (
+            SELECT DISTINCT farmer_id FROM subsidy_application WHERE apply_year = :ly
+        )
+        LIMIT 50
+    """)
+    sql_exit = text("""
+        SELECT fp.id, fp.real_name, fp.farmer_status,
+               COALESCE(vg.full_name, '') AS village
+        FROM farmer_profile fp
+        LEFT JOIN family_household hh ON fp.household_id = hh.id
+        LEFT JOIN village_group    vg ON hh.village_group_id = vg.id
+        WHERE fp.id IN (
+            SELECT DISTINCT farmer_id FROM subsidy_application WHERE apply_year = :ly
+        ) AND fp.id NOT IN (
+            SELECT DISTINCT farmer_id FROM subsidy_application WHERE apply_year = :y
+        )
+        LIMIT 50
+    """)
+    new_f  = [{"id":r.id,"name":r.real_name,"village":r.village,"status":r.farmer_status}
+              for r in db.execute(sql_diff, {"y":year,"ly":last_year})]
+    exit_f = [{"id":r.id,"name":r.real_name,"village":r.village,"status":r.farmer_status}
+              for r in db.execute(sql_exit, {"y":year,"ly":last_year})]
 
     amount_diff = cur["total_amount"] - prev["total_amount"]
     pct = round(amount_diff / prev["total_amount"] * 100, 1) if prev["total_amount"] else None
-
     return {
-        "current_year": {k: v for k, v in cur.items() if k != "farmer_ids"},
-        "last_year":    {k: v for k, v in prev.items() if k != "farmer_ids"},
-        "new_farmers":  [id_to_info(i) for i in new_ids],
-        "exit_farmers": [id_to_info(i) for i in exit_ids],
-        "amount_diff": round(amount_diff, 2),
-        "amount_diff_pct": pct,
+        "current_year": cur, "last_year": prev,
+        "new_farmers": new_f, "exit_farmers": exit_f,
+        "amount_diff": round(amount_diff, 2), "amount_diff_pct": pct,
     }
-
 
 # ════════════════════════════════
 #  按村汇总
@@ -233,29 +251,26 @@ def summary_by_village(
     year: int = Query(...),
     db: Session = Depends(get_db),
 ):
-    villages = db.query(VillageGroup.village_name).distinct().all()
-    result = []
-
-    for (vname,) in villages:
-        vg_ids    = [v.id for v in db.query(VillageGroup).filter(VillageGroup.village_name == vname).all()]
-        hh_ids    = [h.id for h in db.query(FamilyHousehold).filter(FamilyHousehold.village_group_id.in_(vg_ids)).all()]
-        f_ids     = [f.id for f in db.query(FarmerProfile).filter(FarmerProfile.household_id.in_(hh_ids)).all()]
-        apps      = db.query(SubsidyApplication).filter(
-            SubsidyApplication.apply_year == year,
-            SubsidyApplication.farmer_id.in_(f_ids),
-        ).all()
-        total     = sum(float(a.actual_amount or 0) for a in apps)
-        beneficiaries = len(set(a.farmer_id for a in apps))
-
-        result.append({
-            "village_name": vname,
-            "beneficiaries": beneficiaries,
-            "total_amount": round(total, 2),
-            "application_count": len(apps),
-        })
-
-    return sorted(result, key=lambda x: x["total_amount"], reverse=True)
-
+    from sqlalchemy import text
+    # 一条 SQL 完成：按村汇总，全在数据库算
+    sql = text("""
+        SELECT vg.village_name,
+               COUNT(DISTINCT sa.farmer_id)              AS beneficiaries,
+               ROUND(SUM(COALESCE(sa.actual_amount,0)),2) AS total_amount,
+               COUNT(sa.id)                              AS application_count
+        FROM subsidy_application sa
+        JOIN farmer_profile   fp ON sa.farmer_id = fp.id
+        JOIN family_household hh ON fp.household_id = hh.id
+        JOIN village_group    vg ON hh.village_group_id = vg.id
+        WHERE sa.apply_year = :year
+        GROUP BY vg.village_name
+        ORDER BY total_amount DESC
+    """)
+    return [
+        {"village_name": r.village_name, "beneficiaries": r.beneficiaries,
+         "total_amount": float(r.total_amount), "application_count": r.application_count}
+        for r in db.execute(sql, {"year": year})
+    ]
 
 # ════════════════════════════════
 #  补贴类型 + 统计数据（首页用）
@@ -266,38 +281,25 @@ def list_types_with_stats(
     year: Optional[int] = Query(None),
     db: Session = Depends(get_db),
 ):
-    """补贴类型列表，附带每项的申请人数/金额统计，供首页和项目页使用"""
-    q = db.query(SubsidyType)
-    if year:
-        q = q.filter(SubsidyType.subsidy_year == year)
-    types = q.order_by(SubsidyType.subsidy_year.desc(), SubsidyType.id).all()
+    from sqlalchemy import text
+    where = "WHERE st.subsidy_year = :year" if year else ""
+    params = {"year": year} if year else {}
 
-    result = []
-    for st in types:
-        apps = db.query(SubsidyApplication).filter(
-            SubsidyApplication.subsidy_type_id == st.id
-        ).all()
-        total_apply  = sum(float(a.apply_amount  or 0) for a in apps)
-        total_actual = sum(float(a.actual_amount or 0) for a in apps)
-        beneficiaries = len(set(a.farmer_id for a in apps))
-        result.append({
-            "id": st.id,
-            "subsidy_name":    st.subsidy_name,
-            "subsidy_year":    st.subsidy_year,
-            "calc_mode":       st.calc_mode,
-            "standard_amount": st.standard_amount,
-            "standard_unit":   st.standard_unit,
-            "fund_source":     st.fund_source,
-            "apply_deadline":  st.apply_deadline,
-            "pay_status":      st.pay_status,
-            "description":     st.description,
-            "app_count":       len(apps),
-            "beneficiary_count": beneficiaries,
-            "total_apply":     round(total_apply, 2),
-            "total_actual":    round(total_actual, 2),
-        })
-    return result
-
+    sql = text(f"""
+        SELECT st.id, st.subsidy_name, st.subsidy_year, st.calc_mode,
+               st.standard_amount, st.standard_unit, st.fund_source,
+               st.apply_deadline, st.pay_status, st.description,
+               COUNT(sa.id)                               AS app_count,
+               COUNT(DISTINCT sa.farmer_id)               AS beneficiary_count,
+               ROUND(SUM(COALESCE(sa.apply_amount,0)),2)  AS total_apply,
+               ROUND(SUM(COALESCE(sa.actual_amount,0)),2) AS total_actual
+        FROM subsidy_type st
+        LEFT JOIN subsidy_application sa ON sa.subsidy_type_id = st.id
+        {where}
+        GROUP BY st.id
+        ORDER BY st.subsidy_year DESC, st.id
+    """)
+    return [dict(r._mapping) for r in db.execute(sql, params)]
 
 # ════════════════════════════════
 #  应用内补贴查询（外联查询页用）

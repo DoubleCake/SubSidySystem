@@ -92,3 +92,33 @@ if __name__ == "__main__":
     print("=" * 50)
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
 
+
+
+def create_indexes():
+    """创建性能索引，首次启动自动执行"""
+    from sqlalchemy import text
+    from database import engine
+    indexes = [
+        # 补贴申请表的高频查询字段
+        "CREATE INDEX IF NOT EXISTS idx_sa_year         ON subsidy_application(apply_year)",
+        "CREATE INDEX IF NOT EXISTS idx_sa_farmer       ON subsidy_application(farmer_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sa_type         ON subsidy_application(subsidy_type_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sa_year_farmer  ON subsidy_application(apply_year, farmer_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sa_year_type    ON subsidy_application(apply_year, subsidy_type_id)",
+        # 农户表
+        "CREATE INDEX IF NOT EXISTS idx_fp_household    ON farmer_profile(household_id)",
+        "CREATE INDEX IF NOT EXISTS idx_fp_id_card      ON farmer_profile(id_card)",
+        "CREATE INDEX IF NOT EXISTS idx_fp_status       ON farmer_profile(farmer_status)",
+        "CREATE INDEX IF NOT EXISTS idx_fp_name         ON farmer_profile(real_name)",
+        # 家庭户
+        "CREATE INDEX IF NOT EXISTS idx_hh_vg           ON family_household(village_group_id)",
+        # 补贴类型
+        "CREATE INDEX IF NOT EXISTS idx_st_year         ON subsidy_type(subsidy_year)",
+    ]
+    with engine.connect() as conn:
+        for sql in indexes:
+            conn.execute(text(sql))
+        conn.commit()
+    print("  数据库索引已就绪 ✅")
+
+create_indexes()

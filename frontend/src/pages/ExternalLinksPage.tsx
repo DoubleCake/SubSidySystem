@@ -419,58 +419,75 @@ export default function ExternalLinksPage() {
         </div>
       )}
 
-      {/* 网站管理 */}
-      <Modal open={siteModal} title="管理外部网站" onClose={()=>{setSiteModal(false);setEditSite(null)}}
-        onConfirm={editSite!==null&&editSite.name!==undefined?submitSite:undefined} confirmText="保存">
-        {!(editSite?.name!==undefined&&editSite.id===undefined||editSite&&!editSite.id&&editSite.name)||(!editSite)||(editSite&&editSite.url!==undefined)
-          ?(!editSite||editSite.id)&&!editSite?.url
-            ?(<div>
-                <div className="flex justify-between items-center mb-3">
-                  <p className="text-sm text-stone-500">已配置 {sites.length} 个网站</p>
-                  <button onClick={()=>{ setEditSite({} as Site); setSiteForm({site_type:'link',sort_order:sites.length+1,is_active:1}) }}
-                    className="text-xs bg-emerald-700 text-white px-3 py-1.5 rounded-lg">＋ 新增</button>
-                </div>
-                <div className="space-y-2 max-h-72 overflow-auto">
-                  {sites.map(s=>(
-                    <div key={s.id} className="flex items-center gap-3 bg-stone-50 border border-stone-200 rounded-lg px-3 py-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2"><span className="text-sm font-semibold">{s.name}</span>
-                          <Tag label={s.is_active?'启用':'禁用'} color={s.is_active?'green':'gray'}/></div>
-                        <p className="text-xs text-stone-400 font-mono truncate">{s.url}</p>
-                      </div>
-                      <button onClick={()=>{setEditSite(s);setSiteForm({name:s.name,url:s.url,site_type:s.site_type,description:s.description||'',sort_order:s.sort_order,is_active:s.is_active})}}
-                        className="text-xs text-stone-400 border border-stone-200 px-2 py-1 rounded hover:text-emerald-700">编辑</button>
-                      <button onClick={()=>deleteSite(s.id)} className="text-xs text-red-400 border border-red-200 px-2 py-1 rounded hover:bg-red-50">删</button>
+      {/* 网站管理弹窗 — 列表模式 / 编辑模式 */}
+      <Modal open={siteModal} title={editSite?.id ? '编辑网站' : siteForm.name ? '新增网站' : '管理外部网站'}
+        onClose={()=>{ setSiteModal(false); setEditSite(null); setSiteForm({site_type:'link',sort_order:0,is_active:1}) }}
+        onConfirm={ siteForm.name ? submitSite : undefined }
+        confirmText="保存">
+        {/* ── 表单模式（新增或编辑） ── */}
+        {siteForm.name !== undefined && (siteForm.name !== '' || editSite?.id) ? (
+          <div className="space-y-3">
+            {editSite?.id && <div className="text-xs text-stone-400 bg-stone-50 border border-stone-200 rounded px-3 py-1.5">正在编辑：{editSite.name}</div>}
+            <div><label className="block text-xs text-stone-400 mb-1">网站名称 *</label>
+              <input value={siteForm.name??''} onChange={e=>setSiteForm(f=>({...f,name:e.target.value}))} placeholder="如：农经网、社保系统"
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"/></div>
+            <div><label className="block text-xs text-stone-400 mb-1">网址 *</label>
+              <input value={siteForm.url??''} onChange={e=>setSiteForm(f=>({...f,url:e.target.value}))} placeholder="https://"
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm font-mono outline-none focus:border-emerald-400"/></div>
+            <div><label className="block text-xs text-stone-400 mb-1">描述（可选）</label>
+              <input value={siteForm.description??''} onChange={e=>setSiteForm(f=>({...f,description:e.target.value}))}
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"/></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="block text-xs text-stone-400 mb-1">排序</label>
+                <input type="number" value={siteForm.sort_order??0} onChange={e=>setSiteForm(f=>({...f,sort_order:Number(e.target.value)}))}
+                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none"/></div>
+              <div><label className="block text-xs text-stone-400 mb-1">状态</label>
+                <select value={siteForm.is_active??1} onChange={e=>setSiteForm(f=>({...f,is_active:Number(e.target.value)}))}
+                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+                  <option value={1}>启用</option><option value={0}>禁用</option>
+                </select></div>
+            </div>
+            <button onClick={()=>setSiteForm({site_type:'link',sort_order:0,is_active:1})}
+              className="text-xs text-stone-400 hover:underline">← 返回列表</button>
+          </div>
+        ) : (
+          /* ── 列表模式 ── */
+          <div>
+            <div className="flex justify-between items-center mb-3">
+              <p className="text-sm text-stone-500">已配置 {sites.length} 个网站</p>
+              <button onClick={()=>setSiteForm({name:'',url:'',site_type:'link',sort_order:sites.length+1,is_active:1})}
+                className="text-sm bg-emerald-700 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-600">＋ 新增网站</button>
+            </div>
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {sites.length===0&&<p className="text-center py-8 text-stone-300 text-sm">暂无网站，点击「＋新增网站」添加</p>}
+              {sites.map(s=>(
+                <div key={s.id} className="flex items-center gap-3 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-stone-800">{s.name}</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${s.is_active?'bg-emerald-100 text-emerald-700':'bg-stone-200 text-stone-400'}`}>
+                        {s.is_active?'启用':'禁用'}
+                      </span>
                     </div>
-                  ))}
-                  {sites.length===0&&<p className="text-center py-6 text-stone-300 text-sm">暂无网站</p>}
+                    {s.description&&<p className="text-xs text-stone-400 mt-0.5">{s.description}</p>}
+                    <p className="text-xs text-stone-300 font-mono truncate mt-0.5">{s.url}</p>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={()=>{
+                      setEditSite(s)
+                      setSiteForm({name:s.name,url:s.url,site_type:s.site_type,description:s.description||'',sort_order:s.sort_order,is_active:s.is_active})
+                    }} className="text-xs text-stone-500 border border-stone-200 px-2 py-1 rounded hover:text-emerald-700 hover:border-emerald-200">编辑</button>
+                    <a href={s.url} target="_blank" rel="noopener noreferrer"
+                      className="text-xs text-stone-400 border border-stone-200 px-2 py-1 rounded hover:text-blue-600 hover:border-blue-200">↗</a>
+                    <button onClick={()=>deleteSite(s.id)} className="text-xs text-red-400 border border-red-100 px-2 py-1 rounded hover:bg-red-50">删</button>
+                  </div>
                 </div>
-              </div>)
-            :(<div className="space-y-3">
-                <div><label className="block text-xs text-stone-400 mb-1">网站名称 *</label>
-                  <input value={siteForm.name??''} onChange={e=>setSiteForm(f=>({...f,name:e.target.value}))}
-                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"/></div>
-                <div><label className="block text-xs text-stone-400 mb-1">网址 *</label>
-                  <input value={siteForm.url??''} onChange={e=>setSiteForm(f=>({...f,url:e.target.value}))} placeholder="https://"
-                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm font-mono outline-none focus:border-emerald-400"/></div>
-                <div><label className="block text-xs text-stone-400 mb-1">描述</label>
-                  <input value={siteForm.description??''} onChange={e=>setSiteForm(f=>({...f,description:e.target.value}))}
-                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"/></div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><label className="block text-xs text-stone-400 mb-1">排序</label>
-                    <input type="number" value={siteForm.sort_order??0} onChange={e=>setSiteForm(f=>({...f,sort_order:Number(e.target.value)}))}
-                      className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"/></div>
-                  <div><label className="block text-xs text-stone-400 mb-1">状态</label>
-                    <select value={siteForm.is_active??1} onChange={e=>setSiteForm(f=>({...f,is_active:Number(e.target.value)}))}
-                      className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
-                      <option value={1}>启用</option><option value={0}>禁用</option>
-                    </select></div>
-                </div>
-                <button onClick={()=>setEditSite(null)} className="text-xs text-stone-400 hover:underline">← 返回列表</button>
-              </div>)
-          :null
-        }
+              ))}
+            </div>
+          </div>
+        )}
       </Modal>
+
 
       {/* 批量查询记录 */}
       <Modal open={batchOpen} title="保存查询记录" onClose={()=>setBatchOpen(false)} onConfirm={submitBatch} confirmText="保存记录">

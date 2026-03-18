@@ -739,3 +739,108 @@ def get_area_by_year(household_id: int, db: Session = Depends(get_db)):
         y["overdraw_amount"] = round(max(0, y["total_used"] - contracted), 2)
 
     return {"contracted_area": contracted, "years": year_list}
+
+
+# ─────────────────────────────────────
+#  批量组建家庭户（Excel 导入）
+# ─────────────────────────────────────
+
+class HouseholdBuildRow(BaseModel):
+    household_id: str          # Excel 中自定义的家庭户编号（如 HH001）
+    id_card: str               # 身份证号，用于匹配已有农户
+    real_name: Optional[str] = None
+    is_head: Optional[int] = 0  # 1=户主 0=成员
+    relation: Optional[str] = "成员"
+    land_area: Optional[float] = None   # 只有户主行填，设置到家庭户
+
+class HouseholdBuildRequest(BaseModel):
+    rows: list[HouseholdBuildRow]
+
+@router.post("/batch-build")
+def batch_build_households(req: HouseholdBuildRequest, db: Session = Depends(get_db)):
+    """
+    按 Excel 模板批量组建家庭户：
+    1. 按 household_id 分组
+    2. 每组找到对应农户（按身份证匹配）
+    3. 创建或复用同名家庭户，把成员归入
+    4. 设置户主
+    """
+    from utils import gen_household_code
+
+    rows = req.rows
+    built, updated, errors = 0, 0, []
+
+    # 按 household_id 分组
+    from collections import defaultdict
+    groups: dict = defaultdict(list)
+    for r in rows:
+        groups[r.household_id.strip()].append(r)
+
+    for hh_label, members in groups.items():
+        try:
+            # 找户主行（is_head=1），只取第一个
+            head_rows = [m for m in members if m.is_head == 1]
+            if not head_rows:
+                errors.append(f"家庭户 {hh_label}：没有指定户主（is_head=1）")
+                continue
+
+            # 解析所有成员对应的 FarmerProfile
+            farmer_objs = []
+            head_farmer = None
+            for m in members:
+                ic = m.id_card.strip()
+                fp = db.query(FarmerProfile).filter(FarmerProfile.id_card == ic).first()
+                if not fp:
+                    errors.append(f"{hh_label} - {m.real_name or ic}：身份证找不到对应农户，跳过")
+                    continue
+                farmer_objs.append((fp, m))
+                if m.is_head == 1:
+                    head_farmer = fp
+
+            if not head_farmer or not farmer_objs:
+                errors.append(f"家庭户 {hh_label}：没有找到有效成员，跳过")
+                continue
+
+            # 找户主行的 land_area
+            land = None
+            for m in members:
+                if m.is_head == 1 and m.land_area:
+                    land = m.land_area; break
+
+            # 创建家庭户（若已有同 household_code 则复用）
+            existing_hh = db.query(FamilyHousehold).filter(
+                FamilyHousehold.household_name == f"{head_farmer.real_name}户（{hh_label}）"
+            ).first()
+
+            if not existing_hh:
+                existing_hh = FamilyHousehold(
+                    household_code=gen_household_code(head_farmer.id),
+                    household_name=f"{head_farmer.real_name}户（{hh_label}）",
+                    head_farmer_id=head_farmer.id,
+                    village_group_id=head_farmer.household.village_group_id if head_farmer.household else 1,
+                    land_area=land,
+                    status=1,
+                    member_count=len(farmer_objs),
+                )
+                db.add(existing_hh); db.flush()
+                built += 1
+            else:
+                if land: existing_hh.land_area = land
+                existing_hh.member_count = len(farmer_objs)
+                existing_hh.head_farmer_id = head_farmer.id
+                updated += 1
+
+            # 更新每个成员的 household_id、is_head、relation
+            for fp, m in farmer_objs:
+                fp.household_id = existing_hh.id
+                fp.is_head = m.is_head or 0
+                fp.relation = m.relation or ("本人" if m.is_head else "成员")
+
+            db.flush()
+
+        except Exception as e:
+            errors.append(f"家庭户 {hh_label}：{str(e)}")
+
+    db.commit()
+    return {"built": built, "updated": updated, "errors": errors,
+            "total_groups": len(groups)}
