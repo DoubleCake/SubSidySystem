@@ -54,19 +54,70 @@ def update_subsidy_type(type_id: int, data: dict, db: Session = Depends(get_db))
 @router.post("/applications/batch-import")
 def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
     from datetime import date as date_type
+    from utils import parse_id_card, gen_household_code
     rows = payload.get("rows", [])
     created, skipped, errors = 0, 0, []
+    new_farmers_created = 0
+
+    def get_or_create_farmer(id_card: str, real_name: str, village_name: str = "", group_no: str = "") -> FarmerProfile | None:
+        """按身份证查找农户，不存在则自动创建（含家庭户）"""
+        nonlocal new_farmers_created
+        fp = db.query(FarmerProfile).filter(FarmerProfile.id_card == id_card).first()
+        if fp:
+            return fp
+        # 找或建村组
+        from models import VillageGroup, FamilyHousehold
+        vg = None
+        if village_name and group_no:
+            vg = db.query(VillageGroup).filter_by(village_name=village_name, group_no=group_no).first()
+            if not vg:
+                vg = VillageGroup(village_name=village_name, group_no=group_no, full_name=f"{village_name}{group_no}")
+                db.add(vg); db.flush()
+        if not vg:
+            vg = db.query(VillageGroup).first()  # fallback：用第一个村组
+        if not vg:
+            return None
+        parsed = parse_id_card(id_card) or {}
+        fp = FarmerProfile(
+            household_id=0, real_name=real_name, gender=parsed.get("gender", 1),
+            id_card=id_card, birth_date=parsed.get("birth_date"),
+            is_head=1, relation="本人", farmer_status=1,
+        )
+        db.add(fp); db.flush()
+        hh = FamilyHousehold(
+            household_code=gen_household_code(fp.id),
+            household_name=f"{real_name}户", head_farmer_id=fp.id,
+            village_group_id=vg.id, status=1, member_count=1,
+        )
+        db.add(hh); db.flush()
+        fp.household_id = hh.id
+        new_farmers_created += 1
+        return fp
+
     for row in rows:
         try:
+            # 支持两种模式：传 farmer_id 或 传 id_card+real_name
+            farmer = None
+            if row.get("farmer_id"):
+                farmer = db.get(FarmerProfile, row["farmer_id"])
+            elif row.get("id_card") and row.get("real_name"):
+                farmer = get_or_create_farmer(
+                    str(row["id_card"]).strip(), str(row["real_name"]).strip(),
+                    str(row.get("village_name", "")).strip(), str(row.get("group_no", "")).strip()
+                )
+            if not farmer:
+                errors.append(f"{row.get('real_name','?')}：找不到农户且无法创建（缺少身份证或姓名）")
+                continue
+            row = dict(row)
+            row["farmer_id"] = farmer.id
             exists = db.query(SubsidyApplication).filter(
-                SubsidyApplication.farmer_id == row["farmer_id"],
+                SubsidyApplication.farmer_id == farmer.id,
                 SubsidyApplication.subsidy_type_id == row["subsidy_type_id"],
                 SubsidyApplication.apply_year == row["apply_year"],
             ).first()
             if exists:
                 skipped += 1
                 continue
-            farmer = db.get(FarmerProfile, row["farmer_id"])
             # 关键修复：pay_date 字符串转 Python date 对象
             clean_row = {k: v for k, v in row.items() if k != "bank_card_snapshot"}
             if clean_row.get("pay_date") and isinstance(clean_row["pay_date"], str):
@@ -83,7 +134,7 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
         except Exception as e:
             errors.append(str(e))
     db.commit()
-    return {"created": created, "skipped": skipped, "errors": errors}
+    return {"created": created, "skipped": skipped, "errors": errors, "new_farmers": new_farmers_created}
 
 
 # ════════════════════════════════

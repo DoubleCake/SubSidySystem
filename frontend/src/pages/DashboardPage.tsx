@@ -136,9 +136,9 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
             val: c&&p ? `${diff>=0?'+':''}¥${Math.abs(diff).toLocaleString('zh-CN',{maximumFractionDigits:0})}` : '—',
             sub: compare?.amount_diff_pct!=null ? `${diff>=0?'+':''}${compare.amount_diff_pct}%` : '—',
             color: diff>=0?'text-emerald-700':'text-red-500', border: diff>=0?'border-emerald-200':'border-red-200', bg:'' },
-          { icon:'👥', label:'受益农户',
+          { icon:'👥', label:'受益家庭户',
             val: c ? String(c.farmer_count) : '—',
-            sub: p ? `上年${p.farmer_count}人` : '', color:'text-blue-600', border:'border-blue-200', bg:'bg-blue-50/40' },
+            sub: p ? `上年${p.farmer_count}户` : '', color:'text-blue-600', border:'border-blue-200', bg:'bg-blue-50/40' },
           { icon:'📋', label:'补贴项目',
             val: String(stats.length),
             sub: `${stats.filter(s=>s.pay_status===2).length}项已完成`, color:'text-purple-600', border:'border-purple-200', bg:'bg-purple-50/40' },
@@ -205,11 +205,12 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
         <div className="space-y-3">
           {compare && [
             { title:'🆕 新增农户', list:compare.new_farmers, color:'green' as const },
-            { title:'📤 退出农户', list:compare.exit_farmers, color:'red' as const },
+            { title:'🔍 待核实农户', list:compare.exit_farmers, color:'amber' as const },
           ].map(block => (
             <div key={block.title} className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
               <div className="px-4 py-2.5 border-b border-stone-100 bg-stone-50 flex justify-between items-center">
                 <span className="font-semibold text-stone-700 text-sm">{block.title}</span>
+                {block.title === '🔍 待核实农户' && block.list.length > 0 && <span className="text-xs text-stone-400">去年有记录今年无</span>}
                 <Tag label={`${block.list.length}人`} color={block.color} />
               </div>
               <div className="max-h-40 overflow-y-auto">

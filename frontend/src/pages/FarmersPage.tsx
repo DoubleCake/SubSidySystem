@@ -49,6 +49,10 @@ export default function FarmersPage() {
   const [search, setSearch] = useState('')
   const [villageFilter, setVillageFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [incompleteOnly, setIncompleteOnly] = useState(false)
+  const [completeOpen, setCompleteOpen] = useState(false)
+  const [completeFile, setCompleteFile] = useState<File|null>(null)
+  const [completeResult, setCompleteResult] = useState<{updated:number;errors:string[]}|null>(null)
   const [groups, setGroups] = useState<VillageGroup[]>([])
   const [villages, setVillages] = useState<string[]>([])
   const [detail, setDetail] = useState<DetailFarmer | null>(null)
@@ -67,10 +71,11 @@ export default function FarmersPage() {
       if (search)        p.search       = search
       if (villageFilter) p.village_name = villageFilter
       if (statusFilter)  p.status       = statusFilter
+      if (incompleteOnly) p.incomplete  = '1'
       const res = await api.getFarmers(p)
       setFarmers(res.items); setTotal(res.total)
     } finally { setLoading(false) }
-  }, [page, search, villageFilter, statusFilter])
+  }, [page, search, villageFilter, statusFilter, incompleteOnly])
 
   useEffect(() => { load() }, [load])
   useEffect(() => {
@@ -452,6 +457,16 @@ export default function FarmersPage() {
           <option value="1">在册</option><option value="2">注销</option><option value="3">迁出</option>
         </select>
         <button onClick={exportCurrentList} className="px-3 py-2 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50">⬇ 导出列表</button>
+        <button onClick={() => { setIncompleteOnly(v => !v); setPage(1) }}
+          className={`px-3 py-2 text-sm border rounded-lg transition-colors ${incompleteOnly ? 'bg-amber-100 border-amber-300 text-amber-700' : 'border-stone-200 text-stone-500 hover:bg-stone-50'}`}>
+          {incompleteOnly ? '⚠️ 信息不完善' : '筛选：信息不完善'}
+        </button>
+        {incompleteOnly && (
+          <button onClick={() => setCompleteOpen(true)}
+            className="px-3 py-2 text-sm border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50">
+            ↑ 批量补全信息
+          </button>
+        )}
         <button onClick={() => setImportOpen(true)} className="px-3 py-2 text-sm border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50">↑ Excel 导入</button>
         <button onClick={() => setAddOpen(true)}    className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">＋ 新增农户</button>
       </div>
@@ -543,6 +558,68 @@ export default function FarmersPage() {
       <ExcelImport open={importOpen} onClose={() => setImportOpen(false)} title="农户信息"
         templateHeaders={FARMER_TEMPLATE_HEADERS} templateExample={FARMER_TEMPLATE_EXAMPLE}
         onImport={handleImport} onSuccess={load} />
+
+      {/* 批量补全弹窗 */}
+      <Modal open={completeOpen} title="批量补全农户信息" onClose={() => { setCompleteOpen(false); setCompleteFile(null); setCompleteResult(null) }}
+        onConfirm={completeFile && !completeResult ? async () => {
+          const reader = new FileReader()
+          reader.onload = async e => {
+            const wb = (await import('xlsx')).default.read(e.target?.result, { type: 'array' })
+            const rows = (await import('xlsx')).default.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' }) as Record<string, unknown>[]
+            const toComplete = rows.map(r => ({
+              id_card:   String(r['身份证号*'] || r['身份证号'] || '').trim(),
+              real_name: String(r['姓名'] || '').trim(),
+              phone:     String(r['手机号'] || '').trim() || undefined,
+              bank_card: String(r['银行卡号'] || '').trim() || undefined,
+              bank_name: String(r['开户行'] || '').trim() || undefined,
+              land_area: Number(r['土地面积'] || 0) || undefined,
+              address:   String(r['地址'] || '').trim() || undefined,
+            })).filter(r => r.id_card)
+            const res = await fetch('/api/farmers/bulk-complete', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ rows: toComplete })
+            }).then(r => r.json()) as { updated: number; errors: string[] }
+            setCompleteResult(res)
+            if (res.updated > 0) { show(`✓ 已补全 ${res.updated} 条`); load() }
+          }
+          reader.readAsArrayBuffer(completeFile)
+        } : undefined}
+        confirmText="开始补全">
+        <div className="space-y-3">
+          {!completeResult ? (
+            <>
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-700">
+                上传包含「身份证号*」列的 Excel，其他列（手机号、银行卡号、开户行、土地面积、地址）将补全到对应农户。已有的字段不会覆盖，仅补全空白字段。
+              </div>
+              <div>
+                <label className="block text-xs text-stone-400 mb-1">上传 Excel（必须含「身份证号*」列）</label>
+                <input type="file" accept=".xlsx,.xls" onChange={e => setCompleteFile(e.target.files?.[0] || null)}
+                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm" />
+              </div>
+            </>
+          ) : (
+            <div className="text-center space-y-3">
+              <div className="text-4xl">{completeResult.errors.length === 0 ? '✅' : '⚠️'}</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-emerald-50 rounded-xl p-3">
+                  <div className="text-2xl font-bold text-emerald-700">{completeResult.updated}</div>
+                  <div className="text-xs text-stone-400">成功补全</div>
+                </div>
+                <div className="bg-red-50 rounded-xl p-3">
+                  <div className="text-2xl font-bold text-red-500">{completeResult.errors.length}</div>
+                  <div className="text-xs text-stone-400">失败</div>
+                </div>
+              </div>
+              {completeResult.errors.length > 0 && (
+                <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-left max-h-32 overflow-auto">
+                  {completeResult.errors.map((e, i) => <p key={i} className="text-xs text-red-600">• {e}</p>)}
+                </div>
+              )}
+              <button onClick={() => { setCompleteResult(null); setCompleteFile(null) }} className="text-xs text-stone-400 hover:underline">重新上传</button>
+            </div>
+          )}
+        </div>
+      </Modal>
 
       <Toast {...toast} />
     </div>

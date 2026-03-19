@@ -62,9 +62,10 @@ def _to_detail(r) -> dict:
 # ── 列表 ──
 @router.get("")
 def list_farmers(
-    search:       Optional[str] = Query(None),
-    village_name: Optional[str] = Query(None),
-    status:       Optional[int] = Query(None),
+    search:       Optional[str]  = Query(None),
+    village_name: Optional[str]  = Query(None),
+    status:       Optional[int]  = Query(None),
+    incomplete:   Optional[bool] = Query(None, description="True=只看信息不完善的农户"),
     page:         int = Query(1, ge=1),
     page_size:    int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -77,6 +78,9 @@ def list_farmers(
         where.append("fp.farmer_status = :st"); params["st"] = status
     if village_name:
         where.append("vg.village_name = :vn");  params["vn"] = village_name
+    if incomplete:
+        # 信息不完善：手机、银行卡、土地面积缺任意一项
+        where.append("(fp.phone IS NULL OR fp.bank_card IS NULL OR hh.land_area IS NULL OR hh.land_area=0)")
 
     w = ("WHERE " + " AND ".join(where)) if where else ""
     total = db.execute(text(
@@ -227,3 +231,36 @@ def deactivate_farmer(farmer_id: int, status: int = Query(2), db: Session = Depe
     hh = db.get(FamilyHousehold, farmer.household_id)
     if hh: hh.status = status
     db.commit(); return {"message": "状态已更新"}
+
+
+# ── 批量补全农户信息 ──
+@router.post("/bulk-complete")
+def bulk_complete_farmers(payload: dict, db: Session = Depends(get_db)):
+    """批量更新农户基础信息（用于补全不完善字段）"""
+    rows = payload.get("rows", [])
+    updated, errors = 0, []
+    for row in rows:
+        fid = row.get("id")
+        ic  = str(row.get("id_card", "")).strip()
+        # 支持按 id 或按身份证号定位
+        if fid:
+            fp = db.get(FarmerProfile, fid)
+        elif ic:
+            fp = db.query(FarmerProfile).filter(FarmerProfile.id_card == ic).first()
+        else:
+            errors.append(f"缺少id或身份证号"); continue
+        if not fp:
+            errors.append(f"{row.get('real_name','?')}：农户不存在"); continue
+        try:
+            if row.get("phone"):      fp.phone     = str(row["phone"]).strip()
+            if row.get("bank_card"):  fp.bank_card = str(row["bank_card"]).strip()
+            if row.get("bank_name"):  fp.bank_name = str(row["bank_name"]).strip()
+            if row.get("land_area") and fp.household:
+                fp.household.land_area = float(row["land_area"])
+            if row.get("address") and fp.household:
+                fp.household.address = str(row["address"]).strip()
+            updated += 1
+        except Exception as e:
+            errors.append(f"{fp.real_name}：{e}")
+    db.commit()
+    return {"updated": updated, "errors": errors}

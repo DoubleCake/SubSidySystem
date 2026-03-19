@@ -5,7 +5,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
-from sqlalchemy import JSON
+
 
 class VillageGroup(Base):
     """村组字典表"""
@@ -85,7 +85,9 @@ class SubsidyType(Base):
     apply_deadline  = Column(Date, nullable=True)
     pay_status      = Column(SmallInteger, nullable=False, default=0,
                              comment="0未发放 1部分发放 2已发放完毕")
-    description     = Column(Text, nullable=True)
+    description        = Column(Text, nullable=True)
+    count_toward_area  = Column(SmallInteger, nullable=False, default=1,
+                                comment="1=按亩补贴累计入家庭承包面积 0=不计入（固定金额补贴一般选0）")
     created_at      = Column(DateTime, default=func.now())
 
     # 关联
@@ -139,19 +141,110 @@ class AuditLog(Base):
     ip_address    = Column(String(50), nullable=True)
     created_at    = Column(DateTime, default=func.now())
 
-class QueryFavorite(Base):
-    """查询记录收藏表"""
-    __tablename__ = "query_favorite"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    remark = Column(String(200), nullable=False, comment="收藏说明/事项名称")
-    
-    # query_params 存储查询参数，如 {"village_name": "红星村", "status": 1, "search": "张"}
-    # 如果你的数据库不支持 JSON 类型，可以改用 Text，存取时用 json.dumps/loads
-    query_params = Column(JSON, nullable=False, comment="查询参数快照")
-    
-    is_batch = Column(SmallInteger, default=0, comment="是否是批量操作相关的查询")
-    created_at = Column(DateTime, default=func.now())
+class SubsidyEligibilityRule(Base):
+    """补贴资格规则表 —— 每个补贴项目可以配置多条规则"""
+    __tablename__ = "subsidy_eligibility_rule"
 
-    def __repr__(self):
-        return f"<QueryFavorite {self.remark}>"
+    id               = Column(Integer, primary_key=True, autoincrement=True)
+    subsidy_type_id  = Column(Integer, ForeignKey("subsidy_type.id"), nullable=False)
+    rule_name        = Column(String(100), nullable=False, comment="规则名称")
+    rule_desc        = Column(Text, nullable=True, comment="规则说明（给操作员看）")
+
+    # ── 人员条件 ──
+    require_farmer_status = Column(SmallInteger, nullable=True, default=1,
+                                   comment="要求农户状态：1在册 2注销 3迁出 4死亡 null不限")
+    require_age_min  = Column(SmallInteger, nullable=True, comment="最小年龄（岁），null不限")
+    require_age_max  = Column(SmallInteger, nullable=True, comment="最大年龄（岁），null不限")
+
+    # ── 土地条件 ──
+    require_land_type    = Column(String(20), nullable=True, comment="要求地块类型，null不限")
+    require_min_area     = Column(DECIMAL(10,2), nullable=True, comment="最小面积（亩），null不限")
+    require_max_area     = Column(DECIMAL(10,2), nullable=True, comment="最大面积（亩），null不限")
+    require_not_idle     = Column(SmallInteger, nullable=False, default=0,
+                                  comment="1=要求土地未撂荒，0=不限")
+    require_contract_valid = Column(SmallInteger, nullable=False, default=0,
+                                    comment="1=要求承包合同在有效期内，0=不限")
+
+    # ── 叠加规则 ──
+    can_combine_with_others = Column(SmallInteger, nullable=False, default=1,
+                                     comment="1=可与其他补贴叠加 0=不可叠加")
+    exclusive_with       = Column(Text, nullable=True, comment="不可同时发放的补贴type_id，JSON数组")
+
+    # ── 状态 ──
+    is_active     = Column(SmallInteger, nullable=False, default=1)
+    created_at    = Column(DateTime, default=func.now())
+    updated_at    = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    subsidy_type  = relationship("SubsidyType", backref="eligibility_rules")
+
+
+class ExcelColumnTemplate(Base):
+    """Excel列映射模板 —— 记录各村各年度Excel的列名映射关系"""
+    __tablename__ = "excel_column_template"
+
+    id             = Column(Integer, primary_key=True, autoincrement=True)
+    template_name  = Column(String(200), nullable=False, comment="模板名称")
+    template_year  = Column(SmallInteger, nullable=True, comment="适用年度，null=通用")
+    region_name    = Column(String(100), nullable=True, comment="适用村组名称，null=通用")
+    business_type  = Column(String(20), nullable=False, default="SUBSIDY",
+                            comment="FARMER农户/SUBSIDY补贴/PLANTING种植")
+    subsidy_type_id = Column(Integer, nullable=True, comment="关联补贴类型，business_type=SUBSIDY时")
+
+    # ── 解析配置 ──
+    header_row       = Column(SmallInteger, nullable=False, default=1, comment="表头行号")
+    data_start_row   = Column(SmallInteger, nullable=False, default=2, comment="数据起始行")
+    skip_footer_rows = Column(SmallInteger, nullable=False, default=0, comment="跳过末尾行数")
+
+    # ── 列映射（JSON数组）──
+    column_mapping  = Column(Text, nullable=False, comment="列名映射规则 JSON")
+    # 格式：[{"system_field":"real_name","aliases":["姓名","户主姓名"],"required":true,"transform":""}]
+
+    # ── 跳过规则（JSON数组）──
+    skip_rules      = Column(Text, nullable=True, comment="跳过行规则 JSON")
+    # 格式：[{"field":"real_name","condition":"is_empty"}]
+
+    # ── 值映射（JSON对象）──
+    value_mapping   = Column(Text, nullable=True, comment="字段值翻译 JSON")
+    # 格式：{"farmer_status":{"在册":1,"正常":1,"注销":2}}
+
+    use_count       = Column(Integer, nullable=False, default=0, comment="使用次数")
+    last_used_at    = Column(DateTime, nullable=True)
+    created_by      = Column(String(50), nullable=True)
+    is_active       = Column(SmallInteger, nullable=False, default=1)
+    created_at      = Column(DateTime, default=func.now())
+    updated_at      = Column(DateTime, default=func.now(), onupdate=func.now())
+
+
+class ExcelImportLog(Base):
+    """Excel导入日志 —— 永久保留，可追溯每次导入"""
+    __tablename__ = "excel_import_log"
+
+    id               = Column(Integer, primary_key=True, autoincrement=True)
+    template_id      = Column(Integer, nullable=True, comment="使用的模板id，null=未使用模板")
+    template_name    = Column(String(200), nullable=True, comment="模板名称快照")
+    file_name        = Column(String(500), nullable=False, comment="原始文件名")
+    file_hash        = Column(String(64), nullable=True, comment="文件SHA256，防重复导入")
+    business_type    = Column(String(20), nullable=False)
+    region_name      = Column(String(100), nullable=True)
+    import_year      = Column(SmallInteger, nullable=True)
+
+    # ── 结果统计 ──
+    total_rows       = Column(Integer, nullable=False, default=0)
+    valid_rows       = Column(Integer, nullable=False, default=0)
+    created_count    = Column(Integer, nullable=False, default=0)
+    updated_count    = Column(Integer, nullable=False, default=0)
+    skipped_count    = Column(Integer, nullable=False, default=0)
+    error_count      = Column(Integer, nullable=False, default=0)
+    warning_count    = Column(Integer, nullable=False, default=0)
+    rule_failed_count = Column(Integer, nullable=False, default=0, comment="资格规则不通过数")
+
+    # ── 详情（JSON）──
+    error_detail     = Column(Text, nullable=True)
+    warning_detail   = Column(Text, nullable=True)
+    rule_fail_detail = Column(Text, nullable=True, comment="资格规则不通过的明细")
+    column_mapping_used = Column(Text, nullable=True, comment="本次实际使用的列映射快照")
+
+    operator         = Column(String(50), nullable=True)
+    import_duration_ms = Column(Integer, nullable=True)
+    created_at       = Column(DateTime, default=func.now())

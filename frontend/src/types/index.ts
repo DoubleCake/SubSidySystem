@@ -65,6 +65,7 @@ export interface SubsidyTypeCreate {
   apply_deadline?: string
   description?: string
   pay_status?: number
+  count_toward_area?: number  // 1=累计入家庭承包面积 0=不计入
 }
 
 export interface ApplicationOut {

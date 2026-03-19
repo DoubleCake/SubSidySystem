@@ -102,6 +102,8 @@ class SubsidyTypeCreate(BaseModel):
     fund_source: Optional[str] = None
     apply_deadline: Optional[date] = None
     description: Optional[str] = None
+    pay_status: Optional[int] = 0
+    count_toward_area: Optional[int] = 1
 
 class SubsidyTypeOut(BaseModel):
     id: int

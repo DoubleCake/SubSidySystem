@@ -95,6 +95,24 @@ if __name__ == "__main__":
 
 
 
+def migrate_db():
+    """兼容旧数据库：添加新字段（如不存在）"""
+    from sqlalchemy import text
+    from database import engine
+    migrations = [
+        "ALTER TABLE subsidy_type ADD COLUMN count_toward_area INTEGER NOT NULL DEFAULT 1",
+    ]
+    with engine.connect() as conn:
+        for sql in migrations:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+                print(f"  迁移完成：{sql[:60]}…")
+            except Exception:
+                pass  # 字段已存在则跳过
+
+migrate_db()
+
 def create_indexes():
     """创建性能索引，首次启动自动执行"""
     from sqlalchemy import text
@@ -121,5 +139,25 @@ def create_indexes():
             conn.execute(text(sql))
         conn.commit()
     print("  数据库索引已就绪 ✅")
+
+
+
+def migrate_db():
+    """兼容旧数据库：添加新字段（如不存在）"""
+    from sqlalchemy import text
+    from database import engine
+    migrations = [
+        "ALTER TABLE subsidy_type ADD COLUMN count_toward_area INTEGER NOT NULL DEFAULT 1",
+    ]
+    with engine.connect() as conn:
+        for sql in migrations:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+                print(f"  迁移完成：{sql[:60]}…")
+            except Exception:
+                pass  # 字段已存在则跳过
+
+migrate_db()
 
 create_indexes()

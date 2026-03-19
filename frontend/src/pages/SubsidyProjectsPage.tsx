@@ -57,7 +57,8 @@ export default function SubsidyProjectsPage() {
     setForm({ subsidy_name: t.subsidy_name, subsidy_year: t.subsidy_year, calc_mode: t.calc_mode,
       standard_amount: t.standard_amount ? Number(t.standard_amount) : undefined,
       standard_unit: t.standard_unit ?? undefined, fund_source: t.fund_source ?? undefined,
-      apply_deadline: t.apply_deadline ?? undefined, description: t.description ?? undefined })
+      apply_deadline: t.apply_deadline ?? undefined, description: t.description ?? undefined,
+      count_toward_area: (t as {count_toward_area?:number}).count_toward_area ?? 1 })
     setEditOpen(true)
   }
 
@@ -238,6 +239,14 @@ export default function SubsidyProjectsPage() {
                 className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
                 <option value={0}>未发放</option><option value={1}>发放中</option><option value={2}>已完成</option>
               </select></div>
+            <div><label className="block text-xs text-stone-400 mb-1">计入承包面积</label>
+              <select value={form.count_toward_area ?? 1} onChange={e => setForm((f: typeof form) => ({ ...f, count_toward_area: Number(e.target.value) }))}
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+                <option value={1}>是（按亩补贴累计入承包面积）</option>
+                <option value={0}>否（固定金额类不占用面积）</option>
+              </select>
+              <p className="text-xs text-stone-300 mt-1">影响家庭户超领预警的计算</p>
+            </div>
             <div className="col-span-2"><label className="block text-xs text-stone-400 mb-1">补贴说明</label>
               <textarea rows={2} value={form.description ?? ''} onChange={e => setForm((f: typeof form) => ({ ...f, description: e.target.value || undefined }))}
                 className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none" /></div>
@@ -371,23 +380,32 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
     finally { setBatchLoading(false) }
   }
 
-  const IMPORT_HEADERS = ['身份证号*', '实发金额', '面积(亩)', '打款日期', '备注']
-  const IMPORT_EXAMPLE = [{ '身份证号*': '510123196503154231', '实发金额': 420, '面积(亩)': 3.5, '打款日期': `${subsidyType.subsidy_year}-07-15`, '备注': '' }]
+  const IMPORT_HEADERS = ['身份证号*', '姓名*', '实发金额', '面积(亩)', '打款日期', '所在村', '所在组', '备注']
+  const IMPORT_EXAMPLE = [{ '身份证号*': '510123196503154231', '姓名*': '张国强', '实发金额': 420, '面积(亩)': 3.5, '打款日期': `${subsidyType.subsidy_year}-07-15`, '所在村': '红星村', '所在组': '一组', '备注': '' }]
 
   const handleImport = async (rows: Record<string, unknown>[]): Promise<{ created: number; skipped: number; errors: string[] }> => {
-    const toCreate: ApplicationCreate[] = []
+    const toCreate: Record<string, unknown>[] = []
     const errors: string[] = []
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
-      const idCard = String(row['身份证号*'] || row['身份证号'] || '').trim()
+      const idCard    = String(row['身份证号*'] || row['身份证号'] || '').trim()
+      const realName  = String(row['姓名*']   || row['姓名']   || '').trim()
+      const villageName = String(row['所在村'] || '').trim()
+      const groupNo   = String(row['所在组']  || '').trim()
       if (!idCard) { errors.push(`第${i + 2}行：缺少身份证号`); continue }
+      if (!realName) { errors.push(`第${i + 2}行：缺少姓名（导入补贴时必须填姓名，用于自动创建农户）`); continue }
       const fRes = await api.getFarmers({ search: idCard, page_size: 1 })
-      if (!fRes.items.length) { errors.push(`第${i + 2}行：找不到 ${idCard}`); continue }
-      const f = fRes.items[0]
+      // 找到用已有农户，找不到则由后端自动创建（需要姓名）
+      const f = fRes.items.length ? fRes.items[0] : { id: 0, real_name: realName, village_full_name: '' }
       const area = Number(row['面积(亩)']) || undefined
       const actual = Number(row['实发金额']) || (area ? area * Number(subsidyType.standard_amount || 0) : undefined)
       toCreate.push({
-        farmer_id: f.id, subsidy_type_id: subsidyType.id, apply_year: subsidyType.subsidy_year,
+        farmer_id: f.id || 0,   // 0 表示后端用 id_card 自动创建
+        id_card: idCard,
+        real_name: realName,
+        village_name: villageName || undefined,
+        group_no: groupNo || undefined,
+        subsidy_type_id: subsidyType.id, apply_year: subsidyType.subsidy_year,
         apply_area: area, apply_amount: actual, actual_amount: actual,
         pay_status: 2,
         pay_date: String(row['打款日期'] || '').trim() || undefined,
@@ -396,7 +414,9 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
     }
     if (errors.length && !toCreate.length) return { created: 0, skipped: 0, errors }
     const res = await api.batchImportApplications(toCreate)
-    show(`✓ 导入 ${res.created} 条，跳过 ${res.skipped} 条`)
+    const resAny = res as unknown as {new_farmers?:number}
+    const newMsg = resAny.new_farmers ? `，新建农户 ${resAny.new_farmers} 人` : ''
+    show(`✓ 导入 ${res.created} 条，跳过 ${res.skipped} 条${newMsg}`)
     load()
     return { ...res, errors: [...errors, ...(res.errors || [])] }
   }
