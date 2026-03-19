@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import engine
 from models import Base
-from routers import farmers, subsidies, ai_analyze, settings, precheck, households, external_links, backup
+from routers import farmers, subsidies, ai_analyze, settings, precheck, households, external_links, backup, eligibility, excel_templates
 
 Base.metadata.create_all(bind=engine)
 
@@ -31,6 +31,8 @@ app.include_router(precheck.router)
 app.include_router(households.router)
 app.include_router(external_links.router)
 app.include_router(backup.router)
+app.include_router(eligibility.router)
+app.include_router(excel_templates.router)
 
 @app.get("/api/health")
 def health():
@@ -95,12 +97,79 @@ if __name__ == "__main__":
 
 
 
+
+
 def migrate_db():
     """兼容旧数据库：添加新字段（如不存在）"""
     from sqlalchemy import text
     from database import engine
     migrations = [
         "ALTER TABLE subsidy_type ADD COLUMN count_toward_area INTEGER NOT NULL DEFAULT 1",
+        # Chapter 6 & 7 新表（用 CREATE TABLE IF NOT EXISTS 而不是 ALTER，避免冲突）
+        """CREATE TABLE IF NOT EXISTS subsidy_eligibility_rule (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subsidy_type_id INTEGER NOT NULL,
+            rule_name TEXT NOT NULL,
+            rule_desc TEXT,
+            require_farmer_status INTEGER DEFAULT 1,
+            require_age_min INTEGER,
+            require_age_max INTEGER,
+            require_land_type TEXT,
+            require_min_area DECIMAL(10,2),
+            require_max_area DECIMAL(10,2),
+            require_not_idle INTEGER NOT NULL DEFAULT 0,
+            require_contract_valid INTEGER NOT NULL DEFAULT 0,
+            can_combine_with_others INTEGER NOT NULL DEFAULT 1,
+            exclusive_with TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )""",
+        """CREATE TABLE IF NOT EXISTS excel_column_template (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            template_name TEXT NOT NULL,
+            template_year INTEGER,
+            region_name TEXT,
+            business_type TEXT NOT NULL DEFAULT 'SUBSIDY',
+            subsidy_type_id INTEGER,
+            header_row INTEGER NOT NULL DEFAULT 1,
+            data_start_row INTEGER NOT NULL DEFAULT 2,
+            skip_footer_rows INTEGER NOT NULL DEFAULT 0,
+            column_mapping TEXT NOT NULL DEFAULT '[]',
+            skip_rules TEXT,
+            value_mapping TEXT,
+            use_count INTEGER NOT NULL DEFAULT 0,
+            last_used_at DATETIME,
+            created_by TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )""",
+        """CREATE TABLE IF NOT EXISTS excel_import_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            template_id INTEGER,
+            template_name TEXT,
+            file_name TEXT NOT NULL,
+            file_hash TEXT,
+            business_type TEXT NOT NULL,
+            region_name TEXT,
+            import_year INTEGER,
+            total_rows INTEGER NOT NULL DEFAULT 0,
+            valid_rows INTEGER NOT NULL DEFAULT 0,
+            created_count INTEGER NOT NULL DEFAULT 0,
+            updated_count INTEGER NOT NULL DEFAULT 0,
+            skipped_count INTEGER NOT NULL DEFAULT 0,
+            error_count INTEGER NOT NULL DEFAULT 0,
+            warning_count INTEGER NOT NULL DEFAULT 0,
+            rule_failed_count INTEGER NOT NULL DEFAULT 0,
+            error_detail TEXT,
+            warning_detail TEXT,
+            rule_fail_detail TEXT,
+            column_mapping_used TEXT,
+            operator TEXT,
+            import_duration_ms INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )""",
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -142,22 +211,5 @@ def create_indexes():
 
 
 
-def migrate_db():
-    """兼容旧数据库：添加新字段（如不存在）"""
-    from sqlalchemy import text
-    from database import engine
-    migrations = [
-        "ALTER TABLE subsidy_type ADD COLUMN count_toward_area INTEGER NOT NULL DEFAULT 1",
-    ]
-    with engine.connect() as conn:
-        for sql in migrations:
-            try:
-                conn.execute(text(sql))
-                conn.commit()
-                print(f"  迁移完成：{sql[:60]}…")
-            except Exception:
-                pass  # 字段已存在则跳过
-
-migrate_db()
 
 create_indexes()

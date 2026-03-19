@@ -12,6 +12,7 @@ import Tag from '../components/Tag'
 import Modal from '../components/Modal'
 import ExcelImport from '../components/ExcelImport'
 import { useToast } from '../hooks/useToast'
+import EligibilityRulePage from './EligibilityRulePage'
 import Toast from '../components/Toast'
 
 const thisYear = new Date().getFullYear()
@@ -42,6 +43,7 @@ export default function SubsidyProjectsPage() {
   const [editing, setEditing] = useState<SubsidyType | null>(null)
   const [form, setForm] = useState<Partial<SubsidyTypeCreate>>({ subsidy_year: thisYear, calc_mode: 'fixed' })
   const [statusLoading, setStatusLoading] = useState<number | null>(null)
+  const [rulesPanelId, setRulesPanelId] = useState<number | null>(null)
 
   const loadTypes = useCallback(async () => {
     setLoading(true)
@@ -185,8 +187,18 @@ export default function SubsidyProjectsPage() {
                     className="px-3 py-1.5 text-xs border border-stone-200 text-stone-500 rounded-lg hover:border-stone-300 text-center">
                     编辑项目
                   </button>
+                  <button onClick={() => setRulesPanelId(rulesPanelId === t.id ? null : t.id)}
+                    className={`px-3 py-1.5 text-xs rounded-lg border text-center transition-colors ${rulesPanelId === t.id ? 'bg-purple-100 border-purple-300 text-purple-700' : 'border-stone-200 text-stone-500 hover:border-purple-200 hover:text-purple-600'}`}>
+                    {rulesPanelId === t.id ? '▲ 收起规则' : '📋 资格规则'}
+                  </button>
                 </div>
               </div>
+              {/* 资格规则面板（在卡片内部展开）*/}
+              {rulesPanelId === t.id && (
+                <div className="mt-4 pt-4 border-t border-stone-100">
+                  <EligibilityRulePage subsidyTypeId={t.id} subsidyName={t.subsidy_name} />
+                </div>
+              )}
             </div>
           )
         })}
@@ -279,6 +291,12 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
   const [editTarget, setEditTarget] = useState<ApplicationOut | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [batchPayOpen, setBatchPayOpen] = useState(false)
+  const [checkResult, setCheckResult] = useState<{
+    passed:number; failed:number; warning:number
+    failed_list:{real_name:string;id_card_masked:string;issues:string[]}[]
+    warning_list:{real_name:string;id_card_masked:string;warnings:string[]}[]
+  } | null>(null)
+  const [checkOpen, setCheckOpen] = useState(false)
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10))
   const [batchLoading, setBatchLoading] = useState(false)
 
@@ -413,9 +431,52 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
       })
     }
     if (errors.length && !toCreate.length) return { created: 0, skipped: 0, errors }
-    const res = await api.batchImportApplications(toCreate)
-    const resAny = res as unknown as {new_farmers?:number}
-    const newMsg = resAny.new_farmers ? `，新建农户 ${resAny.new_farmers} 人` : ''
+
+    // ── 资格规则检查 ──
+    try {
+      const checkPayload = {
+        subsidy_type_id: subsidyType.id,
+        year: subsidyType.subsidy_year,
+        rows: toCreate.map(r => ({
+          id_card: String(r.id_card || ''),
+          real_name: String(r.real_name || ''),
+          apply_area: r.apply_area,
+        })),
+      }
+      const chk = await fetch('/api/eligibility/check', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(checkPayload),
+      }).then(r => r.json()) as {
+        passed:number; failed:number; warning:number; rules_applied:number
+        passed_list:{farmer_id?:number;id_card:string}[]
+        failed_list:{real_name:string;id_card_masked:string;issues:string[]}[]
+        warning_list:{real_name:string;id_card_masked:string;warnings:string[]}[]
+      }
+      if (chk.rules_applied > 0 && (chk.failed > 0 || chk.warning > 0)) {
+        setCheckResult({ passed:chk.passed, failed:chk.failed, warning:chk.warning,
+          failed_list:chk.failed_list, warning_list:chk.warning_list })
+        setCheckOpen(true)
+        // 只保留通过规则检查的行
+        const passedIds = new Set(chk.passed_list.map((p:{id_card:string}) => p.id_card))
+        const passedRows = toCreate.filter(r => passedIds.has(String(r.id_card || '')))
+        if (passedRows.length === 0) return { created: 0, skipped: 0, errors: [`规则检查：全部 ${chk.failed} 条不通过`] }
+        // 继续只导入通过的
+        const res2 = await fetch('/api/subsidies/applications/batch-import', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rows: passedRows }),
+        }).then(r => r.json()) as { created: number; skipped: number; errors: string[]; new_farmers?: number }
+        const newMsg = res2.new_farmers ? `，新建农户 ${res2.new_farmers} 人` : ''
+        show(`✓ 通过规则 ${chk.passed} 条，导入 ${res2.created} 条；规则拒绝 ${chk.failed} 条，警告 ${chk.warning} 条${newMsg}`)
+        load()
+        return { ...res2, errors: [...errors, ...(res2.errors || [])] }
+      }
+    } catch (_) { /* 规则引擎出错不阻断导入 */ }
+
+    const res = await fetch('/api/subsidies/applications/batch-import', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows: toCreate }),
+    }).then(r => r.json()) as { created: number; skipped: number; errors: string[]; new_farmers?: number }
+    const newMsg = res.new_farmers ? `，新建农户 ${res.new_farmers} 人` : ''
     show(`✓ 导入 ${res.created} 条，跳过 ${res.skipped} 条${newMsg}`)
     load()
     return { ...res, errors: [...errors, ...(res.errors || [])] }
@@ -600,6 +661,49 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
           </div>
           <p className="text-xs text-stone-400">当前共 {total} 条记录，其中 {unpaidCount} 条待发放</p>
+        </div>
+      </Modal>
+
+      {/* 规则检查结果 */}
+      <Modal open={checkOpen} title="资格规则检查结果" onClose={() => setCheckOpen(false)} onConfirm={() => setCheckOpen(false)} confirmText="我知道了">
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-3 text-center">
+            {[{label:'通过',val:checkResult?.passed??0,cls:'text-emerald-700 bg-emerald-50 border-emerald-100'},
+              {label:'警告',val:checkResult?.warning??0,cls:'text-amber-600 bg-amber-50 border-amber-100'},
+              {label:'拒绝',val:checkResult?.failed??0,cls:'text-red-600 bg-red-50 border-red-100'},
+            ].map(s => (
+              <div key={s.label} className={`rounded-xl p-3 border ${s.cls}`}>
+                <div className="text-2xl font-bold font-mono">{s.val}</div>
+                <div className="text-xs mt-1">{s.label}</div>
+              </div>
+            ))}
+          </div>
+          {(checkResult?.failed_list?.length ?? 0) > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-red-700 mb-1">规则拒绝（未导入）：</p>
+              <div className="max-h-40 overflow-y-auto space-y-1.5">
+                {checkResult?.failed_list.map((f,i) => (
+                  <div key={i} className="bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                    <span className="text-xs font-semibold text-red-700">{f.real_name} {f.id_card_masked}</span>
+                    {f.issues.map((iss,j) => <p key={j} className="text-xs text-red-500 mt-0.5">• {iss}</p>)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {(checkResult?.warning_list?.length ?? 0) > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-amber-700 mb-1">警告（已导入，请复核）：</p>
+              <div className="max-h-32 overflow-y-auto space-y-1.5">
+                {checkResult?.warning_list.map((f,i) => (
+                  <div key={i} className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                    <span className="text-xs font-semibold text-amber-700">{f.real_name} {f.id_card_masked}</span>
+                    {f.warnings.map((w,j) => <p key={j} className="text-xs text-amber-600 mt-0.5">• {w}</p>)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
 

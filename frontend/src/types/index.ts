@@ -135,3 +135,27 @@ export interface ExcelFarmerRow {
   状态?: string
   [key: string]: unknown
 }
+
+// ── 资格规则 ──
+export interface EligibilityRule {
+  id: number; subsidy_type_id: number; rule_name: string; rule_desc: string | null
+  require_farmer_status: number | null
+  require_age_min: number | null; require_age_max: number | null
+  require_land_type: string | null
+  require_min_area: number | null; require_max_area: number | null
+  require_not_idle: number; require_contract_valid: number
+  can_combine_with_others: number; exclusive_with: number[]
+  is_active: number
+}
+
+// ── Excel模板 ──
+export interface ColumnMappingItem {
+  excel_column: string; system_field: string | null
+  aliases?: string[]; required?: boolean; transform?: string
+}
+export interface ExcelColumnTemplate {
+  id: number; template_name: string; template_year: number | null
+  region_name: string | null; business_type: string; subsidy_type_id: number | null
+  column_mapping: ColumnMappingItem[]; skip_rules: unknown[]; value_mapping: Record<string, unknown>
+  use_count: number; last_used_at: string | null
+}
