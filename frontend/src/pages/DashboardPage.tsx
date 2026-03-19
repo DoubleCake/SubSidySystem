@@ -1,8 +1,9 @@
 /**
- * 首页概览 — 数据统计（原 SummaryPage 升级版）
+ * 首页概览 v2
+ * - 今年待办（主动推送异常）
  * - 核心指标卡
- * - 补贴项目发放进度
- * - 按村汇总横向条形图
+ * - 补贴项目发放进度（可点击跳转）
+ * - 按村汇总横向柱状图
  * - 新增/退出农户
  */
 import { useState, useEffect } from 'react'
@@ -14,6 +15,8 @@ import Tag from '../components/Tag'
 const thisYear = new Date().getFullYear()
 const years = Array.from({ length: 8 }, (_, i) => thisYear + 1 - i)
 
+type Tab = 'dashboard' | 'farmers' | 'projects' | 'precheck' | 'links' | 'ai' | 'village-groups' | 'households'
+
 type StatsType = {
   id: number; subsidy_name: string; subsidy_year: number
   calc_mode: string; standard_amount: string | null; standard_unit: string | null
@@ -22,22 +25,28 @@ type StatsType = {
   total_apply: number; total_actual: number
 }
 
-const PS_CFG: Record<number, { label: string; cls: string }> = {
-  0: { label: '未发放',   cls: 'bg-stone-100 text-stone-400' },
-  1: { label: '部分发放', cls: 'bg-amber-100 text-amber-600' },
-  2: { label: '已完成',   cls: 'bg-emerald-100 text-emerald-700' },
+type Todos = {
+  incomplete_projects: number
+  pending_records: number
+  overdrawn_households: number
+  id_card_errors: number
 }
 
-type Tab = 'dashboard'|'farmers'|'projects'|'precheck'|'links'|'ai'|'village-groups'|'households'
+const PS_CFG: Record<number, { label: string; cls: string; bar: string }> = {
+  0: { label: '未发放',   cls: 'bg-stone-100 text-stone-400',   bar: 'bg-stone-300' },
+  1: { label: '发放中',   cls: 'bg-amber-100 text-amber-600',   bar: 'bg-amber-400' },
+  2: { label: '已完成',   cls: 'bg-emerald-100 text-emerald-700', bar: 'bg-emerald-500' },
+}
+
 export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }) {
-  const [year, setYear] = useState(thisYear)
+  const [year, setYear]       = useState(thisYear)
   const [compare, setCompare] = useState<YearCompare | null>(null)
   const [byVillage, setByVillage] = useState<VillageSummary[]>([])
-  const [stats, setStats] = useState<StatsType[]>([])
+  const [stats, setStats]     = useState<StatsType[]>([])
+  const [todos, setTodos]     = useState<Todos | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // 防抖：切换年份后 300ms 再发请求，避免快速切换时重复请求
     const ctrl = new AbortController()
     const timer = setTimeout(() => {
       setLoading(true)
@@ -45,28 +54,34 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
         api.getYearCompare(year),
         api.getSummaryByVillage(year),
         api.getSubsidyTypesWithStats(year),
-      ]).then(([c, v, s]) => {
-        if (ctrl.signal.aborted) return   // 已被新请求取消，丢弃结果
-        setCompare(c); setByVillage(v); setStats(s as StatsType[])
-      }).catch(e => {
-        if (!ctrl.signal.aborted) console.error(e)
-      }).finally(() => {
-        if (!ctrl.signal.aborted) setLoading(false)
-      })
+        fetch(`/api/subsidies/dashboard/todos?year=${year}`).then(r => r.json()),
+      ]).then(([c, v, s, t]) => {
+        if (ctrl.signal.aborted) return
+        setCompare(c); setByVillage(v)
+        setStats(s as StatsType[]); setTodos(t as Todos)
+      }).catch(e => { if (!ctrl.signal.aborted) console.error(e) })
+       .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
     }, 300)
     return () => { clearTimeout(timer); ctrl.abort() }
   }, [year])
 
-  const c = compare?.current_year
-  const p = compare?.last_year
-  const diff = compare?.amount_diff ?? 0
-  const maxV = Math.max(...byVillage.map(v => v.total_amount), 1)
+  const c     = compare?.current_year
+  const p     = compare?.last_year
+  const diff  = compare?.amount_diff ?? 0
+  const maxV  = Math.max(...byVillage.map(v => v.total_amount), 1)
   const totalV = byVillage.reduce((s, v) => s + v.total_amount, 0)
+
+  const todoItems = todos ? [
+    { key: 'incomplete_projects', icon: '📋', label: `${year}年有未完成项目`, val: todos.incomplete_projects, color: 'amber', tab: 'projects' as Tab, hide: todos.incomplete_projects === 0 },
+    { key: 'pending_records',     icon: '💰', label: '补贴记录待发放',        val: todos.pending_records,     color: 'amber', tab: 'projects' as Tab, hide: todos.pending_records === 0 },
+    { key: 'overdrawn',           icon: '⚠️', label: '家庭户超领预警',         val: todos.overdrawn_households, color: 'red',   tab: 'households' as Tab, hide: todos.overdrawn_households === 0 },
+    { key: 'id_errors',           icon: '🪪', label: '身份证格式异常',         val: todos.id_card_errors,       color: 'red',   tab: 'precheck' as Tab, hide: todos.id_card_errors === 0 },
+  ].filter(t => !t.hide) : []
 
   return (
     <div>
-      {/* 年份选择 */}
-      <div className="flex items-center gap-2 mb-5">
+      {/* 年份 + 刷新 */}
+      <div className="flex items-center gap-2 mb-4">
         <select value={year} onChange={e => setYear(Number(e.target.value))}
           className="border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none font-semibold">
           {years.map(y => <option key={y} value={y}>{y} 年度</option>)}
@@ -77,19 +92,56 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
         </button>
         {loading && (
           <span className="flex items-center gap-1.5 text-xs text-stone-400">
-            <span className="w-3 h-3 border border-stone-300 border-t-emerald-500 rounded-full animate-spin inline-block" style={{borderWidth:2}}/>
+            <span className="w-3 h-3 border-2 border-stone-200 border-t-emerald-500 rounded-full animate-spin inline-block" />
             加载中…
           </span>
         )}
       </div>
 
+      {/* 待办提示栏（有问题才显示）*/}
+      {todoItems.length > 0 && (
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          {todoItems.map(t => (
+            <button key={t.key} onClick={() => onGoTab(t.tab)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all hover:shadow-md
+                ${t.color === 'red'
+                  ? 'bg-red-50 border-red-200 hover:border-red-300'
+                  : 'bg-amber-50 border-amber-200 hover:border-amber-300'}`}>
+              <span className="text-xl shrink-0">{t.icon}</span>
+              <div className="flex-1 min-w-0">
+                <div className={`text-sm font-semibold ${t.color === 'red' ? 'text-red-700' : 'text-amber-700'}`}>
+                  {t.label}
+                </div>
+                <div className={`text-xs mt-0.5 ${t.color === 'red' ? 'text-red-500' : 'text-amber-500'}`}>
+                  共 {t.val} {t.key === 'incomplete_projects' ? '个' : t.key === 'pending_records' ? '条' : '户/条'}  · 点击前往处理 →
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+      {todos && todoItems.length === 0 && !loading && (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl mb-4 text-sm text-emerald-700">
+          <span>✅</span><span>{year} 年度数据状态正常，无待处理事项</span>
+        </div>
+      )}
+
       {/* 核心指标卡 */}
       <div className="grid grid-cols-4 gap-3 mb-5">
         {[
-          { icon:'💰', label:`${year}年实发总额`, val: c?`¥${c.total_amount.toLocaleString('zh-CN',{maximumFractionDigits:0})}`:'—', sub: c?`${c.application_count}笔记录`:'', color:'text-emerald-700', border:'border-emerald-200', bg:'bg-emerald-50/40' },
-          { icon:'📈', label:'较上年变化', val: c&&p?`${diff>=0?'+':''}¥${Math.abs(diff).toLocaleString('zh-CN',{maximumFractionDigits:0})}`:'—', sub: compare?.amount_diff_pct!=null?`${diff>=0?'+':''}${compare.amount_diff_pct}%`:'—', color:diff>=0?'text-emerald-700':'text-red-500', border:diff>=0?'border-emerald-200':'border-red-200', bg:'' },
-          { icon:'👥', label:'受益农户', val: c?String(c.farmer_count):'—', sub: p?`上年${p.farmer_count}人`:'', color:'text-blue-600', border:'border-blue-200', bg:'bg-blue-50/40' },
-          { icon:'📋', label:'补贴项目数', val: String(stats.length), sub: `${stats.filter(s=>s.pay_status===2).length}项已完成`, color:'text-purple-600', border:'border-purple-200', bg:'bg-purple-50/40' },
+          { icon:'💰', label:`${year}年实发总额`,
+            val: c ? `¥${c.total_amount.toLocaleString('zh-CN',{maximumFractionDigits:0})}` : '—',
+            sub: c ? `${c.application_count}笔记录` : '', color:'text-emerald-700', border:'border-emerald-200', bg:'bg-emerald-50/40' },
+          { icon:'📈', label:'较上年变化',
+            val: c&&p ? `${diff>=0?'+':''}¥${Math.abs(diff).toLocaleString('zh-CN',{maximumFractionDigits:0})}` : '—',
+            sub: compare?.amount_diff_pct!=null ? `${diff>=0?'+':''}${compare.amount_diff_pct}%` : '—',
+            color: diff>=0?'text-emerald-700':'text-red-500', border: diff>=0?'border-emerald-200':'border-red-200', bg:'' },
+          { icon:'👥', label:'受益农户',
+            val: c ? String(c.farmer_count) : '—',
+            sub: p ? `上年${p.farmer_count}人` : '', color:'text-blue-600', border:'border-blue-200', bg:'bg-blue-50/40' },
+          { icon:'📋', label:'补贴项目',
+            val: String(stats.length),
+            sub: `${stats.filter(s=>s.pay_status===2).length}项已完成`, color:'text-purple-600', border:'border-purple-200', bg:'bg-purple-50/40' },
         ].map(s => (
           <div key={s.label} className={`bg-white border rounded-xl p-4 shadow-sm ${s.border} ${s.bg}`}>
             <div className="flex items-center gap-2 mb-2">
@@ -106,29 +158,31 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
         {/* 补贴项目发放进度 */}
         <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-stone-100 bg-stone-50 flex justify-between items-center">
-            <span className="font-semibold text-stone-700 text-sm">📋 {year}年 补贴项目发放进度</span>
-            <button onClick={() => onGoTab('projects')} className="text-xs text-emerald-700 hover:underline">管理项目 →</button>
+            <span className="font-semibold text-stone-700 text-sm">📋 {year}年 补贴项目</span>
+            <button onClick={() => onGoTab('projects')} className="text-xs text-emerald-700 hover:underline">管理 →</button>
           </div>
           {stats.length === 0
-            ? <div className="py-10 text-center text-stone-300 text-sm">暂无补贴项目数据</div>
+            ? <div className="py-10 text-center text-stone-300 text-sm">暂无补贴项目</div>
             : <div className="divide-y divide-stone-50">
                 {stats.map(s => {
                   const cfg = PS_CFG[s.pay_status] ?? PS_CFG[0]
-                  const rate = s.total_apply > 0 ? Math.min(100, Math.round(s.total_actual / s.total_apply * 100)) : (s.pay_status === 2 ? 100 : 0)
+                  const rate = s.total_actual > 0 && s.total_apply > 0
+                    ? Math.min(100, Math.round(s.total_actual / s.total_apply * 100))
+                    : s.pay_status === 2 ? 100 : 0
                   return (
-                    <div key={s.id} className="px-5 py-3 hover:bg-stone-50/50 transition-colors">
+                    <button key={s.id} onClick={() => onGoTab('projects')}
+                      className="w-full px-5 py-3 hover:bg-stone-50/50 transition-colors text-left">
                       <div className="flex items-center gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                             <span className="text-sm font-semibold text-stone-800">{s.subsidy_name}</span>
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.cls}`}>{cfg.label}</span>
-                            <span className="text-xs text-stone-300">{s.calc_mode === 'per_mu' ? '按亩' : '固定'}</span>
+                            <span className="text-xs text-stone-300">{s.calc_mode==='per_mu'?'按亩':'固定'}</span>
                             {s.fund_source && <span className="text-xs text-stone-300">{s.fund_source}</span>}
                           </div>
                           <div className="flex items-center gap-2">
                             <div className="flex-1 bg-stone-100 rounded-full h-2 overflow-hidden">
-                              <div className={`h-full rounded-full transition-all ${s.pay_status===2?'bg-emerald-500':s.pay_status===1?'bg-amber-400':'bg-stone-300'}`}
-                                style={{ width: `${rate}%` }} />
+                              <div className={`h-full rounded-full transition-all ${cfg.bar}`} style={{ width:`${rate}%` }} />
                             </div>
                             <span className="text-xs font-mono text-stone-400 w-8 text-right">{rate}%</span>
                           </div>
@@ -140,7 +194,7 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
                           <div className="text-xs text-stone-400">{s.beneficiary_count}人 · {s.app_count}笔</div>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   )
                 })}
               </div>
@@ -150,8 +204,8 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
         {/* 新增/退出农户 */}
         <div className="space-y-3">
           {compare && [
-            { title: '🆕 新增农户', list: compare.new_farmers, color: 'green' as const, textColor: 'text-emerald-700' },
-            { title: '📤 退出农户', list: compare.exit_farmers, color: 'red' as const, textColor: 'text-red-500' },
+            { title:'🆕 新增农户', list:compare.new_farmers, color:'green' as const },
+            { title:'📤 退出农户', list:compare.exit_farmers, color:'red' as const },
           ].map(block => (
             <div key={block.title} className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
               <div className="px-4 py-2.5 border-b border-stone-100 bg-stone-50 flex justify-between items-center">
@@ -166,7 +220,7 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
                       <span className="text-sm">{f.name}</span>
                       <div className="flex gap-1.5 items-center">
                         <span className="text-xs text-stone-400">{f.village}</span>
-                        {f.status && <Tag label={FARMER_STATUS[f.status]?.label ?? '—'} color={FARMER_STATUS[f.status]?.color as 'green'} />}
+                        {f.status && <Tag label={FARMER_STATUS[f.status]?.label??'—'} color={FARMER_STATUS[f.status]?.color as 'green'} />}
                       </div>
                     </div>
                   ))
@@ -177,7 +231,7 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
         </div>
       </div>
 
-      {/* 按村汇总横向条形图 */}
+      {/* 按村汇总 */}
       <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
         <div className="px-5 py-3 border-b border-stone-100 bg-stone-50 flex justify-between items-center">
           <span className="font-semibold text-stone-700 text-sm">📍 按村汇总（{year}年）</span>
@@ -189,20 +243,18 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
             <div key={v.village_name} className="px-5 py-3 flex items-center gap-4 hover:bg-stone-50/50">
               <div className="w-20 text-sm font-semibold text-stone-700 shrink-0">{v.village_name}</div>
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2">
                   <div className="flex-1 bg-stone-100 rounded-full h-3 overflow-hidden">
                     <div className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-full rounded-full transition-all"
-                      style={{ width: `${Math.round(v.total_amount / maxV * 100)}%` }} />
+                      style={{ width:`${Math.round(v.total_amount/maxV*100)}%` }} />
                   </div>
                   <span className="text-xs font-mono text-stone-400 w-8 text-right">
-                    {totalV ? Math.round(v.total_amount / totalV * 100) : 0}%
+                    {totalV ? Math.round(v.total_amount/totalV*100) : 0}%
                   </span>
                 </div>
               </div>
               <div className="text-right shrink-0 w-36">
-                <div className="text-sm font-bold font-mono text-emerald-700">
-                  {fmt(v.total_amount)}
-                </div>
+                <div className="text-sm font-bold font-mono text-emerald-700">{fmt(v.total_amount)}</div>
                 <div className="text-xs text-stone-400">{v.beneficiaries}人 · {v.application_count}笔</div>
               </div>
             </div>

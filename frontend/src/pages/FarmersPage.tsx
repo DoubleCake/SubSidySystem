@@ -7,6 +7,7 @@ import Modal from '../components/Modal'
 import ExcelImport from '../components/ExcelImport'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
+import * as XLSX from 'xlsx'
 
 const FARMER_TEMPLATE_HEADERS = ['姓名*', '身份证号*', '所在村*', '所在组*', '手机号', '银行卡号', '开户行', '地址', '土地面积', '状态']
 const FARMER_TEMPLATE_EXAMPLE = [
@@ -51,6 +52,8 @@ export default function FarmersPage() {
   const [groups, setGroups] = useState<VillageGroup[]>([])
   const [villages, setVillages] = useState<string[]>([])
   const [detail, setDetail] = useState<DetailFarmer | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editForm, setEditForm] = useState<Partial<FarmerCreate & { village_group_id: number }>>({})
   const [detailTab, setDetailTab] = useState<'info' | 'subsidy' | 'family'>('info')
   const [addOpen, setAddOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -85,6 +88,33 @@ export default function FarmersPage() {
     setDetail(f); setDetailTab('info')
   }
 
+  const openEditFarmer = () => {
+    if (!detail) return
+    setEditForm({
+      real_name: detail.real_name,
+      phone: (detail as DetailFarmer & { phone?: string }).phone || '',
+      bank_card: (detail as DetailFarmer & { bank_card?: string }).bank_card || '',
+      bank_name: detail.bank_name || '',
+      address: detail.address || '',
+      land_area: detail.land_area ? Number(detail.land_area) : undefined,
+      farmer_status: detail.farmer_status,
+      village_group_id: 0,
+    })
+    setEditOpen(true)
+  }
+
+  const submitEditFarmer = async () => {
+    if (!detail) return
+    try {
+      await api.updateFarmer(detail.id, editForm)
+      show('✓ 信息已更新')
+      setEditOpen(false)
+      const f = await api.getFarmer(detail.id) as DetailFarmer
+      setDetail(f)
+      load()
+    } catch (e: unknown) { show((e as Error).message, 'err') }
+  }
+
   const handleIdCardInput = (val: string) => {
     setForm(f => ({ ...f, id_card: val }))
     const info = parseIdCardInfo(val)
@@ -106,14 +136,14 @@ export default function FarmersPage() {
 
   const handleImport = async (rows: Record<string, unknown>[]) => {
     const toCreate: Record<string, unknown>[] = []
-    const errors: string[] = []
+    const formatErrors: string[] = []
     rows.forEach((row, i) => {
       const name   = String(row['姓名*']   || row['姓名']   || '').trim()
       const idCard = String(row['身份证号*'] || row['身份证号'] || '').trim()
-      if (!name || !idCard) { errors.push(`第${i+2}行：姓名或身份证号为空`); return }
+      if (!name || !idCard) { formatErrors.push(`第${i+2}行：姓名或身份证号为空`); return }
       const vn = String(row['所在村*'] || row['所在村'] || '').trim()
       const gn = String(row['所在组*'] || row['所在组'] || '').trim()
-      if (!vn || !gn) { errors.push(`第${i+2}行 ${name}：请填写所在村和所在组`); return }
+      if (!vn || !gn) { formatErrors.push(`第${i+2}行 ${name}：请填写所在村和所在组`); return }
       const info = parseIdCardInfo(idCard)
       const statusMap: Record<string, number> = { '在册':1, '注销':2, '迁出':3, '死亡':4 }
       toCreate.push({
@@ -128,7 +158,7 @@ export default function FarmersPage() {
         farmer_status: statusMap[String(row['状态']||'')] ?? 1,
       })
     })
-    if (errors.length > 0 && toCreate.length === 0) return { created: 0, skipped: 0, errors }
+    if (formatErrors.length > 0 && toCreate.length === 0) return { created: 0, skipped: 0, errors: formatErrors }
     const res = await fetch('/api/farmers/batch-import', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rows: toCreate }),
@@ -136,8 +166,40 @@ export default function FarmersPage() {
     api.getVillageGroups().then(g => {
       setGroups(g); setVillages([...new Set(g.map(v => v.village_name))])
     })
-    return { ...res, errors: [...errors, ...(res.errors || [])] }
+    // 把后端返回的跳过记录整理成提示
+    const allErrors = [...formatErrors, ...(res.errors || [])]
+    if (res.skipped > 0) allErrors.push(`已跳过 ${res.skipped} 条重复身份证记录（该身份证号已存在）`)
+    return { ...res, errors: allErrors }
   }
+  // 导出当前筛选结果
+  const exportCurrentList = async () => {
+    // 取全量（不分页），最多 5000 条
+    const params: Record<string, string | number> = { page: 1, page_size: 5000 }
+    if (search)        params.search       = search
+    if (villageFilter) params.village_name = villageFilter
+    if (statusFilter)  params.status       = statusFilter
+    const res = await api.getFarmers(params)
+    const rows = res.items.map(f => ({
+      '姓名':     f.real_name,
+      '性别':     f.gender === 1 ? '男' : '女',
+      '身份证号': (f as { id_card?: string }).id_card || f.id_card_masked,
+      '手机号':   (f as { phone?: string }).phone || f.phone_masked || '',
+      '所在村组': f.village_full_name,
+      '土地面积': f.land_area || '',
+      '角色':     f.is_head ? '户主' : '成员',
+      '状态':     { 1:'在册', 2:'注销', 3:'迁出', 4:'死亡' }[f.farmer_status] || '',
+    }))
+    const ws = XLSX.utils.json_to_sheet(rows)
+    ws['!cols'] = [10,6,20,14,14,10,8,8].map(w => ({ wch: w }))
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '农户列表')
+    const date = new Date().toLocaleDateString('zh-CN').replace(/\//g, '')
+    const tag  = villageFilter || statusFilter ? `_筛选` : ''
+    XLSX.writeFile(wb, `农户列表${tag}_${date}.xlsx`)
+    show(`✓ 已导出 ${rows.length} 条记录`)
+  }
+
+
 
   // ── 详情页 ──
   if (detail) {
@@ -178,7 +240,7 @@ export default function FarmersPage() {
           </div>
 
           {/* Tab 切换 */}
-          <div className="flex border-b border-stone-200 bg-stone-50">
+          <div className="flex border-b border-stone-200 bg-stone-50 items-center">
             {[
               { id: 'info',   label: '📋 基本信息' },
               { id: 'subsidy',label: `💰 补贴记录 (${apps.length})` },
@@ -191,6 +253,12 @@ export default function FarmersPage() {
                     : 'border-transparent text-stone-500 hover:text-stone-700'
                 }`}>{t.label}</button>
             ))}
+            <div className="ml-auto px-3">
+              <button onClick={openEditFarmer}
+                className="text-xs text-stone-500 border border-stone-200 px-3 py-1.5 rounded-lg hover:text-emerald-700 hover:border-emerald-200">
+                ✏️ 编辑信息
+              </button>
+            </div>
           </div>
 
           {/* Tab: 基本信息 */}
@@ -383,6 +451,7 @@ export default function FarmersPage() {
           <option value="">全部状态</option>
           <option value="1">在册</option><option value="2">注销</option><option value="3">迁出</option>
         </select>
+        <button onClick={exportCurrentList} className="px-3 py-2 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50">⬇ 导出列表</button>
         <button onClick={() => setImportOpen(true)} className="px-3 py-2 text-sm border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50">↑ Excel 导入</button>
         <button onClick={() => setAddOpen(true)}    className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">＋ 新增农户</button>
       </div>

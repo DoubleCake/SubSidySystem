@@ -8,6 +8,7 @@ import SettingsPage from './pages/SettingsPage'
 import PreCheckPage from './pages/PreCheckPage'
 import ExternalLinksPage from './pages/ExternalLinksPage'
 import HouseholdsPage from './pages/HouseholdsPage'
+import BackupPage from './pages/BackupPage'
 import { healthCheck } from './api'
 import { useState } from 'react'
 
@@ -23,6 +24,7 @@ const mainNav = [
 const settingNav = [
   { to: '/settings/households',    label: '家庭户管理', icon: '🏠' },
   { to: '/settings/village-groups',label: '村组管理',   icon: '🏘️' },
+  { to: '/settings/backup',          label: '备份迁移',   icon: '💾' },
 ]
 
 function Layout() {
@@ -131,6 +133,7 @@ function Layout() {
           <Route path="/ai"        element={<AIPage />} />
           <Route path="/settings/households"     element={<HouseholdsPage />} />
           <Route path="/settings/village-groups" element={<SettingsPage />} />
+          <Route path="/settings/backup" element={<BackupPage />} />
           {/* 404 fallback */}
           <Route path="*" element={
             <div className="text-center py-24 text-stone-300">

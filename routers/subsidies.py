@@ -53,6 +53,7 @@ def update_subsidy_type(type_id: int, data: dict, db: Session = Depends(get_db))
 # 批量导入申请记录
 @router.post("/applications/batch-import")
 def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
+    from datetime import date as date_type
     rows = payload.get("rows", [])
     created, skipped, errors = 0, 0, []
     for row in rows:
@@ -66,8 +67,15 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
                 skipped += 1
                 continue
             farmer = db.get(FarmerProfile, row["farmer_id"])
+            # 关键修复：pay_date 字符串转 Python date 对象
+            clean_row = {k: v for k, v in row.items() if k != "bank_card_snapshot"}
+            if clean_row.get("pay_date") and isinstance(clean_row["pay_date"], str):
+                try:
+                    clean_row["pay_date"] = date_type.fromisoformat(clean_row["pay_date"])
+                except ValueError:
+                    clean_row["pay_date"] = None
             app = SubsidyApplication(
-                **{k: v for k, v in row.items() if k != "bank_card_snapshot"},
+                **clean_row,
                 bank_card_snapshot=f"****{farmer.bank_card[-4:]}" if farmer and farmer.bank_card else None,
             )
             db.add(app)
@@ -148,8 +156,13 @@ def create_application(data: ApplicationCreate, db: Session = Depends(get_db)):
     if not farmer:
         raise HTTPException(status_code=404, detail="农户不存在")
 
+    data_dict = data.model_dump()
+    if data_dict.get("pay_date") and isinstance(data_dict["pay_date"], str):
+        from datetime import date as date_type
+        try: data_dict["pay_date"] = date_type.fromisoformat(data_dict["pay_date"])
+        except ValueError: data_dict["pay_date"] = None
     app = SubsidyApplication(
-        **data.model_dump(),
+        **data_dict,
         bank_card_snapshot=f"****{farmer.bank_card[-4:]}" if farmer.bank_card else None,
     )
     db.add(app)
@@ -366,3 +379,88 @@ def search_applications(
             "remark":          a.remark,
         })
     return {"total": total, "page": page, "page_size": page_size, "items": rows}
+
+
+# ── 删除补贴申请记录 ──
+@router.delete("/applications/{app_id}")
+def delete_application(app_id: int, db: Session = Depends(get_db)):
+    from sqlalchemy import text
+    app = db.execute(text("SELECT id FROM subsidy_application WHERE id=:id"), {"id": app_id}).fetchone()
+    if not app:
+        raise HTTPException(status_code=404, detail="记录不存在")
+    db.execute(text("DELETE FROM subsidy_application WHERE id=:id"), {"id": app_id})
+    db.commit()
+    return {"message": "删除成功"}
+
+
+# ── 批量标记已发放 ──
+@router.post("/applications/batch-pay")
+def batch_pay_applications(payload: dict, db: Session = Depends(get_db)):
+    from sqlalchemy import text
+    from datetime import date as date_type
+    type_id  = payload.get("subsidy_type_id")
+    pay_date_raw = payload.get("pay_date")
+    status   = payload.get("pay_status", 2)
+    if not type_id:
+        raise HTTPException(status_code=400, detail="缺少 subsidy_type_id")
+    # pay_date 转为 date 对象
+    if pay_date_raw and isinstance(pay_date_raw, str):
+        try:
+            pay_date = date_type.fromisoformat(pay_date_raw)
+        except ValueError:
+            pay_date = date_type.today()
+    else:
+        pay_date = date_type.today()
+    result = db.execute(text("""
+        UPDATE subsidy_application
+        SET pay_status = :status, pay_date = :pay_date
+        WHERE subsidy_type_id = :type_id
+    """), {"status": status, "pay_date": pay_date, "type_id": type_id})
+    db.commit()
+    return {"updated": result.rowcount}
+
+
+# ── 待办事项统计（首页用）──
+@router.get("/dashboard/todos")
+def get_todos(year: int = Query(...), db: Session = Depends(get_db)):
+    from sqlalchemy import text
+    # 未完成项目数
+    incomplete_projects = db.execute(text(
+        "SELECT COUNT(*) FROM subsidy_type WHERE subsidy_year=:y AND pay_status!=2"
+    ), {"y": year}).scalar() or 0
+
+    # 待发放记录数
+    pending_records = db.execute(text(
+        "SELECT COUNT(*) FROM subsidy_application sa "
+        "JOIN subsidy_type st ON sa.subsidy_type_id=st.id "
+        "WHERE st.subsidy_year=:y AND sa.pay_status=0"
+    ), {"y": year}).scalar() or 0
+
+    # 超领预警户数
+    overdrawn = db.execute(text("""
+        SELECT COUNT(*) FROM (
+            SELECT hh.id,
+                   CAST(hh.land_area AS FLOAT) AS contracted,
+                   SUM(CAST(sa.apply_area AS FLOAT)) AS used
+            FROM family_household hh
+            JOIN farmer_profile fp ON fp.household_id=hh.id
+            JOIN subsidy_application sa ON sa.farmer_id=fp.id
+            JOIN subsidy_type st ON sa.subsidy_type_id=st.id
+            WHERE st.calc_mode='per_mu' AND st.subsidy_year=:y
+              AND sa.pay_status!=3 AND hh.land_area IS NOT NULL
+            GROUP BY hh.id
+            HAVING used > contracted
+        )
+    """), {"y": year}).scalar() or 0
+
+    # 格式错误身份证（简单检查长度）
+    id_errors = db.execute(text(
+        "SELECT COUNT(*) FROM farmer_profile WHERE LENGTH(id_card)!=18"
+    )).scalar() or 0
+
+    return {
+        "incomplete_projects": int(incomplete_projects),
+        "pending_records":     int(pending_records),
+        "overdrawn_households":int(overdrawn),
+        "id_card_errors":      int(id_errors),
+    }

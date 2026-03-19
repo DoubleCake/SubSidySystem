@@ -64,6 +64,7 @@ export interface SubsidyTypeCreate {
   fund_source?: string
   apply_deadline?: string
   description?: string
+  pay_status?: number
 }
 
 export interface ApplicationOut {

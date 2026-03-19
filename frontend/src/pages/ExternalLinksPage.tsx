@@ -39,6 +39,7 @@ export default function ExternalLinksPage() {
   const [siteModal, setSiteModal] = useState(false)
   const [editSite, setEditSite] = useState<Site|null>(null)
   const [siteForm, setSiteForm] = useState<Partial<Site>>({site_type:'link',sort_order:0,is_active:1})
+  const [siteFormMode, setSiteFormMode] = useState(false)  // true=表单 false=列表
 
   // ── 系统内查询 ──
   const [srch, setSrch] = useState('')
@@ -148,7 +149,7 @@ export default function ExternalLinksPage() {
     try{
       if(editSite?.id) await req(`/api/external/sites/${editSite.id}`,{method:'PUT',body:JSON.stringify(siteForm)})
       else await req('/api/external/sites',{method:'POST',body:JSON.stringify(siteForm)})
-      show('✓ 保存成功'); setSiteModal(false); setEditSite(null); loadSites()
+      show('✓ 保存成功'); setSiteModal(false); setEditSite(null); setSiteFormMode(false); loadSites()
     }catch(e:unknown){show((e as Error).message,'err')}
   }
 
@@ -420,12 +421,12 @@ export default function ExternalLinksPage() {
       )}
 
       {/* 网站管理弹窗 — 列表模式 / 编辑模式 */}
-      <Modal open={siteModal} title={editSite?.id ? '编辑网站' : siteForm.name ? '新增网站' : '管理外部网站'}
-        onClose={()=>{ setSiteModal(false); setEditSite(null); setSiteForm({site_type:'link',sort_order:0,is_active:1}) }}
-        onConfirm={ siteForm.name ? submitSite : undefined }
+      <Modal open={siteModal} title={editSite?.id ? '编辑网站' : siteFormMode ? '新增网站' : '管理外部网站'}
+        onClose={()=>{ setSiteModal(false); setEditSite(null); setSiteForm({site_type:'link',sort_order:0,is_active:1}); setSiteFormMode(false) }}
+        onConfirm={ siteFormMode ? submitSite : undefined }
         confirmText="保存">
         {/* ── 表单模式（新增或编辑） ── */}
-        {siteForm.name !== undefined && (siteForm.name !== '' || editSite?.id) ? (
+        {siteFormMode ? (
           <div className="space-y-3">
             {editSite?.id && <div className="text-xs text-stone-400 bg-stone-50 border border-stone-200 rounded px-3 py-1.5">正在编辑：{editSite.name}</div>}
             <div><label className="block text-xs text-stone-400 mb-1">网站名称 *</label>
@@ -447,7 +448,7 @@ export default function ExternalLinksPage() {
                   <option value={1}>启用</option><option value={0}>禁用</option>
                 </select></div>
             </div>
-            <button onClick={()=>setSiteForm({site_type:'link',sort_order:0,is_active:1})}
+            <button onClick={()=>{ setSiteForm({site_type:'link',sort_order:0,is_active:1}); setSiteFormMode(false); setEditSite(null) }}
               className="text-xs text-stone-400 hover:underline">← 返回列表</button>
           </div>
         ) : (
@@ -455,7 +456,7 @@ export default function ExternalLinksPage() {
           <div>
             <div className="flex justify-between items-center mb-3">
               <p className="text-sm text-stone-500">已配置 {sites.length} 个网站</p>
-              <button onClick={()=>setSiteForm({name:'',url:'',site_type:'link',sort_order:sites.length+1,is_active:1})}
+              <button onClick={()=>{ setSiteForm({name:'',url:'',site_type:'link',sort_order:sites.length+1,is_active:1}); setSiteFormMode(true) }}
                 className="text-sm bg-emerald-700 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-600">＋ 新增网站</button>
             </div>
             <div className="space-y-2 max-h-80 overflow-y-auto">
@@ -476,6 +477,7 @@ export default function ExternalLinksPage() {
                     <button onClick={()=>{
                       setEditSite(s)
                       setSiteForm({name:s.name,url:s.url,site_type:s.site_type,description:s.description||'',sort_order:s.sort_order,is_active:s.is_active})
+                      setSiteFormMode(true)
                     }} className="text-xs text-stone-500 border border-stone-200 px-2 py-1 rounded hover:text-emerald-700 hover:border-emerald-200">编辑</button>
                     <a href={s.url} target="_blank" rel="noopener noreferrer"
                       className="text-xs text-stone-400 border border-stone-200 px-2 py-1 rounded hover:text-blue-600 hover:border-blue-200">↗</a>
