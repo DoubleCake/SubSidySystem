@@ -9,8 +9,24 @@ import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import { years } from '../utils'
 
-interface ErrorLibEntry { id: number; id_card: string; real_name: string; error_reason: string; created_at: string | null }
-interface MatchHit { id_card: string; real_name: string; error_reason: string; library_name: string }
+interface ErrorLibEntry {
+  id: number; id_card: string; real_name: string
+  village_name: string | null; group_no: string | null
+  error_reason: string; created_at: string | null; updated_at: string | null
+}
+interface MatchHit {
+  match_type: 'id_card' | 'name_only'
+  match_label: string
+  id_card: string; real_name: string; library_name: string
+  library_id_card?: string   // 仅 name_only 匹配时有
+  village_name: string; group_no: string
+  error_reason: string
+}
+interface ErrorLibPage {
+  total: number; page: number; page_size: number
+  items: ErrorLibEntry[]
+  villages: string[]
+}
 
 // ─── 类型定义 ───
 interface CheckRow {
@@ -177,13 +193,20 @@ export default function PreCheckPage() {
   const [activeTab, setActiveTab]   = useState<ActiveTab>('format')
 
   // ── 历史错误库 ──
-  const [errorLib, setErrorLib]     = useState<ErrorLibEntry[]>([])
+  const [errorLibData, setErrorLibData] = useState<ErrorLibPage>({ total: 0, page: 1, page_size: 50, items: [], villages: [] })
   const [libLoading, setLibLoading] = useState(false)
-  const [libForm, setLibForm]       = useState({ id_card: '', real_name: '', error_reason: '' })
-  const [libImportOpen, setLibImportOpen] = useState(false)
+  const [libSearch, setLibSearch]   = useState('')
+  const [libVillage, setLibVillage] = useState('')
+  const [libPage, setLibPage]       = useState(1)
+  const [libForm, setLibForm]       = useState({ id_card: '', real_name: '', village_name: '', group_no: '', error_reason: '' })
+  const [editingId, setEditingId]   = useState<number | null>(null)
+  const [editForm, setEditForm]     = useState<Partial<ErrorLibEntry>>({})
   const [matchHits, setMatchHits]   = useState<MatchHit[]>([])
   const [matchLoading, setMatchLoading] = useState(false)
   const [dragOver, setDragOver]     = useState(false)
+
+  // 简写：只用 items（旧代码兼容）
+  const errorLib = errorLibData.items
 
   // 解析 Excel 文件
   const parseFile = useCallback((file: File) => {
@@ -223,10 +246,27 @@ export default function PreCheckPage() {
       const data: CheckResult = await res.json()
       setResult(data)
       setStep('result')
-      // 默认展示有数据的第一个 tab
-      const tabs: ActiveTab[] = ['format','village','duplicate','gender','new','removed','changed','year']
+
+      // 预检完成后自动触发历史错误库比对（静默执行，不弹 toast）
+      try {
+        const seen = new Set<string>()
+        const deduped = rawRows
+          .filter(r => r.id_card && !seen.has(r.id_card) && (seen.add(r.id_card), true))
+          .map(r => ({ id_card: r.id_card, real_name: r.real_name }))
+        const matchRes = await fetch('/api/precheck/error-library/match', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rows: deduped })
+        }).then(r => r.json()) as { total: number; hits: MatchHit[] }
+        setMatchHits(matchRes.hits)
+        if (matchRes.hits.length > 0) {
+          show(`⚠️ 命中 ${matchRes.hits.length} 条历史错误记录，请查看「历史错误库」标签`, 'err')
+        }
+      } catch { /* 比对失败静默处理 */ }
+
+      // 默认展示有数据的第一个 tab（历史错误库命中时优先展示）
+      const tabs: ActiveTab[] = ['format', 'village', 'duplicate', 'gender', 'new', 'removed', 'changed', 'year']
       const counts: Record<ActiveTab, number> = {
-        'error-lib': 0,   // 不参与自动跳转
+        'error-lib': 0,
         format: data.summary.format_errors, village: data.summary.village_errors,
         duplicate: data.summary.duplicate_errors, gender: data.summary.gender_mismatch,
         new: data.summary.new_farmers, removed: data.summary.removed_farmers,
@@ -246,7 +286,7 @@ export default function PreCheckPage() {
   const getTabs = (r: CheckResult) => {
     const yc = r.year_compare as { year?: number; new_count?: number; removed_count?: number }
     return [
-      { id: 'error-lib' as ActiveTab,  label: '历史错误库', count: errorLib.length,            color: 'amber'  as const },
+      { id: 'error-lib' as ActiveTab, label: '历史错误库', count: matchHits.length, color: matchHits.length > 0 ? 'red' as const : 'amber' as const },
       { id: 'format' as ActiveTab,    label: '格式错误',   count: r.summary.format_errors,    color: 'red'    as const },
       { id: 'village' as ActiveTab,   label: '村组不存在', count: r.summary.village_errors,   color: 'red'    as const },
       { id: 'duplicate' as ActiveTab, label: '重复身份证', count: r.summary.duplicate_errors, color: 'amber'  as const },
@@ -259,27 +299,43 @@ export default function PreCheckPage() {
   }
 
 
-  const loadErrorLib = async () => {
+  const loadErrorLib = async (page = libPage, search = libSearch, village = libVillage) => {
     setLibLoading(true)
     try {
-      const r = await fetch('/api/precheck/error-library').then(r=>r.json()) as ErrorLibEntry[]
-      setErrorLib(r)
+      const params = new URLSearchParams({ page: String(page), page_size: '50' })
+      if (search)  params.set('search',  search)
+      if (village) params.set('village', village)
+      const r = await fetch(`/api/precheck/error-library?${params}`).then(r => r.json()) as ErrorLibPage
+      setErrorLibData(r)
+      setLibPage(page)
     } finally { setLibLoading(false) }
   }
 
   const addToLib = async () => {
     if (!libForm.id_card || !libForm.real_name || !libForm.error_reason)
-      return show('请填写完整信息', 'err')
+      return show('请填写身份证号、姓名和错误原因', 'err')
     await fetch('/api/precheck/error-library', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(libForm)
     })
-    show('✓ 已添加'); setLibForm({ id_card:'', real_name:'', error_reason:'' }); loadErrorLib()
+    show('✓ 已添加')
+    setLibForm({ id_card: '', real_name: '', village_name: '', group_no: '', error_reason: '' })
+    loadErrorLib(1)
+  }
+
+  const saveEdit = async (id: number) => {
+    await fetch(`/api/precheck/error-library/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editForm)
+    })
+    show('✓ 已保存')
+    setEditingId(null)
+    loadErrorLib()
   }
 
   const deleteFromLib = async (id: number) => {
-    if (!confirm('确认删除？')) return
-    await fetch(`/api/precheck/error-library/${id}`, { method:'DELETE' })
+    if (!confirm('确认删除这条历史错误记录？')) return
+    await fetch(`/api/precheck/error-library/${id}`, { method: 'DELETE' })
     loadErrorLib()
   }
 
@@ -287,21 +343,30 @@ export default function PreCheckPage() {
     if (!result) return show('请先运行预检查', 'err')
     setMatchLoading(true)
     try {
-      // 收集本次上传的所有人员
-      const allRows: {id_card:string;real_name:string}[] = []
-      const pushRows = (arr: {id_card:string;name:string}[]) => arr.forEach(r => allRows.push({id_card:r.id_card,real_name:r.name}))
-      pushRows(result.format_errors.map(r=>({id_card:r.id_card,name:r.name})))
-      pushRows(result.new_farmers.map(r=>({id_card:r.id_card,name:r.name})))
-      result.changed_farmers.forEach(r=>allRows.push({id_card:r.id_card,real_name:r.name}))
-      // 也加上全部年度对比中的新增
-      if ((result.year_compare as {new_farmers?:{id_card:string;name:unknown}[]}).new_farmers) {
-        const yc = result.year_compare as {new_farmers:{id_card:string;name:unknown}[]}
-        yc.new_farmers.forEach(r=>allRows.push({id_card:r.id_card,real_name:String(r.name)}))
-      }
+      // 收集本次所有人员（覆盖所有 tab 的数据）
+      const allRows: { id_card: string; real_name: string }[] = []
+      const pushRows = (arr: { id_card: string; name: string }[]) =>
+        arr.forEach(r => allRows.push({ id_card: r.id_card, real_name: r.name }))
+      pushRows(result.format_errors.map(r => ({ id_card: r.id_card, name: r.name })))
+      pushRows(result.village_errors.map(r => ({ id_card: r.id_card, name: r.name })))
+      pushRows(result.new_farmers.map(r => ({ id_card: r.id_card, name: r.name })))
+      pushRows(result.changed_farmers.map(r => ({ id_card: r.id_card, name: r.name })))
+      // 所有通过格式检查的也加入（全量比对）
+      rawRows.forEach(r => {
+        if (r.id_card) allRows.push({ id_card: r.id_card, real_name: r.real_name })
+      })
+      // 去重
+      const seen = new Set<string>()
+      const deduped = allRows.filter(r => {
+        if (!r.id_card || seen.has(r.id_card)) return false
+        seen.add(r.id_card); return true
+      })
+
       const res = await fetch('/api/precheck/error-library/match', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({rows:allRows})
-      }).then(r=>r.json()) as {total:number;hits:MatchHit[]}
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: deduped })
+      }).then(r => r.json()) as { total: number; hits: MatchHit[] }
+
       setMatchHits(res.hits)
       if (res.hits.length === 0) show('✓ 无命中历史错误记录')
       else show(`⚠️ 命中 ${res.hits.length} 条历史错误`, 'err')
@@ -311,37 +376,47 @@ export default function PreCheckPage() {
   const exportMatchHits = () => {
     if (matchHits.length === 0) return
     const rows = matchHits.map(h => ({
-      '身份证号': h.id_card, '姓名': h.real_name,
-      '库中姓名': h.library_name, '历史错误原因': h.error_reason
+      '匹配方式': h.match_label,
+      '身份证号（本次）': h.id_card,
+      '姓名': h.real_name,
+      '库中姓名': h.library_name,
+      ...(h.library_id_card ? { '库中身份证': h.library_id_card } : {}),
+      '库中村': h.village_name || '',
+      '库中组': h.group_no || '',
+      '历史错误原因': h.error_reason,
     }))
     const ws = XLSX.utils.json_to_sheet(rows)
-    ws['!cols'] = [20,10,10,40].map(w=>({wch:w}))
+    ws['!cols'] = [16, 20, 10, 10, 20, 8, 6, 40].map(w => ({ wch: w }))
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '历史错误命中')
-    XLSX.writeFile(wb, `历史错误命中_${new Date().toLocaleDateString('zh-CN').replace(/\//g,'-')}.xlsx`)
+    XLSX.writeFile(wb, `历史错误命中_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.xlsx`)
   }
 
   const importErrorLib = async (rows: Record<string, unknown>[]) => {
     const toImport = rows.map(r => ({
-      id_card:      String(r['身份证号*']||r['身份证号']||'').trim(),
-      real_name:    String(r['姓名*']    ||r['姓名']    ||'').trim(),
-      error_reason: String(r['错误原因*']||r['错误原因']||'').trim(),
+      id_card:      String(r['身份证号*'] || r['身份证号'] || '').trim(),
+      real_name:    String(r['姓名*']     || r['姓名']     || '').trim(),
+      village_name: String(r['村']        || r['所在村']   || '').trim() || undefined,
+      group_no:     String(r['组']        || r['所在组']   || r['组号'] || '').trim() || undefined,
+      error_reason: String(r['错误原因*'] || r['错误原因'] || '').trim(),
     })).filter(r => r.id_card && r.real_name)
     const res = await fetch('/api/precheck/error-library/batch-import', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({rows:toImport})
-    }).then(r=>r.json()) as {created:number}
-    show(`✓ 导入 ${res.created} 条`); loadErrorLib()
-    return {created:res.created, skipped:0, errors:[]}
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows: toImport })
+    }).then(r => r.json()) as { created: number; updated: number; skipped: number }
+    show(`✓ 新增 ${res.created} 条，更新 ${res.updated} 条${res.skipped ? `，跳过 ${res.skipped} 条` : ''}`)
+    loadErrorLib(1)
+    return { created: res.created, skipped: res.skipped || 0, errors: [] }
   }
 
   const downloadLibTemplate = () => {
     const ws = XLSX.utils.aoa_to_sheet([
-      ['身份证号*','姓名*','错误原因*'],
-      ['510123196503154231','张国强','2023年补贴重复申领，已处理'],
-      ['510123197808224567','李秀英','身份证与人脸核验不符'],
+      ['身份证号*', '姓名*', '村', '组', '错误原因*'],
+      ['510123196503154231', '张国强', '红星村', '一组', '2023年补贴重复申领，已处理'],
+      ['510123197808224567', '李秀英', '朝阳村', '二组', '身份证与人脸核验不符'],
+      ['510123198901012345', '王建国', '', '', '银行卡号疑似他人账户'],
     ])
-    ws['!cols'] = [20,10,40].map(w=>({wch:w}))
+    ws['!cols'] = [20, 10, 10, 6, 40].map(w => ({ wch: w }))
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '历史错误库模板')
     XLSX.writeFile(wb, '历史错误库导入模板.xlsx')
@@ -477,6 +552,28 @@ export default function PreCheckPage() {
               </div>
             ))}
           </div>
+
+          {/* 历史错误命中警告横幅 */}
+          {matchHits.length > 0 && (
+            <div className="mb-4 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⚠️</span>
+                <div>
+                  <span className="font-semibold text-amber-800 text-sm">
+                    本次名单命中 {matchHits.length} 条历史错误记录
+                  </span>
+                  <span className="text-amber-600 text-xs ml-2">
+                    其中身份证匹配 {matchHits.filter(h => h.match_type === 'id_card').length} 条，
+                    姓名匹配 {matchHits.filter(h => h.match_type === 'name_only').length} 条
+                  </span>
+                </div>
+              </div>
+              <button onClick={() => setActiveTab('error-lib')}
+                className="text-xs bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 whitespace-nowrap">
+                查看命中详情 →
+              </button>
+            </div>
+          )}
 
           {/* 操作栏 */}
           <div className="flex gap-2 mb-4">
@@ -639,142 +736,315 @@ export default function PreCheckPage() {
               )
             })()}
           </div>
+
+          {/* 历史错误库 Tab（在结果页内，与其他 tab 平级） */}
+          {activeTab === 'error-lib' && <ErrorLibPanel
+            result={result}
+            matchHits={matchHits}
+            matchLoading={matchLoading}
+            errorLibData={errorLibData}
+            libLoading={libLoading}
+            libSearch={libSearch}
+            libVillage={libVillage}
+            libPage={libPage}
+            libForm={libForm}
+            editingId={editingId}
+            editForm={editForm}
+            onRunMatch={runMatch}
+            onExportHits={exportMatchHits}
+            onSearch={(s, v) => { setLibSearch(s); loadErrorLib(1, s, v) }}
+            onVillageChange={v => { setLibVillage(v); loadErrorLib(1, libSearch, v) }}
+            onPageChange={p => loadErrorLib(p)}
+            onFormChange={f => setLibForm(f)}
+            onAdd={addToLib}
+            onEditStart={(id) => { setEditingId(id); setEditForm({}) }}
+            onEditChange={f => setEditForm(f)}
+            onEditSave={saveEdit}
+            onEditCancel={() => setEditingId(null)}
+            onDelete={deleteFromLib}
+            onImport={importErrorLib}
+            onDownloadTemplate={downloadLibTemplate}
+          />}
         </div>
       )}
 
-            {/* 历史错误库 Tab */}
-            {activeTab === 'error-lib' && (
-              <div className="space-y-4">
-                {/* 与预检结果比对 */}
-                {result && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold text-amber-800">与本次预检结果比对</span>
-                      <div className="flex gap-2">
-                        <button onClick={runMatch} disabled={matchLoading}
-                          className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-60">
-                          {matchLoading ? '比对中…' : '🔍 立即比对'}
-                        </button>
-                        {matchHits.length > 0 && (
-                          <button onClick={exportMatchHits}
-                            className="px-3 py-1.5 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-100">
-                            ⬇️ 导出命中名单
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    {matchHits.length > 0 ? (
-                      <div className="mt-3 space-y-2">
-                        <p className="text-xs text-amber-700 font-semibold">命中 {matchHits.length} 条历史错误记录：</p>
-                        <table className="w-full border-collapse text-sm">
-                          <thead><tr className="border-b border-amber-200">
-                            {['身份证号','本次姓名','库中姓名','历史错误原因'].map(h=>(
-                              <th key={h} className="px-3 py-1.5 text-left text-xs text-amber-600 font-semibold">{h}</th>
-                            ))}
-                          </tr></thead>
-                          <tbody>
-                            {matchHits.map((h,i)=>(
-                              <tr key={i} className="border-b border-amber-100 bg-white">
-                                <td className="px-3 py-2 font-mono text-xs">{h.id_card}</td>
-                                <td className="px-3 py-2 font-semibold">{h.real_name}</td>
-                                <td className="px-3 py-2 text-stone-500">{h.library_name}</td>
-                                <td className="px-3 py-2 text-red-600 text-xs">{h.error_reason}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-amber-600 mt-1">点击「立即比对」，将本次预检人员与历史错误库交叉比对</p>
-                    )}
-                  </div>
-                )}
-
-                {/* 新增到错误库 */}
-                <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-                  <div className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex justify-between items-center">
-                    <span className="font-semibold text-stone-700 text-sm">📚 历史错误库</span>
-                    <div className="flex gap-2">
-                      <button onClick={downloadLibTemplate}
-                        className="text-xs border border-stone-200 text-stone-500 px-3 py-1.5 rounded-lg hover:bg-stone-50">
-                        ⬇️ 下载导入模板
-                      </button>
-                      <label className="text-xs border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-50 cursor-pointer">
-                        ↑ 批量导入
-                        <input type="file" accept=".xlsx,.xls" className="hidden" onChange={async e=>{
-                          if(!e.target.files?.[0]) return
-                          const reader = new FileReader()
-                          reader.onload = async(ev) => {
-                            const XLSX2 = await import('xlsx')
-                            const wb = XLSX2.read(ev.target?.result,{type:'array'})
-                            const ws = wb.Sheets[wb.SheetNames[0]]
-                            const rows = XLSX2.utils.sheet_to_json(ws,{defval:''}) as Record<string,unknown>[]
-                            await importErrorLib(rows)
-                          }
-                          reader.readAsArrayBuffer(e.target.files[0])
-                        }} />
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* 手动新增 */}
-                  <div className="p-4 border-b border-stone-100 bg-stone-50/50">
-                    <p className="text-xs text-stone-400 mb-2">手动添加一条</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <input value={libForm.id_card} onChange={e=>setLibForm(f=>({...f,id_card:e.target.value}))}
-                        placeholder="身份证号 *"
-                        className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-emerald-400"/>
-                      <input value={libForm.real_name} onChange={e=>setLibForm(f=>({...f,real_name:e.target.value}))}
-                        placeholder="姓名 *"
-                        className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-emerald-400"/>
-                      <input value={libForm.error_reason} onChange={e=>setLibForm(f=>({...f,error_reason:e.target.value}))}
-                        placeholder="错误原因 *"
-                        className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-emerald-400"/>
-                    </div>
-                    <button onClick={addToLib}
-                      className="mt-2 px-3 py-1.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
-                      ＋ 添加
-                    </button>
-                  </div>
-
-                  {/* 列表 */}
-                  {libLoading ? <div className="py-8 text-center text-stone-300 text-sm">加载中…</div>
-                    : errorLib.length === 0
-                    ? <div className="py-10 text-center text-stone-300 text-sm">
-                        <p>暂无历史错误记录</p>
-                        <p className="text-xs mt-1">可手动添加或批量导入，下次预检时自动比对</p>
-                      </div>
-                    : <table className="w-full border-collapse">
-                        <thead><tr className="bg-stone-50 border-b border-stone-200">
-                          {['身份证号','姓名','错误原因','添加时间',''].map(h=>(
-                            <th key={h} className="px-4 py-2.5 text-left text-xs text-stone-400 font-semibold">{h}</th>
-                          ))}
-                        </tr></thead>
-                        <tbody>
-                          {errorLib.map(e=>(
-                            <tr key={e.id} className="border-b border-stone-50 hover:bg-stone-50">
-                              <td className="px-4 py-2.5 text-xs font-mono text-amber-700">{e.id_card}</td>
-                              <td className="px-4 py-2.5 text-sm font-semibold">{e.real_name}</td>
-                              <td className="px-4 py-2.5 text-sm text-red-600">{e.error_reason}</td>
-                              <td className="px-4 py-2.5 text-xs text-stone-300">{e.created_at?.slice(0,10)}</td>
-                              <td className="px-4 py-2.5">
-                                <button onClick={()=>deleteFromLib(e.id)} className="text-xs text-red-400 hover:text-red-600">删除</button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                  }
-                </div>
-              </div>
-            )}
-
+      {/* 上传步骤下方：错误库快速入口 */}
+      {step !== 'result' && (
+        <div className="mt-4 border border-amber-200 bg-amber-50 rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm font-semibold text-amber-800">📚 历史错误库</span>
+              <span className="text-xs text-amber-600 ml-2">
+                预检前可先维护历史错误记录，预检完成后将自动与名单比对
+              </span>
+            </div>
+            <button onClick={() => { loadErrorLib(1); setStep('result' as typeof step) }}
+              className="text-xs border border-amber-300 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-100">
+              维护错误库 →
+            </button>
+          </div>
+        </div>
+      )}
       <Toast {...toast} />
     </div>
   )
 }
 
-// ─── 通用结果表格 ───
+// ─── 历史错误库面板（独立组件，可在结果页和独立页使用）───
+function ErrorLibPanel({
+  result, matchHits, matchLoading, errorLibData, libLoading,
+  libSearch, libVillage, libPage, libForm, editingId, editForm,
+  onRunMatch, onExportHits, onSearch, onVillageChange, onPageChange,
+  onFormChange, onAdd, onEditStart, onEditChange, onEditSave, onEditCancel,
+  onDelete, onImport, onDownloadTemplate,
+}: {
+  result: CheckResult | null
+  matchHits: MatchHit[]
+  matchLoading: boolean
+  errorLibData: ErrorLibPage
+  libLoading: boolean
+  libSearch: string
+  libVillage: string
+  libPage: number
+  libForm: { id_card: string; real_name: string; village_name: string; group_no: string; error_reason: string }
+  editingId: number | null
+  editForm: Partial<ErrorLibEntry>
+  onRunMatch: () => void
+  onExportHits: () => void
+  onSearch: (s: string, v: string) => void
+  onVillageChange: (v: string) => void
+  onPageChange: (p: number) => void
+  onFormChange: (f: typeof libForm) => void
+  onAdd: () => void
+  onEditStart: (id: number) => void
+  onEditChange: (f: Partial<ErrorLibEntry>) => void
+  onEditSave: (id: number) => void
+  onEditCancel: () => void
+  onDelete: (id: number) => void
+  onImport: (rows: Record<string, unknown>[]) => Promise<{ created: number; skipped: number; errors: string[] }>
+  onDownloadTemplate: () => void
+}) {
+  const errorLib = errorLibData.items
+  return (
+    <div className="space-y-4 p-1">
+      {/* 比对结果区 */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-semibold text-amber-800">
+            与历史错误库比对结果
+            {matchHits.length > 0 && (
+              <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {matchHits.length} 条命中
+              </span>
+            )}
+          </span>
+          <div className="flex gap-2">
+            {result && (
+              <button onClick={onRunMatch} disabled={matchLoading}
+                className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-60">
+                {matchLoading ? '比对中…' : '🔍 重新比对'}
+              </button>
+            )}
+            {matchHits.length > 0 && (
+              <button onClick={onExportHits}
+                className="px-3 py-1.5 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-100">
+                ⬇️ 导出命中名单
+              </button>
+            )}
+          </div>
+        </div>
+        {matchHits.length > 0 ? (
+          <div className="overflow-auto max-h-60">
+            <table className="w-full border-collapse text-sm">
+              <thead><tr className="border-b border-amber-200 bg-amber-100/50">
+                {['匹配方式', '身份证号（本次）', '本次姓名', '库中姓名', '村/组', '历史错误原因'].map(h => (
+                  <th key={h} className="px-3 py-1.5 text-left text-xs text-amber-700 font-semibold whitespace-nowrap">{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {matchHits.map((h, i) => (
+                  <tr key={i} className={`border-b border-amber-100 ${h.match_type === 'name_only' ? 'bg-orange-50' : 'bg-white'}`}>
+                    <td className="px-3 py-2">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${h.match_type === 'id_card' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                        {h.match_label}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs text-stone-600">{h.id_card}</td>
+                    <td className="px-3 py-2 font-semibold">{h.real_name}</td>
+                    <td className="px-3 py-2 text-stone-500">
+                      {h.library_name}
+                      {h.library_id_card && <div className="text-xs font-mono text-orange-600 mt-0.5">库中证号：{h.library_id_card}</div>}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-stone-400">{h.village_name}{h.group_no ? ` ${h.group_no}` : ''}</td>
+                    <td className="px-3 py-2 text-red-600 text-xs">{h.error_reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-xs text-amber-600">
+            {result ? '预检时已自动比对，无命中记录。可点击「重新比对」手动刷新。' : '上传文件并运行预检后，将自动与历史错误库比对。'}
+          </p>
+        )}
+      </div>
+
+      {/* 错误库管理 */}
+      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+        {/* 工具栏 */}
+        <div className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex flex-wrap gap-2 items-center">
+          <span className="font-semibold text-stone-700 text-sm">📚 历史错误库</span>
+          <span className="text-xs text-stone-400">共 {errorLibData.total} 条</span>
+          <input value={libSearch}
+            onChange={e => onFormChange({ ...libForm, id_card: libForm.id_card })}
+            onInput={(e) => onSearch((e.target as HTMLInputElement).value, libVillage)}
+            onKeyDown={e => e.key === 'Enter' && onSearch(libSearch, libVillage)}
+            placeholder="搜索姓名/身份证…"
+            className="border border-stone-200 rounded-lg px-3 py-1 text-xs outline-none focus:border-emerald-400 w-40"
+          />
+          {errorLibData.villages.length > 0 && (
+            <select value={libVillage} onChange={e => onVillageChange(e.target.value)}
+              className="border border-stone-200 rounded-lg px-2 py-1 text-xs outline-none bg-white">
+              <option value="">全部村</option>
+              {errorLibData.villages.map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+          )}
+          <div className="ml-auto flex gap-2">
+            <button onClick={onDownloadTemplate}
+              className="text-xs border border-stone-200 text-stone-500 px-3 py-1.5 rounded-lg hover:bg-stone-50">
+              ⬇️ 下载模板
+            </button>
+            <label className="text-xs border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-50 cursor-pointer">
+              ↑ 批量导入
+              <input type="file" accept=".xlsx,.xls" className="hidden" onChange={async e => {
+                if (!e.target.files?.[0]) return
+                const reader = new FileReader()
+                reader.onload = async (ev) => {
+                  const XLSX2 = await import('xlsx')
+                  const wb = XLSX2.read(ev.target?.result, { type: 'array' })
+                  const ws = wb.Sheets[wb.SheetNames[0]]
+                  const rows = XLSX2.utils.sheet_to_json(ws, { defval: '' }) as Record<string, unknown>[]
+                  await onImport(rows)
+                }
+                reader.readAsArrayBuffer(e.target.files[0])
+              }} />
+            </label>
+          </div>
+        </div>
+
+        {/* 手动新增 */}
+        <div className="p-4 border-b border-stone-100 bg-stone-50/50">
+          <p className="text-xs text-stone-400 mb-2">手动新增一条错误记录</p>
+          <div className="grid grid-cols-5 gap-2">
+            <input value={libForm.id_card} onChange={e => onFormChange({ ...libForm, id_card: e.target.value })}
+              placeholder="身份证号 *" className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-emerald-400" />
+            <input value={libForm.real_name} onChange={e => onFormChange({ ...libForm, real_name: e.target.value })}
+              placeholder="姓名 *" className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-emerald-400" />
+            <input value={libForm.village_name} onChange={e => onFormChange({ ...libForm, village_name: e.target.value })}
+              placeholder="村（可选）" className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-emerald-400" />
+            <input value={libForm.group_no} onChange={e => onFormChange({ ...libForm, group_no: e.target.value })}
+              placeholder="组（可选）" className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-emerald-400" />
+            <input value={libForm.error_reason} onChange={e => onFormChange({ ...libForm, error_reason: e.target.value })}
+              placeholder="错误原因 *" className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-emerald-400"
+              onKeyDown={e => e.key === 'Enter' && onAdd()} />
+          </div>
+          <button onClick={onAdd} className="mt-2 px-4 py-1.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">＋ 添加</button>
+        </div>
+
+        {/* 列表 */}
+        {libLoading ? (
+          <div className="py-8 text-center text-stone-300 text-sm">加载中…</div>
+        ) : errorLib.length === 0 ? (
+          <div className="py-10 text-center text-stone-300 text-sm">
+            <p>暂无历史错误记录</p>
+            <p className="text-xs mt-1">可手动添加或批量导入（支持村/组字段），预检时自动比对</p>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-auto max-h-96">
+              <table className="w-full border-collapse">
+                <thead className="sticky top-0 bg-stone-50 border-b border-stone-200 z-10">
+                  <tr>
+                    {['身份证号', '姓名', '村', '组', '错误原因', '添加时间', '操作'].map(h => (
+                      <th key={h} className="px-4 py-2.5 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {errorLib.map(e => (
+                    <tr key={e.id} className="border-b border-stone-50 hover:bg-stone-50">
+                      {editingId === e.id ? (
+                        <>
+                          <td className="px-3 py-2 text-xs font-mono text-stone-400">{e.id_card}</td>
+                          <td className="px-2 py-1.5">
+                            <input value={editForm.real_name ?? e.real_name}
+                              onChange={ev => onEditChange({ ...editForm, real_name: ev.target.value })}
+                              className="border border-emerald-300 rounded px-2 py-1 text-sm w-full outline-none" />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input value={editForm.village_name ?? (e.village_name || '')}
+                              onChange={ev => onEditChange({ ...editForm, village_name: ev.target.value })}
+                              className="border border-emerald-300 rounded px-2 py-1 text-sm w-20 outline-none" />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input value={editForm.group_no ?? (e.group_no || '')}
+                              onChange={ev => onEditChange({ ...editForm, group_no: ev.target.value })}
+                              className="border border-emerald-300 rounded px-2 py-1 text-sm w-16 outline-none" />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input value={editForm.error_reason ?? e.error_reason}
+                              onChange={ev => onEditChange({ ...editForm, error_reason: ev.target.value })}
+                              className="border border-emerald-300 rounded px-2 py-1 text-sm w-full outline-none" />
+                          </td>
+                          <td className="px-3 py-2 text-xs text-stone-300">{e.created_at?.slice(0, 10)}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex gap-2">
+                              <button onClick={() => onEditSave(e.id)} className="text-xs text-emerald-600 hover:text-emerald-800 font-semibold">保存</button>
+                              <button onClick={onEditCancel} className="text-xs text-stone-400 hover:text-stone-600">取消</button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-4 py-2.5 text-xs font-mono text-amber-700">{e.id_card}</td>
+                          <td className="px-4 py-2.5 text-sm font-semibold">{e.real_name}</td>
+                          <td className="px-4 py-2.5 text-xs text-stone-500">{e.village_name || <span className="text-stone-300">—</span>}</td>
+                          <td className="px-4 py-2.5 text-xs text-stone-500">{e.group_no || <span className="text-stone-300">—</span>}</td>
+                          <td className="px-4 py-2.5 text-sm text-red-600 max-w-xs" title={e.error_reason}>
+                            <span className="line-clamp-2">{e.error_reason}</span>
+                          </td>
+                          <td className="px-4 py-2.5 text-xs text-stone-300">{e.created_at?.slice(0, 10)}</td>
+                          <td className="px-4 py-2.5">
+                            <div className="flex gap-3">
+                              <button onClick={() => onEditStart(e.id)} className="text-xs text-blue-400 hover:text-blue-600">编辑</button>
+                              <button onClick={() => onDelete(e.id)} className="text-xs text-red-400 hover:text-red-600">删除</button>
+                            </div>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {errorLibData.total > 50 && (
+              <div className="px-4 py-3 border-t border-stone-100 flex items-center gap-2 text-xs text-stone-500">
+                <span>共 {errorLibData.total} 条</span>
+                <div className="flex gap-1 ml-auto">
+                  <button onClick={() => onPageChange(libPage - 1)} disabled={libPage <= 1}
+                    className="px-2 py-1 border border-stone-200 rounded hover:bg-stone-50 disabled:opacity-40">上一页</button>
+                  <span className="px-2 py-1">第 {libPage} / {Math.ceil(errorLibData.total / 50)} 页</span>
+                  <button onClick={() => onPageChange(libPage + 1)} disabled={libPage >= Math.ceil(errorLibData.total / 50)}
+                    className="px-2 py-1 border border-stone-200 rounded hover:bg-stone-50 disabled:opacity-40">下一页</button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
 function ResultTable({ title, headers, rows, empty }: {
   title: string
   headers: string[]
