@@ -10,23 +10,25 @@ import ExternalLinksPage from './pages/ExternalLinksPage'
 import HouseholdsPage from './pages/HouseholdsPage'
 import BackupPage from './pages/BackupPage'
 import ExcelTemplatePage from './pages/ExcelTemplatePage'
+import LandTrustPage from './pages/LandTrustPage'
 import { healthCheck } from './api'
 import { useState } from 'react'
 
 const mainNav = [
-  { to: '/',         label: '首页',     icon: '📊', end: true },
-  { to: '/farmers',  label: '农户档案', icon: '👤' },
-  { to: '/projects', label: '补贴项目', icon: '💰' },
-  { to: '/precheck', label: '数据预检', icon: '🔍' },
-  { to: '/links',    label: '外联查询', icon: '🔗' },
-  { to: '/ai',       label: 'AI 分析',  icon: '🤖' },
+  { to: '/',            label: '首页',     icon: '📊', end: true },
+  { to: '/farmers',     label: '农户档案', icon: '👤' },
+  { to: '/households',  label: '家庭户',   icon: '🏠' },
+  { to: '/projects',    label: '补贴项目', icon: '💰' },
+  { to: '/precheck',    label: '数据预检', icon: '🔍' },
+  { to: '/links',       label: '外联查询', icon: '🔗' },
+  { to: '/ai',          label: 'AI 分析',  icon: '🤖' },
 ]
 
 const settingNav = [
-  { to: '/settings/households',    label: '家庭户管理', icon: '🏠' },
   { to: '/settings/village-groups',label: '村组管理',   icon: '🏘️' },
   { to: '/settings/backup',          label: '备份迁移',   icon: '💾' },
   { to: '/settings/excel-templates',  label: 'Excel模板',  icon: '📋' },
+  { to: '/settings/land-trust',          label: '土地流转',   icon: '🌾' },
 ]
 
 function Layout() {
@@ -134,9 +136,11 @@ function Layout() {
           <Route path="/links"     element={<ExternalLinksPage />} />
           <Route path="/ai"        element={<AIPage />} />
           <Route path="/settings/households"     element={<HouseholdsPage />} />
+          <Route path="/households"               element={<HouseholdsPage />} />
           <Route path="/settings/village-groups" element={<SettingsPage />} />
           <Route path="/settings/backup" element={<BackupPage />} />
           <Route path="/settings/excel-templates" element={<ExcelTemplatePage />} />
+          <Route path="/settings/land-trust" element={<LandTrustPage />} />
           {/* 404 fallback */}
           <Route path="*" element={
             <div className="text-center py-24 text-stone-300">

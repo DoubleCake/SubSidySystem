@@ -52,19 +52,43 @@ def calc_household_area_usage(
     year: Optional[int] = None
 ) -> dict:
     """
-    计算一个家庭户的面积使用情况：
-    - contracted_area: 承包面积（来自 family_household.land_area）
-    - used_area:       已被 per_mu 类型补贴占用的面积（当年各项之和）
-    - remaining_area:  剩余可申请面积
-    - is_overdrawn:    是否超领（used_area > contracted_area）
-    - overdraw_amount: 超领面积
-    - subsidy_breakdown: 各补贴项目占用面积明细
+    计算一个家庭户的面积使用情况（含流转）：
+    - contracted_area: 承包面积（权属，来自 family_household.land_area）
+    - trust_out_area:  流出面积（该年度流给他人耕种的，有接收方才算）
+    - trust_in_area:   流入面积（该年度从他人流入的代耕/流转）
+    - cultivable_area: 实际可耕种面积 = 承包 - 流出 + 流入（超领判断基准）
+    - used_area:       已申报的按亩补贴面积之和
+    - remaining_area:  剩余可申请面积 = 可耕种 - 已用
+    - is_overdrawn:    是否超领（used_area > cultivable_area）
     """
     hh = db.query(FamilyHousehold).filter(FamilyHousehold.id == household_id).first()
     if not hh:
         return {}
 
     contracted = float(hh.land_area or 0)
+    
+    # ── 流转面积（按年度，仅当 affect_subsidy_calc=1 时纳入）──
+    trust_out = 0.0
+    trust_in  = 0.0
+    if year:
+        from sqlalchemy import text as _text
+        out_r = db.execute(_text("""
+            SELECT COALESCE(SUM(area),0) FROM land_trust
+            WHERE owner_household_id=:hid AND trust_year=:yr AND is_active=1
+              AND affect_subsidy_calc=1 AND trust_type!='IDLE'
+              AND operator_household_id IS NOT NULL
+        """), {"hid": household_id, "yr": year}).scalar()
+        trust_out = float(out_r or 0)
+        
+        in_r = db.execute(_text("""
+            SELECT COALESCE(SUM(area),0) FROM land_trust
+            WHERE operator_household_id=:hid AND trust_year=:yr AND is_active=1
+              AND affect_subsidy_calc=1
+        """), {"hid": household_id, "yr": year}).scalar()
+        trust_in = float(in_r or 0)
+    
+    # 可耕种面积（超领判断基准）
+    cultivable = max(0.0, contracted - trust_out + trust_in)
 
     # 查询该户所有成员
     member_ids = [
@@ -124,8 +148,8 @@ def calc_household_area_usage(
         # 不同年度的面积不叠加（每年独立补贴），取最近年度
         total_used = max(year_totals.values()) if year_totals else 0
 
-    remaining = contracted - total_used
-    is_overdrawn = contracted > 0 and total_used > contracted
+    remaining = cultivable - total_used
+    is_overdrawn = cultivable > 0 and total_used > cultivable
 
     return {
         "contracted_area": contracted,
@@ -445,11 +469,23 @@ def update_household(
     if not hh:
         raise HTTPException(status_code=404, detail="家庭户不存在")
 
+    from datetime import date as _date
+    before = _snapshot_household(db, household_id)
+
     if data.household_name is not None: hh.household_name = data.household_name
     if data.land_area      is not None: hh.land_area      = Decimal(str(data.land_area))
     if data.address        is not None: hh.address        = data.address
     if data.status         is not None: hh.status         = data.status
     if data.remark         is not None: hh.remark         = data.remark
+
+    after = _snapshot_household(db, household_id)
+    ev_type = "LAND_CHANGE" if data.land_area is not None else "STATUS_CHANGE"
+    desc = f"更新家庭户信息"
+    if data.land_area is not None:
+        desc = f"土地面积变更：{float(before.get('land_area', 0))}亩 → {float(data.land_area or 0)}亩"
+    _log_event(db, household_id, ev_type, _date.today().year, desc,
+               before=before, after=after,
+               event_date=_date.today(), date_accuracy="EXACT")
 
     db.commit()
     return {"message": "更新成功"}
@@ -477,6 +513,10 @@ def move_member(req: MemberMoveRequest, db: Session = Depends(get_db)):
 
     old_household_id = farmer.household_id
 
+    from datetime import date as _date
+    old_before = _snapshot_household(db, old_household_id)
+    new_before = _snapshot_household(db, req.target_household_id)
+
     # 如果要成为新户主，先把原户主降级
     if req.is_head == 1:
         old_head = db.query(FarmerProfile).filter(
@@ -501,6 +541,24 @@ def move_member(req: MemberMoveRequest, db: Session = Depends(get_db)):
         old_hh = db.query(FamilyHousehold).filter(FamilyHousehold.id == old_household_id).first()
         if old_hh:
             old_hh.member_count = max(0, (old_hh.member_count or 1) - 1)
+
+    # 记录事件
+    today = _date.today()
+    if old_household_id != req.target_household_id:
+        old_after = _snapshot_household(db, old_household_id)
+        _log_event(db, old_household_id, "MEMBER_REMOVE", today.year,
+                   f"移出成员「{farmer.real_name}」至「{target_hh.household_name}」",
+                   before=old_before, after=old_after,
+                   farmer_id=farmer.id, farmer_name=farmer.real_name,
+                   related_hh_id=req.target_household_id,
+                   event_date=today, date_accuracy="EXACT")
+    new_after = _snapshot_household(db, req.target_household_id)
+    _log_event(db, req.target_household_id, "MEMBER_ADD", today.year,
+               f"新增成员「{farmer.real_name}」（从原户移入）",
+               before=new_before, after=new_after,
+               farmer_id=farmer.id, farmer_name=farmer.real_name,
+               related_hh_id=old_household_id,
+               event_date=today, date_accuracy="EXACT")
 
     db.commit()
     return {"message": f"已将「{farmer.real_name}」移入「{target_hh.household_name}」"}
@@ -536,6 +594,9 @@ def add_member(household_id: int, data: MemberCreate, db: Session = Depends(get_
     hh = db.get(FamilyHousehold, household_id)
     if not hh:
         raise HTTPException(404, "家庭户不存在")
+
+    from datetime import date as _date
+    before = _snapshot_household(db, household_id)
 
     id_card_clean = data.id_card.strip().upper()
 
@@ -594,6 +655,14 @@ def add_member(household_id: int, data: MemberCreate, db: Session = Depends(get_
         FarmerProfile.household_id == household_id
     ).scalar() or 1
 
+    after = _snapshot_household(db, household_id)
+    today = _date.today()
+    _log_event(db, household_id, "MEMBER_ADD", today.year,
+               f"新增成员「{member.real_name}」",
+               before=before, after=after,
+               farmer_id=member.id, farmer_name=member.real_name,
+               event_date=today, date_accuracy="EXACT")
+
     db.commit()
     db.refresh(member)
     return {"message": "添加成功", "member": _member_out(member)}
@@ -608,6 +677,9 @@ def update_member(household_id: int, farmer_id: int, data: MemberUpdate, db: Ses
     ).first()
     if not member:
         raise HTTPException(404, "成员不存在或不属于该家庭户")
+
+    from datetime import date as _date
+    before = _snapshot_household(db, household_id)
 
     # 如果要设为户主，先把原户主降级
     if data.is_head == 1 and member.is_head != 1:
@@ -627,6 +699,22 @@ def update_member(household_id: int, farmer_id: int, data: MemberUpdate, db: Ses
     if data.is_head      is not None: member.is_head      = data.is_head
     if data.farmer_status is not None: member.farmer_status = data.farmer_status
     if data.remark       is not None: member.remark       = data.remark or None
+
+    after = _snapshot_household(db, household_id)
+    today = _date.today()
+    if data.is_head == 1 and member.is_head == 1:
+        ev_type = "HEAD_CHANGE"
+        desc = f"变更户主为「{member.real_name}」"
+    elif data.farmer_status is not None:
+        ev_type = "MEMBER_STATUS"
+        desc = f"成员「{member.real_name}」状态变更"
+    else:
+        ev_type = "HEAD_CHANGE" if data.is_head == 1 else "MEMBER_STATUS"
+        desc = f"更新成员「{member.real_name}」信息"
+    _log_event(db, household_id, ev_type, today.year, desc,
+               before=before, after=after,
+               farmer_id=farmer_id, farmer_name=member.real_name,
+               event_date=today, date_accuracy="EXACT")
 
     db.commit()
     return {"message": "更新成功", "member": _member_out(member)}
@@ -654,6 +742,10 @@ def remove_member(
     if member.is_head == 1:
         raise HTTPException(400, "户主不能被移除，请先将其他成员设为户主后再操作")
 
+    from datetime import date as _date
+    before = _snapshot_household(db, household_id)
+    fname = member.real_name
+
     hh = db.get(FamilyHousehold, household_id)
 
     if action == "delete":
@@ -672,6 +764,14 @@ def remove_member(
 
     if hh:
         hh.member_count = max(0, (hh.member_count or 1) - 1)
+
+    after = _snapshot_household(db, household_id)
+    today = _date.today()
+    _log_event(db, household_id, "MEMBER_REMOVE", today.year,
+               f"移出成员「{fname}」({action})",
+               before=before, after=after,
+               farmer_id=farmer_id, farmer_name=fname,
+               event_date=today, date_accuracy="EXACT")
 
     db.commit()
     return {"message": msg}
@@ -844,3 +944,866 @@ def batch_build_households(req: HouseholdBuildRequest, db: Session = Depends(get
     db.commit()
     return {"built": built, "updated": updated, "errors": errors,
             "total_groups": len(groups)}
+
+
+# ══════════════════════════════════════════════════
+#  家庭户变更事件 —— 历史记录核心
+# ══════════════════════════════════════════════════
+
+def _log_event(
+    db: Session,
+    household_id: int,
+    event_type: str,
+    event_year: int,
+    description: str,
+    before: dict | None = None,
+    after: dict | None = None,
+    farmer_id: int | None = None,
+    farmer_name: str | None = None,
+    related_hh_id: int | None = None,
+    event_date=None,
+    date_accuracy: str = "YEAR",
+    evidence_type: str | None = None,
+    evidence_note: str | None = None,
+    operator: str | None = None,
+):
+    """通用事件记录函数，在所有会改变家庭户结构的操作中调用"""
+    import json as _json
+    from models import HouseholdEvent
+    ev = HouseholdEvent(
+        household_id=household_id,
+        related_hh_id=related_hh_id,
+        event_type=event_type,
+        event_year=event_year,
+        event_date=event_date,
+        date_accuracy=date_accuracy,
+        before_snapshot=_json.dumps(before, ensure_ascii=False, default=str) if before else None,
+        after_snapshot=_json.dumps(after, ensure_ascii=False, default=str) if after else None,
+        farmer_id=farmer_id,
+        farmer_name=farmer_name,
+        description=description,
+        evidence_type=evidence_type,
+        evidence_note=evidence_note,
+        operator=operator,
+    )
+    db.add(ev)
+
+
+def _snapshot_household(db: Session, household_id: int) -> dict:
+    """抓取当前家庭户完整状态快照（用于 before/after_snapshot）"""
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh:
+        return {}
+    members = (
+        db.query(FarmerProfile)
+          .filter(FarmerProfile.household_id == household_id)
+          .order_by(FarmerProfile.is_head.desc(), FarmerProfile.id).all()
+    )
+    head = next((m for m in members if m.is_head == 1), None)
+    return {
+        "household_name": hh.household_name,
+        "household_code": hh.household_code,
+        "land_area": float(hh.land_area or 0),
+        "status": hh.status,
+        "address": hh.address,
+        "remark": hh.remark,
+        "head_id": head.id if head else None,
+        "members": [_member_out(m) for m in members],
+    }
+
+
+@router.get("/{household_id}/events")
+def list_events(
+    household_id: int,
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50),
+):
+    """查询家庭户的所有变更事件（时间线）"""
+    from models import HouseholdEvent
+    from sqlalchemy import text as _text
+    total = db.query(func.count(HouseholdEvent.id)).filter(
+        HouseholdEvent.household_id == household_id
+    ).scalar() or 0
+    rows = (
+        db.query(HouseholdEvent)
+          .filter(HouseholdEvent.household_id == household_id)
+          .order_by(HouseholdEvent.event_year.desc(), HouseholdEvent.created_at.desc())
+          .offset((page-1)*page_size).limit(page_size).all()
+    )
+    import json as _json
+    def _ev_out(e):
+        return {
+            "id": e.id, "event_type": e.event_type,
+            "event_year": e.event_year, "event_date": str(e.event_date) if e.event_date else None,
+            "date_accuracy": e.date_accuracy,
+            "description": e.description,
+            "farmer_id": e.farmer_id, "farmer_name": e.farmer_name,
+            "related_hh_id": e.related_hh_id,
+            "before_snapshot": _json.loads(e.before_snapshot) if e.before_snapshot else None,
+            "after_snapshot":  _json.loads(e.after_snapshot)  if e.after_snapshot  else None,
+            "evidence_type": e.evidence_type, "evidence_note": e.evidence_note,
+            "operator": e.operator,
+            "created_at": str(e.created_at),
+            "undoable": True,
+        }
+    return {"total": total, "items": [_ev_out(r) for r in rows]}
+
+
+@router.post("/{household_id}/events")
+def add_event(household_id: int, data: dict, db: Session = Depends(get_db)):
+    """手动添加一条事件记录（补录历史用）"""
+    import json as _json
+    from datetime import date as _date
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh: raise HTTPException(404, "家庭户不存在")
+
+    ev_date = data.get("event_date")
+    if isinstance(ev_date, str) and ev_date:
+        try: ev_date = _date.fromisoformat(ev_date)
+        except: ev_date = None
+
+    _log_event(
+        db, household_id,
+        event_type   = data.get("event_type", "REMARK"),
+        event_year   = int(data.get("event_year", _date.today().year)),
+        description  = data.get("description", ""),
+        event_date   = ev_date,
+        date_accuracy= data.get("date_accuracy", "YEAR"),
+        evidence_type= data.get("evidence_type"),
+        evidence_note= data.get("evidence_note"),
+        operator     = data.get("operator"),
+    )
+    db.commit()
+    return {"message": "事件记录已添加"}
+
+
+@router.delete("/{household_id}/events/{event_id}")
+def undo_event(household_id: int, event_id: int,
+               action: str = Query("undo", description="undo=撤销操作"),
+               db: Session = Depends(get_db)):
+    """撤销一次操作：恢复到操作前状态，删除事件记录"""
+    import json as _json
+    from datetime import date as _date
+    from models import HouseholdEvent
+
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh:
+        raise HTTPException(404, "家庭户不存在")
+
+    ev = db.query(HouseholdEvent).filter(
+        HouseholdEvent.id == event_id,
+        HouseholdEvent.household_id == household_id
+    ).first()
+    if not ev:
+        raise HTTPException(404, "事件不存在")
+
+    UNSUPPORTED = ("SPLIT", "MERGE", "FOUND")
+    if ev.event_type in UNSUPPORTED:
+        raise HTTPException(400, f"事件类型「{ev.event_type}」不支持撤销")
+
+    before = _json.loads(ev.before_snapshot) if ev.before_snapshot else None
+    after = _json.loads(ev.after_snapshot) if ev.after_snapshot else None
+
+    if ev.event_type == "MEMBER_ADD":
+        # 删除 after_snapshot 中新增的 farmer；恢复旧户主
+        if after and after.get("members"):
+            before_ids = set(m["id"] for m in (before.get("members") if before else []))
+            after_ids = set(m["id"] for m in after.get("members", []))
+            new_ids = after_ids - before_ids
+            for mid in new_ids:
+                fp = db.get(FarmerProfile, mid)
+                if fp and fp.household_id == household_id:
+                    db.delete(fp)
+        # 恢复 before_snapshot 中的户主
+        if before and before.get("head_id"):
+            old_head = db.get(FarmerProfile, before["head_id"])
+            if old_head and old_head.household_id == household_id:
+                # 先降级当前户主
+                cur_head = db.query(FarmerProfile).filter(
+                    FarmerProfile.household_id == household_id,
+                    FarmerProfile.is_head == 1
+                ).first()
+                if cur_head and cur_head.id != before["head_id"]:
+                    cur_head.is_head = 0
+                    cur_head.relation = "成员"
+                old_head.is_head = 1
+                old_head.relation = "本人"
+
+    elif ev.event_type == "MEMBER_REMOVE":
+        # 恢复被移出的成员状态
+        if ev.farmer_id:
+            fp = db.get(FarmerProfile, ev.farmer_id)
+            if fp:
+                if before:
+                    m_before = next((m for m in before.get("members", []) if m["id"] == ev.farmer_id), None)
+                    if m_before:
+                        fp.household_id = household_id
+                        fp.farmer_status = m_before.get("farmer_status", 1)
+                        fp.is_head = m_before.get("is_head", 0)
+                        fp.relation = m_before.get("relation", "成员")
+
+    elif ev.event_type == "HEAD_CHANGE":
+        # 恢复旧户主
+        if before and before.get("head_id"):
+            cur_head = db.query(FarmerProfile).filter(
+                FarmerProfile.household_id == household_id,
+                FarmerProfile.is_head == 1
+            ).first()
+            if cur_head:
+                cur_head.is_head = 0
+                cur_head.relation = "成员"
+            old_head = db.get(FarmerProfile, before["head_id"])
+            if old_head and old_head.household_id == household_id:
+                old_head.is_head = 1
+                old_head.relation = "本人"
+
+    elif ev.event_type == "MEMBER_STATUS":
+        # 恢复成员的 farmer_status
+        if ev.farmer_id and before:
+            fp = db.get(FarmerProfile, ev.farmer_id)
+            if fp:
+                m_before = next((m for m in before.get("members", []) if m["id"] == ev.farmer_id), None)
+                if m_before:
+                    fp.farmer_status = m_before.get("farmer_status", 1)
+
+    elif ev.event_type == "LAND_CHANGE":
+        # 恢复土地面积
+        if before and "land_area" in before:
+            hh.land_area = Decimal(str(before["land_area"]))
+
+    elif ev.event_type == "STATUS_CHANGE":
+        # 恢复家庭户状态
+        if before:
+            if "status" in before:
+                hh.status = before["status"]
+            if "household_name" in before:
+                hh.household_name = before["household_name"]
+            if "address" in before:
+                hh.address = before["address"]
+
+    elif ev.event_type == "REMARK":
+        pass  # 仅删除事件
+
+    # 更新成员数
+    db.flush()
+    hh.member_count = db.query(func.count(FarmerProfile.id)).filter(
+        FarmerProfile.household_id == household_id
+    ).scalar() or 0
+
+    db.delete(ev)
+    db.commit()
+    return {"message": "已撤销"}
+
+
+@router.get("/{household_id}/history-dates")
+def get_history_dates(household_id: int, db: Session = Depends(get_db)):
+    """返回事件日期列表（降序），供前端滑轨使用"""
+    from datetime import timedelta, date as _date
+    from models import HouseholdEvent
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh:
+        raise HTTPException(404, "家庭户不存在")
+
+    rows = (
+        db.query(HouseholdEvent)
+          .filter(HouseholdEvent.household_id == household_id)
+          .order_by(HouseholdEvent.event_date.desc().nullslast(),
+                    HouseholdEvent.event_year.desc(),
+                    HouseholdEvent.created_at.desc())
+          .all()
+    )
+    events = [
+        {
+            "date": str(e.event_date) if e.event_date else f"{e.event_year}-01-01",
+            "event_type": e.event_type,
+            "description": e.description,
+            "event_id": e.id,
+            "event_year": e.event_year,
+        }
+        for e in rows
+    ]
+
+    # 追加「原始数据」条目：最早事件的 before_snapshot
+    if rows:
+        earliest = rows[-1]  # 升序排列后最后一条 = 最早
+        if earliest.event_date:
+            origin_date = str(earliest.event_date - timedelta(days=1))
+        else:
+            origin_date = f"{earliest.event_year - 1}-12-31"
+        events.append({
+            "date": origin_date,
+            "event_type": "ORIGINAL",
+            "description": "原始数据（首次记录前的状态）",
+            "event_id": -1,
+            "event_year": earliest.event_year if earliest.event_date else earliest.event_year - 1,
+        })
+
+    return {"events": events}
+
+
+@router.get("/{household_id}/snapshot-at/{date}")
+def get_snapshot_at_date(
+    household_id: int,
+    date: str,
+    db: Session = Depends(get_db)
+):
+    """返回指定日期的家庭状态快照"""
+    import json as _json
+    from datetime import date as _date
+    from models import HouseholdEvent
+
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh:
+        raise HTTPException(404, "家庭户不存在")
+
+    target = _date.fromisoformat(date)
+
+    # 找到日期 <= target 的最近事件
+    latest_ev = (
+        db.query(HouseholdEvent)
+          .filter(
+              HouseholdEvent.household_id == household_id,
+              HouseholdEvent.event_date <= target
+          )
+          .order_by(HouseholdEvent.event_date.desc(), HouseholdEvent.created_at.desc())
+          .first()
+    )
+
+    # 若 target 早于所有事件日期，取最早事件的 before_snapshot（原始数据）
+    if not latest_ev:
+        earliest_ev = (
+            db.query(HouseholdEvent)
+              .filter(HouseholdEvent.household_id == household_id)
+              .order_by(HouseholdEvent.event_date.asc().nullsfirst(),
+                        HouseholdEvent.event_year.asc(),
+                        HouseholdEvent.created_at.asc())
+              .first()
+        )
+        if earliest_ev and earliest_ev.before_snapshot:
+            try:
+                snap = _json.loads(earliest_ev.before_snapshot)
+                return {
+                    "target_date": date,
+                    "snapshot": {
+                        "household_name": snap.get("household_name", hh.household_name),
+                        "household_code": snap.get("household_code", hh.household_code),
+                        "land_area": snap.get("land_area", float(hh.land_area or 0)),
+                        "status": snap.get("status", hh.status),
+                        "address": snap.get("address", hh.address),
+                        "remark": snap.get("remark", hh.remark),
+                        "head_id": snap.get("head_id"),
+                        "members": snap.get("members", []),
+                    },
+                    "events": [],
+                }
+            except:
+                pass
+
+    if latest_ev and latest_ev.after_snapshot:
+        try:
+            snap = _json.loads(latest_ev.after_snapshot)
+            members = snap.get("members", [])
+            contracted_area = snap.get("land_area", float(hh.land_area or 0))
+        except:
+            members = []
+            contracted_area = float(hh.land_area or 0)
+    else:
+        # 无事件或无快照，返回当前状态
+        members_q = (
+            db.query(FarmerProfile)
+              .filter(FarmerProfile.household_id == household_id)
+              .order_by(FarmerProfile.is_head.desc(), FarmerProfile.id).all()
+        )
+        members = [_member_out(m) for m in members_q]
+        contracted_area = float(hh.land_area or 0)
+
+    # 该日期发生的所有事件
+    day_events = (
+        db.query(HouseholdEvent)
+          .filter(
+              HouseholdEvent.household_id == household_id,
+              HouseholdEvent.event_date == target
+          )
+          .order_by(HouseholdEvent.created_at)
+          .all()
+    )
+    events_list = [
+        {
+            "id": e.id, "event_type": e.event_type,
+            "event_date": str(e.event_date) if e.event_date else None,
+            "description": e.description,
+            "farmer_name": e.farmer_name,
+        }
+        for e in day_events
+    ]
+
+    return {
+        "target_date": date,
+        "snapshot": {
+            "household_name": hh.household_name,
+            "household_code": hh.household_code,
+            "land_area": contracted_area,
+            "status": hh.status,
+            "address": hh.address,
+            "remark": hh.remark,
+            "head_id": None,
+            "members": members,
+        },
+        "events": events_list,
+    }
+
+
+# ══════════════════════════════════════════════════
+#  年度历史快照 —— 回溯指定年度的家庭状态
+# ══════════════════════════════════════════════════
+
+@router.get("/{household_id}/history-years")
+def get_history_years(household_id: int, db: Session = Depends(get_db)):
+    """返回该家庭户有事件记录的所有年份（降序）"""
+    from models import HouseholdEvent
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh:
+        raise HTTPException(404, "家庭户不存在")
+
+    years = (
+        db.query(HouseholdEvent.event_year)
+          .filter(HouseholdEvent.household_id == household_id)
+          .distinct()
+          .order_by(HouseholdEvent.event_year.desc())
+          .all()
+    )
+    return {"years": [r[0] for r in years]}
+
+
+@router.get("/{household_id}/history/{year}")
+def get_history_snapshot(
+    household_id: int,
+    year: int,
+    db: Session = Depends(get_db)
+):
+    """
+    获取指定年度的家庭状态快照。
+    通过 HouseholdEvent 的 before/after_snapshot 回溯重建：
+    - 成员列表：基于当前成员 + 事件逆推
+    - 土地面积：从最近的 LAND_CHANGE 事件 before_snapshot 获取
+    - 当年事件列表
+    """
+    import json as _json
+    from models import HouseholdEvent
+
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh:
+        raise HTTPException(404, "家庭户不存在")
+
+    # 1. 获取该户所有事件（按时间倒序）
+    all_events = (
+        db.query(HouseholdEvent)
+          .filter(HouseholdEvent.household_id == household_id)
+          .order_by(HouseholdEvent.event_year.desc(), HouseholdEvent.created_at.desc())
+          .all()
+    )
+
+    # 2. 获取当前所有成员
+    current_members = (
+        db.query(FarmerProfile)
+          .filter(FarmerProfile.household_id == household_id)
+          .order_by(FarmerProfile.is_head.desc(), FarmerProfile.id)
+          .all()
+    )
+
+    # 3. 逆推：找出哪些事件发生在 target_year 之后，需要"撤销"
+    #    events_after: event_year > year 的事件
+    events_after = [e for e in all_events if e.event_year > year]
+    #    events_in_year: event_year == year 的事件（展示用）
+    events_in_year = [e for e in all_events if e.event_year == year]
+    #    events_before: event_year <= year 的事件（用于获取该年度的状态）
+    events_before = [e for e in all_events if e.event_year <= year]
+
+    # 4. 重建成员列表
+    #    从当前成员出发，撤销 events_after 中的操作
+    member_ids_set = set(m.id for m in current_members)
+    removed_member_ids = set()  # 需要恢复的成员（在 year 之后被移出的）
+    added_member_ids = set()    # 需要移除的成员（在 year 之后才加入的）
+
+    for ev in events_after:
+        if ev.event_type == "MEMBER_ADD" and ev.farmer_id:
+            # 该成员在 year 之后才加入，year 时不存在
+            added_member_ids.add(ev.farmer_id)
+        elif ev.event_type == "MEMBER_REMOVE" and ev.farmer_id:
+            # 该成员在 year 之后才移出，year 时还在
+            removed_member_ids.add(ev.farmer_id)
+        elif ev.event_type == "SPLIT":
+            # 分户事件：after_snapshot 包含被分出的成员
+            try:
+                after = _json.loads(ev.after_snapshot) if ev.after_snapshot else {}
+                before = _json.loads(ev.before_snapshot) if ev.before_snapshot else {}
+                # 分户后的成员是 before_snapshot 中的（分户前的完整成员列表）
+                # 但 current 只有留下的成员，被分走的已经不在了
+                # 所以需要把 before_snapshot 中、但 after 不在原户的成员加回来
+                if "members" in before:
+                    for bm in before["members"]:
+                        bm_id = bm.get("id")
+                        if bm_id and bm_id not in member_ids_set:
+                            removed_member_ids.add(bm_id)
+            except: pass
+        elif ev.event_type == "MERGE":
+            # 合户事件：after_snapshot 包含合并后的信息
+            # 需要把被合并进来的成员移除（year 时还没合并）
+            try:
+                after = _json.loads(ev.after_snapshot) if ev.after_snapshot else {}
+                if "added_members" in after:
+                    for mid in after["added_members"]:
+                        added_member_ids.add(mid)
+            except: pass
+
+    # 5. 构建该年度的成员列表
+    snapshot_members = []
+    for m in current_members:
+        if m.id in added_member_ids:
+            continue  # 该成员 year 之后才加入，跳过
+        snapshot_members.append({
+            "id": m.id,
+            "real_name": m.real_name,
+            "gender": m.gender,
+            "id_card_masked": m.id_card[:6] + "********" + m.id_card[-4:] if m.id_card else "",
+            "is_head": m.is_head,
+            "relation": m.relation,
+            "farmer_status": m.farmer_status,
+            "phone_masked": (m.phone[:3] + "****" + m.phone[-4:]) if m.phone and len(m.phone) >= 7 else m.phone,
+        })
+
+    # 恢复被移出的成员（从 before_snapshot 中获取信息）
+    for ev in events_after:
+        if ev.event_type in ("MEMBER_REMOVE", "MEMBER_STATUS") and ev.farmer_id in removed_member_ids:
+            try:
+                before = _json.loads(ev.before_snapshot) if ev.before_snapshot else None
+                if before and isinstance(before, dict):
+                    snapshot_members.append({
+                        "id": ev.farmer_id,
+                        "real_name": before.get("real_name") or ev.farmer_name or "未知",
+                        "gender": before.get("gender", 1),
+                        "id_card_masked": before.get("id_card_masked", ""),
+                        "is_head": before.get("is_head", 0),
+                        "relation": before.get("relation", "成员"),
+                        "farmer_status": 1,  # 移出前都是在册
+                        "phone_masked": before.get("phone_masked"),
+                    })
+                else:
+                    # 没有 before_snapshot，用 farmer_name
+                    snapshot_members.append({
+                        "id": ev.farmer_id,
+                        "real_name": ev.farmer_name or "未知",
+                        "gender": 1,
+                        "id_card_masked": "",
+                        "is_head": 0,
+                        "relation": "成员",
+                        "farmer_status": 1,
+                        "phone_masked": None,
+                    })
+            except: pass
+
+    # 恢复分户前的成员
+    for ev in events_after:
+        if ev.event_type == "SPLIT":
+            try:
+                before = _json.loads(ev.before_snapshot) if ev.before_snapshot else {}
+                if "members" in before:
+                    existing_ids = set(m["id"] for m in snapshot_members)
+                    for bm in before["members"]:
+                        if bm.get("id") and bm["id"] not in existing_ids:
+                            snapshot_members.append({
+                                "id": bm["id"],
+                                "real_name": bm.get("real_name", "未知"),
+                                "gender": bm.get("gender", 1),
+                                "id_card_masked": bm.get("id_card_masked", ""),
+                                "is_head": bm.get("is_head", 0),
+                                "relation": bm.get("relation", "成员"),
+                                "farmer_status": bm.get("farmer_status", 1),
+                                "phone_masked": bm.get("phone_masked"),
+                            })
+            except: pass
+
+    # 排序：户主在前
+    snapshot_members.sort(key=lambda x: (-x.get("is_head", 0), x.get("id", 0)))
+
+    # 6. 回溯土地面积
+    contracted_area = float(hh.land_area or 0)
+    for ev in all_events:
+        if ev.event_type == "LAND_CHANGE" and ev.event_year > year:
+            try:
+                before = _json.loads(ev.before_snapshot) if ev.before_snapshot else {}
+                if "land_area" in before:
+                    contracted_area = float(before["land_area"])
+                    break
+            except: pass
+        elif ev.event_type == "SPLIT" and ev.event_year > year:
+            try:
+                before = _json.loads(ev.before_snapshot) if ev.before_snapshot else {}
+                if "land_area" in before:
+                    contracted_area = float(before["land_area"])
+                    break
+            except: pass
+
+    # 7. 回溯面积使用情况
+    area_info = calc_household_area_usage(household_id, db, year)
+
+    # 8. 该年度的事件列表
+    year_events = []
+    for ev in events_in_year:
+        year_events.append({
+            "id": ev.id, "event_type": ev.event_type,
+            "event_year": ev.event_year,
+            "event_date": str(ev.event_date) if ev.event_date else None,
+            "description": ev.description,
+            "farmer_name": ev.farmer_name,
+        })
+
+    return {
+        "year": year,
+        "household_name": hh.household_name,
+        "household_code": hh.household_code,
+        "village_full_name": hh.village_group.full_name if hh.village_group else "",
+        "contracted_area": contracted_area,
+        "status": hh.status,
+        "members": snapshot_members,
+        "area_usage": area_info,
+        "events_in_year": year_events,
+    }
+
+
+# ══════════════════════════════════════════════════
+#  分户操作
+# ══════════════════════════════════════════════════
+
+@router.post("/{household_id}/split")
+def split_household(household_id: int, data: dict, db: Session = Depends(get_db)):
+    """
+    分户操作：将指定成员从原家庭户分出，组建新家庭户。
+    
+    data: {
+      split_year: int,          # 分户年度（必填）
+      split_date: str,          # 分户日期（可选）
+      new_household_name: str,  # 新户名（必填）
+      member_ids: [int],        # 要分出去的成员id列表（必填，至少1人）
+      new_head_id: int,         # 新户的户主id（从 member_ids 中选一个）
+      new_land_area: float,     # 新户承担的土地面积（可选）
+      origin_land_area: float,  # 原户调整后的土地面积（可选）
+      description: str,         # 分户原因/说明
+      evidence_type: str,
+      evidence_note: str,
+      operator: str,
+    }
+    """
+    from datetime import date as _date, datetime
+
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh: raise HTTPException(404, "家庭户不存在")
+
+    split_year   = int(data.get("split_year", _date.today().year))
+    member_ids   = data.get("member_ids", [])
+    new_head_id  = data.get("new_head_id")
+    new_hh_name  = data.get("new_household_name", "").strip()
+
+    if not member_ids:
+        raise HTTPException(400, "请选择要分出的成员")
+    if not new_hh_name:
+        raise HTTPException(400, "请填写新家庭户的名称")
+    if not new_head_id or new_head_id not in member_ids:
+        raise HTTPException(400, "请从分出成员中指定新户主")
+
+    # 验证成员都属于本户
+    members = db.query(FarmerProfile).filter(
+        FarmerProfile.id.in_(member_ids),
+        FarmerProfile.household_id == household_id
+    ).all()
+    if len(members) != len(member_ids):
+        raise HTTPException(400, "部分成员不属于该家庭户")
+
+    # 不能把全部成员分走
+    total_members = db.query(func.count(FarmerProfile.id)).filter(
+        FarmerProfile.household_id == household_id
+    ).scalar() or 0
+    if len(member_ids) >= total_members:
+        raise HTTPException(400, "不能将所有成员分出，原户至少保留1名成员")
+
+    # 原户户主不能被分走（除非指定了新的原户户主）
+    orig_head = db.query(FarmerProfile).filter(
+        FarmerProfile.household_id == household_id,
+        FarmerProfile.is_head == 1
+    ).first()
+    if orig_head and orig_head.id in member_ids:
+        raise HTTPException(400, f"原户户主「{orig_head.real_name}」不能被分出，请先在原户指定新户主")
+
+    # 记录分户前快照
+    before_snap = {
+        "household_name": hh.household_name,
+        "member_count": total_members,
+        "land_area": float(hh.land_area or 0),
+        "members": [{"id": m.id, "real_name": m.real_name, "is_head": m.is_head} for m in
+                    db.query(FarmerProfile).filter(FarmerProfile.household_id == household_id).all()]
+    }
+
+    # 建新家庭户
+    new_head = db.get(FarmerProfile, new_head_id)
+    new_code = f"HH{int(datetime.now().timestamp())%100000:05d}"
+    new_hh = FamilyHousehold(
+        household_code   = new_code,
+        household_name   = new_hh_name,
+        head_farmer_id   = new_head_id,
+        village_group_id = hh.village_group_id,
+        address          = hh.address,
+        land_area        = Decimal(str(data["new_land_area"])) if data.get("new_land_area") else None,
+        status           = 1,
+        member_count     = len(member_ids),
+        remark           = f"由「{hh.household_name}」于{split_year}年分户组建",
+    )
+    db.add(new_hh); db.flush()
+
+    # 把成员移入新户
+    for m in members:
+        m.household_id = new_hh.id
+        if m.id == new_head_id:
+            m.is_head = 1; m.relation = "本人"
+        else:
+            m.is_head = 0
+
+    # 更新原户面积
+    if data.get("origin_land_area") is not None:
+        hh.land_area = Decimal(str(data["origin_land_area"]))
+
+    # 更新原户成员数
+    db.flush()
+    hh.member_count = db.query(func.count(FarmerProfile.id)).filter(
+        FarmerProfile.household_id == household_id
+    ).scalar() or 0
+
+    # 分户后快照
+    after_snap = {
+        "original_hh": {
+            "id": hh.id, "household_name": hh.household_name,
+            "land_area": float(hh.land_area or 0), "member_count": hh.member_count
+        },
+        "new_hh": {
+            "id": new_hh.id, "household_name": new_hh.household_name,
+            "household_code": new_code, "land_area": float(new_hh.land_area or 0),
+            "member_count": len(member_ids),
+            "head": new_head.real_name if new_head else None,
+        }
+    }
+
+    # 给原户和新户各记录一条事件
+    ev_date_raw = data.get("split_date")
+    from datetime import date as _date2
+    ev_date = None
+    if isinstance(ev_date_raw, str) and ev_date_raw:
+        try: ev_date = _date2.fromisoformat(ev_date_raw)
+        except: pass
+
+    _log_event(db, household_id, "SPLIT", split_year,
+               description  = data.get("description", f"分户：将{len(member_ids)}名成员分出，组建「{new_hh_name}」"),
+               before       = before_snap, after = after_snap,
+               related_hh_id= new_hh.id, event_date=ev_date,
+               date_accuracy= "EXACT" if ev_date else "YEAR",
+               evidence_type= data.get("evidence_type"), evidence_note=data.get("evidence_note"),
+               operator     = data.get("operator"))
+
+    _log_event(db, new_hh.id, "FOUND", split_year,
+               description  = f"由「{hh.household_name}」（id={household_id}）于{split_year}年分户组建",
+               after        = after_snap["new_hh"],
+               related_hh_id= household_id, event_date=ev_date,
+               date_accuracy= "EXACT" if ev_date else "YEAR",
+               operator     = data.get("operator"))
+
+    db.commit()
+    return {
+        "message": f"分户成功，新家庭户「{new_hh_name}」（{new_code}）已建立",
+        "new_household_id": new_hh.id,
+        "new_household_code": new_code,
+    }
+
+
+# ══════════════════════════════════════════════════
+#  成员批量导入（Excel）
+# ══════════════════════════════════════════════════
+
+@router.post("/{household_id}/members/batch-import")
+def batch_import_members(household_id: int, payload: dict, db: Session = Depends(get_db)):
+    """
+    批量导入/更新成员信息
+    rows: [{id_card, real_name, is_head, relation, phone, bank_card, farmer_status, ...}]
+    """
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh: raise HTTPException(404, "家庭户不存在")
+
+    rows    = payload.get("rows", [])
+    year    = int(payload.get("year", __import__('datetime').date.today().year))
+    operator= payload.get("operator", "批量导入")
+    created, updated, errors = 0, 0, []
+
+    for i, row in enumerate(rows):
+        id_card = str(row.get("id_card","")).strip().upper()
+        name    = str(row.get("real_name","")).strip()
+        if not id_card:
+            errors.append(f"第{i+2}行：缺少身份证号"); continue
+        if not name:
+            errors.append(f"第{i+2}行：缺少姓名"); continue
+
+        existing = db.query(FarmerProfile).filter(FarmerProfile.id_card == id_card).first()
+        is_head_val = 1 if str(row.get("is_head","0")) in ("1","是","户主","true") else 0
+
+        if existing:
+            before = {"household_id": existing.household_id, "real_name": existing.real_name}
+            if existing.household_id != household_id:
+                existing.household_id = household_id
+            if row.get("relation"):    existing.relation     = str(row["relation"])
+            if row.get("phone"):       existing.phone        = str(row["phone"]).strip() or None
+            if row.get("bank_card"):   existing.bank_card    = str(row["bank_card"]).strip() or None
+            if row.get("bank_name"):   existing.bank_name    = str(row["bank_name"]).strip() or None
+            existing.is_head = is_head_val
+            status_map = {"在册":1,"正常":1,"注销":2,"迁出":3,"死亡":4}
+            if row.get("farmer_status"):
+                sv = row["farmer_status"]
+                existing.farmer_status = status_map.get(str(sv), int(sv) if str(sv).isdigit() else 1)
+            after = {"household_id": household_id, "is_head": is_head_val}
+            _log_event(db, household_id, "MEMBER_ADD", year,
+                       f"批量导入更新成员：{name}",
+                       before=before, after=after, farmer_id=existing.id, farmer_name=name, operator=operator)
+            updated += 1
+        else:
+            from utils import parse_id_card as _pic
+            parsed = _pic(id_card) or {}
+            fp = FarmerProfile(
+                household_id = household_id,
+                real_name    = name,
+                gender       = parsed.get("gender", 1 if str(row.get("gender","男"))=="男" else 2),
+                id_card      = id_card,
+                birth_date   = parsed.get("birth_date"),
+                phone        = str(row.get("phone","")).strip() or None,
+                bank_card    = str(row.get("bank_card","")).strip() or None,
+                bank_name    = str(row.get("bank_name","")).strip() or None,
+                relation     = str(row.get("relation","成员")).strip() or "成员",
+                is_head      = is_head_val,
+                farmer_status= 1,
+            )
+            db.add(fp); db.flush()
+            _log_event(db, household_id, "MEMBER_ADD", year,
+                       f"批量导入新增成员：{name}",
+                       after={"id_card": id_card, "is_head": is_head_val}, farmer_id=fp.id, farmer_name=name, operator=operator)
+            created += 1
+
+    # 如果导入数据中有户主，更新 head_farmer_id
+    if any(str(r.get("is_head","0")) in ("1","是","户主","true") for r in rows):
+        head_row = next(r for r in rows if str(r.get("is_head","0")) in ("1","是","户主","true"))
+        head_fp = db.query(FarmerProfile).filter(
+            FarmerProfile.id_card == str(head_row.get("id_card","")).strip().upper()
+        ).first()
+        if head_fp:
+            hh.head_farmer_id = head_fp.id
+
+    db.flush()
+    hh.member_count = db.query(func.count(FarmerProfile.id)).filter(
+        FarmerProfile.household_id == household_id
+    ).scalar() or 0
+    db.commit()
+    return {"created": created, "updated": updated, "errors": errors}

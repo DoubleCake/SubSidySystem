@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import engine
 from models import Base
-from routers import farmers, subsidies, ai_analyze, settings, precheck, households, external_links, backup, eligibility, excel_templates
+from routers import farmers, subsidies, ai_analyze, settings, precheck, households, external_links, backup, eligibility, excel_templates, land
 
 Base.metadata.create_all(bind=engine)
 
@@ -33,6 +33,7 @@ app.include_router(external_links.router)
 app.include_router(backup.router)
 app.include_router(eligibility.router)
 app.include_router(excel_templates.router)
+app.include_router(land.router)
 
 @app.get("/api/health")
 def health():
@@ -141,6 +142,47 @@ def migrate_db():
             use_count INTEGER NOT NULL DEFAULT 0,
             last_used_at DATETIME,
             created_by TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )""",
+        """CREATE TABLE IF NOT EXISTS household_event (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            household_id INTEGER NOT NULL,
+            related_hh_id INTEGER,
+            event_type TEXT NOT NULL,
+            event_year INTEGER NOT NULL,
+            event_date DATE,
+            date_accuracy TEXT NOT NULL DEFAULT 'YEAR',
+            before_snapshot TEXT,
+            after_snapshot TEXT,
+            farmer_id INTEGER,
+            farmer_name TEXT,
+            description TEXT NOT NULL DEFAULT '',
+            evidence_type TEXT,
+            evidence_note TEXT,
+            operator TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )""",
+        """CREATE TABLE IF NOT EXISTS land_trust (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            owner_household_id INTEGER NOT NULL,
+            operator_household_id INTEGER,
+            trust_type TEXT NOT NULL DEFAULT 'ENTRUST',
+            area DECIMAL(10,2),
+            trust_year INTEGER NOT NULL,
+            start_date DATE,
+            end_date DATE,
+            annual_fee DECIMAL(10,2),
+            payment_method TEXT,
+            fee_note TEXT,
+            parcel_desc TEXT,
+            data_reliability TEXT NOT NULL DEFAULT 'VILLAGE_CONFIRM',
+            affect_subsidy_calc INTEGER NOT NULL DEFAULT 1,
+            verified_by TEXT,
+            verified_date DATE,
+            note TEXT,
+            operator TEXT,
             is_active INTEGER NOT NULL DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP

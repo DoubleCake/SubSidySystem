@@ -248,3 +248,121 @@ class ExcelImportLog(Base):
     operator         = Column(String(50), nullable=True)
     import_duration_ms = Column(Integer, nullable=True)
     created_at       = Column(DateTime, default=func.now())
+
+
+class LandTrust(Base):
+    """
+    土地流转/代耕代种台账
+    记录家庭户之间的土地经营权委托关系（一年一签，按年度管理）
+    
+    核心逻辑：
+    - 流出方（owner）：承包人，将土地委托给他人耕种
+    - 流入方（operator）：实际耕种人，可申请该地块的种粮补贴
+    - 面积计入：流入方可耕种面积增加，流出方纯承包面积不变（权属不变）
+    """
+    __tablename__ = "land_trust"
+
+    id                   = Column(Integer, primary_key=True, autoincrement=True)
+
+    # ── 流出方（承包权人）──
+    owner_household_id   = Column(Integer, ForeignKey("family_household.id"), nullable=False,
+                                   comment="流出方：土地承包人家庭户")
+
+    # ── 流入方（经营权人，可为空表示撂荒/集体统一）──
+    operator_household_id = Column(Integer, ForeignKey("family_household.id"), nullable=True,
+                                    comment="流入方：实际耕种人家庭户，null=撂荒或集体")
+
+    # ── 流转类型 ──
+    trust_type           = Column(String(20), nullable=False, default="ENTRUST",
+                                   comment="ENTRUST代耕代种/RENT出租/TRANSFER流转/IDLE撂荒/COLLECTIVE集体统一")
+
+    # ── 面积与时间（核心字段，都可选）──
+    area                 = Column(DECIMAL(10, 2), nullable=True, comment="流转面积（亩），null=未精确量")
+    trust_year           = Column(SmallInteger, nullable=False, comment="流转年度（一年一签）")
+    start_date           = Column(Date, nullable=True, comment="开始日期，可仅填年度")
+    end_date             = Column(Date, nullable=True, comment="结束日期，可仅填年度")
+
+    # ── 经济条款（全部可选）──
+    annual_fee           = Column(DECIMAL(10, 2), nullable=True, comment="年租金（元/亩），null=未记录")
+    payment_method       = Column(String(20), nullable=True,
+                                   comment="支付方式：CASH现金/GRAIN粮食折算/FREE无偿/OTHER其他")
+    fee_note             = Column(Text, nullable=True, comment="租金备注")
+
+    # ── 地块关联（可选，有地块台账时关联）──
+    parcel_desc          = Column(String(200), nullable=True, comment="地块描述（无地块台账时的文字记录）")
+
+    # ── 数据可信度（核心设计，宽松处理）──
+    data_reliability     = Column(String(20), nullable=False, default="VILLAGE_CONFIRM",
+                                   comment="CERTIFIED有合同/VILLAGE_CONFIRM村委确认/SELF_REPORT自报/SUSPECTED存疑")
+
+    # ── 补贴影响配置 ──
+    affect_subsidy_calc  = Column(SmallInteger, nullable=False, default=1,
+                                   comment="1=纳入补贴面积计算/0=仅作记录不影响计算")
+
+    # ── 审核信息 ──
+    verified_by          = Column(String(50), nullable=True)
+    verified_date        = Column(Date, nullable=True)
+    note                 = Column(Text, nullable=True)
+    operator             = Column(String(50), nullable=True, comment="录入人")
+    is_active            = Column(SmallInteger, nullable=False, default=1)
+    created_at           = Column(DateTime, default=func.now())
+    updated_at           = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # ── 关联 ──
+    owner_household    = relationship("FamilyHousehold", foreign_keys=[owner_household_id],
+                                       backref="trust_out_records")
+    operator_household = relationship("FamilyHousehold", foreign_keys=[operator_household_id],
+                                       backref="trust_in_records")
+
+
+class HouseholdEvent(Base):
+    """
+    家庭户变更事件记录
+    凡是影响家庭户结构、土地面积的重要事件都记录在此
+    是家庭户"历史"的主要载体
+    """
+    __tablename__ = "household_event"
+
+    id              = Column(Integer, primary_key=True, autoincrement=True)
+    household_id    = Column(Integer, ForeignKey("family_household.id"), nullable=False,
+                             comment="主体家庭户")
+    related_hh_id   = Column(Integer, nullable=True,
+                             comment="关联家庭户（分户时的新户、合户时的被并入户）")
+
+    event_type      = Column(String(30), nullable=False,
+                             comment="""
+                             FOUND=建档登记
+                             MEMBER_ADD=成员新增
+                             MEMBER_REMOVE=成员移出
+                             MEMBER_STATUS=成员状态变更（死亡/迁出等）
+                             HEAD_CHANGE=户主变更
+                             SPLIT=分户（一户变两户）
+                             MERGE=合户（两户合一户）
+                             LAND_CHANGE=土地面积变更
+                             STATUS_CHANGE=家庭户状态变更
+                             REMARK=备注说明（无具体分类的记录）
+                             """)
+    event_year      = Column(SmallInteger, nullable=False, comment="事件发生年度")
+    event_date      = Column(Date, nullable=True, comment="事件日期，精确到天时填写")
+    date_accuracy   = Column(String(10), nullable=False, default="YEAR",
+                             comment="日期精度：EXACT精确/MONTH月/YEAR仅知年份")
+
+    # 变更快照（JSON）
+    before_snapshot = Column(Text, nullable=True, comment="事件前状态JSON快照")
+    after_snapshot  = Column(Text, nullable=True, comment="事件后状态JSON快照")
+
+    # 关联农户（成员新增/移出/状态变更时）
+    farmer_id       = Column(Integer, nullable=True, comment="涉及的具体农户id")
+    farmer_name     = Column(String(50), nullable=True, comment="涉及农户姓名（冗余，防关联断裂）")
+
+    # 描述与证明
+    description     = Column(Text, nullable=False, default="", comment="事件描述")
+    evidence_type   = Column(String(20), nullable=True,
+                             comment="证明材料类型：NONE/ID_CARD/HOUSEHOLD_REG/VILLAGE_PROOF/COURT/OTHER")
+    evidence_note   = Column(String(200), nullable=True, comment="证明材料说明")
+
+    operator        = Column(String(50), nullable=True, comment="操作人")
+    created_at      = Column(DateTime, default=func.now())
+
+    household = relationship("FamilyHousehold", foreign_keys=[household_id],
+                              backref="events")
