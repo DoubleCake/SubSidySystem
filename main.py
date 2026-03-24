@@ -89,7 +89,7 @@ if __name__ == "__main__":
     print("=" * 50)
     print("  农户补贴管理系统启动中...")
     print(f"  静态文件目录: {static_dir}")
-    print(f"  前端就绪: {'✅' if has_index(static_dir) else '❌ 请先 npm run build'}")
+    print(f"  前端就绪: {'[OK]' if has_index(static_dir) else '[ERROR] 请先 npm run build'}")
     print("  接口文档:  http://localhost:8000/docs")
     print("  前端页面:  http://localhost:8000")
     print("  按 Ctrl+C 停止")

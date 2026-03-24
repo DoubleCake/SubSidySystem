@@ -1,7 +1,7 @@
 import type {
   VillageGroup, FarmerOut, FarmerCreate, PageResult,
   SubsidyType, SubsidyTypeCreate,
-  ApplicationOut, ApplicationCreate,
+  ApplicationOut, ApplicationCreate, ApplicationSearchResult,
   YearCompare, VillageSummary,
 } from '../types'
 
@@ -65,7 +65,7 @@ export const getApplications = (params: Record<string, string | number>) =>
   req<PageResult<ApplicationOut>>('/api/subsidies/applications?' + new URLSearchParams(params as Record<string, string>))
 
 export const searchApplications = (params: Record<string, string | number>) =>
-  req<PageResult<ApplicationOut & { id_card_masked?: string; village?: string; calc_mode?: string }>>(
+  req<PageResult<ApplicationSearchResult>>(
     '/api/subsidies/applications/search?' + new URLSearchParams(params as Record<string, string>)
   )
 

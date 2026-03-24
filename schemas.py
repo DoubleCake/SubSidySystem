@@ -100,6 +100,7 @@ class SubsidyTypeCreate(BaseModel):
     standard_amount: Optional[Decimal] = None
     standard_unit: Optional[str] = None
     fund_source: Optional[str] = None
+    category: Optional[str] = None
     apply_deadline: Optional[date] = None
     description: Optional[str] = None
     pay_status: Optional[int] = 0
@@ -112,6 +113,7 @@ class SubsidyTypeOut(BaseModel):
     standard_amount: Optional[Decimal]
     standard_unit: Optional[str]
     fund_source: Optional[str]
+    category: Optional[str]
     pay_status: int
     apply_deadline: Optional[date]
     description: Optional[str]

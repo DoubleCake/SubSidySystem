@@ -82,6 +82,7 @@ class SubsidyType(Base):
     standard_amount = Column(DECIMAL(10, 2), nullable=True, comment="补贴标准金额（fixed:每户/人; per_mu:每亩）")
     standard_unit   = Column(String(20), nullable=True, comment="元/亩 元/人 元/户")
     fund_source     = Column(String(50), nullable=True, comment="中央/省级/县级")
+    category        = Column(String(50), nullable=True, comment="补贴分类，用于同类项目对比，如：耕地保护、大豆、玉米等")
     apply_deadline  = Column(Date, nullable=True)
     pay_status      = Column(SmallInteger, nullable=False, default=0,
                              comment="0未发放 1部分发放 2已发放完毕")

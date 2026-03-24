@@ -6,7 +6,7 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 import * as api from '../api'
-import type { SubsidyType, SubsidyTypeCreate, ApplicationOut, ApplicationCreate, VillageGroup } from '../types'
+import type { SubsidyType, SubsidyTypeCreate, ApplicationOut, ApplicationCreate, VillageGroup, ApplicationForPrecheck, ApplicationSearchResult } from '../types'
 import { SUBSIDY_PAY_STATUS, PAY_STATUS, fmt, years } from '../utils'
 import Tag from '../components/Tag'
 import Modal from '../components/Modal'
@@ -14,6 +14,7 @@ import ExcelImport from '../components/ExcelImport'
 import { useToast } from '../hooks/useToast'
 import EligibilityRulePage from './EligibilityRulePage'
 import Toast from '../components/Toast'
+import * as XLSX from 'xlsx'
 
 const thisYear = new Date().getFullYear()
 const FUND_SOURCES = ['中央', '省级', '市级', '县级', '镇级']
@@ -59,6 +60,7 @@ export default function SubsidyProjectsPage() {
     setForm({ subsidy_name: t.subsidy_name, subsidy_year: t.subsidy_year, calc_mode: t.calc_mode,
       standard_amount: t.standard_amount ? Number(t.standard_amount) : undefined,
       standard_unit: t.standard_unit ?? undefined, fund_source: t.fund_source ?? undefined,
+      category: t.category ?? undefined,
       apply_deadline: t.apply_deadline ?? undefined, description: t.description ?? undefined,
       count_toward_area: (t as {count_toward_area?:number}).count_toward_area ?? 1 })
     setEditOpen(true)
@@ -73,6 +75,17 @@ export default function SubsidyProjectsPage() {
       else { await api.createSubsidyType(payload as SubsidyTypeCreate); show('✓ 创建成功') }
       setEditOpen(false); loadTypes()
     } catch (e: unknown) { show((e as Error).message, 'err') }
+  }
+
+  const deleteProject = async (type_id: number) => {
+    try {
+      const response = await fetch(`/api/subsidies/types/${type_id}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error('删除失败')
+      show('✓ 项目删除成功')
+      loadTypes()
+    } catch (error) {
+      show('删除失败：' + (error as Error).message, 'err')
+    }
   }
 
   // 切换项目状态（0→1→2→0 循环，或直接设置）
@@ -187,6 +200,14 @@ export default function SubsidyProjectsPage() {
                     className="px-3 py-1.5 text-xs border border-stone-200 text-stone-500 rounded-lg hover:border-stone-300 text-center">
                     编辑项目
                   </button>
+                  <button onClick={() => {
+                    if (confirm(`确定要删除项目「${t.subsidy_name}」吗？\n\n⚠️ 警告：此操作会同时删除该项目下的所有补贴申请记录，且无法恢复！`)) {
+                      deleteProject(t.id)
+                    }
+                  }}
+                    className="px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-center">
+                    删除项目
+                  </button>
                   <button onClick={() => setRulesPanelId(rulesPanelId === t.id ? null : t.id)}
                     className={`px-3 py-1.5 text-xs rounded-lg border text-center transition-colors ${rulesPanelId === t.id ? 'bg-purple-100 border-purple-300 text-purple-700' : 'border-stone-200 text-stone-500 hover:border-purple-200 hover:text-purple-600'}`}>
                     {rulesPanelId === t.id ? '▲ 收起规则' : '📋 资格规则'}
@@ -227,6 +248,17 @@ export default function SubsidyProjectsPage() {
               <select value={form.subsidy_year ?? thisYear} onChange={e => setForm((f: typeof form) => ({ ...f, subsidy_year: Number(e.target.value) }))}
                 className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
                 {years.map(y => <option key={y} value={y}>{y}</option>)}
+              </select></div>
+            <div><label className="block text-xs text-stone-400 mb-1">项目分类</label>
+              <select value={form.category ?? ''} onChange={e => setForm((f: typeof form) => ({ ...f, category: e.target.value || undefined }))}
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+                <option value="">不分类</option>
+                <option value="耕地保护">耕地保护补贴</option>
+                <option value="大豆">大豆补贴</option>
+                <option value="玉米">玉米补贴</option>
+                <option value="稻谷">稻谷补贴</option>
+                <option value="油菜">油菜补贴</option>
+                <option value="其他">其他补贴</option>
               </select></div>
             <div><label className="block text-xs text-stone-400 mb-1">{form.calc_mode === 'per_mu' ? '每亩金额(元)' : '标准金额(元)'}</label>
               <input type="number" step="0.01" value={form.standard_amount ?? ''} onChange={e => setForm((f: typeof form) => ({ ...f, standard_amount: Number(e.target.value) || undefined }))}
@@ -280,11 +312,19 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
   show: (msg: string, type?: 'ok' | 'err') => void
   toast: { msg: string; type: 'ok' | 'err' } | null
 }) {
-  const [apps, setApps] = useState<ApplicationOut[]>([])
+  const [apps, setApps] = useState<ApplicationSearchResult[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
+
+  // 当 subsidyType 改变时重置状态
+  useEffect(() => {
+    setApps([])
+    setTotal(0)
+    setPage(1)
+    setSearch('')
+  }, [subsidyType.id])
 
   const [addOpen, setAddOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -318,8 +358,10 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
       }
       if (search) params.search = search
       const res = await api.searchApplications(params)
-      setApps(res.items as ApplicationOut[])
+      setApps(res.items)
       setTotal(res.total)
+    } catch (error) {
+      console.error('加载数据失败:', error)
     } finally { setLoading(false) }
   }, [page, search, subsidyType.id, subsidyType.subsidy_year])
 
@@ -365,8 +407,25 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
-  const openEdit = (a: ApplicationOut) => {
-    setEditTarget(a)
+  const openEdit = (a: ApplicationSearchResult) => {
+    // 将ApplicationSearchResult转换为ApplicationOut
+    const appOut: ApplicationOut = {
+      id: a.id,
+      farmer_id: a.farmer_id,
+      farmer_name: a.farmer_name,
+      village: a.village,
+      subsidy_type_id: a.subsidy_type_id,
+      subsidy_name: a.subsidy_name,
+      calc_mode: a.calc_mode as 'fixed' | 'per_mu' | undefined,
+      apply_year: a.apply_year,
+      apply_amount: a.apply_amount,
+      actual_amount: a.actual_amount,
+      apply_area: a.apply_area,
+      pay_status: a.pay_status,
+      pay_date: a.pay_date,
+      remark: a.remark
+    }
+    setEditTarget(appOut)
     setForm({
       pay_status: a.pay_status,
       actual_amount: a.actual_amount ? Number(a.actual_amount) : undefined,
@@ -485,7 +544,213 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
   const totalAmt = apps.reduce((s, a) => s + Number(a.actual_amount || 0), 0)
   const unpaidCount = apps.filter(a => a.pay_status === 0).length
 
-  type AppRow = ApplicationOut & { id_card_masked?: string; village?: string }
+  // Tab状态管理
+  const [activeTab, setActiveTab] = useState<'preApply' | 'disbursement'>('preApply')
+  
+  // 数据预检状态
+  const [preCheckLoading, setPreCheckLoading] = useState(false)
+  const [preCheckResults, setPreCheckResults] = useState<{
+    success: number
+    error: number
+    warning: number
+    errors: Array<{ id_card: string; real_name: string; issues: string[] }>
+    warnings: Array<{ id_card: string; real_name: string; warnings: string[] }>
+  } | null>(null)
+
+  // 执行数据预检
+  const runPreCheck = async () => {
+    if (apps.length === 0) {
+      show('暂无数据可预检', 'err')
+      return
+    }
+    
+    setPreCheckLoading(true)
+    try {
+      // 构造预检数据
+      const preCheckData = apps.map(app => ({
+        real_name: app.farmer_name || '',
+        id_card: '', // API 返回的是 id_card_masked，不是完整身份证
+        village_name: app.village || '',
+        group_no: '', // API 没有返回 group_no
+        apply_area: app.apply_area ? Number(app.apply_area) : null,
+        apply_amount: app.apply_amount ? Number(app.apply_amount) : null,
+        actual_amount: app.actual_amount ? Number(app.actual_amount) : null,
+      }))
+
+      const response = await fetch('/api/precheck/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: preCheckData })
+      })
+      
+      if (!response.ok) throw new Error('预检请求失败')
+      
+      const result = await response.json()
+      // 根据预检API实际返回格式处理结果
+      const summary = result.summary || {}
+      const okCount = summary.ok_rows || 0
+      const errorCount = summary.error_rows || 0
+      
+      setPreCheckResults({
+        success: okCount,
+        error: errorCount,
+        warning: summary.gender_mismatch || 0,
+        errors: result.format_errors || [],
+        warnings: result.village_errors || []
+      })
+      
+      show(`预检完成：${okCount}条通过，${errorCount}条错误，${summary.gender_mismatch || 0}条警告`)
+    } catch (error) {
+      show('数据预检失败：' + (error as Error).message, 'err')
+    } finally {
+      setPreCheckLoading(false)
+    }
+  }
+
+  // 可视化统计数据
+  const [stats, setStats] = useState<{
+    totalAmount: number
+    totalFarmers: number
+    villageDistribution: Array<{ village: string; amount: number; count: number }>
+    yearComparison: {
+      current_year: number
+      compare_year: number
+      compare_type_id: number
+      compare_type_name: string
+      new_farmers_count: number
+      removed_farmers_count: number
+      total_apply_area: number
+      total_farmers: number
+      new_farmers: number[]
+      removed_farmers: number[]
+    } | null
+  }>({
+    totalAmount: 0,
+    totalFarmers: 0,
+    villageDistribution: [],
+    yearComparison: null
+  })
+  
+  const [comparableTypes, setComparableTypes] = useState<Array<{id: number, subsidy_name: string, subsidy_year: number}>>([])
+  const [selectedCompareType, setSelectedCompareType] = useState<number | null>(null)
+
+  // 获取可对比项目列表
+  const loadComparableTypes = useCallback(async () => {
+    if (!subsidyType.category) return
+    
+    try {
+      const response = await fetch(`/api/subsidies/types/comparable?category=${encodeURIComponent(subsidyType.category)}&current_type_id=${subsidyType.id}`)
+      if (!response.ok) throw new Error('获取可对比项目失败')
+      
+      const data = await response.json()
+      setComparableTypes(data)
+    } catch (error) {
+      console.error('加载可对比项目失败:', error)
+    }
+  }, [subsidyType.category, subsidyType.id])
+
+  // 获取全部统计数据（不分页）
+  const loadStats = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({
+        subsidy_type_id: String(subsidyType.id),
+        year: String(subsidyType.subsidy_year)
+      })
+      
+      if (selectedCompareType) {
+        params.append('compare_type_id', String(selectedCompareType))
+      }
+      
+      const response = await fetch(`/api/subsidies/applications/stats?${params}`)
+      if (!response.ok) throw new Error('获取统计数据失败')
+      
+      const data = await response.json()
+      setStats(data)
+    } catch (error) {
+      console.error('加载统计数据失败:', error)
+      show('加载统计数据失败', 'err')
+    }
+  }, [subsidyType.id, subsidyType.subsidy_year, selectedCompareType])
+
+  // Excel导出函数
+  const exportToExcel = useCallback(() => {
+    if (!stats.yearComparison) {
+      show('暂无数据可导出', 'err')
+      return
+    }
+    
+    try {
+      // 创建工作簿
+      const wb = XLSX.utils.book_new()
+      
+      // 1. 汇总数据工作表
+      const summaryData = [
+        ['补贴项目统计报表'],
+        [`项目：${subsidyType.subsidy_name}`],
+        [`年度：${subsidyType.subsidy_year}年`],
+        [''],
+        ['统计项', '数值'],
+        ['发放总额', `¥${stats.totalAmount.toLocaleString()}`],
+        ['总人数', `${stats.totalFarmers}人`],
+        ['涉及村庄', `${stats.villageDistribution.length}个`],
+        [''],
+        ['年度对比数据'],
+        ['对比年度', `${stats.yearComparison.compare_year}年`],
+        ['新增农户', `${stats.yearComparison.new_farmers_count}人`],
+        ['减少农户', `${stats.yearComparison.removed_farmers_count}人`],
+        ['申报总面积', `${stats.yearComparison.total_apply_area}亩`],
+        ['总人数', `${stats.yearComparison.total_farmers}人`]
+      ]
+      const summaryWs = XLSX.utils.aoa_to_sheet(summaryData)
+      XLSX.utils.book_append_sheet(wb, summaryWs, '汇总数据')
+      
+      // 2. 各村分布工作表
+      const villageData = [
+        ['村名', '发放金额(元)', '人数', '占比(%)'],
+        ...stats.villageDistribution.map(item => {
+          const total = stats.villageDistribution.reduce((sum, v) => sum + v.amount, 0)
+          const percentage = total > 0 ? ((item.amount / total) * 100).toFixed(2) : '0.00'
+          return [item.village, item.amount, item.count, percentage]
+        })
+      ]
+      const villageWs = XLSX.utils.aoa_to_sheet(villageData)
+      XLSX.utils.book_append_sheet(wb, villageWs, '各村分布')
+      
+      // 3. 新增农户工作表
+      if (stats.yearComparison.new_farmers.length > 0) {
+        const newFarmersData = [
+          ['新增农户ID'],
+          ...stats.yearComparison.new_farmers.map(id => [id])
+        ]
+        const newFarmersWs = XLSX.utils.aoa_to_sheet(newFarmersData)
+        XLSX.utils.book_append_sheet(wb, newFarmersWs, '新增农户')
+      }
+      
+      // 4. 减少农户工作表
+      if (stats.yearComparison.removed_farmers.length > 0) {
+        const removedFarmersData = [
+          ['减少农户ID'],
+          ...stats.yearComparison.removed_farmers.map(id => [id])
+        ]
+        const removedFarmersWs = XLSX.utils.aoa_to_sheet(removedFarmersData)
+        XLSX.utils.book_append_sheet(wb, removedFarmersWs, '减少农户')
+      }
+      
+      // 下载文件
+      const fileName = `${subsidyType.subsidy_name}_${subsidyType.subsidy_year}年统计_${new Date().toLocaleDateString('zh-CN')}.xlsx`
+      XLSX.writeFile(wb, fileName)
+      
+      show('Excel导出成功', 'ok')
+    } catch (error) {
+      console.error('Excel导出失败:', error)
+      show('Excel导出失败', 'err')
+    }
+  }, [stats, subsidyType, show])
+
+  useEffect(() => {
+    loadStats()
+    loadComparableTypes()
+  }, [loadStats, loadComparableTypes])
 
   return (
     <div>
@@ -501,36 +766,314 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
         )}
       </div>
 
-      {/* 工具栏 */}
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
-          placeholder="搜索姓名或身份证…"
-          className="w-56 border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 bg-white" />
-        <span className="text-xs text-stone-400">共 {total} 条</span>
-        {unpaidCount > 0 && (
-          <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
-            {unpaidCount} 条待发放
-          </span>
+      {/* 可视化统计分析面板 */}
+      <div className="mb-5 bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-stone-700">📊 数据概览</h3>
+          <div className="flex items-center gap-2">
+            {subsidyType.category && (
+              <select 
+                value={selectedCompareType ?? ''} 
+                onChange={e => setSelectedCompareType(e.target.value ? Number(e.target.value) : null)}
+                className="px-2 py-1 text-xs border border-stone-200 rounded bg-white"
+              >
+                <option value="">不对比</option>
+                {comparableTypes.map(t => (
+                  <option key={t.id} value={t.id}>
+                    {t.subsidy_name} ({t.subsidy_year}年)
+                  </option>
+                ))}
+              </select>
+            )}
+            <span className="text-xs text-stone-400">全镇数据统计</span>
+            {stats.yearComparison && (
+              <button
+                onClick={exportToExcel}
+                className="px-2 py-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded hover:bg-emerald-100"
+              >
+                导出Excel
+              </button>
+            )}
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+            <div className="text-sm text-emerald-600 mb-2">发放总额</div>
+            <div className="text-2xl font-bold font-mono text-emerald-700">
+              ¥{stats.totalAmount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+            </div>
+            <div className="text-sm text-emerald-600 mt-2">
+              {stats.totalFarmers}人
+            </div>
+          </div>
+          
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+            <div className="text-sm text-blue-600 mb-2">涉及村庄</div>
+            <div className="text-2xl font-bold text-blue-700">{stats.villageDistribution.length}</div>
+            <div className="text-sm text-blue-600 mt-2">个村</div>
+          </div>
+        </div>
+        
+        {/* 各村金额分布 - 饼图展示 */}
+        {stats.villageDistribution.length > 0 && (
+          <div className="border-t border-stone-100 pt-4">
+            <div className="text-sm font-medium text-stone-700 mb-3">各村发放金额分布</div>
+            <div className="grid grid-cols-2 gap-6">
+              {/* 左侧：饼图 */}
+              <div className="flex justify-center">
+                <div className="relative w-48 h-48">
+                  <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                    {(() => {
+                      const total = stats.villageDistribution.reduce((sum, item) => sum + item.amount, 0)
+                      let cumulativePercent = 0
+                      const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16', '#f97316']
+                      
+                      return stats.villageDistribution.slice(0, 8).map((item, index) => {
+                        const percentage = (item.amount / total) * 100
+                        const dashArray = `${percentage} ${100 - percentage}`
+                        const dashOffset = -cumulativePercent
+                        cumulativePercent += percentage
+                        
+                        return (
+                          <circle
+                            key={item.village}
+                            cx="50"
+                            cy="50"
+                            r="40"
+                            fill="transparent"
+                            stroke={colors[index % colors.length]}
+                            strokeWidth="20"
+                            strokeDasharray={dashArray}
+                            strokeDashoffset={dashOffset}
+                          />
+                        )
+                      })
+                    })()}
+                  </svg>
+                </div>
+              </div>
+              
+              {/* 右侧：图例 */}
+              <div className="space-y-2">
+                {stats.villageDistribution.slice(0, 8).map((item, index) => {
+                  const total = stats.villageDistribution.reduce((sum, v) => sum + v.amount, 0)
+                  const percentage = total > 0 ? ((item.amount / total) * 100).toFixed(1) : '0.0'
+                  const colors = ['bg-emerald-500', 'bg-blue-500', 'bg-purple-500', 'bg-amber-500', 'bg-red-500', 'bg-cyan-500', 'bg-lime-500', 'bg-orange-500']
+                  
+                  return (
+                    <div key={item.village} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${colors[index % colors.length]}`}></div>
+                        <span className="text-stone-600">{item.village}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-mono text-stone-700">¥{(item.amount / 10000).toFixed(1)}万</span>
+                        <span className="text-xs text-stone-400 ml-2">{percentage}%</span>
+                      </div>
+                    </div>
+                  )
+                })}
+                {stats.villageDistribution.length > 8 && (
+                  <div className="text-xs text-stone-400 text-center pt-1">
+                    还有 {stats.villageDistribution.length - 8} 个村...
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
-        <div className="ml-auto flex gap-2">
-          {total > 0 && (
-            <button onClick={() => setBatchPayOpen(true)}
-              className="px-3 py-2 text-sm border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50">
-              💰 批量标记发放
+        
+        {/* 年度对比数据 */}
+        {stats.yearComparison && (
+          <div className="border-t border-stone-100 pt-4 mt-4">
+            <div className="text-sm font-medium text-stone-700 mb-3">
+              📈 年度对比（{stats.yearComparison.current_year}年 vs {stats.yearComparison.compare_year}年）
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
+                <div className="text-xs text-emerald-600 mb-1">新增农户</div>
+                <div className="text-lg font-bold text-emerald-700">
+                  {stats.yearComparison.new_farmers_count}人
+                </div>
+                <div className="text-xs text-stone-400 mt-1">{stats.yearComparison.compare_year}年无记录</div>
+              </div>
+              
+              <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
+                <div className="text-xs text-amber-600 mb-1">减少农户</div>
+                <div className="text-lg font-bold text-amber-700">
+                  {stats.yearComparison.removed_farmers_count}人
+                </div>
+                <div className="text-xs text-stone-400 mt-1">{stats.yearComparison.compare_year}年有，今年无</div>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                <div className="text-xs text-blue-600 mb-1">申报总面积</div>
+                <div className="text-lg font-bold text-blue-700">
+                  {stats.yearComparison.total_apply_area}亩
+                </div>
+                <div className="text-xs text-stone-400 mt-1">{stats.yearComparison.current_year}年</div>
+              </div>
+              
+              <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
+                <div className="text-xs text-purple-600 mb-1">总人数</div>
+                <div className="text-lg font-bold text-purple-700">
+                  {stats.yearComparison.total_farmers}人
+                </div>
+                <div className="text-xs text-stone-400 mt-1">{stats.yearComparison.current_year}年</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Tab切换 */}
+      <div className="flex items-center gap-2 mb-4 border-b border-stone-200">
+        <button
+          onClick={() => setActiveTab('preApply')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'preApply'
+              ? 'border-emerald-500 text-emerald-700'
+              : 'border-transparent text-stone-500 hover:text-stone-700'
+          }`}
+        >
+          📋 预申请列表
+        </button>
+        <button
+          onClick={() => setActiveTab('disbursement')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'disbursement'
+              ? 'border-emerald-500 text-emerald-700'
+              : 'border-transparent text-stone-500 hover:text-stone-700'
+          }`}
+        >
+          💰 发放信息列表
+        </button>
+        <div className="ml-auto flex items-center gap-2">
+          {/* 预申请列表专属：数据预检按钮 */}
+          {activeTab === 'preApply' && (
+            <button
+              onClick={runPreCheck}
+              disabled={preCheckLoading || apps.length === 0}
+              className={`px-3 py-1.5 text-sm rounded-lg flex items-center gap-1.5 ${
+                preCheckLoading
+                  ? 'bg-blue-100 border border-blue-200 text-blue-600'
+                  : 'bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100'
+              }`}
+            >
+              {preCheckLoading ? (
+                <>
+                  <span className="w-3 h-3 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+                  预检中…
+                </>
+              ) : (
+                '🔍 数据预检'
+              )}
             </button>
           )}
-          <button onClick={() => setImportOpen(true)}
-            className="px-3 py-2 text-sm border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50">
-            ↑ Excel 导入
-          </button>
-          <button onClick={() => {
-            setAddOpen(true); setIdInput(''); setFarmerHint(''); setFarmerId(null)
-            setForm({ pay_status: 2, subsidy_type_id: subsidyType.id, apply_year: subsidyType.subsidy_year })
-          }} className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
-            ＋ 新增一条
-          </button>
+          
+          <span className="text-xs text-stone-400">共 {total} 条</span>
+          {unpaidCount > 0 && (
+            <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
+              {unpaidCount} 条待发放
+            </span>
+          )}
+          <div className="flex gap-2">
+            {total > 0 && (
+              <button onClick={() => setBatchPayOpen(true)}
+                className="px-3 py-2 text-sm border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50">
+                💰 批量标记发放
+              </button>
+            )}
+            <button onClick={() => setImportOpen(true)}
+              className="px-3 py-2 text-sm border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50">
+              ↑ Excel 导入
+            </button>
+            <button onClick={() => {
+              setAddOpen(true); setIdInput(''); setFarmerHint(''); setFarmerId(null)
+              setForm({ pay_status: 2, subsidy_type_id: subsidyType.id, apply_year: subsidyType.subsidy_year })
+            }} className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
+              ＋ 新增一条
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* 预检结果展示 */}
+      {preCheckResults && activeTab === 'preApply' && (
+        <div className="mb-4 bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+          <div className="px-4 py-3 border-b border-stone-100 bg-stone-50 flex justify-between items-center">
+            <span className="font-semibold text-stone-700 text-sm">🔍 数据预检结果</span>
+            <button onClick={() => setPreCheckResults(null)} className="text-xs text-stone-400 hover:text-stone-600">✕ 关闭</button>
+          </div>
+          <div className="p-4">
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className={`rounded-xl p-3 text-center ${preCheckResults.success > 0 ? 'bg-emerald-50 border border-emerald-100' : 'bg-stone-50 border border-stone-100'}`}>
+                <div className="text-lg font-bold text-emerald-700">{preCheckResults.success}</div>
+                <div className="text-xs text-stone-500">通过</div>
+              </div>
+              <div className={`rounded-xl p-3 text-center ${preCheckResults.error > 0 ? 'bg-red-50 border border-red-100' : 'bg-stone-50 border border-stone-100'}`}>
+                <div className="text-lg font-bold text-red-600">{preCheckResults.error}</div>
+                <div className="text-xs text-stone-500">错误</div>
+              </div>
+              <div className={`rounded-xl p-3 text-center ${preCheckResults.warning > 0 ? 'bg-amber-50 border border-amber-100' : 'bg-stone-50 border border-stone-100'}`}>
+                <div className="text-lg font-bold text-amber-600">{preCheckResults.warning}</div>
+                <div className="text-xs text-stone-500">警告</div>
+              </div>
+            </div>
+            
+            {/* 错误详情 */}
+            {preCheckResults.errors.length > 0 && (
+              <div className="mb-3">
+                <div className="text-xs font-semibold text-red-600 mb-2">❌ 错误条目：</div>
+                <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                  {preCheckResults.errors.slice(0, 10).map((item, index) => (
+                    <div key={index} className="text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-red-700">{item.real_name}</span>
+                        <span className="text-stone-400">{item.id_card}</span>
+                      </div>
+                      <div className="mt-1 text-red-600">
+                        {item.issues.join('；')}
+                      </div>
+                    </div>
+                  ))}
+                  {preCheckResults.errors.length > 10 && (
+                    <div className="text-xs text-stone-400 text-center">
+                      等 {preCheckResults.errors.length} 个错误
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* 警告详情 */}
+            {preCheckResults.warnings.length > 0 && (
+              <div>
+                <div className="text-xs font-semibold text-amber-600 mb-2">⚠️ 警告条目：</div>
+                <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                  {preCheckResults.warnings.slice(0, 10).map((item, index) => (
+                    <div key={index} className="text-xs bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-amber-700">{item.real_name}</span>
+                        <span className="text-stone-400">{item.id_card}</span>
+                      </div>
+                      <div className="mt-1 text-amber-600">
+                        {item.warnings.join('；')}
+                      </div>
+                    </div>
+                  ))}
+                  {preCheckResults.warnings.length > 10 && (
+                    <div className="text-xs text-stone-400 text-center">
+                      等 {preCheckResults.warnings.length} 个警告
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 记录表格 */}
       <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
@@ -542,12 +1085,12 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
           </tr></thead>
           <tbody>
             {loading && <tr><td colSpan={8} className="text-center py-10 text-stone-300">加载中…</td></tr>}
-            {!loading && apps.length === 0 && (
+            {!loading && (!apps || apps.length === 0) && (
               <tr><td colSpan={8} className="text-center py-10 text-stone-300 text-sm">
                 暂无记录，通过「Excel 导入」或「＋ 新增一条」添加
               </td></tr>
             )}
-            {!loading && (apps as AppRow[]).map(a => (
+            {!loading && apps && apps.map(a => (
               <tr key={a.id} className={`border-b border-stone-50 hover:bg-stone-50 ${a.pay_status === 0 ? 'bg-amber-50/30' : ''}`}>
                 <td className="px-3 py-2.5 text-sm font-semibold">{a.farmer_name}</td>
                 <td className="px-3 py-2.5 text-xs font-mono text-stone-400">{a.id_card_masked || '—'}</td>

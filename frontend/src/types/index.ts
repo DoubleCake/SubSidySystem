@@ -50,6 +50,7 @@ export interface SubsidyType {
   standard_amount: string | null   // fixed模式: 每户/人金额; per_mu模式: 每亩金额
   standard_unit: string | null
   fund_source: string | null
+  category: string | null
   apply_deadline: string | null
   pay_status: number
   description: string | null
@@ -62,6 +63,7 @@ export interface SubsidyTypeCreate {
   standard_amount?: number
   standard_unit?: string
   fund_source?: string
+  category?: string
   apply_deadline?: string
   description?: string
   pay_status?: number
@@ -80,6 +82,49 @@ export interface ApplicationOut {
   apply_amount: string | null
   actual_amount: string | null
   apply_area: string | null
+  pay_status: number
+  pay_date: string | null
+  remark: string | null
+}
+
+// 用于预检的扩展应用接口
+export interface ApplicationForPrecheck {
+  id: number
+  farmer_id: number
+  farmer_name: string
+  village?: string
+  subsidy_type_id: number
+  subsidy_name: string
+  calc_mode?: 'fixed' | 'per_mu'
+  apply_year: number
+  apply_amount: string | null
+  actual_amount: string | null
+  apply_area: string | null
+  pay_status: number
+  pay_date: string | null
+  remark: string | null
+  // 预检特定字段
+  id_card_masked?: string
+  id_card?: string
+  real_name?: string // 对应 API 返回的 farmer_name
+  village_full_name?: string // 对应 API 返回的 village
+  group_no?: string
+}
+
+// API搜索返回的应用程序类型（独立接口，不继承ApplicationOut）
+export interface ApplicationSearchResult {
+  id: number
+  farmer_id: number
+  farmer_name: string
+  id_card_masked?: string
+  village?: string
+  subsidy_type_id: number
+  subsidy_name: string
+  calc_mode?: string
+  apply_year: number
+  apply_area: string | null
+  apply_amount: string | null
+  actual_amount: string | null
   pay_status: number
   pay_date: string | null
   remark: string | null

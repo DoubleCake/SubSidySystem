@@ -29,6 +29,23 @@ def list_subsidy_types(
     return q.order_by(SubsidyType.subsidy_year.desc()).all()
 
 
+@router.get("/types/comparable")
+def list_comparable_types(
+    category: str = Query(..., description="项目分类"),
+    current_type_id: int = Query(..., description="当前项目ID，排除自身"),
+    db: Session = Depends(get_db),
+):
+    """
+    获取同分类下的可对比项目列表（排除当前项目）
+    """
+    types = db.query(SubsidyType).filter(
+        SubsidyType.category == category,
+        SubsidyType.id != current_type_id
+    ).order_by(SubsidyType.subsidy_year.desc()).all()
+    
+    return [{"id": t.id, "subsidy_name": t.subsidy_name, "subsidy_year": t.subsidy_year} for t in types]
+
+
 @router.post("/types")
 def create_subsidy_type(data: SubsidyTypeCreate, db: Session = Depends(get_db)):
     st = SubsidyType(**data.model_dump())
@@ -48,6 +65,26 @@ def update_subsidy_type(type_id: int, data: dict, db: Session = Depends(get_db))
             setattr(st, k, v)
     db.commit()
     return {"message": "更新成功"}
+
+
+@router.delete("/types/{type_id}")
+def delete_subsidy_type(type_id: int, db: Session = Depends(get_db)):
+    """删除补贴项目（会级联删除相关的补贴申请记录）"""
+    from sqlalchemy import text
+    
+    # 检查项目是否存在
+    st = db.get(SubsidyType, type_id)
+    if not st:
+        raise HTTPException(status_code=404, detail="补贴项目不存在")
+    
+    # 删除相关的补贴申请记录
+    db.execute(text("DELETE FROM subsidy_application WHERE subsidy_type_id = :type_id"), {"type_id": type_id})
+    
+    # 删除补贴项目
+    db.execute(text("DELETE FROM subsidy_type WHERE id = :type_id"), {"type_id": type_id})
+    
+    db.commit()
+    return {"message": "删除成功"}
 
 
 # 批量导入申请记录
@@ -352,7 +389,8 @@ def list_types_with_stats(
     sql = text(f"""
         SELECT st.id, st.subsidy_name, st.subsidy_year, st.calc_mode,
                st.standard_amount, st.standard_unit, st.fund_source,
-               st.apply_deadline, st.pay_status, st.description,
+               st.category, st.apply_deadline, st.pay_status, st.description,
+               st.count_toward_area,
                COUNT(sa.id)                               AS app_count,
                COUNT(DISTINCT sa.farmer_id)               AS beneficiary_count,
                ROUND(SUM(COALESCE(sa.apply_amount,0)),2)  AS total_apply,
@@ -514,4 +552,103 @@ def get_todos(year: int = Query(...), db: Session = Depends(get_db)):
         "pending_records":     int(pending_records),
         "overdrawn_households":int(overdrawn),
         "id_card_errors":      int(id_errors),
+    }
+
+
+# ── 补贴项目统计（全部数据，不分页）──
+@router.get("/applications/stats")
+def get_application_stats(
+    subsidy_type_id: int = Query(...),
+    year: int = Query(...),
+    compare_type_id: Optional[int] = Query(None, description="对比项目ID，用于计算新增/减少农户"),
+    db: Session = Depends(get_db)
+):
+    """
+    获取补贴项目的完整统计数据（不分页）
+    返回：总额、各村分布、年度对比数据
+    """
+    from sqlalchemy import func, text
+    from collections import defaultdict
+
+    # 获取全部数据（不分页）
+    q = db.query(SubsidyApplication).filter(
+        SubsidyApplication.subsidy_type_id == subsidy_type_id,
+        SubsidyApplication.apply_year == year
+    )
+    
+    apps = q.all()
+    
+    if not apps:
+        return {
+            "total_amount": 0,
+            "total_farmers": 0,
+            "village_distribution": [],
+            "year_comparison": None
+        }
+    
+    # 总额和总人数
+    # 如果actual_amount为空，使用apply_amount作为备选
+    total_amount = sum(float(app.actual_amount or app.apply_amount or 0) for app in apps)
+    farmer_ids = [app.farmer_id for app in apps]
+    
+    # 各村统计
+    village_stats = defaultdict(lambda: {"amount": 0, "count": 0})
+    
+    for app in apps:
+        # 获取农户信息
+        farmer = db.get(FarmerProfile, app.farmer_id)
+        if farmer and farmer.household and farmer.household.village_group:
+            village = farmer.household.village_group.village_name
+        else:
+            village = "未知村"
+        
+        amount = float(app.actual_amount or app.apply_amount or 0)
+        village_stats[village]["amount"] += amount
+        village_stats[village]["count"] += 1
+    
+    # 转换为列表并排序
+    village_distribution = [
+        {"village": village, **data}
+        for village, data in village_stats.items()
+    ]
+    village_distribution.sort(key=lambda x: x["amount"], reverse=True)
+
+    # 年度对比
+    year_comparison = None
+    if compare_type_id:
+        # 获取对比项目的信息
+        compare_type = db.get(SubsidyType, compare_type_id)
+        if compare_type:
+            # 获取对比项目的数据
+            compare_apps = db.query(SubsidyApplication).filter(
+                SubsidyApplication.subsidy_type_id == compare_type_id
+            ).all()
+
+            compare_farmer_ids = [app.farmer_id for app in compare_apps]
+
+            # 计算新增和减少的农户
+            new_farmers = list(set(farmer_ids) - set(compare_farmer_ids))
+            removed_farmers = list(set(compare_farmer_ids) - set(farmer_ids))
+
+            # 申报总面积和总人数
+            total_apply_area = sum(float(app.apply_area or 0) for app in apps)
+
+            year_comparison = {
+                "current_year": year,
+                "compare_year": compare_type.subsidy_year,
+                "compare_type_id": compare_type_id,
+                "compare_type_name": compare_type.subsidy_name,
+                "new_farmers_count": len(new_farmers),
+                "removed_farmers_count": len(removed_farmers),
+                "new_farmers": new_farmers[:100],
+                "removed_farmers": removed_farmers[:100],
+                "total_apply_area": round(total_apply_area, 2),
+                "total_farmers": len(farmer_ids)
+            }
+
+    return {
+        "totalAmount": round(total_amount, 2),
+        "totalFarmers": len(farmer_ids),
+        "villageDistribution": village_distribution,
+        "yearComparison": year_comparison
     }
