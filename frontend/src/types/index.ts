@@ -265,7 +265,7 @@ export interface HH {
 
 export interface HHMember {
   id: number; real_name: string; gender: number; id_card_masked: string
-  is_head: number; relation: string | null; farmer_status: number; phone_masked: string | null
+  is_head: number; relation: string | null; farmer_status: number; phone_masked?: string | null
 }
 
 export interface HHDetail {
@@ -300,6 +300,24 @@ export interface HistoryDateEvent {
   event_id: number; event_year: number
 }
 
+export interface SnapshotMember {
+  id: number
+  real_name: string
+  gender: number
+  id_card_masked: string
+  is_head: number
+  relation: string | null
+  farmer_status: number
+  phone_masked?: string | null
+  id_card?: string
+  phone?: string
+  bank_card?: string
+  bank_name?: string
+  remark?: string
+  created_at?: string | null
+  household_id?: number
+}
+
 export interface SnapshotAtResponse {
   target_date: string
   snapshot: {
@@ -307,9 +325,15 @@ export interface SnapshotAtResponse {
     land_area: number; status: number
     address: string | null; remark: string | null
     head_id: number | null
-    members: HHMember[]
+    members: SnapshotMember[]
   } | null
-  events: HHEvent[]
+  events: Array<{
+    id: number
+    event_type: string
+    event_date: string | null
+    description: string
+    farmer_name: string | null
+  }>
 }
 
 export interface HouseholdCreate {

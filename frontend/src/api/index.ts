@@ -207,7 +207,7 @@ export const undoHouseholdEvent = (householdId: number, eventId: number) =>
 
 // ── 家庭户历史 ──
 export const getHouseholdHistoryDates = (householdId: number) =>
-  req<{ household_id: number; dates: HistoryDateEvent[] }>(`/api/households/${householdId}/history-dates`)
+  req<{ events: HistoryDateEvent[] }>(`/api/households/${householdId}/history-dates`)
 
 export const getHouseholdSnapshotAt = (householdId: number, date: string) =>
   req<SnapshotAtResponse>(`/api/households/${householdId}/snapshot-at/${date}`)

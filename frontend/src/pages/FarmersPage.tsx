@@ -1,15 +1,16 @@
 /**
  * 户籍管理页 —— 以家庭户为主线的统一入口
  *
- * 左栏：Tab切换（农户列表 / 家庭户列表）
- * 右栏：
+ * 左栏：Tab切换（农户列表 / 家庭户列表）- 32%
+ * 右栏：详情面板 - 68%
  *   - 选中农户：上半部分个人信息 + 下半部分家庭户信息
  *   - 选中家庭户：家庭户详情（成员/面积/补贴/历史）
  */
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import * as api from '../api'
-import type { VillageGroup, HH, HHDetail, HHMember, HHEvent, HistoryDateEvent, SnapshotAtResponse, FarmerDetail, FarmerOut } from '../types'
+import type { VillageGroup, HH, HHDetail, HHMember, HHEvent, HistoryDateEvent, SnapshotAtResponse, FarmerDetail, FarmerOut, SnapshotMember } from '../types'
 import { FARMER_STATUS, PAY_STATUS, fmt, parseIdCardInfo, years } from '../utils'
 import Tag from '../components/Tag'
 import Modal from '../components/Modal'
@@ -19,19 +20,62 @@ import type { ExcelColumnTemplate } from '../types'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 
-// ── 常量 ──
+// ── 样式常量 ──
+const COLORS = {
+  primary: {
+    50: 'bg-emerald-50',
+    100: 'bg-emerald-100',
+    500: 'bg-emerald-500',
+    600: 'bg-emerald-600',
+    700: 'bg-emerald-700',
+    text: 'text-emerald-600',
+    textHover: 'hover:text-emerald-700',
+    border: 'border-emerald-600',
+    borderLight: 'border-emerald-200',
+  },
+  secondary: {
+    50: 'bg-blue-50',
+    500: 'bg-blue-500',
+    600: 'bg-blue-600',
+    text: 'text-blue-600',
+    border: 'border-blue-600',
+    borderLight: 'border-blue-200',
+  },
+  warning: {
+    50: 'bg-amber-50',
+    100: 'bg-amber-100',
+    500: 'bg-amber-500',
+    text: 'text-amber-600',
+  },
+  danger: {
+    50: 'bg-red-50',
+    500: 'bg-red-500',
+    text: 'text-red-600',
+    borderLight: 'border-red-200',
+  },
+  neutral: {
+    50: 'bg-slate-50',
+    100: 'bg-slate-100',
+    200: 'bg-slate-200',
+    text: 'text-slate-600',
+    textMuted: 'text-slate-400',
+    border: 'border-slate-200',
+  }
+}
+
+// ── 事件类型配置 ──
 const EVENT_TYPE_CFG: Record<string, { label: string; color: string; icon: string }> = {
   ORIGINAL:       { label: '原始数据',   color: 'bg-slate-100 text-slate-600',     icon: '📌' },
   FOUND:          { label: '建档登记',   color: 'bg-blue-100 text-blue-700',       icon: '📝' },
   MEMBER_ADD:     { label: '成员新增',   color: 'bg-emerald-100 text-emerald-700', icon: '➕' },
   MEMBER_REMOVE:  { label: '成员移出',   color: 'bg-amber-100 text-amber-700',     icon: '➖' },
-  MEMBER_STATUS:  { label: '状态变更',   color: 'bg-stone-100 text-stone-600',     icon: '🔄' },
+  MEMBER_STATUS:  { label: '状态变更',   color: 'bg-slate-100 text-slate-600',     icon: '🔄' },
   HEAD_CHANGE:    { label: '户主变更',   color: 'bg-purple-100 text-purple-700',   icon: '👤' },
   SPLIT:          { label: '分户',       color: 'bg-orange-100 text-orange-700',   icon: '🔀' },
   MERGE:          { label: '合户',       color: 'bg-teal-100 text-teal-700',       icon: '🔗' },
   LAND_CHANGE:    { label: '土地变更',   color: 'bg-green-100 text-green-700',     icon: '🌾' },
   STATUS_CHANGE:  { label: '户籍变更',   color: 'bg-red-100 text-red-700',         icon: '📋' },
-  REMARK:         { label: '备注说明',   color: 'bg-stone-100 text-stone-500',     icon: '💬' },
+  REMARK:         { label: '备注说明',   color: 'bg-slate-100 text-slate-500',     icon: '💬' },
 }
 
 const GENDER = (g: number) => g === 1 ? '男' : '女'
@@ -64,9 +108,24 @@ type LeftTab = 'farmers' | 'households'
 
 export default function FarmersPage() {
   const { toast, show } = useToast()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // ── 从 URL 恢复状态 ──
+  const getInitialLeftTab = (): LeftTab => {
+    const tab = searchParams.get('tab')
+    return tab === 'farmers' ? 'farmers' : 'households'
+  }
+  const getInitialFarmerId = (): number | null => {
+    const id = searchParams.get('farmerId')
+    return id ? Number(id) : null
+  }
+  const getInitialHouseholdId = (): number | null => {
+    const id = searchParams.get('householdId')
+    return id ? Number(id) : null
+  }
 
   // ── 左侧Tab ──
-  const [leftTab, setLeftTab] = useState<LeftTab>('households')
+  const [leftTab, setLeftTab] = useState<LeftTab>(getInitialLeftTab)
 
   // ── 农户列表 ──
   const [farmerList, setFarmerList] = useState<FarmerOut[]>([])
@@ -84,11 +143,11 @@ export default function FarmersPage() {
   const [search, setSearch] = useState('')
   const [villageFilter, setVillageFilter] = useState('')
   const [overdrawnOnly, setOverdrawnOnly] = useState(false)
-  const [yearFilter, setYearFilter] = useState(new Date().getFullYear())
+  const yearFilter = new Date().getFullYear()
 
   // ── 户详情 ──
   const [detail, setDetail] = useState<HHDetail | null>(null)
-  const [detailYear, setDetailYear] = useState(new Date().getFullYear())
+  const detailYear = new Date().getFullYear()
   const [detailTab, setDetailTab] = useState<'members' | 'area' | 'subsidy' | 'history'>('members')
   const [events, setEvents] = useState<HHEvent[]>([])
 
@@ -184,37 +243,93 @@ export default function FarmersPage() {
     return () => clearTimeout(t)
   }, [search, leftTab])
 
+  // ── 从 URL 恢复选中状态 ──
+  useEffect(() => {
+    const farmerId = getInitialFarmerId()
+    const householdId = getInitialHouseholdId()
+
+    if (farmerId && leftTab === 'farmers') {
+      openFarmer(farmerId, true)
+    } else if (householdId && leftTab === 'households') {
+      openDetail(householdId, true)
+    }
+  }, [])
+
+  // ── 更新 URL ──
+  const updateUrl = useCallback((params: { tab?: LeftTab; farmerId?: number | null; householdId?: number | null }) => {
+    const newParams = new URLSearchParams(searchParams)
+    if (params.tab) {
+      newParams.set('tab', params.tab)
+    }
+    if (params.farmerId !== undefined) {
+      if (params.farmerId) {
+        newParams.set('farmerId', String(params.farmerId))
+        newParams.delete('householdId')
+      } else {
+        newParams.delete('farmerId')
+      }
+    }
+    if (params.householdId !== undefined) {
+      if (params.householdId) {
+        newParams.set('householdId', String(params.householdId))
+        newParams.delete('farmerId')
+      } else {
+        newParams.delete('householdId')
+      }
+    }
+    setSearchParams(newParams, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  // ── 加载家庭户历史日期 ──
+  const loadHouseholdHistoryDates = useCallback(async (householdId: number) => {
+    try {
+      const hd = await api.getHouseholdHistoryDates(householdId)
+      setHistoryDates(hd.events)
+      const firstReal = hd.events.find(e => e.event_type !== 'ORIGINAL')
+      if (firstReal) setExpandedYears(new Set([firstReal.event_year]))
+    } catch {
+      setHistoryDates([])
+    }
+  }, [])
+
   // ── 打开农户详情 ──
-  const openFarmer = async (farmerId: number) => {
+  const openFarmer = async (farmerId: number, skipUrlUpdate = false) => {
     try {
       const f = await api.getFarmer(farmerId) as FarmerDetail
       setSelectedFarmer(f)
       setDetail(null)
+      setHistoryDate(null)
+      setSnapshotData(null)
+      setEvents([])
       // 同时加载所属家庭户信息
       if (f.household_id) {
         try {
           const hh = await api.getHouseholdDetail(f.household_id, detailYear)
           setSelectedFarmerHousehold(hh)
+          await loadHouseholdHistoryDates(f.household_id)
         } catch {
           setSelectedFarmerHousehold(null)
+          setHistoryDates([])
         }
       } else {
         setSelectedFarmerHousehold(null)
+        setHistoryDates([])
+      }
+      if (!skipUrlUpdate) {
+        updateUrl({ tab: 'farmers', farmerId, householdId: null })
       }
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
   // ── 打开户详情 ──
-  const openDetail = async (id: number) => {
+  const openDetail = async (id: number, skipUrlUpdate = false) => {
     const d = await api.getHouseholdDetail(id, detailYear)
     setDetail(d); setDetailTab('members'); setEvents([]); setSelectedFarmer(null); setSelectedFarmerHousehold(null)
     setHistoryDate(null); setSnapshotData(null)
-    try {
-      const hd = await api.getHouseholdHistoryDates(id)
-      setHistoryDates(hd.dates)
-      const firstReal = hd.dates.find(e => e.event_type !== 'ORIGINAL')
-      if (firstReal) setExpandedYears(new Set([firstReal.event_year]))
-    } catch { setHistoryDates([]) }
+    await loadHouseholdHistoryDates(id)
+    if (!skipUrlUpdate) {
+      updateUrl({ tab: 'households', farmerId: null, householdId: id })
+    }
   }
 
   // ── 刷新户详情 ──
@@ -258,6 +373,19 @@ export default function FarmersPage() {
   useEffect(() => {
     if (detailTab === 'history' && (detail || selectedFarmerHousehold)) loadEvents()
   }, [detailTab, detail?.id, selectedFarmerHousehold?.id, loadEvents])
+
+  // ── 切换左侧 Tab ──
+  const handleTabChange = (tab: LeftTab) => {
+    setLeftTab(tab)
+    setSelectedFarmer(null)
+    setDetail(null)
+    setSelectedFarmerHousehold(null)
+    setHistoryDate(null)
+    setSnapshotData(null)
+    setHistoryDates([])
+    setEvents([])
+    updateUrl({ tab, farmerId: null, householdId: null })
+  }
 
   // ── 新建家庭户 ──
   const submitCreateHh = async () => {
@@ -330,7 +458,7 @@ export default function FarmersPage() {
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
-  const removeMember = async (m: HHMember) => {
+  const removeMember = async (m: HHMember | SnapshotMember) => {
     const hhId = detail?.id ?? selectedFarmerHousehold?.id
     if (!hhId) return
     if (!confirm(`确认移出「${m.real_name}」？移出后将标记为迁出，历史补贴记录保留。`)) return
@@ -341,8 +469,8 @@ export default function FarmersPage() {
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
-  const openMemberEdit = (m: HHMember) => {
-    setMemberEditTarget(m)
+  const openMemberEdit = (m: HHMember | SnapshotMember) => {
+    setMemberEditTarget(m as HHMember)
     setMemberForm({
       real_name: m.real_name, id_card: '', gender: String(m.gender),
       relation: m.relation || '成员', is_head: m.is_head === 1,
@@ -405,7 +533,7 @@ export default function FarmersPage() {
       show('✓ 已撤销')
       loadEvents(); refreshDetail()
       const hd = await api.getHouseholdHistoryDates(hhId)
-      setHistoryDates(hd.dates)
+      setHistoryDates(hd.events)
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
@@ -670,24 +798,24 @@ export default function FarmersPage() {
     const age = calcAge(fd.birth_date)
 
     return (
-      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm mb-4">
-        <div className="bg-gradient-to-r from-blue-700 to-blue-600 px-6 py-5 flex items-center gap-5">
+      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-md mb-4">
+        <div className="bg-gradient-to-r from-emerald-700 to-emerald-600 px-6 py-5 flex items-center gap-5">
           <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold text-white shrink-0">
             {fd.real_name.slice(-1)}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-1 flex-wrap">
               <span className="text-xl font-bold text-white">{fd.real_name}</span>
-              <span className="text-blue-200 text-sm">{GENDER(fd.gender)}</span>
-              {age && <span className="text-blue-200 text-sm">{age} 岁</span>}
+              <span className="text-emerald-200 text-sm">{GENDER(fd.gender)}</span>
+              {age && <span className="text-emerald-200 text-sm">{age} 岁</span>}
               <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded">{FARMER_STATUS[fd.farmer_status]?.label ?? '未知'}</span>
               {fd.is_head ? <span className="text-xs bg-purple-500/80 text-white px-2 py-0.5 rounded">户主</span> : <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded">{fd.relation || '成员'}</span>}
             </div>
-            <div className="text-blue-200 text-sm">📍 {fd.village_full_name}</div>
+            <div className="text-emerald-200 text-sm">📍 {fd.village_full_name}</div>
           </div>
           <div className="text-right shrink-0">
             <div className="text-2xl font-bold font-mono text-white">¥{totalAmt.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
-            <div className="text-blue-200 text-xs mt-0.5">累计获得补贴</div>
+            <div className="text-emerald-200 text-xs mt-0.5">累计获得补贴</div>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-0 divide-x divide-stone-100">
@@ -743,12 +871,12 @@ export default function FarmersPage() {
                 </tr></thead>
                 <tbody>
                   {apps.map(a => (
-                    <tr key={a.id} className="border-b border-stone-50 hover:bg-stone-50">
-                      <td className="px-4 py-2 text-sm font-bold text-blue-600">{a.apply_year}</td>
+                    <tr key={a.id} className="border-b border-stone-50 hover:bg-stone-50 transition-colors">
+                      <td className="px-4 py-2 text-sm font-bold text-emerald-600">{a.apply_year}</td>
                       <td className="px-4 py-2 text-sm">{a.subsidy_name}</td>
                       <td className="px-4 py-2 text-sm font-mono">{a.apply_area ? `${a.apply_area}亩` : '—'}</td>
                       <td className="px-4 py-2 text-sm font-mono text-stone-500">{fmt(a.apply_amount)}</td>
-                      <td className="px-4 py-2 text-sm font-mono font-bold" style={{ color: a.actual_amount ? '#15803d' : '#d97706' }}>
+                      <td className="px-4 py-2 text-sm font-mono font-bold" style={{ color: a.actual_amount ? '#059669' : '#d97706' }}>
                         {a.actual_amount ? fmt(a.actual_amount) : '待发放'}
                       </td>
                       <td className="px-4 py-2"><Tag label={PAY_STATUS[a.pay_status]?.label} color={PAY_STATUS[a.pay_status]?.color as 'green'} /></td>
@@ -783,7 +911,7 @@ export default function FarmersPage() {
       : hh.area_usage
 
     return (
-      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-md">
         {/* 历史模式提示 */}
         {historyDate !== null && (
           <div className="bg-amber-50 border border-amber-200 px-4 py-2.5 flex items-center gap-3 shrink-0">
@@ -836,13 +964,13 @@ export default function FarmersPage() {
             <div className="ml-auto px-2 flex gap-1.5">
               {detailTab === 'members' && (
                 <>
-                  <button onClick={() => setMemberImportOpen(true)} className="text-xs border border-emerald-200 text-emerald-700 px-2.5 py-1 rounded-lg hover:bg-emerald-50">↑ 批量导入</button>
+                  <button onClick={() => setMemberImportOpen(true)} className="text-xs border border-emerald-200 text-emerald-700 px-2.5 py-1 rounded-lg hover:bg-emerald-50 transition-colors">↑ 批量导入</button>
                   <button onClick={() => { setMemberEditTarget(null); setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1' }); setMemberAddOpen(true) }}
-                    className="text-xs bg-emerald-700 text-white px-2.5 py-1 rounded-lg hover:bg-emerald-600">＋ 成员</button>
+                    className="text-xs bg-emerald-700 text-white px-2.5 py-1 rounded-lg hover:bg-emerald-600 transition-colors">＋ 成员</button>
                 </>
               )}
               {detailTab === 'history' && (
-                <button onClick={() => setEventOpen(true)} className="text-xs border border-stone-200 text-stone-600 px-2.5 py-1 rounded-lg hover:bg-stone-50">＋ 补录</button>
+                <button onClick={() => setEventOpen(true)} className="text-xs border border-stone-200 text-stone-600 px-2.5 py-1 rounded-lg hover:bg-stone-50 transition-colors">＋ 补录</button>
               )}
             </div>
           )}
@@ -856,7 +984,7 @@ export default function FarmersPage() {
               {displayMembers.length === 0 && <div className="text-center py-8 text-stone-300 text-sm">暂无成员记录</div>}
               {displayMembers.map(m => (
                 <div key={m.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 border transition-colors
-                  ${m.is_head ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-stone-200 hover:border-stone-300'}
+                  ${m.is_head ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-stone-200 hover:border-stone-300 hover:bg-stone-50'}
                   ${m.farmer_status !== 1 ? 'opacity-60' : ''}`}>
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0
                     ${m.is_head ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-500'}`}>
@@ -864,7 +992,7 @@ export default function FarmersPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-stone-800">{m.real_name}</span>
+                      <span className="font-semibold text-sm text-stone-800">{m.real_name}</span>
                       {m.is_head === 1 && <Tag label="户主" color="green" />}
                       {m.relation && <Tag label={m.relation} color="gray" />}
                       {m.farmer_status !== 1 && <Tag label={FARMER_STATUS[m.farmer_status]?.label ?? '异常'} color="red" />}
@@ -878,9 +1006,9 @@ export default function FarmersPage() {
                   {historyDate === null && (
                     <div className="flex gap-1.5 shrink-0">
                       {selectedFarmer?.id !== m.id && (
-                        <button onClick={() => openFarmer(m.id)} className="text-xs text-blue-700 border border-blue-200 px-2 py-1 rounded-lg hover:bg-blue-50">查看</button>
+                        <button onClick={() => openFarmer(m.id)} className="text-xs text-emerald-700 border border-emerald-200 px-2 py-1 rounded-lg hover:bg-emerald-50 transition-colors">查看</button>
                       )}
-                      <button onClick={() => openMemberEdit(m)} className="text-xs border border-stone-200 text-stone-500 px-2 py-1 rounded-lg hover:border-stone-300">编辑</button>
+                      <button onClick={() => openMemberEdit(m)} className="text-xs border border-stone-200 text-stone-500 px-2 py-1 rounded-lg hover:border-stone-300 transition-colors">编辑</button>
                     </div>
                   )}
                 </div>
@@ -897,7 +1025,7 @@ export default function FarmersPage() {
                   { label: areaUsage.has_trust_data ? '可耕种（含流转）' : '可耕种面积', val: areaUsage.cultivable_area !== undefined ? `${areaUsage.cultivable_area.toFixed(2)}亩` : `${areaUsage.contracted_area}亩`, color: areaUsage.is_overdrawn ? 'text-red-600' : 'text-emerald-700' },
                   { label: '已申报面积', val: `${areaUsage.used_area.toFixed(2)}亩`, color: areaUsage.is_overdrawn ? 'text-red-600' : 'text-amber-600' },
                 ].map(s => (
-                  <div key={s.label} className="bg-stone-50 border border-stone-200 rounded-xl p-3 text-center">
+                  <div key={s.label} className="bg-stone-50 border border-stone-200 rounded-xl p-3 text-center shadow-sm">
                     <div className={`text-lg font-bold font-mono ${s.color}`}>{s.val}</div>
                     <div className="text-xs text-stone-400 mt-1">{s.label}</div>
                   </div>
@@ -925,7 +1053,7 @@ export default function FarmersPage() {
                   <p className="text-xs text-stone-400 mb-2">各项补贴占用明细：</p>
                   <div className="space-y-2">
                     {areaUsage.subsidy_breakdown.map((b, i) => (
-                      <div key={i} className="flex justify-between items-center bg-white border border-stone-200 rounded-lg px-3 py-2">
+                      <div key={i} className="flex justify-between items-center bg-white border border-stone-200 rounded-lg px-3 py-2 shadow-sm">
                         <span className="text-sm">{b.subsidy_name}</span>
                         <span className="text-sm font-mono font-bold text-amber-600">{b.apply_area.toFixed(2)}亩</span>
                       </div>
@@ -946,7 +1074,7 @@ export default function FarmersPage() {
                     {yr}年度 · {apps.length}条 · 合计 ¥{apps.reduce((s, a) => s + (a.actual_amount || 0), 0).toFixed(2)}
                   </div>
                   {apps.map((a, i) => (
-                    <div key={i} className="flex items-center gap-3 px-5 py-2.5 border-b border-stone-50 hover:bg-stone-50">
+                    <div key={i} className="flex items-center gap-3 px-5 py-2.5 border-b border-stone-50 hover:bg-stone-50 transition-colors">
                       <span className="text-sm text-stone-500 w-16 shrink-0">{a.farmer_name}</span>
                       <span className="text-sm flex-1">{a.subsidy_name}</span>
                       {a.apply_area && <span className="text-xs text-stone-400 font-mono">{a.apply_area}亩</span>}
@@ -986,7 +1114,7 @@ export default function FarmersPage() {
                           <p className="text-sm text-stone-700">{ev.description}</p>
                           {ev.evidence_note && <p className="text-xs text-stone-400 mt-1">证明材料：{ev.evidence_note}</p>}
                           {ev.undoable && historyDate === null && (
-                            <button onClick={() => undoEvent(ev)} className="mt-2 text-xs text-red-500 hover:text-red-700 hover:underline">撤销此操作</button>
+                            <button onClick={() => undoEvent(ev)} className="mt-2 text-xs text-red-500 hover:text-red-700 hover:underline transition-colors">撤销此操作</button>
                           )}
                         </div>
                       </div>
@@ -1005,15 +1133,15 @@ export default function FarmersPage() {
   const renderHistorySidebar = (householdId?: number) => {
     const hhId = householdId ?? detail?.id ?? selectedFarmerHousehold?.id
     return (
-      <div className="w-36 shrink-0">
-        <div className="bg-white border border-stone-200 rounded-xl shadow-sm">
-          <div className="px-3 py-2 border-b border-stone-100">
-            <div className="text-xs text-stone-400 font-medium">历史记录</div>
+      <div className="w-48 shrink-0">
+        <div className="bg-white border border-stone-200 rounded-xl shadow-md">
+          <div className="px-3 py-2 border-b border-stone-100 bg-stone-50">
+            <div className="text-xs font-semibold text-stone-600">历史记录</div>
           </div>
-          <div className="py-2 px-2 space-y-0.5 max-h-[50vh] overflow-y-auto">
+          <div className="py-2 px-2 space-y-1 max-h-[50vh] overflow-y-auto">
             <button onClick={exitHistory}
-              className={`w-full py-2 rounded-lg text-xs font-medium transition-colors text-left px-2.5
-                ${historyDate === null ? 'bg-emerald-700 text-white' : 'text-stone-500 hover:bg-stone-50'}`}>
+              className={`w-full py-2.5 rounded-lg text-xs font-medium transition-all text-left px-3
+                ${historyDate === null ? 'bg-emerald-600 text-white shadow-sm' : 'text-stone-500 hover:bg-stone-100'}`}>
               当前
             </button>
             {(() => {
@@ -1032,20 +1160,20 @@ export default function FarmersPage() {
                     return (
                       <div key={yr}>
                         <button onClick={() => toggleYear(yr)}
-                          className="w-full py-1.5 px-2.5 rounded-lg text-xs font-medium text-stone-600 hover:bg-stone-50 flex items-center gap-1 transition-colors">
+                          className="w-full py-2 px-3 rounded-lg text-xs font-medium text-stone-600 hover:bg-stone-100 flex items-center gap-1.5 transition-colors">
                           <span className={`inline-block transition-transform ${expanded ? 'rotate-90' : ''}`}>▸</span>
                           {yr}年
-                          <span className="ml-auto text-[10px] text-stone-300">{evts.length}</span>
+                          <span className="ml-auto text-[11px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">{evts.length}</span>
                         </button>
                         {expanded && (
-                          <div className="ml-3 space-y-0.5 border-l-2 border-stone-100 pl-2">
+                          <div className="ml-4 space-y-1 border-l-2 border-stone-100 pl-2 mt-1">
                             {evts.map(ev => {
                               const cfg = EVENT_TYPE_CFG[ev.event_type] || EVENT_TYPE_CFG.REMARK
                               return (
                                 <button key={ev.event_id} onClick={() => loadSnapshotAt(ev.date, hhId)}
-                                  className={`w-full text-left px-2 py-1.5 rounded-lg text-xs transition-colors
-                                    ${historyDate === ev.date ? 'bg-amber-50 text-amber-700 font-medium' : 'text-stone-500 hover:bg-amber-50 hover:text-amber-700'}`}>
-                                  <span className="mr-1">{cfg.icon}</span>
+                                  className={`w-full text-left px-2.5 py-2 rounded-lg text-xs transition-all
+                                    ${historyDate === ev.date ? 'bg-amber-100 text-amber-800 font-medium shadow-sm' : 'text-stone-500 hover:bg-amber-50 hover:text-amber-800'}`}>
+                                  <span className="mr-1.5">{cfg.icon}</span>
                                   {ev.date?.slice(5) || ev.event_year}
                                 </button>
                               )
@@ -1057,11 +1185,11 @@ export default function FarmersPage() {
                   })}
                   {originalEntry && (
                     <>
-                      <div className="my-1 mx-2 border-t border-dashed border-stone-200" />
+                      <div className="my-2 mx-2 border-t border-dashed border-stone-200" />
                       <button onClick={() => loadSnapshotAt(originalEntry.date, hhId)}
-                        className={`w-full text-left px-2.5 py-2 rounded-lg text-xs transition-colors
-                          ${historyDate === originalEntry.date ? 'bg-blue-50 text-blue-700 font-medium' : 'text-stone-500 hover:bg-blue-50 hover:text-blue-700'}`}>
-                        <span className="mr-1">{EVENT_TYPE_CFG.ORIGINAL.icon}</span>
+                        className={`w-full text-left px-3 py-2.5 rounded-lg text-xs transition-all
+                          ${historyDate === originalEntry.date ? 'bg-blue-100 text-blue-800 font-medium shadow-sm' : 'text-stone-500 hover:bg-blue-50 hover:text-blue-800'}`}>
+                        <span className="mr-1.5">{EVENT_TYPE_CFG.ORIGINAL.icon}</span>
                         初始状态
                       </button>
                     </>
@@ -1070,7 +1198,7 @@ export default function FarmersPage() {
               )
             })()}
             {historyDates.length === 0 && (
-              <div className="text-center py-4 text-xs text-stone-300">暂无变更记录</div>
+              <div className="text-center py-5 text-xs text-stone-300">暂无变更记录</div>
             )}
           </div>
         </div>
@@ -1082,49 +1210,59 @@ export default function FarmersPage() {
   //  主渲染：两栏布局
   // ═══════════════════════════════════════════════
   return (
-    <div className="flex gap-4 h-[calc(100vh-140px)]">
+    <div className="flex gap-5 h-[calc(100vh-140px)]">
       {/* ── 左侧：Tab + 列表 ── */}
-      <div className="w-[38%] shrink-0 flex flex-col">
+      <div className="w-[32%] shrink-0 flex flex-col">
         {/* Tab 切换 */}
-        <div className="flex mb-3 bg-stone-100 rounded-lg p-1">
-          <button onClick={() => { setLeftTab('households'); setSelectedFarmer(null); setDetail(null); setSelectedFarmerHousehold(null) }}
-            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors
-              ${leftTab === 'households' ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}>
-            🏠 家庭户
+        <div className="flex mb-4 bg-stone-100 rounded-xl p-1.5 shadow-sm">
+          <button onClick={() => handleTabChange('households')}
+            className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all
+              ${leftTab === 'households' ? 'bg-white text-emerald-700 shadow-md' : 'text-stone-500 hover:text-stone-700 hover:bg-stone-50/50'}`}>
+            <span className="mr-1.5">🏠</span>家庭户
           </button>
-          <button onClick={() => { setLeftTab('farmers'); setSelectedFarmer(null); setDetail(null); setSelectedFarmerHousehold(null) }}
-            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors
-              ${leftTab === 'farmers' ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}>
-            👤 农户
+          <button onClick={() => handleTabChange('farmers')}
+            className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all
+              ${leftTab === 'farmers' ? 'bg-white text-emerald-700 shadow-md' : 'text-stone-500 hover:text-stone-700 hover:bg-stone-50/50'}`}>
+            <span className="mr-1.5">👤</span>农户
           </button>
         </div>
 
-        {/* 工具栏 */}
-        <div className="flex gap-2 mb-3 flex-wrap">
+        {/* 工具栏 - 搜索和筛选 */}
+        <div className="flex gap-2 mb-3">
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={leftTab === 'farmers' ? '搜索农户姓名或身份证…' : '搜索户名或户主…'}
-            className="flex-1 min-w-32 border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 bg-white" />
+            className="flex-1 min-w-32 border border-stone-200 rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 bg-white shadow-sm transition-all" />
           <select value={villageFilter} onChange={e => { setVillageFilter(e.target.value); leftTab === 'farmers' ? setFarmerPage(1) : setHhPage(1) }}
-            className="border border-stone-200 rounded-lg px-2 py-2 text-sm bg-white outline-none">
+            className="border border-stone-200 rounded-lg px-3 py-2.5 text-sm bg-white outline-none shadow-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all">
             <option value="">全部村庄</option>
             {villages.map(v => <option key={v} value={v}>{v}</option>)}
           </select>
         </div>
-        <div className="flex gap-2 mb-3 flex-wrap">
-          <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">＋ 新建户</button>
+
+        {/* 工具栏 - 操作按钮 */}
+        <div className="flex gap-2 mb-4 flex-wrap">
+          <button onClick={() => setCreateHhOpen(true)} className="px-4 py-2.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
+            <span className="mr-1">＋</span>新建户
+          </button>
           <button onClick={() => { setBuildOpen(true); setBuildFile(null); setBuildPreview([]); setBuildResult(null) }}
-            className="px-3 py-2 text-sm border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50">📥 批量组建</button>
-          <button onClick={() => setImportOpen(true)} className="px-3 py-2 text-sm border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50">↑ 导入农户</button>
-          <button onClick={exportCurrentList} className="px-3 py-2 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50">⬇ 导出</button>
+            className="px-4 py-2.5 text-sm border-2 border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50 shadow-sm hover:shadow transition-all font-medium">
+            <span className="mr-1">📥</span>批量组建
+          </button>
+          <button onClick={() => setImportOpen(true)} className="px-4 py-2.5 text-sm border border-stone-200 text-stone-700 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
+            <span className="mr-1">↑</span>导入农户
+          </button>
+          <button onClick={exportCurrentList} className="px-4 py-2.5 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
+            <span className="mr-1">⬇</span>导出
+          </button>
           {leftTab === 'households' && (
-            <label className="flex items-center gap-1.5 text-sm text-stone-600 cursor-pointer ml-auto">
-              <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} />
-              仅看超领
+            <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer ml-auto bg-stone-50 px-3 py-2 rounded-lg border border-stone-200 shadow-sm hover:bg-stone-100 transition-all">
+              <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded" />
+              <span className="font-medium">仅看超领</span>
             </label>
           )}
         </div>
 
         {/* 列表 */}
-        <div className="flex-1 bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm flex flex-col min-h-0">
+        <div className="flex-1 bg-white border border-stone-200 rounded-xl overflow-hidden shadow-md flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto">
             {/* 农户列表 */}
             {leftTab === 'farmers' && (
@@ -1134,17 +1272,17 @@ export default function FarmersPage() {
                 {farmerList.map(f => (
                   <div key={f.id}
                     onClick={() => openFarmer(f.id)}
-                    className={`px-4 py-3 border-b border-stone-100 cursor-pointer transition-colors hover:bg-stone-50
-                      ${selectedFarmer?.id === f.id ? 'bg-blue-50 border-l-2 border-l-blue-600' : ''}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-sm text-stone-800">{f.real_name}</span>
-                      {f.is_head === 1 && <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">户主</span>}
+                    className={`px-5 py-4 border-b border-stone-100 cursor-pointer transition-all hover:bg-stone-50
+                      ${selectedFarmer?.id === f.id ? 'bg-emerald-50 border-l-4 border-l-emerald-600 shadow-inner' : ''}`}>
+                    <div className="flex items-center gap-2.5 mb-1.5">
+                      <span className="font-semibold text-base text-stone-800">{f.real_name}</span>
+                      {f.is_head === 1 && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">户主</span>}
                       <Tag label={FARMER_STATUS[f.farmer_status]?.label ?? '未知'} color={FARMER_STATUS[f.farmer_status]?.color as 'green'} />
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-stone-400">
+                    <div className="flex items-center gap-4 text-xs text-stone-400">
                       <span className="font-mono">{f.id_card_masked}</span>
-                      <span>{GENDER(f.gender)}</span>
-                      <span className="ml-auto">{f.village_full_name}</span>
+                      <span className="bg-stone-100 px-2 py-0.5 rounded">{GENDER(f.gender)}</span>
+                      <span className="ml-auto truncate max-w-[180px]">{f.village_full_name}</span>
                     </div>
                   </div>
                 ))}
@@ -1159,19 +1297,19 @@ export default function FarmersPage() {
                 {hhList.map(h => (
                   <div key={h.id}
                     onClick={() => openDetail(h.id)}
-                    className={`px-4 py-3 border-b border-stone-100 cursor-pointer transition-colors hover:bg-stone-50
-                      ${detail?.id === h.id ? 'bg-emerald-50 border-l-2 border-l-emerald-600' : ''}
-                      ${h.is_overdrawn ? 'bg-red-50/30' : ''}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-sm text-stone-800">{h.household_name}</span>
-                      <span className="text-xs font-mono text-blue-600">{h.household_code}</span>
-                      {h.is_overdrawn && <span className="text-xs text-red-600">⚠️超领</span>}
+                    className={`px-5 py-4 border-b border-stone-100 cursor-pointer transition-all hover:bg-stone-50
+                      ${detail?.id === h.id ? 'bg-emerald-50 border-l-4 border-l-emerald-600 shadow-inner' : ''}
+                      ${h.is_overdrawn ? 'bg-red-50/40' : ''}`}>
+                    <div className="flex items-center gap-2.5 mb-1.5">
+                      <span className="font-semibold text-base text-stone-800">{h.household_name}</span>
+                      <span className="text-xs font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{h.household_code}</span>
+                      {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-stone-400">
+                    <div className="flex items-center gap-4 text-xs text-stone-400">
                       <span>{h.head_name ? `户主:${h.head_name}` : '无户主'}</span>
-                      <span>{h.member_count}人</span>
+                      <span className="bg-stone-100 px-2 py-0.5 rounded">{h.member_count}人</span>
                       <span>{h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'}</span>
-                      <span className="ml-auto">{h.village_full_name}</span>
+                      <span className="ml-auto truncate max-w-[180px]">{h.village_full_name}</span>
                     </div>
                   </div>
                 ))}
@@ -1180,20 +1318,20 @@ export default function FarmersPage() {
           </div>
 
           {/* 分页 */}
-          <div className="px-4 py-2 border-t border-stone-100 bg-stone-50/50 flex justify-between text-xs text-stone-400 shrink-0">
-            <span>共{leftTab === 'farmers' ? farmerTotal : hhTotal}{leftTab === 'farmers' ? '人' : '户'}</span>
-            <div className="flex gap-1">
+          <div className="px-5 py-3 border-t border-stone-100 bg-stone-50 flex justify-between items-center text-xs text-stone-500 shrink-0">
+            <span className="font-medium">共{leftTab === 'farmers' ? farmerTotal : hhTotal}{leftTab === 'farmers' ? '人' : '户'}</span>
+            <div className="flex gap-1 items-center">
               {leftTab === 'farmers' ? (
                 <>
-                  <button disabled={farmerPage <= 1} onClick={() => setFarmerPage(p => p - 1)} className="px-2 py-1 border border-stone-200 rounded disabled:opacity-40">‹</button>
-                  <span className="px-2">{farmerPage}/{Math.max(1, Math.ceil(farmerTotal / 20))}</span>
-                  <button disabled={farmerPage * 20 >= farmerTotal} onClick={() => setFarmerPage(p => p + 1)} className="px-2 py-1 border border-stone-200 rounded disabled:opacity-40">›</button>
+                  <button disabled={farmerPage <= 1} onClick={() => setFarmerPage(p => p - 1)} className="px-3 py-1.5 border border-stone-200 rounded-lg disabled:opacity-40 hover:bg-stone-100 transition-colors disabled:hover:bg-white">‹</button>
+                  <span className="px-2 font-mono text-sm">{farmerPage}/{Math.max(1, Math.ceil(farmerTotal / 20))}</span>
+                  <button disabled={farmerPage * 20 >= farmerTotal} onClick={() => setFarmerPage(p => p + 1)} className="px-3 py-1.5 border border-stone-200 rounded-lg disabled:opacity-40 hover:bg-stone-100 transition-colors disabled:hover:bg-white">›</button>
                 </>
               ) : (
                 <>
-                  <button disabled={hhPage <= 1} onClick={() => setHhPage(p => p - 1)} className="px-2 py-1 border border-stone-200 rounded disabled:opacity-40">‹</button>
-                  <span className="px-2">{hhPage}/{Math.max(1, Math.ceil(hhTotal / 20))}</span>
-                  <button disabled={hhPage * 20 >= hhTotal} onClick={() => setHhPage(p => p + 1)} className="px-2 py-1 border border-stone-200 rounded disabled:opacity-40">›</button>
+                  <button disabled={hhPage <= 1} onClick={() => setHhPage(p => p - 1)} className="px-3 py-1.5 border border-stone-200 rounded-lg disabled:opacity-40 hover:bg-stone-100 transition-colors disabled:hover:bg-white">‹</button>
+                  <span className="px-2 font-mono text-sm">{hhPage}/{Math.max(1, Math.ceil(hhTotal / 20))}</span>
+                  <button disabled={hhPage * 20 >= hhTotal} onClick={() => setHhPage(p => p + 1)} className="px-3 py-1.5 border border-stone-200 rounded-lg disabled:opacity-40 hover:bg-stone-100 transition-colors disabled:hover:bg-white">›</button>
                 </>
               )}
             </div>
@@ -1208,7 +1346,7 @@ export default function FarmersPage() {
           <div className="flex-1 flex flex-col min-h-0">
             {renderFarmerDetail()}
             {selectedFarmerHousehold && (
-              <div className="flex gap-3 flex-1 min-h-0">
+              <div className="flex gap-4 flex-1 min-h-0">
                 {renderHistorySidebar(selectedFarmerHousehold.id)}
                 <div className="flex-1 min-h-0">
                   {renderFarmerHouseholdDetail()}
@@ -1216,15 +1354,18 @@ export default function FarmersPage() {
               </div>
             )}
             {!selectedFarmerHousehold && (
-              <div className="flex-1 bg-white border border-stone-200 rounded-xl flex items-center justify-center text-stone-300">
-                该农户暂未关联家庭户
+              <div className="flex-1 bg-white border border-stone-200 rounded-xl flex items-center justify-center text-stone-300 shadow-md">
+                <div className="text-center">
+                  <div className="text-4xl mb-3">🏠</div>
+                  <div className="text-sm">该农户暂未关联家庭户</div>
+                </div>
               </div>
             )}
           </div>
         ) : detail ? (
           /* 选中家庭户：显示家庭户详情 */
-          <div className="flex gap-3 flex-1 min-h-0">
-            {renderHistorySidebar()}
+          <div className="flex gap-4 flex-1 min-h-0">
+            {renderHistorySidebar(detail.id)}
             <div className="flex-1 min-h-0">
               <HouseholdDetailContent
                 detail={detail}
@@ -1248,8 +1389,12 @@ export default function FarmersPage() {
           </div>
         ) : (
           /* 未选中任何内容 */
-          <div className="flex-1 bg-white border border-stone-200 rounded-xl flex items-center justify-center text-stone-300">
-            请从左侧选择{leftTab === 'farmers' ? '农户' : '家庭户'}查看详情
+          <div className="flex-1 bg-white border border-stone-200 rounded-xl flex items-center justify-center text-stone-300 shadow-md">
+            <div className="text-center">
+              <div className="text-5xl mb-4 opacity-50">📋</div>
+              <div className="text-base font-medium text-stone-400">请从左侧选择{leftTab === 'farmers' ? '农户' : '家庭户'}查看详情</div>
+              <div className="text-sm text-stone-300 mt-2">支持搜索、筛选和批量操作</div>
+            </div>
           </div>
         )}
       </div>
@@ -1341,16 +1486,16 @@ export default function FarmersPage() {
                 <p className="text-xs text-stone-400 mb-3">勾选要从本户分出的成员（至少1人，户主不能被分出）</p>
                 <div className="space-y-2">
                   {(detail || selectedFarmerHousehold)?.members.filter(m => m.is_head !== 1).map(m => (
-                    <label key={m.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors
-                      ${splitSelected.includes(m.id) ? 'bg-orange-50 border-orange-300' : 'bg-white border-stone-200 hover:border-stone-300'}`}>
+                    <label key={m.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all
+                      ${splitSelected.includes(m.id) ? 'bg-orange-50 border-orange-300' : 'bg-white border-stone-200 hover:border-stone-300 hover:bg-stone-50'}`}>
                       <input type="checkbox" checked={splitSelected.includes(m.id)}
-                        onChange={e => setSplitSelected(prev => e.target.checked ? [...prev, m.id] : prev.filter(id => id !== m.id))} />
+                        onChange={e => setSplitSelected(prev => e.target.checked ? [...prev, m.id] : prev.filter(id => id !== m.id))} className="w-4 h-4" />
                       <div className="flex-1">
                         <span className="font-semibold text-sm">{m.real_name}</span>
                         <span className="text-xs text-stone-400 ml-2">{m.relation}</span>
                         {splitSelected.includes(m.id) && (
                           <label className="ml-3 flex items-center gap-1 inline-flex cursor-pointer" onClick={e => e.stopPropagation()}>
-                            <input type="radio" name="new_head" value={m.id} checked={splitNewHead === m.id} onChange={() => setSplitNewHead(m.id)} />
+                            <input type="radio" name="new_head" value={m.id} checked={splitNewHead === m.id} onChange={() => setSplitNewHead(m.id)} className="w-4 h-4" />
                             <span className="text-xs text-orange-700">设为新户户主</span>
                           </label>
                         )}
@@ -1359,7 +1504,7 @@ export default function FarmersPage() {
                   ))}
                   {(detail || selectedFarmerHousehold)?.members.filter(m => m.is_head === 1).map(m => (
                     <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl border border-stone-100 bg-stone-50 opacity-50">
-                      <input type="checkbox" disabled />
+                      <input type="checkbox" disabled className="w-4 h-4" />
                       <span className="text-sm">{m.real_name}</span>
                       <Tag label="户主（不可分出）" color="gray" />
                     </div>
@@ -1505,8 +1650,8 @@ function HouseholdDetailContent({
   onOpenMemberAdd: () => void
   onOpenEvent: () => void
   onOpenFarmer: (id: number) => void
-  onOpenMemberEdit: (m: HHMember) => void
-  onRemoveMember: (m: HHMember) => void
+  onOpenMemberEdit: (m: HHMember | SnapshotMember) => void
+  onRemoveMember: (m: HHMember | SnapshotMember) => void
   onOpenEdit: () => void
   onOpenSplit: () => void
   canSplit: boolean
@@ -1524,7 +1669,7 @@ function HouseholdDetailContent({
   return (
     <div className="flex-1 min-w-0 flex flex-col">
       {/* 顶部卡片 */}
-      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm mb-3 shrink-0">
+      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-md mb-3 shrink-0">
         <div className="bg-gradient-to-r from-emerald-800 to-emerald-700 px-5 py-3.5 flex items-center gap-4">
           <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-lg font-bold text-white shrink-0">🏠</div>
           <div className="flex-1 min-w-0">
@@ -1547,12 +1692,12 @@ function HouseholdDetailContent({
             <div className="text-emerald-300 text-xs">承包面积</div>
           </div>
           {historyDateIsNull && (
-            <div className="flex flex-col gap-1 shrink-0">
+            <div className="flex flex-col gap-1.5 shrink-0">
               <button onClick={onOpenEdit}
-                className="text-xs bg-white/20 hover:bg-white/30 text-white px-2.5 py-1 rounded-lg">✏️ 编辑</button>
+                className="text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">✏️ 编辑</button>
               {canSplit && (
                 <button onClick={onOpenSplit}
-                  className="text-xs bg-orange-500/80 hover:bg-orange-500 text-white px-2.5 py-1 rounded-lg">🔀 分户</button>
+                  className="text-xs bg-orange-500/80 hover:bg-orange-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">🔀 分户</button>
               )}
             </div>
           )}
@@ -1576,12 +1721,12 @@ function HouseholdDetailContent({
             <div className="ml-auto px-2 flex gap-1.5">
               {detailTab === 'members' && (
                 <>
-                  <button onClick={onOpenMemberImport} className="text-xs border border-emerald-200 text-emerald-700 px-2.5 py-1 rounded-lg hover:bg-emerald-50">↑ 批量导入</button>
-                  <button onClick={onOpenMemberAdd} className="text-xs bg-emerald-700 text-white px-2.5 py-1 rounded-lg hover:bg-emerald-600">＋ 成员</button>
+                  <button onClick={onOpenMemberImport} className="text-xs border border-emerald-200 text-emerald-700 px-2.5 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors">↑ 批量导入</button>
+                  <button onClick={onOpenMemberAdd} className="text-xs bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg hover:bg-emerald-600 transition-colors">＋ 成员</button>
                 </>
               )}
               {detailTab === 'history' && (
-                <button onClick={onOpenEvent} className="text-xs border border-stone-200 text-stone-600 px-2.5 py-1 rounded-lg hover:bg-stone-50">＋ 补录</button>
+                <button onClick={onOpenEvent} className="text-xs border border-stone-200 text-stone-600 px-2.5 py-1.5 rounded-lg hover:bg-stone-50 transition-colors">＋ 补录</button>
               )}
             </div>
           )}
@@ -1589,14 +1734,14 @@ function HouseholdDetailContent({
       </div>
 
       {/* Tab 内容 */}
-      <div className="flex-1 bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm overflow-y-auto">
+      <div className="flex-1 bg-white border border-stone-200 rounded-xl overflow-hidden shadow-md overflow-y-auto">
         {/* 成员 */}
         {detailTab === 'members' && (
           <div className="p-4 grid gap-2">
             {displayMembers.length === 0 && <div className="text-center py-8 text-stone-300 text-sm">暂无成员记录</div>}
             {displayMembers.map(m => (
-              <div key={m.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 border transition-colors
-                ${m.is_head ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-stone-200 hover:border-stone-300'}
+              <div key={m.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 border transition-all
+                ${m.is_head ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-stone-200 hover:border-stone-300 hover:bg-stone-50'}
                 ${m.farmer_status !== 1 ? 'opacity-60' : ''}`}>
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0
                   ${m.is_head ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-500'}`}>
@@ -1617,10 +1762,10 @@ function HouseholdDetailContent({
                 </div>
                 {historyDateIsNull && (
                   <div className="flex gap-1.5 shrink-0">
-                    <button onClick={() => onOpenFarmer(m.id)} className="text-xs text-blue-700 border border-blue-200 px-2 py-1 rounded-lg hover:bg-blue-50">查看农户</button>
-                    <button onClick={() => onOpenMemberEdit(m)} className="text-xs border border-stone-200 text-stone-500 px-2 py-1 rounded-lg hover:border-stone-300">编辑</button>
+                    <button onClick={() => onOpenFarmer(m.id)} className="text-xs text-emerald-700 border border-emerald-200 px-2 py-1 rounded-lg hover:bg-emerald-50 transition-colors">查看农户</button>
+                    <button onClick={() => onOpenMemberEdit(m)} className="text-xs border border-stone-200 text-stone-500 px-2 py-1 rounded-lg hover:border-stone-300 transition-colors">编辑</button>
                     {m.is_head !== 1 && (
-                      <button onClick={() => onRemoveMember(m)} className="text-xs border border-amber-200 text-amber-600 px-2 py-1 rounded-lg hover:bg-amber-50">移出</button>
+                      <button onClick={() => onRemoveMember(m)} className="text-xs border border-amber-200 text-amber-600 px-2 py-1 rounded-lg hover:bg-amber-50 transition-colors">移出</button>
                     )}
                   </div>
                 )}
@@ -1638,7 +1783,7 @@ function HouseholdDetailContent({
                 { label: areaUsage.has_trust_data ? '可耕种（含流转）' : '可耕种面积', val: areaUsage.cultivable_area !== undefined ? `${areaUsage.cultivable_area.toFixed(2)}亩` : `${areaUsage.contracted_area}亩`, color: areaUsage.is_overdrawn ? 'text-red-600' : 'text-emerald-700' },
                 { label: '已申报面积', val: `${areaUsage.used_area.toFixed(2)}亩`, color: areaUsage.is_overdrawn ? 'text-red-600' : 'text-amber-600' },
               ].map(s => (
-                <div key={s.label} className="bg-stone-50 border border-stone-200 rounded-xl p-3 text-center">
+                <div key={s.label} className="bg-stone-50 border border-stone-200 rounded-xl p-3 text-center shadow-sm">
                   <div className={`text-lg font-bold font-mono ${s.color}`}>{s.val}</div>
                   <div className="text-xs text-stone-400 mt-1">{s.label}</div>
                 </div>
@@ -1666,7 +1811,7 @@ function HouseholdDetailContent({
                 <p className="text-xs text-stone-400 mb-2">各项补贴占用明细：</p>
                 <div className="space-y-2">
                   {areaUsage.subsidy_breakdown.map((b, i) => (
-                    <div key={i} className="flex justify-between items-center bg-white border border-stone-200 rounded-lg px-3 py-2">
+                    <div key={i} className="flex justify-between items-center bg-white border border-stone-200 rounded-lg px-3 py-2 shadow-sm">
                       <span className="text-sm">{b.subsidy_name}</span>
                       <span className="text-sm font-mono font-bold text-amber-600">{b.apply_area.toFixed(2)}亩</span>
                     </div>
@@ -1687,7 +1832,7 @@ function HouseholdDetailContent({
                   {yr}年度 · {apps.length}条 · 合计 ¥{apps.reduce((s, a) => s + (a.actual_amount || 0), 0).toFixed(2)}
                 </div>
                 {apps.map((a, i) => (
-                  <div key={i} className="flex items-center gap-3 px-5 py-2.5 border-b border-stone-50 hover:bg-stone-50">
+                  <div key={i} className="flex items-center gap-3 px-5 py-2.5 border-b border-stone-50 hover:bg-stone-50 transition-colors">
                     <span className="text-sm text-stone-500 w-16 shrink-0">{a.farmer_name}</span>
                     <span className="text-sm flex-1">{a.subsidy_name}</span>
                     {a.apply_area && <span className="text-xs text-stone-400 font-mono">{a.apply_area}亩</span>}
@@ -1726,9 +1871,6 @@ function HouseholdDetailContent({
                         </div>
                         <p className="text-sm text-stone-700">{ev.description}</p>
                         {ev.evidence_note && <p className="text-xs text-stone-400 mt-1">证明材料：{ev.evidence_note}</p>}
-                        {ev.undoable && historyDateIsNull && (
-                          <button onClick={() => {}} className="mt-2 text-xs text-red-500 hover:text-red-700 hover:underline">撤销此操作</button>
-                        )}
                       </div>
                     </div>
                   )

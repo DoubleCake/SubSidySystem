@@ -1344,23 +1344,61 @@ def get_snapshot_at_date(
             except:
                 pass
 
-    if latest_ev and latest_ev.after_snapshot:
-        try:
-            snap = _json.loads(latest_ev.after_snapshot)
-            members = snap.get("members", [])
-            contracted_area = snap.get("land_area", float(hh.land_area or 0))
-        except:
-            members = []
-            contracted_area = float(hh.land_area or 0)
+    # 找到日期 <= target 的最近事件
+    latest_ev = (
+        db.query(HouseholdEvent)
+          .filter(
+              HouseholdEvent.household_id == household_id,
+              (HouseholdEvent.event_date <= target) | (HouseholdEvent.event_date == None)
+          )
+          .order_by(HouseholdEvent.event_date.desc().nullslast(), HouseholdEvent.created_at.desc())
+          .first()
+    )
+
+    # 确定使用哪个快照
+    snapshot_data = None
+    if latest_ev:
+        # 检查 target 是否在 latest_ev 之后（使用 after_snapshot）或之前（使用 before_snapshot）
+        if latest_ev.event_date and target >= latest_ev.event_date:
+            # target 在事件日期之后，使用 after_snapshot
+            if latest_ev.after_snapshot:
+                try:
+                    snapshot_data = _json.loads(latest_ev.after_snapshot)
+                except:
+                    pass
+        else:
+            # target 在事件日期之前（或无日期），使用 before_snapshot
+            if latest_ev.before_snapshot:
+                try:
+                    snapshot_data = _json.loads(latest_ev.before_snapshot)
+                except:
+                    pass
+
+    # 如果有快照数据，使用它；否则使用当前状态
+    if snapshot_data:
+        household_name = snapshot_data.get("household_name", hh.household_name)
+        household_code = snapshot_data.get("household_code", hh.household_code)
+        contracted_area = snapshot_data.get("land_area", float(hh.land_area or 0))
+        status = snapshot_data.get("status", hh.status)
+        address = snapshot_data.get("address", hh.address)
+        remark = snapshot_data.get("remark", hh.remark)
+        head_id = snapshot_data.get("head_id")
+        members = snapshot_data.get("members", [])
     else:
-        # 无事件或无快照，返回当前状态
+        # 无快照，返回当前状态
+        household_name = hh.household_name
+        household_code = hh.household_code
+        contracted_area = float(hh.land_area or 0)
+        status = hh.status
+        address = hh.address
+        remark = hh.remark
+        head_id = None
         members_q = (
             db.query(FarmerProfile)
               .filter(FarmerProfile.household_id == household_id)
               .order_by(FarmerProfile.is_head.desc(), FarmerProfile.id).all()
         )
         members = [_member_out(m) for m in members_q]
-        contracted_area = float(hh.land_area or 0)
 
     # 该日期发生的所有事件
     day_events = (
@@ -1385,13 +1423,13 @@ def get_snapshot_at_date(
     return {
         "target_date": date,
         "snapshot": {
-            "household_name": hh.household_name,
-            "household_code": hh.household_code,
+            "household_name": household_name,
+            "household_code": household_code,
             "land_area": contracted_area,
-            "status": hh.status,
-            "address": hh.address,
-            "remark": hh.remark,
-            "head_id": None,
+            "status": status,
+            "address": address,
+            "remark": remark,
+            "head_id": head_id,
             "members": members,
         },
         "events": events_list,
