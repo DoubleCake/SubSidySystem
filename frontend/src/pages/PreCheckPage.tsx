@@ -36,7 +36,7 @@ const PRECHECK_SYSTEM_FIELDS = [
   { field: "group_no",     label: "所在组",   required: true,  type: "string" },
   { field: "gender",       label: "性别",     required: false, type: "string" },
   { field: "phone",        label: "手机号",   required: false, type: "string" },
-  { field: "land_area",    label: "土地面积", required: false, type: "number" },
+  { field: "land_area",    label: "土地面积", required: false, type: "decimal" },
 ]
 
 const PRECHECK_TEMPLATE_HEADERS = ['姓名*', '身份证号*', '所在村*', '所在组*', '性别', '手机号', '银行卡号', '开户行', '土地面积(亩)', '备注']

@@ -113,12 +113,12 @@ export default function HouseholdsPage() {
   const [detailTab, setDetailTab] = useState<'members'|'area'|'subsidy'|'history'>('members')
   const [events, setEvents] = useState<HHEvent[]>([])
 
-  // // 日期级历史滑轨
-  // const [historyDate, setHistoryDate] = useState<string | null>(null)
-  // const [historyDates, setHistoryDates] = useState<HistoryDateEvent[]>([])
-  // const [snapshotData, setSnapshotData] = useState<SnapshotAtResponse | null>(null)
-  // const [historyLoading, setHistoryLoading] = useState(false)
-  // const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set())
+  // 日期级历史滑轨
+  const [historyDate, setHistoryDate] = useState<string | null>(null)
+  const [historyDates, setHistoryDates] = useState<HistoryDateEvent[]>([])
+  const [snapshotData, setSnapshotData] = useState<SnapshotAtResponse | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set())
 
   // 批量组建
   const [buildOpen, setBuildOpen]     = useState(false)
@@ -401,7 +401,15 @@ export default function HouseholdsPage() {
 
     // 历史模式下使用历史快照的面积数据
     const areaUsage = historyDate !== null && snapshotData?.snapshot
-      ? { contracted_area: snapshotData.snapshot.land_area, used_area: 0, remaining_area: snapshotData.snapshot.land_area, is_overdrawn: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[] }
+      ? {
+          contracted_area: snapshotData.snapshot.land_area,
+          trust_out_area: 0, trust_in_area: 0,
+          cultivable_area: snapshotData.snapshot.land_area,
+          used_area: 0, remaining_area: snapshotData.snapshot.land_area,
+          is_overdrawn: false, overdraw_amount: 0,
+          has_trust_data: false,
+          subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[],
+        }
       : detail.area_usage
 
     return (

@@ -4,7 +4,8 @@ import type { FarmerOut, FarmerCreate, VillageGroup } from '../types'
 import { FARMER_STATUS, PAY_STATUS, fmt, parseIdCardInfo, years } from '../utils'
 import Tag from '../components/Tag'
 import Modal from '../components/Modal'
-import ExcelImport from '../components/ExcelImport'
+import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
+import type { ExcelColumnTemplate } from '../types'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import * as XLSX from 'xlsx'
@@ -13,6 +14,19 @@ import HouseholdsPage from './HouseholdsPage'
 const FARMER_TEMPLATE_HEADERS = ['姓名*', '身份证号*', '所在村*', '所在组*', '手机号', '银行卡号', '开户行', '地址', '土地面积', '状态']
 const FARMER_TEMPLATE_EXAMPLE = [
   { '姓名*': '张国强', '身份证号*': '510123196503154231', '所在村*': '红星村', '所在组*': '一组', '手机号': '13812340001', '银行卡号': '6222021234560001', '开户行': '农业银行红星支行', '地址': '红星村一组12号', '土地面积': 3.5, '状态': '在册' },
+]
+
+const FARMER_SYSTEM_FIELDS = [
+  { field: "real_name",     label: "姓名",     required: true,  type: "string" },
+  { field: "id_card",       label: "身份证号", required: true,  type: "id_card" },
+  { field: "village_name",  label: "所在村",   required: true,  type: "string" },
+  { field: "group_no",      label: "所在组",   required: true,  type: "string" },
+  { field: "phone",         label: "手机号",   required: false, type: "phone" },
+  { field: "bank_card",     label: "银行卡号", required: false, type: "string" },
+  { field: "bank_name",     label: "开户行",   required: false, type: "string" },
+  { field: "address",       label: "地址",     required: false, type: "string" },
+  { field: "land_area",     label: "土地面积", required: false, type: "decimal" },
+  { field: "farmer_status", label: "状态",     required: false, type: "status" },
 ]
 
 type DetailFarmer = FarmerOut & {
@@ -63,6 +77,7 @@ export default function FarmersPage() {
   const [detailTab, setDetailTab] = useState<'info' | 'subsidy' | 'family'>('info')
   const [addOpen, setAddOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [templates, setTemplates] = useState<ExcelColumnTemplate[]>([])
   const [form, setForm] = useState<Partial<FarmerCreate>>({ farmer_status: 1, gender: 1 })
   const [idHint, setIdHint] = useState('')
 
@@ -84,6 +99,7 @@ export default function FarmersPage() {
     api.getVillageGroups().then(g => {
       setGroups(g); setVillages([...new Set(g.map(v => v.village_name))])
     })
+    api.getExcelTemplates('FARMER').then(setTemplates).catch(() => {})
   }, [])
   useEffect(() => {
     const t = setTimeout(() => { setPage(1) }, 350)
@@ -141,28 +157,30 @@ export default function FarmersPage() {
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
-  const handleImport = async (rows: Record<string, unknown>[]) => {
+  const handleImport = async (rows: Record<string, unknown>[], mapping?: Record<string, string>) => {
     const toCreate: Record<string, unknown>[] = []
     const formatErrors: string[] = []
     rows.forEach((row, i) => {
-      const name   = String(row['姓名*']   || row['姓名']   || '').trim()
-      const idCard = String(row['身份证号*'] || row['身份证号'] || '').trim()
+      // 优先从映射后的系统字段取值，回退到中文列名
+      const name   = String(row['real_name'] || row['姓名*']   || row['姓名']   || '').trim()
+      const idCard = String(row['id_card']   || row['身份证号*'] || row['身份证号'] || '').trim()
       if (!name || !idCard) { formatErrors.push(`第${i+2}行：姓名或身份证号为空`); return }
-      const vn = String(row['所在村*'] || row['所在村'] || '').trim()
-      const gn = String(row['所在组*'] || row['所在组'] || '').trim()
+      const vn = String(row['village_name'] || row['所在村*'] || row['所在村'] || '').trim()
+      const gn = String(row['group_no']     || row['所在组*'] || row['所在组'] || '').trim()
       if (!vn || !gn) { formatErrors.push(`第${i+2}行 ${name}：请填写所在村和所在组`); return }
       const info = parseIdCardInfo(idCard)
       const statusMap: Record<string, number> = { '在册':1, '注销':2, '迁出':3, '死亡':4 }
+      const rawStatus = String(row['farmer_status'] || row['状态'] || '').trim()
       toCreate.push({
         real_name: name, id_card: idCard,
-        gender: info?.gender ?? (String(row['性别']||'').includes('女') ? 2 : 1),
+        gender: info?.gender ?? (String(row['gender']||row['性别']||'').includes('女') ? 2 : 1),
         village_name: vn, group_no: gn,
-        phone:     String(row['手机号']  || '').trim() || undefined,
-        bank_card: String(row['银行卡号']|| '').trim() || undefined,
-        bank_name: String(row['开户行']  || '').trim() || undefined,
-        address:   String(row['地址']    || '').trim() || undefined,
-        land_area: Number(row['土地面积']) || undefined,
-        farmer_status: statusMap[String(row['状态']||'')] ?? 1,
+        phone:     String(row['phone']     || row['手机号']  || '').trim() || undefined,
+        bank_card: String(row['bank_card'] || row['银行卡号']|| '').trim() || undefined,
+        bank_name: String(row['bank_name'] || row['开户行']  || '').trim() || undefined,
+        address:   String(row['address']   || row['地址']    || '').trim() || undefined,
+        land_area: Number(row['land_area'] || row['土地面积']) || undefined,
+        farmer_status: statusMap[rawStatus] ?? 1,
       })
     })
     if (formatErrors.length > 0 && toCreate.length === 0) return { created: 0, skipped: 0, errors: formatErrors }
@@ -173,10 +191,39 @@ export default function FarmersPage() {
     api.getVillageGroups().then(g => {
       setGroups(g); setVillages([...new Set(g.map(v => v.village_name))])
     })
-    // 把后端返回的跳过记录整理成提示
     const allErrors = [...formatErrors, ...(res.errors || [])]
     if (res.skipped > 0) allErrors.push(`已跳过 ${res.skipped} 条重复身份证记录（该身份证号已存在）`)
     return { ...res, errors: allErrors }
+  }
+
+  const detectExcelColumns = async (columns: string[], sampleRows: Record<string, unknown>[]): Promise<{
+    detected_mappings: Array<{ excel_column: string; suggested_field: string | null; confidence: number; alternatives: Array<{ field: string; confidence: number }> }>
+    recommended_templates?: Array<{ id: number; template_name: string; match_rate: number }>
+  }> => {
+    try {
+      const response = await fetch('/api/excel-templates/detect-columns', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ columns, business_type: 'FARMER', sample_rows: sampleRows }),
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      return await response.json()
+    } catch {
+      // 回退：空映射
+      return { detected_mappings: columns.map(c => ({ excel_column: c, suggested_field: null, confidence: 0, alternatives: [] })) }
+    }
+  }
+
+  const saveColumnMappingTemplate = async (data: {
+    template_name: string; template_year?: number; region_name?: string; business_type: string
+    column_mapping: Array<{ excel_column: string; system_field: string; aliases: string[]; required: boolean; transform?: string }>
+  }): Promise<{ id: number }> => {
+    const response = await fetch('/api/excel-templates', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+    })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const result = await response.json() as { id: number }
+    api.getExcelTemplates('FARMER').then(setTemplates).catch(() => {})
+    return result
   }
   // 导出当前筛选结果
   const exportCurrentList = async () => {
@@ -575,8 +622,10 @@ export default function FarmersPage() {
         </div>
       </Modal>
 
-      <ExcelImport open={importOpen} onClose={() => setImportOpen(false)} title="农户信息"
+      <ExcelImportWithMapping open={importOpen} onClose={() => setImportOpen(false)} title="农户信息导入"
         templateHeaders={FARMER_TEMPLATE_HEADERS} templateExample={FARMER_TEMPLATE_EXAMPLE}
+        systemFields={FARMER_SYSTEM_FIELDS} templates={templates}
+        onDetectColumns={detectExcelColumns} onSaveTemplate={saveColumnMappingTemplate}
         onImport={handleImport} onSuccess={load} />
 
       {/* 批量补全弹窗 */}
