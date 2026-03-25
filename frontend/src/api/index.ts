@@ -2,7 +2,8 @@ import type {
   VillageGroup, FarmerOut, FarmerCreate, PageResult,
   SubsidyType, SubsidyTypeCreate,
   ApplicationOut, ApplicationCreate, ApplicationSearchResult,
-  YearCompare, VillageSummary,
+  YearCompare, VillageSummary, ExcelColumnTemplate,
+  ErrorLibraryItem, ErrorLibraryCreate,
 } from '../types'
 
 const BASE = ''
@@ -27,6 +28,16 @@ export const getFarmers = (params: Record<string, string | number>) =>
   req<PageResult<FarmerOut>>('/api/farmers?' + new URLSearchParams(params as Record<string, string>))
 
 export const getFarmer = (id: number) => req<FarmerOut>('/api/farmers/' + id)
+
+export const batchLookupFarmers = (idCards: string[]) =>
+  req<{ results: Record<string, number> }>('/api/farmers/batch-lookup', {
+    method: 'POST', body: JSON.stringify({ id_cards: idCards }),
+  })
+
+export const batchGetIdCards = (farmerIds: number[]) =>
+  req<{ results: Record<string, string> }>('/api/farmers/batch-get-id-cards', {
+    method: 'POST', body: JSON.stringify({ farmer_ids: farmerIds }),
+  })
 
 export const createFarmer = (data: FarmerCreate) =>
   req<{ id: number }>('/api/farmers/', { method: 'POST', body: JSON.stringify(data) })
@@ -95,5 +106,38 @@ export const aiAnalyze = (data: { year: number; village_name?: string; question:
     { method: 'POST', body: JSON.stringify(data) }
   )
 
+// ── Excel模板 ──
+export const getExcelTemplates = (businessType?: string) =>
+  req<ExcelColumnTemplate[]>('/api/excel-templates' + (businessType ? `?business_type=${businessType}` : ''))
+
+export const getExcelTemplate = (id: number) =>
+  req<ExcelColumnTemplate>('/api/excel-templates/' + id)
+
 // ── 健康检查 ──
 export const healthCheck = () => req<{ status: string }>('/api/health')
+
+// ── 错误库 ──
+export const getErrorLibrary = (params: Record<string, string | number>) =>
+  req<PageResult<ErrorLibraryItem>>('/api/error-library?' + new URLSearchParams(params as Record<string, string>))
+
+export const getErrorLibraryStats = () =>
+  req<{ total: number; by_type: Record<string, number> }>('/api/error-library/stats')
+
+export const createErrorLibrary = (data: ErrorLibraryCreate) =>
+  req<{ id: number }>('/api/error-library', { method: 'POST', body: JSON.stringify(data) })
+
+export const updateErrorLibrary = (id: number, data: ErrorLibraryCreate) =>
+  req('/api/error-library/' + id, { method: 'PUT', body: JSON.stringify(data) })
+
+export const deleteErrorLibrary = (id: number) =>
+  req('/api/error-library/' + id, { method: 'DELETE' })
+
+export const batchImportErrorLibrary = (rows: Record<string, unknown>[]) =>
+  req<{ created: number; skipped: number }>('/api/error-library/batch-import', {
+    method: 'POST', body: JSON.stringify({ rows }),
+  })
+
+export const batchDeleteErrorLibrary = (ids: number[]) =>
+  req<{ deleted: number }>('/api/error-library/batch-delete', {
+    method: 'POST', body: JSON.stringify({ ids }),
+  })

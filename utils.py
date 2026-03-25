@@ -67,3 +67,31 @@ def parse_id_card(id_card: str) -> dict:
 # ───────────── 家庭户编码生成 ─────────────
 def gen_household_code(farmer_id: int) -> str:
     return f"HH{str(farmer_id).zfill(4)}"
+
+
+# ───────────── 村组名称规范化 ─────────────
+_DIGITS = '零一二三四五六七八九十'
+
+def _arabic_to_chinese(n: int) -> str:
+    """将 1~99 的整数转为中文数字"""
+    if n <= 10:
+        return _DIGITS[n]
+    if n < 20:
+        return '十' + (_DIGITS[n - 10] if n % 10 else '')
+    tens, ones = divmod(n, 10)
+    return _DIGITS[tens] + '十' + (_DIGITS[ones] if ones else '')
+
+def normalize_group_no(name: str) -> str:
+    """规范化组号：'1组'→'一组', '01组'→'一组', '2大队'→'二大队' 等"""
+    if not name:
+        return name
+    s = name.strip()
+    # 匹配：开头若干数字 + 后续文字
+    m = re.match(r'^(\d+)(.*)$', s)
+    if m:
+        num = int(m.group(1))
+        suffix = m.group(2)
+        if not suffix:
+            suffix = '组'  # 纯数字默认补"组"
+        return _arabic_to_chinese(num) + suffix
+    return s

@@ -130,12 +130,19 @@ class ApplicationCreate(BaseModel):
     apply_amount: Optional[Decimal] = None
     actual_amount: Optional[Decimal] = None
     apply_area: Optional[Decimal] = None
+    contract_area: Optional[Decimal] = None
+    trust_area: Optional[Decimal] = None
+    no_subsidy_area: Optional[Decimal] = None
     pay_status: int = 0
     pay_date: Optional[date] = None
     remark: Optional[str] = None
 
 class ApplicationUpdate(BaseModel):
     actual_amount: Optional[Decimal] = None
+    apply_area: Optional[Decimal] = None
+    contract_area: Optional[Decimal] = None
+    trust_area: Optional[Decimal] = None
+    no_subsidy_area: Optional[Decimal] = None
     pay_status: Optional[int] = None
     pay_date: Optional[date] = None
     remark: Optional[str] = None
@@ -150,6 +157,9 @@ class ApplicationOut(BaseModel):
     apply_amount: Optional[Decimal]
     actual_amount: Optional[Decimal]
     apply_area: Optional[Decimal]
+    contract_area: Optional[Decimal] = None
+    trust_area: Optional[Decimal] = None
+    no_subsidy_area: Optional[Decimal] = None
     pay_status: int
     pay_date: Optional[date]
     remark: Optional[str]
@@ -183,3 +193,25 @@ class AIAnalyzeRequest(BaseModel):
 class AIAnalyzeResponse(BaseModel):
     result: str
     data_preview: dict   # 发给AI的脱敏数据预览
+
+
+# ───────────── 错误库 ─────────────
+class ErrorLibraryCreate(BaseModel):
+    real_name: str
+    id_card: str
+    error_type: str
+    error_reason: str
+    source: str = "手动录入"
+    village_name: Optional[str] = None
+    group_no: Optional[str] = None
+    subsidy_name: Optional[str] = None
+    discovered_date: Optional[str] = None
+    subsidy_type_id: Optional[int] = None
+    remark: Optional[str] = None
+
+class ErrorLibraryOut(ErrorLibraryCreate):
+    id: int
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

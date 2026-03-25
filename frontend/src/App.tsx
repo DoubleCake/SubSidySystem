@@ -7,7 +7,6 @@ import { AIPage } from './pages/SummaryAndAI'
 import SettingsPage from './pages/SettingsPage'
 import PreCheckPage from './pages/PreCheckPage'
 import ExternalLinksPage from './pages/ExternalLinksPage'
-import HouseholdsPage from './pages/HouseholdsPage'
 import BackupPage from './pages/BackupPage'
 import ExcelTemplatePage from './pages/ExcelTemplatePage'
 import LandTrustPage from './pages/LandTrustPage'
@@ -16,8 +15,7 @@ import { useState } from 'react'
 
 const mainNav = [
   { to: '/',            label: '首页',     icon: '📊', end: true },
-  { to: '/farmers',     label: '农户档案', icon: '👤' },
-  { to: '/households',  label: '家庭户',   icon: '🏠' },
+  { to: '/farmers',     label: '农户信息管理', icon: '👤' },
   { to: '/projects',    label: '补贴项目', icon: '💰' },
   { to: '/precheck',    label: '数据预检', icon: '🔍' },
   { to: '/links',       label: '外联查询', icon: '🔗' },
@@ -135,8 +133,6 @@ function Layout() {
           <Route path="/precheck"  element={<PreCheckPage />} />
           <Route path="/links"     element={<ExternalLinksPage />} />
           <Route path="/ai"        element={<AIPage />} />
-          <Route path="/settings/households"     element={<HouseholdsPage />} />
-          <Route path="/households"               element={<HouseholdsPage />} />
           <Route path="/settings/village-groups" element={<SettingsPage />} />
           <Route path="/settings/backup" element={<BackupPage />} />
           <Route path="/settings/excel-templates" element={<ExcelTemplatePage />} />

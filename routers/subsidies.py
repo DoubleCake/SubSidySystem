@@ -10,6 +10,7 @@ from schemas import (
     ApplicationCreate, ApplicationUpdate, ApplicationOut,
     YearCompare, YearSummary,
 )
+from utils import normalize_group_no
 
 router = APIRouter(prefix="/api/subsidies", tags=["补贴管理"])
 
@@ -96,24 +97,49 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
     created, skipped, errors = 0, 0, []
     new_farmers_created = 0
 
+    def resolve_village_group(village_name: str, group_no: str):
+        """根据村名+组号查找或创建村组，返回 (VillageGroup | None, error_msg | None)"""
+        from models import VillageGroup
+        if not village_name or not group_no:
+            return None, "缺少村组信息"
+        group_no = normalize_group_no(group_no)
+        vg = db.query(VillageGroup).filter_by(village_name=village_name, group_no=group_no).first()
+        if not vg:
+            # 尝试模糊匹配
+            vg = db.query(VillageGroup).filter(
+                VillageGroup.village_name.like(f"%{village_name}%"),
+                VillageGroup.group_no == group_no,
+            ).first()
+        if not vg:
+            # 自动创建新村组
+            vg = VillageGroup(village_name=village_name, group_no=group_no, full_name=f"{village_name}{group_no}")
+            db.add(vg); db.flush()
+        return vg, None
+
     def get_or_create_farmer(id_card: str, real_name: str, village_name: str = "", group_no: str = "") -> FarmerProfile | None:
-        """按身份证查找农户，不存在则自动创建（含家庭户）"""
+        """按身份证查找农户，不存在则自动创建（含家庭户）；已存在则检查村组一致性"""
         nonlocal new_farmers_created
+        from models import FamilyHousehold, VillageGroup
+
+        # 解析村组
+        vg, vg_err = resolve_village_group(village_name, group_no)
+
         fp = db.query(FarmerProfile).filter(FarmerProfile.id_card == id_card).first()
         if fp:
+            # 已存在的农户：检查村组是否与数据库一致，不一致则报错（不允许在补贴导入中静默修改）
+            if vg and fp.household_id:
+                hh = db.get(FamilyHousehold, fp.household_id)
+                if hh and hh.village_group_id != vg.id:
+                    db_vg = db.get(VillageGroup, hh.village_group_id)
+                    db_vg_name = f"{db_vg.village_name}{db_vg.group_no}" if db_vg else "未知"
+                    errors.append(f"{real_name}（{id_card}）：数据库中所在村组为「{db_vg_name}」，导入数据为「{village_name}{group_no}」不一致，请先在农户管理中修改")
+                    return None
             return fp
-        # 找或建村组
-        from models import VillageGroup, FamilyHousehold
-        vg = None
-        if village_name and group_no:
-            vg = db.query(VillageGroup).filter_by(village_name=village_name, group_no=group_no).first()
-            if not vg:
-                vg = VillageGroup(village_name=village_name, group_no=group_no, full_name=f"{village_name}{group_no}")
-                db.add(vg); db.flush()
+
         if not vg:
-            vg = db.query(VillageGroup).first()  # fallback：用第一个村组
-        if not vg:
+            errors.append(f"{real_name}（{id_card}）：{vg_err}，无法创建农户")
             return None
+
         parsed = parse_id_card(id_card) or {}
         fp = FarmerProfile(
             household_id=0, real_name=real_name, gender=parsed.get("gender", 1),
@@ -156,12 +182,19 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
                 skipped += 1
                 continue
             # 关键修复：pay_date 字符串转 Python date 对象
-            clean_row = {k: v for k, v in row.items() if k != "bank_card_snapshot"}
+            clean_row = {k: v for k, v in row.items() if k not in ("bank_card_snapshot", "id_card", "real_name", "village_name", "group_no", "bank_card")}
             if clean_row.get("pay_date") and isinstance(clean_row["pay_date"], str):
                 try:
                     clean_row["pay_date"] = date_type.fromisoformat(clean_row["pay_date"])
                 except ValueError:
                     clean_row["pay_date"] = None
+            # 面积自动求和：实际补贴面积 = 承包地面积 + 代耕代种面积
+            ca = float(clean_row.get("contract_area") or 0)
+            ta = float(clean_row.get("trust_area") or 0)
+            if ca or ta:
+                clean_row["apply_area"] = round(ca + ta, 2)
+                clean_row["contract_area"] = ca or None
+                clean_row["trust_area"] = ta or None
             app = SubsidyApplication(
                 **clean_row,
                 bank_card_snapshot=f"****{farmer.bank_card[-4:]}" if farmer and farmer.bank_card else None,
@@ -220,6 +253,8 @@ def list_applications(
             "apply_amount": a.apply_amount,
             "actual_amount": a.actual_amount,
             "apply_area": a.apply_area,
+            "contract_area": a.contract_area,
+            "trust_area": a.trust_area,
             "pay_status": a.pay_status,
             "pay_date": a.pay_date,
             "remark": a.remark,
@@ -413,6 +448,7 @@ def search_applications(
     year:             Optional[int] = Query(None),
     subsidy_type_id:  Optional[int] = Query(None),
     village_name:     Optional[str] = Query(None),
+    pay_status:       Optional[str] = Query(None,  description="支付状态，支持逗号分隔多值如 '1,2'"),
     page:     int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -426,6 +462,12 @@ def search_applications(
         q = q.filter(SubsidyApplication.apply_year == year)
     if subsidy_type_id:
         q = q.filter(SubsidyApplication.subsidy_type_id == subsidy_type_id)
+    if pay_status is not None:
+        statuses = [int(s.strip()) for s in pay_status.split(',') if s.strip().isdigit()]
+        if len(statuses) == 1:
+            q = q.filter(SubsidyApplication.pay_status == statuses[0])
+        elif len(statuses) > 1:
+            q = q.filter(SubsidyApplication.pay_status.in_(statuses))
     if village_name:
         vg_ids  = [v.id for v in db.query(VillageGroup).filter(VillageGroup.village_name == village_name).all()]
         hh_ids  = [h.id for h in db.query(FamilyHousehold).filter(FamilyHousehold.village_group_id.in_(vg_ids)).all()]
@@ -455,12 +497,16 @@ def search_applications(
             "farmer_id":       a.farmer_id,
             "farmer_name":     f.real_name    if f  else "—",
             "id_card_masked":  (f.id_card[:6] + "********" + f.id_card[-4:]) if f and f.id_card else "—",
+            "phone":           f.phone        if f  else None,
             "village":         vg.full_name   if vg else "—",
             "subsidy_type_id": a.subsidy_type_id,
             "subsidy_name":    st.subsidy_name if st else "—",
             "calc_mode":       st.calc_mode    if st else "fixed",
             "apply_year":      a.apply_year,
             "apply_area":      a.apply_area,
+            "contract_area":   a.contract_area,
+            "trust_area":      a.trust_area,
+            "no_subsidy_area": a.no_subsidy_area,
             "apply_amount":    a.apply_amount,
             "actual_amount":   a.actual_amount,
             "pay_status":      a.pay_status,
@@ -482,16 +528,29 @@ def delete_application(app_id: int, db: Session = Depends(get_db)):
     return {"message": "删除成功"}
 
 
+# ── 批量删除补贴申请记录 ──
+@router.post("/applications/batch-delete")
+def batch_delete_applications(payload: dict, db: Session = Depends(get_db)):
+    from sqlalchemy import text
+    ids = payload.get("ids", [])
+    if not ids or not isinstance(ids, list):
+        raise HTTPException(status_code=400, detail="缺少 ids 列表")
+    ids_str = ','.join(str(int(i)) for i in ids)
+    result = db.execute(text(f"DELETE FROM subsidy_application WHERE id IN ({ids_str})"))
+    db.commit()
+    return {"deleted": result.rowcount}
+
+
 # ── 批量标记已发放 ──
 @router.post("/applications/batch-pay")
 def batch_pay_applications(payload: dict, db: Session = Depends(get_db)):
     from sqlalchemy import text
     from datetime import date as date_type
     type_id  = payload.get("subsidy_type_id")
+    app_ids  = payload.get("application_ids")
     pay_date_raw = payload.get("pay_date")
     status   = payload.get("pay_status", 2)
-    if not type_id:
-        raise HTTPException(status_code=400, detail="缺少 subsidy_type_id")
+
     # pay_date 转为 date 对象
     if pay_date_raw and isinstance(pay_date_raw, str):
         try:
@@ -500,6 +559,21 @@ def batch_pay_applications(payload: dict, db: Session = Depends(get_db)):
             pay_date = date_type.today()
     else:
         pay_date = date_type.today()
+
+    if app_ids and isinstance(app_ids, list) and len(app_ids) > 0:
+        # 按指定的 application_ids 批量更新
+        ids_str = ','.join(str(int(i)) for i in app_ids)
+        result = db.execute(text(f"""
+            UPDATE subsidy_application
+            SET pay_status = :status, pay_date = :pay_date
+            WHERE id IN ({ids_str})
+        """), {"status": status, "pay_date": pay_date})
+        db.commit()
+        return {"updated": result.rowcount}
+
+    if not type_id:
+        raise HTTPException(status_code=400, detail="缺少 subsidy_type_id 或 application_ids")
+    # 按 subsidy_type_id 批量更新
     result = db.execute(text("""
         UPDATE subsidy_application
         SET pay_status = :status, pay_date = :pay_date
@@ -580,10 +654,10 @@ def get_application_stats(
     
     if not apps:
         return {
-            "total_amount": 0,
-            "total_farmers": 0,
-            "village_distribution": [],
-            "year_comparison": None
+            "totalAmount": 0,
+            "totalFarmers": 0,
+            "villageDistribution": [],
+            "yearComparison": None
         }
     
     # 总额和总人数

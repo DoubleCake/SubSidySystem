@@ -113,12 +113,12 @@ export default function HouseholdsPage() {
   const [detailTab, setDetailTab] = useState<'members'|'area'|'subsidy'|'history'>('members')
   const [events, setEvents] = useState<HHEvent[]>([])
 
-  // 日期级历史滑轨
-  const [historyDate, setHistoryDate] = useState<string | null>(null)
-  const [historyDates, setHistoryDates] = useState<HistoryDateEvent[]>([])
-  const [snapshotData, setSnapshotData] = useState<SnapshotAtResponse | null>(null)
-  const [historyLoading, setHistoryLoading] = useState(false)
-  const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set())
+  // // 日期级历史滑轨
+  // const [historyDate, setHistoryDate] = useState<string | null>(null)
+  // const [historyDates, setHistoryDates] = useState<HistoryDateEvent[]>([])
+  // const [snapshotData, setSnapshotData] = useState<SnapshotAtResponse | null>(null)
+  // const [historyLoading, setHistoryLoading] = useState(false)
+  // const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set())
 
   // 批量组建
   const [buildOpen, setBuildOpen]     = useState(false)

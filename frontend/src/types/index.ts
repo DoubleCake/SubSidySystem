@@ -117,12 +117,16 @@ export interface ApplicationSearchResult {
   farmer_id: number
   farmer_name: string
   id_card_masked?: string
+  phone?: string | null
   village?: string
   subsidy_type_id: number
   subsidy_name: string
   calc_mode?: string
   apply_year: number
   apply_area: string | null
+  contract_area: string | null
+  trust_area: string | null
+  no_subsidy_area: string | null
   apply_amount: string | null
   actual_amount: string | null
   pay_status: number
@@ -137,6 +141,9 @@ export interface ApplicationCreate {
   apply_amount?: number
   actual_amount?: number
   apply_area?: number
+  contract_area?: number
+  trust_area?: number
+  no_subsidy_area?: number
   pay_status: number
   pay_date?: string
   remark?: string
@@ -203,4 +210,64 @@ export interface ExcelColumnTemplate {
   region_name: string | null; business_type: string; subsidy_type_id: number | null
   column_mapping: ColumnMappingItem[]; skip_rules: unknown[]; value_mapping: Record<string, unknown>
   use_count: number; last_used_at: string | null
+}
+
+// ── 错误库 ──
+export interface ErrorLibraryItem {
+  id: number
+  real_name: string
+  id_card: string
+  error_type: string
+  error_reason: string
+  source: string
+  village_name: string | null
+  group_no: string | null
+  subsidy_name: string | null
+  discovered_date: string | null
+  subsidy_type_id: number | null
+  remark: string | null
+  created_at: string | null
+}
+
+export interface ErrorLibraryCreate {
+  real_name: string
+  id_card: string
+  error_type: string
+  error_reason: string
+  source?: string
+  village_name?: string
+  group_no?: string
+  subsidy_name?: string
+  discovered_date?: string
+  subsidy_type_id?: number
+  remark?: string
+}
+
+// ── 预检结果 ──
+export interface CheckResult {
+  summary: {
+    total_rows: number
+    ok_rows: number
+    error_rows: number
+    format_errors: number
+    village_errors: number
+    duplicate_errors: number
+    gender_mismatch: number
+    error_library_hits: number
+    area_exceeds: number
+    new_farmers: number
+    removed_farmers: number
+    changed_farmers: number
+    pass_rate: number
+  }
+  format_errors: Array<{ row: number; name: string; id_card: string; village: string; group: string; errors: string[]; error_count: number }>
+  village_errors: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
+  duplicate_errors: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
+  gender_mismatch: Array<{ row: number; name: string; id_card: string; village: string; group: string; excel_gender: string; id_card_gender: string; error: string }>
+  error_library_hits: Array<{ row: number; name: string; id_card: string; village: string; group: string; error_type: string; error_reason: string; source: string }>
+  area_exceeds: Array<{ row: number; name: string; id_card: string; village: string; group: string; land_area: number; contracted_area: number }>
+  new_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; village_group_id: number | null }>
+  removed_farmers: Array<{ id_card: string; name: string; village: string; group: string; farmer_id: number; note: string }>
+  changed_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; db_name: string; db_village: string; db_group: string; changes: string[]; farmer_id: number }>
+  year_compare: Record<string, unknown>
 }

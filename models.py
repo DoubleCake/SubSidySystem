@@ -17,6 +17,11 @@ class VillageGroup(Base):
     full_name    = Column(String(80), nullable=False, comment="村+组全称")
     created_at   = Column(DateTime, default=func.now())
 
+    # 确保每个村组全称唯一
+    __table_args__ = (
+        UniqueConstraint('full_name', name='uq_village_group_full_name'),
+    )
+
     # 关联
     households = relationship("FamilyHousehold", back_populates="village_group")
 
@@ -105,7 +110,10 @@ class SubsidyApplication(Base):
     apply_year          = Column(SmallInteger, nullable=False)
     apply_amount        = Column(DECIMAL(10, 2), nullable=True, comment="申请金额")
     actual_amount       = Column(DECIMAL(10, 2), nullable=True, comment="实发金额")
-    apply_area          = Column(DECIMAL(10, 2), nullable=True, comment="申请面积(亩)")
+    apply_area          = Column(DECIMAL(10, 2), nullable=True, comment="实际补贴面积(亩)=承包地+代耕代种")
+    contract_area       = Column(DECIMAL(10, 2), nullable=True, comment="承包地面积(亩)")
+    trust_area          = Column(DECIMAL(10, 2), nullable=True, comment="代耕代种面积(亩)")
+    no_subsidy_area     = Column(DECIMAL(10, 2), nullable=True, comment="不予补贴面积(亩)")
     pay_status          = Column(SmallInteger, nullable=False, default=0,
                                  comment="0待审核 1审核通过 2已发放 3驳回")
     pay_date            = Column(Date, nullable=True)
@@ -367,3 +375,22 @@ class HouseholdEvent(Base):
 
     household = relationship("FamilyHousehold", foreign_keys=[household_id],
                               backref="events")
+
+
+class ErrorLibrary(Base):
+    """错误库 —— 存储已验证为错误的人员信息"""
+    __tablename__ = "error_library"
+
+    id              = Column(Integer, primary_key=True, autoincrement=True)
+    real_name       = Column(String(50), nullable=False, comment="姓名")
+    id_card         = Column(String(18), nullable=False, comment="身份证号")
+    error_type      = Column(String(20), nullable=False, comment="错误类型：身份证错误/重复人员/已故/身份冒用/其他")
+    error_reason    = Column(Text, nullable=False, comment="错误原因详情")
+    source          = Column(String(20), nullable=False, default="手动录入", comment="来源：预检发现/外部核查/手动录入")
+    village_name    = Column(String(50), nullable=True, comment="所在村")
+    group_no        = Column(String(20), nullable=True, comment="所在组")
+    subsidy_name    = Column(String(100), nullable=True, comment="补贴分类名称")
+    discovered_date = Column(String(10), nullable=True, comment="发现日期 YYYY-MM-DD")
+    subsidy_type_id = Column(Integer, nullable=True, comment="关联补贴类型（可空）")
+    remark          = Column(Text, nullable=True, comment="备注")
+    created_at      = Column(DateTime, default=func.now())

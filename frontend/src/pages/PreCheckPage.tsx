@@ -1,32 +1,17 @@
 /**
  * 数据预检查页面
- * 流程：上传 Excel → 解析 → 发送后端校验 → 分类展示结果 → 导出报告
+ * 流程：通过 ExcelImportWithMapping 上传映射 → 发送后端校验 → 分类展示结果 → 导出报告
  */
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import * as XLSX from 'xlsx'
 import Tag from '../components/Tag'
+import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
+import ErrorLibraryPage from './ErrorLibraryPage'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import { years } from '../utils'
-
-interface ErrorLibEntry {
-  id: number; id_card: string; real_name: string
-  village_name: string | null; group_no: string | null
-  error_reason: string; created_at: string | null; updated_at: string | null
-}
-interface MatchHit {
-  match_type: 'id_card' | 'name_only'
-  match_label: string
-  id_card: string; real_name: string; library_name: string
-  library_id_card?: string   // 仅 name_only 匹配时有
-  village_name: string; group_no: string
-  error_reason: string
-}
-interface ErrorLibPage {
-  total: number; page: number; page_size: number
-  items: ErrorLibEntry[]
-  villages: string[]
-}
+import { getExcelTemplates } from '../api'
+import type { CheckResult, ExcelColumnTemplate } from '../types'
 
 // ─── 类型定义 ───
 interface CheckRow {
@@ -40,64 +25,24 @@ interface CheckRow {
   gender?: string
 }
 
-interface CheckResult {
-  summary: {
-    total_rows: number; ok_rows: number; error_rows: number
-    format_errors: number; village_errors: number
-    duplicate_errors: number; gender_mismatch: number
-    new_farmers: number; removed_farmers: number
-    changed_farmers: number; pass_rate: number
-  }
-  format_errors:    { row: number; name: string; id_card: string; village: string; group: string; errors: string[] }[]
-  village_errors:   { row: number; name: string; id_card: string; village: string; group: string; error: string }[]
-  duplicate_errors: { row: number; name: string; id_card: string; error: string }[]
-  gender_mismatch:  { row: number; name: string; id_card: string; excel_gender: string; id_card_gender: string; error: string }[]
-  new_farmers:      { row: number; name: string; id_card: string; village: string; group: string }[]
-  removed_farmers:  { name: string; id_card: string; village: string; group: string; note: string }[]
-  changed_farmers:  { row: number; name: string; id_card: string; db_name: string; changes: string[] }[]
-  year_compare: {
-    year: number; db_count: number; excel_count: number
-    new_count: number; removed_count: number
-    new_farmers: { id_card: string; name: unknown }[]
-    removed_farmers: { id_card: string; name: string; village: string }[]
-  } | Record<string, never>
-}
+type ActiveTab = 'error-library-hits' | 'format' | 'village' | 'duplicate' | 'gender' | 'area-exceeds' | 'new' | 'removed' | 'changed' | 'year'
+type PageTab = 'check' | 'error-lib'
 
-type ActiveTab = 'format' | 'village' | 'duplicate' | 'gender' | 'new' | 'removed' | 'changed' | 'year' | 'error-lib'
+// ─── 预检系统字段（传给 ExcelImportWithMapping）───
+const PRECHECK_SYSTEM_FIELDS = [
+  { field: "real_name",    label: "姓名",     required: true,  type: "string" },
+  { field: "id_card",      label: "身份证号", required: true,  type: "id_card" },
+  { field: "village_name", label: "所在村",   required: true,  type: "string" },
+  { field: "group_no",     label: "所在组",   required: true,  type: "string" },
+  { field: "gender",       label: "性别",     required: false, type: "string" },
+  { field: "phone",        label: "手机号",   required: false, type: "string" },
+  { field: "land_area",    label: "土地面积", required: false, type: "number" },
+]
 
-// ─── 列映射配置（支持不同列名的 Excel）───
-const COLUMN_ALIASES: Record<keyof CheckRow | string, string[]> = {
-  real_name:    ['姓名*', '姓名', '名字', '农户姓名'],
-  id_card:      ['身份证号*', '身份证号', '身份证', '证件号码'],
-  village_name: ['所在村*', '所在村', '村名', '村庄'],
-  group_no:     ['所在组*', '所在组', '组号', '村组'],
-  phone:        ['手机号', '电话', '联系电话', '手机'],
-  land_area:    ['土地面积(亩)', '土地面积', '面积', '承包面积'],
-  gender:       ['性别'],
-}
-
-function mapRow(raw: Record<string, unknown>, rowIndex: number): CheckRow {
-  const get = (key: string): string => {
-    const aliases = COLUMN_ALIASES[key] || [key]
-    for (const alias of aliases) {
-      if (raw[alias] !== undefined && raw[alias] !== null && raw[alias] !== '') {
-        return String(raw[alias]).trim()
-      }
-    }
-    return ''
-  }
-  const landStr = get('land_area')
-  return {
-    row_index:    rowIndex,
-    real_name:    get('real_name'),
-    id_card:      get('id_card'),
-    village_name: get('village_name'),
-    group_no:     get('group_no'),
-    phone:        get('phone') || undefined,
-    gender:       get('gender') || undefined,
-    land_area:    landStr ? parseFloat(landStr) : undefined,
-  }
-}
+const PRECHECK_TEMPLATE_HEADERS = ['姓名*', '身份证号*', '所在村*', '所在组*', '性别', '手机号', '银行卡号', '开户行', '土地面积(亩)', '备注']
+const PRECHECK_TEMPLATE_EXAMPLE = [
+  { '姓名*': '张国强', '身份证号*': '510123196503154231', '所在村*': '红星村', '所在组*': '一组', '性别': '男', '手机号': '13812340001', '银行卡号': '', '开户行': '', '土地面积(亩)': 3.5, '备注': '' },
+]
 
 // ─── 导出报告到 Excel ───
 function exportReport(result: CheckResult, fileName = '预检查报告') {
@@ -119,10 +64,18 @@ function exportReport(result: CheckResult, fileName = '预检查报告') {
     '村组不存在': result.summary.village_errors,
     '重复身份证': result.summary.duplicate_errors,
     '性别不符': result.summary.gender_mismatch,
+    '错误库命中': result.summary.error_library_hits,
+    '面积超限': result.summary.area_exceeds,
     '新增农户': result.summary.new_farmers,
     '减少农户': result.summary.removed_farmers,
     '字段变更': result.summary.changed_farmers,
   }])
+
+  addSheet('错误库命中', result.error_library_hits.map(r => ({
+    '行号': r.row, '姓名': r.name, '身份证号': r.id_card,
+    '所在村': r.village, '所在组': r.group,
+    '错误类型': r.error_type, '错误原因': r.error_reason, '来源': r.source,
+  })))
 
   addSheet('格式错误', result.format_errors.map(r => ({
     '行号': r.row, '姓名': r.name, '身份证号': r.id_card,
@@ -144,6 +97,12 @@ function exportReport(result: CheckResult, fileName = '预检查报告') {
     'Excel性别': r.excel_gender, '身份证性别': r.id_card_gender,
   })))
 
+  addSheet('面积超限', result.area_exceeds.map(r => ({
+    '行号': r.row, '姓名': r.name, '身份证号': r.id_card,
+    '所在村': r.village, '所在组': r.group,
+    '填报面积': r.land_area, '承包面积': r.contracted_area,
+  })))
+
   addSheet('新增农户', result.new_farmers.map(r => ({
     '行号': r.row, '姓名': r.name, '身份证号': r.id_card,
     '所在村': r.village, '所在组': r.group, '说明': '数据库中不存在，将新增',
@@ -159,8 +118,8 @@ function exportReport(result: CheckResult, fileName = '预检查报告') {
     '变更内容': r.changes.join('；'),
   })))
 
-  if (result.year_compare && result.year_compare.year) {
-    const yc = result.year_compare as CheckResult['year_compare'] & { year: number }
+  if (result.year_compare && (result.year_compare as { year?: number }).year) {
+    const yc = result.year_compare as { year: number; new_farmers: { id_card: string; name: unknown }[]; removed_farmers: { id_card: string; name: string; village: string }[] }
     addSheet(`${yc.year}年对比-新增`, (yc.new_farmers || []).map(r => ({
       '身份证号': r.id_card, '姓名': String(r.name), '说明': `${yc.year}年补贴新增`,
     })))
@@ -169,76 +128,39 @@ function exportReport(result: CheckResult, fileName = '预检查报告') {
     })))
   }
 
-  XLSX.writeFile(wb, `${fileName}_${new Date().toISOString().slice(0,10)}.xlsx`)
-}
-
-// ─── 下载导入模板 ───
-function downloadTemplate() {
-  const headers = ['姓名*', '身份证号*', '所在村*', '所在组*', '性别', '手机号', '银行卡号', '开户行', '土地面积(亩)', '备注']
-  const example = [{ '姓名*': '张国强', '身份证号*': '510123196503154231', '所在村*': '红星村', '所在组*': '一组', '性别': '男', '手机号': '13812340001', '银行卡号': '', '开户行': '', '土地面积(亩)': 3.5, '备注': '' }]
-  const ws = XLSX.utils.json_to_sheet(example, { header: headers })
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, '预检查模板')
-  XLSX.writeFile(wb, '预检查数据模板.xlsx')
+  XLSX.writeFile(wb, `${fileName}_${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
 // ─── 主页面 ───
 export default function PreCheckPage() {
   const { toast, show } = useToast()
-  const [step, setStep]             = useState<'upload' | 'checking' | 'result'>('upload')
-  const [rawRows, setRawRows]       = useState<CheckRow[]>([])
-  const [fileName, setFileName]     = useState('')
-  const [result, setResult]         = useState<CheckResult | null>(null)
+  const [step, setStep] = useState<'upload' | 'checking' | 'result'>('upload')
+  const [rawRows, setRawRows] = useState<CheckRow[]>([])
+  const [result, setResult] = useState<CheckResult | null>(null)
   const [compareYear, setCompareYear] = useState<number | ''>('')
-  const [activeTab, setActiveTab]   = useState<ActiveTab>('format')
+  const [activeTab, setActiveTab] = useState<ActiveTab>('format')
+  const [pageTab, setPageTab] = useState<PageTab>('check')
 
-  // ── 历史错误库 ──
-  const [errorLibData, setErrorLibData] = useState<ErrorLibPage>({ total: 0, page: 1, page_size: 50, items: [], villages: [] })
-  const [libLoading, setLibLoading] = useState(false)
-  const [libSearch, setLibSearch]   = useState('')
-  const [libVillage, setLibVillage] = useState('')
-  const [libPage, setLibPage]       = useState(1)
-  const [libForm, setLibForm]       = useState({ id_card: '', real_name: '', village_name: '', group_no: '', error_reason: '' })
-  const [editingId, setEditingId]   = useState<number | null>(null)
-  const [editForm, setEditForm]     = useState<Partial<ErrorLibEntry>>({})
-  const [matchHits, setMatchHits]   = useState<MatchHit[]>([])
-  const [matchLoading, setMatchLoading] = useState(false)
-  const [dragOver, setDragOver]     = useState(false)
+  // ExcelImportWithMapping 状态
+  const [importOpen, setImportOpen] = useState(false)
+  const [templates, setTemplates] = useState<ExcelColumnTemplate[]>([])
+  const pendingRows = useRef<CheckRow[] | null>(null)
 
-  // 简写：只用 items（旧代码兼容）
-  const errorLib = errorLibData.items
-
-  // 解析 Excel 文件
-  const parseFile = useCallback((file: File) => {
-    const reader = new FileReader()
-    reader.onload = e => {
-      const wb = XLSX.read(e.target?.result, { type: 'array' })
-      const ws = wb.Sheets[wb.SheetNames[0]]
-      const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' })
-      const rows = data.map((raw, i) => mapRow(raw, i + 2)) // 行号从2开始（1是表头）
-      setRawRows(rows)
-      setFileName(file.name)
-      setStep('upload')
-    }
-    reader.readAsArrayBuffer(file)
+  // 加载预检模板
+  useEffect(() => {
+    getExcelTemplates('PRECHECK').then(setTemplates).catch(() => {})
   }, [])
 
-  const onDrop = (e: React.DragEvent) => {
-    e.preventDefault(); setDragOver(false)
-    const file = e.dataTransfer.files[0]
-    if (file) parseFile(file)
-  }
-
-  // 发送后端检查
-  const runCheck = async () => {
-    if (!rawRows.length) return show('请先上传 Excel 文件', 'err')
+  // 执行后端检查
+  const runCheck = useCallback(async (rows: CheckRow[]) => {
+    if (!rows.length) return show('请先上传 Excel 文件', 'err')
     setStep('checking')
     try {
       const res = await fetch('/api/precheck/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          rows: rawRows,
+          rows,
           compare_year: compareYear || null,
         })
       })
@@ -247,50 +169,68 @@ export default function PreCheckPage() {
       setResult(data)
       setStep('result')
 
-      // 预检完成后自动触发历史错误库比对（静默执行，不弹 toast）
-      try {
-        const seen = new Set<string>()
-        const deduped = rawRows
-          .filter(r => r.id_card && !seen.has(r.id_card) && (seen.add(r.id_card), true))
-          .map(r => ({ id_card: r.id_card, real_name: r.real_name }))
-        const matchRes = await fetch('/api/precheck/error-library/match', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rows: deduped })
-        }).then(r => r.json()) as { total: number; hits: MatchHit[] }
-        setMatchHits(matchRes.hits)
-        if (matchRes.hits.length > 0) {
-          show(`⚠️ 命中 ${matchRes.hits.length} 条历史错误记录，请查看「历史错误库」标签`, 'err')
-        }
-      } catch { /* 比对失败静默处理 */ }
-
-      // 默认展示有数据的第一个 tab（历史错误库命中时优先展示）
-      const tabs: ActiveTab[] = ['format', 'village', 'duplicate', 'gender', 'new', 'removed', 'changed', 'year']
-      const counts: Record<ActiveTab, number> = {
-        'error-lib': 0,
-        format: data.summary.format_errors, village: data.summary.village_errors,
-        duplicate: data.summary.duplicate_errors, gender: data.summary.gender_mismatch,
-        new: data.summary.new_farmers, removed: data.summary.removed_farmers,
-        changed: data.summary.changed_farmers,
-        year: data.year_compare && (data.year_compare as { new_count?: number }).new_count !== undefined ? 1 : 0,
+      // 默认展示有数据的第一个 tab
+      const tabs: { id: ActiveTab; count: number }[] = [
+        { id: 'error-library-hits', count: data.summary.error_library_hits },
+        { id: 'format', count: data.summary.format_errors },
+        { id: 'village', count: data.summary.village_errors },
+        { id: 'duplicate', count: data.summary.duplicate_errors },
+        { id: 'gender', count: data.summary.gender_mismatch },
+        { id: 'area-exceeds', count: data.summary.area_exceeds },
+        { id: 'new', count: data.summary.new_farmers },
+        { id: 'removed', count: data.summary.removed_farmers },
+        { id: 'changed', count: data.summary.changed_farmers },
+      ]
+      const yearCompare = data.year_compare as { year?: number; new_count?: number }
+      if (yearCompare?.year) {
+        tabs.push({ id: 'year', count: (yearCompare.new_count || 0) + ((yearCompare as { removed_count?: number }).removed_count || 0) })
       }
-      setActiveTab(tabs.find(t => counts[t] > 0) || 'new')
+      setActiveTab(tabs.find(t => t.count > 0)?.id || 'new')
     } catch (e: unknown) {
       show((e as Error).message, 'err')
       setStep('upload')
     }
-  }
+  }, [compareYear, show])
 
-  const reset = () => { setStep('upload'); setRawRows([]); setResult(null); setFileName('') }
+  // ExcelImportWithMapping 的 onImport：捕获映射后的行数据，不写入数据库
+  const handlePrecheckImport = useCallback(async (mappedRows: Record<string, unknown>[]): Promise<{ created: number; skipped: number; errors: string[] }> => {
+    const rows: CheckRow[] = mappedRows.map((r, i) => ({
+      row_index: i + 2,
+      real_name: String(r.real_name || '').trim(),
+      id_card: String(r.id_card || '').trim(),
+      village_name: String(r.village_name || '').trim(),
+      group_no: String(r.group_no || '').trim(),
+      phone: r.phone ? String(r.phone).trim() : undefined,
+      land_area: r.land_area != null && r.land_area !== '' ? Number(r.land_area) : undefined,
+      gender: r.gender ? String(r.gender).trim() : undefined,
+    }))
+    pendingRows.current = rows
+    setRawRows(rows)
+    return { created: rows.length, skipped: 0, errors: [] }
+  }, [])
+
+  // ExcelImportWithMapping 的 onSuccess：映射完成，关闭弹窗并开始检查
+  const handleImportSuccess = useCallback(() => {
+    setImportOpen(false)
+    if (pendingRows.current && pendingRows.current.length > 0) {
+      const rows = pendingRows.current
+      pendingRows.current = null
+      runCheck(rows)
+    }
+  }, [runCheck])
+
+  const reset = () => { setStep('upload'); setRawRows([]); setResult(null); pendingRows.current = null }
 
   // ─── 结果 tab 定义 ───
   const getTabs = (r: CheckResult) => {
     const yc = r.year_compare as { year?: number; new_count?: number; removed_count?: number }
     return [
-      { id: 'error-lib' as ActiveTab, label: '历史错误库', count: matchHits.length, color: matchHits.length > 0 ? 'red' as const : 'amber' as const },
+      { id: 'error-library-hits' as ActiveTab, label: '错误库命中', count: r.summary.error_library_hits, color: 'red' as const },
       { id: 'format' as ActiveTab,    label: '格式错误',   count: r.summary.format_errors,    color: 'red'    as const },
       { id: 'village' as ActiveTab,   label: '村组不存在', count: r.summary.village_errors,   color: 'red'    as const },
       { id: 'duplicate' as ActiveTab, label: '重复身份证', count: r.summary.duplicate_errors, color: 'amber'  as const },
       { id: 'gender' as ActiveTab,    label: '性别不符',   count: r.summary.gender_mismatch,  color: 'amber'  as const },
+      { id: 'area-exceeds' as ActiveTab, label: '面积超限', count: r.summary.area_exceeds,   color: 'orange' as const },
       { id: 'new' as ActiveTab,       label: '新增农户',   count: r.summary.new_farmers,      color: 'green'  as const },
       { id: 'removed' as ActiveTab,   label: '减少农户',   count: r.summary.removed_farmers,  color: 'blue'   as const },
       { id: 'changed' as ActiveTab,   label: '字段变更',   count: r.summary.changed_farmers,  color: 'purple' as const },
@@ -298,197 +238,49 @@ export default function PreCheckPage() {
     ]
   }
 
-
-  const loadErrorLib = async (page = libPage, search = libSearch, village = libVillage) => {
-    setLibLoading(true)
-    try {
-      const params = new URLSearchParams({ page: String(page), page_size: '50' })
-      if (search)  params.set('search',  search)
-      if (village) params.set('village', village)
-      const r = await fetch(`/api/precheck/error-library?${params}`).then(r => r.json()) as ErrorLibPage
-      setErrorLibData(r)
-      setLibPage(page)
-    } finally { setLibLoading(false) }
-  }
-
-  const addToLib = async () => {
-    if (!libForm.id_card || !libForm.real_name || !libForm.error_reason)
-      return show('请填写身份证号、姓名和错误原因', 'err')
-    await fetch('/api/precheck/error-library', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(libForm)
-    })
-    show('✓ 已添加')
-    setLibForm({ id_card: '', real_name: '', village_name: '', group_no: '', error_reason: '' })
-    loadErrorLib(1)
-  }
-
-  const saveEdit = async (id: number) => {
-    await fetch(`/api/precheck/error-library/${id}`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editForm)
-    })
-    show('✓ 已保存')
-    setEditingId(null)
-    loadErrorLib()
-  }
-
-  const deleteFromLib = async (id: number) => {
-    if (!confirm('确认删除这条历史错误记录？')) return
-    await fetch(`/api/precheck/error-library/${id}`, { method: 'DELETE' })
-    loadErrorLib()
-  }
-
-  const runMatch = async () => {
-    if (!result) return show('请先运行预检查', 'err')
-    setMatchLoading(true)
-    try {
-      // 收集本次所有人员（覆盖所有 tab 的数据）
-      const allRows: { id_card: string; real_name: string }[] = []
-      const pushRows = (arr: { id_card: string; name: string }[]) =>
-        arr.forEach(r => allRows.push({ id_card: r.id_card, real_name: r.name }))
-      pushRows(result.format_errors.map(r => ({ id_card: r.id_card, name: r.name })))
-      pushRows(result.village_errors.map(r => ({ id_card: r.id_card, name: r.name })))
-      pushRows(result.new_farmers.map(r => ({ id_card: r.id_card, name: r.name })))
-      pushRows(result.changed_farmers.map(r => ({ id_card: r.id_card, name: r.name })))
-      // 所有通过格式检查的也加入（全量比对）
-      rawRows.forEach(r => {
-        if (r.id_card) allRows.push({ id_card: r.id_card, real_name: r.real_name })
-      })
-      // 去重
-      const seen = new Set<string>()
-      const deduped = allRows.filter(r => {
-        if (!r.id_card || seen.has(r.id_card)) return false
-        seen.add(r.id_card); return true
-      })
-
-      const res = await fetch('/api/precheck/error-library/match', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rows: deduped })
-      }).then(r => r.json()) as { total: number; hits: MatchHit[] }
-
-      setMatchHits(res.hits)
-      if (res.hits.length === 0) show('✓ 无命中历史错误记录')
-      else show(`⚠️ 命中 ${res.hits.length} 条历史错误`, 'err')
-    } finally { setMatchLoading(false) }
-  }
-
-  const exportMatchHits = () => {
-    if (matchHits.length === 0) return
-    const rows = matchHits.map(h => ({
-      '匹配方式': h.match_label,
-      '身份证号（本次）': h.id_card,
-      '姓名': h.real_name,
-      '库中姓名': h.library_name,
-      ...(h.library_id_card ? { '库中身份证': h.library_id_card } : {}),
-      '库中村': h.village_name || '',
-      '库中组': h.group_no || '',
-      '历史错误原因': h.error_reason,
-    }))
-    const ws = XLSX.utils.json_to_sheet(rows)
-    ws['!cols'] = [16, 20, 10, 10, 20, 8, 6, 40].map(w => ({ wch: w }))
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, '历史错误命中')
-    XLSX.writeFile(wb, `历史错误命中_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.xlsx`)
-  }
-
-  const importErrorLib = async (rows: Record<string, unknown>[]) => {
-    const toImport = rows.map(r => ({
-      id_card:      String(r['身份证号*'] || r['身份证号'] || '').trim(),
-      real_name:    String(r['姓名*']     || r['姓名']     || '').trim(),
-      village_name: String(r['村']        || r['所在村']   || '').trim() || undefined,
-      group_no:     String(r['组']        || r['所在组']   || r['组号'] || '').trim() || undefined,
-      error_reason: String(r['错误原因*'] || r['错误原因'] || '').trim(),
-    })).filter(r => r.id_card && r.real_name)
-    const res = await fetch('/api/precheck/error-library/batch-import', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rows: toImport })
-    }).then(r => r.json()) as { created: number; updated: number; skipped: number }
-    show(`✓ 新增 ${res.created} 条，更新 ${res.updated} 条${res.skipped ? `，跳过 ${res.skipped} 条` : ''}`)
-    loadErrorLib(1)
-    return { created: res.created, skipped: res.skipped || 0, errors: [] }
-  }
-
-  const downloadLibTemplate = () => {
-    const ws = XLSX.utils.aoa_to_sheet([
-      ['身份证号*', '姓名*', '村', '组', '错误原因*'],
-      ['510123196503154231', '张国强', '红星村', '一组', '2023年补贴重复申领，已处理'],
-      ['510123197808224567', '李秀英', '朝阳村', '二组', '身份证与人脸核验不符'],
-      ['510123198901012345', '王建国', '', '', '银行卡号疑似他人账户'],
-    ])
-    ws['!cols'] = [20, 10, 10, 6, 40].map(w => ({ wch: w }))
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, '历史错误库模板')
-    XLSX.writeFile(wb, '历史错误库导入模板.xlsx')
-  }
-
   return (
     <div>
+      {/* ── 顶层 Tab ── */}
+      <div className="flex gap-1 mb-5">
+        {([
+          { id: 'check' as PageTab, label: '数据检查', icon: '🔍' },
+          { id: 'error-lib' as PageTab, label: '历史错误库', icon: '📋' },
+        ] as const).map(t => (
+          <button key={t.id} onClick={() => setPageTab(t.id)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors
+              ${pageTab === t.id ? 'bg-emerald-700 text-white shadow' : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'}`}>
+            {t.icon} {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── 历史错误库 Tab ── */}
+      {pageTab === 'error-lib' && <ErrorLibraryPage embedded />}
+
+      {/* ── 数据检查 Tab ── */}
+      {pageTab === 'check' && <>
       {/* ── 上传区 ── */}
       {step !== 'result' && (
         <div className="grid grid-cols-[1fr_280px] gap-5">
           <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-stone-700">上传待检查 Excel 文件</h3>
-              <button onClick={downloadTemplate}
-                className="text-xs text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-50">
-                ↓ 下载数据模板
-              </button>
             </div>
 
-            {/* 拖拽上传区 */}
-            <div
-              className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors
-                ${dragOver ? 'border-emerald-400 bg-emerald-50' : rawRows.length ? 'border-emerald-300 bg-emerald-50/40' : 'border-stone-200 hover:border-stone-300'}`}
-              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={onDrop}
-              onClick={() => document.getElementById('precheck-file')?.click()}>
-              {rawRows.length ? (
-                <div>
-                  <div className="text-4xl mb-3">✅</div>
-                  <p className="text-stone-700 font-semibold">{fileName}</p>
-                  <p className="text-stone-400 text-sm mt-1">已解析 <strong className="text-emerald-700">{rawRows.length}</strong> 行数据，点击可重新上传</p>
-                </div>
-              ) : (
-                <div>
-                  <div className="text-4xl mb-3">📊</div>
-                  <p className="text-stone-500 text-sm">拖拽 Excel 文件到这里，或点击选择</p>
-                  <p className="text-stone-300 text-xs mt-1">支持 .xlsx / .xls</p>
-                </div>
-              )}
-              <input id="precheck-file" type="file" accept=".xlsx,.xls" className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) parseFile(f); e.target.value = '' }} />
-            </div>
-
-            {/* 预览前5行 */}
-            {rawRows.length > 0 && (
-              <div className="mt-4">
-                <p className="text-xs text-stone-400 mb-2">前5行预览（共 {rawRows.length} 行）：</p>
-                <div className="border border-stone-100 rounded-lg overflow-auto">
-                  <table className="w-full text-xs">
-                    <thead className="bg-stone-50"><tr>
-                      {['行号','姓名','身份证号','所在村','所在组','性别','手机号','土地面积'].map(h => (
-                        <th key={h} className="px-3 py-2 text-left text-stone-400 font-medium whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr></thead>
-                    <tbody>
-                      {rawRows.slice(0, 5).map((r, i) => (
-                        <tr key={i} className="border-t border-stone-50">
-                          <td className="px-3 py-1.5 text-stone-400">{r.row_index}</td>
-                          <td className="px-3 py-1.5">{r.real_name || <span className="text-red-400">空</span>}</td>
-                          <td className="px-3 py-1.5 font-mono">{r.id_card || <span className="text-red-400">空</span>}</td>
-                          <td className="px-3 py-1.5">{r.village_name || <span className="text-red-400">空</span>}</td>
-                          <td className="px-3 py-1.5">{r.group_no || <span className="text-red-400">空</span>}</td>
-                          <td className="px-3 py-1.5">{r.gender || '—'}</td>
-                          <td className="px-3 py-1.5 font-mono">{r.phone || '—'}</td>
-                          <td className="px-3 py-1.5">{r.land_area ?? '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+            {rawRows.length > 0 ? (
+              <div className="border-2 border-emerald-300 bg-emerald-50/40 rounded-xl p-12 text-center">
+                <div className="text-4xl mb-3">✅</div>
+                <p className="text-stone-700 font-semibold">已导入 {rawRows.length} 行数据</p>
+                <p className="text-stone-400 text-sm mt-1">正在执行预检查…</p>
               </div>
+            ) : (
+              <button
+                onClick={() => setImportOpen(true)}
+                className="w-full border-2 border-dashed border-stone-200 rounded-xl p-12 text-center hover:border-emerald-400 hover:bg-emerald-50 transition-colors cursor-pointer">
+                <div className="text-4xl mb-3">📊</div>
+                <p className="text-stone-500 text-sm">点击选择 Excel 文件上传</p>
+                <p className="text-stone-300 text-xs mt-1">支持 .xlsx / .xls，可配置列映射</p>
+              </button>
             )}
           </div>
 
@@ -517,15 +309,11 @@ export default function PreCheckPage() {
               <p>✓ 性别：与身份证是否一致</p>
               <p>✓ 村组：是否在数据库中存在</p>
               <p>✓ 内部重复：同一身份证是否出现多次</p>
+              <p>✓ 错误库：与历史错误记录交叉比对</p>
+              <p>✓ 面积：土地面积是否超过承包面积</p>
               <p>✓ 与数据库比对：新增/减少/变更</p>
-              <p>✓ 土地面积合理性</p>
               {compareYear && <p>✓ 与 {compareYear} 年补贴数据对比</p>}
             </div>
-
-            <button onClick={runCheck} disabled={!rawRows.length || step === 'checking'}
-              className="w-full py-3 bg-emerald-700 text-white rounded-xl text-sm font-semibold hover:bg-emerald-600 disabled:opacity-50 transition-colors">
-              {step === 'checking' ? '检查中…' : `开始检查（${rawRows.length} 行）`}
-            </button>
           </div>
         </div>
       )}
@@ -543,8 +331,8 @@ export default function PreCheckPage() {
             </div>
             {[
               { label: '格式/村组错误', val: result.summary.format_errors + result.summary.village_errors + result.summary.duplicate_errors, color: 'text-red-600' },
-              { label: '新增农户',      val: result.summary.new_farmers,   color: 'text-emerald-700' },
-              { label: '减少农户',      val: result.summary.removed_farmers, color: 'text-blue-600' },
+              { label: '错误库命中', val: result.summary.error_library_hits, color: 'text-amber-600' },
+              { label: '新增农户', val: result.summary.new_farmers, color: 'text-emerald-700' },
             ].map(s => (
               <div key={s.label} className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
                 <div className={`text-2xl font-bold font-mono ${s.color}`}>{s.val}</div>
@@ -553,40 +341,18 @@ export default function PreCheckPage() {
             ))}
           </div>
 
-          {/* 历史错误命中警告横幅 */}
-          {matchHits.length > 0 && (
-            <div className="mb-4 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">⚠️</span>
-                <div>
-                  <span className="font-semibold text-amber-800 text-sm">
-                    本次名单命中 {matchHits.length} 条历史错误记录
-                  </span>
-                  <span className="text-amber-600 text-xs ml-2">
-                    其中身份证匹配 {matchHits.filter(h => h.match_type === 'id_card').length} 条，
-                    姓名匹配 {matchHits.filter(h => h.match_type === 'name_only').length} 条
-                  </span>
-                </div>
-              </div>
-              <button onClick={() => setActiveTab('error-lib')}
-                className="text-xs bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 whitespace-nowrap">
-                查看命中详情 →
-              </button>
-            </div>
-          )}
-
           {/* 操作栏 */}
           <div className="flex gap-2 mb-4">
             <button onClick={reset}
               className="px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white text-stone-600 hover:bg-stone-50">
               ← 重新上传
             </button>
-            <button onClick={() => exportReport(result, fileName.replace(/\.(xlsx|xls)$/, ''))}
+            <button onClick={() => exportReport(result)}
               className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
               ↓ 导出完整报告 Excel
             </button>
             <div className="ml-auto text-xs text-stone-400 flex items-center">
-              文件：{fileName} · {result.summary.total_rows} 行
+              {result.summary.total_rows} 行
             </div>
           </div>
 
@@ -609,6 +375,19 @@ export default function PreCheckPage() {
 
           {/* Tab 内容 */}
           <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+            {/* 错误库命中 */}
+            {activeTab === 'error-library-hits' && (
+              <ResultTable
+                title="错误库命中 — 这些人员在历史错误记录中出现，请重点关注"
+                empty={result.error_library_hits.length === 0}
+                headers={['行号','姓名','身份证号','所在村','所在组','错误类型','错误原因','来源']}
+                rows={result.error_library_hits.map(r => [
+                  r.row, r.name, r.id_card, r.village, r.group,
+                  <Tag key="t" label={r.error_type} color="red" />,
+                  <span key="r" className="text-red-600 text-xs">{r.error_reason}</span>,
+                  r.source,
+                ])} />
+            )}
             {/* 格式错误 */}
             {activeTab === 'format' && (
               <ResultTable
@@ -645,6 +424,18 @@ export default function PreCheckPage() {
                 headers={['行号','姓名','身份证号','Excel填写性别','身份证推断性别']}
                 rows={result.gender_mismatch.map(r => [r.row, r.name, r.id_card, r.excel_gender, <Tag key="g" label={r.id_card_gender} color={r.id_card_gender === '男' ? 'blue' : 'purple'} />])} />
             )}
+            {/* 面积超限 */}
+            {activeTab === 'area-exceeds' && (
+              <ResultTable
+                title="面积超限 — 填报面积超过数据库承包面积，请核实"
+                empty={result.area_exceeds.length === 0}
+                headers={['行号','姓名','身份证号','所在村','所在组','填报面积','承包面积']}
+                rows={result.area_exceeds.map(r => [
+                  r.row, r.name, r.id_card, r.village, r.group,
+                  <span key="a" className="text-orange-600 font-semibold">{r.land_area} 亩</span>,
+                  <span key="c" className="text-stone-500">{r.contracted_area} 亩</span>,
+                ])} />
+            )}
             {/* 新增农户 */}
             {activeTab === 'new' && (
               <ResultTable
@@ -674,15 +465,15 @@ export default function PreCheckPage() {
             )}
             {/* 年度对比 */}
             {activeTab === 'year' && result.year_compare && (result.year_compare as { year?: number }).year && (() => {
-              const yc = result.year_compare as CheckResult['year_compare'] & { year: number }
+              const yc = result.year_compare as { year: number; db_count: number; excel_count: number; new_count: number; removed_count: number; new_farmers: { id_card: string; name: unknown }[]; removed_farmers: { id_card: string; name: string; village: string }[] }
               return (
                 <div className="p-5">
                   <div className="flex gap-4 mb-5">
                     {[
                       { label: `${yc.year}年有补贴记录`, val: yc.db_count, color: 'text-stone-700' },
-                      { label: '本次 Excel 行数',          val: yc.excel_count, color: 'text-stone-700' },
-                      { label: '新增受益农户',              val: yc.new_count, color: 'text-emerald-700' },
-                      { label: '减少受益农户',              val: yc.removed_count, color: 'text-blue-600' },
+                      { label: '本次 Excel 行数', val: yc.excel_count, color: 'text-stone-700' },
+                      { label: '新增受益农户', val: yc.new_count, color: 'text-emerald-700' },
+                      { label: '减少受益农户', val: yc.removed_count, color: 'text-blue-600' },
                     ].map(s => (
                       <div key={s.label} className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex-1">
                         <div className={`text-2xl font-bold font-mono ${s.color}`}>{s.val}</div>
@@ -736,321 +527,67 @@ export default function PreCheckPage() {
               )
             })()}
           </div>
-
-          {/* 历史错误库 Tab（在结果页内，与其他 tab 平级） */}
-          {activeTab === 'error-lib' && <ErrorLibPanel
-            result={result}
-            matchHits={matchHits}
-            matchLoading={matchLoading}
-            errorLibData={errorLibData}
-            libLoading={libLoading}
-            libSearch={libSearch}
-            libVillage={libVillage}
-            libPage={libPage}
-            libForm={libForm}
-            editingId={editingId}
-            editForm={editForm}
-            onRunMatch={runMatch}
-            onExportHits={exportMatchHits}
-            onSearch={(s, v) => { setLibSearch(s); loadErrorLib(1, s, v) }}
-            onVillageChange={v => { setLibVillage(v); loadErrorLib(1, libSearch, v) }}
-            onPageChange={p => loadErrorLib(p)}
-            onFormChange={f => setLibForm(f)}
-            onAdd={addToLib}
-            onEditStart={(id) => { setEditingId(id); setEditForm({}) }}
-            onEditChange={f => setEditForm(f)}
-            onEditSave={saveEdit}
-            onEditCancel={() => setEditingId(null)}
-            onDelete={deleteFromLib}
-            onImport={importErrorLib}
-            onDownloadTemplate={downloadLibTemplate}
-          />}
         </div>
       )}
+      </>}
 
-      {/* 上传步骤下方：错误库快速入口 */}
-      {step !== 'result' && (
-        <div className="mt-4 border border-amber-200 bg-amber-50 rounded-xl p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-sm font-semibold text-amber-800">📚 历史错误库</span>
-              <span className="text-xs text-amber-600 ml-2">
-                预检前可先维护历史错误记录，预检完成后将自动与名单比对
-              </span>
-            </div>
-            <button onClick={() => { loadErrorLib(1); setStep('result' as typeof step) }}
-              className="text-xs border border-amber-300 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-100">
-              维护错误库 →
-            </button>
-          </div>
-        </div>
-      )}
+      {/* ExcelImportWithMapping 弹窗 */}
+      <ExcelImportWithMapping
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="导入预检查数据"
+        templateHeaders={PRECHECK_TEMPLATE_HEADERS}
+        templateExample={PRECHECK_TEMPLATE_EXAMPLE}
+        systemFields={PRECHECK_SYSTEM_FIELDS}
+        templates={templates.map(t => ({
+          id: t.id,
+          template_name: t.template_name,
+          column_mapping: t.column_mapping.map(m => ({
+            excel_column: m.excel_column,
+            system_field: m.system_field,
+            required: m.required,
+          })),
+        }))}
+        onDetectColumns={async (columns, sampleRows) => {
+          const r = await fetch('/api/excel-templates/detect-columns', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ columns, sample_rows: sampleRows, business_type: 'PRECHECK' }),
+          })
+          const raw = await r.json()
+          const detected_mappings = (raw.columns || raw.detected_mappings || []).map((d: Record<string, unknown>) => ({
+            excel_column: d.excel_column,
+            suggested_field: d.suggested_field,
+            confidence: d.confidence ?? d.suggested_confidence ?? 0,
+            alternatives: d.alternatives || [],
+          }))
+          return { detected_mappings, recommended_templates: raw.recommended_templates || [] }
+        }}
+        onSaveTemplate={async (data) => {
+          const r = await fetch('/api/excel-templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...data, business_type: 'PRECHECK' }),
+          })
+          return r.json()
+        }}
+        onImport={handlePrecheckImport}
+        onSuccess={handleImportSuccess}
+      />
+
       <Toast {...toast} />
     </div>
   )
 }
 
-// ─── 历史错误库面板（独立组件，可在结果页和独立页使用）───
-function ErrorLibPanel({
-  result, matchHits, matchLoading, errorLibData, libLoading,
-  libSearch, libVillage, libPage, libForm, editingId, editForm,
-  onRunMatch, onExportHits, onSearch, onVillageChange, onPageChange,
-  onFormChange, onAdd, onEditStart, onEditChange, onEditSave, onEditCancel,
-  onDelete, onImport, onDownloadTemplate,
-}: {
-  result: CheckResult | null
-  matchHits: MatchHit[]
-  matchLoading: boolean
-  errorLibData: ErrorLibPage
-  libLoading: boolean
-  libSearch: string
-  libVillage: string
-  libPage: number
-  libForm: { id_card: string; real_name: string; village_name: string; group_no: string; error_reason: string }
-  editingId: number | null
-  editForm: Partial<ErrorLibEntry>
-  onRunMatch: () => void
-  onExportHits: () => void
-  onSearch: (s: string, v: string) => void
-  onVillageChange: (v: string) => void
-  onPageChange: (p: number) => void
-  onFormChange: (f: typeof libForm) => void
-  onAdd: () => void
-  onEditStart: (id: number) => void
-  onEditChange: (f: Partial<ErrorLibEntry>) => void
-  onEditSave: (id: number) => void
-  onEditCancel: () => void
-  onDelete: (id: number) => void
-  onImport: (rows: Record<string, unknown>[]) => Promise<{ created: number; skipped: number; errors: string[] }>
-  onDownloadTemplate: () => void
-}) {
-  const errorLib = errorLibData.items
-  return (
-    <div className="space-y-4 p-1">
-      {/* 比对结果区 */}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-semibold text-amber-800">
-            与历史错误库比对结果
-            {matchHits.length > 0 && (
-              <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                {matchHits.length} 条命中
-              </span>
-            )}
-          </span>
-          <div className="flex gap-2">
-            {result && (
-              <button onClick={onRunMatch} disabled={matchLoading}
-                className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-60">
-                {matchLoading ? '比对中…' : '🔍 重新比对'}
-              </button>
-            )}
-            {matchHits.length > 0 && (
-              <button onClick={onExportHits}
-                className="px-3 py-1.5 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-100">
-                ⬇️ 导出命中名单
-              </button>
-            )}
-          </div>
-        </div>
-        {matchHits.length > 0 ? (
-          <div className="overflow-auto max-h-60">
-            <table className="w-full border-collapse text-sm">
-              <thead><tr className="border-b border-amber-200 bg-amber-100/50">
-                {['匹配方式', '身份证号（本次）', '本次姓名', '库中姓名', '村/组', '历史错误原因'].map(h => (
-                  <th key={h} className="px-3 py-1.5 text-left text-xs text-amber-700 font-semibold whitespace-nowrap">{h}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {matchHits.map((h, i) => (
-                  <tr key={i} className={`border-b border-amber-100 ${h.match_type === 'name_only' ? 'bg-orange-50' : 'bg-white'}`}>
-                    <td className="px-3 py-2">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${h.match_type === 'id_card' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
-                        {h.match_label}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 font-mono text-xs text-stone-600">{h.id_card}</td>
-                    <td className="px-3 py-2 font-semibold">{h.real_name}</td>
-                    <td className="px-3 py-2 text-stone-500">
-                      {h.library_name}
-                      {h.library_id_card && <div className="text-xs font-mono text-orange-600 mt-0.5">库中证号：{h.library_id_card}</div>}
-                    </td>
-                    <td className="px-3 py-2 text-xs text-stone-400">{h.village_name}{h.group_no ? ` ${h.group_no}` : ''}</td>
-                    <td className="px-3 py-2 text-red-600 text-xs">{h.error_reason}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-xs text-amber-600">
-            {result ? '预检时已自动比对，无命中记录。可点击「重新比对」手动刷新。' : '上传文件并运行预检后，将自动与历史错误库比对。'}
-          </p>
-        )}
-      </div>
-
-      {/* 错误库管理 */}
-      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-        {/* 工具栏 */}
-        <div className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex flex-wrap gap-2 items-center">
-          <span className="font-semibold text-stone-700 text-sm">📚 历史错误库</span>
-          <span className="text-xs text-stone-400">共 {errorLibData.total} 条</span>
-          <input value={libSearch}
-            onChange={e => onFormChange({ ...libForm, id_card: libForm.id_card })}
-            onInput={(e) => onSearch((e.target as HTMLInputElement).value, libVillage)}
-            onKeyDown={e => e.key === 'Enter' && onSearch(libSearch, libVillage)}
-            placeholder="搜索姓名/身份证…"
-            className="border border-stone-200 rounded-lg px-3 py-1 text-xs outline-none focus:border-emerald-400 w-40"
-          />
-          {errorLibData.villages.length > 0 && (
-            <select value={libVillage} onChange={e => onVillageChange(e.target.value)}
-              className="border border-stone-200 rounded-lg px-2 py-1 text-xs outline-none bg-white">
-              <option value="">全部村</option>
-              {errorLibData.villages.map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
-          )}
-          <div className="ml-auto flex gap-2">
-            <button onClick={onDownloadTemplate}
-              className="text-xs border border-stone-200 text-stone-500 px-3 py-1.5 rounded-lg hover:bg-stone-50">
-              ⬇️ 下载模板
-            </button>
-            <label className="text-xs border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-50 cursor-pointer">
-              ↑ 批量导入
-              <input type="file" accept=".xlsx,.xls" className="hidden" onChange={async e => {
-                if (!e.target.files?.[0]) return
-                const reader = new FileReader()
-                reader.onload = async (ev) => {
-                  const XLSX2 = await import('xlsx')
-                  const wb = XLSX2.read(ev.target?.result, { type: 'array' })
-                  const ws = wb.Sheets[wb.SheetNames[0]]
-                  const rows = XLSX2.utils.sheet_to_json(ws, { defval: '' }) as Record<string, unknown>[]
-                  await onImport(rows)
-                }
-                reader.readAsArrayBuffer(e.target.files[0])
-              }} />
-            </label>
-          </div>
-        </div>
-
-        {/* 手动新增 */}
-        <div className="p-4 border-b border-stone-100 bg-stone-50/50">
-          <p className="text-xs text-stone-400 mb-2">手动新增一条错误记录</p>
-          <div className="grid grid-cols-5 gap-2">
-            <input value={libForm.id_card} onChange={e => onFormChange({ ...libForm, id_card: e.target.value })}
-              placeholder="身份证号 *" className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-emerald-400" />
-            <input value={libForm.real_name} onChange={e => onFormChange({ ...libForm, real_name: e.target.value })}
-              placeholder="姓名 *" className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-emerald-400" />
-            <input value={libForm.village_name} onChange={e => onFormChange({ ...libForm, village_name: e.target.value })}
-              placeholder="村（可选）" className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-emerald-400" />
-            <input value={libForm.group_no} onChange={e => onFormChange({ ...libForm, group_no: e.target.value })}
-              placeholder="组（可选）" className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-emerald-400" />
-            <input value={libForm.error_reason} onChange={e => onFormChange({ ...libForm, error_reason: e.target.value })}
-              placeholder="错误原因 *" className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-emerald-400"
-              onKeyDown={e => e.key === 'Enter' && onAdd()} />
-          </div>
-          <button onClick={onAdd} className="mt-2 px-4 py-1.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">＋ 添加</button>
-        </div>
-
-        {/* 列表 */}
-        {libLoading ? (
-          <div className="py-8 text-center text-stone-300 text-sm">加载中…</div>
-        ) : errorLib.length === 0 ? (
-          <div className="py-10 text-center text-stone-300 text-sm">
-            <p>暂无历史错误记录</p>
-            <p className="text-xs mt-1">可手动添加或批量导入（支持村/组字段），预检时自动比对</p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-auto max-h-96">
-              <table className="w-full border-collapse">
-                <thead className="sticky top-0 bg-stone-50 border-b border-stone-200 z-10">
-                  <tr>
-                    {['身份证号', '姓名', '村', '组', '错误原因', '添加时间', '操作'].map(h => (
-                      <th key={h} className="px-4 py-2.5 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {errorLib.map(e => (
-                    <tr key={e.id} className="border-b border-stone-50 hover:bg-stone-50">
-                      {editingId === e.id ? (
-                        <>
-                          <td className="px-3 py-2 text-xs font-mono text-stone-400">{e.id_card}</td>
-                          <td className="px-2 py-1.5">
-                            <input value={editForm.real_name ?? e.real_name}
-                              onChange={ev => onEditChange({ ...editForm, real_name: ev.target.value })}
-                              className="border border-emerald-300 rounded px-2 py-1 text-sm w-full outline-none" />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <input value={editForm.village_name ?? (e.village_name || '')}
-                              onChange={ev => onEditChange({ ...editForm, village_name: ev.target.value })}
-                              className="border border-emerald-300 rounded px-2 py-1 text-sm w-20 outline-none" />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <input value={editForm.group_no ?? (e.group_no || '')}
-                              onChange={ev => onEditChange({ ...editForm, group_no: ev.target.value })}
-                              className="border border-emerald-300 rounded px-2 py-1 text-sm w-16 outline-none" />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <input value={editForm.error_reason ?? e.error_reason}
-                              onChange={ev => onEditChange({ ...editForm, error_reason: ev.target.value })}
-                              className="border border-emerald-300 rounded px-2 py-1 text-sm w-full outline-none" />
-                          </td>
-                          <td className="px-3 py-2 text-xs text-stone-300">{e.created_at?.slice(0, 10)}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex gap-2">
-                              <button onClick={() => onEditSave(e.id)} className="text-xs text-emerald-600 hover:text-emerald-800 font-semibold">保存</button>
-                              <button onClick={onEditCancel} className="text-xs text-stone-400 hover:text-stone-600">取消</button>
-                            </div>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td className="px-4 py-2.5 text-xs font-mono text-amber-700">{e.id_card}</td>
-                          <td className="px-4 py-2.5 text-sm font-semibold">{e.real_name}</td>
-                          <td className="px-4 py-2.5 text-xs text-stone-500">{e.village_name || <span className="text-stone-300">—</span>}</td>
-                          <td className="px-4 py-2.5 text-xs text-stone-500">{e.group_no || <span className="text-stone-300">—</span>}</td>
-                          <td className="px-4 py-2.5 text-sm text-red-600 max-w-xs" title={e.error_reason}>
-                            <span className="line-clamp-2">{e.error_reason}</span>
-                          </td>
-                          <td className="px-4 py-2.5 text-xs text-stone-300">{e.created_at?.slice(0, 10)}</td>
-                          <td className="px-4 py-2.5">
-                            <div className="flex gap-3">
-                              <button onClick={() => onEditStart(e.id)} className="text-xs text-blue-400 hover:text-blue-600">编辑</button>
-                              <button onClick={() => onDelete(e.id)} className="text-xs text-red-400 hover:text-red-600">删除</button>
-                            </div>
-                          </td>
-                        </>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {errorLibData.total > 50 && (
-              <div className="px-4 py-3 border-t border-stone-100 flex items-center gap-2 text-xs text-stone-500">
-                <span>共 {errorLibData.total} 条</span>
-                <div className="flex gap-1 ml-auto">
-                  <button onClick={() => onPageChange(libPage - 1)} disabled={libPage <= 1}
-                    className="px-2 py-1 border border-stone-200 rounded hover:bg-stone-50 disabled:opacity-40">上一页</button>
-                  <span className="px-2 py-1">第 {libPage} / {Math.ceil(errorLibData.total / 50)} 页</span>
-                  <button onClick={() => onPageChange(libPage + 1)} disabled={libPage >= Math.ceil(errorLibData.total / 50)}
-                    className="px-2 py-1 border border-stone-200 rounded hover:bg-stone-50 disabled:opacity-40">下一页</button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
+// ─── 结果表格组件 ───
 function ResultTable({ title, headers, rows, empty }: {
   title: string
   headers: string[]
   rows: (string | number | React.ReactNode)[][]
   empty: boolean
-}) {  return (
+}) {
+  return (
     <div>
       <div className="px-4 py-3 border-b border-stone-100 bg-stone-50 text-sm text-stone-600">
         {title}

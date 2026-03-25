@@ -15,7 +15,7 @@ from typing import Optional
 import re
 
 from database import get_db
-from models import FarmerProfile, VillageGroup, FamilyHousehold, SubsidyApplication
+from models import FarmerProfile, VillageGroup, FamilyHousehold, SubsidyApplication, ErrorLibrary
 
 router = APIRouter(prefix="/api/precheck", tags=["数据预检查"])
 
@@ -172,14 +172,29 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         ).all()
     }
 
+    # 加载错误库（按身份证索引）
+    error_lib: dict[str, ErrorLibrary] = {
+        e.id_card.strip(): e for e in db.query(ErrorLibrary).all()
+    }
+
+    # 加载数据库农户的承包面积（按身份证索引）
+    db_land_areas: dict[str, float] = {}
+    for f in db.query(FarmerProfile).join(
+        FamilyHousehold, FamilyHousehold.id == FarmerProfile.household_id
+    ).all():
+        if f.id_card and f.household and f.household.land_area:
+            db_land_areas[f.id_card] = float(f.household.land_area)
+
     # ── 2. 逐行检查 ──
-    format_errors:    list[dict] = []   # 格式/类型错误
-    village_errors:   list[dict] = []   # 村组不存在
-    gender_mismatch:  list[dict] = []   # 性别与身份证不符
-    duplicate_errors: list[dict] = []   # Excel 内部重复身份证
-    changed_farmers:  list[dict] = []   # 与数据库比对发现字段变化
-    new_farmers:      list[dict] = []   # Excel 中有、数据库中没有
-    ok_rows:          list[dict] = []   # 通过所有检查的行
+    format_errors:       list[dict] = []   # 格式/类型错误
+    village_errors:      list[dict] = []   # 村组不存在
+    gender_mismatch:     list[dict] = []   # 性别与身份证不符
+    duplicate_errors:    list[dict] = []   # Excel 内部重复身份证
+    changed_farmers:     list[dict] = []   # 与数据库比对发现字段变化
+    new_farmers:         list[dict] = []   # Excel 中有、数据库中没有
+    error_library_hits:  list[dict] = []   # 错误库命中
+    area_exceeds:        list[dict] = []   # 面积超限
+    ok_rows:             list[dict] = []   # 通过所有检查的行
 
     seen_id_cards: dict[str, int] = {}   # 记录 Excel 内已出现的身份证 → 行号
 
@@ -258,7 +273,18 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
             continue
         seen_id_cards[id_card] = row_no
 
-        # ── 2.8 性别与身份证不符 ──
+        # ── 2.8 错误库交叉比对 ──
+        if id_card in error_lib:
+            lib_rec = error_lib[id_card]
+            error_library_hits.append({
+                "row": row_no, "name": name, "id_card": id_card,
+                "village": village, "group": group,
+                "error_type": lib_rec.error_type,
+                "error_reason": lib_rec.error_reason,
+                "source": lib_rec.source,
+            })
+
+        # ── 2.9 性别与身份证不符 ──
         if row.gender:
             gender_text = str(row.gender).strip()
             gender_from_id = parse_gender_from_id(id_card)
@@ -272,7 +298,18 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
                     "error": f"Excel中性别为「{gender_text}」，但身份证显示为「{'男' if gender_from_id == 1 else '女'}」"
                 })
 
-        # ── 2.9 与数据库比对：字段变更 ──
+        # ── 2.10 土地面积超承包面积检查 ──
+        if row.land_area is not None and id_card in db_land_areas:
+            contracted = db_land_areas[id_card]
+            if contracted > 0 and float(row.land_area) > contracted:
+                area_exceeds.append({
+                    "row": row_no, "name": name, "id_card": id_card,
+                    "village": village, "group": group,
+                    "land_area": float(row.land_area),
+                    "contracted_area": contracted,
+                })
+
+        # ── 2.11 与数据库比对：字段变更 ──
         if id_card in db_farmers:
             db_f = db_farmers[id_card]
             changes: list[str] = []
@@ -367,7 +404,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
 
     # ── 5. 汇总 ──
     total_rows = len(req.rows)
-    error_rows = len(format_errors) + len(village_errors) + len(duplicate_errors)
+    error_rows = len(format_errors) + len(village_errors) + len(duplicate_errors) + len(gender_mismatch) + len(error_library_hits) + len(area_exceeds)
     summary = {
         "total_rows": total_rows,
         "ok_rows": len(ok_rows),
@@ -376,6 +413,8 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         "village_errors": len(village_errors),
         "duplicate_errors": len(duplicate_errors),
         "gender_mismatch": len(gender_mismatch),
+        "error_library_hits": len(error_library_hits),
+        "area_exceeds": len(area_exceeds),
         "new_farmers": len(new_farmers),
         "removed_farmers": len(removed_farmers),
         "changed_farmers": len(changed_farmers),
@@ -388,6 +427,8 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         "village_errors": village_errors,
         "duplicate_errors": duplicate_errors,
         "gender_mismatch": gender_mismatch,
+        "error_library_hits": error_library_hits,
+        "area_exceeds": area_exceeds,
         "new_farmers": new_farmers,
         "removed_farmers": removed_farmers,
         "changed_farmers": changed_farmers,
@@ -423,270 +464,3 @@ def get_template_headers():
     }
 
 
-# ─────────────────────────────────────
-#  历史错误库（黑名单）
-# ─────────────────────────────────────
-
-from pydantic import BaseModel as PM
-from typing import Optional as Opt
-
-# ── 建表 SQL（含村/组字段，兼容旧表自动迁移）──
-_CREATE_ERROR_LIB_SQL = """
-    CREATE TABLE IF NOT EXISTS precheck_error_library (
-        id           INTEGER PRIMARY KEY AUTOINCREMENT,
-        id_card      TEXT NOT NULL,
-        real_name    TEXT NOT NULL,
-        village_name TEXT,
-        group_no     TEXT,
-        error_reason TEXT NOT NULL DEFAULT '',
-        created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-"""
-
-def _ensure_error_lib(db):
-    """建表并自动补齐新字段（兼容已有旧表）"""
-    from sqlalchemy import text
-    db.execute(text(_CREATE_ERROR_LIB_SQL))
-    # 迁移旧表：自动添加 village_name / group_no / updated_at
-    for col, default in [("village_name", "NULL"), ("group_no", "NULL"), ("updated_at", "CURRENT_TIMESTAMP")]:
-        try:
-            db.execute(text(f"ALTER TABLE precheck_error_library ADD COLUMN {col} TEXT DEFAULT {default}"))
-        except Exception:
-            pass  # 字段已存在则跳过
-    db.commit()
-
-
-class ErrorEntry(PM):
-    id_card:      str
-    real_name:    str
-    village_name: Opt[str] = None
-    group_no:     Opt[str] = None
-    error_reason: str
-
-class ErrorEntryUpdate(PM):
-    real_name:    Opt[str] = None
-    village_name: Opt[str] = None
-    group_no:     Opt[str] = None
-    error_reason: Opt[str] = None
-
-class ErrorMatchRequest(PM):
-    rows: list[dict]   # 每行含 id_card / real_name
-
-
-@router.get("/error-library")
-def list_error_library(
-    search:    Opt[str] = None,
-    village:   Opt[str] = None,
-    page:      int = 1,
-    page_size: int = 50,
-    db = Depends(get_db)
-):
-    """
-    历史错误库列表，支持：
-    - search：按姓名/身份证模糊搜索
-    - village：按村名过滤
-    - 分页（page / page_size）
-    """
-    from sqlalchemy import text
-    _ensure_error_lib(db)
-
-    where = "1=1"
-    params: dict = {}
-    if search:
-        where += " AND (id_card LIKE :s OR real_name LIKE :s)"
-        params["s"] = f"%{search}%"
-    if village:
-        where += " AND village_name = :v"
-        params["v"] = village
-
-    total = db.execute(text(f"SELECT COUNT(*) FROM precheck_error_library WHERE {where}"), params).scalar() or 0
-    rows = db.execute(text(f"""
-        SELECT id, id_card, real_name, village_name, group_no, error_reason, created_at, updated_at
-        FROM precheck_error_library
-        WHERE {where}
-        ORDER BY id DESC
-        LIMIT :lim OFFSET :off
-    """), {**params, "lim": page_size, "off": (page - 1) * page_size}).fetchall()
-
-    # 取村名列表（用于前端下拉筛选）
-    villages = db.execute(text(
-        "SELECT DISTINCT village_name FROM precheck_error_library WHERE village_name IS NOT NULL ORDER BY village_name"
-    )).fetchall()
-
-    return {
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "items": [dict(r._mapping) for r in rows],
-        "villages": [r[0] for r in villages if r[0]],
-    }
-
-
-@router.post("/error-library")
-def add_error_entry(entry: ErrorEntry, db = Depends(get_db)):
-    from sqlalchemy import text
-    _ensure_error_lib(db)
-    db.execute(text("""
-        INSERT INTO precheck_error_library (id_card, real_name, village_name, group_no, error_reason)
-        VALUES (:ic, :name, :vn, :gn, :reason)
-    """), {
-        "ic": entry.id_card.strip(),
-        "name": entry.real_name.strip(),
-        "vn": (entry.village_name or "").strip() or None,
-        "gn": (entry.group_no or "").strip() or None,
-        "reason": entry.error_reason.strip(),
-    })
-    db.commit()
-    return {"message": "添加成功"}
-
-
-@router.put("/error-library/{entry_id}")
-def update_error_entry(entry_id: int, data: ErrorEntryUpdate, db = Depends(get_db)):
-    """编辑历史错误库中的一条记录"""
-    from sqlalchemy import text
-    _ensure_error_lib(db)
-    existing = db.execute(text("SELECT id FROM precheck_error_library WHERE id=:id"), {"id": entry_id}).fetchone()
-    if not existing:
-        from fastapi import HTTPException
-        raise HTTPException(404, "记录不存在")
-
-    updates = []
-    params: dict = {"id": entry_id}
-    if data.real_name    is not None: updates.append("real_name=:real_name");    params["real_name"]    = data.real_name.strip()
-    if data.village_name is not None: updates.append("village_name=:vn");        params["vn"]           = data.village_name.strip() or None
-    if data.group_no     is not None: updates.append("group_no=:gn");            params["gn"]           = data.group_no.strip() or None
-    if data.error_reason is not None: updates.append("error_reason=:reason");    params["reason"]       = data.error_reason.strip()
-
-    if updates:
-        updates.append("updated_at=CURRENT_TIMESTAMP")
-        db.execute(text(f"UPDATE precheck_error_library SET {', '.join(updates)} WHERE id=:id"), params)
-        db.commit()
-    return {"message": "更新成功"}
-
-
-@router.delete("/error-library/{entry_id}")
-def delete_error_entry(entry_id: int, db = Depends(get_db)):
-    from sqlalchemy import text
-    db.execute(text("DELETE FROM precheck_error_library WHERE id=:id"), {"id": entry_id})
-    db.commit()
-    return {"message": "删除成功"}
-
-
-@router.post("/error-library/match")
-def match_error_library(req: ErrorMatchRequest, db = Depends(get_db)):
-    """
-    把上传的名单与历史错误库交叉比对，返回命中记录。
-    匹配规则（优先级顺序）：
-    1. 身份证号精确匹配（最可靠）
-    2. 姓名完全相同但身份证不同（可能是身份证录错了）
-    """
-    from sqlalchemy import text
-    _ensure_error_lib(db)
-
-    lib = db.execute(text(
-        "SELECT id_card, real_name, village_name, group_no, error_reason FROM precheck_error_library"
-    )).fetchall()
-
-    # 两个索引：按身份证 + 按姓名
-    lib_by_card: dict[str, dict] = {}
-    lib_by_name: dict[str, list] = {}
-    for r in lib:
-        rd = dict(r._mapping)
-        lib_by_card[rd["id_card"].strip()] = rd
-        nm = rd["real_name"].strip()
-        lib_by_name.setdefault(nm, []).append(rd)
-
-    hits = []
-    seen = set()
-
-    for row in req.rows:
-        ic   = str(row.get("id_card",   "")).strip()
-        name = str(row.get("real_name", "") or row.get("name", "")).strip()
-
-        # 规则1：身份证精确匹配
-        if ic and ic in lib_by_card:
-            lib_rec = lib_by_card[ic]
-            key = f"card:{ic}"
-            if key not in seen:
-                seen.add(key)
-                hits.append({
-                    "match_type":   "id_card",          # 匹配方式
-                    "match_label":  "身份证匹配",
-                    "id_card":      ic,
-                    "real_name":    name or lib_rec["real_name"],
-                    "library_name": lib_rec["real_name"],
-                    "village_name": lib_rec.get("village_name") or "",
-                    "group_no":     lib_rec.get("group_no") or "",
-                    "error_reason": lib_rec["error_reason"],
-                })
-
-        # 规则2：姓名精确相同但身份证不在库中（身份证可能录错）
-        elif name and name in lib_by_name:
-            for lib_rec in lib_by_name[name]:
-                if lib_rec["id_card"].strip() != ic:  # 姓名同但身份证不同
-                    key = f"name:{name}:{lib_rec['id_card']}"
-                    if key not in seen:
-                        seen.add(key)
-                        hits.append({
-                            "match_type":   "name_only",
-                            "match_label":  "姓名匹配（身份证不同，请核实）",
-                            "id_card":      ic,
-                            "real_name":    name,
-                            "library_name": lib_rec["real_name"],
-                            "library_id_card": lib_rec["id_card"],  # 库中的身份证
-                            "village_name": lib_rec.get("village_name") or "",
-                            "group_no":     lib_rec.get("group_no") or "",
-                            "error_reason": lib_rec["error_reason"],
-                        })
-
-    return {"total": len(hits), "hits": hits}
-
-
-@router.post("/error-library/batch-import")
-def batch_import_error_library(payload: dict, db = Depends(get_db)):
-    """
-    批量导入历史错误记录。
-    支持字段：身份证号、姓名、村、组、错误原因。
-    重复身份证：更新已有记录的错误原因（不重复插入）。
-    """
-    from sqlalchemy import text
-    _ensure_error_lib(db)
-    rows = payload.get("rows", [])
-    created = updated = skipped = 0
-
-    for r in rows:
-        ic  = str(r.get("id_card","")).strip()
-        nm  = str(r.get("real_name","")).strip()
-        vn  = str(r.get("village_name","")).strip() or None
-        gn  = str(r.get("group_no","")).strip() or None
-        rsn = str(r.get("error_reason","")).strip()
-        if not ic or not nm:
-            skipped += 1
-            continue
-
-        existing = db.execute(text(
-            "SELECT id FROM precheck_error_library WHERE id_card=:ic"
-        ), {"ic": ic}).fetchone()
-
-        if existing:
-            # 已存在：更新错误原因和村组信息（不留空白）
-            db.execute(text("""
-                UPDATE precheck_error_library
-                SET real_name=:nm,
-                    village_name=COALESCE(:vn, village_name),
-                    group_no=COALESCE(:gn, group_no),
-                    error_reason=CASE WHEN :rsn!='' THEN :rsn ELSE error_reason END,
-                    updated_at=CURRENT_TIMESTAMP
-                WHERE id_card=:ic
-            """), {"ic": ic, "nm": nm, "vn": vn, "gn": gn, "rsn": rsn})
-            updated += 1
-        else:
-            db.execute(text("""
-                INSERT INTO precheck_error_library (id_card, real_name, village_name, group_no, error_reason)
-                VALUES (:ic, :nm, :vn, :gn, :rsn)
-            """), {"ic": ic, "nm": nm, "vn": vn, "gn": gn, "rsn": rsn or "（待填写）"})
-            created += 1
-
-    db.commit()
-    return {"created": created, "updated": updated, "skipped": skipped}

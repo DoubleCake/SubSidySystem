@@ -6,9 +6,36 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import engine
 from models import Base
-from routers import farmers, subsidies, ai_analyze, settings, precheck, households, external_links, backup, eligibility, excel_templates, land
+from routers import farmers, subsidies, ai_analyze, settings, precheck, households, external_links, backup, eligibility, excel_templates, land, error_library
 
 Base.metadata.create_all(bind=engine)
+
+# ── 轻量迁移：为已有表添加新列 ──
+import sqlalchemy as sa
+def _migrate():
+    with engine.connect() as conn:
+        cols = {r[1] for r in conn.execute(sa.text("PRAGMA table_info(subsidy_application)"))}
+        if "contract_area" not in cols:
+            conn.execute(sa.text("ALTER TABLE subsidy_application ADD COLUMN contract_area DECIMAL(10,2)"))
+        if "trust_area" not in cols:
+            conn.execute(sa.text("ALTER TABLE subsidy_application ADD COLUMN trust_area DECIMAL(10,2)"))
+        if "no_subsidy_area" not in cols:
+            conn.execute(sa.text("ALTER TABLE subsidy_application ADD COLUMN no_subsidy_area DECIMAL(10,2)"))
+        conn.commit()
+
+    # ── 村组名称规范化：将 "1组" 等阿拉伯数字统一转为 "一组" ──
+    from utils import normalize_group_no
+    with engine.connect() as conn:
+        rows = conn.execute(sa.text("SELECT id, group_no, full_name FROM village_group")).fetchall()
+        for row in rows:
+            new_group_no = normalize_group_no(row[1])
+            if new_group_no != row[1]:
+                new_full_name = (row[2] or '').replace(row[1], new_group_no) if row[2] else new_group_no
+                conn.execute(sa.text(
+                    "UPDATE village_group SET group_no=:gno, full_name=:fn WHERE id=:id"
+                ), {"gno": new_group_no, "fn": new_full_name, "id": row[0]})
+        conn.commit()
+_migrate()
 
 app = FastAPI(
     title="农户补贴管理系统",
@@ -34,6 +61,7 @@ app.include_router(backup.router)
 app.include_router(eligibility.router)
 app.include_router(excel_templates.router)
 app.include_router(land.router)
+app.include_router(error_library.router)
 
 @app.get("/api/health")
 def health():
@@ -106,6 +134,7 @@ def migrate_db():
     from database import engine
     migrations = [
         "ALTER TABLE subsidy_type ADD COLUMN count_toward_area INTEGER NOT NULL DEFAULT 1",
+        "ALTER TABLE subsidy_application ADD COLUMN no_subsidy_area DECIMAL(10,2)",
         # Chapter 6 & 7 新表（用 CREATE TABLE IF NOT EXISTS 而不是 ALTER，避免冲突）
         """CREATE TABLE IF NOT EXISTS subsidy_eligibility_rule (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -212,6 +241,29 @@ def migrate_db():
             import_duration_ms INTEGER,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )""",
+        """CREATE TABLE IF NOT EXISTS error_library (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            real_name TEXT NOT NULL,
+            id_card TEXT NOT NULL,
+            error_type TEXT NOT NULL,
+            error_reason TEXT NOT NULL,
+            source TEXT NOT NULL DEFAULT '手动录入',
+            village_name TEXT,
+            group_no TEXT,
+            subsidy_name TEXT,
+            discovered_date TEXT,
+            subsidy_type_id INTEGER,
+            remark TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )""",
+        "ALTER TABLE error_library ADD COLUMN village_name TEXT",
+        "ALTER TABLE error_library ADD COLUMN group_no TEXT",
+        "ALTER TABLE error_library ADD COLUMN subsidy_name TEXT",
+        # 迁移 precheck_error_library 数据到 error_library
+        """INSERT OR IGNORE INTO error_library (real_name, id_card, error_type, error_reason, source, village_name, group_no)
+           SELECT real_name, id_card, '其他', COALESCE(error_reason,''), '预检发现', village_name, group_no
+           FROM precheck_error_library WHERE id_card NOT IN (SELECT id_card FROM error_library)""",
+        "DROP TABLE IF EXISTS precheck_error_library",
     ]
     with engine.connect() as conn:
         for sql in migrations:

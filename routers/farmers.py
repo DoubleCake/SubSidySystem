@@ -6,7 +6,7 @@ from typing import Optional
 from database import get_db
 from models import FarmerProfile, FamilyHousehold, VillageGroup
 from schemas import FarmerCreate, FarmerUpdate
-from utils import mask_id_card, mask_phone, mask_bank_card, parse_id_card, gen_household_code
+from utils import mask_id_card, mask_phone, mask_bank_card, parse_id_card, gen_household_code, normalize_group_no
 
 router = APIRouter(prefix="/api/farmers", tags=["农户管理"])
 
@@ -180,6 +180,7 @@ def batch_import_farmers(payload: dict, db: Session = Depends(get_db)):
     created, skipped, errors = 0, 0, []
 
     def get_or_create_vg(vname: str, gno: str) -> int:
+        gno = normalize_group_no(gno)
         vg = db.query(VillageGroup).filter_by(village_name=vname, group_no=gno).first()
         if vg: return vg.id
         vg = VillageGroup(village_name=vname, group_no=gno, full_name=f"{vname}{gno}")
@@ -264,3 +265,29 @@ def bulk_complete_farmers(payload: dict, db: Session = Depends(get_db)):
             errors.append(f"{fp.real_name}：{e}")
     db.commit()
     return {"updated": updated, "errors": errors}
+
+
+# ── 批量按身份证号查找农户 ──
+@router.post("/batch-lookup")
+def batch_lookup_farmers(payload: dict, db: Session = Depends(get_db)):
+    """接收身份证号列表，返回 id_card → farmer_id 映射"""
+    id_cards = payload.get("id_cards", [])
+    if not id_cards:
+        return {"results": {}}
+    # 去重 + 清洗
+    clean = list({str(ic).strip() for ic in id_cards if str(ic).strip()})
+    rows = db.query(FarmerProfile.id, FarmerProfile.id_card)\
+             .filter(FarmerProfile.id_card.in_(clean)).all()
+    return {"results": {r.id_card: r.id for r in rows}}
+
+
+@router.post("/batch-get-id-cards")
+def batch_get_id_cards(payload: dict, db: Session = Depends(get_db)):
+    """接收 farmer_id 列表，返回 farmer_id → id_card 映射"""
+    farmer_ids = payload.get("farmer_ids", [])
+    if not farmer_ids:
+        return {"results": {}}
+    clean = list({int(fid) for fid in farmer_ids if str(fid).strip().isdigit()})
+    rows = db.query(FarmerProfile.id, FarmerProfile.id_card)\
+             .filter(FarmerProfile.id.in_(clean)).all()
+    return {"results": {str(r.id): r.id_card for r in rows}}

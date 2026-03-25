@@ -8,6 +8,7 @@ import ExcelImport from '../components/ExcelImport'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import * as XLSX from 'xlsx'
+import HouseholdsPage from './HouseholdsPage'
 
 const FARMER_TEMPLATE_HEADERS = ['姓名*', '身份证号*', '所在村*', '所在组*', '手机号', '银行卡号', '开户行', '地址', '土地面积', '状态']
 const FARMER_TEMPLATE_EXAMPLE = [
@@ -42,6 +43,7 @@ const calcAge = (birth?: string | null) => {
 
 export default function FarmersPage() {
   const { toast, show } = useToast()
+  const [mainTab, setMainTab] = useState<'farmers' | 'households'>('farmers')
   const [farmers, setFarmers] = useState<FarmerOut[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -427,8 +429,26 @@ export default function FarmersPage() {
   }
 
   // ── 列表页 ──
+  if (detail) {
+    // detail view is handled above
+  }
+
   return (
     <div>
+      {/* 主 Tab 切换 */}
+      <div className="flex items-center gap-1 mb-5 border-b border-stone-200">
+        <button onClick={() => setMainTab('farmers')}
+          className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            mainTab === 'farmers' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-stone-500 hover:text-stone-700'
+          }`}>👤 农户档案</button>
+        <button onClick={() => setMainTab('households')}
+          className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            mainTab === 'households' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-stone-500 hover:text-stone-700'
+          }`}>🏠 家庭户管理</button>
+      </div>
+
+      {mainTab === 'households' && <HouseholdsPage />}
+      {mainTab === 'farmers' && !detail && <>
       <div className="grid grid-cols-4 gap-3 mb-4">
         {[
           { label: '农户总数',    val: total,                                                                        color: 'text-emerald-700' },
@@ -622,6 +642,7 @@ export default function FarmersPage() {
       </Modal>
 
       <Toast {...toast} />
+      </>}
     </div>
   )
 }
