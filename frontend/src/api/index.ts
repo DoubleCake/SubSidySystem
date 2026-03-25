@@ -4,6 +4,8 @@ import type {
   ApplicationOut, ApplicationCreate, ApplicationSearchResult,
   YearCompare, VillageSummary, ExcelColumnTemplate,
   ErrorLibraryItem, ErrorLibraryCreate,
+  HH, HHDetail, HHEvent, HistoryDateEvent, SnapshotAtResponse,
+  HouseholdCreate, MemberCreate, MemberUpdate, MemberMoveRequest,
 } from '../types'
 
 const BASE = ''
@@ -50,12 +52,10 @@ export const batchImportFarmers = (rows: FarmerCreate[]) =>
     '/api/farmers/batch-import',
     { method: 'POST', body: JSON.stringify({ rows }) }
   )
-// 修正后的定义：使用项目统一的 req 函数，并匹配后端需要的路径格式
-export const assignFarmerGroup = (farmerId: number, groupId: number) => 
-  req<{ message: string; village_group_id: number }>(
-    `/api/farmers/${farmerId}/assign-group?village_group_id=${groupId}`, 
-    { method: 'POST' }
-  )
+export const bulkCompleteFarmers = (rows: Record<string, unknown>[]) =>
+  req<{ updated: number; errors: string[] }>('/api/farmers/bulk-complete', {
+    method: 'POST', body: JSON.stringify({ rows }),
+  })
 // ── 补贴类型 ──
 export const getSubsidyTypes = (year?: number) =>
   req<SubsidyType[]>('/api/subsidies/types' + (year ? `?year=${year}` : ''))
@@ -113,6 +113,16 @@ export const getExcelTemplates = (businessType?: string) =>
 export const getExcelTemplate = (id: number) =>
   req<ExcelColumnTemplate>('/api/excel-templates/' + id)
 
+export const detectExcelColumns = (columns: string[], businessType: string, sampleRows: Record<string, unknown>[]) =>
+  req<{ detected_mappings: Array<{ excel_column: string; suggested_field: string | null; confidence: number; alternatives: Array<{ field: string; confidence: number }> }>; recommended_templates?: Array<{ id: number; template_name: string; match_rate: number }> }>(
+    '/api/excel-templates/detect-columns', {
+      method: 'POST', body: JSON.stringify({ columns, business_type: businessType, sample_rows: sampleRows }),
+    }
+  )
+
+export const saveExcelTemplate = (data: Record<string, unknown>) =>
+  req<{ id: number }>('/api/excel-templates', { method: 'POST', body: JSON.stringify(data) })
+
 // ── 健康检查 ──
 export const healthCheck = () => req<{ status: string }>('/api/health')
 
@@ -141,3 +151,87 @@ export const batchDeleteErrorLibrary = (ids: number[]) =>
   req<{ deleted: number }>('/api/error-library/batch-delete', {
     method: 'POST', body: JSON.stringify({ ids }),
   })
+
+// ── 家庭户 ──
+export const getHouseholds = (params: Record<string, string | number>) =>
+  req<PageResult<HH>>('/api/households?' + new URLSearchParams(params as Record<string, string>))
+
+export const getOverdrawnHouseholds = () =>
+  req<HH[]>('/api/households/alert/overdrawn')
+
+export const getHouseholdDetail = (id: number, year: number) =>
+  req<HHDetail>(`/api/households/${id}?year=${year}`)
+
+export const updateHousehold = (id: number, data: Partial<HouseholdCreate & { status: number }>) =>
+  req(`/api/households/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+
+export const createHousehold = (data: HouseholdCreate) =>
+  req<{ id: number }>('/api/households', { method: 'POST', body: JSON.stringify(data) })
+
+export const moveMember = (data: MemberMoveRequest) =>
+  req('/api/households/member/move', { method: 'POST', body: JSON.stringify(data) })
+
+// ── 家庭户成员 ──
+export const getHouseholdMembers = (householdId: number) =>
+  req<{ household_id: number; members: HHDetail['members'] }>(`/api/households/${householdId}/members`)
+
+export const addHouseholdMember = (householdId: number, data: MemberCreate) =>
+  req<{ id: number; household_id: number }>(`/api/households/${householdId}/members`, {
+    method: 'POST', body: JSON.stringify(data),
+  })
+
+export const updateHouseholdMember = (householdId: number, farmerId: number, data: MemberUpdate) =>
+  req(`/api/households/${householdId}/members/${farmerId}`, {
+    method: 'PUT', body: JSON.stringify(data),
+  })
+
+export const removeHouseholdMember = (householdId: number, farmerId: number) =>
+  req(`/api/households/${householdId}/members/${farmerId}`, { method: 'DELETE' })
+
+export const getHouseholdAreaByYear = (householdId: number) =>
+  req<{ household_id: number; years: { year: number; subsidy_area: number }[] }>(
+    `/api/households/${householdId}/area-by-year`
+  )
+
+// ── 家庭户事件 ──
+export const getHouseholdEvents = (householdId: number, year?: number) =>
+  req<HHEvent[]>(`/api/households/${householdId}/events` + (year ? `?year=${year}` : ''))
+
+export const addHouseholdEvent = (householdId: number, data: Record<string, unknown>) =>
+  req<{ id: number }>(`/api/households/${householdId}/events`, {
+    method: 'POST', body: JSON.stringify(data),
+  })
+
+export const undoHouseholdEvent = (householdId: number, eventId: number) =>
+  req(`/api/households/${householdId}/events/${eventId}`, { method: 'DELETE' })
+
+// ── 家庭户历史 ──
+export const getHouseholdHistoryDates = (householdId: number) =>
+  req<{ household_id: number; dates: HistoryDateEvent[] }>(`/api/households/${householdId}/history-dates`)
+
+export const getHouseholdSnapshotAt = (householdId: number, date: string) =>
+  req<SnapshotAtResponse>(`/api/households/${householdId}/snapshot-at/${date}`)
+
+export const getHouseholdHistoryYears = (householdId: number) =>
+  req<{ household_id: number; years: number[] }>(`/api/households/${householdId}/history-years`)
+
+export const getHouseholdHistory = (householdId: number, year: number) =>
+  req<unknown>(`/api/households/${householdId}/history/${year}`)
+
+// ── 家庭户分户 / 批量组建 ──
+export const splitHousehold = (householdId: number, data: Record<string, unknown>) =>
+  req<{ new_household_id: number; moved_members: number[] }>(
+    `/api/households/${householdId}/split`, { method: 'POST', body: JSON.stringify(data) }
+  )
+
+export const batchBuildHouseholds = (rows: { household_id: string; id_card: string; real_name?: string; is_head?: number; relation?: string; land_area?: number }[]) =>
+  req<{ created: number; errors: string[] }>('/api/households/batch-build', {
+    method: 'POST', body: JSON.stringify({ rows }),
+  })
+
+export const batchImportHouseholdMembers = (householdId: number, rows: Record<string, unknown>[]) =>
+  req<{ created: number; skipped: number; errors: string[] }>(
+    `/api/households/${householdId}/members/batch-import`, {
+      method: 'POST', body: JSON.stringify({ rows }),
+    }
+  )

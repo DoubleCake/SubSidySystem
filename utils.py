@@ -95,3 +95,25 @@ def normalize_group_no(name: str) -> str:
             suffix = '组'  # 纯数字默认补"组"
         return _arabic_to_chinese(num) + suffix
     return s
+
+
+# ───────────── 村组解析 ─────────────
+def resolve_village_group(db, village_name: str, group_no: str):
+    """根据村名+组号查找或创建村组，返回 (VillageGroup | None, error_msg | None)"""
+    from models import VillageGroup
+    if not village_name or not group_no:
+        return None, "缺少村组信息"
+    group_no = normalize_group_no(group_no)
+    vg = db.query(VillageGroup).filter_by(village_name=village_name, group_no=group_no).first()
+    if not vg:
+        # 尝试模糊匹配
+        vg = db.query(VillageGroup).filter(
+            VillageGroup.village_name.like(f"%{village_name}%"),
+            VillageGroup.group_no == group_no,
+        ).first()
+    if not vg:
+        # 自动创建新村组
+        vg = VillageGroup(village_name=village_name, group_no=group_no, full_name=f"{village_name}{group_no}")
+        db.add(vg)
+        db.flush()
+    return vg, None

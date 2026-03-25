@@ -15,7 +15,7 @@ import { useState } from 'react'
 
 const mainNav = [
   { to: '/',            label: '首页',     icon: '📊', end: true },
-  { to: '/farmers',     label: '农户信息管理', icon: '👤' },
+  { to: '/farmers',     label: '户籍管理', icon: '👤' },
   { to: '/projects',    label: '补贴项目', icon: '💰' },
   { to: '/precheck',    label: '数据预检', icon: '🔍' },
   { to: '/links',       label: '外联查询', icon: '🔗' },

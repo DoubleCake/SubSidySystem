@@ -42,6 +42,17 @@ export interface FarmerCreate {
   remark?: string
 }
 
+export interface FarmerDetail {
+  id: number; real_name: string; gender: number; farmer_status: number
+  is_head: number; relation: string | null
+  id_card_masked: string; phone_masked: string | null; bank_card_masked: string | null
+  bank_name: string | null; village_full_name: string; land_area: string | null
+  address: string | null; remark: string | null; created_at: string | null
+  household_id: number; birth_date?: string
+  id_card?: string; phone?: string; bank_card?: string
+  applications?: { id: number; apply_year: number; subsidy_name: string; calc_mode: string; apply_amount: string | null; actual_amount: string | null; apply_area: string | null; pay_status: number; pay_date: string | null; remark: string | null }[]
+}
+
 export interface SubsidyType {
   id: number
   subsidy_name: string
@@ -241,6 +252,110 @@ export interface ErrorLibraryCreate {
   discovered_date?: string
   subsidy_type_id?: number
   remark?: string
+}
+
+// ── 家庭户 ──
+export interface HH {
+  id: number; household_code: string; household_name: string
+  village_full_name: string; village_name: string; head_name: string
+  contracted_area: number; used_area: number; remaining_area: number
+  is_overdrawn: boolean; overdraw_amount: number
+  member_count: number; status: number; address: string | null; remark: string | null
+}
+
+export interface HHMember {
+  id: number; real_name: string; gender: number; id_card_masked: string
+  is_head: number; relation: string | null; farmer_status: number; phone_masked: string | null
+}
+
+export interface HHDetail {
+  id: number; household_code: string; household_name: string
+  village_full_name: string; contracted_area: number; status: number
+  address: string | null; remark: string | null
+  members: HHMember[]
+  area_usage: {
+    contracted_area: number; trust_out_area?: number; trust_in_area?: number
+    cultivable_area?: number; used_area: number; remaining_area: number
+    is_overdrawn: boolean; overdraw_amount?: number; has_trust_data?: boolean
+    subsidy_breakdown: { subsidy_name: string; apply_area: number; calc_mode: string }[]
+  }
+  app_summary: {
+    apply_year: number; farmer_name: string; subsidy_name: string
+    calc_mode: string; apply_area: number | null; actual_amount: number | null; pay_status: number
+  }[]
+}
+
+export interface HHEvent {
+  id: number; event_type: string; event_year: number; event_date: string | null
+  date_accuracy: string; description: string
+  farmer_id: number | null; farmer_name: string | null
+  related_hh_id: number | null; evidence_type: string | null; evidence_note: string | null
+  operator: string | null; created_at: string
+  before_snapshot: unknown; after_snapshot: unknown
+  undoable: boolean
+}
+
+export interface HistoryDateEvent {
+  date: string; event_type: string; description: string
+  event_id: number; event_year: number
+}
+
+export interface SnapshotAtResponse {
+  target_date: string
+  snapshot: {
+    household_name: string; household_code: string
+    land_area: number; status: number
+    address: string | null; remark: string | null
+    head_id: number | null
+    members: HHMember[]
+  } | null
+  events: HHEvent[]
+}
+
+export interface HouseholdCreate {
+  household_name: string
+  village_group_id: number
+  address?: string
+  land_area?: number
+  remark?: string
+}
+
+export interface MemberCreate {
+  real_name: string
+  id_card: string
+  gender?: number
+  phone?: string
+  bank_card?: string
+  bank_name?: string
+  relation?: string
+  is_head?: number
+  farmer_status?: number
+  remark?: string
+}
+
+export interface MemberUpdate {
+  real_name?: string
+  phone?: string
+  bank_card?: string
+  bank_name?: string
+  relation?: string
+  is_head?: number
+  farmer_status?: number
+  remark?: string
+}
+
+export interface MemberMoveRequest {
+  farmer_id: number
+  target_household_id: number
+}
+
+export interface HouseholdBuildRow {
+  household_id: string
+  id_card: string
+  real_name?: string
+  is_head?: number
+  relation?: string
+  land_area?: number
 }
 
 // ── 预检结果 ──

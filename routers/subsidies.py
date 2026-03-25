@@ -10,7 +10,7 @@ from schemas import (
     ApplicationCreate, ApplicationUpdate, ApplicationOut,
     YearCompare, YearSummary,
 )
-from utils import normalize_group_no
+from utils import normalize_group_no, resolve_village_group
 
 router = APIRouter(prefix="/api/subsidies", tags=["补贴管理"])
 
@@ -97,32 +97,13 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
     created, skipped, errors = 0, 0, []
     new_farmers_created = 0
 
-    def resolve_village_group(village_name: str, group_no: str):
-        """根据村名+组号查找或创建村组，返回 (VillageGroup | None, error_msg | None)"""
-        from models import VillageGroup
-        if not village_name or not group_no:
-            return None, "缺少村组信息"
-        group_no = normalize_group_no(group_no)
-        vg = db.query(VillageGroup).filter_by(village_name=village_name, group_no=group_no).first()
-        if not vg:
-            # 尝试模糊匹配
-            vg = db.query(VillageGroup).filter(
-                VillageGroup.village_name.like(f"%{village_name}%"),
-                VillageGroup.group_no == group_no,
-            ).first()
-        if not vg:
-            # 自动创建新村组
-            vg = VillageGroup(village_name=village_name, group_no=group_no, full_name=f"{village_name}{group_no}")
-            db.add(vg); db.flush()
-        return vg, None
-
     def get_or_create_farmer(id_card: str, real_name: str, village_name: str = "", group_no: str = "") -> FarmerProfile | None:
         """按身份证查找农户，不存在则自动创建（含家庭户）；已存在则检查村组一致性"""
         nonlocal new_farmers_created
         from models import FamilyHousehold, VillageGroup
 
         # 解析村组
-        vg, vg_err = resolve_village_group(village_name, group_no)
+        vg, vg_err = resolve_village_group(db, village_name, group_no)
 
         fp = db.query(FarmerProfile).filter(FarmerProfile.id_card == id_card).first()
         if fp:

@@ -163,6 +163,50 @@ def calc_household_area_usage(
 
 
 # ─────────────────────────────────────
+#  接口：创建家庭户
+# ─────────────────────────────────────
+
+from schemas import HouseholdCreate as HouseholdCreateSchema
+
+@router.post("")
+def create_household(data: HouseholdCreateSchema, db: Session = Depends(get_db)):
+    """创建新家庭户（无成员，稍后通过添加成员接口关联）"""
+    from utils import gen_household_code
+    from models import HouseholdEvent
+    from datetime import datetime
+
+    # 生成 household_code：取当前最大 id + 1
+    max_id = db.query(func.max(FamilyHousehold.id)).scalar() or 0
+    code = gen_household_code(max_id + 1)
+
+    hh = FamilyHousehold(
+        household_code=code,
+        household_name=data.household_name,
+        village_group_id=data.village_group_id,
+        address=data.address,
+        land_area=data.land_area,
+        status=1,
+        member_count=0,
+        remark=data.remark,
+    )
+    db.add(hh)
+    db.flush()
+
+    # 记录 FOUND 事件
+    now = datetime.now()
+    _log_event(
+        db, household_id=hh.id,
+        event_type="FOUND", event_year=now.year,
+        description=f"新建家庭户：{data.household_name}",
+        after=_snapshot_household(db, hh.id),
+        event_date=now.strftime("%Y-%m-%d"),
+        date_accuracy="DAY",
+    )
+    db.commit()
+    return {"id": hh.id}
+
+
+# ─────────────────────────────────────
 #  接口：家庭户列表
 # ─────────────────────────────────────
 

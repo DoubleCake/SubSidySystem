@@ -6,7 +6,7 @@ from typing import Optional
 from database import get_db
 from models import FarmerProfile, FamilyHousehold, VillageGroup
 from schemas import FarmerCreate, FarmerUpdate
-from utils import mask_id_card, mask_phone, mask_bank_card, parse_id_card, gen_household_code, normalize_group_no
+from utils import mask_id_card, mask_phone, mask_bank_card, parse_id_card, gen_household_code, resolve_village_group
 
 router = APIRouter(prefix="/api/farmers", tags=["农户管理"])
 
@@ -179,13 +179,6 @@ def batch_import_farmers(payload: dict, db: Session = Depends(get_db)):
     rows = payload.get("rows", [])
     created, skipped, errors = 0, 0, []
 
-    def get_or_create_vg(vname: str, gno: str) -> int:
-        gno = normalize_group_no(gno)
-        vg = db.query(VillageGroup).filter_by(village_name=vname, group_no=gno).first()
-        if vg: return vg.id
-        vg = VillageGroup(village_name=vname, group_no=gno, full_name=f"{vname}{gno}")
-        db.add(vg); db.flush(); return vg.id
-
     for row in rows:
         try:
             ic = str(row.get("id_card", "")).strip()
@@ -198,7 +191,9 @@ def batch_import_farmers(payload: dict, db: Session = Depends(get_db)):
                 vn = str(row.get("village_name", "")).strip()
                 gn = str(row.get("group_no",   "")).strip()
                 if not vn or not gn: errors.append(f"{row.get('real_name','?')}: 缺少村组"); continue
-                vg_id = get_or_create_vg(vn, gn)
+                vg, vg_err = resolve_village_group(db, vn, gn)
+                if vg_err: errors.append(f"{row.get('real_name','?')}: {vg_err}"); continue
+                vg_id = vg.id
 
             parsed = parse_id_card(ic) or {}
             farmer = FarmerProfile(
