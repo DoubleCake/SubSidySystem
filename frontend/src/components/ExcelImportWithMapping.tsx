@@ -28,13 +28,14 @@ interface Props {
   templates?: SavedTemplate[]
   // API函数
   onDetectColumns?: (columns: string[], sampleRows: Record<string, unknown>[]) => Promise<{
-    detected_mappings: Array<{
+    columns: Array<{
       excel_column: string
       suggested_field: string | null
       confidence: number
       alternatives: Array<{ field: string; confidence: number }>
     }>
     recommended_templates?: Array<{ id: number; template_name: string; match_rate: number }>
+    auto_confirm_count?: number; unrecognized_count?: number
   }>
   onSaveTemplate?: (data: {
     template_name: string
@@ -130,7 +131,7 @@ export default function ExcelImportWithMapping({
             const result = await onDetectColumns(fileColumns, sampleRows)
 
             const mappings: ColumnMapping[] = fileColumns.map(col => {
-              const detected = result.detected_mappings?.find(d => d.excel_column === col)
+              const detected = (result as { columns?: Array<{ excel_column: string; suggested_field?: string | null; confidence?: number }> }).columns?.find(d => d.excel_column === col)
               const sampleValue = data[0]?.[col] ? String(data[0][col]).substring(0, 20) : ''
               return {
                 excel_column: col,

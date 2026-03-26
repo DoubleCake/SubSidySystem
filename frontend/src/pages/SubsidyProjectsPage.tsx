@@ -662,7 +662,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
 
   // 检测Excel列名
   const detectExcelColumns = async (columns: string[], sampleRows: Record<string, unknown>[]): Promise<{
-    detected_mappings: Array<{
+    columns: Array<{
       excel_column: string
       suggested_field: string | null
       confidence: number
@@ -684,22 +684,20 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
         throw new Error(`检测失败: ${response.status}`)
       }
       const raw = await response.json()
-      // 后端返回 { columns: [...], recommended_templates: [...] }
-      // 前端期望 { detected_mappings: [...], recommended_templates: [...] }
-      const detected_mappings = (raw.columns || raw.detected_mappings || []).map((d: Record<string, unknown>) => ({
+      const cols = (raw.columns || []).map((d: Record<string, unknown>) => ({
         excel_column: d.excel_column,
         suggested_field: d.suggested_field,
         confidence: d.confidence ?? d.suggested_confidence ?? 0,
         alternatives: d.alternatives || [],
       }))
       return {
-        detected_mappings,
+        columns: cols,
         recommended_templates: raw.recommended_templates || [],
       }
     } catch (error) {
       console.error('检测列名失败:', error)
       return {
-        detected_mappings: columns.map(col => ({
+        columns: columns.map(col => ({
           excel_column: col,
           suggested_field: null,
           confidence: 0,

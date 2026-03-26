@@ -114,7 +114,11 @@ export const getExcelTemplate = (id: number) =>
   req<ExcelColumnTemplate>('/api/excel-templates/' + id)
 
 export const detectExcelColumns = (columns: string[], businessType: string, sampleRows: Record<string, unknown>[]) =>
-  req<{ detected_mappings: Array<{ excel_column: string; suggested_field: string | null; confidence: number; alternatives: Array<{ field: string; confidence: number }> }>; recommended_templates?: Array<{ id: number; template_name: string; match_rate: number }> }>(
+  req<{
+    columns: Array<{ excel_column: string; suggested_field: string | null; confidence: number; alternatives: Array<{ field: string; confidence: number }> }>
+    recommended_templates?: Array<{ id: number; template_name: string; match_rate: number }>
+    auto_confirm_count?: number; unrecognized_count?: number
+  }>(
     '/api/excel-templates/detect-columns', {
       method: 'POST', body: JSON.stringify({ columns, business_type: businessType, sample_rows: sampleRows }),
     }

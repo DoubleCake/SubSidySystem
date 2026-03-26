@@ -555,13 +555,13 @@ export default function PreCheckPage() {
             body: JSON.stringify({ columns, sample_rows: sampleRows, business_type: 'PRECHECK' }),
           })
           const raw = await r.json()
-          const detected_mappings = (raw.columns || raw.detected_mappings || []).map((d: Record<string, unknown>) => ({
+          const cols = (raw.columns || []).map((d: Record<string, unknown>) => ({
             excel_column: d.excel_column,
             suggested_field: d.suggested_field,
             confidence: d.confidence ?? d.suggested_confidence ?? 0,
             alternatives: d.alternatives || [],
           }))
-          return { detected_mappings, recommended_templates: raw.recommended_templates || [] }
+          return { columns: cols, recommended_templates: raw.recommended_templates || [] }
         }}
         onSaveTemplate={async (data) => {
           const r = await fetch('/api/excel-templates', {

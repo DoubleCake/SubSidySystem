@@ -661,14 +661,31 @@ export default function FarmersPage() {
 
   const detectExcelColumns = async (columns: string[], sampleRows: Record<string, unknown>[]) => {
     try {
-      return await api.detectExcelColumns(columns, 'FARMER', sampleRows)
+      const r = await fetch('/api/excel-templates/detect-columns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ columns, sample_rows: sampleRows, business_type: 'FARMER' }),
+      })
+      const raw = await r.json()
+      const cols = (raw.columns || []).map((d: Record<string, unknown>) => ({
+        excel_column: d.excel_column,
+        suggested_field: d.suggested_field,
+        confidence: d.confidence ?? d.suggested_confidence ?? 0,
+        alternatives: d.alternatives || [],
+      }))
+      return { columns: cols, recommended_templates: raw.recommended_templates || [] }
     } catch {
-      return { detected_mappings: columns.map(c => ({ excel_column: c, suggested_field: null, confidence: 0, alternatives: [] as Array<{ field: string; confidence: number }> })) }
+      return { columns: columns.map(c => ({ excel_column: c, suggested_field: null, confidence: 0, alternatives: [] as Array<{ field: string; confidence: number }> })) }
     }
   }
 
   const saveColumnMappingTemplate = async (data: Record<string, unknown>) => {
-    const result = await api.saveExcelTemplate(data)
+    const r = await fetch('/api/excel-templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...data, business_type: 'FARMER' }),
+    })
+    const result = await r.json()
     api.getExcelTemplates('FARMER').then(setTemplates).catch(() => {})
     return result
   }
@@ -825,7 +842,16 @@ export default function FarmersPage() {
 
       <ExcelImportWithMapping open={importOpen} onClose={() => setImportOpen(false)} title="农户信息导入"
         templateHeaders={FARMER_TEMPLATE_HEADERS} templateExample={FARMER_TEMPLATE_EXAMPLE}
-        systemFields={FARMER_SYSTEM_FIELDS} templates={templates}
+        systemFields={FARMER_SYSTEM_FIELDS}
+        templates={templates.map(t => ({
+          id: t.id,
+          template_name: t.template_name,
+          column_mapping: t.column_mapping.map(m => ({
+            excel_column: m.excel_column,
+            system_field: m.system_field,
+            required: m.required,
+          })),
+        }))}
         onDetectColumns={detectExcelColumns} onSaveTemplate={saveColumnMappingTemplate}
         onImport={handleImport} onSuccess={() => leftTab === 'farmers' ? loadFarmers() : loadHouseholds()} />
     </>

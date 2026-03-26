@@ -87,16 +87,16 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
       })
       if (!response.ok) throw new Error(`检测失败: ${response.status}`)
       const raw = await response.json()
-      const detected_mappings = (raw.columns || raw.detected_mappings || []).map((d: Record<string, unknown>) => ({
+      const mapped = (raw.columns || []).map((d: Record<string, unknown>) => ({
         excel_column: d.excel_column,
         suggested_field: d.suggested_field,
         confidence: d.confidence ?? d.suggested_confidence ?? 0,
         alternatives: d.alternatives || [],
       }))
-      return { detected_mappings, recommended_templates: raw.recommended_templates || [] }
+      return { columns: mapped, recommended_templates: raw.recommended_templates || [] }
     } catch {
       return {
-        detected_mappings: columns.map(col => ({ excel_column: col, suggested_field: null, confidence: 0, alternatives: [] }))
+        columns: columns.map(col => ({ excel_column: col, suggested_field: null, confidence: 0, alternatives: [] }))
       }
     }
   }
