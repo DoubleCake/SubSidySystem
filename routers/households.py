@@ -1044,6 +1044,46 @@ def _snapshot_household(db: Session, household_id: int) -> dict:
           .order_by(FarmerProfile.is_head.desc(), FarmerProfile.id).all()
     )
     head = next((m for m in members if m.is_head == 1), None)
+
+    # 获取该户所有成员的补贴申请摘要（保存到快照中）
+    member_ids = [m.id for m in members]
+    subsidy_apps = []
+    if member_ids:
+        rows = (
+            db.query(
+                SubsidyApplication.apply_year,
+                SubsidyApplication.farmer_id,
+                FarmerProfile.real_name,
+                SubsidyType.subsidy_name,
+                SubsidyType.calc_mode,
+                SubsidyApplication.apply_area,
+                SubsidyApplication.apply_amount,
+                SubsidyApplication.actual_amount,
+                SubsidyApplication.pay_status,
+            )
+            .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id)
+            .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
+            .filter(SubsidyApplication.farmer_id.in_(member_ids))
+            .order_by(SubsidyApplication.apply_year.desc())
+            .all()
+        )
+        subsidy_apps = [
+            {
+                "apply_year": r.apply_year,
+                "farmer_name": r.real_name,
+                "subsidy_name": r.subsidy_name,
+                "calc_mode": r.calc_mode,
+                "apply_area": float(r.apply_area) if r.apply_area else None,
+                "apply_amount": float(r.apply_amount) if r.apply_amount else None,
+                "actual_amount": float(r.actual_amount) if r.actual_amount else None,
+                "pay_status": r.pay_status,
+            }
+            for r in rows
+        ]
+
+    # 计算面积使用情况（保存到快照中）
+    area_info = calc_household_area_usage(household_id, db)
+
     return {
         "household_name": hh.household_name,
         "household_code": hh.household_code,
@@ -1053,6 +1093,8 @@ def _snapshot_household(db: Session, household_id: int) -> dict:
         "remark": hh.remark,
         "head_id": head.id if head else None,
         "members": [_member_out(m) for m in members],
+        "app_summary": subsidy_apps,  # 快照时的补贴申请摘要
+        "area_usage": area_info,      # 快照时的面积使用情况
     }
 
 
@@ -1384,6 +1426,9 @@ def get_snapshot_at_date(
         remark = snapshot_data.get("remark", hh.remark)
         head_id = snapshot_data.get("head_id")
         members = snapshot_data.get("members", [])
+        # 从快照中获取补贴数据和面积使用情况
+        app_summary = snapshot_data.get("app_summary", [])
+        area_usage = snapshot_data.get("area_usage", {})
     else:
         # 无快照，返回当前状态
         household_name = hh.household_name
@@ -1399,6 +1444,9 @@ def get_snapshot_at_date(
               .order_by(FarmerProfile.is_head.desc(), FarmerProfile.id).all()
         )
         members = [_member_out(m) for m in members_q]
+        # 使用当前数据
+        app_summary = []
+        area_usage = {}
 
     # 该日期发生的所有事件
     day_events = (
@@ -1422,6 +1470,170 @@ def get_snapshot_at_date(
 
     return {
         "target_date": date,
+        "snapshot": {
+            "household_name": household_name,
+            "household_code": household_code,
+            "land_area": contracted_area,
+            "status": status,
+            "address": address,
+            "remark": remark,
+            "head_id": head_id,
+            "members": members,
+        },
+        "events": events_list,
+    }
+
+
+@router.get("/{household_id}/snapshot-by-event/{event_id}")
+def get_snapshot_by_event(
+    household_id: int,
+    event_id: int,
+    db: Session = Depends(get_db)
+):
+    """返回指定事件对应的家庭状态快照"""
+    import json as _json
+    from models import HouseholdEvent
+
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh:
+        raise HTTPException(404, "家庭户不存在")
+
+    # 特殊处理 event_id = -1 (ORIGINAL 虚拟事件)
+    if event_id == -1:
+        # 找到最早的真实事件，使用它的 before_snapshot
+        earliest_ev = (
+            db.query(HouseholdEvent)
+              .filter(HouseholdEvent.household_id == household_id)
+              .order_by(HouseholdEvent.event_date.asc().nullsfirst(),
+                        HouseholdEvent.event_year.asc(),
+                        HouseholdEvent.created_at.asc())
+              .first()
+        )
+        snapshot_data = None
+        target_date_str = None
+        if earliest_ev and earliest_ev.before_snapshot:
+            try:
+                snapshot_data = _json.loads(earliest_ev.before_snapshot)
+                target_date_str = str(earliest_ev.event_date) if earliest_ev.event_date else f"{earliest_ev.event_year}-01-01"
+            except:
+                pass
+        # 如果没有快照数据，使用当前状态
+        if snapshot_data:
+            household_name = snapshot_data.get("household_name", hh.household_name)
+            household_code = snapshot_data.get("household_code", hh.household_code)
+            contracted_area = snapshot_data.get("land_area", float(hh.land_area or 0))
+            status = snapshot_data.get("status", hh.status)
+            address = snapshot_data.get("address", hh.address)
+            remark = snapshot_data.get("remark", hh.remark)
+            head_id = snapshot_data.get("head_id")
+            members = snapshot_data.get("members", [])
+            # 从快照中获取补贴数据和面积使用情况
+            app_summary = snapshot_data.get("app_summary", [])
+            area_usage = snapshot_data.get("area_usage", {})
+        else:
+            household_name = hh.household_name
+            household_code = hh.household_code
+            contracted_area = float(hh.land_area or 0)
+            status = hh.status
+            address = hh.address
+            remark = hh.remark
+            head_id = None
+            members_q = (
+                db.query(FarmerProfile)
+                  .filter(FarmerProfile.household_id == household_id)
+                  .order_by(FarmerProfile.is_head.desc(), FarmerProfile.id).all()
+            )
+            members = [_member_out(m) for m in members_q]
+            # 使用当前数据
+            app_summary = []
+            area_usage = {}
+        # 返回虚拟 ORIGINAL 事件
+        events_list = [{
+            "id": -1, "event_type": "ORIGINAL",
+            "event_date": target_date_str,
+            "description": "原始数据（首次记录前的状态）",
+            "farmer_name": None,
+        }]
+        return {
+            "target_date": target_date_str,
+            "snapshot": {
+                "household_name": household_name,
+                "household_code": household_code,
+                "land_area": contracted_area,
+                "status": status,
+                "address": address,
+                "remark": remark,
+                "head_id": head_id,
+                "members": members,
+                "app_summary": app_summary,
+                "area_usage": area_usage,
+            },
+            "events": events_list,
+        }
+
+    # 普通事件处理
+    ev = db.get(HouseholdEvent, event_id)
+    if not ev or ev.household_id != household_id:
+        raise HTTPException(404, "事件不存在")
+
+    # 确定使用哪个快照
+    snapshot_data = None
+    target_date_str = str(ev.event_date) if ev.event_date else None
+
+    # 对于其他事件，优先使用 after_snapshot，回退到 before_snapshot
+    if ev.after_snapshot:
+        try:
+            snapshot_data = _json.loads(ev.after_snapshot)
+        except:
+            pass
+    if not snapshot_data and ev.before_snapshot:
+        try:
+            snapshot_data = _json.loads(ev.before_snapshot)
+        except:
+            pass
+
+    # 如果有快照数据，使用它；否则使用当前状态
+    if snapshot_data:
+        household_name = snapshot_data.get("household_name", hh.household_name)
+        household_code = snapshot_data.get("household_code", hh.household_code)
+        contracted_area = snapshot_data.get("land_area", float(hh.land_area or 0))
+        status = snapshot_data.get("status", hh.status)
+        address = snapshot_data.get("address", hh.address)
+        remark = snapshot_data.get("remark", hh.remark)
+        head_id = snapshot_data.get("head_id")
+        members = snapshot_data.get("members", [])
+        # 从快照中获取补贴数据和面积使用情况
+        app_summary = snapshot_data.get("app_summary", [])
+        area_usage = snapshot_data.get("area_usage", {})
+    else:
+        # 无快照，返回当前状态
+        household_name = hh.household_name
+        household_code = hh.household_code
+        contracted_area = float(hh.land_area or 0)
+        status = hh.status
+        address = hh.address
+        remark = hh.remark
+        head_id = None
+        members_q = (
+            db.query(FarmerProfile)
+              .filter(FarmerProfile.household_id == household_id)
+              .order_by(FarmerProfile.is_head.desc(), FarmerProfile.id).all()
+        )
+        members = [_member_out(m) for m in members_q]
+        # 使用当前数据
+        app_summary = []
+        area_usage = {}
+
+    # 返回该事件本身作为事件列表
+    events_list = [{
+        "id": ev.id, "event_type": ev.event_type,
+        "event_date": str(ev.event_date) if ev.event_date else None,
+        "description": ev.description,
+        "farmer_name": ev.farmer_name,
+    }]
+
+    return {
+        "target_date": target_date_str,
         "snapshot": {
             "household_name": household_name,
             "household_code": household_code,

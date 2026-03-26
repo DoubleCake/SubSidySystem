@@ -326,6 +326,15 @@ export interface SnapshotAtResponse {
     address: string | null; remark: string | null
     head_id: number | null
     members: SnapshotMember[]
+    app_summary?: Array<{
+      apply_year: number; farmer_name: string; subsidy_name: string
+      calc_mode: string; apply_area: number | null; actual_amount: number | null; pay_status: number
+    }>
+    area_usage?: {
+      contracted_area: number; used_area: number; remaining_area: number
+      is_overdrawn: boolean; overdraw_amount?: number
+      subsidy_breakdown: Array<{ subsidy_name: string; apply_area: number; calc_mode: string }>
+    }
   } | null
   events: Array<{
     id: number

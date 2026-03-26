@@ -212,6 +212,9 @@ export const getHouseholdHistoryDates = (householdId: number) =>
 export const getHouseholdSnapshotAt = (householdId: number, date: string) =>
   req<SnapshotAtResponse>(`/api/households/${householdId}/snapshot-at/${date}`)
 
+export const getHouseholdSnapshotByEvent = (householdId: number, eventId: number) =>
+  req<SnapshotAtResponse>(`/api/households/${householdId}/snapshot-by-event/${eventId}`)
+
 export const getHouseholdHistoryYears = (householdId: number) =>
   req<{ household_id: number; years: number[] }>(`/api/households/${householdId}/history-years`)
 
