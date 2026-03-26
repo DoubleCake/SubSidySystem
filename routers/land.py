@@ -382,12 +382,17 @@ def search_household(q: str = Query("", min_length=0), db: Session = Depends(get
     rows = db.execute(text("""
         SELECT hh.id, hh.household_code, hh.household_name, hh.land_area,
                fp.real_name AS head_name,
-               vg.full_name AS village_full_name
+               COALESCE(v.village_name, '') AS village_name,
+               COALESCE(hh.group_no, 1) AS group_no
         FROM family_household hh
         LEFT JOIN farmer_profile fp ON fp.id = hh.head_farmer_id
-        LEFT JOIN village_group vg ON vg.id = hh.village_group_id
+        LEFT JOIN village v ON v.id = hh.village_id
         WHERE hh.status = 1
           AND (hh.household_name LIKE :q OR hh.household_code LIKE :q OR fp.real_name LIKE :q)
         LIMIT 20
     """), {"q": f"%{q}%"}).fetchall()
-    return [dict(r._mapping) for r in rows]
+    from utils import format_group_no
+    return [
+        {**dict(r._mapping), "village_full_name": f"{r.village_name or ''}{format_group_no(r.group_no)}"}
+        for r in rows
+    ]

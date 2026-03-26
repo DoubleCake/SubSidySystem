@@ -96,15 +96,14 @@ def main():
             land = round(random.uniform(0.5,8.0),2)
             hh = FamilyHousehold(household_code="TEMP",household_name=f"{name_head}户",
                 village_group_id=vg_id,address=f"{vname}{gno}{hh_i+1}号",
-                land_area=land,status=1,member_count=1)
+                land_area=land,status=1)
             db.add(hh); db.flush()
             hh.household_code = gen_household_code(hh.id)
-            parsed = parse_id_card(id_head)
             head = FarmerProfile(household_id=hh.id,real_name=name_head,gender=g_head,
-                id_card=id_head,birth_date=parsed.get("birth_date") if parsed else None,
+                id_card=id_head,
                 phone=rand_phone() if random.random()>0.2 else None,
                 bank_card=rand_bank(),bank_name=random.choice(BANKS),
-                is_head=1,relation="本人",farmer_status=1)
+                relation="本人",farmer_status=1)
             db.add(head); db.flush()
             hh.head_farmer_id = head.id
             all_farmer_ids.append((head.id, hh.id, land))
@@ -114,18 +113,16 @@ def main():
                 mg = random.choice([1,2]); mby = random.randint(1960,2005)
                 mid = rand_id(mby,random.randint(1,12),random.randint(1,28),mg,hh_i*10+mi+1)
                 if db.query(FarmerProfile).filter_by(id_card=mid).first(): continue
-                mp = parse_id_card(mid)
                 m = FarmerProfile(household_id=hh.id,real_name=rand_name(mg),gender=mg,
-                    id_card=mid,birth_date=mp.get("birth_date") if mp else None,
+                    id_card=mid,
                     phone=rand_phone() if random.random()>0.5 else None,
                     bank_card=rand_bank() if random.random()>0.4 else None,
                     bank_name=random.choice(BANKS) if random.random()>0.4 else None,
-                    is_head=0,relation=random.choice(RELATIONS),
+                    relation=random.choice(RELATIONS),
                     farmer_status=random.choices([1,1,1,2,3],weights=[80,5,5,5,5])[0])
                 db.add(m); db.flush()
                 all_farmer_ids.append((m.id, hh.id, land))
                 created_f += 1
-            hh.member_count = db.query(func.count(FarmerProfile.id)).filter_by(household_id=hh.id).scalar() or 1
             created_hh += 1
     db.commit()
     print(f"  农户: {created_f} 人, 家庭户: {created_hh} 户")
@@ -133,7 +130,9 @@ def main():
     # 4. 补贴申请
     created_app = 0
     # 取所有户主（每家庭户代表申请耕地补贴）
-    heads = db.query(FarmerProfile).filter_by(is_head=1,farmer_status=1).all()
+    heads = db.query(FarmerProfile).join(
+        FamilyHousehold, FamilyHousehold.head_farmer_id == FarmerProfile.id
+    ).filter(FarmerProfile.farmer_status == 1).all()
     for h in heads:
         hh = db.get(FamilyHousehold, h.household_id)
         land = float(hh.land_area or 0) if hh else 0

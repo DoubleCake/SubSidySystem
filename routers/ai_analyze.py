@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 import os
 
 from database import get_db
-from models import SubsidyApplication, FarmerProfile, FamilyHousehold, VillageGroup, SubsidyType
+from models import SubsidyApplication, FarmerProfile, FamilyHousehold, Village, SubsidyType
 from schemas import AIAnalyzeRequest
 from utils import desensitize_farmer
 
@@ -15,10 +15,10 @@ def _build_analysis_data(year: int, village_name: str | None, db: Session) -> di
     apps_q = db.query(SubsidyApplication).filter(SubsidyApplication.apply_year == year)
 
     if village_name:
-        vg_ids = [v.id for v in db.query(VillageGroup)
-                  .filter(VillageGroup.village_name == village_name).all()]
+        v_ids = [v.id for v in db.query(Village)
+                  .filter(Village.village_name == village_name).all()]
         hh_ids = [h.id for h in db.query(FamilyHousehold)
-                  .filter(FamilyHousehold.village_group_id.in_(vg_ids)).all()]
+                  .filter(FamilyHousehold.village_id.in_(v_ids)).all()]
         f_ids  = [f.id for f in db.query(FarmerProfile)
                   .filter(FarmerProfile.household_id.in_(hh_ids)).all()]
         apps_q = apps_q.filter(SubsidyApplication.farmer_id.in_(f_ids))
@@ -34,7 +34,8 @@ def _build_analysis_data(year: int, village_name: str | None, db: Session) -> di
         if a.farmer_id not in farmer_cache:
             f = db.get(FarmerProfile, a.farmer_id)
             if f:
-                vg = db.get(VillageGroup, f.household.village_group_id) if f.household else None
+                vname = f.household.village.village_name if f.household and f.household.village else ""
+                gno = f.household.group_no if f.household else ""
                 farmer_cache[a.farmer_id] = desensitize_farmer({
                     "id": f.id,
                     "name": f.real_name,
@@ -42,7 +43,7 @@ def _build_analysis_data(year: int, village_name: str | None, db: Session) -> di
                     "id_card": f.id_card,
                     "phone": f.phone or "",
                     "bank_card": f.bank_card or "",
-                    "village": vg.full_name if vg else "",
+                    "village": vname + gno,
                     "status": f.farmer_status,
                 })
 

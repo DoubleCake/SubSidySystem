@@ -81,20 +81,29 @@ def _arabic_to_chinese(n: int) -> str:
     tens, ones = divmod(n, 10)
     return _DIGITS[tens] + '十' + (_DIGITS[ones] if ones else '')
 
-def normalize_group_no(name: str) -> str:
-    """规范化组号：'1组'→'一组', '01组'→'一组', '2大队'→'二大队' 等"""
-    if not name:
-        return name
-    s = name.strip()
-    # 匹配：开头若干数字 + 后续文字
+def parse_group_no_to_int(value) -> int:
+    """将 '1' / '一组' / 1 等多种格式转为整数 1/2/3"""
+    if value is None:
+        return 1
+    s = str(value).strip()
+    # 纯数字字符串
+    if re.match(r'^\d+$', s):
+        return int(s)
+    # 匹配：开头数字 + 后续文字（如 "1组"、"2大队"）
     m = re.match(r'^(\d+)(.*)$', s)
     if m:
-        num = int(m.group(1))
-        suffix = m.group(2)
-        if not suffix:
-            suffix = '组'  # 纯数字默认补"组"
-        return _arabic_to_chinese(num) + suffix
-    return s
+        return int(m.group(1))
+    # 中文数字：一组、二组...
+    CN_MAP = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
+              '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}
+    for cn, num in CN_MAP.items():
+        if cn in s:
+            return num
+    return int(s) if s.isdigit() else 1
+
+def format_group_no(n: int) -> str:
+    """将整数 1→'一组'，用于显示"""
+    return f"{_arabic_to_chinese(n)}组"
 
 
 # ───────────── 村组解析 ─────────────

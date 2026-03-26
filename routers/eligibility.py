@@ -12,6 +12,7 @@ from datetime import date
 
 from database import get_db
 from models import SubsidyEligibilityRule, SubsidyType, FarmerProfile, FamilyHousehold
+from utils import parse_id_card
 
 router = APIRouter(prefix="/api/eligibility", tags=["资格规则"])
 
@@ -126,12 +127,14 @@ def check_eligibility(payload: dict, db: Session = Depends(get_db)):
 
         hh = db.get(FamilyHousehold, fp.household_id) if fp.household_id else None
 
-        # 计算年龄
+        # 计算年龄（从身份证解析）
         age = None
-        if fp.birth_date:
+        parsed = parse_id_card(fp.id_card)
+        if parsed and parsed.get("birth_date"):
             ref = date(year, 12, 31)
-            age = ref.year - fp.birth_date.year - (
-                (ref.month, ref.day) < (fp.birth_date.month, fp.birth_date.day)
+            bd = parsed["birth_date"]
+            age = ref.year - bd.year - (
+                (ref.month, ref.day) < (bd.month, bd.day)
             )
 
         # 逐条规则检查

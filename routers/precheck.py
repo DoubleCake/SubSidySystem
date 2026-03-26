@@ -15,7 +15,8 @@ from typing import Optional
 import re
 
 from database import get_db
-from models import FarmerProfile, VillageGroup, FamilyHousehold, SubsidyApplication, ErrorLibrary
+from models import FarmerProfile, Village, FamilyHousehold, SubsidyApplication, ErrorLibrary
+from utils import format_group_no, parse_group_no_to_int
 
 router = APIRouter(prefix="/api/precheck", tags=["数据预检查"])
 
@@ -148,27 +149,25 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
     """
 
     # ── 1. 加载数据库基础数据（减少循环内查询）──
-    all_village_groups: dict[str, int] = {
-        f"{vg.village_name}|{vg.group_no}": vg.id
-        for vg in db.query(VillageGroup).all()
-    }
-    # 村名集合，用于模糊提示
-    all_village_names: set[str] = {vg.village_name for vg in db.query(VillageGroup).all()}
+    # 村名集合，用于模糊提示（新的 Village 表）
+    all_village_names: set[str] = {v.village_name for v in db.query(Village).all()}
+    # 村名→Village id 映射
+    village_name_to_id: dict[str, int] = {v.village_name: v.id for v in db.query(Village).all()}
 
     # 数据库中所有在册农户，以身份证为键
     db_farmers: dict[str, dict] = {
         f.id_card: {
             "id": f.id,
             "real_name": f.real_name,
-            "village_full_name": f.household.village_group.full_name if f.household and f.household.village_group else "",
-            "village_name": f.household.village_group.village_name if f.household and f.household.village_group else "",
-            "group_no": f.household.village_group.group_no if f.household and f.household.village_group else "",
+            "village_full_name": (f"{f.household.village.village_name}{format_group_no(f.household.group_no)}" if f.household and f.household.village else ""),
+            "village_name": f.household.village.village_name if f.household and f.household.village else "",
+            "group_no": f.household.group_no if f.household else 1,
             "farmer_status": f.farmer_status,
         }
         for f in db.query(FarmerProfile).join(
             FamilyHousehold, FamilyHousehold.id == FarmerProfile.household_id
         ).join(
-            VillageGroup, VillageGroup.id == FamilyHousehold.village_group_id
+            Village, Village.id == FamilyHousehold.village_id
         ).all()
     }
 
@@ -217,23 +216,20 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         # ── 2.3 村组检查 ──
         village = (row.village_name or "").strip()
         group   = (row.group_no or "").strip()
-        village_group_id = None
+        village_id = None
         if not village:
             row_errors.append("村名为空")
-        elif not group:
-            row_errors.append("组号为空")
         else:
-            vg_key = f"{village}|{group}"
-            if vg_key in all_village_groups:
-                village_group_id = all_village_groups[vg_key]
-            else:
+            # 检查村名是否存在
+            village_id = village_name_to_id.get(village)
+            if not village_id:
                 # 尝试找相近的村名给出提示
                 similar = [v for v in all_village_names if village in v or v in village]
                 hint = f"（相近的村名：{'、'.join(similar[:3])}）" if similar else "（数据库中无此村）"
                 village_errors.append({
                     "row": row_no, "name": name, "id_card": id_card,
                     "village": village, "group": group,
-                    "error": f"村组「{village}{group}」在数据库中不存在 {hint}"
+                    "error": f"村「{village}」在数据库中不存在 {hint}"
                 })
 
         # ── 2.4 手机号检查（可选）──
@@ -342,7 +338,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
             new_farmers.append({
                 "row": row_no, "name": name, "id_card": id_card,
                 "village": village, "group": group,
-                "village_group_id": village_group_id,
+                "village_id": village_id,
             })
 
     # ── 3. 数据库中存在但 Excel 中没有的：减少的农户 ──
@@ -366,19 +362,20 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         # 该年度已有补贴申请的农户 id_card 集合
         apps_this_year = db.query(
             FarmerProfile.id_card, FarmerProfile.real_name,
-            VillageGroup.village_name, VillageGroup.group_no
+            Village.village_name, FamilyHousehold.group_no
         ).join(
             SubsidyApplication, SubsidyApplication.farmer_id == FarmerProfile.id
         ).join(
             FamilyHousehold, FamilyHousehold.id == FarmerProfile.household_id
         ).join(
-            VillageGroup, VillageGroup.id == FamilyHousehold.village_group_id
+            Village, Village.id == FamilyHousehold.village_id
         ).filter(
             SubsidyApplication.apply_year == year
         ).distinct().all()
 
         db_year_ids = {r.id_card for r in apps_this_year}
-        db_year_map = {r.id_card: {"name": r.real_name, "village": r.village_name, "group": r.group_no}
+        db_year_map = {r.id_card: {"name": r.real_name, "village": r.village_name,
+                       "group": format_group_no(r.group_no) if r.group_no else "一组"}
                        for r in apps_this_year}
 
         # 本次 Excel 中有补贴但上年没有 → 新增受益农户

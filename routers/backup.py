@@ -16,6 +16,7 @@ from sqlalchemy import text
 import io
 
 from database import get_db, engine, DATABASE_URL
+from utils import format_group_no
 
 router = APIRouter(prefix="/api/backup", tags=["备份管理"])
 
@@ -129,45 +130,67 @@ def export_excel(db: Session = Depends(get_db)):
     rows1 = db.execute(text("""
         SELECT fp.id, fp.real_name,
                CASE fp.gender WHEN 1 THEN '男' ELSE '女' END,
-               fp.id_card, fp.birth_date, fp.phone, fp.bank_card, fp.bank_name,
-               CASE fp.is_head WHEN 1 THEN '户主' ELSE '成员' END,
+               fp.id_card, fp.phone, fp.bank_card, fp.bank_name,
+               CASE WHEN hh.head_farmer_id = fp.id THEN '户主' ELSE '成员' END,
                fp.relation,
                CASE fp.farmer_status WHEN 1 THEN '在册' WHEN 2 THEN '注销'
                  WHEN 3 THEN '迁出' WHEN 4 THEN '死亡' ELSE '未知' END,
-               vg.full_name, hh.land_area, hh.household_code,
+               COALESCE(v.village_name, '') AS village_name,
+               COALESCE(hh.group_no, 1) AS group_no,
+               hh.land_area, hh.household_code,
                fp.remark, fp.created_at
         FROM farmer_profile fp
         LEFT JOIN family_household hh ON fp.household_id = hh.id
-        LEFT JOIN village_group    vg ON hh.village_group_id = vg.id
-        ORDER BY vg.full_name, fp.id
+        LEFT JOIN village v ON v.id = hh.village_id
+        ORDER BY v.village_name, hh.group_no, fp.id
     """)).fetchall()
+
+    def _fmt_row1(r):
+        vn = r.village_name or ''
+        gn = format_group_no(r.group_no) if r.group_no else '一组'
+        row = list(r)
+        # 所在村组在第11列（index 10），出生日期列已被移除
+        row[10] = f"{vn}{gn}"
+        return row
     write_sheet(ws1,
-        ["ID","姓名","性别","身份证号","出生日期","手机号","银行卡号","开户行",
+        ["ID","姓名","性别","身份证号","手机号","银行卡号","开户行",
          "角色","与户主关系","状态","所在村组","土地面积(亩)","家庭户编码","备注","录入时间"],
-        [list(r) for r in rows1])
+        [_fmt_row1(r) for r in rows1])
 
     # Sheet 2: 家庭户
     ws2 = wb.create_sheet("家庭户")
     rows2 = db.execute(text("""
         SELECT hh.id, hh.household_code, hh.household_name,
-               vg.full_name, hh.land_area, hh.member_count,
+               COALESCE(v.village_name, '') AS village_name,
+               COALESCE(hh.group_no, 1) AS group_no,
+               hh.land_area,
                fp.real_name AS head_name,
                CASE hh.status WHEN 1 THEN '正常' WHEN 2 THEN '注销' ELSE '其他' END,
                hh.address
         FROM family_household hh
-        LEFT JOIN village_group   vg ON hh.village_group_id = vg.id
+        LEFT JOIN village v ON v.id = hh.village_id
         LEFT JOIN farmer_profile  fp ON hh.head_farmer_id = fp.id
-        ORDER BY vg.full_name, hh.id
+        ORDER BY v.village_name, hh.group_no, hh.id
     """)).fetchall()
+
+    def _fmt_row2(r):
+        vn = r.village_name or ''
+        gn = format_group_no(r.group_no) if r.group_no else '一组'
+        row = list(r)
+        # 所在村组在第4列（index 3）
+        row[3] = f"{vn}{gn}"
+        return row
     write_sheet(ws2,
-        ["ID","户编码","户名","所在村组","承包面积(亩)","成员数","户主姓名","状态","地址"],
-        [list(r) for r in rows2])
+        ["ID","户编码","户名","所在村组","承包面积(亩)","户主姓名","状态","地址"],
+        [_fmt_row2(r) for r in rows2])
 
     # Sheet 3: 补贴申请记录
     ws3 = wb.create_sheet("补贴申请记录")
     rows3 = db.execute(text("""
         SELECT sa.id, fp.real_name, fp.id_card,
-               vg.full_name, st.subsidy_name, st.subsidy_year,
+               COALESCE(v.village_name, '') AS village_name,
+               COALESCE(hh.group_no, 1) AS group_no,
+               st.subsidy_name, st.subsidy_year,
                CASE st.calc_mode WHEN 'per_mu' THEN '按亩' ELSE '固定' END,
                sa.apply_area, sa.apply_amount, sa.actual_amount,
                CASE sa.pay_status WHEN 0 THEN '待发放' WHEN 1 THEN '部分发放'
@@ -177,13 +200,21 @@ def export_excel(db: Session = Depends(get_db)):
         LEFT JOIN farmer_profile  fp ON sa.farmer_id = fp.id
         LEFT JOIN subsidy_type    st ON sa.subsidy_type_id = st.id
         LEFT JOIN family_household hh ON fp.household_id = hh.id
-        LEFT JOIN village_group   vg ON hh.village_group_id = vg.id
-        ORDER BY st.subsidy_year DESC, vg.full_name, fp.id
+        LEFT JOIN village v ON v.id = hh.village_id
+        ORDER BY st.subsidy_year DESC, v.village_name, hh.group_no, fp.id
     """)).fetchall()
+
+    def _fmt_row3(r):
+        vn = r.village_name or ''
+        gn = format_group_no(r.group_no) if r.group_no else '一组'
+        row = list(r)
+        # 所在村组在第4列（index 3）
+        row[3] = f"{vn}{gn}"
+        return row
     write_sheet(ws3,
         ["ID","姓名","身份证号","所在村组","补贴项目","年度","计算方式",
          "申请面积(亩)","申请金额","实发金额","发放状态","打款日期","备注"],
-        [list(r) for r in rows3])
+        [_fmt_row3(r) for r in rows3])
 
     # Sheet 4: 补贴项目
     ws4 = wb.create_sheet("补贴项目")
@@ -199,12 +230,22 @@ def export_excel(db: Session = Depends(get_db)):
         ["ID","补贴名称","年度","计算方式","标准金额","单位","资金来源","截止日期","发放状态","说明"],
         [list(r) for r in rows4])
 
-    # Sheet 5: 村组
+    # Sheet 5: 村组（从 village + family_household.group_no 聚合）
     ws5 = wb.create_sheet("村组配置")
-    rows5 = db.execute(text(
-        "SELECT id, village_name, group_no, full_name FROM village_group ORDER BY village_name, group_no"
-    )).fetchall()
-    write_sheet(ws5, ["ID","村名","组号","完整名称"], [list(r) for r in rows5])
+    rows5 = db.execute(text("""
+        SELECT DISTINCT v.id, v.village_name, hh.group_no
+        FROM village v
+        LEFT JOIN family_household hh ON hh.village_id = v.id
+        ORDER BY v.village_name, hh.group_no
+    """)).fetchall()
+
+    def _fmt_row5(r):
+        row = list(r)
+        # 组号存的是整数，显示时转为"X组"
+        gn = row[2] if r.group_no else 1
+        row[2] = format_group_no(gn)
+        return row
+    write_sheet(ws5, ["ID","村名","组号"], [_fmt_row5(r) for r in rows5])
 
     # 写入内存并返回
     buf = io.BytesIO()

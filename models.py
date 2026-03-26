@@ -1,29 +1,27 @@
 from sqlalchemy import (
     Column, Integer, String, SmallInteger, Date,
-    DateTime, Text, DECIMAL, ForeignKey, UniqueConstraint
+    DateTime, Text, DECIMAL, ForeignKey, UniqueConstraint, Index
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
 
 
-class VillageGroup(Base):
-    """村组字典表"""
-    __tablename__ = "village_group"
+# ═══════════════════════════════════════════
+#  村 / 组 表
+# ═══════════════════════════════════════════
+
+class Village(Base):
+    """村表"""
+    __tablename__ = "village"
 
     id           = Column(Integer, primary_key=True, autoincrement=True)
-    village_name = Column(String(50), nullable=False, comment="村名")
-    group_no     = Column(String(20), nullable=False, comment="组号")
-    full_name    = Column(String(80), nullable=False, comment="村+组全称")
+    village_name = Column(String(50), nullable=False, unique=True, comment="村名")
     created_at   = Column(DateTime, default=func.now())
 
-    # 确保每个村组全称唯一
-    __table_args__ = (
-        UniqueConstraint('full_name', name='uq_village_group_full_name'),
-    )
-
     # 关联
-    households = relationship("FamilyHousehold", back_populates="village_group")
+    households = relationship("FamilyHousehold", back_populates="village")
+
 
 
 class FamilyHousehold(Base):
@@ -34,19 +32,25 @@ class FamilyHousehold(Base):
     household_code  = Column(String(30), nullable=False, unique=True, comment="户编码 HH0001")
     household_name  = Column(String(50), nullable=False, comment="家庭名称")
     head_farmer_id  = Column(Integer, nullable=True, comment="户主 farmer_profile.id")
-    village_group_id= Column(Integer, ForeignKey("village_group.id"), nullable=False)
+    village_id      = Column(Integer, ForeignKey("village.id"), nullable=False, comment="所属村")
+    group_no        = Column(SmallInteger, nullable=False, default=1, comment="所属组，存数字：1=一组，2=二组...")
     address         = Column(String(200), nullable=True)
     land_area       = Column(DECIMAL(10, 2), nullable=True, comment="土地面积(亩)")
     status          = Column(SmallInteger, nullable=False, default=1, comment="1在册 2注销 3迁出")
-    member_count    = Column(Integer, nullable=False, default=1)
     remark          = Column(Text, nullable=True)
     created_at      = Column(DateTime, default=func.now())
     updated_at      = Column(DateTime, default=func.now(), onupdate=func.now())
 
+    # 索引
+    __table_args__ = (
+        Index('ix_family_household_village_id', 'village_id'),
+        Index('ix_family_household_head_farmer', 'head_farmer_id'),
+    )
+
     # 关联
-    village_group = relationship("VillageGroup", back_populates="households")
-    members       = relationship("FarmerProfile", back_populates="household",
-                                 foreign_keys="FarmerProfile.household_id")
+    village = relationship("Village", back_populates="households")
+    members = relationship("FarmerProfile", back_populates="household",
+                          foreign_keys="FarmerProfile.household_id")
 
 
 class FarmerProfile(Base):
@@ -58,17 +62,21 @@ class FarmerProfile(Base):
     real_name        = Column(String(50), nullable=False)
     gender           = Column(SmallInteger, nullable=False, comment="1男 2女")
     id_card          = Column(String(18), nullable=False, unique=True, comment="身份证号")
-    birth_date       = Column(Date, nullable=True, comment="从身份证解析")
     phone            = Column(String(20), nullable=True)
     bank_card        = Column(String(25), nullable=True)
     bank_name        = Column(String(100), nullable=True)
-    is_head          = Column(SmallInteger, nullable=False, default=1, comment="1户主 0成员")
     relation         = Column(String(20), nullable=True, default="本人", comment="与户主关系")
     farmer_status    = Column(SmallInteger, nullable=False, default=1,
                               comment="1在册 2注销 3迁出 4死亡")
     remark           = Column(Text, nullable=True)
     created_at       = Column(DateTime, default=func.now())
     updated_at       = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # 索引
+    __table_args__ = (
+        Index('ix_farmer_profile_household_id', 'household_id'),
+        Index('ix_farmer_profile_id_card', 'id_card'),
+    )
 
     # 关联
     household    = relationship("FamilyHousehold", back_populates="members",
@@ -123,10 +131,12 @@ class SubsidyApplication(Base):
     created_at          = Column(DateTime, default=func.now())
     updated_at          = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    # 同一农户同年同补贴不能重复
+    # 索引
     __table_args__ = (
         UniqueConstraint("farmer_id", "subsidy_type_id", "apply_year",
                          name="uq_farmer_subsidy_year"),
+        Index('ix_subsidy_application_farmer_year', 'farmer_id', 'apply_year'),
+        Index('ix_subsidy_application_subsidy_type', 'subsidy_type_id'),
     )
 
     # 关联
@@ -372,6 +382,11 @@ class HouseholdEvent(Base):
 
     operator        = Column(String(50), nullable=True, comment="操作人")
     created_at      = Column(DateTime, default=func.now())
+
+    # 索引
+    __table_args__ = (
+        Index('ix_household_event_hh_year', 'household_id', 'event_year'),
+    )
 
     household = relationship("FamilyHousehold", foreign_keys=[household_id],
                               backref="events")

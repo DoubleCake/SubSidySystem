@@ -4,12 +4,20 @@ from datetime import date, datetime
 from decimal import Decimal
 
 
-# ───────────── 村组 ─────────────
-class VillageGroupOut(BaseModel):
+# ───────────── 村 / 组 ─────────────
+class VillageOut(BaseModel):
     id: int
     village_name: str
+
+    class Config:
+        from_attributes = True
+
+
+class GroupOut(BaseModel):
+    id: int
+    village_id: int
     group_no: str
-    full_name: str
+    full_name: str  # village_name + group_no，计算字段
 
     class Config:
         from_attributes = True
@@ -18,21 +26,24 @@ class VillageGroupOut(BaseModel):
 # ───────────── 家庭户 ─────────────
 class HouseholdCreate(BaseModel):
     household_name: str
-    village_group_id: int
+    village_id: int       # 村 FK
+    group_no: int         # 组号数字：1=一组，2=二组
     address: Optional[str] = None
     land_area: Optional[Decimal] = None
     remark: Optional[str] = None
+
 
 class HouseholdOut(BaseModel):
     id: int
     household_code: str
     household_name: str
     head_farmer_id: Optional[int]
-    village_group_id: int
+    village_id: int
+    group_no: int         # 组号数字
     address: Optional[str]
     land_area: Optional[Decimal]
     status: int
-    member_count: int
+    member_count: int     # 动态计算，不存库
     remark: Optional[str]
 
     class Config:
@@ -47,7 +58,8 @@ class FarmerCreate(BaseModel):
     phone: Optional[str] = None
     bank_card: Optional[str] = None
     bank_name: Optional[str] = None
-    village_group_id: int              # 前端传村组ID，后端自动建家庭户
+    village_id: int                    # 村 FK
+    group_no: int                       # 组号数字：1=一组，2=二组
     address: Optional[str] = None
     land_area: Optional[Decimal] = None
     farmer_status: int = 1
@@ -58,7 +70,8 @@ class FarmerUpdate(BaseModel):
     phone: Optional[str] = None
     bank_card: Optional[str] = None
     bank_name: Optional[str] = None
-    village_group_id: Optional[int] = None
+    village_id: Optional[int] = None
+    group_no: Optional[int] = None
     address: Optional[str] = None
     land_area: Optional[Decimal] = None
     farmer_status: Optional[int] = None
@@ -73,7 +86,7 @@ class FarmerOut(BaseModel):
     phone_masked: Optional[str]        # 脱敏后手机
     bank_card_masked: Optional[str]    # 脱敏后银行卡
     bank_name: Optional[str]
-    is_head: int
+    is_head: int                     # 动态计算：household.head_farmer_id == id
     relation: Optional[str]
     farmer_status: int
     village_full_name: str             # 冗余展示用

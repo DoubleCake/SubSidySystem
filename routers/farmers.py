@@ -4,9 +4,9 @@ from sqlalchemy import text
 from typing import Optional
 
 from database import get_db
-from models import FarmerProfile, FamilyHousehold, VillageGroup
+from models import FarmerProfile, FamilyHousehold, Village
 from schemas import FarmerCreate, FarmerUpdate
-from utils import mask_id_card, mask_phone, mask_bank_card, parse_id_card, gen_household_code, resolve_village_group
+from utils import mask_id_card, mask_phone, mask_bank_card, parse_id_card, gen_household_code, parse_group_no_to_int, format_group_no
 
 router = APIRouter(prefix="/api/farmers", tags=["农户管理"])
 
@@ -18,14 +18,14 @@ router = APIRouter(prefix="/api/farmers", tags=["农户管理"])
 
 _COLS = """
     fp.id, fp.household_id, fp.real_name, fp.gender, fp.id_card,
-    fp.phone, fp.bank_card, fp.bank_name, fp.is_head, fp.relation,
-    fp.farmer_status, fp.remark, fp.created_at, fp.birth_date,
-    hh.land_area, hh.address, hh.household_code,
-    COALESCE(vg.full_name, vg.village_name || vg.group_no, '未知村组') AS village_full_name,
-    vg.village_name, vg.group_no
+    fp.phone, fp.bank_card, fp.bank_name, fp.relation,
+    fp.farmer_status, fp.remark, fp.created_at,
+    hh.land_area, hh.address, hh.household_code, hh.head_farmer_id,
+    COALESCE(v.village_name || format_group_no(hh.group_no), '未知村组') AS village_full_name,
+    v.village_name, hh.group_no
 FROM farmer_profile fp
 LEFT JOIN family_household hh ON fp.household_id = hh.id
-LEFT JOIN village_group    vg ON hh.village_group_id = vg.id
+LEFT JOIN village v ON hh.village_id = v.id
 """
 
 def _to_list(r) -> dict:
@@ -39,7 +39,7 @@ def _to_list(r) -> dict:
         "phone_masked":     mask_phone(m["phone"]) if m.get("phone") else None,
         "bank_card_masked": mask_bank_card(m["bank_card"]) if m.get("bank_card") else None,
         "bank_name":        m.get("bank_name"),
-        "is_head":          m.get("is_head") or 0,
+        "is_head":          1 if m.get("head_farmer_id") and m.get("id") == m.get("head_farmer_id") else 0,
         "relation":         m.get("relation"),
         "farmer_status":    m.get("farmer_status") or 1,
         "village_full_name":m.get("village_full_name") or "—",
@@ -47,7 +47,6 @@ def _to_list(r) -> dict:
         "address":          m.get("address"),
         "remark":           m.get("remark"),
         "created_at":       str(m["created_at"]) if m.get("created_at") else None,
-        "birth_date":       str(m["birth_date"])  if m.get("birth_date")  else None,
         "household_code":   m.get("household_code"),
         "village_name":     m.get("village_name"),
         "group_no":         m.get("group_no"),
@@ -86,7 +85,7 @@ def list_farmers(
     total = db.execute(text(
         f"SELECT COUNT(*) FROM farmer_profile fp "
         f"LEFT JOIN family_household hh ON fp.household_id=hh.id "
-        f"LEFT JOIN village_group vg ON hh.village_group_id=vg.id {w}"
+        f"LEFT JOIN village v ON hh.village_id=v.id {w}"
     ), params).scalar() or 0
 
     params["lim"] = page_size
@@ -122,12 +121,13 @@ def get_farmer(farmer_id: int, db: Session = Depends(get_db)):
     # 同户成员
     if hh_id:
         mems = db.execute(text("""
-            SELECT id, real_name, gender, is_head, relation, farmer_status,
-                   birth_date,
-                   SUBSTR(id_card,1,6)||'********'||SUBSTR(id_card,-4) AS id_card_masked
-            FROM farmer_profile
-            WHERE household_id = :hid AND id != :fid
-            ORDER BY is_head DESC, id
+            SELECT fp.id, fp.real_name, fp.gender, fp.relation, fp.farmer_status,
+                   SUBSTR(fp.id_card,1,6)||'********'||SUBSTR(fp.id_card,-4) AS id_card_masked,
+                   CASE WHEN hh.head_farmer_id = fp.id THEN 1 ELSE 0 END AS is_head
+            FROM farmer_profile fp
+            LEFT JOIN family_household hh ON fp.household_id = hh.id
+            WHERE fp.household_id = :hid AND fp.id != :fid
+            ORDER BY is_head DESC, fp.id
         """), {"hid": hh_id, "fid": farmer_id}).fetchall()
         detail["household_members"] = [dict(m._mapping) for m in mems]
     else:
@@ -140,24 +140,30 @@ def get_farmer(farmer_id: int, db: Session = Depends(get_db)):
 def create_farmer(data: FarmerCreate, db: Session = Depends(get_db)):
     if db.execute(text("SELECT id FROM farmer_profile WHERE id_card=:ic"), {"ic": data.id_card}).fetchone():
         raise HTTPException(status_code=400, detail="该身份证号已存在")
+
+    # 直接使用 data.village_id 和 data.group_no
+    village_id = data.village_id
+    group_no = data.group_no
+
     parsed = parse_id_card(data.id_card) or {}
     farmer = FarmerProfile(
         household_id=0, real_name=data.real_name,
         gender=parsed.get("gender") or data.gender,
-        id_card=data.id_card, birth_date=parsed.get("birth_date"),
+        id_card=data.id_card,
         phone=data.phone, bank_card=data.bank_card, bank_name=data.bank_name,
-        is_head=1, relation="本人", farmer_status=data.farmer_status, remark=data.remark,
+        relation="本人", farmer_status=data.farmer_status, remark=data.remark,
     )
     db.add(farmer); db.flush()
     hh = FamilyHousehold(
         household_code=gen_household_code(farmer.id),
         household_name=f"{data.real_name}户", head_farmer_id=farmer.id,
-        village_group_id=data.village_group_id, address=data.address,
-        land_area=data.land_area, status=data.farmer_status, member_count=1,
+        village_id=village_id, group_no=group_no, address=data.address,
+        land_area=data.land_area, status=data.farmer_status,
     )
     db.add(hh); db.flush()
     farmer.household_id = hh.id; db.commit()
     return {"id": farmer.id, "household_id": hh.id, "message": "创建成功"}
+
 
 # ── 修改 ──
 @router.put("/{farmer_id}")
@@ -165,12 +171,25 @@ def update_farmer(farmer_id: int, data: FarmerUpdate, db: Session = Depends(get_
     farmer = db.get(FarmerProfile, farmer_id)
     if not farmer: raise HTTPException(status_code=404, detail="农户不存在")
     upd = data.model_dump(exclude_unset=True)
-    hh_fields = {k: upd.pop(k) for k in ("village_group_id","address","land_area") if k in upd}
-    for k, v in upd.items(): setattr(farmer, k, v)
+
+    # 处理 village_id / group_no 更新（写入 FamilyHousehold）
+    new_village_id = upd.pop("village_id", None)
+    new_group_no = upd.pop("group_no", None)
+
+    hh_fields = {k: upd.pop(k) for k in ("address","land_area") if k in upd}
+    for k, v in upd.items():
+        setattr(farmer, k, v)
     if hh_fields:
         hh = db.get(FamilyHousehold, farmer.household_id)
         if hh:
             for k, v in hh_fields.items(): setattr(hh, k, v)
+    if new_village_id is not None or new_group_no is not None:
+        hh = db.get(FamilyHousehold, farmer.household_id)
+        if hh:
+            if new_village_id is not None:
+                hh.village_id = new_village_id
+            if new_group_no is not None:
+                hh.group_no = new_group_no
     db.commit(); return {"message": "更新成功"}
 
 # ── 批量导入 ──
@@ -186,28 +205,25 @@ def batch_import_farmers(payload: dict, db: Session = Depends(get_db)):
             if db.execute(text("SELECT id FROM farmer_profile WHERE id_card=:ic"), {"ic": ic}).fetchone():
                 skipped += 1; continue
 
-            vg_id = row.get("village_group_id")
-            if not vg_id:
-                vn = str(row.get("village_name", "")).strip()
-                gn = str(row.get("group_no",   "")).strip()
-                if not vn or not gn: errors.append(f"{row.get('real_name','?')}: 缺少村组"); continue
-                vg, vg_err = resolve_village_group(db, vn, gn)
-                if vg_err: errors.append(f"{row.get('real_name','?')}: {vg_err}"); continue
-                vg_id = vg.id
+            vid = row.get("village_id")
+            gn_raw = row.get("group_no")
+            if not vid or gn_raw is None:
+                errors.append(f"{row.get('real_name','?')}: 缺少 village_id 或 group_no"); continue
+            gno = parse_group_no_to_int(gn_raw)
 
             parsed = parse_id_card(ic) or {}
             farmer = FarmerProfile(
                 household_id=0, real_name=row.get("real_name"), gender=parsed.get("gender") or row.get("gender", 1),
-                id_card=ic, birth_date=parsed.get("birth_date"), phone=row.get("phone"),
+                id_card=ic, phone=row.get("phone"),
                 bank_card=row.get("bank_card"), bank_name=row.get("bank_name"),
-                is_head=1, relation="本人", farmer_status=row.get("farmer_status", 1),
+                relation="本人", farmer_status=row.get("farmer_status", 1),
             )
             db.add(farmer); db.flush()
             hh = FamilyHousehold(
                 household_code=gen_household_code(farmer.id),
                 household_name=f"{row.get('real_name','未知')}户", head_farmer_id=farmer.id,
-                village_group_id=vg_id, address=row.get("address"),
-                land_area=row.get("land_area"), status=row.get("farmer_status", 1), member_count=1,
+                village_id=vid, group_no=gno, address=row.get("address"),
+                land_area=row.get("land_area"), status=row.get("farmer_status", 1),
             )
             db.add(hh); db.flush()
             farmer.household_id = hh.id; created += 1

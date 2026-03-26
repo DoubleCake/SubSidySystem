@@ -4,13 +4,13 @@ from sqlalchemy import func
 from typing import Optional
 
 from database import get_db
-from models import SubsidyType, SubsidyApplication, FarmerProfile, FamilyHousehold, VillageGroup
+from models import SubsidyType, SubsidyApplication, FarmerProfile, FamilyHousehold, Village
 from schemas import (
     SubsidyTypeCreate, SubsidyTypeOut,
     ApplicationCreate, ApplicationUpdate, ApplicationOut,
     YearCompare, YearSummary,
 )
-from utils import normalize_group_no, resolve_village_group
+from utils import parse_group_no_to_int, format_group_no
 
 router = APIRouter(prefix="/api/subsidies", tags=["补贴管理"])
 
@@ -100,38 +100,43 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
     def get_or_create_farmer(id_card: str, real_name: str, village_name: str = "", group_no: str = "") -> FarmerProfile | None:
         """按身份证查找农户，不存在则自动创建（含家庭户）；已存在则检查村组一致性"""
         nonlocal new_farmers_created
-        from models import FamilyHousehold, VillageGroup
+        from models import FamilyHousehold, Village
 
-        # 解析村组
-        vg, vg_err = resolve_village_group(db, village_name, group_no)
+        # 解析村组：直接查找或创建 Village，group_no 转为整数
+        if not village_name:
+            errors.append(f"{real_name}（{id_card}）：缺少村名"); return None
+        gno_int = parse_group_no_to_int(group_no) if group_no else 1
+        village = db.query(Village).filter(Village.village_name == village_name).first()
+        if not village:
+            village = Village(village_name=village_name)
+            db.add(village); db.flush()
+        vid = village.id
 
         fp = db.query(FarmerProfile).filter(FarmerProfile.id_card == id_card).first()
         if fp:
-            # 已存在的农户：检查村组是否与数据库一致，不一致则报错（不允许在补贴导入中静默修改）
-            if vg and fp.household_id:
+            # 已存在的农户：检查村组是否与数据库一致，不一致则报错
+            if vid and fp.household_id:
                 hh = db.get(FamilyHousehold, fp.household_id)
-                if hh and hh.village_group_id != vg.id:
-                    db_vg = db.get(VillageGroup, hh.village_group_id)
-                    db_vg_name = f"{db_vg.village_name}{db_vg.group_no}" if db_vg else "未知"
-                    errors.append(f"{real_name}（{id_card}）：数据库中所在村组为「{db_vg_name}」，导入数据为「{village_name}{group_no}」不一致，请先在农户管理中修改")
+                if hh and (hh.village_id != vid or hh.group_no != gno_int):
+                    db_vname = hh.village.village_name if hh.village else "未知"
+                    db_gno = format_group_no(hh.group_no) if hh.group_no else ""
+                    errors.append(f"{real_name}（{id_card}）：数据库中所在村组为「{db_vname}{db_gno}」，导入数据为「{village_name}{format_group_no(gno_int)}」不一致，请先在农户管理中修改")
                     return None
             return fp
 
-        if not vg:
-            errors.append(f"{real_name}（{id_card}）：{vg_err}，无法创建农户")
-            return None
+        if not vid:
+            errors.append(f"{real_name}（{id_card}）：村组信息不完整，无法创建农户"); return None
 
         parsed = parse_id_card(id_card) or {}
         fp = FarmerProfile(
             household_id=0, real_name=real_name, gender=parsed.get("gender", 1),
-            id_card=id_card, birth_date=parsed.get("birth_date"),
-            is_head=1, relation="本人", farmer_status=1,
+            id_card=id_card, relation="本人", farmer_status=1,
         )
         db.add(fp); db.flush()
         hh = FamilyHousehold(
             household_code=gen_household_code(fp.id),
             household_name=f"{real_name}户", head_farmer_id=fp.id,
-            village_group_id=vg.id, status=1, member_count=1,
+            village_id=vid, group_no=gno_int, status=1,
         )
         db.add(hh); db.flush()
         fp.household_id = hh.id
@@ -211,10 +216,10 @@ def list_applications(
     if pay_status is not None:
         q = q.filter(SubsidyApplication.pay_status == pay_status)
     if village_name:
-        vg_ids = [v.id for v in db.query(VillageGroup)
-                  .filter(VillageGroup.village_name == village_name).all()]
+        village_ids = [v.id for v in db.query(Village)
+                  .filter(Village.village_name == village_name).all()]
         hh_ids = [h.id for h in db.query(FamilyHousehold)
-                  .filter(FamilyHousehold.village_group_id.in_(vg_ids)).all()]
+                  .filter(FamilyHousehold.village_id.in_(village_ids)).all()]
         farmer_ids = [f.id for f in db.query(FarmerProfile)
                       .filter(FarmerProfile.household_id.in_(hh_ids)).all()]
         q = q.filter(SubsidyApplication.farmer_id.in_(farmer_ids))
@@ -322,10 +327,10 @@ def year_compare(
     # 新增/退出 也用 SQL 算，只取最多 50 条避免返回太多
     sql_diff = text("""
         SELECT fp.id, fp.real_name, fp.farmer_status,
-               COALESCE(vg.full_name, '') AS village
+               COALESCE(v.village_name, '') AS village_name, COALESCE(hh.group_no, 1) AS group_no
         FROM farmer_profile fp
         LEFT JOIN family_household hh ON fp.household_id = hh.id
-        LEFT JOIN village_group    vg ON hh.village_group_id = vg.id
+        LEFT JOIN village v ON hh.village_id = v.id
         WHERE fp.id IN (
             SELECT DISTINCT farmer_id FROM subsidy_application WHERE apply_year = :y
         ) AND fp.id NOT IN (
@@ -335,10 +340,10 @@ def year_compare(
     """)
     sql_exit = text("""
         SELECT fp.id, fp.real_name, fp.farmer_status,
-               COALESCE(vg.full_name, '') AS village
+               COALESCE(v.village_name, '') AS village_name, COALESCE(hh.group_no, 1) AS group_no
         FROM farmer_profile fp
         LEFT JOIN family_household hh ON fp.household_id = hh.id
-        LEFT JOIN village_group    vg ON hh.village_group_id = vg.id
+        LEFT JOIN village v ON hh.village_id = v.id
         WHERE fp.id IN (
             SELECT DISTINCT farmer_id FROM subsidy_application WHERE apply_year = :ly
         ) AND fp.id NOT IN (
@@ -346,9 +351,13 @@ def year_compare(
         )
         LIMIT 50
     """)
-    new_f  = [{"id":r.id,"name":r.real_name,"village":r.village,"status":r.farmer_status}
+    def _fmt_village(r):
+        vn = r.village_name or ''
+        gn = format_group_no(r.group_no) if r.group_no else '一组'
+        return f"{vn}{gn}"
+    new_f  = [{"id":r.id,"name":r.real_name,"village":_fmt_village(r),"status":r.farmer_status}
               for r in db.execute(sql_diff, {"y":year,"ly":last_year})]
-    exit_f = [{"id":r.id,"name":r.real_name,"village":r.village,"status":r.farmer_status}
+    exit_f = [{"id":r.id,"name":r.real_name,"village":_fmt_village(r),"status":r.farmer_status}
               for r in db.execute(sql_exit, {"y":year,"ly":last_year})]
 
     amount_diff = cur["total_amount"] - prev["total_amount"]
@@ -378,9 +387,9 @@ def summary_by_village(
         FROM subsidy_application sa
         JOIN farmer_profile   fp ON sa.farmer_id = fp.id
         JOIN family_household hh ON fp.household_id = hh.id
-        JOIN village_group    vg ON hh.village_group_id = vg.id
+        JOIN village v ON hh.village_id = v.id
         WHERE sa.apply_year = :year
-        GROUP BY vg.village_name
+        GROUP BY v.village_name
         ORDER BY total_amount DESC
     """)
     return [
@@ -450,8 +459,8 @@ def search_applications(
         elif len(statuses) > 1:
             q = q.filter(SubsidyApplication.pay_status.in_(statuses))
     if village_name:
-        vg_ids  = [v.id for v in db.query(VillageGroup).filter(VillageGroup.village_name == village_name).all()]
-        hh_ids  = [h.id for h in db.query(FamilyHousehold).filter(FamilyHousehold.village_group_id.in_(vg_ids)).all()]
+        v_ids  = [v.id for v in db.query(Village).filter(Village.village_name == village_name).all()]
+        hh_ids  = [h.id for h in db.query(FamilyHousehold).filter(FamilyHousehold.village_id.in_(v_ids)).all()]
         f_ids   = [f.id for f in db.query(FarmerProfile).filter(FarmerProfile.household_id.in_(hh_ids)).all()]
         q = q.filter(SubsidyApplication.farmer_id.in_(f_ids))
     if search:
@@ -470,16 +479,18 @@ def search_applications(
     for a in apps:
         f  = db.get(FarmerProfile, a.farmer_id)
         st = db.get(SubsidyType, a.subsidy_type_id)
-        vg = None
+        vname, gno = "", ""
         if f and f.household:
-            vg = db.get(VillageGroup, f.household.village_group_id)
+            if f.household.village:
+                vname = f.household.village.village_name
+            gno = format_group_no(f.household.group_no) if f.household.group_no else "一组"
         rows.append({
             "id":              a.id,
             "farmer_id":       a.farmer_id,
             "farmer_name":     f.real_name    if f  else "—",
             "id_card_masked":  (f.id_card[:6] + "********" + f.id_card[-4:]) if f and f.id_card else "—",
             "phone":           f.phone        if f  else None,
-            "village":         vg.full_name   if vg else "—",
+            "village":         vname + gno,
             "subsidy_type_id": a.subsidy_type_id,
             "subsidy_name":    st.subsidy_name if st else "—",
             "calc_mode":       st.calc_mode    if st else "fixed",
@@ -652,8 +663,8 @@ def get_application_stats(
     for app in apps:
         # 获取农户信息
         farmer = db.get(FarmerProfile, app.farmer_id)
-        if farmer and farmer.household and farmer.household.village_group:
-            village = farmer.household.village_group.village_name
+        if farmer and farmer.household and farmer.household.village:
+            village = farmer.household.village.village_name
         else:
             village = "未知村"
         

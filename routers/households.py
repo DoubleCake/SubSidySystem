@@ -16,9 +16,23 @@ from typing import Optional
 from decimal import Decimal
 
 from database import get_db
-from models import FamilyHousehold, FarmerProfile, VillageGroup, SubsidyApplication, SubsidyType
+from models import FamilyHousehold, FarmerProfile, Village, SubsidyApplication, SubsidyType
 
 router = APIRouter(prefix="/api/households", tags=["家庭户管理"])
+
+
+# ─────────────────────────────────────
+#  辅助函数：查找或创建 Village
+# ─────────────────────────────────────
+
+def _get_or_create_village(db: Session, village_name: str) -> Village:
+    """查找或创建 Village 记录"""
+    village = db.query(Village).filter(Village.village_name == village_name).first()
+    if not village:
+        village = Village(village_name=village_name)
+        db.add(village)
+        db.flush()
+    return village
 
 
 # ─────────────────────────────────────
@@ -171,9 +185,19 @@ from schemas import HouseholdCreate as HouseholdCreateSchema
 @router.post("")
 def create_household(data: HouseholdCreateSchema, db: Session = Depends(get_db)):
     """创建新家庭户（无成员，稍后通过添加成员接口关联）"""
-    from utils import gen_household_code
+    from utils import gen_household_code, parse_group_no_to_int, format_group_no
     from models import HouseholdEvent
     from datetime import datetime
+
+    # 确保 village 存在（如果传的是 village_name 而非 village_id）
+    village_id = data.village_id
+    if not village_id:
+        raise HTTPException(status_code=400, detail="缺少 village_id")
+
+    # group_no 存整数：传入 "1" / "一组" 均可，转换为整数存储
+    group_no = parse_group_no_to_int(data.group_no) if data.group_no else 1
+    if not group_no:
+        raise HTTPException(status_code=400, detail="缺少 group_no")
 
     # 生成 household_code：取当前最大 id + 1
     max_id = db.query(func.max(FamilyHousehold.id)).scalar() or 0
@@ -182,11 +206,11 @@ def create_household(data: HouseholdCreateSchema, db: Session = Depends(get_db))
     hh = FamilyHousehold(
         household_code=code,
         household_name=data.household_name,
-        village_group_id=data.village_group_id,
+        village_id=village_id,
+        group_no=group_no,
         address=data.address,
         land_area=data.land_area,
         status=1,
-        member_count=0,
         remark=data.remark,
     )
     db.add(hh)
@@ -226,18 +250,18 @@ def list_households(
     """
     query = (
         db.query(FamilyHousehold)
-          .join(VillageGroup, VillageGroup.id == FamilyHousehold.village_group_id)
+          .join(Village, Village.id == FamilyHousehold.village_id)
     )
 
     if village_name:
-        query = query.filter(VillageGroup.village_name == village_name)
+        query = query.filter(Village.village_name == village_name)
     if status is not None:
         query = query.filter(FamilyHousehold.status == status)
     if search:
         # 支持按户名搜索，或按户主姓名搜索
         query = query.outerjoin(
             FarmerProfile,
-            (FarmerProfile.household_id == FamilyHousehold.id) & (FarmerProfile.is_head == 1)
+            (FarmerProfile.household_id == FamilyHousehold.id) & (FamilyHousehold.head_farmer_id == FarmerProfile.id)
         ).filter(
             (FamilyHousehold.household_name.like(f"%{search}%")) |
             (FarmerProfile.real_name.like(f"%{search}%"))
@@ -249,15 +273,7 @@ def list_households(
     items = []
     for hh in households:
         # 户主信息
-        head = db.query(FarmerProfile).filter(
-            FarmerProfile.household_id == hh.id,
-            FarmerProfile.is_head == 1
-        ).first()
-
-        # 成员数
-        member_count = db.query(func.count(FarmerProfile.id)).filter(
-            FarmerProfile.household_id == hh.id
-        ).scalar() or 0
+        head = db.get(FarmerProfile, hh.head_farmer_id) if hh.head_farmer_id else None
 
         # 面积信息
         area_info = calc_household_area_usage(hh.id, db, year)
@@ -266,10 +282,10 @@ def list_households(
             "id": hh.id,
             "household_code": hh.household_code,
             "household_name": hh.household_name,
-            "village_full_name": hh.village_group.full_name if hh.village_group else "",
-            "village_name": hh.village_group.village_name if hh.village_group else "",
+            "village_full_name": f"{hh.village.village_name}{format_group_no(hh.group_no)}" if hh.village else "",
+            "village_name": hh.village.village_name if hh.village else "",
+            "group_no": hh.group_no or 1,
             "head_name": head.real_name if head else "（无户主）",
-            "member_count": member_count,
             "status": hh.status,
             "address": hh.address,
             "remark": hh.remark,
@@ -311,10 +327,10 @@ def list_overdrawn_households(
         year = latest or 2024
 
     query = db.query(FamilyHousehold).join(
-        VillageGroup, VillageGroup.id == FamilyHousehold.village_group_id
+        Village, Village.id == FamilyHousehold.village_id
     )
     if village_name:
-        query = query.filter(VillageGroup.village_name == village_name)
+        query = query.filter(Village.village_name == village_name)
 
     all_hh = query.filter(
         FamilyHousehold.land_area.isnot(None),
@@ -325,16 +341,13 @@ def list_overdrawn_households(
     for hh in all_hh:
         area_info = calc_household_area_usage(hh.id, db, year)
         if area_info.get("is_overdrawn"):
-            head = db.query(FarmerProfile).filter(
-                FarmerProfile.household_id == hh.id,
-                FarmerProfile.is_head == 1
-            ).first()
+            head = db.get(FarmerProfile, hh.head_farmer_id) if hh.head_farmer_id else None
             overdrawn.append({
                 "household_id": hh.id,
                 "household_code": hh.household_code,
                 "household_name": hh.household_name,
                 "head_name": head.real_name if head else "—",
-                "village": hh.village_group.full_name if hh.village_group else "",
+                "village": f"{hh.village.village_name}{format_group_no(hh.group_no)}" if hh.village else "",
                 "contracted_area": float(hh.land_area),
                 "used_area": area_info["used_area"],
                 "overdraw_amount": area_info["overdraw_amount"],
@@ -382,7 +395,6 @@ class MemberUpdate(BaseModel):
     bank_card: Optional[str] = None
     bank_name: Optional[str] = None
     relation: Optional[str] = None
-    is_head: Optional[int] = None
     farmer_status: Optional[int] = None
     remark: Optional[str] = None
 
@@ -399,7 +411,7 @@ def _member_out(m: FarmerProfile) -> dict:
         "phone_masked": mask_phone(m.phone) if m.phone else None,
         "bank_card_masked": mask_bank_card(m.bank_card) if m.bank_card else None,
         "bank_name": m.bank_name,
-        "is_head": m.is_head,
+        "is_head": 1 if m.household and m.household.head_farmer_id == m.id else 0,
         "relation": m.relation,
         "farmer_status": m.farmer_status,
         "remark": m.remark,
@@ -429,7 +441,10 @@ def get_household(
     # 所有成员
     members = db.query(FarmerProfile).filter(
         FarmerProfile.household_id == household_id
-    ).order_by(FarmerProfile.is_head.desc()).all()
+    ).order_by(
+        (hh.head_farmer_id == FarmerProfile.id).desc(),
+        FarmerProfile.id
+    ).all()
 
     member_list = [
         {
@@ -437,7 +452,7 @@ def get_household(
             "real_name": m.real_name,
             "gender": m.gender,
             "id_card_masked": m.id_card[:6] + "********" + m.id_card[-4:] if m.id_card else "",
-            "is_head": m.is_head,
+            "is_head": 1 if hh.head_farmer_id == m.id else 0,
             "relation": m.relation,
             "farmer_status": m.farmer_status,
             "phone_masked": (m.phone[:3] + "****" + m.phone[-4:]) if m.phone and len(m.phone) >= 7 else m.phone,
@@ -488,7 +503,7 @@ def get_household(
         "id": hh.id,
         "household_code": hh.household_code,
         "household_name": hh.household_name,
-        "village_full_name": hh.village_group.full_name if hh.village_group else "",
+        "village_full_name": f"{hh.village.village_name}{format_group_no(hh.group_no)}" if hh.village else "",
         "address": hh.address,
         "contracted_area": float(hh.land_area or 0),
         "status": hh.status,
@@ -565,26 +580,17 @@ def move_member(req: MemberMoveRequest, db: Session = Depends(get_db)):
     if req.is_head == 1:
         old_head = db.query(FarmerProfile).filter(
             FarmerProfile.household_id == req.target_household_id,
-            FarmerProfile.is_head == 1
+            FamilyHousehold.head_farmer_id == FarmerProfile.id
         ).first()
         if old_head:
-            old_head.is_head = 0
             old_head.relation = "成员"
 
     farmer.household_id = req.target_household_id
     farmer.relation     = req.relation
-    farmer.is_head      = req.is_head or 0
 
-    # 更新目标户成员数
-    target_hh.member_count = db.query(func.count(FarmerProfile.id)).filter(
-        FarmerProfile.household_id == req.target_household_id
-    ).scalar() or 0 + 1  # +1 因为还没提交
-
-    # 更新原户成员数
-    if old_household_id != req.target_household_id:
-        old_hh = db.query(FamilyHousehold).filter(FamilyHousehold.id == old_household_id).first()
-        if old_hh:
-            old_hh.member_count = max(0, (old_hh.member_count or 1) - 1)
+    # 如果是户主，更新目标户的 head_farmer_id
+    if req.is_head == 1:
+        target_hh.head_farmer_id = farmer.id
 
     # 记录事件
     today = _date.today()
@@ -621,7 +627,10 @@ def list_members(household_id: int, db: Session = Depends(get_db)):
     members = (
         db.query(FarmerProfile)
           .filter(FarmerProfile.household_id == household_id)
-          .order_by(FarmerProfile.is_head.desc(), FarmerProfile.id)
+          .order_by(
+              (hh.head_farmer_id == FarmerProfile.id).desc(),
+              FarmerProfile.id
+          )
           .all()
     )
     return [_member_out(m) for m in members]
@@ -651,17 +660,11 @@ def add_member(household_id: int, data: MemberCreate, db: Session = Depends(get_
         if existing.household_id == household_id:
             raise HTTPException(400, f"「{existing.real_name}」已是本户成员")
         # 从原家庭户迁入
-        old_hh = db.get(FamilyHousehold, existing.household_id)
         existing.household_id = household_id
         existing.relation = data.relation or "成员"
-        if data.is_head == 1:
-            existing.is_head = 1
-        # 更新原户成员计数
-        if old_hh:
-            old_hh.member_count = max(0, (old_hh.member_count or 1) - 1)
         member = existing
     else:
-        # 从身份证推断性别和生日
+        # 从身份证推断性别
         parsed = parse_id_card(id_card_clean)
         gender = data.gender if data.gender is not None else (parsed.get("gender", 1) if parsed else 1)
 
@@ -670,34 +673,18 @@ def add_member(household_id: int, data: MemberCreate, db: Session = Depends(get_
             real_name=data.real_name,
             gender=gender,
             id_card=id_card_clean,
-            birth_date=parsed.get("birth_date") if parsed else None,
             phone=data.phone,
             bank_card=data.bank_card,
             bank_name=data.bank_name,
             relation=data.relation,
-            is_head=data.is_head or 0,
             farmer_status=data.farmer_status or 1,
             remark=data.remark,
         )
         db.add(member)
 
-    # 如果新成员是户主，原户主降级
-    if (data.is_head == 1):
-        old_head = (
-            db.query(FarmerProfile)
-              .filter(FarmerProfile.household_id == household_id,
-                      FarmerProfile.is_head == 1)
-              .first()
-        )
-        if old_head and old_head.id != (existing.id if existing else -1):
-            old_head.is_head = 0
-            old_head.relation = "成员"
-
-    # 更新户成员计数
-    db.flush()
-    hh.member_count = db.query(func.count(FarmerProfile.id)).filter(
-        FarmerProfile.household_id == household_id
-    ).scalar() or 1
+    # 如果新成员是户主，更新 head_farmer_id
+    if data.is_head == 1:
+        hh.head_farmer_id = member.id
 
     after = _snapshot_household(db, household_id)
     today = _date.today()
@@ -722,38 +709,30 @@ def update_member(household_id: int, farmer_id: int, data: MemberUpdate, db: Ses
     if not member:
         raise HTTPException(404, "成员不存在或不属于该家庭户")
 
+    hh = db.get(FamilyHousehold, household_id)
+
     from datetime import date as _date
     before = _snapshot_household(db, household_id)
 
-    # 如果要设为户主，先把原户主降级
-    if data.is_head == 1 and member.is_head != 1:
-        old_head = db.query(FarmerProfile).filter(
-            FarmerProfile.household_id == household_id,
-            FarmerProfile.is_head == 1
-        ).first()
-        if old_head:
-            old_head.is_head = 0
-            old_head.relation = "成员"
+    # 如果要设为户主，更新 household 的 head_farmer_id
+    if data.is_head == 1:
+        hh.head_farmer_id = member.id
 
     if data.real_name    is not None: member.real_name    = data.real_name
     if data.phone        is not None: member.phone        = data.phone or None
     if data.bank_card    is not None: member.bank_card    = data.bank_card or None
     if data.bank_name    is not None: member.bank_name    = data.bank_name or None
     if data.relation     is not None: member.relation     = data.relation
-    if data.is_head      is not None: member.is_head      = data.is_head
     if data.farmer_status is not None: member.farmer_status = data.farmer_status
     if data.remark       is not None: member.remark       = data.remark or None
 
     after = _snapshot_household(db, household_id)
     today = _date.today()
-    if data.is_head == 1 and member.is_head == 1:
-        ev_type = "HEAD_CHANGE"
-        desc = f"变更户主为「{member.real_name}」"
-    elif data.farmer_status is not None:
+    if data.farmer_status is not None:
         ev_type = "MEMBER_STATUS"
         desc = f"成员「{member.real_name}」状态变更"
     else:
-        ev_type = "HEAD_CHANGE" if data.is_head == 1 else "MEMBER_STATUS"
+        ev_type = "MEMBER_STATUS"
         desc = f"更新成员「{member.real_name}」信息"
     _log_event(db, household_id, ev_type, today.year, desc,
                before=before, after=after,
@@ -783,7 +762,7 @@ def remove_member(
     ).first()
     if not member:
         raise HTTPException(404, "成员不存在")
-    if member.is_head == 1:
+    if hh.head_farmer_id == member.id:
         raise HTTPException(400, "户主不能被移除，请先将其他成员设为户主后再操作")
 
     from datetime import date as _date
@@ -805,9 +784,6 @@ def remove_member(
         # 标记迁出
         member.farmer_status = 3
         msg = "已标记为迁出"
-
-    if hh:
-        hh.member_count = max(0, (hh.member_count or 1) - 1)
 
     after = _snapshot_household(db, household_id)
     today = _date.today()
@@ -957,27 +933,29 @@ def batch_build_households(req: HouseholdBuildRequest, db: Session = Depends(get
             ).first()
 
             if not existing_hh:
+                hh_vid = head_farmer.household.village_id if head_farmer.household else None
+                hh_gno = head_farmer.household.group_no if head_farmer.household else None
+                if not hh_vid or not hh_gno:
+                    errors.append(f"家庭户 {hh_label}：户主村组信息不完整，跳过"); continue
                 existing_hh = FamilyHousehold(
                     household_code=gen_household_code(head_farmer.id),
                     household_name=f"{head_farmer.real_name}户（{hh_label}）",
                     head_farmer_id=head_farmer.id,
-                    village_group_id=head_farmer.household.village_group_id if head_farmer.household else 1,
+                    village_id=hh_vid,
+                    group_no=hh_gno,
                     land_area=land,
                     status=1,
-                    member_count=len(farmer_objs),
                 )
                 db.add(existing_hh); db.flush()
                 built += 1
             else:
                 if land: existing_hh.land_area = land
-                existing_hh.member_count = len(farmer_objs)
                 existing_hh.head_farmer_id = head_farmer.id
                 updated += 1
 
-            # 更新每个成员的 household_id、is_head、relation
+            # 更新每个成员的 household_id、relation
             for fp, m in farmer_objs:
                 fp.household_id = existing_hh.id
-                fp.is_head = m.is_head or 0
                 fp.relation = m.relation or ("本人" if m.is_head else "成员")
 
             db.flush()
@@ -1041,9 +1019,12 @@ def _snapshot_household(db: Session, household_id: int) -> dict:
     members = (
         db.query(FarmerProfile)
           .filter(FarmerProfile.household_id == household_id)
-          .order_by(FarmerProfile.is_head.desc(), FarmerProfile.id).all()
+          .order_by(
+              (hh.head_farmer_id == FarmerProfile.id).desc(),
+              FarmerProfile.id
+          ).all()
     )
-    head = next((m for m in members if m.is_head == 1), None)
+    head = next((m for m in members if hh.head_farmer_id == m.id), None)
 
     # 获取该户所有成员的补贴申请摘要（保存到快照中）
     member_ids = [m.id for m in members]
@@ -1201,20 +1182,9 @@ def undo_event(household_id: int, event_id: int,
                 fp = db.get(FarmerProfile, mid)
                 if fp and fp.household_id == household_id:
                     db.delete(fp)
-        # 恢复 before_snapshot 中的户主
+        # 恢复 before_snapshot 中的 head_farmer_id
         if before and before.get("head_id"):
-            old_head = db.get(FarmerProfile, before["head_id"])
-            if old_head and old_head.household_id == household_id:
-                # 先降级当前户主
-                cur_head = db.query(FarmerProfile).filter(
-                    FarmerProfile.household_id == household_id,
-                    FarmerProfile.is_head == 1
-                ).first()
-                if cur_head and cur_head.id != before["head_id"]:
-                    cur_head.is_head = 0
-                    cur_head.relation = "成员"
-                old_head.is_head = 1
-                old_head.relation = "本人"
+            hh.head_farmer_id = before["head_id"]
 
     elif ev.event_type == "MEMBER_REMOVE":
         # 恢复被移出的成员状态
@@ -1226,23 +1196,12 @@ def undo_event(household_id: int, event_id: int,
                     if m_before:
                         fp.household_id = household_id
                         fp.farmer_status = m_before.get("farmer_status", 1)
-                        fp.is_head = m_before.get("is_head", 0)
                         fp.relation = m_before.get("relation", "成员")
 
     elif ev.event_type == "HEAD_CHANGE":
         # 恢复旧户主
         if before and before.get("head_id"):
-            cur_head = db.query(FarmerProfile).filter(
-                FarmerProfile.household_id == household_id,
-                FarmerProfile.is_head == 1
-            ).first()
-            if cur_head:
-                cur_head.is_head = 0
-                cur_head.relation = "成员"
-            old_head = db.get(FarmerProfile, before["head_id"])
-            if old_head and old_head.household_id == household_id:
-                old_head.is_head = 1
-                old_head.relation = "本人"
+            hh.head_farmer_id = before["head_id"]
 
     elif ev.event_type == "MEMBER_STATUS":
         # 恢复成员的 farmer_status
@@ -1270,12 +1229,6 @@ def undo_event(household_id: int, event_id: int,
 
     elif ev.event_type == "REMARK":
         pass  # 仅删除事件
-
-    # 更新成员数
-    db.flush()
-    hh.member_count = db.query(func.count(FarmerProfile.id)).filter(
-        FarmerProfile.household_id == household_id
-    ).scalar() or 0
 
     db.delete(ev)
     db.commit()
@@ -1441,7 +1394,10 @@ def get_snapshot_at_date(
         members_q = (
             db.query(FarmerProfile)
               .filter(FarmerProfile.household_id == household_id)
-              .order_by(FarmerProfile.is_head.desc(), FarmerProfile.id).all()
+              .order_by(
+                  (hh.head_farmer_id == FarmerProfile.id).desc(),
+                  FarmerProfile.id
+              ).all()
         )
         members = [_member_out(m) for m in members_q]
         # 使用当前数据
@@ -1541,7 +1497,10 @@ def get_snapshot_by_event(
             members_q = (
                 db.query(FarmerProfile)
                   .filter(FarmerProfile.household_id == household_id)
-                  .order_by(FarmerProfile.is_head.desc(), FarmerProfile.id).all()
+                  .order_by(
+                      (hh.head_farmer_id == FarmerProfile.id).desc(),
+                      FarmerProfile.id
+                  ).all()
             )
             members = [_member_out(m) for m in members_q]
             # 使用当前数据
@@ -1617,7 +1576,10 @@ def get_snapshot_by_event(
         members_q = (
             db.query(FarmerProfile)
               .filter(FarmerProfile.household_id == household_id)
-              .order_by(FarmerProfile.is_head.desc(), FarmerProfile.id).all()
+              .order_by(
+                  (hh.head_farmer_id == FarmerProfile.id).desc(),
+                  FarmerProfile.id
+              ).all()
         )
         members = [_member_out(m) for m in members_q]
         # 使用当前数据
@@ -1702,7 +1664,10 @@ def get_history_snapshot(
     current_members = (
         db.query(FarmerProfile)
           .filter(FarmerProfile.household_id == household_id)
-          .order_by(FarmerProfile.is_head.desc(), FarmerProfile.id)
+          .order_by(
+              (hh.head_farmer_id == FarmerProfile.id).desc(),
+              FarmerProfile.id
+          )
           .all()
     )
 
@@ -1761,7 +1726,7 @@ def get_history_snapshot(
             "real_name": m.real_name,
             "gender": m.gender,
             "id_card_masked": m.id_card[:6] + "********" + m.id_card[-4:] if m.id_card else "",
-            "is_head": m.is_head,
+            "is_head": 1 if hh.head_farmer_id == m.id else 0,
             "relation": m.relation,
             "farmer_status": m.farmer_status,
             "phone_masked": (m.phone[:3] + "****" + m.phone[-4:]) if m.phone and len(m.phone) >= 7 else m.phone,
@@ -1857,7 +1822,7 @@ def get_history_snapshot(
         "year": year,
         "household_name": hh.household_name,
         "household_code": hh.household_code,
-        "village_full_name": hh.village_group.full_name if hh.village_group else "",
+        "village_full_name": f"{hh.village.village_name}{format_group_no(hh.group_no)}" if hh.village else "",
         "contracted_area": contracted_area,
         "status": hh.status,
         "members": snapshot_members,
@@ -1922,19 +1887,15 @@ def split_household(household_id: int, data: dict, db: Session = Depends(get_db)
         raise HTTPException(400, "不能将所有成员分出，原户至少保留1名成员")
 
     # 原户户主不能被分走（除非指定了新的原户户主）
-    orig_head = db.query(FarmerProfile).filter(
-        FarmerProfile.household_id == household_id,
-        FarmerProfile.is_head == 1
-    ).first()
+    orig_head = db.get(FarmerProfile, hh.head_farmer_id) if hh.head_farmer_id else None
     if orig_head and orig_head.id in member_ids:
         raise HTTPException(400, f"原户户主「{orig_head.real_name}」不能被分出，请先在原户指定新户主")
 
     # 记录分户前快照
     before_snap = {
         "household_name": hh.household_name,
-        "member_count": total_members,
         "land_area": float(hh.land_area or 0),
-        "members": [{"id": m.id, "real_name": m.real_name, "is_head": m.is_head} for m in
+        "members": [{"id": m.id, "real_name": m.real_name, "is_head": 1 if hh.head_farmer_id == m.id else 0} for m in
                     db.query(FarmerProfile).filter(FarmerProfile.household_id == household_id).all()]
     }
 
@@ -1945,11 +1906,11 @@ def split_household(household_id: int, data: dict, db: Session = Depends(get_db)
         household_code   = new_code,
         household_name   = new_hh_name,
         head_farmer_id   = new_head_id,
-        village_group_id = hh.village_group_id,
+        village_id       = hh.village_id,
+        group_no         = hh.group_no,
         address          = hh.address,
         land_area        = Decimal(str(data["new_land_area"])) if data.get("new_land_area") else None,
         status           = 1,
-        member_count     = len(member_ids),
         remark           = f"由「{hh.household_name}」于{split_year}年分户组建",
     )
     db.add(new_hh); db.flush()
@@ -1958,30 +1919,23 @@ def split_household(household_id: int, data: dict, db: Session = Depends(get_db)
     for m in members:
         m.household_id = new_hh.id
         if m.id == new_head_id:
-            m.is_head = 1; m.relation = "本人"
+            m.relation = "本人"
         else:
-            m.is_head = 0
+            pass  # relation already set appropriately
 
     # 更新原户面积
     if data.get("origin_land_area") is not None:
         hh.land_area = Decimal(str(data["origin_land_area"]))
 
-    # 更新原户成员数
-    db.flush()
-    hh.member_count = db.query(func.count(FarmerProfile.id)).filter(
-        FarmerProfile.household_id == household_id
-    ).scalar() or 0
-
     # 分户后快照
     after_snap = {
         "original_hh": {
             "id": hh.id, "household_name": hh.household_name,
-            "land_area": float(hh.land_area or 0), "member_count": hh.member_count
+            "land_area": float(hh.land_area or 0),
         },
         "new_hh": {
             "id": new_hh.id, "household_name": new_hh.household_name,
             "household_code": new_code, "land_area": float(new_hh.land_area or 0),
-            "member_count": len(member_ids),
             "head": new_head.real_name if new_head else None,
         }
     }
@@ -2054,7 +2008,6 @@ def batch_import_members(household_id: int, payload: dict, db: Session = Depends
             if row.get("phone"):       existing.phone        = str(row["phone"]).strip() or None
             if row.get("bank_card"):   existing.bank_card    = str(row["bank_card"]).strip() or None
             if row.get("bank_name"):   existing.bank_name    = str(row["bank_name"]).strip() or None
-            existing.is_head = is_head_val
             status_map = {"在册":1,"正常":1,"注销":2,"迁出":3,"死亡":4}
             if row.get("farmer_status"):
                 sv = row["farmer_status"]
@@ -2072,12 +2025,10 @@ def batch_import_members(household_id: int, payload: dict, db: Session = Depends
                 real_name    = name,
                 gender       = parsed.get("gender", 1 if str(row.get("gender","男"))=="男" else 2),
                 id_card      = id_card,
-                birth_date   = parsed.get("birth_date"),
                 phone        = str(row.get("phone","")).strip() or None,
                 bank_card    = str(row.get("bank_card","")).strip() or None,
                 bank_name    = str(row.get("bank_name","")).strip() or None,
                 relation     = str(row.get("relation","成员")).strip() or "成员",
-                is_head      = is_head_val,
                 farmer_status= 1,
             )
             db.add(fp); db.flush()
@@ -2096,8 +2047,5 @@ def batch_import_members(household_id: int, payload: dict, db: Session = Depends
             hh.head_farmer_id = head_fp.id
 
     db.flush()
-    hh.member_count = db.query(func.count(FarmerProfile.id)).filter(
-        FarmerProfile.household_id == household_id
-    ).scalar() or 0
     db.commit()
     return {"created": created, "updated": updated, "errors": errors}

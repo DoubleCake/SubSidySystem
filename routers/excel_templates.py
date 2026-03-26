@@ -454,67 +454,84 @@ def smart_import(payload: dict, db: Session = Depends(get_db)):
             {"rows": [{**r, "subsidy_type_id": subsidy_type_id, "apply_year": year,
                        "pay_status": 2} for r in mapped_rows]}, db
         )
-    elif business_type == "FARMER":
-        from models import FarmerProfile, FamilyHousehold, VillageGroup
-        from sqlalchemy import text as _text
-        created2, skipped2, errors2 = 0, 0, []
-        for row in mapped_rows:
-            ic = str(row.get('id_card', '')).strip()
-            nm = str(row.get('real_name', '')).strip()
-            if not ic or not nm: errors2.append(f'缺少身份证或姓名'); continue
-            if db.query(FarmerProfile).filter(FarmerProfile.id_card == ic).first():
-                skipped2 += 1; continue
-            vn = str(row.get('village_name', '')).strip()
-            gn = str(row.get('group_no', '')).strip()
-            vg = db.query(VillageGroup).filter_by(village_name=vn, group_no=gn).first()
-            if not vg:
-                vg = VillageGroup(village_name=vn or '未知村', group_no=gn or '一组', full_name=f'{vn}{gn}')
-                db.add(vg); db.flush()
-            fp = FarmerProfile(household_id=0, real_name=nm, id_card=ic, gender=1,
-                               phone=row.get('phone'), bank_card=row.get('bank_card'),
-                               bank_name=row.get('bank_name'), is_head=1, farmer_status=1)
-            db.add(fp); db.flush()
-            hh = FamilyHousehold(household_code=f'HH{fp.id:05d}', household_name=f'{nm}户',
-                                 head_farmer_id=fp.id, village_group_id=vg.id, status=1)
-            db.add(hh); db.flush(); fp.household_id = hh.id; created2 += 1
-        db.commit()
-        result = {'created': created2, 'skipped': skipped2, 'errors': errors2}
-    else:
-        result = {"created": 0, "skipped": 0, "errors": ["不支持的业务类型"]}
 
-    duration_ms = int((time.time() - t0) * 1000)
 
-    # 记录导入日志
-    log = ExcelImportLog(
-        template_id      = template_id,
-        template_name    = payload.get("template_name"),
-        file_name        = file_name,
-        file_hash        = file_hash,
-        business_type    = business_type,
-        region_name      = payload.get("region_name"),
-        import_year      = year,
-        total_rows       = len(raw_rows),
-        valid_rows       = len(mapped_rows),
-        created_count    = result.get("created", 0),
-        updated_count    = result.get("updated", 0),
-        skipped_count    = result.get("skipped", 0),
-        error_count      = len(result.get("errors", [])),
-        rule_failed_count = payload.get("rule_failed_count", 0),
-        error_detail     = json.dumps(result.get("errors", [])[:50], ensure_ascii=False),
-        column_mapping_used = json.dumps(raw_mapping, ensure_ascii=False),
-        operator         = operator,
-        import_duration_ms = duration_ms,
-    )
-    db.add(log); db.commit()
+# def _vg_to_village_and_group(db: Session, vg: VillageGroup) -> tuple[int, str]:
+#     """将 VillageGroup 记录转换为 (village_id, group_no)"""
+#     from models import Village
+#     from utils import normalize_group_no
+#     village = db.query(Village).filter(Village.village_name == vg.village_name).first()
+#     if not village:
+#         village = Village(village_name=vg.village_name)
+#         db.add(village)
+#         db.flush()
+#     gno = normalize_group_no(vg.group_no)
+#     return village.id, gno
 
-    # 更新模板使用次数
-    if template_id:
-        db.execute(text("UPDATE excel_column_template SET use_count=use_count+1, last_used_at=CURRENT_TIMESTAMP WHERE id=:id"),
-                   {"id": template_id})
-        db.commit()
 
-    return {**result, "log_id": log.id, "duration_ms": duration_ms,
-            "valid_rows": len(mapped_rows), "skipped_by_rules": len(raw_rows) - len(mapped_rows)}
+#     if business_type == "FARMER":
+#         from models import FarmerProfile, FamilyHousehold, VillageGroup, Village
+#         from utils import normalize_group_no
+#         from sqlalchemy import text as _text
+#         created2, skipped2, errors2 = 0, 0, []
+#         for row in mapped_rows:
+#             ic = str(row.get('id_card', '')).strip()
+#             nm = str(row.get('real_name', '')).strip()
+#             if not ic or not nm: errors2.append(f'缺少身份证或姓名'); continue
+#             if db.query(FarmerProfile).filter(FarmerProfile.id_card == ic).first():
+#                 skipped2 += 1; continue
+#             vn = str(row.get('village_name', '')).strip()
+#             gn = str(row.get('group_no', '')).strip()
+#             vg = db.query(VillageGroup).filter_by(village_name=vn, group_no=gn).first()
+#             if not vg:
+#                 vg = VillageGroup(village_name=vn or '未知村', group_no=gn or '一组', full_name=f'{vn}{gn}')
+#                 db.add(vg); db.flush()
+#             vid, gno = _vg_to_village_and_group(db, vg)
+#             fp = FarmerProfile(household_id=0, real_name=nm, id_card=ic, gender=1,
+#                                phone=row.get('phone'), bank_card=row.get('bank_card'),
+#                                bank_name=row.get('bank_name'), is_head=1, farmer_status=1)
+#             db.add(fp); db.flush()
+#             hh = FamilyHousehold(household_code=f'HH{fp.id:05d}', household_name=f'{nm}户',
+#                                  head_farmer_id=fp.id, village_id=vid, group_no=gno, status=1)
+#             db.add(hh); db.flush(); fp.household_id = hh.id; created2 += 1
+#         db.commit()
+#         result = {'created': created2, 'skipped': skipped2, 'errors': errors2}
+#     else:
+#         result = {"created": 0, "skipped": 0, "errors": ["不支持的业务类型"]}
+
+#     duration_ms = int((time.time() - t0) * 1000)
+
+#     # 记录导入日志
+#     log = ExcelImportLog(
+#         template_id      = template_id,
+#         template_name    = payload.get("template_name"),
+#         file_name        = file_name,
+#         file_hash        = file_hash,
+#         business_type    = business_type,
+#         region_name      = payload.get("region_name"),
+#         import_year      = year,
+#         total_rows       = len(raw_rows),
+#         valid_rows       = len(mapped_rows),
+#         created_count    = result.get("created", 0),
+#         updated_count    = result.get("updated", 0),
+#         skipped_count    = result.get("skipped", 0),
+#         error_count      = len(result.get("errors", [])),
+#         rule_failed_count = payload.get("rule_failed_count", 0),
+#         error_detail     = json.dumps(result.get("errors", [])[:50], ensure_ascii=False),
+#         column_mapping_used = json.dumps(raw_mapping, ensure_ascii=False),
+#         operator         = operator,
+#         import_duration_ms = duration_ms,
+#     )
+#     db.add(log); db.commit()
+
+#     # 更新模板使用次数
+#     if template_id:
+#         db.execute(text("UPDATE excel_column_template SET use_count=use_count+1, last_used_at=CURRENT_TIMESTAMP WHERE id=:id"),
+#                    {"id": template_id})
+#         db.commit()
+
+#     return {**result, "log_id": log.id, "duration_ms": duration_ms,
+#             "valid_rows": len(mapped_rows), "skipped_by_rules": len(raw_rows) - len(mapped_rows)}
 
 
 # ══════════════════════════════════════
