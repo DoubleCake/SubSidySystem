@@ -870,8 +870,7 @@ export default function FarmersPage() {
                 ['年龄', age ? `${age} 岁` : '—'],
                 ['身份证号', <span key="id" className="font-mono text-amber-600 text-xs select-all">{fd.id_card || fd.id_card_masked}</span>],
                 ['手机号', <span key="ph" className="font-mono text-xs">{fd.phone || fd.phone_masked || '—'}</span>],
-                ['详细地址', fd.address || '—'],
-                ['土地面积', fd.land_area ? `${fd.land_area} 亩` : '—'],
+                ['所在村组', fd.village_full_name],
               ].map(([k, v], i) => (
                 <div key={i} className="flex items-center gap-2">
                   <span className="text-xs text-stone-400 w-20 shrink-0">{k}</span>
