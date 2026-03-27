@@ -166,6 +166,7 @@ def migrate_db():
 
     migrations = [
         "ALTER TABLE subsidy_type ADD COLUMN count_toward_area INTEGER NOT NULL DEFAULT 1",
+        "ALTER TABLE subsidy_type ADD COLUMN season TEXT NOT NULL DEFAULT '全年单补'",
         "ALTER TABLE subsidy_application ADD COLUMN no_subsidy_area DECIMAL(10,2)",
         # Chapter 6 & 7 新表（用 CREATE TABLE IF NOT EXISTS 而不是 ALTER，避免冲突）
         """CREATE TABLE IF NOT EXISTS subsidy_eligibility_rule (

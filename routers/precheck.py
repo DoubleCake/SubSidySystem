@@ -171,9 +171,9 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         ).all()
     }
 
-    # 加载错误库（按身份证索引）
-    error_lib: dict[str, ErrorLibrary] = {
-        e.id_card.strip(): e for e in db.query(ErrorLibrary).all()
+    # 加载错误库（按身份证+姓名索引，要求两者都匹配）
+    error_lib: dict[tuple[str, str], ErrorLibrary] = {
+        (e.id_card.strip(), e.real_name.strip()): e for e in db.query(ErrorLibrary).all()
     }
 
     # 加载数据库农户的承包面积（按身份证索引）
@@ -269,9 +269,9 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
             continue
         seen_id_cards[id_card] = row_no
 
-        # ── 2.8 错误库交叉比对 ──
-        if id_card in error_lib:
-            lib_rec = error_lib[id_card]
+        # ── 2.8 错误库交叉比对（身份证+姓名同时匹配）──
+        if (id_card, name) in error_lib:
+            lib_rec = error_lib[(id_card, name)]
             error_library_hits.append({
                 "row": row_no, "name": name, "id_card": id_card,
                 "village": village, "group": group,

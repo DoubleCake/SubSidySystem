@@ -194,21 +194,48 @@ def check_eligibility(payload: dict, db: Session = Depends(get_db)):
         if dup:
             warns.append(f"本年度已有申请记录（id={dup[0]}），导入将跳过")
 
-        # 面积超领检查
-        if apply_area and hh and hh.land_area:
+        # 面积超领检查（按季节分组）
+        if apply_area and apply_area > 0 and hh and hh.land_area:
             contracted = float(hh.land_area)
-            # 查本年已用面积（仅计 count_toward_area=1 的补贴）
-            used = db.execute(text("""
-                SELECT COALESCE(SUM(sa.apply_area),0)
-                FROM subsidy_application sa
-                JOIN subsidy_type st ON sa.subsidy_type_id=st.id
-                WHERE sa.farmer_id=:fid AND sa.apply_year=:yr
-                  AND st.count_toward_area=1 AND sa.pay_status!=3
-            """), {"fid": fp.id, "yr": year}).scalar() or 0
-            if st and st.count_toward_area:
-                total_after = float(used) + float(apply_area)
+            season = st.season if st else "全年单补"
+
+            if season == "全年单补":
+                # 单独计算，不累加其他补贴
+                if float(apply_area) > contracted:
+                    issues.append(f"【超领】申请面积 {apply_area} 亩超出承包面积 {contracted:.2f} 亩")
+
+            elif season in ("大春", "小春"):
+                # 同季节求和
+                used_season = db.execute(text("""
+                    SELECT COALESCE(SUM(sa.apply_area), 0)
+                    FROM subsidy_application sa
+                    JOIN subsidy_type st ON sa.subsidy_type_id = st.id
+                    WHERE sa.farmer_id = :fid AND sa.apply_year = :yr
+                      AND st.season = :season
+                      AND st.count_toward_area = 1
+                      AND sa.pay_status != 3
+                      AND sa.subsidy_type_id != :stid
+                """), {"fid": fp.id, "yr": year, "season": season, "stid": subsidy_type_id}).scalar() or 0
+                total_after = float(used_season) + float(apply_area)
                 if total_after > contracted:
-                    issues.append(f"超领预警：本年已用 {float(used):.2f} 亩 + 本次 {float(apply_area):.2f} 亩 = {total_after:.2f} 亩，超出承包面积 {contracted:.2f} 亩")
+                    issues.append(f"【{season}超领】本季已用 {float(used_season):.2f} 亩 + 本次 {float(apply_area):.2f} 亩 = {total_after:.2f} 亩，超出承包面积 {contracted:.2f} 亩")
+
+            elif season == "临时":
+                # 双重检查：季节组 + 全年单补单独检查
+                used_season = db.execute(text("""
+                    SELECT COALESCE(SUM(sa.apply_area), 0)
+                    FROM subsidy_application sa
+                    JOIN subsidy_type st ON sa.subsidy_type_id = st.id
+                    WHERE sa.farmer_id = :fid AND sa.apply_year = :yr
+                      AND st.season IN ('大春', '小春')
+                      AND st.count_toward_area = 1
+                      AND sa.pay_status != 3
+                """), {"fid": fp.id, "yr": year}).scalar() or 0
+                total_season = float(used_season) + float(apply_area)
+                if total_season > contracted:
+                    issues.append(f"【临时-季节组超领】{season}组已用 {float(used_season):.2f} 亩 + 本次 {float(apply_area):.2f} 亩 = {total_season:.2f} 亩，超出承包面积 {contracted:.2f} 亩")
+                if float(apply_area) > contracted:
+                    issues.append(f"【临时-单独检查】申请面积 {apply_area} 亩超出承包面积 {contracted:.2f} 亩")
 
         item = {
             "id_card":        id_card,
@@ -266,8 +293,18 @@ def get_rule_templates():
             "preset": {"rule_name": "最小面积检查", "require_min_area": 0.1}
         },
         {
-            "name": "超领保护",
-            "desc": "叠加已有补贴后不超过承包面积",
-            "preset": {"rule_name": "超领面积检查", "require_not_idle": 0}
+            "name": "大春作物补贴",
+            "desc": "水稻、玉米、大豆等大春作物，面积受季节组总额管控",
+            "preset": {"rule_name": "大春作物检查", "require_not_idle": 0}
+        },
+        {
+            "name": "小春作物补贴",
+            "desc": "小麦、油菜等小春作物，面积受季节组总额管控",
+            "preset": {"rule_name": "小春作物检查", "require_not_idle": 0}
+        },
+        {
+            "name": "耕地地力保护补贴",
+            "desc": "全年单补类型，单独计算面积，不与季节组累加",
+            "preset": {"rule_name": "耕地保护检查", "require_not_idle": 0}
         },
     ]

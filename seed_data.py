@@ -57,29 +57,44 @@ def main():
     db.commit()
     print(f"  村组: {len(vg_map)} 个")
 
-    # 2. 补贴类型
-    permu_types = [("粮食直补",150),("耕地地力保护补贴",180),("农机购置补贴",120)]
-    fixed_types = [("农村低保补助",800),("高龄老人补贴",1200),("残疾人补贴",500),("生育补贴",2000)]
-    st_ids_permu, st_ids_fixed = [], []
-    for year in [2023,2024]:
-        for name,amt in permu_types:
-            ex = db.query(SubsidyType).filter_by(subsidy_name=name,subsidy_year=year).first()
+    # 2. 补贴类型（按季节分类）
+    # 季节分类: 大春|小春|全年单补|临时
+    # 固定金额类: 不按面积计算，不参与面积检查
+    season_types = {
+        "大春": ["水稻补贴", "玉米补贴", "大豆补贴"],
+        "小春": ["小麦补贴", "油菜补贴"],
+        "全年单补": ["耕地地力保护补贴"],
+    }
+    fixed_types = ["农村低保补助", "高龄老人补贴", "残疾人补贴", "生育补贴"]
+
+    all_st_ids = []  # [(id, year, amount, season), ...]
+    for year in [2023, 2024]:
+        for season, names in season_types.items():
+            for name in names:
+                ex = db.query(SubsidyType).filter_by(subsidy_name=name, subsidy_year=year).first()
+                if not ex:
+                    amt = round(random.uniform(100, 300), 2)
+                    ex = SubsidyType(
+                        subsidy_name=name, subsidy_year=year, calc_mode="per_mu",
+                        standard_amount=amt, standard_unit="元/亩",
+                        fund_source=random.choice(["中央", "省级", "县级"]),
+                        season=season,
+                        pay_status=2 if year == 2023 else random.choice([0, 1, 2])
+                    )
+                    db.add(ex); db.flush()
+                all_st_ids.append((ex.id, year, float(ex.standard_amount), ex.season))
+        for name in fixed_types:
+            ex = db.query(SubsidyType).filter_by(subsidy_name=name, subsidy_year=year).first()
             if not ex:
-                ex = SubsidyType(subsidy_name=name,subsidy_year=year,calc_mode="per_mu",
-                    standard_amount=amt,standard_unit="元/亩",fund_source=random.choice(["中央","省级","县级"]),
-                    pay_status=2 if year==2023 else random.choice([0,1,2]))
+                amt = round(random.uniform(500, 2000), 2)
+                ex = SubsidyType(subsidy_name=name, subsidy_year=year, calc_mode="fixed",
+                    standard_amount=amt, standard_unit="元/人", fund_source="县级",
+                    season="全年单补",
+                    pay_status=2 if year == 2023 else random.choice([0, 1, 2]))
                 db.add(ex); db.flush()
-            st_ids_permu.append((ex.id,year,float(ex.standard_amount or amt),ex.pay_status))
-        for name,amt in fixed_types:
-            ex = db.query(SubsidyType).filter_by(subsidy_name=name,subsidy_year=year).first()
-            if not ex:
-                ex = SubsidyType(subsidy_name=name,subsidy_year=year,calc_mode="fixed",
-                    standard_amount=amt,standard_unit="元/人",fund_source="县级",
-                    pay_status=2 if year==2023 else random.choice([0,1,2]))
-                db.add(ex); db.flush()
-            st_ids_fixed.append((ex.id,year,float(ex.standard_amount or amt),ex.pay_status))
+            all_st_ids.append((ex.id, year, float(ex.standard_amount), "全年单补"))
     db.commit()
-    print(f"  补贴类型: {len(st_ids_permu)+len(st_ids_fixed)} 个")
+    print(f"  补贴类型: {len(all_st_ids)} 个")
 
     # 3. 农户 + 家庭户
     created_f, created_hh = 0, 0
@@ -129,7 +144,14 @@ def main():
 
     # 4. 补贴申请
     created_app = 0
-    # 取所有户主（每家庭户代表申请耕地补贴）
+    # 按面积补贴（大春/小春/全年单补）
+    area_st_ids = [(sid, yr, amt, s) for sid, yr, amt, s in all_st_ids
+                   if db.get(SubsidyType, sid).calc_mode == "per_mu"]
+    # 固定金额补贴（按人/户）
+    fixed_st_ids = [(sid, yr, amt) for sid, yr, amt, s in all_st_ids
+                    if db.get(SubsidyType, sid).calc_mode == "fixed"]
+
+    # 按面积补贴的申请
     heads = db.query(FarmerProfile).join(
         FamilyHousehold, FamilyHousehold.head_farmer_id == FarmerProfile.id
     ).filter(FarmerProfile.farmer_status == 1).all()
@@ -137,30 +159,34 @@ def main():
         hh = db.get(FamilyHousehold, h.household_id)
         land = float(hh.land_area or 0) if hh else 0
         if land <= 0: continue
-        for (st_id,year,amt_per_mu,pay_s_default) in st_ids_permu:
-            if random.random() > 0.88: continue
-            ex = db.query(SubsidyApplication).filter_by(farmer_id=h.id,subsidy_type_id=st_id,apply_year=year).first()
+        for (st_id, year, amt_per_mu, season) in area_st_ids:
+            if random.random() > 0.85: continue
+            ex = db.query(SubsidyApplication).filter_by(farmer_id=h.id, subsidy_type_id=st_id, apply_year=year).first()
             if ex: continue
-            area = round(land*random.uniform(0.6,1.0),2)
-            amount = round(area*amt_per_mu,2)
-            ps = 2 if year==2023 else pay_s_default
-            pdate = datetime.date(year,random.randint(7,11),random.randint(1,28)) if ps==2 else None
-            db.add(SubsidyApplication(farmer_id=h.id,subsidy_type_id=st_id,apply_year=year,
-                apply_area=area,apply_amount=amount,actual_amount=amount if ps>=1 else None,
-                pay_status=ps,pay_date=pdate,
+            area = round(land * random.uniform(0.6, 1.0), 2)
+            amount = round(area * amt_per_mu, 2)
+            ps = 2 if year == 2023 else (2 if random.random() > 0.3 else random.choice([0, 1]))
+            pdate = datetime.date(year, random.randint(7, 11), random.randint(1, 28)) if ps == 2 else None
+            db.add(SubsidyApplication(
+                farmer_id=h.id, subsidy_type_id=st_id, apply_year=year,
+                apply_area=area, apply_amount=amount, actual_amount=amount if ps >= 1 else None,
+                pay_status=ps, pay_date=pdate,
                 bank_card_snapshot=h.bank_card[-4:] if h.bank_card else None))
             created_app += 1
 
+    # 固定金额补贴申请
     all_fp = db.query(FarmerProfile).filter_by(farmer_status=1).all()
-    for (st_id,year,amt,pay_s_default) in st_ids_fixed:
-        chosen = random.sample(all_fp, min(int(len(all_fp)*random.uniform(0.2,0.4)),len(all_fp)))
+    for (st_id, year, amt) in fixed_st_ids:
+        chosen = random.sample(all_fp, min(int(len(all_fp) * random.uniform(0.2, 0.4)), len(all_fp)))
         for f in chosen:
-            if db.query(SubsidyApplication).filter_by(farmer_id=f.id,subsidy_type_id=st_id,apply_year=year).first(): continue
-            ps = 2 if year==2023 else pay_s_default
-            pdate = datetime.date(year,random.randint(7,11),random.randint(1,28)) if ps==2 else None
-            db.add(SubsidyApplication(farmer_id=f.id,subsidy_type_id=st_id,apply_year=year,
-                apply_amount=amt,actual_amount=amt if ps==2 else None,
-                pay_status=ps,pay_date=pdate,
+            if db.query(SubsidyApplication).filter_by(farmer_id=f.id, subsidy_type_id=st_id, apply_year=year).first():
+                continue
+            ps = 2 if year == 2023 else (2 if random.random() > 0.3 else random.choice([0, 1]))
+            pdate = datetime.date(year, random.randint(7, 11), random.randint(1, 28)) if ps == 2 else None
+            db.add(SubsidyApplication(
+                farmer_id=f.id, subsidy_type_id=st_id, apply_year=year,
+                apply_amount=amt, actual_amount=amt if ps == 2 else None,
+                pay_status=ps, pay_date=pdate,
                 bank_card_snapshot=f.bank_card[-4:] if f.bank_card else None))
             created_app += 1
     db.commit()
