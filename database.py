@@ -9,13 +9,7 @@ engine = create_engine(
     connect_args={"check_same_thread": False}  # SQLite 多线程需要
 )
 
-
-def _cn_to_int(n: int) -> int:
-    """将 1~10 的整数转为中文数字（供 SQLite 使用）"""
-    digits = "零一二三四五六七八九十"
-    if 1 <= n <= 10:
-        return digits[n]
-    return ""
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 # 注册 format_group_no 为 SQLite 函数，供 SQL 内部调用
@@ -32,8 +26,10 @@ def register_sqlite_functions(dbapi_conn, connection_record):
 
     dbapi_conn.create_function("format_group_no", 1, _format_group_no)
 
+
 class Base(DeclarativeBase):
     pass
+
 
 # FastAPI 依赖注入用
 def get_db():
