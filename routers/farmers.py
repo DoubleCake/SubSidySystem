@@ -205,10 +205,26 @@ def batch_import_farmers(payload: dict, db: Session = Depends(get_db)):
             if db.execute(text("SELECT id FROM farmer_profile WHERE id_card=:ic"), {"ic": ic}).fetchone():
                 skipped += 1; continue
 
+            # 支持 village_id（整数）或 village_name（字符串）
             vid = row.get("village_id")
+            vn_raw = row.get("village_name")
             gn_raw = row.get("group_no")
-            if not vid or gn_raw is None:
-                errors.append(f"{row.get('real_name','?')}: 缺少 village_id 或 group_no"); continue
+            if not vid and not vn_raw:
+                errors.append(f"{row.get('real_name','?')}: 缺少 village_id 或 village_name"); continue
+            if gn_raw is None:
+                errors.append(f"{row.get('real_name','?')}: 缺少 group_no"); continue
+
+            # 解析 village_id：优先用传入的整数，否则按 village_name 查 Village 表
+            if vid:
+                village_id = int(vid)
+            else:
+                village_name_str = str(vn_raw).strip()
+                v = db.query(Village).filter(Village.village_name == village_name_str).first()
+                if not v:
+                    v = Village(village_name=village_name_str)
+                    db.add(v); db.flush()
+                village_id = v.id
+
             gno = parse_group_no_to_int(gn_raw)
 
             parsed = parse_id_card(ic) or {}
@@ -222,7 +238,7 @@ def batch_import_farmers(payload: dict, db: Session = Depends(get_db)):
             hh = FamilyHousehold(
                 household_code=gen_household_code(farmer.id),
                 household_name=f"{row.get('real_name','未知')}户", head_farmer_id=farmer.id,
-                village_id=vid, group_no=gno, address=row.get("address"),
+                village_id=village_id, group_no=gno, address=row.get("address"),
                 land_area=row.get("land_area"), status=row.get("farmer_status", 1),
             )
             db.add(hh); db.flush()
