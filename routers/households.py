@@ -67,21 +67,19 @@ def calc_household_area_usage(
 ) -> dict:
     """
     计算一个家庭户的面积使用情况（含流转）：
-    - contracted_area: 承包面积（权属，来自 family_household.land_area）
-    - trust_out_area:  流出面积（该年度流给他人耕种的，有接收方才算）
-    - trust_in_area:   流入面积（该年度从他人流入的代耕/流转）
-    - cultivable_area: 实际可耕种面积 = 承包 - 流出 + 流入（超领判断基准）
-    - used_area:       已申报的按亩补贴面积之和
-    - remaining_area:  剩余可申请面积 = 可耕种 - 已用
-    - is_overdrawn:    是否超领（used_area > cultivable_area）
+    - contracted_area:  承包面积（权属，来自 family_household.land_area）
+    - trust_out_area:   流出面积（该年度流给他人耕种的）
+    - trust_in_area:    流入面积（该年度从他人流入的代耕/流转）
+    - cultivable_area:  实际可耕种面积 = 承包 - 流出 + 流入
+    - season_breakdown: 按季节分组的面积占用明细
     """
     hh = db.query(FamilyHousehold).filter(FamilyHousehold.id == household_id).first()
     if not hh:
         return {}
 
     contracted = float(hh.land_area or 0)
-    
-    # ── 流转面积（按年度，仅当 affect_subsidy_calc=1 时纳入）──
+
+    # ── 流转面积（按年度）──
     trust_out = 0.0
     trust_in  = 0.0
     if year:
@@ -93,34 +91,34 @@ def calc_household_area_usage(
               AND operator_household_id IS NOT NULL
         """), {"hid": household_id, "yr": year}).scalar()
         trust_out = float(out_r or 0)
-        
+
         in_r = db.execute(_text("""
             SELECT COALESCE(SUM(area),0) FROM land_trust
             WHERE operator_household_id=:hid AND trust_year=:yr AND is_active=1
               AND affect_subsidy_calc=1
         """), {"hid": household_id, "yr": year}).scalar()
         trust_in = float(in_r or 0)
-    
-    # 可耕种面积（超领判断基准）
+
     cultivable = max(0.0, contracted - trust_out + trust_in)
 
-    # 查询该户所有成员
     member_ids = [
         f.id for f in db.query(FarmerProfile.id)
-                         .filter(FarmerProfile.household_id == household_id)
-                         .all()
+                         .filter(FarmerProfile.household_id == household_id).all()
     ]
     if not member_ids:
         return {
-            "contracted_area": contracted, "used_area": 0,
-            "remaining_area": contracted, "is_overdrawn": False,
-            "overdraw_amount": 0, "subsidy_breakdown": []
+            "contracted_area": contracted,
+            "trust_out_area": trust_out,
+            "trust_in_area": trust_in,
+            "cultivable_area": cultivable,
+            "season_breakdown": {},
         }
 
-    # 查询 per_mu（按亩计算）类型的补贴申请，按年度汇总面积
+    # 查询按亩计算且计入面积的补贴，按季节+年度+补贴名分组
     query = (
         db.query(
             SubsidyType.subsidy_name,
+            SubsidyType.season,
             SubsidyApplication.apply_year,
             func.sum(SubsidyApplication.apply_area).label("total_area"),
             func.sum(SubsidyApplication.actual_amount).label("total_amount"),
@@ -129,50 +127,88 @@ def calc_household_area_usage(
         .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
         .filter(
             SubsidyApplication.farmer_id.in_(member_ids),
-            SubsidyType.calc_mode == "per_mu",                 # 只统计按亩计算的
+            SubsidyType.calc_mode == "per_mu",
+            SubsidyType.count_toward_area == 1,
             SubsidyApplication.apply_area.isnot(None),
-            SubsidyApplication.pay_status.in_([0, 1, 2]),      # 排除驳回的
+            SubsidyApplication.pay_status.in_([0, 1, 2]),
         )
     )
     if year:
         query = query.filter(SubsidyApplication.apply_year == year)
 
-    results = query.group_by(SubsidyType.subsidy_name, SubsidyApplication.apply_year).all()
+    results = query.group_by(
+        SubsidyType.subsidy_name, SubsidyType.season, SubsidyApplication.apply_year
+    ).all()
 
-    # 按年度汇总
-    breakdown: list[dict] = []
-    total_used = 0.0
-    year_totals: dict[int, float] = {}
+    # 季节顺序
+    SEASON_ORDER = ["大春", "小春", "全年单补", "临时"]
+
+    # 初始化季节结构
+    season_data: dict[str, dict] = {s: {"used_area": 0.0, "subsidies": []} for s in SEASON_ORDER}
+
+    # 按年度+季节汇总
+    year_totals: dict[int, dict[str, float]] = {}
 
     for r in results:
         area = float(r.total_area or 0)
-        breakdown.append({
+        season = r.season or "全年单补"
+        y = r.apply_year
+
+        if y not in year_totals:
+            year_totals[y] = {s: 0.0 for s in SEASON_ORDER}
+        year_totals[y][season] = year_totals[y].get(season, 0.0) + area
+
+        season_data[season]["used_area"] += area
+        season_data[season]["subsidies"].append({
             "subsidy_name": r.subsidy_name,
-            "apply_year": r.apply_year,
+            "apply_year": y,
             "used_area": round(area, 2),
             "total_amount": float(r.total_amount or 0),
             "app_count": r.app_count,
         })
-        year_totals[r.apply_year] = year_totals.get(r.apply_year, 0) + area
 
-    # 如果查了特定年度，就用那年的；否则取所有年度各自最大的（不叠加不同年度）
-    if year:
-        total_used = year_totals.get(year, 0)
+    # 构建 season_breakdown
+    season_breakdown: dict[str, dict] = {}
+    for season in SEASON_ORDER:
+        used = round(season_data[season]["used_area"], 2)
+        remaining = round(cultivable - used, 2)
+        is_overdrawn = cultivable > 0 and used > cultivable
+        season_breakdown[season] = {
+            "used_area": used,
+            "remaining_area": remaining,
+            "is_overdrawn": is_overdrawn,
+            "overdraw_amount": round(max(0, used - cultivable), 2),
+            "subsidies": sorted(season_data[season]["subsidies"], key=lambda x: -x["apply_year"]),
+        }
+
+    # 兼容旧字段：取指定年份或最近年份的总额
+    if year and year in year_totals:
+        total_used = round(sum(year_totals[year].values()), 2)
+    elif year_totals:
+        latest_year = max(year_totals.keys())
+        total_used = round(sum(year_totals[latest_year].values()), 2)
     else:
-        # 不同年度的面积不叠加（每年独立补贴），取最近年度
-        total_used = max(year_totals.values()) if year_totals else 0
+        total_used = 0.0
 
     remaining = cultivable - total_used
-    is_overdrawn = cultivable > 0 and total_used > cultivable
+    is_overdrawn_all = cultivable > 0 and total_used > cultivable
 
     return {
         "contracted_area": contracted,
-        "used_area": round(total_used, 2),
+        "trust_out_area": trust_out,
+        "trust_in_area": trust_in,
+        "cultivable_area": round(cultivable, 2),
+        # 兼容旧字段（按指定年份的总量，非季节分组）
+        "used_area": total_used,
         "remaining_area": round(remaining, 2),
-        "is_overdrawn": is_overdrawn,
+        "is_overdrawn": is_overdrawn_all,
         "overdraw_amount": round(max(0, total_used - contracted), 2),
-        "subsidy_breakdown": sorted(breakdown, key=lambda x: -x["apply_year"]),
-        "year_totals": {str(y): round(v, 2) for y, v in sorted(year_totals.items(), reverse=True)},
+        # 新字段：按季节分组
+        "season_breakdown": season_breakdown,
+        "year_totals": {
+            str(y): {s: round(v, 2) for s, v in seasons.items()}
+            for y, seasons in sorted(year_totals.items(), reverse=True)
+        },
     }
 
 
@@ -289,12 +325,16 @@ def list_households(
             "status": hh.status,
             "address": hh.address,
             "remark": hh.remark,
-            # 面积数据
+            # 面积数据（含季节分组）
             "contracted_area": float(hh.land_area or 0),
+            "trust_out_area": area_info.get("trust_out_area", 0),
+            "trust_in_area": area_info.get("trust_in_area", 0),
+            "cultivable_area": area_info.get("cultivable_area", float(hh.land_area or 0)),
             "used_area": area_info.get("used_area", 0),
             "remaining_area": area_info.get("remaining_area", 0),
             "is_overdrawn": area_info.get("is_overdrawn", False),
             "overdraw_amount": area_info.get("overdraw_amount", 0),
+            "season_breakdown": area_info.get("season_breakdown", {}),
         }
         items.append(row)
 
@@ -801,24 +841,26 @@ def remove_member(
 def get_area_by_year(household_id: int, db: Session = Depends(get_db)):
     """
     获取该家庭户历年面积占用情况，用于前端按年度展示
-    返回每个有数据的年份的面积明细
+    返回每个有数据的年份的面积明细（含季节分组）
     """
     hh = db.get(FamilyHousehold, household_id)
     if not hh:
         raise HTTPException(404, "家庭户不存在")
+
+    contracted = float(hh.land_area or 0)
 
     member_ids = [
         f.id for f in db.query(FarmerProfile.id)
                          .filter(FarmerProfile.household_id == household_id).all()
     ]
     if not member_ids:
-        return {"contracted_area": float(hh.land_area or 0), "years": []}
+        return {"contracted_area": contracted, "years": []}
 
     rows = (
         db.query(
             SubsidyApplication.apply_year,
             SubsidyType.subsidy_name,
-            SubsidyType.calc_mode,
+            SubsidyType.season,
             func.sum(SubsidyApplication.apply_area).label("total_area"),
             func.sum(SubsidyApplication.actual_amount).label("total_amount"),
             func.count(SubsidyApplication.id).label("app_count"),
@@ -827,36 +869,58 @@ def get_area_by_year(household_id: int, db: Session = Depends(get_db)):
         .filter(
             SubsidyApplication.farmer_id.in_(member_ids),
             SubsidyType.calc_mode == "per_mu",
+            SubsidyType.count_toward_area == 1,
             SubsidyApplication.apply_area.isnot(None),
             SubsidyApplication.pay_status.in_([0, 1, 2]),
         )
-        .group_by(SubsidyApplication.apply_year, SubsidyType.subsidy_name, SubsidyType.calc_mode)
-        .order_by(SubsidyApplication.apply_year.desc())
+        .group_by(
+            SubsidyApplication.apply_year, SubsidyType.subsidy_name, SubsidyType.season
+        )
+        .order_by(SubsidyApplication.apply_year.desc(), SubsidyType.season)
         .all()
     )
 
+    SEASON_ORDER = ["大春", "小春", "全年单补", "临时"]
+
     # 按年份聚合
     year_map: dict = {}
-    contracted = float(hh.land_area or 0)
     for r in rows:
         y = r.apply_year
-        if y not in year_map:
-            year_map[y] = {"year": y, "total_used": 0.0, "details": []}
+        season = r.season or "全年单补"
         area = float(r.total_area or 0)
-        year_map[y]["total_used"] = round(year_map[y]["total_used"] + area, 2)
-        year_map[y]["details"].append({
+
+        if y not in year_map:
+            year_map[y] = {
+                "year": y,
+                "season_breakdown": {s: {"used_area": 0.0, "subsidies": []} for s in SEASON_ORDER},
+                "total_used": 0.0,
+            }
+
+        year_map[y]["season_breakdown"][season]["used_area"] += area
+        year_map[y]["season_breakdown"][season]["subsidies"].append({
             "subsidy_name": r.subsidy_name,
+            "apply_year": y,
             "used_area": round(area, 2),
             "total_amount": float(r.total_amount or 0),
             "app_count": r.app_count,
         })
+        year_map[y]["total_used"] += area
 
     year_list = sorted(year_map.values(), key=lambda x: -x["year"])
     for y in year_list:
+        y["total_used"] = round(y["total_used"], 2)
         y["contracted_area"] = contracted
-        y["remaining_area"]  = round(contracted - y["total_used"], 2)
-        y["is_overdrawn"]    = contracted > 0 and y["total_used"] > contracted
+        y["remaining_area"] = round(contracted - y["total_used"], 2)
+        y["is_overdrawn"] = contracted > 0 and y["total_used"] > contracted
         y["overdraw_amount"] = round(max(0, y["total_used"] - contracted), 2)
+        # 季节超额
+        for season in SEASON_ORDER:
+            sb = y["season_breakdown"][season]
+            sb["used_area"] = round(sb["used_area"], 2)
+            sb["remaining_area"] = round(contracted - sb["used_area"], 2)
+            sb["is_overdrawn"] = contracted > 0 and sb["used_area"] > contracted
+            sb["overdraw_amount"] = round(max(0, sb["used_area"] - contracted), 2)
+            sb["subsidies"] = sorted(sb["subsidies"], key=lambda x: -x["used_area"])
 
     return {"contracted_area": contracted, "years": year_list}
 
