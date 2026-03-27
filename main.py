@@ -22,19 +22,6 @@ def _migrate():
         if "no_subsidy_area" not in cols:
             conn.execute(sa.text("ALTER TABLE subsidy_application ADD COLUMN no_subsidy_area DECIMAL(10,2)"))
         conn.commit()
-
-    # ── 村组名称规范化：将 "1组" 等阿拉伯数字统一转为 "一组" ──
-    from utils import normalize_group_no
-    with engine.connect() as conn:
-        rows = conn.execute(sa.text("SELECT id, group_no, full_name FROM village_group")).fetchall()
-        for row in rows:
-            new_group_no = normalize_group_no(row[1])
-            if new_group_no != row[1]:
-                new_full_name = (row[2] or '').replace(row[1], new_group_no) if row[2] else new_group_no
-                conn.execute(sa.text(
-                    "UPDATE village_group SET group_no=:gno, full_name=:fn WHERE id=:id"
-                ), {"gno": new_group_no, "fn": new_full_name, "id": row[0]})
-        conn.commit()
 _migrate()
 
 app = FastAPI(
@@ -66,16 +53,6 @@ app.include_router(error_library.router)
 @app.get("/api/health")
 def health():
     return {"status": "ok", "message": "农户补贴管理系统运行中"}
-
-@app.get("/api/village-groups")
-def get_village_groups():
-    from database import SessionLocal
-    from models import VillageGroup
-    session = SessionLocal()
-    items = session.query(VillageGroup).all()
-    result = [{"id": v.id, "village_name": v.village_name, "group_no": v.group_no, "full_name": v.full_name} for v in items]
-    session.close()
-    return result
 
 # ── 托管前端静态文件 ──
 static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -293,7 +270,7 @@ def create_indexes():
         "CREATE INDEX IF NOT EXISTS idx_fp_status       ON farmer_profile(farmer_status)",
         "CREATE INDEX IF NOT EXISTS idx_fp_name         ON farmer_profile(real_name)",
         # 家庭户
-        "CREATE INDEX IF NOT EXISTS idx_hh_vg           ON family_household(village_group_id)",
+        "CREATE INDEX IF NOT EXISTS idx_hh_village     ON family_household(village_id)",
         # 补贴类型
         "CREATE INDEX IF NOT EXISTS idx_st_year         ON subsidy_type(subsidy_year)",
     ]
