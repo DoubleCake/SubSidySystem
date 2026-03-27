@@ -109,6 +109,14 @@ def migrate_db():
     """兼容旧数据库：添加新字段（如不存在）"""
     from sqlalchemy import text
     from database import engine
+
+    with engine.connect() as conn:
+        # family_household: village_group_id → village_id
+        hh_cols = {r[1] for r in conn.execute(text("PRAGMA table_info(family_household)"))}
+        if "village_id" not in hh_cols:
+            conn.execute(text("ALTER TABLE family_household ADD COLUMN village_id INTEGER NOT NULL DEFAULT 1"))
+            conn.commit()
+
     migrations = [
         "ALTER TABLE subsidy_type ADD COLUMN count_toward_area INTEGER NOT NULL DEFAULT 1",
         "ALTER TABLE subsidy_application ADD COLUMN no_subsidy_area DECIMAL(10,2)",
