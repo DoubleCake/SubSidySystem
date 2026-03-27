@@ -105,17 +105,64 @@ if __name__ == "__main__":
 
 
 
+def _cn_to_int(s: str) -> int:
+    """中文组号字符串转整数"""
+    m = {"一组": 1, "二组": 2, "三组": 3, "四组": 4, "五组": 5,
+         "六组": 6, "七组": 7, "八组": 8, "九组": 9, "十组": 10,
+         "1组": 1, "2组": 2, "3组": 3, "4组": 4, "5组": 5,
+         "6组": 6, "7组": 7, "8组": 8, "9组": 9, "10组": 10}
+    return m.get(str(s).strip(), 1)
+
+
 def migrate_db():
     """兼容旧数据库：添加新字段（如不存在）"""
     from sqlalchemy import text
     from database import engine
 
     with engine.connect() as conn:
-        # family_household: village_group_id → village_id
-        hh_cols = {r[1] for r in conn.execute(text("PRAGMA table_info(family_household)"))}
+        hh_cols = {r[1] for r in conn.execute(text("PRAGMA table_info(family_household)")).fetchall()}
+
+        # 1. 新增 village_id（可空）
         if "village_id" not in hh_cols:
-            conn.execute(text("ALTER TABLE family_household ADD COLUMN village_id INTEGER NOT NULL DEFAULT 1"))
+            conn.execute(text("ALTER TABLE family_household ADD COLUMN village_id INTEGER"))
             conn.commit()
+
+        # 2. 新增 group_no（存整数）
+        if "group_no" not in hh_cols:
+            conn.execute(text("ALTER TABLE family_household ADD COLUMN group_no INTEGER NOT NULL DEFAULT 1"))
+            conn.commit()
+
+        # 3. 回填 village_id：从 village_group.village_name 找对应 village.id
+        conn.execute(text("""
+            UPDATE family_household
+            SET village_id = (
+                SELECT v.id FROM village v
+                JOIN village_group vg ON v.village_name = vg.village_name
+                WHERE vg.id = family_household.village_group_id
+                LIMIT 1
+            )
+            WHERE village_group_id IS NOT NULL
+              AND (village_id IS NULL OR village_id = 0)
+        """))
+        conn.commit()
+
+        # 4. 回填 group_no：从 village_group.group_no 转整数
+        rows = conn.execute(text("""
+            SELECT hh.id, vg.group_no
+            FROM family_household hh
+            JOIN village_group vg ON vg.id = hh.village_group_id
+            WHERE hh.village_group_id IS NOT NULL
+        """)).fetchall()
+        for row in rows:
+            conn.execute(
+                text("UPDATE family_household SET group_no=:gno WHERE id=:id"),
+                {"gno": _cn_to_int(row[1]), "id": row[0]}
+            )
+        conn.commit()
+
+        # 5. 兜底：未匹配到的 village_id 设为 1
+        conn.execute(text("UPDATE family_household SET village_id=1 WHERE village_id IS NULL OR village_id=0"))
+        conn.commit()
 
     migrations = [
         "ALTER TABLE subsidy_type ADD COLUMN count_toward_area INTEGER NOT NULL DEFAULT 1",
@@ -286,7 +333,7 @@ def create_indexes():
         for sql in indexes:
             conn.execute(text(sql))
         conn.commit()
-    print("  数据库索引已就绪 ✅")
+    print("  数据库索引已就绪 [OK]")
 
 
 
