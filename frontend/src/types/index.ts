@@ -255,11 +255,19 @@ export interface ErrorLibraryCreate {
 }
 
 // ── 家庭户 ──
+export interface SeasonUsage {
+  used_area: number; remaining_area: number
+  is_overdrawn: boolean; overdraw_amount: number
+  subsidies: { subsidy_name: string; apply_year: number; used_area: number; total_amount: number; app_count: number }[]
+}
+
 export interface HH {
   id: number; household_code: string; household_name: string
   village_full_name: string; village_name: string; head_name: string
-  contracted_area: number; used_area: number; remaining_area: number
+  contracted_area: number; trust_out_area?: number; trust_in_area?: number; cultivable_area?: number
+  used_area: number; remaining_area: number
   is_overdrawn: boolean; overdraw_amount: number
+  season_breakdown?: Record<string, SeasonUsage>
   member_count: number; status: number; address: string | null; remark: string | null
 }
 
@@ -277,6 +285,7 @@ export interface HHDetail {
     contracted_area: number; trust_out_area?: number; trust_in_area?: number
     cultivable_area?: number; used_area: number; remaining_area: number
     is_overdrawn: boolean; overdraw_amount?: number; has_trust_data?: boolean
+    season_breakdown?: Record<string, SeasonUsage>
     subsidy_breakdown: { subsidy_name: string; apply_area: number; calc_mode: string }[]
   }
   app_summary: {
