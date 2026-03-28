@@ -307,6 +307,42 @@ def migrate_db():
             except Exception:
                 pass  # 字段已存在则跳过
 
+    # Phase 2 重构：删除 farmer_profile.is_head（改为 household.head_farmer_id 动态计算）
+    from sqlalchemy import text as _t
+    with engine.connect() as conn:
+        tbl_cols = {r[1] for r in conn.execute(_t("PRAGMA table_info(farmer_profile)"))}
+        if "is_head" in tbl_cols:
+            try:
+                conn.execute(_t("ALTER TABLE farmer_profile DROP COLUMN is_head"))
+                conn.commit()
+                print("  [OK] farmer_profile.is_head 列已删除")
+            except Exception:
+                # SQLite 旧版本不支持 DROP COLUMN，用重建表方式
+                conn.execute(_t("ALTER TABLE farmer_profile RENAME TO _fp_old"))
+                conn.execute(_t("""
+                    CREATE TABLE farmer_profile (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        household_id INTEGER NOT NULL, real_name VARCHAR(50) NOT NULL,
+                        gender SMALLINT NOT NULL, id_card VARCHAR(18) NOT NULL UNIQUE,
+                        phone VARCHAR(20), bank_card VARCHAR(25), bank_name VARCHAR(100),
+                        relation VARCHAR(20) DEFAULT '本人', farmer_status SMALLINT NOT NULL DEFAULT 1,
+                        remark TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (household_id) REFERENCES family_household (id)
+                    )
+                """))
+                conn.execute(_t("""
+                    INSERT INTO farmer_profile
+                        (id, household_id, real_name, gender, id_card, phone, bank_card,
+                         bank_name, relation, farmer_status, remark, created_at, updated_at)
+                    SELECT id, household_id, real_name, gender, id_card, phone, bank_card,
+                           bank_name, relation, farmer_status, remark, created_at, updated_at
+                    FROM _fp_old
+                """))
+                conn.execute(_t("DROP TABLE _fp_old"))
+                conn.commit()
+                print("  [OK] farmer_profile.is_head 列已重建删除")
+
 migrate_db()
 
 def create_indexes():
