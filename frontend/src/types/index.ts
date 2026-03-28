@@ -393,6 +393,8 @@ export interface MemberUpdate {
   farmer_status?: number
   remark?: string
   event_date?: string
+  village_id?: number
+  group_no?: number
 }
 
 export interface MemberMoveRequest {

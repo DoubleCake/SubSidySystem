@@ -75,6 +75,7 @@ const EVENT_TYPE_CFG: Record<string, { label: string; color: string; icon: strin
   MERGE:          { label: '合户',       color: 'bg-teal-100 text-teal-700',       icon: '🔗' },
   LAND_CHANGE:    { label: '土地变更',   color: 'bg-green-100 text-green-700',     icon: '🌾' },
   STATUS_CHANGE:  { label: '户籍变更',   color: 'bg-red-100 text-red-700',         icon: '📋' },
+  VILLAGE_CHANGE: { label: '整户迁移',   color: 'bg-cyan-100 text-cyan-700',       icon: '🏠' },
   REMARK:         { label: '备注说明',   color: 'bg-slate-100 text-slate-500',     icon: '💬' },
 }
 
@@ -192,12 +193,12 @@ export default function FarmersPage() {
 
   // ── 编辑家庭户 ──
   const [editOpen, setEditOpen] = useState(false)
-  const [editForm, setEditForm] = useState({ household_name: '', land_area: '', address: '', remark: '' })
+  const [editForm, setEditForm] = useState({ household_name: '', land_area: '', village_id: 0, group_no: 1, address: '', remark: '' })
 
   // ── 成员管理 ──
   const [memberAddOpen, setMemberAddOpen] = useState(false)
   const [memberEditTarget, setMemberEditTarget] = useState<HHMember | null>(null)
-  const [memberForm, setMemberForm] = useState({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1' })
+  const [memberForm, setMemberForm] = useState({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: 0, group_no: 1 })
   const [memberImportOpen, setMemberImportOpen] = useState(false)
 
   // ── 分户向导 ──
@@ -497,6 +498,8 @@ export default function FarmersPage() {
     await api.updateHousehold(hhId, {
       household_name: editForm.household_name,
       land_area: Number(editForm.land_area) || undefined,
+      village_id: editForm.village_id || undefined,
+      group_no: editForm.group_no || undefined,
       address: editForm.address || undefined,
       remark: editForm.remark || undefined,
     })
@@ -520,6 +523,9 @@ export default function FarmersPage() {
           bank_card: memberForm.bank_card || undefined,
           bank_name: memberForm.bank_name || undefined,
           farmer_status: Number(memberForm.farmer_status),
+          event_date: memberForm.event_date || undefined,
+          village_id: memberForm.village_id || undefined,
+          group_no: memberForm.group_no || undefined,
         })
         show('✓ 成员信息已更新')
       } else {
@@ -554,10 +560,14 @@ export default function FarmersPage() {
 
   const openMemberEdit = (m: HHMember | SnapshotMember) => {
     setMemberEditTarget(m as HHMember)
+    const hh = detail ?? selectedFarmerHousehold
     setMemberForm({
       real_name: m.real_name, id_card: '', gender: String(m.gender),
       relation: m.relation || '成员', is_head: m.is_head === 1,
       phone: '', bank_card: '', bank_name: '', farmer_status: String(m.farmer_status),
+      event_date: '',
+      village_id: hh?.village_id ?? 0,
+      group_no: hh?.group_no ?? 1,
     })
     setMemberAddOpen(true)
   }
@@ -1101,7 +1111,7 @@ export default function FarmersPage() {
               {detailTab === 'members' && (
                 <>
                   <button onClick={() => setMemberImportOpen(true)} className="text-xs border border-emerald-200 text-emerald-700 px-2.5 py-1 rounded-lg hover:bg-emerald-50 transition-colors">↑ 批量导入</button>
-                  <button onClick={() => { setMemberEditTarget(null); setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1' }); setMemberAddOpen(true) }}
+                  <button onClick={() => { setMemberEditTarget(null); setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1 }); setMemberAddOpen(true) }}
                     className="text-xs bg-emerald-700 text-white px-2.5 py-1 rounded-lg hover:bg-emerald-600 transition-colors">＋ 成员</button>
                   <button onClick={() => setEventOpen(true)} className="text-xs border border-stone-200 text-stone-600 px-2.5 py-1 rounded-lg hover:bg-stone-50 transition-colors">＋ 补录</button>
                 </>
@@ -1606,12 +1616,12 @@ export default function FarmersPage() {
                 events={events}
                 historyDateIsNull={historyEventId === null}
                 onOpenMemberImport={() => setMemberImportOpen(true)}
-                onOpenMemberAdd={() => { setMemberEditTarget(null); setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1' }); setMemberAddOpen(true) }}
+                onOpenMemberAdd={() => { setMemberEditTarget(null); setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1 }); setMemberAddOpen(true) }}
                 onOpenEvent={() => setEventOpen(true)}
                 onOpenFarmer={openFarmer}
                 onOpenMemberEdit={openMemberEdit}
                 onRemoveMember={removeMember}
-                onOpenEdit={() => { setEditForm({ household_name: detail.household_name, land_area: String(detail.contracted_area || ''), address: detail.address || '', remark: detail.remark || '' }); setEditOpen(true) }}
+                onOpenEdit={() => { setEditForm({ household_name: detail.household_name, land_area: String(detail.contracted_area || ''), village_id: detail.village_id || 0, group_no: detail.group_no || 1, address: detail.address || '', remark: detail.remark || '' }); setEditOpen(true) }}
                 onOpenSplit={() => { setSplitOpen(true); setSplitStep(1); setSplitSelected([]); setSplitNewHead(null); setSplitForm({ household_name: '', split_year: String(new Date().getFullYear()), split_date: '', new_land_area: '', origin_land_area: String(detail.contracted_area || ''), description: '', evidence_type: '', evidence_note: '' }) }}
                 canSplit={detail.members.filter(m => m.farmer_status === 1).length >= 2}
               />
@@ -1637,6 +1647,25 @@ export default function FarmersPage() {
           <div className="col-span-2"><label className="block text-xs text-stone-400 mb-1">户名</label>
             <input value={editForm.household_name} onChange={e => setEditForm(f => ({ ...f, household_name: e.target.value }))}
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
+          <div><label className="block text-xs text-stone-400 mb-1">所在村 *</label>
+            <select value={editForm.village_id || ''} onChange={e => setEditForm(f => ({ ...f, village_id: Number(e.target.value) }))}
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+              <option value="">请选择</option>
+              {[...new Map(groups.map(g => [g.village_id, g])).values()].map(g => (
+                <option key={g.village_id} value={g.village_id}>{g.village_name}</option>
+              ))}
+            </select>
+          </div>
+          <div><label className="block text-xs text-stone-400 mb-1">所在组</label>
+            <select value={editForm.group_no || 1} onChange={e => setEditForm(f => ({ ...f, group_no: Number(e.target.value) }))}
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+              <option value={1}>第1组</option>
+              <option value={2}>第2组</option>
+              <option value={3}>第3组</option>
+              <option value={4}>第4组</option>
+              <option value={5}>第5组</option>
+            </select>
+          </div>
           <div><label className="block text-xs text-stone-400 mb-1">承包土地面积（亩）</label>
             <input type="number" step="0.01" value={editForm.land_area} onChange={e => setEditForm(f => ({ ...f, land_area: e.target.value }))}
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
@@ -1669,6 +1698,61 @@ export default function FarmersPage() {
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
               <option value="1">在册</option><option value="2">注销</option><option value="3">迁出</option><option value="4">死亡</option>
             </select></div>
+          <div><label className="block text-xs text-stone-400 mb-1">所在村</label>
+            <div className="relative">
+              <input
+                list="member-village-list"
+                value={(() => {
+                  const v = groups.find(g => g.village_id === memberForm.village_id)
+                  return v ? v.village_name : ''
+                })()}
+                onChange={e => {
+                  const found = groups.find(g => g.village_name === e.target.value)
+                  if (found) {
+                    setMemberForm(f => ({ ...f, village_id: found.village_id, group_no: 1 }))
+                  }
+                }}
+                placeholder="输入或选择村名"
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"
+              />
+              <datalist id="member-village-list">
+                {[...new Map(groups.map(g => [g.village_id, g])).values()].map(g => (
+                  <option key={g.village_id} value={g.village_name} />
+                ))}
+              </datalist>
+            </div></div>
+          <div><label className="block text-xs text-stone-400 mb-1">所在组</label>
+            <div className="relative">
+              <input
+                list="member-group-list"
+                value={(() => {
+                  const g = groups.find(g => g.village_id === memberForm.village_id && g.group_no === memberForm.group_no)
+                  return g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${memberForm.group_no}组`
+                })()}
+                onChange={e => {
+                  // Try to match against available groups for this village
+                  const villageGroups = groups.filter(g => g.village_id === memberForm.village_id)
+                  const found = villageGroups.find(g => g.full_name.includes(e.target.value) || e.target.value === `第${g.group_no}组`)
+                  if (found) {
+                    setMemberForm(f => ({ ...f, group_no: found.group_no }))
+                  } else {
+                    // Try parsing as number
+                    const num = parseInt(e.target.value.replace(/[^0-9]/g, ''))
+                    if (num > 0) setMemberForm(f => ({ ...f, group_no: num }))
+                  }
+                }}
+                placeholder="输入或选择组名"
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"
+              />
+              <datalist id="member-group-list">
+                {groups.filter(g => g.village_id === memberForm.village_id).map(g => (
+                  <option key={g.id} value={g.full_name.replace(g.village_name, '').replace('村', '')} />
+                ))}
+              </datalist>
+            </div></div>
+          <div><label className="block text-xs text-stone-400 mb-1">变动时间（选填）</label>
+            <input type="date" value={memberForm.event_date} onChange={e => setMemberForm(f => ({ ...f, event_date: e.target.value }))}
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
           <div><label className="block text-xs text-stone-400 mb-1">手机号</label>
             <input value={memberForm.phone} onChange={e => setMemberForm(f => ({ ...f, phone: e.target.value }))}
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>

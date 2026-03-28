@@ -72,6 +72,8 @@ class HouseholdUpdate(BaseModel):
     """更新家庭户基础信息"""
     household_name: Optional[str] = None
     land_area: Optional[float] = None      # 承包土地总面积（亩）
+    village_id: Optional[int] = None       # 所属村（整户迁移时修改）
+    group_no: Optional[int] = None         # 所属组（存整数，1=一组）
     address: Optional[str] = None
     status: Optional[int] = None
     remark: Optional[str] = None
@@ -464,8 +466,12 @@ class MemberUpdate(BaseModel):
     bank_card: Optional[str] = None
     bank_name: Optional[str] = None
     relation: Optional[str] = None
+    is_head: Optional[int] = None       # 是否设为户主
     farmer_status: Optional[int] = None
     remark: Optional[str] = None
+    event_date: Optional[str] = None    # 快照时间（YYYY-MM-DD），用于补录
+    village_id: Optional[int] = None    # 所在村变更
+    group_no: Optional[int] = None      # 所在组变更
 
 
 def _member_out(m: FarmerProfile) -> dict:
@@ -573,6 +579,8 @@ def get_household(
         "household_code": hh.household_code,
         "household_name": hh.household_name,
         "village_full_name": f"{hh.village.village_name}{format_group_no(hh.group_no)}" if hh.village else "",
+        "village_id": hh.village_id,
+        "group_no": hh.group_no or 1,
         "address": hh.address,
         "contracted_area": float(hh.land_area or 0),
         "status": hh.status,
@@ -598,7 +606,21 @@ def update_household(
         raise HTTPException(status_code=404, detail="家庭户不存在")
 
     from datetime import date as _date
+    from utils import format_group_no
     before = _snapshot_household(db, household_id)
+
+    # 村组变更（整户迁移）
+    village_changed = False
+    old_village = f"{hh.village.village_name}{format_group_no(hh.group_no)}" if hh.village else "未知"
+    new_village = old_village
+    if data.village_id is not None and data.village_id != hh.village_id:
+        hh.village_id = data.village_id
+        village_changed = True
+    if data.group_no is not None and data.group_no != hh.group_no:
+        hh.group_no = data.group_no
+        village_changed = True
+    if village_changed:
+        new_village = f"{hh.village.village_name}{format_group_no(hh.group_no)}" if hh.village else "未知"
 
     if data.household_name is not None: hh.household_name = data.household_name
     if data.land_area      is not None: hh.land_area      = Decimal(str(data.land_area))
@@ -607,13 +629,26 @@ def update_household(
     if data.remark         is not None: hh.remark         = data.remark
 
     after = _snapshot_household(db, household_id)
-    ev_type = "LAND_CHANGE" if data.land_area is not None else "STATUS_CHANGE"
-    desc = f"更新家庭户信息"
-    if data.land_area is not None:
+
+    # 确定事件类型和描述
+    if village_changed:
+        ev_type = "VILLAGE_CHANGE"
+        desc = f"整户迁移：{old_village} → {new_village}"
+        _log_event(db, household_id, ev_type, _date.today().year, desc,
+                   before=before, after=after,
+                   event_date=_date.today(), date_accuracy="EXACT")
+    elif data.land_area is not None:
+        ev_type = "LAND_CHANGE"
         desc = f"土地面积变更：{float(before.get('land_area', 0))}亩 → {float(data.land_area or 0)}亩"
-    _log_event(db, household_id, ev_type, _date.today().year, desc,
-               before=before, after=after,
-               event_date=_date.today(), date_accuracy="EXACT")
+        _log_event(db, household_id, ev_type, _date.today().year, desc,
+                   before=before, after=after,
+                   event_date=_date.today(), date_accuracy="EXACT")
+    elif data.status is not None:
+        ev_type = "STATUS_CHANGE"
+        desc = f"更新家庭户信息"
+        _log_event(db, household_id, ev_type, _date.today().year, desc,
+                   before=before, after=after,
+                   event_date=_date.today(), date_accuracy="EXACT")
 
     db.commit()
     return {"message": "更新成功"}
@@ -755,6 +790,10 @@ def add_member(household_id: int, data: MemberCreate, db: Session = Depends(get_
     if data.is_head == 1:
         hh.head_farmer_id = member.id
 
+    # 如果家庭户是消亡状态，但新增了在册成员，则恢复为在册状态
+    if hh.status == 3 and (data.farmer_status or 1) == 1:
+        hh.status = 1
+
     after = _snapshot_household(db, household_id)
     today = _date.today()
     _log_event(db, household_id, "MEMBER_ADD", today.year,
@@ -771,45 +810,88 @@ def add_member(household_id: int, data: MemberCreate, db: Session = Depends(get_
 @router.put("/{household_id}/members/{farmer_id}")
 def update_member(household_id: int, farmer_id: int, data: MemberUpdate, db: Session = Depends(get_db)):
     """更新成员信息（姓名、电话、银行卡、关系、状态等）"""
-    member = db.query(FarmerProfile).filter(
-        FarmerProfile.id == farmer_id,
-        FarmerProfile.household_id == household_id
-    ).first()
-    if not member:
-        raise HTTPException(404, "成员不存在或不属于该家庭户")
+    try:
+        member = db.query(FarmerProfile).filter(
+            FarmerProfile.id == farmer_id,
+            FarmerProfile.household_id == household_id
+        ).first()
+        if not member:
+            raise HTTPException(404, "成员不存在或不属于该家庭户")
 
-    hh = db.get(FamilyHousehold, household_id)
+        hh = db.get(FamilyHousehold, household_id)
 
-    from datetime import date as _date
-    before = _snapshot_household(db, household_id)
+        from datetime import date as _date
 
-    # 如果要设为户主，更新 household 的 head_farmer_id
-    if data.is_head == 1:
-        hh.head_farmer_id = member.id
+        # 解析事件时间（支持补录）
+        event_date = _date.today()
+        date_accuracy = "EXACT"
+        if getattr(data, 'event_date', None):
+            try:
+                event_date = _date.fromisoformat(data.event_date)
+                date_accuracy = "DAY"
+            except (ValueError, TypeError):
+                pass
 
-    if data.real_name    is not None: member.real_name    = data.real_name
-    if data.phone        is not None: member.phone        = data.phone or None
-    if data.bank_card    is not None: member.bank_card    = data.bank_card or None
-    if data.bank_name    is not None: member.bank_name    = data.bank_name or None
-    if data.relation     is not None: member.relation     = data.relation
-    if data.farmer_status is not None: member.farmer_status = data.farmer_status
-    if data.remark       is not None: member.remark       = data.remark or None
+        before = _snapshot_household(db, household_id)
 
-    after = _snapshot_household(db, household_id)
-    today = _date.today()
-    if data.farmer_status is not None:
-        ev_type = "MEMBER_STATUS"
-        desc = f"成员「{member.real_name}」状态变更"
-    else:
-        ev_type = "MEMBER_STATUS"
-        desc = f"更新成员「{member.real_name}」信息"
-    _log_event(db, household_id, ev_type, today.year, desc,
-               before=before, after=after,
-               farmer_id=farmer_id, farmer_name=member.real_name,
-               event_date=today, date_accuracy="EXACT")
+        # 如果要设为户主，更新 household 的 head_farmer_id
+        if getattr(data, 'is_head', None) == 1 and hh:
+            hh.head_farmer_id = member.id
 
-    db.commit()
-    return {"message": "更新成功", "member": _member_out(member)}
+        # 如果设成员为"死亡"（4）且该成员是户主，自动转移户主或标记消亡
+        old_status = member.farmer_status
+        if data.farmer_status == 4 and old_status != 4 and hh and hh.head_farmer_id == member.id:
+            # 找另一个在册成员接任户主
+            successor = db.query(FarmerProfile).filter(
+                FarmerProfile.household_id == household_id,
+                FarmerProfile.id != farmer_id,
+                FarmerProfile.farmer_status == 1
+            ).first()
+            if successor:
+                hh.head_farmer_id = successor.id
+            else:
+                # 没有在册成员了，标记为消亡户
+                hh.status = 3
+
+        if data.real_name    is not None: member.real_name    = data.real_name
+        if data.phone        is not None: member.phone        = data.phone or None
+        if data.bank_card    is not None: member.bank_card    = data.bank_card or None
+        if data.bank_name    is not None: member.bank_name    = data.bank_name or None
+        if data.relation     is not None: member.relation     = data.relation
+        if data.farmer_status is not None: member.farmer_status = data.farmer_status
+        if data.remark       is not None: member.remark       = data.remark or None
+
+        # 处理村组变更（更新家庭户）
+        if hh:
+            if data.village_id is not None:
+                hh.village_id = data.village_id
+            if data.group_no is not None:
+                hh.group_no = data.group_no
+
+        after = _snapshot_household(db, household_id)
+        today = _date.today()
+        if data.farmer_status is not None:
+            ev_type = "MEMBER_STATUS"
+            status_map = {1: "在册", 2: "注销", 3: "迁出", 4: "死亡"}
+            old_label = status_map.get(old_status, str(old_status))
+            new_label = status_map.get(data.farmer_status, str(data.farmer_status))
+            desc = f"成员「{member.real_name}」状态变更：{old_label} → {new_label}"
+        else:
+            ev_type = "MEMBER_STATUS"
+            desc = f"更新成员「{member.real_name}」信息"
+        _log_event(db, household_id, ev_type, today.year, desc,
+                   before=before, after=after,
+                   farmer_id=farmer_id, farmer_name=member.real_name,
+                   event_date=event_date, date_accuracy=date_accuracy)
+
+        db.commit()
+        return {"message": "更新成功", "member": _member_out(member)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"更新失败: {type(e).__name__}: {str(e)}")
 
 
 @router.delete("/{household_id}/members/{farmer_id}")
@@ -825,6 +907,10 @@ def remove_member(
     - action=delete：彻底删除（仅允许无任何补贴记录的成员）
     注意：户主不能被移除，需先将其他成员设为户主。
     """
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh:
+        raise HTTPException(404, "家庭户不存在")
+
     member = db.query(FarmerProfile).filter(
         FarmerProfile.id == farmer_id,
         FarmerProfile.household_id == household_id
@@ -837,8 +923,6 @@ def remove_member(
     from datetime import date as _date
     before = _snapshot_household(db, household_id)
     fname = member.real_name
-
-    hh = db.get(FamilyHousehold, household_id)
 
     if action == "delete":
         # 检查是否有补贴记录
@@ -854,10 +938,18 @@ def remove_member(
         member.farmer_status = 3
         msg = "已标记为迁出"
 
+    # 检查是否还有在册成员，没有则标记为消亡户
+    remaining = db.query(FarmerProfile).filter(
+        FarmerProfile.household_id == household_id,
+        FarmerProfile.farmer_status == 1
+    ).count()
+    if remaining == 0 and hh.status == 1:
+        hh.status = 3  # 消亡户
+
     after = _snapshot_household(db, household_id)
     today = _date.today()
     _log_event(db, household_id, "MEMBER_REMOVE", today.year,
-               f"移出成员「{fname}」({action})",
+               f"移出成员「{fname}」({msg})",
                before=before, after=after,
                farmer_id=farmer_id, farmer_name=fname,
                event_date=today, date_accuracy="EXACT")
