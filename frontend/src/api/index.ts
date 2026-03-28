@@ -24,6 +24,8 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
 
 // ── 村组 ──
 export const getVillageGroups = () => req<VillageGroup[]>('/api/households/group-options')
+export const createVillageGroup = (data: { village_name: string; group_no: number }) =>
+  req<VillageGroup>('/api/settings/village-groups', { method: 'POST', body: JSON.stringify(data) })
 
 // ── 农户 ──
 export const getFarmers = (params: Record<string, string | number>) =>

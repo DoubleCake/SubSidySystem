@@ -198,7 +198,7 @@ export default function FarmersPage() {
   // ── 成员管理 ──
   const [memberAddOpen, setMemberAddOpen] = useState(false)
   const [memberEditTarget, setMemberEditTarget] = useState<HHMember | null>(null)
-  const [memberForm, setMemberForm] = useState({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: 0, group_no: 1 })
+  const [memberForm, setMemberForm] = useState({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: 0, group_no: 1, village_name: '', group_name: '' })
   const [memberImportOpen, setMemberImportOpen] = useState(false)
 
   // ── 分户向导 ──
@@ -561,6 +561,8 @@ export default function FarmersPage() {
   const openMemberEdit = (m: HHMember | SnapshotMember) => {
     setMemberEditTarget(m as HHMember)
     const hh = detail ?? selectedFarmerHousehold
+    const v = groups.find(g => g.village_id === hh?.village_id)
+    const g = groups.find(g => g.village_id === hh?.village_id && g.group_no === hh?.group_no)
     setMemberForm({
       real_name: m.real_name, id_card: '', gender: String(m.gender),
       relation: m.relation || '成员', is_head: m.is_head === 1,
@@ -568,6 +570,8 @@ export default function FarmersPage() {
       event_date: '',
       village_id: hh?.village_id ?? 0,
       group_no: hh?.group_no ?? 1,
+      village_name: v?.village_name ?? '',
+      group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${hh?.group_no ?? 1}组`,
     })
     setMemberAddOpen(true)
   }
@@ -1111,7 +1115,7 @@ export default function FarmersPage() {
               {detailTab === 'members' && (
                 <>
                   <button onClick={() => setMemberImportOpen(true)} className="text-xs border border-emerald-200 text-emerald-700 px-2.5 py-1 rounded-lg hover:bg-emerald-50 transition-colors">↑ 批量导入</button>
-                  <button onClick={() => { setMemberEditTarget(null); setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1 }); setMemberAddOpen(true) }}
+                  <button onClick={() => { setMemberEditTarget(null); const v = groups.find(g => g.village_id === detail?.village_id); const g = groups.find(g => g.village_id === detail?.village_id && g.group_no === detail?.group_no); setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` }); setMemberAddOpen(true) }}
                     className="text-xs bg-emerald-700 text-white px-2.5 py-1 rounded-lg hover:bg-emerald-600 transition-colors">＋ 成员</button>
                   <button onClick={() => setEventOpen(true)} className="text-xs border border-stone-200 text-stone-600 px-2.5 py-1 rounded-lg hover:bg-stone-50 transition-colors">＋ 补录</button>
                 </>
@@ -1616,7 +1620,7 @@ export default function FarmersPage() {
                 events={events}
                 historyDateIsNull={historyEventId === null}
                 onOpenMemberImport={() => setMemberImportOpen(true)}
-                onOpenMemberAdd={() => { setMemberEditTarget(null); setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1 }); setMemberAddOpen(true) }}
+                onOpenMemberAdd={() => { setMemberEditTarget(null); const v = groups.find(g => g.village_id === detail?.village_id); const g = groups.find(g => g.village_id === detail?.village_id && g.group_no === detail?.group_no); setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` }); setMemberAddOpen(true) }}
                 onOpenEvent={() => setEventOpen(true)}
                 onOpenFarmer={openFarmer}
                 onOpenMemberEdit={openMemberEdit}
@@ -1702,14 +1706,16 @@ export default function FarmersPage() {
             <div className="relative">
               <input
                 list="member-village-list"
-                value={(() => {
-                  const v = groups.find(g => g.village_id === memberForm.village_id)
-                  return v ? v.village_name : ''
-                })()}
-                onChange={e => {
-                  const found = groups.find(g => g.village_name === e.target.value)
+                value={memberForm.village_name}
+                onChange={async e => {
+                  const vname = e.target.value.trim()
+                  const found = groups.find(g => g.village_name === vname)
                   if (found) {
-                    setMemberForm(f => ({ ...f, village_id: found.village_id, group_no: 1 }))
+                    setMemberForm(f => ({ ...f, village_name: vname, village_id: found.village_id, group_no: 1, group_name: '' }))
+                  } else if (vname) {
+                    setMemberForm(f => ({ ...f, village_name: vname, village_id: 0, group_no: 1, group_name: '' }))
+                  } else {
+                    setMemberForm(f => ({ ...f, village_name: '', village_id: 0 }))
                   }
                 }}
                 placeholder="输入或选择村名"
@@ -1720,25 +1726,36 @@ export default function FarmersPage() {
                   <option key={g.village_id} value={g.village_name} />
                 ))}
               </datalist>
-            </div></div>
+            </div>
+            {memberForm.village_id === 0 && memberForm.village_name && (
+              <button type="button" onClick={async () => {
+                const vname = memberForm.village_name.trim()
+                if (!vname) return
+                try {
+                  const res = await api.createVillageGroup({ village_name: vname, group_no: 1 })
+                  const newGroup = { id: res.id, village_id: res.village_id, village_name: vname, group_no: 1, full_name: `${vname}村1组` }
+                  setGroups(g => [...g, newGroup])
+                  setMemberForm(f => ({ ...f, village_id: res.village_id, group_no: 1 }))
+                  show(`✓ 村庄「${vname}」已创建（默认第1组）`, 'ok')
+                } catch (e: any) { show(`创建失败：${e.message}`, 'err') }
+              }} className="mt-1 text-xs text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
+                <span>+ 创建新村庄「{memberForm.village_name}」</span>
+              </button>
+            )}</div>
           <div><label className="block text-xs text-stone-400 mb-1">所在组</label>
             <div className="relative">
               <input
                 list="member-group-list"
-                value={(() => {
-                  const g = groups.find(g => g.village_id === memberForm.village_id && g.group_no === memberForm.group_no)
-                  return g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${memberForm.group_no}组`
-                })()}
+                value={memberForm.group_name}
                 onChange={e => {
-                  // Try to match against available groups for this village
                   const villageGroups = groups.filter(g => g.village_id === memberForm.village_id)
-                  const found = villageGroups.find(g => g.full_name.includes(e.target.value) || e.target.value === `第${g.group_no}组`)
+                  const found = villageGroups.find(g => g.full_name.replace(g.village_name, '').replace('村', '') === e.target.value)
                   if (found) {
-                    setMemberForm(f => ({ ...f, group_no: found.group_no }))
+                    setMemberForm(f => ({ ...f, group_name: e.target.value, group_no: found.group_no }))
                   } else {
-                    // Try parsing as number
                     const num = parseInt(e.target.value.replace(/[^0-9]/g, ''))
-                    if (num > 0) setMemberForm(f => ({ ...f, group_no: num }))
+                    if (num > 0) setMemberForm(f => ({ ...f, group_name: e.target.value, group_no: num }))
+                    else setMemberForm(f => ({ ...f, group_name: e.target.value }))
                   }
                 }}
                 placeholder="输入或选择组名"
@@ -1749,7 +1766,24 @@ export default function FarmersPage() {
                   <option key={g.id} value={g.full_name.replace(g.village_name, '').replace('村', '')} />
                 ))}
               </datalist>
-            </div></div>
+            </div>
+            {memberForm.village_id !== 0 && !groups.some(g => g.village_id === memberForm.village_id && g.full_name.replace(g.village_name, '').replace('村', '') === memberForm.group_name) && memberForm.group_name && (
+              <button type="button" onClick={async () => {
+                if (!memberForm.village_id || !memberForm.group_name) return
+                const v = groups.find(g => g.village_id === memberForm.village_id)
+                const gname = memberForm.group_name
+                const gno = parseInt(gname.replace(/[^0-9]/g, '')) || 1
+                try {
+                  const res = await api.createVillageGroup({ village_name: v?.village_name || memberForm.village_name, group_no: gno })
+                  const newGroup = { id: res.id, village_id: res.village_id, village_name: v?.village_name || memberForm.village_name, group_no: gno, full_name: `${v?.village_name || memberForm.village_name}村${gno}组` }
+                  setGroups(g => [...g, newGroup])
+                  setMemberForm(f => ({ ...f, group_no: gno }))
+                  show(`✓ 组「${gname}」已创建`, 'ok')
+                } catch (e: any) { show(`创建失败：${e.message}`, 'err') }
+              }} className="mt-1 text-xs text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
+                <span>+ 创建新组「{memberForm.group_name}」</span>
+              </button>
+            )}</div>
           <div><label className="block text-xs text-stone-400 mb-1">变动时间（选填）</label>
             <input type="date" value={memberForm.event_date} onChange={e => setMemberForm(f => ({ ...f, event_date: e.target.value }))}
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>

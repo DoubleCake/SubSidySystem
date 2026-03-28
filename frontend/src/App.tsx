@@ -23,10 +23,10 @@ const mainNav = [
 ]
 
 const settingNav = [
-  // { to: '/settings/village-groups',label: '村组管理',   icon: '🏘️' }, 好像没什么用了，暂时取消
+  { to: '/settings/village-groups', label: '村组管理',   icon: '🏘️' },
   { to: '/settings/backup',          label: '备份迁移',   icon: '💾' },
   { to: '/settings/excel-templates',  label: 'Excel模板',  icon: '📋' },
-  { to: '/settings/land-trust',          label: '土地流转',   icon: '🌾' },
+  { to: '/settings/land-trust',      label: '土地流转',   icon: '🌾' },
 ]
 
 function Layout() {

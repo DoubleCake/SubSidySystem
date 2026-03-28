@@ -186,6 +186,8 @@ def update_farmer(farmer_id: int, data: FarmerUpdate, db: Session = Depends(get_
     if not farmer: raise HTTPException(status_code=404, detail="农户不存在")
     upd = data.model_dump(exclude_unset=True)
 
+    hh = db.get(FamilyHousehold, farmer.household_id)
+
     # 处理 village_id / group_no 更新（写入 FamilyHousehold）
     new_village_id = upd.pop("village_id", None)
     new_group_no = upd.pop("group_no", None)
@@ -193,17 +195,28 @@ def update_farmer(farmer_id: int, data: FarmerUpdate, db: Session = Depends(get_
     hh_fields = {k: upd.pop(k) for k in ("address","land_area") if k in upd}
     for k, v in upd.items():
         setattr(farmer, k, v)
-    if hh_fields:
-        hh = db.get(FamilyHousehold, farmer.household_id)
-        if hh:
-            for k, v in hh_fields.items(): setattr(hh, k, v)
+    if hh_fields and hh:
+        for k, v in hh_fields.items(): setattr(hh, k, v)
     if new_village_id is not None or new_group_no is not None:
-        hh = db.get(FamilyHousehold, farmer.household_id)
         if hh:
             if new_village_id is not None:
                 hh.village_id = new_village_id
             if new_group_no is not None:
                 hh.group_no = new_group_no
+
+    # 如果设农户为"死亡"（4）且该农户是户主，自动转移户主或标记消亡
+    old_status = farmer.farmer_status
+    if data.farmer_status == 4 and old_status != 4 and hh and hh.head_farmer_id == farmer.id:
+        successor = db.query(FarmerProfile).filter(
+            FarmerProfile.household_id == farmer.household_id,
+            FarmerProfile.id != farmer_id,
+            FarmerProfile.farmer_status == 1
+        ).first()
+        if successor:
+            hh.head_farmer_id = successor.id
+        else:
+            hh.status = 3  # 没有在册成员了，标记为消亡户
+
     db.commit(); return {"message": "更新成功"}
 
 # ── 批量导入 ──
