@@ -1109,6 +1109,9 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
     loadComparableTypes()
   }, [loadStats, loadComparableTypes])
 
+  // 数据概览展开/收起状态
+  const [statsExpanded, setStatsExpanded] = useState(false)
+
   return (
     <div>
       {/* 面包屑 */}
@@ -1123,279 +1126,177 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
         )}
       </div>
 
-      {/* 数据筛选面板 */}
-      <div className="mb-4 bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-stone-700 text-sm">🔍 数据筛选</h3>
-          <button 
-            onClick={clearFilters}
-            className="text-xs text-stone-400 hover:text-stone-600 border border-stone-200 px-2 py-1 rounded"
-            disabled={Object.values(filters).every(v => !v)}
-          >
-            清除筛选
-          </button>
-        </div>
-        
-        <div className="grid grid-cols-6 gap-2">
-          {/* 村庄筛选 */}
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">所在村</label>
-            <select 
-              value={filters.village}
-              onChange={e => handleFilterChange('village', e.target.value)}
-              className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-xs bg-white outline-none"
-            >
-              <option value="">全部村庄</option>
-              {loadingVillages ? (
-                <option disabled>加载中...</option>
-              ) : (
-                villages.map(v => (
-                  <option key={v} value={v}>{v}</option>
-                ))
-              )}
-            </select>
-          </div>
-          
-          {/* 发放状态筛选 */}
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">发放状态</label>
-            <select 
-              value={filters.payStatus}
-              onChange={e => handleFilterChange('payStatus', e.target.value)}
-              className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-xs bg-white outline-none"
-            >
-              <option value="">全部状态</option>
-              <option value="0">待发放</option>
-              <option value="1">发放中</option>
-              <option value="2">已完成</option>
-            </select>
-          </div>
-          
-          {/* 最小金额筛选 */}
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">最小金额</label>
-            <input 
-              type="number"
-              value={filters.minAmount}
-              onChange={e => handleFilterChange('minAmount', e.target.value)}
-              placeholder="¥"
-              className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-xs outline-none"
-            />
-          </div>
-          
-          {/* 最大金额筛选 */}
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">最大金额</label>
-            <input 
-              type="number"
-              value={filters.maxAmount}
-              onChange={e => handleFilterChange('maxAmount', e.target.value)}
-              placeholder="¥"
-              className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-xs outline-none"
-            />
-          </div>
-          
-          {/* 开始日期筛选 */}
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">开始日期</label>
-            <input 
-              type="date"
-              value={filters.dateFrom}
-              onChange={e => handleFilterChange('dateFrom', e.target.value)}
-              className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-xs outline-none"
-            />
-          </div>
-          
-          {/* 结束日期筛选 */}
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">结束日期</label>
-            <input 
-              type="date"
-              value={filters.dateTo}
-              onChange={e => handleFilterChange('dateTo', e.target.value)}
-              className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-xs outline-none"
-            />
-          </div>
-        </div>
-        
-        {/* 搜索框 */}
-        <div className="mt-3">
-          <label className="block text-xs text-stone-400 mb-1">搜索（姓名/身份证）</label>
-          <div className="flex gap-2">
-            <input 
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="输入姓名或身份证号"
-              className="flex-1 border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none"
-            />
-            <button 
-              onClick={() => setPage(1)}
-              className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600"
-            >
-              搜索
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* 可视化统计分析面板 */}
-      <div className="mb-5 bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-stone-700">📊 数据概览</h3>
+      {/* 数据概览 - 可折叠下拉框 */}
+      <div className="mb-4 bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
+        <button
+          onClick={() => setStatsExpanded(!statsExpanded)}
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-stone-50 transition-colors"
+        >
           <div className="flex items-center gap-2">
-            {subsidyType.category && (
-              <select 
-                value={selectedCompareType ?? ''} 
-                onChange={e => setSelectedCompareType(e.target.value ? Number(e.target.value) : null)}
-                className="px-2 py-1 text-xs border border-stone-200 rounded bg-white"
-              >
-                <option value="">不对比</option>
-                {comparableTypes.map(t => (
-                  <option key={t.id} value={t.id}>
-                    {t.subsidy_name} ({t.subsidy_year}年)
-                  </option>
-                ))}
-              </select>
-            )}
-            <span className="text-xs text-stone-400">全镇数据统计</span>
-            {stats.yearComparison && (
-              <button
-                onClick={exportToExcel}
-                className="px-2 py-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded hover:bg-emerald-100"
-              >
-                导出Excel
-              </button>
+            <span className="text-sm font-semibold text-stone-700">📊 数据概览</span>
+            {statsExpanded && (
+              <span className="text-xs text-stone-400">发放总额 ¥{stats.totalAmount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })} · {stats.totalFarmers}人 · {stats.villageDistribution.length}个村</span>
             )}
           </div>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
-            <div className="text-sm text-emerald-600 mb-2">发放总额</div>
-            <div className="text-2xl font-bold font-mono text-emerald-700">
-              ¥{stats.totalAmount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+          <span className="text-stone-400 text-sm">{statsExpanded ? '▲ 收起' : '▼ 展开'}</span>
+        </button>
+
+        {statsExpanded && (
+          <div className="px-4 pb-4 border-t border-stone-100">
+            <div className="flex items-center justify-end gap-2 pt-3 mb-4">
+              {subsidyType.category && (
+                <select
+                  value={selectedCompareType ?? ''}
+                  onChange={e => setSelectedCompareType(e.target.value ? Number(e.target.value) : null)}
+                  className="px-2 py-1 text-xs border border-stone-200 rounded bg-white"
+                >
+                  <option value="">不对比</option>
+                  {comparableTypes.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.subsidy_name} ({t.subsidy_year}年)
+                    </option>
+                  ))}
+                </select>
+              )}
+              <span className="text-xs text-stone-400">全镇数据统计</span>
+              {stats.yearComparison && (
+                <button
+                  onClick={exportToExcel}
+                  className="px-2 py-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded hover:bg-emerald-100"
+                >
+                  导出Excel
+                </button>
+              )}
             </div>
-            <div className="text-sm text-emerald-600 mt-2">
-              {stats.totalFarmers}人
-            </div>
-          </div>
-          
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-            <div className="text-sm text-blue-600 mb-2">涉及村庄</div>
-            <div className="text-2xl font-bold text-blue-700">{stats.villageDistribution.length}</div>
-            <div className="text-sm text-blue-600 mt-2">个村</div>
-          </div>
-        </div>
-        
-        {/* 各村金额分布 - 饼图展示 */}
-        {stats.villageDistribution.length > 0 && (
-          <div className="border-t border-stone-100 pt-4">
-            <div className="text-sm font-medium text-stone-700 mb-3">各村发放金额分布</div>
-            <div className="grid grid-cols-2 gap-6">
-              {/* 左侧：饼图 */}
-              <div className="flex justify-center">
-                <div className="relative w-48 h-48">
-                  <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                    {(() => {
-                      const total = stats.villageDistribution.reduce((sum, item) => sum + item.amount, 0)
-                      let cumulativePercent = 0
-                      const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16', '#f97316']
-                      
-                      return stats.villageDistribution.slice(0, 8).map((item, index) => {
-                        const percentage = (item.amount / total) * 100
-                        const dashArray = `${percentage} ${100 - percentage}`
-                        const dashOffset = -cumulativePercent
-                        cumulativePercent += percentage
-                        
-                        return (
-                          <circle
-                            key={item.village}
-                            cx="50"
-                            cy="50"
-                            r="40"
-                            fill="transparent"
-                            stroke={colors[index % colors.length]}
-                            strokeWidth="20"
-                            strokeDasharray={dashArray}
-                            strokeDashoffset={dashOffset}
-                          />
-                        )
-                      })
-                    })()}
-                  </svg>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                <div className="text-sm text-emerald-600 mb-2">发放总额</div>
+                <div className="text-2xl font-bold font-mono text-emerald-700">
+                  ¥{stats.totalAmount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+                </div>
+                <div className="text-sm text-emerald-600 mt-2">
+                  {stats.totalFarmers}人
                 </div>
               </div>
-              
-              {/* 右侧：图例 */}
-              <div className="space-y-2">
-                {stats.villageDistribution.slice(0, 8).map((item, index) => {
-                  const total = stats.villageDistribution.reduce((sum, v) => sum + v.amount, 0)
-                  const percentage = total > 0 ? ((item.amount / total) * 100).toFixed(1) : '0.0'
-                  const colors = ['bg-emerald-500', 'bg-blue-500', 'bg-purple-500', 'bg-amber-500', 'bg-red-500', 'bg-cyan-500', 'bg-lime-500', 'bg-orange-500']
-                  
-                  return (
-                    <div key={item.village} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full ${colors[index % colors.length]}`}></div>
-                        <span className="text-stone-600">{item.village}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-mono text-stone-700">¥{(item.amount / 10000).toFixed(1)}万</span>
-                        <span className="text-xs text-stone-400 ml-2">{percentage}%</span>
-                      </div>
+
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                <div className="text-sm text-blue-600 mb-2">涉及村庄</div>
+                <div className="text-2xl font-bold text-blue-700">{stats.villageDistribution.length}</div>
+                <div className="text-sm text-blue-600 mt-2">个村</div>
+              </div>
+            </div>
+
+            {/* 各村金额分布 - 饼图展示 */}
+            {stats.villageDistribution.length > 0 && (
+              <div className="border-t border-stone-100 pt-4">
+                <div className="text-sm font-medium text-stone-700 mb-3">各村发放金额分布</div>
+                <div className="grid grid-cols-2 gap-6">
+                  {/* 左侧：饼图 */}
+                  <div className="flex justify-center">
+                    <div className="relative w-48 h-48">
+                      <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                        {(() => {
+                          const total = stats.villageDistribution.reduce((sum, item) => sum + item.amount, 0)
+                          let cumulativePercent = 0
+                          const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16', '#f97316']
+
+                          return stats.villageDistribution.slice(0, 8).map((item, index) => {
+                            const percentage = (item.amount / total) * 100
+                            const dashArray = `${percentage} ${100 - percentage}`
+                            const dashOffset = -cumulativePercent
+                            cumulativePercent += percentage
+
+                            return (
+                              <circle
+                                key={item.village}
+                                cx="50"
+                                cy="50"
+                                r="40"
+                                fill="transparent"
+                                stroke={colors[index % colors.length]}
+                                strokeWidth="20"
+                                strokeDasharray={dashArray}
+                                strokeDashoffset={dashOffset}
+                              />
+                            )
+                          })
+                        })()}
+                      </svg>
                     </div>
-                  )
-                })}
-                {stats.villageDistribution.length > 8 && (
-                  <div className="text-xs text-stone-400 text-center pt-1">
-                    还有 {stats.villageDistribution.length - 8} 个村...
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* 年度对比数据 */}
-        {stats.yearComparison && (
-          <div className="border-t border-stone-100 pt-4 mt-4">
-            <div className="text-sm font-medium text-stone-700 mb-3">
-              📈 年度对比（{stats.yearComparison.current_year}年 vs {stats.yearComparison.compare_year}年）
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
-                <div className="text-xs text-emerald-600 mb-1">新增农户</div>
-                <div className="text-lg font-bold text-emerald-700">
-                  {stats.yearComparison.new_farmers_count}人
+
+                  {/* 右侧：图例 */}
+                  <div className="space-y-2">
+                    {stats.villageDistribution.slice(0, 8).map((item, index) => {
+                      const total = stats.villageDistribution.reduce((sum, v) => sum + v.amount, 0)
+                      const percentage = total > 0 ? ((item.amount / total) * 100).toFixed(1) : '0.0'
+                      const colors = ['bg-emerald-500', 'bg-blue-500', 'bg-purple-500', 'bg-amber-500', 'bg-red-500', 'bg-cyan-500', 'bg-lime-500', 'bg-orange-500']
+
+                      return (
+                        <div key={item.village} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${colors[index % colors.length]}`}></div>
+                            <span className="text-stone-600">{item.village}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-mono text-stone-700">¥{(item.amount / 10000).toFixed(1)}万</span>
+                            <span className="text-xs text-stone-400 ml-2">{percentage}%</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {stats.villageDistribution.length > 8 && (
+                      <div className="text-xs text-stone-400 text-center pt-1">
+                        还有 {stats.villageDistribution.length - 8} 个村...
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="text-xs text-stone-400 mt-1">{stats.yearComparison.compare_year}年无记录</div>
               </div>
-              
-              <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
-                <div className="text-xs text-amber-600 mb-1">减少农户</div>
-                <div className="text-lg font-bold text-amber-700">
-                  {stats.yearComparison.removed_farmers_count}人
+            )}
+
+            {/* 年度对比数据 */}
+            {stats.yearComparison && (
+              <div className="border-t border-stone-100 pt-4 mt-4">
+                <div className="text-sm font-medium text-stone-700 mb-3">
+                  📈 年度对比（{stats.yearComparison.current_year}年 vs {stats.yearComparison.compare_year}年）
                 </div>
-                <div className="text-xs text-stone-400 mt-1">{stats.yearComparison.compare_year}年有，今年无</div>
-              </div>
-              
-              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                <div className="text-xs text-blue-600 mb-1">申报总面积</div>
-                <div className="text-lg font-bold text-blue-700">
-                  {stats.yearComparison.total_apply_area}亩
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
+                    <div className="text-xs text-emerald-600 mb-1">新增农户</div>
+                    <div className="text-lg font-bold text-emerald-700">
+                      {stats.yearComparison.new_farmers_count}人
+                    </div>
+                    <div className="text-xs text-stone-400 mt-1">{stats.yearComparison.compare_year}年无记录</div>
+                  </div>
+
+                  <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
+                    <div className="text-xs text-amber-600 mb-1">减少农户</div>
+                    <div className="text-lg font-bold text-amber-700">
+                      {stats.yearComparison.removed_farmers_count}人
+                    </div>
+                    <div className="text-xs text-stone-400 mt-1">{stats.yearComparison.compare_year}年有，今年无</div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                    <div className="text-xs text-blue-600 mb-1">申报总面积</div>
+                    <div className="text-lg font-bold text-blue-700">
+                      {stats.yearComparison.total_apply_area}亩
+                    </div>
+                    <div className="text-xs text-stone-400 mt-1">{stats.yearComparison.current_year}年</div>
+                  </div>
+
+                  <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
+                    <div className="text-xs text-purple-600 mb-1">总人数</div>
+                    <div className="text-lg font-bold text-purple-700">
+                      {stats.yearComparison.total_farmers}人
+                    </div>
+                    <div className="text-xs text-stone-400 mt-1">{stats.yearComparison.current_year}年</div>
+                  </div>
                 </div>
-                <div className="text-xs text-stone-400 mt-1">{stats.yearComparison.current_year}年</div>
               </div>
-              
-              <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
-                <div className="text-xs text-purple-600 mb-1">总人数</div>
-                <div className="text-lg font-bold text-purple-700">
-                  {stats.yearComparison.total_farmers}人
-                </div>
-                <div className="text-xs text-stone-400 mt-1">{stats.yearComparison.current_year}年</div>
-              </div>
-            </div>
+            )}
           </div>
         )}
       </div>
@@ -1500,86 +1401,104 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
         </div>
       </div>
 
-      {/* 预检结果展示 */}
-      {preCheckResults && activeTab === 'preApply' && (
-        <div className="mb-4 bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-4 py-3 border-b border-stone-100 bg-stone-50 flex justify-between items-center">
-            <span className="font-semibold text-stone-700 text-sm">🔍 数据预检结果</span>
-            <button onClick={() => setPreCheckResults(null)} className="text-xs text-stone-400 hover:text-stone-600">✕ 关闭</button>
-          </div>
-          <div className="p-4">
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className={`rounded-xl p-3 text-center ${preCheckResults.success > 0 ? 'bg-emerald-50 border border-emerald-100' : 'bg-stone-50 border border-stone-100'}`}>
-                <div className="text-lg font-bold text-emerald-700">{preCheckResults.success}</div>
-                <div className="text-xs text-stone-500">通过</div>
-              </div>
-              <div className={`rounded-xl p-3 text-center ${preCheckResults.error > 0 ? 'bg-red-50 border border-red-100' : 'bg-stone-50 border border-stone-100'}`}>
-                <div className="text-lg font-bold text-red-600">{preCheckResults.error}</div>
-                <div className="text-xs text-stone-500">错误</div>
-              </div>
-              <div className={`rounded-xl p-3 text-center ${preCheckResults.warning > 0 ? 'bg-amber-50 border border-amber-100' : 'bg-stone-50 border border-stone-100'}`}>
-                <div className="text-lg font-bold text-amber-600">{preCheckResults.warning}</div>
-                <div className="text-xs text-stone-500">警告</div>
-              </div>
-            </div>
-            
-            {/* 错误详情 */}
-            {preCheckResults.formatErrors.length > 0 && (
-              <div className="mb-3">
-                <div className="text-xs font-semibold text-red-600 mb-2">❌ 格式错误：</div>
-                <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                  {preCheckResults.formatErrors.slice(0, 10).map((item, index) => (
-                    <div key={index} className="text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-red-700">{item.name}</span>
-                        <span className="text-stone-400">{item.id_card}</span>
-                        <span className="text-stone-400">第{item.row}行</span>
-                      </div>
-                      <div className="mt-1 text-red-600">
-                        {item.errors.join('；')}
-                      </div>
-                    </div>
-                  ))}
-                  {preCheckResults.formatErrors.length > 10 && (
-                    <div className="text-xs text-stone-400 text-center">
-                      等 {preCheckResults.formatErrors.length} 个错误
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* 村组错误详情 */}
-            {preCheckResults.villageErrors.length > 0 && (
-              <div>
-                <div className="text-xs font-semibold text-amber-600 mb-2">⚠️ 村组问题：</div>
-                <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                  {preCheckResults.villageErrors.slice(0, 10).map((item, index) => (
-                    <div key={index} className="text-xs bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-amber-700">{item.name}</span>
-                        <span className="text-stone-400">{item.id_card}</span>
-                        <span className="text-stone-400">第{item.row}行</span>
-                      </div>
-                      <div className="mt-1 text-amber-600">
-                        {item.error}
-                      </div>
-                    </div>
-                  ))}
-                  {preCheckResults.villageErrors.length > 10 && (
-                    <div className="text-xs text-stone-400 text-center">
-                      等 {preCheckResults.villageErrors.length} 个问题
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 记录表格 */}
+      {/* 记录表格 + 内嵌筛选 */}
       <div className="bg-white border border-stone-200 rounded-xl overflow-x-auto shadow-sm">
+        {/* 筛选栏 - 嵌入表格区域 */}
+        <div className="px-4 py-3 border-b border-stone-200 bg-stone-50/50 flex flex-wrap items-center gap-3">
+          <span className="text-xs text-stone-400">筛选：</span>
+          {/* 村庄筛选 */}
+          <select
+            value={filters.village}
+            onChange={e => handleFilterChange('village', e.target.value)}
+            className="border border-stone-200 rounded-lg px-2 py-1.5 text-xs bg-white outline-none"
+          >
+            <option value="">全部村庄</option>
+            {loadingVillages ? (
+              <option disabled>加载中...</option>
+            ) : (
+              villages.map(v => (
+                <option key={v} value={v}>{v}</option>
+              ))
+            )}
+          </select>
+
+          {/* 发放状态筛选 */}
+          <select
+            value={filters.payStatus}
+            onChange={e => handleFilterChange('payStatus', e.target.value)}
+            className="border border-stone-200 rounded-lg px-2 py-1.5 text-xs bg-white outline-none"
+          >
+            <option value="">全部状态</option>
+            <option value="0">待发放</option>
+            <option value="1">发放中</option>
+            <option value="2">已完成</option>
+          </select>
+
+          {/* 金额范围 */}
+          <div className="flex items-center gap-1 text-xs">
+            <span className="text-stone-400">金额:</span>
+            <input
+              type="number"
+              value={filters.minAmount}
+              onChange={e => handleFilterChange('minAmount', e.target.value)}
+              placeholder="最低"
+              className="w-16 border border-stone-200 rounded px-1.5 py-1 text-xs outline-none"
+            />
+            <span className="text-stone-300">-</span>
+            <input
+              type="number"
+              value={filters.maxAmount}
+              onChange={e => handleFilterChange('maxAmount', e.target.value)}
+              placeholder="最高"
+              className="w-16 border border-stone-200 rounded px-1.5 py-1 text-xs outline-none"
+            />
+          </div>
+
+          {/* 日期范围 */}
+          <div className="flex items-center gap-1 text-xs">
+            <span className="text-stone-400">日期:</span>
+            <input
+              type="date"
+              value={filters.dateFrom}
+              onChange={e => handleFilterChange('dateFrom', e.target.value)}
+              className="border border-stone-200 rounded px-1.5 py-1 text-xs outline-none"
+            />
+            <span className="text-stone-300">-</span>
+            <input
+              type="date"
+              value={filters.dateTo}
+              onChange={e => handleFilterChange('dateTo', e.target.value)}
+              className="border border-stone-200 rounded px-1.5 py-1 text-xs outline-none"
+            />
+          </div>
+
+          {/* 搜索框 */}
+          <div className="flex items-center gap-1 flex-1 min-w-[200px] max-w-[300px]">
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="姓名/身份证"
+              className="flex-1 border border-stone-200 rounded-lg px-2 py-1.5 text-xs outline-none"
+            />
+            <button
+              onClick={() => setPage(1)}
+              className="px-2 py-1 text-xs bg-emerald-700 text-white rounded-lg hover:bg-emerald-600"
+            >
+              搜索
+            </button>
+          </div>
+
+          {/* 清除筛选 */}
+          <button
+            onClick={clearFilters}
+            className="text-xs text-stone-400 hover:text-stone-600 border border-stone-200 px-2 py-1 rounded"
+            disabled={Object.values(filters).every(v => !v) && !search}
+          >
+            清除
+          </button>
+        </div>
+
         <table className="w-full border-collapse min-w-[950px]">
           <thead><tr className="bg-stone-50 border-b-2 border-stone-200">
             <th className="px-2 py-2 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">
@@ -1664,6 +1583,84 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
           </div>
         </div>
       </div>
+
+      {/* 预检结果展示 */}
+      {preCheckResults && activeTab === 'preApply' && (
+        <div className="mb-4 bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+          <div className="px-4 py-3 border-b border-stone-100 bg-stone-50 flex justify-between items-center">
+            <span className="font-semibold text-stone-700 text-sm">🔍 数据预检结果</span>
+            <button onClick={() => setPreCheckResults(null)} className="text-xs text-stone-400 hover:text-stone-600">✕ 关闭</button>
+          </div>
+          <div className="p-4">
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className={`rounded-xl p-3 text-center ${preCheckResults.success > 0 ? 'bg-emerald-50 border border-emerald-100' : 'bg-stone-50 border border-stone-100'}`}>
+                <div className="text-lg font-bold text-emerald-700">{preCheckResults.success}</div>
+                <div className="text-xs text-stone-500">通过</div>
+              </div>
+              <div className={`rounded-xl p-3 text-center ${preCheckResults.error > 0 ? 'bg-red-50 border border-red-100' : 'bg-stone-50 border border-stone-100'}`}>
+                <div className="text-lg font-bold text-red-600">{preCheckResults.error}</div>
+                <div className="text-xs text-stone-500">错误</div>
+              </div>
+              <div className={`rounded-xl p-3 text-center ${preCheckResults.warning > 0 ? 'bg-amber-50 border border-amber-100' : 'bg-stone-50 border border-stone-100'}`}>
+                <div className="text-lg font-bold text-amber-600">{preCheckResults.warning}</div>
+                <div className="text-xs text-stone-500">警告</div>
+              </div>
+            </div>
+
+            {/* 错误详情 */}
+            {preCheckResults.formatErrors.length > 0 && (
+              <div className="mb-3">
+                <div className="text-xs font-semibold text-red-600 mb-2">❌ 格式错误：</div>
+                <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                  {preCheckResults.formatErrors.slice(0, 10).map((item, index) => (
+                    <div key={index} className="text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-red-700">{item.name}</span>
+                        <span className="text-stone-400">{item.id_card}</span>
+                        <span className="text-stone-400">第{item.row}行</span>
+                      </div>
+                      <div className="mt-1 text-red-600">
+                        {item.errors.join('；')}
+                      </div>
+                    </div>
+                  ))}
+                  {preCheckResults.formatErrors.length > 10 && (
+                    <div className="text-xs text-stone-400 text-center">
+                      等 {preCheckResults.formatErrors.length} 个错误
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 村组错误详情 */}
+            {preCheckResults.villageErrors.length > 0 && (
+              <div>
+                <div className="text-xs font-semibold text-amber-600 mb-2">⚠️ 村组问题：</div>
+                <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                  {preCheckResults.villageErrors.slice(0, 10).map((item, index) => (
+                    <div key={index} className="text-xs bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-amber-700">{item.name}</span>
+                        <span className="text-stone-400">{item.id_card}</span>
+                        <span className="text-stone-400">第{item.row}行</span>
+                      </div>
+                      <div className="mt-1 text-amber-600">
+                        {item.error}
+                      </div>
+                    </div>
+                  ))}
+                  {preCheckResults.villageErrors.length > 10 && (
+                    <div className="text-xs text-stone-400 text-center">
+                      等 {preCheckResults.villageErrors.length} 个问题
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 新增弹窗 */}
       <Modal open={addOpen} title={`新增 · ${subsidyType.subsidy_name}`} onClose={() => setAddOpen(false)} onConfirm={submitAdd}>
