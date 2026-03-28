@@ -68,7 +68,7 @@ def main():
     fixed_types = ["农村低保补助", "高龄老人补贴", "残疾人补贴", "生育补贴"]
 
     all_st_ids = []  # [(id, year, amount, season), ...]
-    for year in [2023, 2024]:
+    for year in [2020]:
         for season, names in season_types.items():
             for name in names:
                 ex = db.query(SubsidyType).filter_by(subsidy_name=name, subsidy_year=year).first()
@@ -79,7 +79,7 @@ def main():
                         standard_amount=amt, standard_unit="元/亩",
                         fund_source=random.choice(["中央", "省级", "县级"]),
                         season=season,
-                        pay_status=2 if year == 2023 else random.choice([0, 1, 2])
+                        pay_status=2
                     )
                     db.add(ex); db.flush()
                 all_st_ids.append((ex.id, year, float(ex.standard_amount), ex.season))
@@ -90,7 +90,7 @@ def main():
                 ex = SubsidyType(subsidy_name=name, subsidy_year=year, calc_mode="fixed",
                     standard_amount=amt, standard_unit="元/人", fund_source="县级",
                     season="全年单补",
-                    pay_status=2 if year == 2023 else random.choice([0, 1, 2]))
+                    pay_status=2)
                 db.add(ex); db.flush()
             all_st_ids.append((ex.id, year, float(ex.standard_amount), "全年单补"))
     db.commit()
@@ -165,7 +165,7 @@ def main():
             if ex: continue
             area = round(land * random.uniform(0.6, 1.0), 2)
             amount = round(area * amt_per_mu, 2)
-            ps = 2 if year == 2023 else (2 if random.random() > 0.3 else random.choice([0, 1]))
+            ps = 2  # 2020年度数据已发放
             pdate = datetime.date(year, random.randint(7, 11), random.randint(1, 28)) if ps == 2 else None
             db.add(SubsidyApplication(
                 farmer_id=h.id, subsidy_type_id=st_id, apply_year=year,
@@ -181,7 +181,7 @@ def main():
         for f in chosen:
             if db.query(SubsidyApplication).filter_by(farmer_id=f.id, subsidy_type_id=st_id, apply_year=year).first():
                 continue
-            ps = 2 if year == 2023 else (2 if random.random() > 0.3 else random.choice([0, 1]))
+            ps = 2  # 2020年度数据已发放
             pdate = datetime.date(year, random.randint(7, 11), random.randint(1, 28)) if ps == 2 else None
             db.add(SubsidyApplication(
                 farmer_id=f.id, subsidy_type_id=st_id, apply_year=year,
