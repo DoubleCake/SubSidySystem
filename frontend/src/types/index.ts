@@ -1,7 +1,8 @@
 export interface VillageGroup {
   id: number
+  village_id: number
   village_name: string
-  group_no: string
+  group_no: number
   full_name: string
 }
 
@@ -133,6 +134,7 @@ export interface ApplicationSearchResult {
   id_card_masked?: string
   phone?: string | null
   village?: string
+  group_no?: string
   subsidy_type_id: number
   subsidy_name: string
   calc_mode?: string
@@ -281,7 +283,8 @@ export interface HHMember {
 
 export interface HHDetail {
   id: number; household_code: string; household_name: string
-  village_full_name: string; contracted_area: number; status: number
+  village_full_name: string; village_id: number; group_no: number
+  contracted_area: number; status: number
   address: string | null; remark: string | null
   members: HHMember[]
   area_usage: {
@@ -360,6 +363,8 @@ export interface SnapshotAtResponse {
 export interface HouseholdCreate {
   household_name: string
   village_group_id: number
+  village_id?: number
+  group_no?: number
   address?: string
   land_area?: number
   remark?: string
@@ -387,6 +392,7 @@ export interface MemberUpdate {
   is_head?: number
   farmer_status?: number
   remark?: string
+  event_date?: string
 }
 
 export interface MemberMoveRequest {

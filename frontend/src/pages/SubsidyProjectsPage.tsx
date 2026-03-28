@@ -917,9 +917,11 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
       // 构造预检数据
       const preCheckData = apps.map((app, idx) => {
         // 从 village (full_name 如 "XX村一组") 中拆分村名和组号
-        const villageFull = app.village || ''
+        // 先移除可能存在的逗号、空格等分隔符，避免干扰正则匹配
+        const villageFull = (app.village || '').replace(/[,\s]+/g, '')
         let villageName = villageFull
         let groupNo = ''
+        // 匹配：前面的村名（非贪婪）+ 后面的组号（1组/一组/一组等）
         const groupMatch = villageFull.match(/^(.+?)([\u4e00-\u9fa5\d]+组)$/)
         if (groupMatch) {
           villageName = groupMatch[1]
@@ -1517,14 +1519,14 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
                 )}
               </button>
             </th>
-            {['姓名', '身份证', '手机号', '所在村组', '实际补贴面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额', '状态', '打款日期', '备注', '操作'].map(h => (
+            {['姓名', '身份证', '手机号', '所在村', '所在组', '实际补贴面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额', '状态', '打款日期', '备注', '操作'].map(h => (
               <th key={h} className="px-2 py-2 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>
             ))}
           </tr></thead>
           <tbody>
-            {loading && <tr><td colSpan={15} className="text-center py-10 text-stone-300">加载中…</td></tr>}
+            {loading && <tr><td colSpan={16} className="text-center py-10 text-stone-300">加载中…</td></tr>}
             {!loading && (!apps || apps.length === 0) && (
-              <tr><td colSpan={15} className="text-center py-10 text-stone-300 text-sm">
+              <tr><td colSpan={16} className="text-center py-10 text-stone-300 text-sm">
                 暂无记录，通过「Excel 导入」或「＋ 新增一条」添加
               </td></tr>
             )}
@@ -1550,6 +1552,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
                 <td className="px-2 py-2 text-xs font-mono text-stone-400 whitespace-nowrap">{a.id_card_masked || '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono text-stone-400 whitespace-nowrap">{a.phone || '—'}</td>
                 <td className="px-2 py-2 text-xs text-stone-400 whitespace-nowrap">{a.village || '—'}</td>
+                <td className="px-2 py-2 text-xs text-stone-400 whitespace-nowrap">{a.group_no || '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono font-bold text-stone-700">{a.apply_area ? `${a.apply_area}` : '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono text-stone-500">{a.contract_area || '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono text-stone-500">{a.trust_area || '—'}</td>

@@ -249,6 +249,36 @@ def list_applications(
     return {"total": total, "page": page, "page_size": page_size, "items": result}
 
 
+@router.get("/applications/villages")
+def list_application_villages(
+    subsidy_type_id: int = Query(...),
+    year: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """
+    获取某补贴项目（及年度）下涉及的所有村庄列表
+    """
+    q = db.query(
+        Village.village_name
+    ).join(
+        FamilyHousehold, FamilyHousehold.village_id == Village.id
+    ).join(
+        FarmerProfile, FarmerProfile.household_id == FamilyHousehold.id
+    ).join(
+        SubsidyApplication, SubsidyApplication.farmer_id == FarmerProfile.id
+    ).filter(
+        SubsidyApplication.subsidy_type_id == subsidy_type_id
+    )
+    if year:
+        q = q.filter(SubsidyApplication.apply_year == year)
+
+    # DISTINCT by village_name
+    rows = q.distinct().all()
+    villages = sorted(set(r[0] for r in rows if r[0]))
+
+    return {"villages": villages}
+
+
 @router.post("/applications")
 def create_application(data: ApplicationCreate, db: Session = Depends(get_db)):
     # 唯一性检查
@@ -490,7 +520,8 @@ def search_applications(
             "farmer_name":     f.real_name    if f  else "—",
             "id_card_masked":  (f.id_card[:6] + "********" + f.id_card[-4:]) if f and f.id_card else "—",
             "phone":           f.phone        if f  else None,
-            "village":         vname + gno,
+            "village":         vname,
+            "group_no":        gno,
             "subsidy_type_id": a.subsidy_type_id,
             "subsidy_name":    st.subsidy_name if st else "—",
             "calc_mode":       st.calc_mode    if st else "fixed",
