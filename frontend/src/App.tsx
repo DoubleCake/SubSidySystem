@@ -18,12 +18,12 @@ const mainNav = [
   { to: '/farmers',     label: '户籍管理', icon: '👤' },
   { to: '/projects',    label: '补贴项目', icon: '💰' },
   { to: '/precheck',    label: '数据预检', icon: '🔍' },
-  { to: '/links',       label: '外联查询', icon: '🔗' },
+  { to: '/links',       label: '补贴查询', icon: '🔗' },
   { to: '/ai',          label: 'AI 分析',  icon: '🤖' },
 ]
 
 const settingNav = [
-  { to: '/settings/village-groups',label: '村组管理',   icon: '🏘️' },
+  // { to: '/settings/village-groups',label: '村组管理',   icon: '🏘️' }, 好像没什么用了，暂时取消
   { to: '/settings/backup',          label: '备份迁移',   icon: '💾' },
   { to: '/settings/excel-templates',  label: 'Excel模板',  icon: '📋' },
   { to: '/settings/land-trust',          label: '土地流转',   icon: '🌾' },

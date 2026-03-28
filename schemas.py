@@ -58,8 +58,10 @@ class FarmerCreate(BaseModel):
     phone: Optional[str] = None
     bank_card: Optional[str] = None
     bank_name: Optional[str] = None
-    village_id: int                    # 村 FK
-    group_no: int                       # 组号数字：1=一组，2=二组
+    village_id: Optional[int] = None    # 村 FK（优先用）
+    village_name: Optional[str] = None  # 也可传 village_name，由后端解析为 id
+    group_no: Optional[int] = None      # 组号数字：1=一组，2=二组
+    group_no_str: Optional[str] = None  # 也可传 "一组" 字符串
     address: Optional[str] = None
     land_area: Optional[Decimal] = None
     farmer_status: int = 1

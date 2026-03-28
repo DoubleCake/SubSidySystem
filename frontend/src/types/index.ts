@@ -37,7 +37,8 @@ export interface FarmerCreate {
   bank_name?: string
   village_id?: number
   village_name?: string
-  group_no: string | number
+  group_no?: number
+  group_no_str?: string
   address?: string
   land_area?: number
   farmer_status: number

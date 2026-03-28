@@ -141,9 +141,23 @@ def create_farmer(data: FarmerCreate, db: Session = Depends(get_db)):
     if db.execute(text("SELECT id FROM farmer_profile WHERE id_card=:ic"), {"ic": data.id_card}).fetchone():
         raise HTTPException(status_code=400, detail="该身份证号已存在")
 
-    # 直接使用 data.village_id 和 data.group_no
+    # 解析 village_id：优先用传入的整数，否则按 village_name 查 Village 表
     village_id = data.village_id
+    if not village_id and data.village_name:
+        v = db.query(Village).filter(Village.village_name == data.village_name).first()
+        if not v:
+            v = Village(village_name=data.village_name)
+            db.add(v); db.flush()
+        village_id = v.id
+    if not village_id:
+        raise HTTPException(status_code=400, detail="缺少 village_id 或 village_name")
+
+    # 解析 group_no
     group_no = data.group_no
+    if not group_no and data.group_no_str:
+        group_no = parse_group_no_to_int(data.group_no_str)
+    if not group_no:
+        raise HTTPException(status_code=400, detail="缺少 group_no")
 
     parsed = parse_id_card(data.id_card) or {}
     farmer = FarmerProfile(

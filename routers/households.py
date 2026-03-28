@@ -10,13 +10,14 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, text
 from pydantic import BaseModel
 from typing import Optional
 from decimal import Decimal
 
 from database import get_db
 from models import FamilyHousehold, FarmerProfile, Village, SubsidyApplication, SubsidyType
+from utils import format_group_no
 
 router = APIRouter(prefix="/api/households", tags=["家庭户管理"])
 
@@ -33,6 +34,34 @@ def _get_or_create_village(db: Session, village_name: str) -> Village:
         db.add(village)
         db.flush()
     return village
+
+
+# ─────────────────────────────────────
+#  村组下拉选项（替代已废弃的 VillageGroup 表）
+# ─────────────────────────────────────
+
+@router.get("/group-options")
+def list_group_options(db: Session = Depends(get_db)):
+    """返回所有村+组的唯一组合，用于下拉选项"""
+    rows = db.execute(text("""
+        SELECT DISTINCT
+            COALESCE(v.id, 0) AS village_id,
+            COALESCE(v.village_name, '未知村') AS village_name,
+            hh.group_no
+        FROM family_household hh
+        LEFT JOIN village v ON hh.village_id = v.id
+        WHERE hh.status = 1
+        ORDER BY v.village_name, hh.group_no
+    """)).fetchall()
+    return [
+        {
+            "village_id": r.village_id,
+            "village_name": r.village_name,
+            "group_no": r.group_no,
+            "full_name": f"{r.village_name}{format_group_no(r.group_no)}",
+        }
+        for r in rows
+    ]
 
 
 # ─────────────────────────────────────
@@ -286,7 +315,7 @@ def list_households(
     """
     query = (
         db.query(FamilyHousehold)
-          .join(Village, Village.id == FamilyHousehold.village_id)
+          .outerjoin(Village, Village.id == FamilyHousehold.village_id)
     )
 
     if village_name:
@@ -991,10 +1020,10 @@ def batch_build_households(req: HouseholdBuildRequest, db: Session = Depends(get
                 if m.is_head == 1 and m.land_area:
                     land = m.land_area; break
 
-            # 创建家庭户（若已有同 household_code 则复用）
-            existing_hh = db.query(FamilyHousehold).filter(
-                FamilyHousehold.household_name == f"{head_farmer.real_name}户（{hh_label}）"
-            ).first()
+            # 优先复用 head_farmer 已有家庭户（batch_import_farmers 已建户）
+            existing_hh = None
+            if head_farmer.household_id:
+                existing_hh = db.get(FamilyHousehold, head_farmer.household_id)
 
             if not existing_hh:
                 hh_vid = head_farmer.household.village_id if head_farmer.household else None
@@ -1003,7 +1032,7 @@ def batch_build_households(req: HouseholdBuildRequest, db: Session = Depends(get
                     errors.append(f"家庭户 {hh_label}：户主村组信息不完整，跳过"); continue
                 existing_hh = FamilyHousehold(
                     household_code=gen_household_code(head_farmer.id),
-                    household_name=f"{head_farmer.real_name}户（{hh_label}）",
+                    household_name=f"{head_farmer.real_name}户",
                     head_farmer_id=head_farmer.id,
                     village_id=hh_vid,
                     group_no=hh_gno,
@@ -2113,3 +2142,70 @@ def batch_import_members(household_id: int, payload: dict, db: Session = Depends
     db.flush()
     db.commit()
     return {"created": created, "updated": updated, "errors": errors}
+
+
+# ─────────────────────────────────────
+#  接口：合并家庭户
+# ─────────────────────────────────────
+
+class HouseholdMergeRequest(BaseModel):
+    source_household_id: int      # 被合并的户（将删除）
+    target_household_id: int      # 目标户（将保留）
+    operator: Optional[str] = None
+
+@router.post("/merge")
+def merge_households(req: HouseholdMergeRequest, db: Session = Depends(get_db)):
+    """
+    将 source 家庭户合并入 target 家庭户：
+    1. 所有成员迁入 target
+    2. source 的土地面积可选累加到 target
+    3. source 家庭户被删除
+    4. 记录 MERGE 事件
+    """
+    source = db.get(FamilyHousehold, req.source_household_id)
+    target = db.get(FamilyHousehold, req.target_household_id)
+    if not source: raise HTTPException(404, "被合并的家庭户不存在")
+    if not target: raise HTTPException(404, "目标家庭户不存在")
+    if source.id == target.id: raise HTTPException(400, "不能合并到自身")
+
+    from datetime import date as _date
+    now = _date.today()
+
+    # 快照
+    src_before = _snapshot_household(db, source.id)
+    tgt_before = _snapshot_household(db, target.id)
+
+    # 迁移所有成员到目标户
+    members = db.query(FarmerProfile).filter(
+        FarmerProfile.household_id == source.id
+    ).all()
+    for m in members:
+        m.household_id = target.id
+
+    # 土地面积以目标户主为准，不做累加，源户面积直接丢弃
+    # 删除源家庭户（先解除关联的事件，避免外键问题—— HouseholdEvent.household_id 有关联）
+    # 事件不删除，只把 household_id 置空或转移
+    from models import HouseholdEvent
+    db.query(HouseholdEvent).filter(
+        HouseholdEvent.household_id == source.id
+    ).update({"household_id": target.id})
+    db.flush()
+
+    db.delete(source)
+
+    tgt_after = _snapshot_household(db, target.id)
+    _log_event(
+        db, target.id, "MERGE", now.year,
+        description=f"合并家庭户「{source.household_name}」（{len(members)}人）入「{target.household_name}」",
+        before={"source": src_before, "target": tgt_before},
+        after={"merged_members": len(members), "target": tgt_after},
+        event_date=now, date_accuracy="EXACT",
+        operator=req.operator,
+    )
+
+    db.commit()
+    return {
+        "message": f"已合并，共迁移 {len(members)} 名成员",
+        "merged_household_id": req.source_household_id,
+        "target_household_id": req.target_household_id,
+    }

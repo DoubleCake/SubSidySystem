@@ -179,6 +179,17 @@ export default function FarmersPage() {
   const [createHhOpen, setCreateHhOpen] = useState(false)
   const [createHhForm, setCreateHhForm] = useState({ household_name: '', village_group_id: 0, land_area: '', address: '', remark: '' })
 
+  // ── 合并家庭户（内嵌模式） ──
+  const [mergeMode, setMergeMode] = useState(false)
+  const [mergeSelected, setMergeSelected] = useState<number[]>([])
+  const [mergeConfirmOpen, setMergeConfirmOpen] = useState(false)
+  const [mergeConfirmForm, setMergeConfirmForm] = useState({ land_area: '', remark: '' })
+  const [mergeLoading, setMergeLoading] = useState(false)
+
+  // ── 新建农户 ──
+  const [createFarmerOpen, setCreateFarmerOpen] = useState(false)
+  const [createFarmerForm, setCreateFarmerForm] = useState({ real_name: '', id_card: '', gender: 1 as 1|2, phone: '', village_name: '', group_no: '', address: '', land_area: '', remark: '' })
+
   // ── 编辑家庭户 ──
   const [editOpen, setEditOpen] = useState(false)
   const [editForm, setEditForm] = useState({ household_name: '', land_area: '', address: '', remark: '' })
@@ -200,12 +211,6 @@ export default function FarmersPage() {
   const [eventOpen, setEventOpen] = useState(false)
   const [eventForm, setEventForm] = useState({ event_type: 'REMARK', event_year: String(new Date().getFullYear()), event_date: '', description: '', evidence_type: 'NONE', evidence_note: '' })
 
-  // ── 批量组建 ──
-  const [buildOpen, setBuildOpen] = useState(false)
-  const [buildFile, setBuildFile] = useState<File | null>(null)
-  const [buildPreview, setBuildPreview] = useState<Record<string, unknown>[]>([])
-  const [buildResult, setBuildResult] = useState<{ built: number; updated: number; errors: string[]; total_groups: number } | null>(null)
-  const [buildLoading, setBuildLoading] = useState(false)
 
   // ── 批量导入农户 ──
   const [importOpen, setImportOpen] = useState(false)
@@ -428,6 +433,63 @@ export default function FarmersPage() {
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
+  // ── 新建农户 ──
+  const submitCreateFarmer = async () => {
+    if (!createFarmerForm.real_name.trim()) return show('请填写姓名', 'err')
+    if (!createFarmerForm.id_card.trim()) return show('请填写身份证号', 'err')
+    if (!createFarmerForm.village_name.trim()) return show('请选择所在村', 'err')
+    if (!createFarmerForm.group_no) return show('请选择所在组', 'err')
+    try {
+      const r = await api.createFarmer({
+        real_name: createFarmerForm.real_name,
+        id_card: createFarmerForm.id_card,
+        gender: createFarmerForm.gender,
+        phone: createFarmerForm.phone || undefined,
+        village_name: createFarmerForm.village_name,
+        group_no_str: createFarmerForm.group_no,
+        address: createFarmerForm.address || undefined,
+        land_area: createFarmerForm.land_area ? Number(createFarmerForm.land_area) : undefined,
+        farmer_status: 1,
+        remark: createFarmerForm.remark || undefined,
+      } as Parameters<typeof api.createFarmer>[0])
+      show('✓ 农户创建成功')
+      setCreateFarmerOpen(false)
+      setCreateFarmerForm({ real_name: '', id_card: '', gender: 1, phone: '', village_name: '', group_no: '', address: '', land_area: '', remark: '' })
+      if (leftTab === 'farmers') loadFarmers()
+      openFarmer(r.id, true)
+    } catch (e: unknown) { show((e as Error).message, 'err') }
+  }
+
+  // ── 合并家庭户（内嵌模式） ──
+  // 点击"确认合并"→弹出确认框，预填土地面积（取目标户已有值）
+  const handleMergeConfirm = () => {
+    if (mergeSelected.length < 2) return show('请至少选择 2 个家庭户', 'err')
+    const target = hhList.find(h => h.id === mergeSelected[0])
+    setMergeConfirmForm({ land_area: target?.contracted_area?.toString() || '', remark: '' })
+    setMergeConfirmOpen(true)
+  }
+
+  const confirmMerge = async () => {
+    const targetId = mergeSelected[0]
+    const sourceIds = mergeSelected.slice(1)
+    setMergeLoading(true)
+    try {
+      for (const srcId of sourceIds) {
+        await api.mergeHouseholds({
+          source_household_id: srcId,
+          target_household_id: targetId,
+        })
+      }
+      show(`✓ 已合并 ${sourceIds.length} 个家庭户到目标户`)
+      setMergeMode(false)
+      setMergeSelected([])
+      setMergeConfirmOpen(false)
+      loadHouseholds()
+    } catch (e: unknown) { show((e as Error).message, 'err') } finally {
+      setMergeLoading(false)
+    }
+  }
+
   // ── 编辑家庭户 ──
   const submitEdit = async () => {
     const hhId = detail?.id ?? selectedFarmerHousehold?.id
@@ -579,51 +641,6 @@ export default function FarmersPage() {
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
-  // ── 批量组建 ──
-  const downloadBuildTemplate = () => {
-    const ws = XLSX.utils.aoa_to_sheet([
-      ['家庭户编号*', '身份证号*', '姓名（核对用）', '是否户主*', '与户主关系', '土地面积(亩，户主行填)'],
-      ['HH001', '510123196503154231', '张国强', '1', '本人', '3.5'],
-      ['HH001', '510123197808224567', '李秀英', '0', '妻子', ''],
-    ])
-    ws['!cols'] = [14, 20, 12, 10, 12, 18].map(w => ({ wch: w }))
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '模板')
-    XLSX.writeFile(wb, '家庭户批量组建模板.xlsx')
-  }
-
-  const handleBuildFile = (file: File) => {
-    setBuildFile(file); setBuildResult(null)
-    const reader = new FileReader()
-    reader.onload = e => {
-      const wb = XLSX.read(e.target?.result, { type: 'array' })
-      setBuildPreview((XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' }) as Record<string, unknown>[]).slice(0, 5))
-    }
-    reader.readAsArrayBuffer(file)
-  }
-
-  const submitBuild = async () => {
-    if (!buildFile) return show('请先上传文件', 'err')
-    setBuildLoading(true)
-    const reader = new FileReader()
-    reader.onload = async e => {
-      const wb = XLSX.read(e.target?.result, { type: 'array' })
-      const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' }) as Record<string, unknown>[]
-      const rows = raw.map(r => ({
-        household_id: String(r['家庭户编号*'] || r['家庭户编号'] || '').trim(),
-        id_card: String(r['身份证号*'] || r['身份证号'] || '').trim(),
-        real_name: String(r['姓名（核对用）'] || r['姓名'] || '').trim() || undefined,
-        is_head: Number(r['是否户主*'] || r['是否户主'] || 0),
-        relation: String(r['与户主关系'] || '成员').trim() || '成员',
-        land_area: Number(r['土地面积(亩，户主行填)'] || r['土地面积'] || 0) || undefined,
-      })).filter(r => r.household_id && r.id_card)
-      const res = await api.batchBuildHouseholds(rows)
-      setBuildResult({ ...res, built: res.created, updated: 0, total_groups: 0 })
-      if (res.created > 0) { show(`✓ 组建完成`); if (leftTab === 'households') loadHouseholds() }
-      setBuildLoading(false)
-    }
-    reader.readAsArrayBuffer(buildFile)
-  }
-
   // ── 批量导入农户 ──
   const handleImport = async (rows: Record<string, unknown>[]) => {
     const toCreate: Record<string, unknown>[] = []
@@ -746,7 +763,7 @@ export default function FarmersPage() {
     })
   }
 
-  // ── 共享弹窗（新建家庭户 / 批量组建 / 导入农户）──
+  // ── 共享弹窗（新建家庭户 / 导入农户）──
   const renderHouseholdModals = () => (
     <>
       <Modal open={createHhOpen} title="新建家庭户" onClose={() => setCreateHhOpen(false)} onConfirm={submitCreateHh}>
@@ -782,64 +799,6 @@ export default function FarmersPage() {
         </div>
       </Modal>
 
-      <Modal open={buildOpen} title="批量组建家庭户" onClose={() => setBuildOpen(false)}
-        onConfirm={buildResult ? undefined : submitBuild} confirmText={buildLoading ? '处理中…' : '开始组建'}>
-        <div className="space-y-4">
-          {!buildResult ? (
-            <>
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-700">
-                下载模板 → 每行一人 → 同一家庭填相同「家庭户编号」→ 上传
-              </div>
-              <button onClick={downloadBuildTemplate} className="w-full py-2.5 border-2 border-dashed border-emerald-300 text-emerald-700 rounded-xl text-sm hover:bg-emerald-50">
-                ⬇️ 下载模板
-              </button>
-              <div>
-                <label className="block text-xs text-stone-400 mb-1">上传 Excel</label>
-                <input type="file" accept=".xlsx,.xls" onChange={e => { if (e.target.files?.[0]) handleBuildFile(e.target.files[0]) }}
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm" />
-              </div>
-              {buildPreview.length > 0 && (
-                <div className="overflow-x-auto rounded-lg border border-stone-200">
-                  <table className="text-xs w-full border-collapse">
-                    <thead><tr className="bg-stone-50">{Object.keys(buildPreview[0]).map(k => (
-                      <th key={k} className="px-2 py-1.5 text-left text-stone-400 whitespace-nowrap border-b border-stone-200">{k}</th>
-                    ))}</tr></thead>
-                    <tbody>{buildPreview.map((r, i) => (
-                      <tr key={i} className="border-b border-stone-100">{Object.values(r).map((v, j) => (
-                        <td key={j} className="px-2 py-1.5 text-stone-600 whitespace-nowrap">{String(v)}</td>
-                      ))}</tr>
-                    ))}</tbody>
-                  </table>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-3 text-center">
-                {[
-                  { label: '成功组建', val: buildResult.built, color: 'text-emerald-700' },
-                  { label: '更新已有', val: buildResult.updated, color: 'text-amber-600' },
-                  { label: '识别家庭户', val: buildResult.total_groups, color: 'text-blue-600' },
-                ].map(s => (
-                  <div key={s.label} className="bg-stone-50 rounded-xl p-3">
-                    <div className={`text-2xl font-bold font-mono ${s.color}`}>{s.val}</div>
-                    <div className="text-xs text-stone-400 mt-1">{s.label}</div>
-                  </div>
-                ))}
-              </div>
-              {buildResult.errors.length > 0 && (
-                <div className="bg-red-50 border border-red-100 rounded-xl p-3 max-h-40 overflow-auto">
-                  <p className="text-xs font-semibold text-red-700 mb-2">⚠️ {buildResult.errors.length} 条错误：</p>
-                  {buildResult.errors.map((e, i) => <p key={i} className="text-xs text-red-600">{e}</p>)}
-                </div>
-              )}
-              <button onClick={() => { setBuildResult(null); setBuildFile(null); setBuildPreview([]) }}
-                className="w-full py-2 border border-stone-200 text-stone-500 rounded-lg text-sm">重新上传</button>
-            </div>
-          )}
-        </div>
-      </Modal>
-
       <ExcelImportWithMapping open={importOpen} onClose={() => setImportOpen(false)} title="农户信息导入"
         templateHeaders={FARMER_TEMPLATE_HEADERS} templateExample={FARMER_TEMPLATE_EXAMPLE}
         systemFields={FARMER_SYSTEM_FIELDS}
@@ -854,6 +813,94 @@ export default function FarmersPage() {
         }))}
         onDetectColumns={detectExcelColumns} onSaveTemplate={saveColumnMappingTemplate}
         onImport={handleImport} onSuccess={() => leftTab === 'farmers' ? loadFarmers() : loadHouseholds()} />
+
+      {/* 新建农户 */}
+      <Modal open={createFarmerOpen} title="新建农户" onClose={() => setCreateFarmerOpen(false)} onConfirm={submitCreateFarmer}>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <label className="block text-xs text-stone-400 mb-1">姓名 *</label>
+            <input value={createFarmerForm.real_name} onChange={e => setCreateFarmerForm(f => ({ ...f, real_name: e.target.value }))}
+              placeholder="请输入姓名"
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-xs text-stone-400 mb-1">身份证号 *</label>
+            <input value={createFarmerForm.id_card} onChange={e => setCreateFarmerForm(f => ({ ...f, id_card: e.target.value }))}
+              placeholder="18位身份证号"
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">性别</label>
+            <select value={createFarmerForm.gender} onChange={e => setCreateFarmerForm(f => ({ ...f, gender: Number(e.target.value) as 1|2 }))}
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+              <option value={1}>男</option>
+              <option value={2}>女</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">手机号</label>
+            <input value={createFarmerForm.phone} onChange={e => setCreateFarmerForm(f => ({ ...f, phone: e.target.value }))}
+              placeholder="可选"
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">所在村 *</label>
+            <select value={createFarmerForm.village_name} onChange={e => setCreateFarmerForm(f => ({ ...f, village_name: e.target.value }))}
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+              <option value="">请选择</option>
+              {villages.map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">所在组 *</label>
+            <select value={createFarmerForm.group_no} onChange={e => setCreateFarmerForm(f => ({ ...f, group_no: e.target.value }))}
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+              <option value="">请选择</option>
+              {['一组','二组','三组','四组','五组','六组','七组','八组','九组','十组'].map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
+          <div className="col-span-2">
+            <label className="block text-xs text-stone-400 mb-1">承包土地面积（亩）</label>
+            <input type="number" step="0.01" value={createFarmerForm.land_area} onChange={e => setCreateFarmerForm(f => ({ ...f, land_area: e.target.value }))}
+              placeholder="可选"
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-xs text-stone-400 mb-1">备注</label>
+            <textarea rows={2} value={createFarmerForm.remark} onChange={e => setCreateFarmerForm(f => ({ ...f, remark: e.target.value }))}
+              placeholder="可选"
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none" />
+          </div>
+        </div>
+      </Modal>
+
+      {/* 合并家庭户确认 */}
+      <Modal open={mergeConfirmOpen} title="合并家庭户" onClose={() => { setMergeConfirmOpen(false); setMergeMode(false); setMergeSelected([]) }}
+        onConfirm={confirmMerge} confirmText="确认合并">
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <p className="text-sm text-amber-700 mb-2">确认将以下 <strong>{mergeSelected.length}</strong> 个家庭户合并：</p>
+            <div className="space-y-1">
+              {mergeSelected.map((hid, i) => {
+                const h = hhList.find(hh => hh.id === hid)
+                return h ? (
+                  <div key={hid} className={`flex items-center gap-2 text-sm ${i === 0 ? 'text-emerald-700 font-medium' : 'text-stone-600'}`}>
+                    {i === 0 && <span className="text-xs bg-emerald-600 text-white px-1.5 py-0.5 rounded">目标户</span>}
+                    <span>{h.household_name}</span>
+                    <span className="text-xs text-stone-400">({h.head_name || '无户主'} · {h.member_count}人 · {h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'})</span>
+                  </div>
+                ) : null
+              })}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">备注</label>
+            <textarea rows={2} value={mergeConfirmForm.remark} onChange={e => setMergeConfirmForm(f => ({ ...f, remark: e.target.value }))}
+              placeholder="可选"
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none" />
+          </div>
+        </div>
+      </Modal>
     </>
   )
 
@@ -1363,24 +1410,52 @@ export default function FarmersPage() {
 
         {/* 工具栏 - 操作按钮 */}
         <div className="flex gap-2 mb-4 flex-wrap">
-          <button onClick={() => setCreateHhOpen(true)} className="px-4 py-2.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
-            <span className="mr-1">＋</span>新建户
-          </button>
-          <button onClick={() => { setBuildOpen(true); setBuildFile(null); setBuildPreview([]); setBuildResult(null) }}
-            className="px-4 py-2.5 text-sm border-2 border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50 shadow-sm hover:shadow transition-all font-medium">
-            <span className="mr-1">📥</span>批量组建
-          </button>
-          <button onClick={() => setImportOpen(true)} className="px-4 py-2.5 text-sm border border-stone-200 text-stone-700 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
-            <span className="mr-1">↑</span>导入农户
-          </button>
-          <button onClick={exportCurrentList} className="px-4 py-2.5 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
-            <span className="mr-1">⬇</span>导出
-          </button>
-          {leftTab === 'households' && (
-            <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer ml-auto bg-stone-50 px-3 py-2 rounded-lg border border-stone-200 shadow-sm hover:bg-stone-100 transition-all">
-              <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded" />
-              <span className="font-medium">仅看超领</span>
-            </label>
+                    {leftTab === 'households' && !mergeMode && (
+            <>
+              <button onClick={() => setCreateHhOpen(true)} className="px-4 py-2.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
+                <span className="mr-1">＋</span>创建新家庭户
+              </button>
+              <button onClick={() => { setMergeMode(true); setMergeSelected([]) }}
+                className="px-4 py-2.5 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 shadow-sm transition-all font-medium bg-amber-50">
+                <span className="mr-1">⊞</span>合并家庭户
+              </button>
+              <button onClick={exportCurrentList} className="px-4 py-2.5 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
+                <span className="mr-1">⬇</span>导出
+              </button>
+              <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer bg-stone-50 px-3 py-2 rounded-lg border border-stone-200 shadow-sm hover:bg-stone-100 transition-all">
+                <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded" />
+                <span className="font-medium">仅看超领</span>
+              </label>
+            </>
+          )}
+          {leftTab === 'households' && mergeMode && (
+            <div className="flex items-center gap-2 w-full">
+              <button onClick={() => { setMergeMode(false); setMergeSelected([]) }}
+                className="px-3 py-2 text-sm border border-stone-300 text-stone-500 rounded-lg hover:bg-stone-50 transition-all">
+                取消合并
+              </button>
+              <span className="text-sm text-amber-700 font-medium">
+                已选 {mergeSelected.length} 户
+                {mergeSelected.length >= 2 && <span className="text-xs text-stone-400 ml-1">（第1个为目标户）</span>}
+              </span>
+              <button onClick={handleMergeConfirm}
+                disabled={mergeSelected.length < 2}
+                className="ml-auto px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium">
+                确认合并
+              </button>
+            </div>
+          )}          {leftTab === 'farmers' && (
+            <>
+              <button onClick={() => setCreateFarmerOpen(true)} className="px-4 py-2.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
+                <span className="mr-1">＋</span>新建农户
+              </button>
+              <button onClick={() => setImportOpen(true)} className="px-4 py-2.5 text-sm border border-stone-200 text-stone-700 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
+                <span className="mr-1">↑</span>导入农户
+              </button>
+              <button onClick={exportCurrentList} className="px-4 py-2.5 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
+                <span className="mr-1">⬇</span>导出
+              </button>
+            </>
           )}
         </div>
 
@@ -1417,25 +1492,55 @@ export default function FarmersPage() {
               <>
                 {hhLoading && <div className="text-center py-12 text-stone-300">加载中…</div>}
                 {!hhLoading && hhList.length === 0 && <div className="text-center py-12 text-stone-300 text-sm">暂无数据</div>}
-                {hhList.map(h => (
-                  <div key={h.id}
-                    onClick={() => openDetail(h.id)}
-                    className={`px-5 py-4 border-b border-stone-100 cursor-pointer transition-all hover:bg-stone-50
-                      ${detail?.id === h.id ? 'bg-emerald-50 border-l-4 border-l-emerald-600 shadow-inner' : ''}
-                      ${h.is_overdrawn ? 'bg-red-50/40' : ''}`}>
-                    <div className="flex items-center gap-2.5 mb-1.5">
-                      <span className="font-semibold text-base text-stone-800">{h.household_name}</span>
-                      <span className="text-xs font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{h.household_code}</span>
-                      {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
+                {hhList.map(h => {
+                  const isSelected = mergeSelected.includes(h.id)
+                  if (mergeMode) {
+                    return (
+                      <div key={h.id}
+                        onClick={() => setMergeSelected(isSelected ? mergeSelected.filter(id => id !== h.id) : [...mergeSelected, h.id])}
+                        className={`px-5 py-4 border-b border-stone-100 cursor-pointer transition-all
+                          ${isSelected ? 'border-l-4 border-l-amber-500 bg-amber-50' : 'hover:bg-stone-50'}
+                          ${h.is_overdrawn && !isSelected ? 'bg-red-50/40' : ''}`}>
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox" checked={isSelected} onChange={() => setMergeSelected(isSelected ? mergeSelected.filter(id => id !== h.id) : [...mergeSelected, h.id])}
+                            className="w-4 h-4 text-amber-600 rounded" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2.5 mb-1.5">
+                              <span className="font-semibold text-base text-stone-800">{h.household_name}</span>
+                              <span className="text-xs font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{h.household_code}</span>
+                              {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
+                            </div>
+                            <div className="flex items-center gap-4 text-xs text-stone-400">
+                              <span>{h.head_name ? `户主:${h.head_name}` : '无户主'}</span>
+                              <span className="bg-stone-100 px-2 py-0.5 rounded">{h.member_count}人</span>
+                              <span>{h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'}</span>
+                              <span className="ml-auto truncate max-w-[180px]">{h.village_full_name}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+                  return (
+                    <div key={h.id}
+                      onClick={() => openDetail(h.id)}
+                      className={`px-5 py-4 border-b border-stone-100 cursor-pointer transition-all hover:bg-stone-50
+                        ${detail?.id === h.id ? 'bg-emerald-50 border-l-4 border-l-emerald-600 shadow-inner' : ''}
+                        ${h.is_overdrawn ? 'bg-red-50/40' : ''}`}>
+                      <div className="flex items-center gap-2.5 mb-1.5">
+                        <span className="font-semibold text-base text-stone-800">{h.household_name}</span>
+                        <span className="text-xs font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{h.household_code}</span>
+                        {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
+                      </div>
+                      <div className="flex items-center gap-4 text-xs text-stone-400">
+                        <span>{h.head_name ? `户主:${h.head_name}` : '无户主'}</span>
+                        <span className="bg-stone-100 px-2 py-0.5 rounded">{h.member_count}人</span>
+                        <span>{h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'}</span>
+                        <span className="ml-auto truncate max-w-[180px]">{h.village_full_name}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4 text-xs text-stone-400">
-                      <span>{h.head_name ? `户主:${h.head_name}` : '无户主'}</span>
-                      <span className="bg-stone-100 px-2 py-0.5 rounded">{h.member_count}人</span>
-                      <span>{h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'}</span>
-                      <span className="ml-auto truncate max-w-[180px]">{h.village_full_name}</span>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </>
             )}
           </div>
@@ -1590,7 +1695,13 @@ export default function FarmersPage() {
       {/* 分户向导 */}
       {(detail || selectedFarmerHousehold) && (
         <Modal open={splitOpen} title="分户向导" onClose={() => setSplitOpen(false)}
-          onConfirm={splitStep === 3 ? submitSplit : () => setSplitStep(s => (s + 1) as 1 | 2 | 3)}
+          onConfirm={splitStep === 3 ? submitSplit : () => {
+            if (splitStep === 1 && splitNewHead) {
+              const headName = (detail || selectedFarmerHousehold)?.members.find(m => m.id === splitNewHead)?.real_name || ''
+              setSplitForm(f => ({ ...f, household_name: headName + '户' }))
+            }
+            setSplitStep(s => (s + 1) as 1 | 2 | 3)
+          }}
           confirmText={splitStep === 3 ? '确认分户' : `下一步 (${splitStep}/3)`} width={560}>
           <div>
             <div className="flex items-center gap-2 mb-5">

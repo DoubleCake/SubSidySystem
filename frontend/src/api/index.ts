@@ -23,7 +23,7 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
 }
 
 // ── 村组 ──
-export const getVillageGroups = () => req<VillageGroup[]>('/api/village-groups')
+export const getVillageGroups = () => req<VillageGroup[]>('/api/households/group-options')
 
 // ── 农户 ──
 export const getFarmers = (params: Record<string, string | number>) =>
@@ -165,6 +165,11 @@ export const getOverdrawnHouseholds = () =>
 
 export const getHouseholdDetail = (id: number, year: number) =>
   req<HHDetail>(`/api/households/${id}?year=${year}`)
+
+export const mergeHouseholds = (data: { source_household_id: number; target_household_id: number; operator?: string }) =>
+  req<{ message: string }>('/api/households/merge', {
+    method: 'POST', body: JSON.stringify(data),
+  })
 
 export const updateHousehold = (id: number, data: Partial<HouseholdCreate & { status: number }>) =>
   req(`/api/households/${id}`, { method: 'PUT', body: JSON.stringify(data) })
