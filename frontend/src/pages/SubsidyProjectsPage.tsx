@@ -904,52 +904,18 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
 
     setPreCheckLoading(true)
     try {
-      // 先获取全部数据（不限制 page_size）
-      const allParams: Record<string, string | number> = {
-        subsidy_type_id: subsidyType.id,
-        page: 1,
-        page_size: 10000,  // 获取全部数据
-      }
-      if (search) allParams.search = search
+      // 直接调用后端预检接口，在数据库端处理全部数据
+      const params = new URLSearchParams()
+      params.append('subsidy_typeId', String(subsidyType.id))
       if (filters.payStatus) {
-        allParams.pay_status = filters.payStatus
+        params.append('payStatus', String(filters.payStatus))
       } else {
-        allParams.pay_status = activeTab === 'preApply' ? 0 : '1,2'
+        params.append('payStatus', activeTab === 'preApply' ? '0' : '1,2')
       }
-      if (filters.village) allParams.village = filters.village
-      if (filters.minAmount) allParams.min_amount = filters.minAmount
-      if (filters.maxAmount) allParams.max_amount = filters.maxAmount
+      if (filters.village) params.append('villageName', filters.village)
 
-      const allAppsRes = await api.searchApplications(allParams)
-      const allApps = allAppsRes.items
-
-      if (allApps.length === 0) {
-        show('暂无数据可预检', 'err')
-        setPreCheckLoading(false)
-        return
-      }
-
-      // 批量获取完整身份证号
-      const uniqueFarmerIds = [...new Set(allApps.map((a: ApplicationSearchResult) => a.farmer_id))]
-      const idCardRes = await api.batchGetIdCards(uniqueFarmerIds)
-      const idCardMap = idCardRes.results
-
-      // 构造预检数据
-      const preCheckData = allApps.map((app: ApplicationSearchResult, idx: number) => {
-        return {
-          row_index: idx + 2,
-          real_name: app.farmer_name || '',
-          id_card: idCardMap[String(app.farmer_id)] || '',
-          village_name: app.village || '',
-          group_no: app.group_no || '一组',
-          land_area: app.apply_area ? Number(app.apply_area) : null,
-        }
-      })
-
-      const response = await fetch('/api/precheck/run', {
+      const response = await fetch(`/api/subsidies/applications/precheck?${params}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rows: preCheckData })
       })
 
       if (!response.ok) throw new Error('预检请求失败')
@@ -958,10 +924,11 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
       const summary = result.summary || {}
       const okCount = summary.ok_rows || 0
       const errorCount = summary.error_rows || 0
+      const total = summary.total_rows || 0
 
       setPreCheckResults(result as CheckResult)
 
-      show(`预检完成：共${allApps.length}条，${okCount}条通过，${errorCount}条错误，${summary.gender_mismatch || 0}条警告`)
+      show(`预检完成：共${total}条，${okCount}条通过，${errorCount}条错误，${summary.gender_mismatch || 0}条警告`)
     } catch (error) {
       show('数据预检失败：' + (error as Error).message, 'err')
     } finally {

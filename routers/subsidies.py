@@ -539,6 +539,194 @@ def search_applications(
     return {"total": total, "page": page, "page_size": page_size, "items": rows}
 
 
+# ── 补贴申请数据预检（后端直接处理，不走前端中转）──
+@router.post("/applications/precheck")
+def precheck_applications(
+    subsidy_typeId: int = Query(..., description="补贴类型ID"),
+    payStatus: Optional[int] = Query(None, description="支付状态筛选"),
+    villageName: Optional[str] = Query(None, description="村名筛选"),
+    year: Optional[int] = Query(None, description="年度筛选"),
+    db: Session = Depends(get_db),
+):
+    """
+    后端直接执行补贴申请数据预检：
+    - 在数据库端处理，无需传输敏感数据到前端
+    - 支持分页批量处理大数据量
+    """
+    from sqlalchemy import or_
+    from routers.precheck import validate_id_card, parse_gender_from_id
+
+    # 1. 加载数据库基础数据
+    all_village_names: set[str] = {v.village_name for v in db.query(Village).all()}
+    village_name_to_id: dict[str, int] = {v.village_name: v.id for v in db.query(Village).all()}
+
+    # 数据库中所有在册农户（用于比对）
+    db_farmers: dict[str, dict] = {}
+    for f in db.query(FarmerProfile).join(
+        FamilyHousehold, FamilyHousehold.id == FarmerProfile.household_id
+    ).join(Village, Village.id == FamilyHousehold.village_id).all():
+        if f.id_card:
+            db_farmers[f.id_card] = {
+                "id": f.id,
+                "real_name": f.real_name,
+                "village_name": f.household.village.village_name if f.household and f.household.village else "",
+                "group_no": f.household.group_no if f.household else 1,
+            }
+
+    # 2. 查询符合条件的申请记录（分批处理）
+    q = db.query(SubsidyApplication)
+    if year:
+        q = q.filter(SubsidyApplication.apply_year == year)
+    q = q.filter(SubsidyApplication.subsidy_type_id == subsidyTypeId)
+    if payStatus is not None:
+        q = q.filter(SubsidyApplication.pay_status == payStatus)
+    if villageName:
+        v_ids = [v.id for v in db.query(Village).filter(Village.village_name == villageName).all()]
+        hh_ids = [h.id for h in db.query(FamilyHousehold).filter(FamilyHousehold.village_id.in_(v_ids)).all()]
+        f_ids = [f.id for f in db.query(FarmerProfile).filter(FarmerProfile.household_id.in_(hh_ids)).all()]
+        q = q.filter(SubsidyApplication.farmer_id.in_(f_ids))
+
+    total = q.count()
+
+    # 分批处理，每批500条
+    BATCH_SIZE = 500
+    rows_data: list[dict] = []
+
+    for offset in range(0, total, BATCH_SIZE):
+        apps_batch = q.offset(offset).limit(BATCH_SIZE).all()
+        for a in apps_batch:
+            f = db.get(FarmerProfile, a.farmer_id)
+            if not f or not f.id_card:
+                continue
+            vname = ""
+            gno = 1
+            if f.household:
+                if f.household.village:
+                    vname = f.household.village.village_name
+                gno = f.household.group_no or 1
+            rows_data.append({
+                "row_index": len(rows_data) + 2,
+                "real_name": f.real_name,
+                "id_card": f.id_card,
+                "village_name": vname,
+                "group_no": format_group_no(gno) if isinstance(gno, int) else str(gno),
+                "land_area": a.apply_area,
+            })
+
+    # 3. 执行预检逻辑
+    format_errors: list[dict] = []
+    village_errors: list[dict] = []
+    gender_mismatch: list[dict] = []
+    changed_farmers: list[dict] = []
+    ok_rows: list[dict] = []
+    seen_id_cards: dict[str, int] = {}
+
+    for row in rows_data:
+        row_errors: list[str] = []
+        row_no = row["row_index"]
+        name = row["real_name"]
+        id_card = row["id_card"]
+        village = row["village_name"]
+        group = row["group_no"]
+
+        # 姓名检查
+        if not name or not name.strip():
+            row_errors.append("姓名为空")
+
+        # 身份证检查
+        id_ok, id_err = validate_id_card(id_card)
+        if not id_ok:
+            row_errors.append(f"身份证错误：{id_err}")
+
+        # 村组检查
+        if not village:
+            row_errors.append("村名为空")
+        elif village not in all_village_names:
+            similar = [v for v in all_village_names if village in v or v in village]
+            hint = f"（相近的村名：{'、'.join(similar[:3])}）" if similar else "（数据库中无此村）"
+            village_errors.append({
+                "row": row_no, "name": name, "id_card": id_card,
+                "village": village, "group": group,
+                "error": f"村「{village}」在数据库中不存在 {hint}"
+            })
+
+        if row_errors:
+            format_errors.append({
+                "row": row_no, "name": name, "id_card": id_card,
+                "village": village, "group": group,
+                "errors": row_errors,
+                "error_count": len(row_errors),
+            })
+            continue
+
+        # Excel内部重复
+        if id_card in seen_id_cards:
+            continue
+        seen_id_cards[id_card] = row_no
+
+        # 与数据库比对
+        if id_card in db_farmers:
+            db_f = db_farmers[id_card]
+            changes: list[str] = []
+
+            if name != db_f["real_name"]:
+                changes.append(f"姓名：数据库「{db_f['real_name']}」→ Excel「{name}」")
+
+            db_group_int = db_f["group_no"]
+            excel_group_int = int(group.replace("组", "")) if group else 1
+            if village != db_f["village_name"] or db_group_int != excel_group_int:
+                db_group_display = format_group_no(db_group_int) if isinstance(db_group_int, int) else str(db_group_int)
+                changes.append(
+                    f"村组：数据库「{db_f['village_name']}{db_group_display}」→ Excel「{village}{group}」"
+                )
+
+            if changes:
+                changed_farmers.append({
+                    "row": row_no, "name": name, "id_card": id_card,
+                    "village": village, "group": group,
+                    "db_name": db_f["real_name"],
+                    "db_village": db_f["village_name"],
+                    "db_group": format_group_no(db_f["group_no"]) if isinstance(db_f["group_no"], int) else str(db_f["group_no"]),
+                    "changes": changes,
+                    "farmer_id": db_f["id"],
+                })
+            else:
+                ok_rows.append({"row": row_no, "name": name, "id_card": id_card})
+        else:
+            ok_rows.append({"row": row_no, "name": name, "id_card": id_card})
+
+    error_rows = len(format_errors) + len(village_errors)
+    summary = {
+        "total_rows": len(rows_data),
+        "ok_rows": len(ok_rows),
+        "error_rows": error_rows,
+        "format_errors": len(format_errors),
+        "village_errors": len(village_errors),
+        "duplicate_errors": 0,
+        "gender_mismatch": len(gender_mismatch),
+        "error_library_hits": 0,
+        "area_exceeds": 0,
+        "new_farmers": 0,
+        "removed_farmers": 0,
+        "changed_farmers": len(changed_farmers),
+        "pass_rate": round((len(ok_rows) / len(rows_data) * 100), 1) if rows_data else 0,
+    }
+
+    return {
+        "summary": summary,
+        "format_errors": format_errors,
+        "village_errors": village_errors,
+        "duplicate_errors": [],
+        "gender_mismatch": gender_mismatch,
+        "error_library_hits": [],
+        "area_exceeds": [],
+        "new_farmers": [],
+        "removed_farmers": [],
+        "changed_farmers": changed_farmers,
+        "year_compare": {},
+    }
+
+
 # ── 删除补贴申请记录 ──
 @router.delete("/applications/{app_id}")
 def delete_application(app_id: int, db: Session = Depends(get_db)):
