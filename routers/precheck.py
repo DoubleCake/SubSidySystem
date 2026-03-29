@@ -314,10 +314,13 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
             if name != db_f["real_name"]:
                 changes.append(f"姓名：数据库「{db_f['real_name']}」→ Excel「{name}」")
 
-            # 村组变更
-            if village != db_f["village_name"] or group != db_f["group_no"]:
+            # 村组变更（组号需归一化后比较：4="四组"="4组"均视为同一组）
+            db_group_int = db_f["group_no"]  # 数据库存的是整数 1,2,3
+            excel_group_int = parse_group_no_to_int(group)  # Excel 可能是"四组"、"4组"等
+            if village != db_f["village_name"] or db_group_int != excel_group_int:
+                db_group_display = format_group_no(db_group_int) if isinstance(db_group_int, int) else str(db_group_int)
                 changes.append(
-                    f"村组：数据库「{db_f['village_name']}{db_f['group_no']}」"
+                    f"村组：数据库「{db_f['village_name']}{db_group_display}」"
                     f"→ Excel「{village}{group}」"
                 )
 
