@@ -911,23 +911,13 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
 
       // 构造预检数据
       const preCheckData = apps.map((app, idx) => {
-        // 从 village (full_name 如 "XX村一组") 中拆分村名和组号
-        // 先移除可能存在的逗号、空格等分隔符，避免干扰正则匹配
-        const villageFull = (app.village || '').replace(/[,\s]+/g, '')
-        let villageName = villageFull
-        let groupNo = ''
-        // 匹配：前面的村名（非贪婪）+ 后面的组号（1组/一组/一组等）
-        const groupMatch = villageFull.match(/^(.+?)([\u4e00-\u9fa5\d]+组)$/)
-        if (groupMatch) {
-          villageName = groupMatch[1]
-          groupNo = groupMatch[2]
-        }
+        // village 和 group_no 现在是 API 返回的两个独立字段
         return {
           row_index: idx + 2,
           real_name: app.farmer_name || '',
           id_card: idCardMap[String(app.farmer_id)] || '',
-          village_name: villageName,
-          group_no: groupNo,
+          village_name: app.village || '',
+          group_no: app.group_no || '一组',
           land_area: app.apply_area ? Number(app.apply_area) : null,
         }
       })
