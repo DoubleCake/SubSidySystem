@@ -904,14 +904,38 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
 
     setPreCheckLoading(true)
     try {
+      // 先获取全部数据（不限制 page_size）
+      const allParams: Record<string, string | number> = {
+        subsidy_type_id: subsidyType.id,
+        page: 1,
+        page_size: 10000,  // 获取全部数据
+      }
+      if (search) allParams.search = search
+      if (filters.payStatus) {
+        allParams.pay_status = filters.payStatus
+      } else {
+        allParams.pay_status = activeTab === 'preApply' ? 0 : '1,2'
+      }
+      if (filters.village) allParams.village = filters.village
+      if (filters.minAmount) allParams.min_amount = filters.minAmount
+      if (filters.maxAmount) allParams.max_amount = filters.maxAmount
+
+      const allAppsRes = await api.searchApplications(allParams)
+      const allApps = allAppsRes.items
+
+      if (allApps.length === 0) {
+        show('暂无数据可预检', 'err')
+        setPreCheckLoading(false)
+        return
+      }
+
       // 批量获取完整身份证号
-      const uniqueFarmerIds = [...new Set(apps.map(a => a.farmer_id))]
+      const uniqueFarmerIds = [...new Set(allApps.map((a: ApplicationSearchResult) => a.farmer_id))]
       const idCardRes = await api.batchGetIdCards(uniqueFarmerIds)
       const idCardMap = idCardRes.results
 
       // 构造预检数据
-      const preCheckData = apps.map((app, idx) => {
-        // village 和 group_no 现在是 API 返回的两个独立字段
+      const preCheckData = allApps.map((app: ApplicationSearchResult, idx: number) => {
         return {
           row_index: idx + 2,
           real_name: app.farmer_name || '',
@@ -937,7 +961,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
 
       setPreCheckResults(result as CheckResult)
 
-      show(`预检完成：${okCount}条通过，${errorCount}条错误，${summary.gender_mismatch || 0}条警告`)
+      show(`预检完成：共${allApps.length}条，${okCount}条通过，${errorCount}条错误，${summary.gender_mismatch || 0}条警告`)
     } catch (error) {
       show('数据预检失败：' + (error as Error).message, 'err')
     } finally {
