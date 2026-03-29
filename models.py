@@ -82,6 +82,7 @@ class FarmerProfile(Base):
     household    = relationship("FamilyHousehold", back_populates="members",
                                 foreign_keys=[household_id])
     applications = relationship("SubsidyApplication", back_populates="farmer")
+    payments     = relationship("SubsidyPayment", back_populates="farmer")
 
 
 class SubsidyType(Base):
@@ -108,6 +109,7 @@ class SubsidyType(Base):
 
     # 关联
     applications = relationship("SubsidyApplication", back_populates="subsidy_type")
+    payments     = relationship("SubsidyPayment", back_populates="subsidy_type")
 
 
 class SubsidyApplication(Base):
@@ -144,6 +146,40 @@ class SubsidyApplication(Base):
     # 关联
     farmer       = relationship("FarmerProfile", back_populates="applications")
     subsidy_type = relationship("SubsidyType", back_populates="applications")
+
+
+class SubsidyPayment(Base):
+    """补贴发放记录表（独立于申报表）"""
+    __tablename__ = "subsidy_payment"
+
+    id                  = Column(Integer, primary_key=True, autoincrement=True)
+    farmer_id           = Column(Integer, ForeignKey("farmer_profile.id"), nullable=False)
+    subsidy_type_id     = Column(Integer, ForeignKey("subsidy_type.id"), nullable=False)
+    payment_year        = Column(SmallInteger, nullable=False, comment="发放年份")
+    amount              = Column(DECIMAL(10, 2), nullable=True, comment="发放金额")
+    payment_date        = Column(Date, nullable=True, comment="打款日期")
+    apply_area          = Column(DECIMAL(10, 2), nullable=True, comment="实际补贴面积(亩)")
+    contract_area       = Column(DECIMAL(10, 2), nullable=True, comment="承包地面积(亩)")
+    trust_area          = Column(DECIMAL(10, 2), nullable=True, comment="代耕代种面积(亩)")
+    no_subsidy_area     = Column(DECIMAL(10, 2), nullable=True, comment="不予补贴面积(亩)")
+    bank_card           = Column(String(25), nullable=True, comment="银行卡号")
+    bank_name           = Column(String(50), nullable=True, comment="开户行")
+    operator_id         = Column(Integer, nullable=True)
+    remark              = Column(Text, nullable=True)
+    created_at          = Column(DateTime, default=func.now())
+    updated_at          = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # 索引
+    __table_args__ = (
+        UniqueConstraint("farmer_id", "subsidy_type_id", "payment_year",
+                         name="uq_payment_farmer_subsidy_year"),
+        Index('ix_subsidy_payment_farmer_year', 'farmer_id', 'payment_year'),
+        Index('ix_subsidy_payment_subsidy_type', 'subsidy_type_id'),
+    )
+
+    # 关联
+    farmer       = relationship("FarmerProfile", back_populates="payments")
+    subsidy_type = relationship("SubsidyType", back_populates="payments")
 
 
 class AuditLog(Base):

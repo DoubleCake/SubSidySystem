@@ -101,7 +101,9 @@ function exportReport(result: CheckResult, fileName = '预检查报告') {
   addSheet('面积超限', result.area_exceeds.map(r => ({
     '行号': r.row, '姓名': r.name, '身份证号': r.id_card,
     '所在村': r.village, '所在组': r.group,
-    '填报面积': r.land_area, '承包面积': r.contracted_area,
+    '实际补贴面积': r.apply_area, '承包地面积': r.contract_area,
+    '代耕代种面积': r.trust_area, '不予补贴面积': r.no_subsidy_area,
+    '数据库承包面积': r.db_contract_area,
   })))
 
   addSheet('新增农户', result.new_farmers.map(r => ({
@@ -430,11 +432,14 @@ export default function PreCheckPage() {
               <ResultTable
                 title="面积超限 — 填报面积超过数据库承包面积，请核实"
                 empty={result.area_exceeds.length === 0}
-                headers={['行号','姓名','身份证号','所在村','所在组','填报面积','承包面积']}
+                headers={['行号','姓名','身份证号','所在村','所在组','实际补贴面积','承包地面积','代耕代种','不予补贴','数据库承包面积']}
                 rows={result.area_exceeds.map(r => [
                   r.row, r.name, r.id_card, r.village, r.group,
-                  <span key="a" className="text-orange-600 font-semibold">{r.land_area} 亩</span>,
-                  <span key="c" className="text-stone-500">{r.contracted_area} 亩</span>,
+                  <span key="a" className="text-orange-600 font-semibold">{r.apply_area} 亩</span>,
+                  <span key="c" className="text-stone-500">{r.contract_area} 亩</span>,
+                  <span key="t" className="text-stone-400">{r.trust_area} 亩</span>,
+                  <span key="n" className="text-stone-400">{r.no_subsidy_area} 亩</span>,
+                  <span key="d" className="text-blue-600">{r.db_contract_area} 亩</span>,
                 ])} />
             )}
             {/* 新增农户 */}

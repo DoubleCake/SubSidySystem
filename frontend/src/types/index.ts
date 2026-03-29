@@ -423,6 +423,10 @@ export interface CheckResult {
     gender_mismatch: number
     error_library_hits: number
     area_exceeds: number
+    area_missing: number
+    age_anomaly: number
+    deceased_farmers: number
+    household_duplicates: number
     new_farmers: number
     removed_farmers: number
     changed_farmers: number
@@ -433,7 +437,11 @@ export interface CheckResult {
   duplicate_errors: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
   gender_mismatch: Array<{ row: number; name: string; id_card: string; village: string; group: string; excel_gender: string; id_card_gender: string; error: string }>
   error_library_hits: Array<{ row: number; name: string; id_card: string; village: string; group: string; error_type: string; error_reason: string; source: string }>
-  area_exceeds: Array<{ row: number; name: string; id_card: string; village: string; group: string; land_area: number; contracted_area: number }>
+  area_exceeds: Array<{ row: number; name: string; id_card: string; village: string; group: string; apply_area: number; contract_area: number; trust_area: number; no_subsidy_area: number; db_contract_area: number }>
+  area_missing: Array<{ row: number; name: string; id_card: string; village: string; group: string; land_area: number; error: string }>
+  age_anomaly: Array<{ row: number; name: string; id_card: string; village: string; group: string; age: number; birth_year: number; error: string }>
+  deceased_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
+  household_duplicates: Array<{ row: number; name: string; id_card: string; household_id: number; other_members: string[]; error: string }>
   new_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; village_group_id: number | null }>
   removed_farmers: Array<{ id_card: string; name: string; village: string; group: string; farmer_id: number; note: string }>
   changed_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; db_name: string; db_village: string; db_group: string; changes: string[]; farmer_id: number }>

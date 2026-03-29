@@ -38,7 +38,7 @@ SYSTEM_FIELDS = {
         {"field": "real_name",     "label": "姓名",     "required": True,  "type": "string"},
         {"field": "actual_amount", "label": "发放金额", "required": False, "type": "decimal"},
         {"field": "apply_area",    "label": "种植面积", "required": False, "type": "decimal"},
-        {"field": "contract_area", "label": "承包地面积", "required": False, "type": "decimal"},
+        {"field": "contract_area", "label": "承包地种植面积", "required": False, "type": "decimal"},
         {"field": "trust_area",    "label": "代耕代种面积", "required": False, "type": "decimal"},
         {"field": "no_subsidy_area","label": "不予补贴面积", "required": False, "type": "decimal"},
         {"field": "bank_card",     "label": "银行卡号", "required": False, "type": "string"},
@@ -54,7 +54,9 @@ SYSTEM_FIELDS = {
         {"field": "group_no",     "label": "所在组",   "required": True,  "type": "string"},
         {"field": "gender",       "label": "性别",     "required": False, "type": "string"},
         {"field": "phone",        "label": "手机号",   "required": False, "type": "phone"},
-        {"field": "land_area",    "label": "土地面积", "required": False, "type": "decimal"},
+        {"field": "apply_area",    "label": "种植面积", "required": False, "type": "decimal"},
+        {"field": "contract_area", "label": "承包地种植面积", "required": False, "type": "decimal"},
+        {"field": "trust_area",    "label": "代耕代种面积", "required": False, "type": "decimal"}, #代耕代种一般不查
     ],
 }
 
@@ -77,8 +79,8 @@ BUILTIN_ALIASES = {
                       "种植面积（亩）", "申请面积（亩）"],
     "pay_date":      ["打款日期", "发放日期", "付款日期", "拨付日期", "到账日期"],
     "remark":        ["备注", "说明", "备注信息"],
-    "contract_area": ["承包地种植面积", "承包面积", "二轮承包面积", "承包地", "二轮承包地面积", "承包地面积(亩)", "承包面积(亩)"],
-    "trust_area":    ["代耕代种面积", "代种面积", "托管面积", "代耕面积", "代耕代种面积(亩)", "代种面积(亩)", "代耕代种土地流转"],
+    "contract_area": ["承包地种植面积", "承包耕地种植面积","承包面积", "二轮承包面积", "承包地", "二轮承包地面积", "承包地面积(亩)", "承包面积(亩)"],
+    "trust_area":    ["代耕代种面积", "代耕代种植面积和流转面积", "代种面积", "托管面积", "代耕面积", "代耕代种面积(亩)", "代种面积(亩)", "代耕代种土地流转"],
     "no_subsidy_area": ["不予补贴面积", "不补面积", "不予补贴面积(亩)", "不补面积(亩)", "扣除面积"],
 }
 

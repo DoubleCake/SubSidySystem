@@ -4,10 +4,11 @@ from sqlalchemy import func
 from typing import Optional
 
 from database import get_db
-from models import SubsidyType, SubsidyApplication, FarmerProfile, FamilyHousehold, Village
+from models import SubsidyType, SubsidyApplication, SubsidyPayment, FarmerProfile, FamilyHousehold, Village, ErrorLibrary
 from schemas import (
     SubsidyTypeCreate, SubsidyTypeOut,
     ApplicationCreate, ApplicationUpdate, ApplicationOut,
+    PaymentCreate, PaymentOut,
     YearCompare, YearSummary,
 )
 from utils import parse_group_no_to_int, format_group_no
@@ -159,14 +160,28 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
                 continue
             row = dict(row)
             row["farmer_id"] = farmer.id
-            exists = db.query(SubsidyApplication).filter(
-                SubsidyApplication.farmer_id == farmer.id,
-                SubsidyApplication.subsidy_type_id == row["subsidy_type_id"],
-                SubsidyApplication.apply_year == row["apply_year"],
-            ).first()
-            if exists:
-                skipped += 1
-                continue
+            # 申报(pay_status=0)和发放(pay_status>0)分别独立检查重复
+            row_pay_status = row.get("pay_status", 0)
+            if row_pay_status == 0:
+                exists = db.query(SubsidyApplication).filter(
+                    SubsidyApplication.farmer_id == farmer.id,
+                    SubsidyApplication.subsidy_type_id == row["subsidy_type_id"],
+                    SubsidyApplication.apply_year == row["apply_year"],
+                    SubsidyApplication.pay_status == 0,
+                ).first()
+                if exists:
+                    skipped += 1
+                    continue
+            else:
+                exists = db.query(SubsidyApplication).filter(
+                    SubsidyApplication.farmer_id == farmer.id,
+                    SubsidyApplication.subsidy_type_id == row["subsidy_type_id"],
+                    SubsidyApplication.apply_year == row["apply_year"],
+                    SubsidyApplication.pay_status > 0,
+                ).first()
+                if exists:
+                    skipped += 1
+                    continue
             # 关键修复：pay_date 字符串转 Python date 对象
             clean_row = {k: v for k, v in row.items() if k not in ("bank_card_snapshot", "id_card", "real_name", "village_name", "group_no", "bank_card")}
             if clean_row.get("pay_date") and isinstance(clean_row["pay_date"], str):
@@ -281,14 +296,28 @@ def list_application_villages(
 
 @router.post("/applications")
 def create_application(data: ApplicationCreate, db: Session = Depends(get_db)):
-    # 唯一性检查
-    exists = db.query(SubsidyApplication).filter(
-        SubsidyApplication.farmer_id == data.farmer_id,
-        SubsidyApplication.subsidy_type_id == data.subsidy_type_id,
-        SubsidyApplication.apply_year == data.apply_year,
-    ).first()
-    if exists:
-        raise HTTPException(status_code=400, detail="该农户本年度该补贴已存在记录")
+    # 唯一性检查：申报(pay_status=0)和发放(pay_status>0)分别独立检查
+    # 即同一农户同一年度同一补贴类型可以同时有申报记录和发放记录
+    if data.pay_status == 0:
+        # 申报记录：只检查是否已有申报记录
+        exists = db.query(SubsidyApplication).filter(
+            SubsidyApplication.farmer_id == data.farmer_id,
+            SubsidyApplication.subsidy_type_id == data.subsidy_type_id,
+            SubsidyApplication.apply_year == data.apply_year,
+            SubsidyApplication.pay_status == 0,
+        ).first()
+        if exists:
+            raise HTTPException(status_code=400, detail="该农户本年度该补贴已存在申报记录")
+    else:
+        # 发放记录：只检查是否已有发放记录（pay_status>0）
+        exists = db.query(SubsidyApplication).filter(
+            SubsidyApplication.farmer_id == data.farmer_id,
+            SubsidyApplication.subsidy_type_id == data.subsidy_type_id,
+            SubsidyApplication.apply_year == data.apply_year,
+            SubsidyApplication.pay_status > 0,
+        ).first()
+        if exists:
+            raise HTTPException(status_code=400, detail="该农户本年度该补贴已存在发放记录")
 
     # 快照银行卡
     farmer = db.get(FarmerProfile, data.farmer_id)
@@ -560,6 +589,12 @@ def precheck_applications(
     all_village_names: set[str] = {v.village_name for v in db.query(Village).all()}
     village_name_to_id: dict[str, int] = {v.village_name: v.id for v in db.query(Village).all()}
 
+    # 错误库（用于错误库命中检查）
+    error_lib: dict[tuple[str, str], dict] = {}
+    for e in db.query(ErrorLibrary).all():
+        if e.id_card and e.real_name:
+            error_lib[(e.id_card.strip(), e.real_name.strip())] = e
+
     # 数据库中所有在册农户（用于比对）
     db_farmers: dict[str, dict] = {}
     for f in db.query(FarmerProfile).join(
@@ -571,13 +606,28 @@ def precheck_applications(
                 "real_name": f.real_name,
                 "village_name": f.household.village.village_name if f.household and f.household.village else "",
                 "group_no": f.household.group_no if f.household else 1,
+                "contract_area": f.household.land_area if f.household and f.household.land_area else 0,
+                "farmer_status": f.farmer_status,  # 1=在册, 0=离世
+                "household_id": f.household_id,
             }
+
+    # 按 household_id 分组，用于检测同一家庭多成员申请
+    household_members: dict[int, list[dict]] = {}
+    for f in db.query(FarmerProfile).filter(FarmerProfile.household_id.isnot(None)).all():
+        if f.id_card and f.household_id:
+            if f.household_id not in household_members:
+                household_members[f.household_id] = []
+            household_members[f.household_id].append({
+                "id_card": f.id_card,
+                "real_name": f.real_name,
+                "farmer_id": f.id,
+            })
 
     # 2. 查询符合条件的申请记录（分批处理）
     q = db.query(SubsidyApplication)
     if year:
         q = q.filter(SubsidyApplication.apply_year == year)
-    q = q.filter(SubsidyApplication.subsidy_type_id == subsidyTypeId)
+    q = q.filter(SubsidyApplication.subsidy_type_id == subsidy_typeId)
     if payStatus is not None:
         q = q.filter(SubsidyApplication.pay_status == payStatus)
     if villageName:
@@ -600,26 +650,42 @@ def precheck_applications(
                 continue
             vname = ""
             gno = 1
+            contract_area = 0
             if f.household:
                 if f.household.village:
                     vname = f.household.village.village_name
                 gno = f.household.group_no or 1
+                contract_area = f.household.land_area or 0
             rows_data.append({
                 "row_index": len(rows_data) + 2,
                 "real_name": f.real_name,
                 "id_card": f.id_card,
+                "gender": f.gender,
                 "village_name": vname,
                 "group_no": format_group_no(gno) if isinstance(gno, int) else str(gno),
                 "land_area": a.apply_area,
+                "contract_area": contract_area,
+                "farmer_id": f.id,
+                "household_id": f.household_id,
             })
 
     # 3. 执行预检逻辑
     format_errors: list[dict] = []
     village_errors: list[dict] = []
+    duplicate_errors: list[dict] = []
+    error_library_hits: list[dict] = []
     gender_mismatch: list[dict] = []
+    area_exceeds: list[dict] = []
+    area_missing: list[dict] = []        # 承包面积缺失
+    age_anomaly: list[dict] = []          # 年龄异常
+    deceased_farmers: list[dict] = []     # 死亡农户
+    household_duplicates: list[dict] = [] # 同一家庭多成员申请
     changed_farmers: list[dict] = []
+    new_farmers: list[dict] = []
+    removed_farmers: list[dict] = []
     ok_rows: list[dict] = []
     seen_id_cards: dict[str, int] = {}
+    seen_household_members: dict[int, list[dict]] = {}  # household_id -> [{id_card, row_no, name}]
 
     for row in rows_data:
         row_errors: list[str] = []
@@ -628,6 +694,8 @@ def precheck_applications(
         id_card = row["id_card"]
         village = row["village_name"]
         group = row["group_no"]
+        land_area = row["land_area"]
+        contract_area = row["contract_area"]
 
         # 姓名检查
         if not name or not name.strip():
@@ -659,21 +727,108 @@ def precheck_applications(
             })
             continue
 
-        # Excel内部重复
+        # Excel内部重复身份证
         if id_card in seen_id_cards:
+            duplicate_errors.append({
+                "row": row_no, "name": name, "id_card": id_card,
+                "village": village, "group": group,
+                "error": f"身份证号与第{seen_id_cards[id_card]}行重复"
+            })
             continue
         seen_id_cards[id_card] = row_no
+
+        # 错误库交叉比对（身份证+姓名同时匹配）
+        if (id_card.strip().upper(), name.strip()) in error_lib:
+            lib_rec = error_lib[(id_card.strip().upper(), name.strip())]
+            error_library_hits.append({
+                "row": row_no, "name": name, "id_card": id_card,
+                "village": village, "group": group,
+                "error_type": lib_rec.error_type,
+                "error_reason": lib_rec.error_reason,
+                "source": lib_rec.source,
+            })
+
+        # 性别与身份证不符
+        gender_text = row.get("gender", "")
+        if gender_text:
+            gender_from_id = parse_gender_from_id(id_card)
+            gender_from_excel = 1 if gender_text in ("男", "1", "male") else (2 if gender_text in ("女", "2", "female") else 0)
+            if gender_from_excel != 0 and gender_from_id != 0 and gender_from_excel != gender_from_id:
+                gender_mismatch.append({
+                    "row": row_no, "name": name, "id_card": id_card,
+                    "village": village, "group": group,
+                    "excel_gender": gender_text,
+                    "id_card_gender": "男" if gender_from_id == 1 else "女",
+                    "error": f"Excel中性别为「{gender_text}」，但身份证显示为「{'男' if gender_from_id == 1 else '女'}」"
+                })
+
+        # 面积超承包面积检查
+        if land_area is not None and contract_area is not None and contract_area > 0:
+            if float(land_area) > float(contract_area):
+                area_exceeds.append({
+                    "row": row_no, "name": name, "id_card": id_card,
+                    "village": village, "group": group,
+                    "apply_area": float(land_area),       # 实际补贴面积
+                    "contract_area": float(contract_area), # 承包地面积
+                    "trust_area": float(row.get("trust_area") or 0),    # 代耕代种面积
+                    "no_subsidy_area": float(row.get("no_subsidy_area") or 0), # 不予补贴面积
+                    "db_contract_area": float(contract_area), # 数据库中的承包面积
+                })
+
+        # 承包面积缺失检查
+        if land_area is not None and (contract_area is None or contract_area == 0):
+            area_missing.append({
+                "row": row_no, "name": name, "id_card": id_card,
+                "village": village, "group": group,
+                "land_area": float(land_area),
+                "error": "有申请面积但数据库中无承包面积记录",
+            })
+
+        # 年龄异常检查（从身份证提取）
+        if len(id_card) == 18:
+            try:
+                birth_year = int(id_card[6:10])
+                age = 2026 - birth_year
+                if age < 16 or age > 100:
+                    age_anomaly.append({
+                        "row": row_no, "name": name, "id_card": id_card,
+                        "village": village, "group": group,
+                        "age": age,
+                        "birth_year": birth_year,
+                        "error": f"年龄异常：{age}岁（{birth_year}年生）",
+                    })
+            except Exception:
+                pass
+
+        # 死亡农户检查
+        if id_card in db_farmers and db_farmers[id_card].get("farmer_status") == 0:
+            deceased_farmers.append({
+                "row": row_no, "name": name, "id_card": id_card,
+                "village": village, "group": group,
+                "error": "该农户已标记为离世，不应出现在补贴名单中",
+            })
+
+        # 同一家庭多成员申请检测
+        household_id = row.get("household_id")
+        if household_id:
+            if household_id not in seen_household_members:
+                seen_household_members[household_id] = []
+            seen_household_members[household_id].append({
+                "id_card": id_card,
+                "name": name,
+                "row": row_no,
+            })
 
         # 与数据库比对
         if id_card in db_farmers:
             db_f = db_farmers[id_card]
             changes: list[str] = []
 
-            if name != db_f["real_name"]:
+            if name.strip() != db_f["real_name"].strip():
                 changes.append(f"姓名：数据库「{db_f['real_name']}」→ Excel「{name}」")
 
             db_group_int = db_f["group_no"]
-            excel_group_int = int(group.replace("组", "")) if group else 1
+            excel_group_int = parse_group_no_to_int(group) if group else 1
             if village != db_f["village_name"] or db_group_int != excel_group_int:
                 db_group_display = format_group_no(db_group_int) if isinstance(db_group_int, int) else str(db_group_int)
                 changes.append(
@@ -693,21 +848,58 @@ def precheck_applications(
             else:
                 ok_rows.append({"row": row_no, "name": name, "id_card": id_card})
         else:
-            ok_rows.append({"row": row_no, "name": name, "id_card": id_card})
+            # 数据库中没有，本次是新增
+            new_farmers.append({
+                "row": row_no, "name": name, "id_card": id_card,
+                "village": village, "group": group,
+            })
 
-    error_rows = len(format_errors) + len(village_errors)
+    # 数据库中存在但Excel中没有的：减少的农户
+    excel_id_cards = set(seen_id_cards.keys())
+    for id_card, db_f in db_farmers.items():
+        if id_card not in excel_id_cards and db_f.get("farmer_status") == 1:
+            removed_farmers.append({
+                "id_card": id_card,
+                "name": db_f["real_name"],
+                "village": db_f["village_name"],
+                "group": db_f["group_no"],
+                "farmer_id": db_f["id"],
+            })
+
+    # 同一家庭多成员申请（同一household有多条申请记录）
+    for household_id, members in seen_household_members.items():
+        if len(members) > 1:
+            for m in members:
+                household_duplicates.append({
+                    "row": m["row"],
+                    "name": m["name"],
+                    "id_card": m["id_card"],
+                    "household_id": household_id,
+                    "error": f"同一家庭户（ID:{household_id}）有{len(members)}人同时申请",
+                    "other_members": [mem["name"] for mem in members if mem["id_card"] != m["id_card"]],
+                })
+
+    error_rows = (
+        len(format_errors) + len(village_errors) + len(duplicate_errors)
+        + len(gender_mismatch) + len(error_library_hits) + len(area_exceeds)
+        + len(area_missing) + len(age_anomaly) + len(deceased_farmers) + len(household_duplicates)
+    )
     summary = {
         "total_rows": len(rows_data),
         "ok_rows": len(ok_rows),
         "error_rows": error_rows,
         "format_errors": len(format_errors),
         "village_errors": len(village_errors),
-        "duplicate_errors": 0,
+        "duplicate_errors": len(duplicate_errors),
         "gender_mismatch": len(gender_mismatch),
-        "error_library_hits": 0,
-        "area_exceeds": 0,
-        "new_farmers": 0,
-        "removed_farmers": 0,
+        "error_library_hits": len(error_library_hits),
+        "area_exceeds": len(area_exceeds),
+        "area_missing": len(area_missing),
+        "age_anomaly": len(age_anomaly),
+        "deceased_farmers": len(deceased_farmers),
+        "household_duplicates": len(household_duplicates),
+        "new_farmers": len(new_farmers),
+        "removed_farmers": len(removed_farmers),
         "changed_farmers": len(changed_farmers),
         "pass_rate": round((len(ok_rows) / len(rows_data) * 100), 1) if rows_data else 0,
     }
@@ -716,12 +908,16 @@ def precheck_applications(
         "summary": summary,
         "format_errors": format_errors,
         "village_errors": village_errors,
-        "duplicate_errors": [],
+        "duplicate_errors": duplicate_errors,
         "gender_mismatch": gender_mismatch,
-        "error_library_hits": [],
-        "area_exceeds": [],
-        "new_farmers": [],
-        "removed_farmers": [],
+        "error_library_hits": error_library_hits,
+        "area_exceeds": area_exceeds,
+        "area_missing": area_missing,
+        "age_anomaly": age_anomaly,
+        "deceased_farmers": deceased_farmers,
+        "household_duplicates": household_duplicates,
+        "new_farmers": new_farmers,
+        "removed_farmers": removed_farmers,
         "changed_farmers": changed_farmers,
         "year_compare": {},
     }
@@ -937,3 +1133,180 @@ def get_application_stats(
         "villageDistribution": village_distribution,
         "yearComparison": year_comparison
     }
+
+
+# ════════════════════════════════
+#  补贴发放记录（独立于申报表）
+# ════════════════════════════════
+
+@router.get("/payments")
+def list_payments(
+    year: Optional[int] = Query(None),
+    subsidy_type_id: Optional[int] = Query(None),
+    village_name: Optional[str] = Query(None),
+    farmer_id: Optional[int] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
+    """查询补贴发放记录"""
+    q = db.query(
+        SubsidyPayment, FarmerProfile.real_name, SubsidyType.subsidy_name,
+        Village.village_name, FamilyHousehold.group_no
+    )
+    q = q.join(FarmerProfile, FarmerProfile.id == SubsidyPayment.farmer_id)
+    q = q.join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
+    q = q.join(FamilyHousehold, FamilyHousehold.id == FarmerProfile.household_id)
+    q = q.join(Village, Village.id == FamilyHousehold.village_id)
+
+    if year:
+        q = q.filter(SubsidyPayment.payment_year == year)
+    if subsidy_type_id:
+        q = q.filter(SubsidyPayment.subsidy_type_id == subsidy_type_id)
+    if farmer_id:
+        q = q.filter(SubsidyPayment.farmer_id == farmer_id)
+    if village_name:
+        q = q.filter(Village.village_name == village_name)
+
+    total = q.count()
+    offset = (page - 1) * page_size
+    rows = q.order_by(SubsidyPayment.payment_year.desc(), SubsidyPayment.id.desc()).offset(offset).limit(page_size).all()
+
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": [
+            {
+                "id": p[0].id,
+                "farmer_id": p[0].farmer_id,
+                "farmer_name": p[1],
+                "subsidy_type_id": p[0].subsidy_type_id,
+                "subsidy_name": p[2],
+                "village_name": p[3],
+                "group_no": format_group_no(p[4]) if p[4] else "一组",
+                "payment_year": p[0].payment_year,
+                "amount": p[0].amount,
+                "payment_date": p[0].payment_date,
+                "apply_area": p[0].apply_area,
+                "contract_area": p[0].contract_area,
+                "trust_area": p[0].trust_area,
+                "no_subsidy_area": p[0].no_subsidy_area,
+                "bank_card_masked": f"****{p[0].bank_card[-4:]}" if p[0].bank_card else None,
+                "bank_name": p[0].bank_name,
+                "remark": p[0].remark,
+            }
+            for p in rows
+        ]
+    }
+
+
+@router.post("/payments")
+def create_payment(data: PaymentCreate, db: Session = Depends(get_db)):
+    """新增发放记录"""
+    from models import SubsidyPayment
+
+    # 唯一性检查
+    exists = db.query(SubsidyPayment).filter(
+        SubsidyPayment.farmer_id == data.farmer_id,
+        SubsidyPayment.subsidy_type_id == data.subsidy_type_id,
+        SubsidyPayment.payment_year == data.payment_year,
+    ).first()
+    if exists:
+        raise HTTPException(status_code=400, detail="该农户该年度该补贴已存在发放记录")
+
+    farmer = db.get(FarmerProfile, data.farmer_id)
+    if not farmer:
+        raise HTTPException(status_code=404, detail="农户不存在")
+
+    payment = SubsidyPayment(
+        farmer_id=data.farmer_id,
+        subsidy_type_id=data.subsidy_type_id,
+        payment_year=data.payment_year,
+        amount=data.amount,
+        payment_date=data.payment_date,
+        apply_area=data.apply_area,
+        contract_area=data.contract_area,
+        trust_area=data.trust_area,
+        no_subsidy_area=data.no_subsidy_area,
+        bank_card=data.bank_card,
+        bank_name=data.bank_name,
+        remark=data.remark,
+    )
+    db.add(payment)
+    db.commit()
+    return {"id": payment.id, "message": "发放记录创建成功"}
+
+
+@router.delete("/payments/{payment_id}")
+def delete_payment(payment_id: int, db: Session = Depends(get_db)):
+    """删除发放记录"""
+    payment = db.get(SubsidyPayment, payment_id)
+    if not payment:
+        raise HTTPException(status_code=404, detail="发放记录不存在")
+    db.delete(payment)
+    db.commit()
+    return {"message": "删除成功"}
+
+
+@router.post("/payments/batch-import")
+def batch_import_payments(payload: dict, db: Session = Depends(get_db)):
+    """批量导入发放记录"""
+    rows = payload.get("rows", [])
+    created, skipped, errors = 0, 0, []
+
+    for row in rows:
+        try:
+            farmer_id = row.get("farmer_id")
+            subsidy_type_id = row.get("subsidy_type_id")
+            payment_year = row.get("payment_year")
+            id_card = row.get("id_card", "").strip()
+            real_name = row.get("real_name", "").strip()
+
+            if not subsidy_type_id or not payment_year:
+                errors.append(f"{real_name or id_card or '?'}：缺少必要字段")
+                continue
+
+            # 如果 farmer_id 为 0 或空，尝试用 id_card 查找农户
+            if not farmer_id and id_card:
+                farmer = db.query(FarmerProfile).filter(FarmerProfile.id_card == id_card).first()
+                if farmer:
+                    farmer_id = farmer.id
+                else:
+                    errors.append(f"{real_name}（{id_card}）：农户不存在，请先在农户管理中添加")
+                    continue
+            elif not farmer_id:
+                errors.append(f"{real_name or '?'}：缺少农户ID或身份证号")
+                continue
+
+            # 唯一性检查
+            exists = db.query(SubsidyPayment).filter(
+                SubsidyPayment.farmer_id == farmer_id,
+                SubsidyPayment.subsidy_type_id == subsidy_type_id,
+                SubsidyPayment.payment_year == payment_year,
+            ).first()
+            if exists:
+                skipped += 1
+                continue
+
+            payment = SubsidyPayment(
+                farmer_id=farmer_id,
+                subsidy_type_id=subsidy_type_id,
+                payment_year=payment_year,
+                amount=row.get("amount"),
+                payment_date=row.get("payment_date"),
+                apply_area=row.get("apply_area"),
+                contract_area=row.get("contract_area"),
+                trust_area=row.get("trust_area"),
+                no_subsidy_area=row.get("no_subsidy_area"),
+                bank_card=row.get("bank_card"),
+                bank_name=row.get("bank_name"),
+                remark=row.get("remark"),
+            )
+            db.add(payment)
+            created += 1
+        except Exception as e:
+            errors.append(str(e))
+
+    db.commit()
+    return {"created": created, "skipped": skipped, "errors": errors}

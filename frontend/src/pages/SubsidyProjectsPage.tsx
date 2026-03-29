@@ -14,7 +14,6 @@ import Modal from '../components/Modal'
 import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
 import ResultTable from '../components/ResultTable'
 import { useToast } from '../hooks/useToast'
-import EligibilityRulePage from './EligibilityRulePage'
 import Toast from '../components/Toast'
 import * as XLSX from 'xlsx'
 
@@ -23,23 +22,8 @@ const FUND_SOURCES = ['中央', '省级', '市级', '县级', '镇级']
 const UNITS = ['元/亩', '元/人', '元/户']
 
 // 补贴业务系统字段定义
-const SUBSIDY_SYSTEM_FIELDS = [
-  { field: "id_card",       label: "身份证号", required: true,  type: "id_card" },
-  { field: "real_name",     label: "姓名",     required: true,  type: "string" },
-  { field: "actual_amount", label: "发放金额", required: false, type: "decimal" },
-  { field: "apply_area",    label: "种植面积", required: false, type: "decimal" },
-  { field: "contract_area", label: "承包地面积", required: false, type: "decimal" },
-  { field: "trust_area",    label: "代耕代种面积", required: false, type: "decimal" },
-  { field: "no_subsidy_area", label: "不予补贴面积", required: false, type: "decimal" },
-  { field: "bank_card",     label: "银行卡号", required: false, type: "string" },
-  { field: "pay_date",      label: "打款日期", required: false, type: "date" },
-  { field: "remark",        label: "备注",     required: false, type: "string" },
-  { field: "village_name",  label: "所在村",   required: false, type: "string" },
-  { field: "group_no",      label: "所在组",   required: false, type: "string" },
-]
-
-// 预申请导入系统字段（不含发放金额、打款日期、银行卡号）
-const PRE_APPLY_SYSTEM_FIELDS = [
+// 补贴导入系统字段（申报和发放共用）
+const SUBSIDY_IMPORT_FIELDS = [
   { field: "id_card",         label: "身份证号",     required: true,  type: "id_card" },
   { field: "real_name",       label: "姓名",         required: true,  type: "string" },
   { field: "apply_area",      label: "种植面积",     required: false, type: "decimal" },
@@ -54,12 +38,6 @@ const PRE_APPLY_SYSTEM_FIELDS = [
 type StatsType = SubsidyType & {
   app_count: number; beneficiary_count: number
   total_apply: number; total_actual: number
-}
-
-const PS_CFG: Record<number, { label: string; color: 'gray'|'amber'|'green'; btn: string }> = {
-  0: { label: '未发放',   color: 'gray',  btn: '标记发放中' },
-  1: { label: '发放中',   color: 'amber', btn: '标记已完成' },
-  2: { label: '已完成',   color: 'green', btn: '重置为未发放' },
 }
 
 // ══════════════════════════════════════
@@ -81,8 +59,6 @@ export default function SubsidyProjectsPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [editing, setEditing] = useState<SubsidyType | null>(null)
   const [form, setForm] = useState<Partial<SubsidyTypeCreate>>({ subsidy_year: thisYear, calc_mode: 'fixed' })
-  const [statusLoading, setStatusLoading] = useState<number | null>(null)
-  const [rulesPanelId, setRulesPanelId] = useState<number | null>(null)
 
   // 更新URL参数和状态
   const handleYearChange = (year: number) => {
@@ -93,6 +69,17 @@ export default function SubsidyProjectsPage() {
     navigate(`?${params.toString()}`, { replace: true })
   }
 
+  // 更新URL参数（添加或移除 subsidy_type_id）
+  const updateUrlType = (typeId: number | null) => {
+    const params = new URLSearchParams(location.search)
+    if (typeId) {
+      params.set('subsidy_type_id', typeId.toString())
+    } else {
+      params.delete('subsidy_type_id')
+    }
+    navigate(`?${params.toString()}`, { replace: true })
+  }
+
   const loadTypes = useCallback(async () => {
     setLoading(true)
     try { setTypes(await api.getSubsidyTypesWithStats(yearFilter) as StatsType[]) }
@@ -100,6 +87,19 @@ export default function SubsidyProjectsPage() {
   }, [yearFilter])
 
   useEffect(() => { loadTypes() }, [loadTypes])
+
+  // 检查URL参数，自动选中补贴项目
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const typeIdParam = params.get('subsidy_type_id')
+    if (typeIdParam && types.length > 0) {
+      const typeId = parseInt(typeIdParam, 10)
+      const found = types.find(t => t.id === typeId)
+      if (found) {
+        setActiveType(found)
+      }
+    }
+  }, [types, location.search])
 
   const openAdd = () => { setEditing(null); setForm({ subsidy_year: yearFilter, calc_mode: 'fixed' }); setEditOpen(true) }
   const openEdit = (t: SubsidyType) => {
@@ -135,29 +135,8 @@ export default function SubsidyProjectsPage() {
     }
   }
 
-  // 切换项目状态（0→1→2→0 循环，或直接设置）
-  const changeStatus = async (t: StatsType, newStatus: number) => {
-    setStatusLoading(t.id)
-    try {
-      await api.updateSubsidyType(t.id, { pay_status: newStatus })
-      // 项目状态 → 已完成时，同步把所有记录也标为已发放
-      if (newStatus === 2 && t.app_count > 0) {
-        await fetch('/api/subsidies/applications/batch-pay', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ subsidy_type_id: t.id, pay_status: 2,
-            pay_date: new Date().toISOString().slice(0, 10) })
-        })
-        show(`✓ 项目已完成，${t.app_count} 条记录同步标为已发放`)
-      } else {
-        show(`✓ 已更新为「${PS_CFG[newStatus]?.label}」`)
-      }
-      loadTypes()
-    } catch (e: unknown) { show((e as Error).message, 'err') }
-    finally { setStatusLoading(null) }
-  }
-
   if (activeType) {
-    return <RecordsPage subsidyType={activeType} onBack={() => { setActiveType(null); loadTypes() }} show={show} toast={toast} />
+    return <RecordsPage subsidyType={activeType} onBack={() => { setActiveType(null); updateUrlType(null); loadTypes() }} show={show} toast={toast} />
   }
 
   return (
@@ -172,7 +151,7 @@ export default function SubsidyProjectsPage() {
       </div>
 
       <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-4 text-xs text-blue-700">
-        先在此维护补贴项目，再点「查看人员」进入发放记录。项目状态可随时手动切换，也可在记录页批量标记发放。
+        先在此维护补贴项目，再点「查看人员」进入补贴发放记录。
       </div>
 
       {loading && <div className="text-center py-12 text-stone-300">加载中…</div>}
@@ -183,13 +162,7 @@ export default function SubsidyProjectsPage() {
             暂无 {yearFilter} 年度补贴项目
           </div>
         )}
-        {types.map(t => {
-          const ps = PS_CFG[t.pay_status] ?? PS_CFG[0]
-          const nextStatus = (t.pay_status + 1) % 3
-          const rate = t.total_apply > 0
-            ? Math.min(100, Math.round(t.total_actual / t.total_apply * 100))
-            : (t.pay_status === 2 ? 100 : 0)
-          return (
+        {types.map(t => (
             <div key={t.id} className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm hover:border-stone-300 transition-colors">
               <div className="flex items-start gap-4">
                 <div className="flex-1 min-w-0">
@@ -197,7 +170,6 @@ export default function SubsidyProjectsPage() {
                     <span className="font-bold text-stone-800 text-base">{t.subsidy_name}</span>
                     <Tag label={`${t.subsidy_year}年`} color="gray" />
                     <Tag label={t.calc_mode === 'per_mu' ? '按亩计算' : '固定金额'} color={t.calc_mode === 'per_mu' ? 'blue' : 'purple'} />
-                    <Tag label={ps.label} color={ps.color} />
                     {t.fund_source && <span className="text-xs text-stone-300">{t.fund_source}</span>}
                   </div>
                   <div className="flex gap-6 text-sm mb-3 flex-wrap">
@@ -208,41 +180,17 @@ export default function SubsidyProjectsPage() {
                       </div>
                     )}
                     <div><span className="text-stone-400">受益</span><span className="font-bold text-blue-600 ml-1">{t.beneficiary_count}人</span></div>
-                    <div><span className="text-stone-400">实发</span><span className="font-bold font-mono text-emerald-700 ml-1">{fmt(t.total_actual)}</span></div>
                     <div><span className="text-stone-400">记录</span><span className="text-stone-600 ml-1">{t.app_count}条</span></div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-stone-100 rounded-full h-2 overflow-hidden">
-                      <div className={`h-full rounded-full transition-all duration-500 ${ps.color==='green'?'bg-emerald-500':ps.color==='amber'?'bg-amber-400':'bg-stone-300'}`}
-                        style={{ width: `${rate}%` }} />
-                    </div>
-                    <span className="text-xs text-stone-400 font-mono w-8">{rate}%</span>
                   </div>
                   {t.apply_deadline && <p className="text-xs text-stone-300 mt-1.5">截止：{t.apply_deadline}</p>}
                 </div>
 
                 {/* 操作区 */}
                 <div className="flex flex-col gap-2 shrink-0">
-                  <button onClick={() => setActiveType(t)}
+                  <button onClick={() => { setActiveType(t); updateUrlType(t.id) }}
                     className="px-3 py-1.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 whitespace-nowrap">
                     查看人员 →
                   </button>
-                  {/* 状态快速切换 */}
-                  <div className="flex gap-1">
-                    {[0, 1, 2].map(s => (
-                      <button key={s}
-                        onClick={() => changeStatus(t, s)}
-                        disabled={statusLoading === t.id || t.pay_status === s}
-                        title={PS_CFG[s].label}
-                        className={`flex-1 py-1 text-xs rounded border transition-colors
-                          ${t.pay_status === s
-                            ? `${s===0?'bg-stone-100 border-stone-200 text-stone-500':s===1?'bg-amber-100 border-amber-300 text-amber-700':'bg-emerald-100 border-emerald-300 text-emerald-700'} font-semibold cursor-default`
-                            : 'bg-white border-stone-200 text-stone-400 hover:border-stone-300'
-                          }`}>
-                        {PS_CFG[s].label}
-                      </button>
-                    ))}
-                  </div>
                   <button onClick={() => openEdit(t)}
                     className="px-3 py-1.5 text-xs border border-stone-200 text-stone-500 rounded-lg hover:border-stone-300 text-center">
                     编辑项目
@@ -255,21 +203,10 @@ export default function SubsidyProjectsPage() {
                     className="px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-center">
                     删除项目
                   </button>
-                  <button onClick={() => setRulesPanelId(rulesPanelId === t.id ? null : t.id)}
-                    className={`px-3 py-1.5 text-xs rounded-lg border text-center transition-colors ${rulesPanelId === t.id ? 'bg-purple-100 border-purple-300 text-purple-700' : 'border-stone-200 text-stone-500 hover:border-purple-200 hover:text-purple-600'}`}>
-                    {rulesPanelId === t.id ? '▲ 收起规则' : '📋 资格规则'}
-                  </button>
                 </div>
               </div>
-              {/* 资格规则面板（在卡片内部展开）*/}
-              {rulesPanelId === t.id && (
-                <div className="mt-4 pt-4 border-t border-stone-100">
-                  <EligibilityRulePage subsidyTypeId={t.id} subsidyName={t.subsidy_name} />
-                </div>
-              )}
             </div>
-          )
-        })}
+          ))}
       </div>
 
       {/* 新增/编辑弹窗 */}
@@ -325,11 +262,6 @@ export default function SubsidyProjectsPage() {
             <div><label className="block text-xs text-stone-400 mb-1">申请截止日期</label>
               <input type="date" value={form.apply_deadline ?? ''} onChange={e => setForm((f: typeof form) => ({ ...f, apply_deadline: e.target.value || undefined }))}
                 className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
-            <div><label className="block text-xs text-stone-400 mb-1">发放状态</label>
-              <select value={form.pay_status ?? 0} onChange={e => setForm((f: typeof form) => ({ ...f, pay_status: Number(e.target.value) }))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
-                <option value={0}>未发放</option><option value={1}>发放中</option><option value={2}>已完成</option>
-              </select></div>
             <div><label className="block text-xs text-stone-400 mb-1">计入承包面积</label>
               <select value={form.count_toward_area ?? 1} onChange={e => setForm((f: typeof form) => ({ ...f, count_toward_area: Number(e.target.value) }))}
                 className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
@@ -512,17 +444,57 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
   const load = useCallback(async () => {
     setLoading(true)
     try {
+      // 发放列表使用独立的 subsidy_payment 表
+      if (activeTab === 'disbursement') {
+        const params: Record<string, string | number> = {
+          page, page_size: 20,
+          subsidy_type_id: subsidyType.id,
+          payment_year: subsidyType.subsidy_year,
+        }
+        if (search) params.search = search
+        if (filters.village) params.village_name = filters.village
+        if (filters.dateFrom) params.date_from = filters.dateFrom
+        if (filters.dateTo) params.date_to = filters.dateTo
+
+        const res = await fetch(`/api/subsidies/payments?${new URLSearchParams(params as Record<string, string>)}`).then(r => r.json())
+        // 转换为与申报列表相同的格式以便统一展示
+        setApps(res.items.map((p: { id: number; farmer_id: number; farmer_name: string; subsidy_type_id: number; subsidy_name: string; village_name: string; group_no: string; payment_year: number; amount: number; payment_date: string; apply_area: number; contract_area: number; trust_area: number; no_subsidy_area: number; bank_card_masked: string; bank_name: string; remark: string }) => ({
+          id: p.id,
+          farmer_id: p.farmer_id,
+          farmer_name: p.farmer_name,
+          village: p.village_name,
+          group_no: p.group_no,
+          subsidy_type_id: p.subsidy_type_id,
+          subsidy_name: p.subsidy_name,
+          apply_year: p.payment_year,
+          apply_area: p.apply_area,
+          contract_area: p.contract_area,
+          trust_area: p.trust_area,
+          no_subsidy_area: p.no_subsidy_area,
+          actual_amount: p.amount,
+          pay_status: 2, // 发放默认已发放
+          pay_date: p.payment_date,
+          bank_card_masked: p.bank_card_masked,
+          bank_name: p.bank_name,
+          remark: p.remark,
+        })))
+        setTotal(res.total)
+        setLoading(false)
+        return
+      }
+
+      // 预申请列表使用 subsidy_application 表
       const params: Record<string, string | number> = {
         page, page_size: 20,
         subsidy_type_id: subsidyType.id,
         year: subsidyType.subsidy_year,
       }
       if (search) params.search = search
-      // 按当前Tab自动过滤：预申请只显示 pay_status=0，发放只显示 pay_status>0
+      // 按当前Tab自动过滤：预申请只显示 pay_status=0
       if (filters.payStatus) {
         params.pay_status = filters.payStatus
       } else {
-        params.pay_status = activeTab === 'preApply' ? 0 : '1,2'
+        params.pay_status = 0
       }
       if (filters.village) params.village = filters.village
       if (filters.minAmount) params.min_amount = filters.minAmount
@@ -677,7 +649,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           columns,
-          business_type: 'SUBSIDY',
+          business_type: activeTab === 'preApply' ? 'SUBSIDY' : 'DISBURSEMENT',
           sample_rows: sampleRows
         }),
       })
@@ -834,6 +806,33 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
       })
     }
     if (errors.length && !toCreate.length) return { created: 0, skipped: 0, errors }
+
+    // ── 发放记录导入（独立表）──
+    if (!isPreApplyMode) {
+      const paymentRows = toCreate.map(r => ({
+        farmer_id: r.farmer_id,
+        id_card: r.id_card,
+        real_name: r.real_name,
+        subsidy_type_id: r.subsidy_type_id,
+        payment_year: subsidyType.subsidy_year,
+        amount: r.actual_amount,
+        payment_date: r.pay_date,
+        apply_area: r.apply_area,
+        contract_area: r.contract_area,
+        trust_area: r.trust_area,
+        no_subsidy_area: r.no_subsidy_area,
+        bank_card: r.bank_card,
+        bank_name: r.bank_name,
+        remark: r.remark,
+      }))
+      const res = await fetch('/api/subsidies/payments/batch-import', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: paymentRows }),
+      }).then(r => r.json()) as { created: number; skipped: number; errors: string[] }
+      show(`✓ 导入 ${res.created} 条发放记录，跳过 ${res.skipped} 条`)
+      load()
+      return { ...res, errors: [...errors, ...(res.errors || [])] }
+    }
 
     // ── 资格规则检查 ──
     try {
@@ -1313,17 +1312,13 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
                   预检中…
                 </>
               ) : (
-                '🔍 数据预检'
+                '🔍 全部数据预检'
               )}
             </button>
           )}
           
           <span className="text-xs text-stone-400">共 {total} 条</span>
-          {unpaidCount > 0 && (
-            <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
-              {unpaidCount} 条待发放
-            </span>
-          )}
+
           <div className="flex gap-2 items-center">
             {/* 批量删除按钮 */}
             {selectedIds.length > 0 && (
@@ -1335,30 +1330,6 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
               </button>
             )}
 
-            {/* 同步到发放按钮（仅预申请tab） */}
-            {selectedIds.length > 0 && activeTab === 'preApply' && (
-              <button
-                onClick={syncToDisbursement}
-                disabled={batchLoading}
-                className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1.5 disabled:opacity-50"
-              >
-                {batchLoading ? '同步中…' : `→ 同步到发放 (${selectedIds.length})`}
-              </button>
-            )}
-            
-            {templates.length > 0 && (
-              <select value={selectedTmplId ?? ''} onChange={e => setSelectedTmplId(e.target.value ? Number(e.target.value) : null)}
-                className="px-2 py-1.5 text-xs border border-stone-200 rounded-lg bg-white outline-none">
-                <option value="">默认列映射</option>
-                {templates.map(t => <option key={t.id} value={t.id}>{t.template_name}</option>)}
-              </select>
-            )}
-            {total > 0 && (
-              <button onClick={() => setBatchPayOpen(true)}
-                className="px-3 py-2 text-sm border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50">
-                💰 批量标记发放
-              </button>
-            )}
             <button onClick={() => setImportOpen(true)}
               className="px-3 py-2 text-sm border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50">
               ↑ Excel 导入{activeTab === 'preApply' ? '预申请' : '发放'}
@@ -1566,7 +1537,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
           </div>
           <div className="p-4 space-y-4">
             {/* 汇总统计 */}
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-5 gap-3">
               <div className={`rounded-xl p-3 text-center ${(preCheckResults.summary?.ok_rows || 0) > 0 ? 'bg-emerald-50 border border-emerald-100' : 'bg-stone-50 border border-stone-100'}`}>
                 <div className="text-lg font-bold text-emerald-700">{preCheckResults.summary?.ok_rows || 0}</div>
                 <div className="text-xs text-stone-500">通过</div>
@@ -1575,14 +1546,39 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
                 <div className="text-lg font-bold text-red-600">{preCheckResults.summary?.error_rows || 0}</div>
                 <div className="text-xs text-stone-500">错误</div>
               </div>
-              <div className={`rounded-xl p-3 text-center ${(preCheckResults.summary?.gender_mismatch || 0) > 0 ? 'bg-amber-50 border border-amber-100' : 'bg-stone-50 border border-stone-100'}`}>
-                <div className="text-lg font-bold text-amber-600">{preCheckResults.summary?.gender_mismatch || 0}</div>
-                <div className="text-xs text-stone-500">警告</div>
+              <div className={`rounded-xl p-3 text-center ${(preCheckResults.summary?.area_exceeds || 0) > 0 ? 'bg-orange-50 border border-orange-100' : 'bg-stone-50 border border-stone-100'}`}>
+                <div className="text-lg font-bold text-orange-600">{preCheckResults.summary?.area_exceeds || 0}</div>
+                <div className="text-xs text-stone-500">面积超限</div>
+              </div>
+              <div className={`rounded-xl p-3 text-center ${(preCheckResults.summary?.error_library_hits || 0) > 0 ? 'bg-red-100 border border-red-200' : 'bg-stone-50 border border-stone-100'}`}>
+                <div className="text-lg font-bold text-red-700">{preCheckResults.summary?.error_library_hits || 0}</div>
+                <div className="text-xs text-stone-500">错误库命中</div>
               </div>
               <div className={`rounded-xl p-3 text-center ${(preCheckResults.changed_farmers?.length || 0) > 0 ? 'bg-blue-50 border border-blue-100' : 'bg-stone-50 border border-stone-100'}`}>
                 <div className="text-lg font-bold text-blue-600">{preCheckResults.changed_farmers?.length || 0}</div>
                 <div className="text-xs text-stone-500">字段变更</div>
               </div>
+            </div>
+
+            {/* 次要统计 */}
+            <div className="grid grid-cols-6 gap-2">
+              {[
+                { label: '格式错误', val: preCheckResults.summary?.format_errors, color: 'text-red-600' },
+                { label: '村组不存在', val: preCheckResults.summary?.village_errors, color: 'text-amber-600' },
+                { label: '重复身份证', val: preCheckResults.summary?.duplicate_errors, color: 'text-amber-600' },
+                { label: '性别不符', val: preCheckResults.summary?.gender_mismatch, color: 'text-purple-600' },
+                { label: '面积缺失', val: preCheckResults.summary?.area_missing, color: 'text-orange-600' },
+                { label: '年龄异常', val: preCheckResults.summary?.age_anomaly, color: 'text-orange-600' },
+                { label: '死亡农户', val: preCheckResults.summary?.deceased_farmers, color: 'text-red-700' },
+                { label: '家庭重复', val: preCheckResults.summary?.household_duplicates, color: 'text-purple-600' },
+                { label: '新增农户', val: preCheckResults.summary?.new_farmers, color: 'text-emerald-600' },
+                { label: '减少农户', val: preCheckResults.summary?.removed_farmers, color: 'text-blue-600' },
+              ].filter(s => (s.val || 0) > 0).map(s => (
+                <div key={s.label} className="bg-stone-50 border border-stone-100 rounded-lg p-2 text-center">
+                  <div className={`text-sm font-bold font-mono ${s.color}`}>{s.val}</div>
+                  <div className="text-xs text-stone-400">{s.label}</div>
+                </div>
+              ))}
             </div>
 
             {/* 错误库命中 */}
@@ -1652,11 +1648,67 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
             {(preCheckResults.area_exceeds?.length || 0) > 0 && (
               <ResultTable
                 title={`⚠️ 面积超限（${preCheckResults.area_exceeds.length}条）— 填报面积超过数据库承包面积`}
-                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '填报面积', '承包面积']}
+                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '实际补贴面积', '承包地面积', '代耕代种', '不予补贴', '数据库承包面积']}
                 rows={preCheckResults.area_exceeds.map(r => [
                   r.row, r.name, r.id_card, r.village, r.group,
+                  <span key="a" className="text-orange-600 font-semibold">{r.apply_area} 亩</span>,
+                  <span key="c" className="text-stone-500">{r.contract_area} 亩</span>,
+                  <span key="t" className="text-stone-400">{r.trust_area} 亩</span>,
+                  <span key="n" className="text-stone-400">{r.no_subsidy_area} 亩</span>,
+                  <span key="d" className="text-blue-600">{r.db_contract_area} 亩</span>,
+                ])}
+              />
+            )}
+
+            {/* 承包面积缺失 */}
+            {(preCheckResults.area_missing?.length || 0) > 0 && (
+              <ResultTable
+                title={`⚠️ 承包面积缺失（${preCheckResults.area_missing.length}条）— 有申请面积但数据库中无承包面积记录`}
+                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '申请面积', '说明']}
+                rows={preCheckResults.area_missing.map(r => [
+                  r.row, r.name, r.id_card, r.village, r.group,
                   <span key="a" className="text-orange-600 font-semibold">{r.land_area} 亩</span>,
-                  <span key="c" className="text-stone-500">{r.contracted_area} 亩</span>
+                  <span key="e" className="text-red-600 text-xs">{r.error}</span>
+                ])}
+              />
+            )}
+
+            {/* 年龄异常 */}
+            {(preCheckResults.age_anomaly?.length || 0) > 0 && (
+              <ResultTable
+                title={`⚠️ 年龄异常（${preCheckResults.age_anomaly.length}条）— 年龄小于16岁或大于100岁，请核实`}
+                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '年龄', '出生年份', '说明']}
+                rows={preCheckResults.age_anomaly.map(r => [
+                  r.row, r.name, r.id_card, r.village, r.group,
+                  <span key="a" className="text-orange-600 font-semibold">{r.age}岁</span>,
+                  r.birth_year,
+                  <span key="e" className="text-red-600 text-xs">{r.error}</span>
+                ])}
+              />
+            )}
+
+            {/* 死亡农户 */}
+            {(preCheckResults.deceased_farmers?.length || 0) > 0 && (
+              <ResultTable
+                title={`🚫 死亡农户（${preCheckResults.deceased_farmers.length}条）— 该农户已标记为离世，不应出现在补贴名单中`}
+                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '说明']}
+                rows={preCheckResults.deceased_farmers.map(r => [
+                  r.row, r.name, r.id_card, r.village, r.group,
+                  <span key="e" className="text-red-600 text-xs">{r.error}</span>
+                ])}
+              />
+            )}
+
+            {/* 同一家庭多成员申请 */}
+            {(preCheckResults.household_duplicates?.length || 0) > 0 && (
+              <ResultTable
+                title={`⚠️ 同一家庭多成员申请（${preCheckResults.household_duplicates.length}条）— 同一家庭户有多人同时申请`}
+                headers={['行号', '姓名', '身份证号', '家庭ID', '其他成员', '说明']}
+                rows={preCheckResults.household_duplicates.map(r => [
+                  r.row, r.name, r.id_card,
+                  <span key="h" className="font-mono text-xs">{r.household_id}</span>,
+                  r.other_members?.join('、') || '-',
+                  <span key="e" className="text-purple-600 text-xs">{r.error}</span>
                 ])}
               />
             )}
@@ -1846,13 +1898,12 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
         title={`导入${activeTab === 'preApply' ? '预申请' : '发放'} · ${subsidyType.subsidy_name}`}
         templateHeaders={IMPORT_HEADERS}
         templateExample={IMPORT_EXAMPLE}
-        systemFields={activeTab === 'preApply' ? PRE_APPLY_SYSTEM_FIELDS : SUBSIDY_SYSTEM_FIELDS}
+        systemFields={SUBSIDY_IMPORT_FIELDS}
         templates={templates}
         onDetectColumns={detectExcelColumns}
         onSaveTemplate={saveColumnMappingTemplate}
         onImport={handleImport}
         onSuccess={load} />
-
       {toast && <Toast msg={toast.msg} type={toast.type} />}
     </div>
   )

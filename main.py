@@ -119,5 +119,4 @@ def create_indexes():
     print("  数据库索引已就绪 [OK]")
 
 
-
 create_indexes()

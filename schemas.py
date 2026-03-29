@@ -183,6 +183,39 @@ class ApplicationOut(BaseModel):
         from_attributes = True
 
 
+# ───────────── 补贴发放 ─────────────
+class PaymentCreate(BaseModel):
+    farmer_id: int
+    subsidy_type_id: int
+    payment_year: int
+    amount: Optional[Decimal] = None
+    payment_date: Optional[date] = None
+    apply_area: Optional[Decimal] = None
+    contract_area: Optional[Decimal] = None
+    trust_area: Optional[Decimal] = None
+    no_subsidy_area: Optional[Decimal] = None
+    bank_card: Optional[str] = None
+    bank_name: Optional[str] = None
+    remark: Optional[str] = None
+
+
+class PaymentOut(BaseModel):
+    id: int
+    farmer_id: int
+    farmer_name: str
+    subsidy_type_id: int
+    subsidy_name: str
+    payment_year: int
+    amount: Optional[Decimal]
+    payment_date: Optional[date]
+    bank_card_masked: Optional[str]
+    bank_name: Optional[str]
+    remark: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
 # ───────────── 年度汇总 ─────────────
 class YearSummary(BaseModel):
     year: int
