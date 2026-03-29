@@ -7,11 +7,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import * as api from '../api'
-import type { SubsidyType, SubsidyTypeCreate, ApplicationOut, ApplicationCreate, VillageGroup, ApplicationForPrecheck, ApplicationSearchResult, ExcelColumnTemplate } from '../types'
+import type { SubsidyType, SubsidyTypeCreate, ApplicationOut, ApplicationCreate, VillageGroup, ApplicationForPrecheck, ApplicationSearchResult, ExcelColumnTemplate, CheckResult } from '../types'
 import { SUBSIDY_PAY_STATUS, PAY_STATUS, fmt, years } from '../utils'
 import Tag from '../components/Tag'
 import Modal from '../components/Modal'
 import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
+import ResultTable from '../components/ResultTable'
 import { useToast } from '../hooks/useToast'
 import EligibilityRulePage from './EligibilityRulePage'
 import Toast from '../components/Toast'
@@ -889,13 +890,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
 
   // 数据预检状态
   const [preCheckLoading, setPreCheckLoading] = useState(false)
-  const [preCheckResults, setPreCheckResults] = useState<{
-    success: number
-    error: number
-    warning: number
-    formatErrors: Array<{ row: number; name: string; id_card: string; village: string; group: string; errors: string[] }>
-    villageErrors: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
-  } | null>(null)
+  const [preCheckResults, setPreCheckResults] = useState<CheckResult | null>(null)
 
   // 批量选择状态
   const [selectedIds, setSelectedIds] = useState<number[]>([])
@@ -950,13 +945,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
       const okCount = summary.ok_rows || 0
       const errorCount = summary.error_rows || 0
 
-      setPreCheckResults({
-        success: okCount,
-        error: errorCount,
-        warning: summary.gender_mismatch || 0,
-        formatErrors: result.format_errors || [],
-        villageErrors: result.village_errors || [],
-      })
+      setPreCheckResults(result as CheckResult)
 
       show(`预检完成：${okCount}条通过，${errorCount}条错误，${summary.gender_mismatch || 0}条警告`)
     } catch (error) {
@@ -1594,72 +1583,113 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
             <span className="font-semibold text-stone-700 text-sm">🔍 数据预检结果</span>
             <button onClick={() => setPreCheckResults(null)} className="text-xs text-stone-400 hover:text-stone-600">✕ 关闭</button>
           </div>
-          <div className="p-4">
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className={`rounded-xl p-3 text-center ${preCheckResults.success > 0 ? 'bg-emerald-50 border border-emerald-100' : 'bg-stone-50 border border-stone-100'}`}>
-                <div className="text-lg font-bold text-emerald-700">{preCheckResults.success}</div>
+          <div className="p-4 space-y-4">
+            {/* 汇总统计 */}
+            <div className="grid grid-cols-4 gap-3">
+              <div className={`rounded-xl p-3 text-center ${(preCheckResults.summary?.ok_rows || 0) > 0 ? 'bg-emerald-50 border border-emerald-100' : 'bg-stone-50 border border-stone-100'}`}>
+                <div className="text-lg font-bold text-emerald-700">{preCheckResults.summary?.ok_rows || 0}</div>
                 <div className="text-xs text-stone-500">通过</div>
               </div>
-              <div className={`rounded-xl p-3 text-center ${preCheckResults.error > 0 ? 'bg-red-50 border border-red-100' : 'bg-stone-50 border border-stone-100'}`}>
-                <div className="text-lg font-bold text-red-600">{preCheckResults.error}</div>
+              <div className={`rounded-xl p-3 text-center ${(preCheckResults.summary?.error_rows || 0) > 0 ? 'bg-red-50 border border-red-100' : 'bg-stone-50 border border-stone-100'}`}>
+                <div className="text-lg font-bold text-red-600">{preCheckResults.summary?.error_rows || 0}</div>
                 <div className="text-xs text-stone-500">错误</div>
               </div>
-              <div className={`rounded-xl p-3 text-center ${preCheckResults.warning > 0 ? 'bg-amber-50 border border-amber-100' : 'bg-stone-50 border border-stone-100'}`}>
-                <div className="text-lg font-bold text-amber-600">{preCheckResults.warning}</div>
+              <div className={`rounded-xl p-3 text-center ${(preCheckResults.summary?.gender_mismatch || 0) > 0 ? 'bg-amber-50 border border-amber-100' : 'bg-stone-50 border border-stone-100'}`}>
+                <div className="text-lg font-bold text-amber-600">{preCheckResults.summary?.gender_mismatch || 0}</div>
                 <div className="text-xs text-stone-500">警告</div>
+              </div>
+              <div className={`rounded-xl p-3 text-center ${(preCheckResults.changed_farmers?.length || 0) > 0 ? 'bg-blue-50 border border-blue-100' : 'bg-stone-50 border border-stone-100'}`}>
+                <div className="text-lg font-bold text-blue-600">{preCheckResults.changed_farmers?.length || 0}</div>
+                <div className="text-xs text-stone-500">字段变更</div>
               </div>
             </div>
 
-            {/* 错误详情 */}
-            {preCheckResults.formatErrors.length > 0 && (
-              <div className="mb-3">
-                <div className="text-xs font-semibold text-red-600 mb-2">❌ 格式错误：</div>
-                <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                  {preCheckResults.formatErrors.slice(0, 10).map((item, index) => (
-                    <div key={index} className="text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-red-700">{item.name}</span>
-                        <span className="text-stone-400">{item.id_card}</span>
-                        <span className="text-stone-400">第{item.row}行</span>
-                      </div>
-                      <div className="mt-1 text-red-600">
-                        {item.errors.join('；')}
-                      </div>
-                    </div>
-                  ))}
-                  {preCheckResults.formatErrors.length > 10 && (
-                    <div className="text-xs text-stone-400 text-center">
-                      等 {preCheckResults.formatErrors.length} 个错误
-                    </div>
-                  )}
-                </div>
-              </div>
+            {/* 错误库命中 */}
+            {(preCheckResults.error_library_hits?.length || 0) > 0 && (
+              <ResultTable
+                title={`⚠️ 错误库命中（${preCheckResults.error_library_hits.length}条）— 这些人员在历史错误记录中出现，请重点关注`}
+                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '错误类型', '错误原因', '来源']}
+                rows={preCheckResults.error_library_hits.map(r => [
+                  r.row, r.name, r.id_card, r.village, r.group,
+                  <Tag key="t" label={r.error_type} color="red" />,
+                  <span key="r" className="text-red-600 text-xs">{r.error_reason}</span>,
+                  r.source,
+                ])}
+              />
             )}
 
-            {/* 村组错误详情 */}
-            {preCheckResults.villageErrors.length > 0 && (
-              <div>
-                <div className="text-xs font-semibold text-amber-600 mb-2">⚠️ 村组问题：</div>
-                <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                  {preCheckResults.villageErrors.slice(0, 10).map((item, index) => (
-                    <div key={index} className="text-xs bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-amber-700">{item.name}</span>
-                        <span className="text-stone-400">{item.id_card}</span>
-                        <span className="text-stone-400">第{item.row}行</span>
-                      </div>
-                      <div className="mt-1 text-amber-600">
-                        {item.error}
-                      </div>
-                    </div>
-                  ))}
-                  {preCheckResults.villageErrors.length > 10 && (
-                    <div className="text-xs text-stone-400 text-center">
-                      等 {preCheckResults.villageErrors.length} 个问题
-                    </div>
-                  )}
-                </div>
-              </div>
+            {/* 格式错误 */}
+            {preCheckResults.format_errors.length > 0 && (
+              <ResultTable
+                title={`❌ 格式错误（${preCheckResults.format_errors.length}条）— 需修复后重新检查`}
+                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '错误详情']}
+                rows={preCheckResults.format_errors.map(r => [
+                  r.row, r.name || '(空)', r.id_card || '(空)',
+                  r.village || '(空)', r.group || '(空)',
+                  <ul key="e" className="list-none">{r.errors.map((e: string, i: number) => <li key={i} className="text-red-600 text-xs">• {e}</li>)}</ul>
+                ])}
+              />
+            )}
+
+            {/* 村组不存在 */}
+            {preCheckResults.village_errors.length > 0 && (
+              <ResultTable
+                title={`⚠️ 村组不存在（${preCheckResults.village_errors.length}条）— 请先在「系统设置→村组管理」中添加`}
+                headers={['行号', '姓名', '身份证号', '填写的村', '填写的组', '提示信息']}
+                rows={preCheckResults.village_errors.map(r => [
+                  r.row, r.name, r.id_card, r.village, r.group,
+                  <span key="e" className="text-amber-600 text-xs">{r.error}</span>
+                ])}
+              />
+            )}
+
+            {/* 重复身份证 */}
+            {(preCheckResults.duplicate_errors?.length || 0) > 0 && (
+              <ResultTable
+                title={`⚠️ Excel内部重复（${preCheckResults.duplicate_errors.length}条）— 同一身份证出现多次`}
+                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '说明']}
+                rows={preCheckResults.duplicate_errors.map(r => [
+                  r.row, r.name, r.id_card, r.village, r.group,
+                  <span key="e" className="text-amber-600 text-xs">{r.error}</span>
+                ])}
+              />
+            )}
+
+            {/* 性别不符 */}
+            {(preCheckResults.gender_mismatch?.length || 0) > 0 && (
+              <ResultTable
+                title={`⚠️ 性别与身份证不符（${preCheckResults.gender_mismatch.length}条）— 请核实后修正`}
+                headers={['行号', '姓名', '身份证号', '所在村', '所在组', 'Excel性别', '身份证推断']}
+                rows={preCheckResults.gender_mismatch.map(r => [
+                  r.row, r.name, r.id_card, r.village, r.group,
+                  r.excel_gender, <Tag key="g" label={r.id_card_gender} color={r.id_card_gender === '男' ? 'blue' : 'purple'} />
+                ])}
+              />
+            )}
+
+            {/* 面积超限 */}
+            {(preCheckResults.area_exceeds?.length || 0) > 0 && (
+              <ResultTable
+                title={`⚠️ 面积超限（${preCheckResults.area_exceeds.length}条）— 填报面积超过数据库承包面积`}
+                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '填报面积', '承包面积']}
+                rows={preCheckResults.area_exceeds.map(r => [
+                  r.row, r.name, r.id_card, r.village, r.group,
+                  <span key="a" className="text-orange-600 font-semibold">{r.land_area} 亩</span>,
+                  <span key="c" className="text-stone-500">{r.contracted_area} 亩</span>
+                ])}
+              />
+            )}
+
+            {/* 字段变更 */}
+            {(preCheckResults.changed_farmers?.length || 0) > 0 && (
+              <ResultTable
+                title={`ℹ️ 字段变更（${preCheckResults.changed_farmers.length}条）— 与数据库已有数据不一致，请人工确认`}
+                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '变更内容']}
+                rows={preCheckResults.changed_farmers.map(r => [
+                  r.row, r.name, r.id_card, r.village, r.group,
+                  <ul key="c" className="list-none">{r.changes.map((c: string, i: number) => <li key={i} className="text-blue-600 text-xs">• {c}</li>)}</ul>
+                ])}
+              />
             )}
           </div>
         </div>

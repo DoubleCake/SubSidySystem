@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import * as XLSX from 'xlsx'
 import Tag from '../components/Tag'
 import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
+import ResultTable from '../components/ResultTable'
 import ErrorLibraryPage from './ErrorLibraryPage'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
@@ -576,43 +577,6 @@ export default function PreCheckPage() {
       />
 
       <Toast {...toast} />
-    </div>
-  )
-}
-
-// ─── 结果表格组件 ───
-function ResultTable({ title, headers, rows, empty }: {
-  title: string
-  headers: string[]
-  rows: (string | number | React.ReactNode)[][]
-  empty: boolean
-}) {
-  return (
-    <div>
-      <div className="px-4 py-3 border-b border-stone-100 bg-stone-50 text-sm text-stone-600">
-        {title}
-      </div>
-      {empty ? (
-        <div className="py-12 text-center text-stone-300">
-          <div className="text-3xl mb-2">✓</div>
-          <p className="text-sm">此类问题为零，很好！</p>
-        </div>
-      ) : (
-        <div className="overflow-auto max-h-96">
-          <table className="w-full border-collapse">
-            <thead className="sticky top-0 bg-white border-b border-stone-100">
-              <tr>{headers.map(h => <th key={h} className="px-4 py-2.5 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {rows.map((row, i) => (
-                <tr key={i} className="border-b border-stone-50 hover:bg-stone-50">
-                  {row.map((cell, j) => <td key={j} className="px-4 py-2.5 text-sm align-top">{cell}</td>)}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   )
 }
