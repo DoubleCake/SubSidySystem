@@ -137,7 +137,7 @@ def export_excel(db: Session = Depends(get_db)):
                  WHEN 3 THEN '迁出' WHEN 4 THEN '死亡' ELSE '未知' END,
                COALESCE(v.village_name, '') AS village_name,
                COALESCE(hh.group_no, 1) AS group_no,
-               hh.land_area, hh.household_code,
+               hh.contract_area, hh.household_code,
                fp.remark, fp.created_at
         FROM farmer_profile fp
         LEFT JOIN family_household hh ON fp.household_id = hh.id
@@ -163,7 +163,7 @@ def export_excel(db: Session = Depends(get_db)):
         SELECT hh.id, hh.household_code, hh.household_name,
                COALESCE(v.village_name, '') AS village_name,
                COALESCE(hh.group_no, 1) AS group_no,
-               hh.land_area,
+               hh.contract_area,
                fp.real_name AS head_name,
                CASE hh.status WHEN 1 THEN '正常' WHEN 2 THEN '注销' ELSE '其他' END,
                hh.address

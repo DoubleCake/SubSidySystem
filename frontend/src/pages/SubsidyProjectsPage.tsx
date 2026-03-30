@@ -1667,7 +1667,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
                 headers={['行号', '姓名', '身份证号', '所在村', '所在组', '申请面积', '说明']}
                 rows={preCheckResults.area_missing.map(r => [
                   r.row, r.name, r.id_card, r.village, r.group,
-                  <span key="a" className="text-orange-600 font-semibold">{r.land_area} 亩</span>,
+                  <span key="a" className="text-orange-600 font-semibold">{r.contract_area} 亩</span>,
                   <span key="e" className="text-red-600 text-xs">{r.error}</span>
                 ])}
               />

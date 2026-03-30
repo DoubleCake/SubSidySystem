@@ -49,10 +49,10 @@ export const createFarmer = (data: FarmerCreate) =>
 export const updateFarmer = (id: number, data: Partial<FarmerCreate>) =>
   req('/api/farmers/' + id, { method: 'PUT', body: JSON.stringify(data) })
 
-export const batchImportFarmers = (rows: FarmerCreate[]) =>
-  req<{ created: number; skipped: number; errors: string[] }>(
+export const batchImportFarmers = (rows: FarmerCreate[], overwrite = false) =>
+  req<{ created: number; updated: number; skipped: number; errors: string[] }>(
     '/api/farmers/batch-import',
-    { method: 'POST', body: JSON.stringify({ rows }) }
+    { method: 'POST', body: JSON.stringify({ rows, overwrite }) }
   )
 export const bulkCompleteFarmers = (rows: Record<string, unknown>[]) =>
   req<{ updated: number; errors: string[] }>('/api/farmers/bulk-complete', {

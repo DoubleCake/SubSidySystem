@@ -178,22 +178,22 @@ export default function FarmersPage() {
 
   // ── 新建家庭户 ──
   const [createHhOpen, setCreateHhOpen] = useState(false)
-  const [createHhForm, setCreateHhForm] = useState({ household_name: '', village_group_id: 0, land_area: '', address: '', remark: '' })
+  const [createHhForm, setCreateHhForm] = useState({ household_name: '', village_group_id: 0, contract_area: '', address: '', remark: '' })
 
   // ── 合并家庭户（内嵌模式） ──
   const [mergeMode, setMergeMode] = useState(false)
   const [mergeSelected, setMergeSelected] = useState<number[]>([])
   const [mergeConfirmOpen, setMergeConfirmOpen] = useState(false)
-  const [mergeConfirmForm, setMergeConfirmForm] = useState({ land_area: '', remark: '' })
+  const [mergeConfirmForm, setMergeConfirmForm] = useState({ contract_area: '', remark: '' })
   const [mergeLoading, setMergeLoading] = useState(false)
 
   // ── 新建农户 ──
   const [createFarmerOpen, setCreateFarmerOpen] = useState(false)
-  const [createFarmerForm, setCreateFarmerForm] = useState({ real_name: '', id_card: '', gender: 1 as 1|2, phone: '', village_name: '', group_no: '', address: '', land_area: '', remark: '' })
+  const [createFarmerForm, setCreateFarmerForm] = useState({ real_name: '', id_card: '', gender: 1 as 1|2, phone: '', village_name: '', group_no: '', address: '', contract_area: '', remark: '' })
 
   // ── 编辑家庭户 ──
   const [editOpen, setEditOpen] = useState(false)
-  const [editForm, setEditForm] = useState({ household_name: '', land_area: '', village_id: 0, group_no: 1, address: '', remark: '' })
+  const [editForm, setEditForm] = useState({ household_name: '', contract_area: '', village_id: 0, group_no: 1, address: '', remark: '' })
 
   // ── 成员管理 ──
   const [memberAddOpen, setMemberAddOpen] = useState(false)
@@ -422,13 +422,13 @@ export default function FarmersPage() {
       const r = await api.createHousehold({
         household_name: createHhForm.household_name,
         village_group_id: createHhForm.village_group_id,
-        land_area: Number(createHhForm.land_area) || undefined,
+        contract_area: Number(createHhForm.contract_area) || undefined,
         address: createHhForm.address || undefined,
         remark: createHhForm.remark || undefined,
       })
       show('✓ 家庭户创建成功')
       setCreateHhOpen(false)
-      setCreateHhForm({ household_name: '', village_group_id: 0, land_area: '', address: '', remark: '' })
+      setCreateHhForm({ household_name: '', village_group_id: 0, contract_area: '', address: '', remark: '' })
       if (leftTab === 'households') loadHouseholds()
       openDetail(r.id)
     } catch (e: unknown) { show((e as Error).message, 'err') }
@@ -449,13 +449,13 @@ export default function FarmersPage() {
         village_name: createFarmerForm.village_name,
         group_no_str: createFarmerForm.group_no,
         address: createFarmerForm.address || undefined,
-        land_area: createFarmerForm.land_area ? Number(createFarmerForm.land_area) : undefined,
+        land_area: createFarmerForm.contract_area ? Number(createFarmerForm.contract_area) : undefined,
         farmer_status: 1,
         remark: createFarmerForm.remark || undefined,
       } as Parameters<typeof api.createFarmer>[0])
       show('✓ 农户创建成功')
       setCreateFarmerOpen(false)
-      setCreateFarmerForm({ real_name: '', id_card: '', gender: 1, phone: '', village_name: '', group_no: '', address: '', land_area: '', remark: '' })
+      setCreateFarmerForm({ real_name: '', id_card: '', gender: 1, phone: '', village_name: '', group_no: '', address: '', contract_area: '', remark: '' })
       if (leftTab === 'farmers') loadFarmers()
       openFarmer(r.id, true)
     } catch (e: unknown) { show((e as Error).message, 'err') }
@@ -466,7 +466,7 @@ export default function FarmersPage() {
   const handleMergeConfirm = () => {
     if (mergeSelected.length < 2) return show('请至少选择 2 个家庭户', 'err')
     const target = hhList.find(h => h.id === mergeSelected[0])
-    setMergeConfirmForm({ land_area: target?.contracted_area?.toString() || '', remark: '' })
+    setMergeConfirmForm({ contract_area: target?.contracted_area?.toString() || '', remark: '' })
     setMergeConfirmOpen(true)
   }
 
@@ -497,7 +497,7 @@ export default function FarmersPage() {
     if (!hhId) return
     await api.updateHousehold(hhId, {
       household_name: editForm.household_name,
-      land_area: Number(editForm.land_area) || undefined,
+      contract_area: Number(editForm.contract_area) || undefined,
       village_id: editForm.village_id || undefined,
       group_no: editForm.group_no || undefined,
       address: editForm.address || undefined,
@@ -797,7 +797,7 @@ export default function FarmersPage() {
           </div>
           <div>
             <label className="block text-xs text-stone-400 mb-1">承包土地面积（亩）</label>
-            <input type="number" step="0.01" value={createHhForm.land_area} onChange={e => setCreateHhForm(f => ({ ...f, land_area: e.target.value }))}
+            <input type="number" step="0.01" value={createHhForm.contract_area} onChange={e => setCreateHhForm(f => ({ ...f, contract_area: e.target.value }))}
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
           </div>
           <div className="col-span-2">
@@ -875,7 +875,7 @@ export default function FarmersPage() {
           </div>
           <div className="col-span-2">
             <label className="block text-xs text-stone-400 mb-1">承包土地面积（亩）</label>
-            <input type="number" step="0.01" value={createFarmerForm.land_area} onChange={e => setCreateFarmerForm(f => ({ ...f, land_area: e.target.value }))}
+            <input type="number" step="0.01" value={createFarmerForm.contract_area} onChange={e => setCreateFarmerForm(f => ({ ...f, contract_area: e.target.value }))}
               placeholder="可选"
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
           </div>
@@ -1034,9 +1034,22 @@ export default function FarmersPage() {
       appsByYear[a.apply_year].push(a)
     })
     const displayMembers = historyEventId !== null && snapshotData?.snapshot ? snapshotData.snapshot.members : hh.members
+    const defaultAreaUsage = {
+      contracted_area: hh.contracted_area || 0,
+      trust_out_area: 0,
+      trust_in_area: 0,
+      cultivable_area: hh.contracted_area || 0,
+      used_area: 0,
+      remaining_area: hh.contracted_area || 0,
+      is_overdrawn: false,
+      overdraw_amount: 0,
+      has_trust_data: false,
+      subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[],
+      season_breakdown: {} as Record<string, any>
+    }
     const areaUsage = historyEventId !== null && snapshotData?.snapshot
-      ? { contracted_area: snapshotData.snapshot.land_area, trust_out_area: 0, trust_in_area: 0, cultivable_area: snapshotData.snapshot.land_area, used_area: 0, remaining_area: snapshotData.snapshot.land_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[] }
-      : hh.area_usage
+      ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_breakdown: {} as Record<string, any> }
+      : (hh.area_usage || defaultAreaUsage)
 
     return (
       <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-md">
@@ -1067,7 +1080,7 @@ export default function FarmersPage() {
           <div className="text-right shrink-0 mr-2">
             <div className="text-lg font-bold font-mono text-white">
               {historyEventId !== null && snapshotData?.snapshot
-                ? (snapshotData.snapshot.land_area > 0 ? `${snapshotData.snapshot.land_area}亩` : '未设置')
+                ? (snapshotData.snapshot.contract_area > 0 ? `${snapshotData.snapshot.contract_area}亩` : '未设置')
                 : (hh.contracted_area > 0 ? `${hh.contracted_area}亩` : '未设置')}
             </div>
             <div className="text-emerald-300 text-xs">承包面积</div>
@@ -1235,7 +1248,7 @@ export default function FarmersPage() {
                         {/* 季节内补贴明细 */}
                         {usage.subsidies?.length > 0 && (
                           <div className="border-t border-stone-100">
-                            {usage.subsidies.map((s, i) => (
+                            {usage.subsidies.map((s: { subsidy_name: string; apply_year: number; used_area: number }, i: number) => (
                               <div key={i} className="flex justify-between items-center px-3 py-1.5 border-b border-stone-50 last:border-0">
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs text-stone-400">{s.apply_year}</span>
@@ -1625,7 +1638,7 @@ export default function FarmersPage() {
                 onOpenFarmer={openFarmer}
                 onOpenMemberEdit={openMemberEdit}
                 onRemoveMember={removeMember}
-                onOpenEdit={() => { setEditForm({ household_name: detail.household_name, land_area: String(detail.contracted_area || ''), village_id: detail.village_id || 0, group_no: detail.group_no || 1, address: detail.address || '', remark: detail.remark || '' }); setEditOpen(true) }}
+                onOpenEdit={() => { setEditForm({ household_name: detail.household_name, contract_area: String(detail.contracted_area || ''), village_id: detail.village_id || 0, group_no: detail.group_no || 1, address: detail.address || '', remark: detail.remark || '' }); setEditOpen(true) }}
                 onOpenSplit={() => { setSplitOpen(true); setSplitStep(1); setSplitSelected([]); setSplitNewHead(null); setSplitForm({ household_name: '', split_year: String(new Date().getFullYear()), split_date: '', new_land_area: '', origin_land_area: String(detail.contracted_area || ''), description: '', evidence_type: '', evidence_note: '' }) }}
                 canSplit={detail.members.filter(m => m.farmer_status === 1).length >= 2}
               />
@@ -1671,7 +1684,7 @@ export default function FarmersPage() {
             </select>
           </div>
           <div><label className="block text-xs text-stone-400 mb-1">承包土地面积（亩）</label>
-            <input type="number" step="0.01" value={editForm.land_area} onChange={e => setEditForm(f => ({ ...f, land_area: e.target.value }))}
+            <input type="number" step="0.01" value={editForm.contract_area} onChange={e => setEditForm(f => ({ ...f, contract_area: e.target.value }))}
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
           <div><label className="block text-xs text-stone-400 mb-1">地址</label>
             <input value={editForm.address} onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
@@ -2020,9 +2033,22 @@ function HouseholdDetailContent({
     appsByYear[a.apply_year].push(a)
   })
   const displayMembers = historyDate !== null && snapshotData?.snapshot ? snapshotData.snapshot.members : detail.members
+  const defaultAreaUsage = {
+    contracted_area: detail.contracted_area || 0,
+    trust_out_area: 0,
+    trust_in_area: 0,
+    cultivable_area: detail.contracted_area || 0,
+    used_area: 0,
+    remaining_area: detail.contracted_area || 0,
+    is_overdrawn: false,
+    overdraw_amount: 0,
+    has_trust_data: false,
+    subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[],
+    season_breakdown: {} as Record<string, any>
+  }
   const areaUsage = historyDate !== null && snapshotData?.snapshot
-    ? { contracted_area: snapshotData.snapshot.land_area, trust_out_area: 0, trust_in_area: 0, cultivable_area: snapshotData.snapshot.land_area, used_area: 0, remaining_area: snapshotData.snapshot.land_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[] }
-    : detail.area_usage
+    ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_breakdown: {} as Record<string, any> }
+    : (detail.area_usage || defaultAreaUsage)
 
   return (
     <div className="flex-1 min-w-0 flex flex-col">
@@ -2044,7 +2070,7 @@ function HouseholdDetailContent({
           <div className="text-right shrink-0 mr-2">
             <div className="text-lg font-bold font-mono text-white">
               {historyDate !== null && snapshotData?.snapshot
-                ? (snapshotData.snapshot.land_area > 0 ? `${snapshotData.snapshot.land_area}亩` : '未设置')
+                ? (snapshotData.snapshot.contract_area > 0 ? `${snapshotData.snapshot.contract_area}亩` : '未设置')
                 : (detail.contracted_area > 0 ? `${detail.contracted_area}亩` : '未设置')}
             </div>
             <div className="text-emerald-300 text-xs">承包面积</div>
@@ -2223,7 +2249,7 @@ function HouseholdDetailContent({
                       {/* 季节内补贴明细 */}
                       {usage.subsidies?.length > 0 && (
                         <div className="border-t border-stone-100">
-                          {usage.subsidies.map((s, i) => (
+                          {usage.subsidies.map((s: { subsidy_name: string; apply_year: number; used_area: number }, i: number) => (
                             <div key={i} className="flex justify-between items-center px-3 py-1.5 border-b border-stone-50 last:border-0">
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-stone-400">{s.apply_year}</span>

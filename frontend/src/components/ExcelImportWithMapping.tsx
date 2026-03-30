@@ -26,6 +26,8 @@ interface Props {
   systemFields: Array<{ field: string; label: string; required: boolean; type: string }>
   // 已保存的映射模板列表
   templates?: SavedTemplate[]
+  // 是否显示覆盖导入选项
+  overwriteOption?: boolean
   // API函数
   onDetectColumns?: (columns: string[], sampleRows: Record<string, unknown>[]) => Promise<{
     columns: Array<{
@@ -50,7 +52,7 @@ interface Props {
       transform?: string
     }>
   }) => Promise<{ id: number }>
-  onImport: (rows: Record<string, unknown>[], mapping?: Record<string, string>) => Promise<{ created: number; skipped: number; errors: string[] }>
+  onImport: (rows: Record<string, unknown>[], mapping?: Record<string, string>, overwrite?: boolean) => Promise<{ created: number; updated?: number; skipped: number; errors: string[] }>
   onSuccess: () => void
 }
 
@@ -60,13 +62,15 @@ export default function ExcelImportWithMapping({
   open, onClose, title,
   templateHeaders = [], templateExample = [],
   systemFields, templates = [],
+  overwriteOption = false,
   onDetectColumns, onSaveTemplate,
   onImport, onSuccess
 }: Props) {
   const [step, setStep] = useState<Step>('upload')
   const [rows, setRows] = useState<Record<string, unknown>[]>([])
-  const [result, setResult] = useState<{ created: number; skipped: number; errors: string[] } | null>(null)
+  const [result, setResult] = useState<{ created: number; updated?: number; skipped: number; errors: string[] } | null>(null)
   const [dragOver, setDragOver] = useState(false)
+  const [overwrite, setOverwrite] = useState(false)
   
   // 映射相关状态
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([])
@@ -235,18 +239,18 @@ export default function ExcelImportWithMapping({
         }
       })
 
-      const res = await onImport(dataToImport, mapping)
+      const res = await onImport(dataToImport, mapping, overwrite)
       clearInterval(ticker)
       setProgress(100)
       setProgressMsg('导入完成！')
       await new Promise(r => setTimeout(r, 400))
       setResult(res)
       setStep('result')
-      if (res.created > 0) onSuccess()
+      if (res.created > 0 || (res.updated ?? 0) > 0) onSuccess()
     } catch (e: unknown) {
       clearInterval(ticker)
       const err = e as Error
-      setResult({ created: 0, skipped: 0, errors: [err.message] })
+      setResult({ created: 0, updated: 0, skipped: 0, errors: [err.message] })
       setStep('result')
     }
   }
@@ -530,6 +534,20 @@ export default function ExcelImportWithMapping({
               ← 修改映射
             </button>
           </div>
+          {overwriteOption && (
+            <div className="mb-3 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={overwrite}
+                  onChange={e => setOverwrite(e.target.checked)}
+                  className="w-4 h-4 text-amber-600 rounded border-amber-300 focus:ring-amber-500"
+                />
+                <span className="text-sm text-amber-800 font-medium">覆盖导入</span>
+              </label>
+              <span className="text-xs text-amber-600">勾选后，已存在的农户（相同身份证）将更新信息，而非跳过</span>
+            </div>
+          )}
           {rows.length > 500 && (
             <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
               ⏱ 本次导入 {rows.length} 条记录，数据量较大，预计需要等待 {Math.ceil(rows.length / 100)} 秒，请耐心等待
@@ -610,11 +628,17 @@ export default function ExcelImportWithMapping({
       {step === 'result' && result && (
         <div className="text-center py-4">
           <div className="text-5xl mb-4">{result.errors.length === 0 ? '✅' : '⚠️'}</div>
-          <div className="grid grid-cols-3 gap-4 mb-5">
+          <div className={`grid gap-4 mb-5 ${result.updated ? 'grid-cols-4' : 'grid-cols-3'}`}>
             <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
               <div className="text-2xl font-bold text-emerald-700">{result.created}</div>
               <div className="text-xs text-stone-500 mt-1">成功导入</div>
             </div>
+            {result.updated !== undefined && result.updated > 0 && (
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                <div className="text-2xl font-bold text-blue-700">{result.updated}</div>
+                <div className="text-xs text-stone-500 mt-1">覆盖更新</div>
+              </div>
+            )}
             <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
               <div className="text-2xl font-bold text-amber-600">{result.skipped}</div>
               <div className="text-xs text-stone-500 mt-1">跳过（重复）</div>

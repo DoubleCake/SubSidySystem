@@ -29,7 +29,7 @@ class HouseholdCreate(BaseModel):
     village_id: int       # 村 FK
     group_no: int         # 组号数字：1=一组，2=二组
     address: Optional[str] = None
-    land_area: Optional[Decimal] = None
+    contract_area: Optional[Decimal] = None
     remark: Optional[str] = None
 
 
@@ -41,7 +41,7 @@ class HouseholdOut(BaseModel):
     village_id: int
     group_no: int         # 组号数字
     address: Optional[str]
-    land_area: Optional[Decimal]
+    contract_area: Optional[Decimal]
     status: int
     member_count: int     # 动态计算，不存库
     remark: Optional[str]
@@ -63,7 +63,7 @@ class FarmerCreate(BaseModel):
     group_no: Optional[int] = None      # 组号数字：1=一组，2=二组
     group_no_str: Optional[str] = None  # 也可传 "一组" 字符串
     address: Optional[str] = None
-    land_area: Optional[Decimal] = None
+    contract_area: Optional[Decimal] = None
     farmer_status: int = 1
     remark: Optional[str] = None
 
@@ -75,7 +75,7 @@ class FarmerUpdate(BaseModel):
     village_id: Optional[int] = None
     group_no: Optional[int] = None
     address: Optional[str] = None
-    land_area: Optional[Decimal] = None
+    contract_area: Optional[Decimal] = None
     farmer_status: Optional[int] = None
     remark: Optional[str] = None
 
@@ -92,7 +92,7 @@ class FarmerOut(BaseModel):
     relation: Optional[str]
     farmer_status: int
     village_full_name: str             # 冗余展示用
-    land_area: Optional[Decimal]
+    contract_area: Optional[Decimal]
     address: Optional[str]
     remark: Optional[str]
     created_at: Optional[datetime]

@@ -211,7 +211,7 @@ def get_area_summary(
     """
     计算家庭户在指定年度的完整面积情况：
     
-    承包面积：来自 family_household.land_area（权属面积，不变）
+    承包面积：来自 family_household.contract_area（权属面积，不变）
     流出面积：该年度流转给他人的面积之和（减少可耕种面积，不影响承包权）
     流入面积：该年度从他人流入的面积之和（增加可耕种面积）
     可耕种面积 = 承包面积 - 流出面积 + 流入面积
@@ -222,7 +222,7 @@ def get_area_summary(
     hh = db.get(FamilyHousehold, household_id)
     if not hh: raise HTTPException(404, "家庭户不存在")
 
-    contracted = float(hh.land_area or 0)
+    contracted = float(hh.contract_area or 0)
 
     # ── 流出面积（该户是 owner，把地给别人种）──
     out_rows = db.execute(text("""
@@ -380,7 +380,7 @@ def trust_summary_by_year(year: int = Query(...), db: Session = Depends(get_db))
 def search_household(q: str = Query("", min_length=0), db: Session = Depends(get_db)):
     """快速搜索家庭户，用于流转记录的流入/流出方选择"""
     rows = db.execute(text("""
-        SELECT hh.id, hh.household_code, hh.household_name, hh.land_area,
+        SELECT hh.id, hh.household_code, hh.household_name, hh.contract_area,
                fp.real_name AS head_name,
                COALESCE(v.village_name, '') AS village_name,
                COALESCE(hh.group_no, 1) AS group_no

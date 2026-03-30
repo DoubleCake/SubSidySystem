@@ -606,7 +606,7 @@ def precheck_applications(
                 "real_name": f.real_name,
                 "village_name": f.household.village.village_name if f.household and f.household.village else "",
                 "group_no": f.household.group_no if f.household else 1,
-                "contract_area": f.household.land_area if f.household and f.household.land_area else 0,
+                "contract_area": f.household.contract_area if f.household and f.household.contract_area else 0,
                 "farmer_status": f.farmer_status,  # 1=在册, 0=离世
                 "household_id": f.household_id,
             }
@@ -655,7 +655,7 @@ def precheck_applications(
                 if f.household.village:
                     vname = f.household.village.village_name
                 gno = f.household.group_no or 1
-                contract_area = f.household.land_area or 0
+                contract_area = f.household.contract_area or 0
             rows_data.append({
                 "row_index": len(rows_data) + 2,
                 "real_name": f.real_name,
@@ -663,8 +663,8 @@ def precheck_applications(
                 "gender": f.gender,
                 "village_name": vname,
                 "group_no": format_group_no(gno) if isinstance(gno, int) else str(gno),
-                "land_area": a.apply_area,
-                "contract_area": contract_area,
+                "contract_area": a.apply_area,
+                "db_contract_area": contract_area,
                 "farmer_id": f.id,
                 "household_id": f.household_id,
             })
@@ -694,7 +694,7 @@ def precheck_applications(
         id_card = row["id_card"]
         village = row["village_name"]
         group = row["group_no"]
-        land_area = row["land_area"]
+        land_area = row["contract_area"]  # Excel中的申请面积（映射后字段名）
         contract_area = row["contract_area"]
 
         # 姓名检查
@@ -780,7 +780,7 @@ def precheck_applications(
             area_missing.append({
                 "row": row_no, "name": name, "id_card": id_card,
                 "village": village, "group": group,
-                "land_area": float(land_area),
+                "contract_area": float(land_area),
                 "error": "有申请面积但数据库中无承包面积记录",
             })
 
@@ -1010,14 +1010,14 @@ def get_todos(year: int = Query(...), db: Session = Depends(get_db)):
     overdrawn = db.execute(text("""
         SELECT COUNT(*) FROM (
             SELECT hh.id,
-                   CAST(hh.land_area AS FLOAT) AS contracted,
+                   CAST(hh.contract_area AS FLOAT) AS contracted,
                    SUM(CAST(sa.apply_area AS FLOAT)) AS used
             FROM family_household hh
             JOIN farmer_profile fp ON fp.household_id=hh.id
             JOIN subsidy_application sa ON sa.farmer_id=fp.id
             JOIN subsidy_type st ON sa.subsidy_type_id=st.id
             WHERE st.calc_mode='per_mu' AND st.subsidy_year=:y
-              AND sa.pay_status!=3 AND hh.land_area IS NOT NULL
+              AND sa.pay_status!=3 AND hh.contract_area IS NOT NULL
             GROUP BY hh.id
             HAVING used > contracted
         )

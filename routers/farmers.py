@@ -20,7 +20,7 @@ _COLS = """
     fp.id, fp.household_id, fp.real_name, fp.gender, fp.id_card,
     fp.phone, fp.bank_card, fp.bank_name, fp.relation,
     fp.farmer_status, fp.remark, fp.created_at,
-    hh.land_area, hh.address, hh.household_code, hh.head_farmer_id,
+    hh.contract_area, hh.address, hh.household_code, hh.head_farmer_id,
     COALESCE(v.village_name || format_group_no(hh.group_no), '未知村组') AS village_full_name,
     v.village_name, hh.group_no
 FROM farmer_profile fp
@@ -43,7 +43,7 @@ def _to_list(r) -> dict:
         "relation":         m.get("relation"),
         "farmer_status":    m.get("farmer_status") or 1,
         "village_full_name":m.get("village_full_name") or "—",
-        "land_area":        m.get("land_area"),
+        "contract_area":    m.get("contract_area"),
         "address":          m.get("address"),
         "remark":           m.get("remark"),
         "created_at":       str(m["created_at"]) if m.get("created_at") else None,
@@ -79,7 +79,7 @@ def list_farmers(
         where.append("vg.village_name = :vn");  params["vn"] = village_name
     if incomplete:
         # 信息不完善：手机、银行卡、土地面积缺任意一项
-        where.append("(fp.phone IS NULL OR fp.bank_card IS NULL OR hh.land_area IS NULL OR hh.land_area=0)")
+        where.append("(fp.phone IS NULL OR fp.bank_card IS NULL OR hh.contract_area IS NULL OR hh.contract_area=0)")
 
     w = ("WHERE " + " AND ".join(where)) if where else ""
     total = db.execute(text(
@@ -172,7 +172,7 @@ def create_farmer(data: FarmerCreate, db: Session = Depends(get_db)):
         household_code=gen_household_code(farmer.id),
         household_name=f"{data.real_name}户", head_farmer_id=farmer.id,
         village_id=village_id, group_no=group_no, address=data.address,
-        land_area=data.land_area, status=data.farmer_status,
+        contract_area=data.contract_area, status=data.farmer_status,
     )
     db.add(hh); db.flush()
     farmer.household_id = hh.id; db.commit()
@@ -192,7 +192,7 @@ def update_farmer(farmer_id: int, data: FarmerUpdate, db: Session = Depends(get_
     new_village_id = upd.pop("village_id", None)
     new_group_no = upd.pop("group_no", None)
 
-    hh_fields = {k: upd.pop(k) for k in ("address","land_area") if k in upd}
+    hh_fields = {k: upd.pop(k) for k in ("address","contract_area") if k in upd}
     for k, v in upd.items():
         setattr(farmer, k, v)
     if hh_fields and hh:
@@ -223,14 +223,40 @@ def update_farmer(farmer_id: int, data: FarmerUpdate, db: Session = Depends(get_
 @router.post("/batch-import")
 def batch_import_farmers(payload: dict, db: Session = Depends(get_db)):
     rows = payload.get("rows", [])
-    created, skipped, errors = 0, 0, []
+    overwrite = payload.get("overwrite", False)
+    created, updated, skipped, errors = 0, 0, 0, []
 
     for row in rows:
         try:
             ic = str(row.get("id_card", "")).strip()
             if not ic: errors.append(f"{row.get('real_name','?')}: 缺少身份证号"); continue
-            if db.execute(text("SELECT id FROM farmer_profile WHERE id_card=:ic"), {"ic": ic}).fetchone():
-                skipped += 1; continue
+
+            # 查找已存在的农户
+            existing = db.execute(text("SELECT id FROM farmer_profile WHERE id_card=:ic"), {"ic": ic}).fetchone()
+            if existing:
+                if not overwrite:
+                    skipped += 1; continue
+                # 覆盖模式：更新现有农户信息
+                fp = db.get(FarmerProfile, existing.id)
+                if not fp:
+                    skipped += 1; continue
+                try:
+                    if row.get("real_name"): fp.real_name = str(row["real_name"]).strip()
+                    if row.get("phone"): fp.phone = str(row["phone"]).strip() or None
+                    if row.get("bank_card"): fp.bank_card = str(row["bank_card"]).strip() or None
+                    if row.get("bank_name"): fp.bank_name = str(row["bank_name"]).strip() or None
+                    if "gender" in row: fp.gender = int(row["gender"])
+                    if "farmer_status" in row: fp.farmer_status = int(row["farmer_status"])
+                    if row.get("remark") is not None: fp.remark = str(row["remark"]).strip() or None
+                    # 更新家庭户信息
+                    if fp.household:
+                        if row.get("contract_area") is not None: fp.household.contract_area = float(row["contract_area"])
+                        if row.get("address"): fp.household.address = str(row["address"]).strip()
+                        if "farmer_status" in row: fp.household.status = int(row["farmer_status"])
+                    updated += 1
+                except Exception as e:
+                    errors.append(f"{fp.real_name}：更新失败 {e}")
+                continue
 
             # 支持 village_id（整数）或 village_name（字符串）
             vid = row.get("village_id")
@@ -266,7 +292,7 @@ def batch_import_farmers(payload: dict, db: Session = Depends(get_db)):
                 household_code=gen_household_code(farmer.id),
                 household_name=f"{row.get('real_name','未知')}户", head_farmer_id=farmer.id,
                 village_id=village_id, group_no=gno, address=row.get("address"),
-                land_area=row.get("land_area"), status=row.get("farmer_status", 1),
+                contract_area=row.get("contract_area"), status=row.get("farmer_status", 1),
             )
             db.add(hh); db.flush()
             farmer.household_id = hh.id; created += 1
@@ -275,7 +301,7 @@ def batch_import_farmers(payload: dict, db: Session = Depends(get_db)):
             except: pass
             errors.append(f"{row.get('real_name','?')}: {e}")
     db.commit()
-    return {"created": created, "skipped": skipped, "errors": errors}
+    return {"created": created, "updated": updated, "skipped": skipped, "errors": errors}
 
 # ── 注销 ──
 @router.delete("/{farmer_id}")
@@ -310,8 +336,8 @@ def bulk_complete_farmers(payload: dict, db: Session = Depends(get_db)):
             if row.get("phone"):      fp.phone     = str(row["phone"]).strip()
             if row.get("bank_card"):  fp.bank_card = str(row["bank_card"]).strip()
             if row.get("bank_name"):  fp.bank_name = str(row["bank_name"]).strip()
-            if row.get("land_area") and fp.household:
-                fp.household.land_area = float(row["land_area"])
+            if row.get("contract_area") and fp.household:
+                fp.household.contract_area = float(row["contract_area"])
             if row.get("address") and fp.household:
                 fp.household.address = str(row["address"]).strip()
             updated += 1

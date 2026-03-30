@@ -34,7 +34,7 @@ class PreCheckRow(BaseModel):
     group_no: Optional[str] = None     # 组号
     phone: Optional[str] = None        # 手机号（可选）
     bank_card: Optional[str] = None    # 银行卡（可选）
-    land_area: Optional[float] = None  # 土地面积（可选）
+    contract_area: Optional[float] = None  # 土地面积（Excel中的申请面积）
     gender: Optional[str] = None       # 性别（可选，中文）
     # 其他透传字段
     extra: Optional[dict] = None
@@ -181,8 +181,8 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
     for f in db.query(FarmerProfile).join(
         FamilyHousehold, FamilyHousehold.id == FarmerProfile.household_id
     ).all():
-        if f.id_card and f.household and f.household.land_area:
-            db_land_areas[f.id_card] = float(f.household.land_area)
+        if f.id_card and f.household and f.household.contract_area:
+            db_land_areas[f.id_card] = float(f.household.contract_area)
 
     # ── 2. 逐行检查 ──
     format_errors:       list[dict] = []   # 格式/类型错误
@@ -239,15 +239,15 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
                 row_errors.append(phone_err)
 
         # ── 2.5 土地面积合理性检查（可选）──
-        if row.land_area is not None:
+        if row.contract_area is not None:
             try:
-                area = float(row.land_area)
+                area = float(row.contract_area)
                 if area < 0:
                     row_errors.append(f"土地面积不能为负数（{area}）")
                 elif area > 9999:
                     row_errors.append(f"土地面积异常偏大（{area}亩），请核实")
             except (ValueError, TypeError):
-                row_errors.append(f"土地面积格式错误（{row.land_area}）")
+                row_errors.append(f"土地面积格式错误（{row.contract_area}）")
 
         # ── 2.6 格式错误汇总 ──
         if row_errors:
@@ -295,14 +295,17 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
                 })
 
         # ── 2.10 土地面积超承包面积检查 ──
-        if row.land_area is not None and id_card in db_land_areas:
+        if row.contract_area is not None and id_card in db_land_areas:
             contracted = db_land_areas[id_card]
-            if contracted > 0 and float(row.land_area) > contracted:
+            if contracted > 0 and float(row.contract_area) > contracted:
                 area_exceeds.append({
                     "row": row_no, "name": name, "id_card": id_card,
                     "village": village, "group": group,
-                    "land_area": float(row.land_area),
-                    "contracted_area": contracted,
+                    "apply_area": float(row.contract_area),
+                    "contract_area": contracted,
+                    "trust_area": 0,
+                    "no_subsidy_area": 0,
+                    "db_contract_area": contracted,
                 })
 
         # ── 2.11 与数据库比对：字段变更 ──

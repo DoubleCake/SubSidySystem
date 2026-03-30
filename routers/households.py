@@ -71,7 +71,7 @@ def list_group_options(db: Session = Depends(get_db)):
 class HouseholdUpdate(BaseModel):
     """更新家庭户基础信息"""
     household_name: Optional[str] = None
-    land_area: Optional[float] = None      # 承包土地总面积（亩）
+    contract_area: Optional[float] = None   # 承包面积（亩）
     village_id: Optional[int] = None       # 所属村（整户迁移时修改）
     group_no: Optional[int] = None         # 所属组（存整数，1=一组）
     address: Optional[str] = None
@@ -88,6 +88,73 @@ class MemberMoveRequest(BaseModel):
 
 
 # ─────────────────────────────────────
+#  核心辅助：获取指定年份的承包面积
+# ─────────────────────────────────────
+
+def get_contract_area_at_year(household_id: int, db: Session, year: int) -> float:
+    """
+    获取指定年份的承包面积。
+    逻辑：
+    - 如果在该年份有 LAND_CHANGE 事件，使用该事件之前的面积值（变更在事件发生后才生效）
+    - 如果没有，找到该年份之前的最新变更，使用其之后的值
+    例如：2024年12月变更 → 2024用旧值，2025用新值
+    """
+    import json as _json
+    from models import HouseholdEvent
+
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh:
+        return 0.0
+
+    # 查找在该年份发生的 LAND_CHANGE（使用变更前的值）
+    same_year_event = (
+        db.query(HouseholdEvent)
+          .filter(
+              HouseholdEvent.household_id == household_id,
+              HouseholdEvent.event_type == "LAND_CHANGE",
+              HouseholdEvent.event_year == year,
+          )
+          .order_by(HouseholdEvent.created_at.desc())
+          .first()
+    )
+
+    if same_year_event:
+        # 该年份有变更，使用变更前的值
+        try:
+            before = _json.loads(same_year_event.before_snapshot) if same_year_event.before_snapshot else {}
+            if "contract_area" in before:
+                return float(before["contract_area"])
+            if "land_area" in before:
+                return float(before["land_area"])
+        except:
+            pass
+
+    # 查找该年份之前的最新 LAND_CHANGE 事件（使用变更后的值）
+    before_year_event = (
+        db.query(HouseholdEvent)
+          .filter(
+              HouseholdEvent.household_id == household_id,
+              HouseholdEvent.event_type == "LAND_CHANGE",
+              HouseholdEvent.event_year < year,
+          )
+          .order_by(HouseholdEvent.event_year.desc(), HouseholdEvent.created_at.desc())
+          .first()
+    )
+
+    if before_year_event:
+        try:
+            after = _json.loads(before_year_event.after_snapshot) if before_year_event.after_snapshot else {}
+            if "contract_area" in after:
+                return float(after["contract_area"])
+            if "land_area" in after:
+                return float(after["land_area"])
+        except:
+            pass
+
+    return float(hh.contract_area or 0)
+
+
+# ─────────────────────────────────────
 #  核心辅助：计算家庭户面积占用情况
 # ─────────────────────────────────────
 
@@ -98,7 +165,8 @@ def calc_household_area_usage(
 ) -> dict:
     """
     计算一个家庭户的面积使用情况（含流转）：
-    - contracted_area:  承包面积（权属，来自 family_household.land_area）
+    - contracted_area:  承包面积（指定年份的实际面积，考虑历史变更）
+                         如果该年份有面积变更，使用变更前的值
     - trust_out_area:   流出面积（该年度流给他人耕种的）
     - trust_in_area:    流入面积（该年度从他人流入的代耕/流转）
     - cultivable_area:  实际可耕种面积 = 承包 - 流出 + 流入
@@ -108,7 +176,8 @@ def calc_household_area_usage(
     if not hh:
         return {}
 
-    contracted = float(hh.land_area or 0)
+    # 使用指定年份的承包面积（考虑历史变更）
+    contracted = get_contract_area_at_year(household_id, db, year) if year else float(hh.contract_area or 0)
 
     # ── 流转面积（按年度）──
     trust_out = 0.0
@@ -276,7 +345,7 @@ def create_household(data: HouseholdCreateSchema, db: Session = Depends(get_db))
         village_id=village_id,
         group_no=group_no,
         address=data.address,
-        land_area=data.land_area,
+        land_area=data.contract_area,
         status=1,
         remark=data.remark,
     )
@@ -357,10 +426,10 @@ def list_households(
             "address": hh.address,
             "remark": hh.remark,
             # 面积数据（含季节分组）
-            "contracted_area": float(hh.land_area or 0),
+            "contracted_area": float(hh.contract_area or 0),
             "trust_out_area": area_info.get("trust_out_area", 0),
             "trust_in_area": area_info.get("trust_in_area", 0),
-            "cultivable_area": area_info.get("cultivable_area", float(hh.land_area or 0)),
+            "cultivable_area": area_info.get("cultivable_area", float(hh.contract_area or 0)),
             "used_area": area_info.get("used_area", 0),
             "remaining_area": area_info.get("remaining_area", 0),
             "is_overdrawn": area_info.get("is_overdrawn", False),
@@ -404,8 +473,8 @@ def list_overdrawn_households(
         query = query.filter(Village.village_name == village_name)
 
     all_hh = query.filter(
-        FamilyHousehold.land_area.isnot(None),
-        FamilyHousehold.land_area > 0,
+        FamilyHousehold.contract_area.isnot(None),
+        FamilyHousehold.contract_area > 0,
     ).all()
 
     overdrawn = []
@@ -419,7 +488,7 @@ def list_overdrawn_households(
                 "household_name": hh.household_name,
                 "head_name": head.real_name if head else "—",
                 "village": f"{hh.village.village_name}{format_group_no(hh.group_no)}" if hh.village else "",
-                "contracted_area": float(hh.land_area),
+                "contracted_area": float(hh.contract_area),
                 "used_area": area_info["used_area"],
                 "overdraw_amount": area_info["overdraw_amount"],
                 "subsidy_breakdown": area_info["subsidy_breakdown"],
@@ -582,7 +651,7 @@ def get_household(
         "village_id": hh.village_id,
         "group_no": hh.group_no or 1,
         "address": hh.address,
-        "contracted_area": float(hh.land_area or 0),
+        "contracted_area": float(hh.contract_area or 0),
         "status": hh.status,
         "remark": hh.remark,
         "members": member_list,
@@ -623,7 +692,7 @@ def update_household(
         new_village = f"{hh.village.village_name}{format_group_no(hh.group_no)}" if hh.village else "未知"
 
     if data.household_name is not None: hh.household_name = data.household_name
-    if data.land_area      is not None: hh.land_area      = Decimal(str(data.land_area))
+    if data.contract_area is not None: hh.contract_area = Decimal(str(data.contract_area))
     if data.address        is not None: hh.address        = data.address
     if data.status         is not None: hh.status         = data.status
     if data.remark         is not None: hh.remark         = data.remark
@@ -637,9 +706,9 @@ def update_household(
         _log_event(db, household_id, ev_type, _date.today().year, desc,
                    before=before, after=after,
                    event_date=_date.today(), date_accuracy="EXACT")
-    elif data.land_area is not None:
+    elif data.contract_area is not None:
         ev_type = "LAND_CHANGE"
-        desc = f"土地面积变更：{float(before.get('land_area', 0))}亩 → {float(data.land_area or 0)}亩"
+        desc = f"土地面积变更：{float(before.get('contract_area', 0))}亩 → {float(data.contract_area or 0)}亩"
         _log_event(db, household_id, ev_type, _date.today().year, desc,
                    before=before, after=after,
                    event_date=_date.today(), date_accuracy="EXACT")
@@ -968,7 +1037,7 @@ def get_area_by_year(household_id: int, db: Session = Depends(get_db)):
     if not hh:
         raise HTTPException(404, "家庭户不存在")
 
-    contracted = float(hh.land_area or 0)
+    contracted = float(hh.contract_area or 0)
 
     member_ids = [
         f.id for f in db.query(FarmerProfile.id)
@@ -1056,7 +1125,7 @@ class HouseholdBuildRow(BaseModel):
     real_name: Optional[str] = None
     is_head: Optional[int] = 0  # 1=户主 0=成员
     relation: Optional[str] = "成员"
-    land_area: Optional[float] = None   # 只有户主行填，设置到家庭户
+    contract_area: Optional[float] = None   # 只有户主行填，设置到家庭户
 
 class HouseholdBuildRequest(BaseModel):
     rows: list[HouseholdBuildRow]
@@ -1106,11 +1175,11 @@ def batch_build_households(req: HouseholdBuildRequest, db: Session = Depends(get
                 errors.append(f"家庭户 {hh_label}：没有找到有效成员，跳过")
                 continue
 
-            # 找户主行的 land_area
+            # 找户主行的 contract_area
             land = None
             for m in members:
-                if m.is_head == 1 and m.land_area:
-                    land = m.land_area; break
+                if m.is_head == 1 and m.contract_area:
+                    land = m.contract_area; break
 
             # 优先复用 head_farmer 已有家庭户（batch_import_farmers 已建户）
             existing_hh = None
@@ -1128,13 +1197,13 @@ def batch_build_households(req: HouseholdBuildRequest, db: Session = Depends(get
                     head_farmer_id=head_farmer.id,
                     village_id=hh_vid,
                     group_no=hh_gno,
-                    land_area=land,
+                    contract_area=land,
                     status=1,
                 )
                 db.add(existing_hh); db.flush()
                 built += 1
             else:
-                if land: existing_hh.land_area = land
+                if land: existing_hh.contract_area = land
                 existing_hh.head_farmer_id = head_farmer.id
                 updated += 1
 
@@ -1253,7 +1322,7 @@ def _snapshot_household(db: Session, household_id: int) -> dict:
     return {
         "household_name": hh.household_name,
         "household_code": hh.household_code,
-        "land_area": float(hh.land_area or 0),
+        "contract_area": float(hh.contract_area or 0),
         "status": hh.status,
         "address": hh.address,
         "remark": hh.remark,
@@ -1400,7 +1469,7 @@ def undo_event(household_id: int, event_id: int,
     elif ev.event_type == "LAND_CHANGE":
         # 恢复土地面积
         if before and "land_area" in before:
-            hh.land_area = Decimal(str(before["land_area"]))
+            hh.contract_area = Decimal(str(before["land_area"]))
 
     elif ev.event_type == "STATUS_CHANGE":
         # 恢复家庭户状态
@@ -1512,7 +1581,7 @@ def get_snapshot_at_date(
                     "snapshot": {
                         "household_name": snap.get("household_name", hh.household_name),
                         "household_code": snap.get("household_code", hh.household_code),
-                        "land_area": snap.get("land_area", float(hh.land_area or 0)),
+                        "contract_area": snap.get("contract_area", float(hh.contract_area or 0)),
                         "status": snap.get("status", hh.status),
                         "address": snap.get("address", hh.address),
                         "remark": snap.get("remark", hh.remark),
@@ -1558,7 +1627,7 @@ def get_snapshot_at_date(
     if snapshot_data:
         household_name = snapshot_data.get("household_name", hh.household_name)
         household_code = snapshot_data.get("household_code", hh.household_code)
-        contracted_area = snapshot_data.get("land_area", float(hh.land_area or 0))
+        contracted_area = snapshot_data.get("contract_area", float(hh.contract_area or 0))
         status = snapshot_data.get("status", hh.status)
         address = snapshot_data.get("address", hh.address)
         remark = snapshot_data.get("remark", hh.remark)
@@ -1571,7 +1640,7 @@ def get_snapshot_at_date(
         # 无快照，返回当前状态
         household_name = hh.household_name
         household_code = hh.household_code
-        contracted_area = float(hh.land_area or 0)
+        contracted_area = float(hh.contract_area or 0)
         status = hh.status
         address = hh.address
         remark = hh.remark
@@ -1614,7 +1683,7 @@ def get_snapshot_at_date(
         "snapshot": {
             "household_name": household_name,
             "household_code": household_code,
-            "land_area": contracted_area,
+            "contract_area": contracted_area,
             "status": status,
             "address": address,
             "remark": remark,
@@ -1662,7 +1731,7 @@ def get_snapshot_by_event(
         if snapshot_data:
             household_name = snapshot_data.get("household_name", hh.household_name)
             household_code = snapshot_data.get("household_code", hh.household_code)
-            contracted_area = snapshot_data.get("land_area", float(hh.land_area or 0))
+            contracted_area = snapshot_data.get("contract_area", float(hh.contract_area or 0))
             status = snapshot_data.get("status", hh.status)
             address = snapshot_data.get("address", hh.address)
             remark = snapshot_data.get("remark", hh.remark)
@@ -1674,7 +1743,7 @@ def get_snapshot_by_event(
         else:
             household_name = hh.household_name
             household_code = hh.household_code
-            contracted_area = float(hh.land_area or 0)
+            contracted_area = float(hh.contract_area or 0)
             status = hh.status
             address = hh.address
             remark = hh.remark
@@ -1703,7 +1772,7 @@ def get_snapshot_by_event(
             "snapshot": {
                 "household_name": household_name,
                 "household_code": household_code,
-                "land_area": contracted_area,
+                "contract_area": contracted_area,
                 "status": status,
                 "address": address,
                 "remark": remark,
@@ -1740,7 +1809,7 @@ def get_snapshot_by_event(
     if snapshot_data:
         household_name = snapshot_data.get("household_name", hh.household_name)
         household_code = snapshot_data.get("household_code", hh.household_code)
-        contracted_area = snapshot_data.get("land_area", float(hh.land_area or 0))
+        contracted_area = snapshot_data.get("contract_area", float(hh.contract_area or 0))
         status = snapshot_data.get("status", hh.status)
         address = snapshot_data.get("address", hh.address)
         remark = snapshot_data.get("remark", hh.remark)
@@ -1753,7 +1822,7 @@ def get_snapshot_by_event(
         # 无快照，返回当前状态
         household_name = hh.household_name
         household_code = hh.household_code
-        contracted_area = float(hh.land_area or 0)
+        contracted_area = float(hh.contract_area or 0)
         status = hh.status
         address = hh.address
         remark = hh.remark
@@ -1784,7 +1853,7 @@ def get_snapshot_by_event(
         "snapshot": {
             "household_name": household_name,
             "household_code": household_code,
-            "land_area": contracted_area,
+            "contract_area": contracted_area,
             "status": status,
             "address": address,
             "remark": remark,
@@ -1972,7 +2041,7 @@ def get_history_snapshot(
     snapshot_members.sort(key=lambda x: (-x.get("is_head", 0), x.get("id", 0)))
 
     # 6. 回溯土地面积
-    contracted_area = float(hh.land_area or 0)
+    contracted_area = float(hh.contract_area or 0)
     for ev in all_events:
         if ev.event_type == "LAND_CHANGE" and ev.event_year > year:
             try:
@@ -2079,7 +2148,7 @@ def split_household(household_id: int, data: dict, db: Session = Depends(get_db)
     # 记录分户前快照
     before_snap = {
         "household_name": hh.household_name,
-        "land_area": float(hh.land_area or 0),
+        "contract_area": float(hh.contract_area or 0),
         "members": [{"id": m.id, "real_name": m.real_name, "is_head": 1 if hh.head_farmer_id == m.id else 0} for m in
                     db.query(FarmerProfile).filter(FarmerProfile.household_id == household_id).all()]
     }
@@ -2110,17 +2179,17 @@ def split_household(household_id: int, data: dict, db: Session = Depends(get_db)
 
     # 更新原户面积
     if data.get("origin_land_area") is not None:
-        hh.land_area = Decimal(str(data["origin_land_area"]))
+        hh.contract_area = Decimal(str(data["origin_land_area"]))
 
     # 分户后快照
     after_snap = {
         "original_hh": {
             "id": hh.id, "household_name": hh.household_name,
-            "land_area": float(hh.land_area or 0),
+            "contract_area": float(hh.contract_area or 0),
         },
         "new_hh": {
             "id": new_hh.id, "household_name": new_hh.household_name,
-            "household_code": new_code, "land_area": float(new_hh.land_area or 0),
+            "household_code": new_code, "contract_area": float(new_hh.contract_area or 0),
             "head": new_head.real_name if new_head else None,
         }
     }

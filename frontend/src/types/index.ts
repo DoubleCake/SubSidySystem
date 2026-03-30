@@ -19,7 +19,7 @@ export interface FarmerOut {
   relation: string | null
   farmer_status: number
   village_full_name: string
-  land_area: string | null
+  contract_area: string | null
   address: string | null
   remark: string | null
   created_at: string | null
@@ -41,7 +41,7 @@ export interface FarmerCreate {
   group_no?: number
   group_no_str?: string
   address?: string
-  land_area?: number
+  contract_area?: number
   farmer_status: number
   remark?: string
 }
@@ -50,7 +50,7 @@ export interface FarmerDetail {
   id: number; real_name: string; gender: number; farmer_status: number
   is_head: number; relation: string | null
   id_card_masked: string; phone_masked: string | null; bank_card_masked: string | null
-  bank_name: string | null; village_full_name: string; land_area: string | null
+  bank_name: string | null; village_full_name: string; contract_area: string | null
   address: string | null; remark: string | null; created_at: string | null
   household_id: number; birth_date?: string
   id_card?: string; phone?: string; bank_card?: string
@@ -337,7 +337,7 @@ export interface SnapshotAtResponse {
   target_date: string
   snapshot: {
     household_name: string; household_code: string
-    land_area: number; status: number
+    contract_area: number; status: number
     address: string | null; remark: string | null
     head_id: number | null
     members: SnapshotMember[]
@@ -366,7 +366,7 @@ export interface HouseholdCreate {
   village_id?: number
   group_no?: number
   address?: string
-  land_area?: number
+  contract_area?: number
   remark?: string
 }
 
@@ -408,7 +408,7 @@ export interface HouseholdBuildRow {
   real_name?: string
   is_head?: number
   relation?: string
-  land_area?: number
+  contract_area?: number
 }
 
 // ── 预检结果 ──
@@ -438,7 +438,7 @@ export interface CheckResult {
   gender_mismatch: Array<{ row: number; name: string; id_card: string; village: string; group: string; excel_gender: string; id_card_gender: string; error: string }>
   error_library_hits: Array<{ row: number; name: string; id_card: string; village: string; group: string; error_type: string; error_reason: string; source: string }>
   area_exceeds: Array<{ row: number; name: string; id_card: string; village: string; group: string; apply_area: number; contract_area: number; trust_area: number; no_subsidy_area: number; db_contract_area: number }>
-  area_missing: Array<{ row: number; name: string; id_card: string; village: string; group: string; land_area: number; error: string }>
+  area_missing: Array<{ row: number; name: string; id_card: string; village: string; group: string; contract_area: number; error: string }>
   age_anomaly: Array<{ row: number; name: string; id_card: string; village: string; group: string; age: number; birth_year: number; error: string }>
   deceased_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
   household_duplicates: Array<{ row: number; name: string; id_card: string; household_id: number; other_members: string[]; error: string }>

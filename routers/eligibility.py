@@ -160,7 +160,7 @@ def check_eligibility(payload: dict, db: Session = Depends(get_db)):
 
             # 3. 承包面积检查
             if rule.require_min_area is not None and hh:
-                contracted = float(hh.land_area or 0)
+                contracted = float(hh.contract_area or 0)
                 check_area = float(apply_area or contracted)
                 if check_area < float(rule.require_min_area):
                     issues.append(f"【{rule.rule_name}】申请面积 {check_area} 亩，要求最小 {rule.require_min_area} 亩")
@@ -195,8 +195,8 @@ def check_eligibility(payload: dict, db: Session = Depends(get_db)):
             warns.append(f"本年度已有申请记录（id={dup[0]}），导入将跳过")
 
         # 面积超领检查（按季节分组）
-        if apply_area and apply_area > 0 and hh and hh.land_area:
-            contracted = float(hh.land_area)
+        if apply_area and apply_area > 0 and hh and hh.contract_area:
+            contracted = float(hh.contract_area)
             season = st.season if st else "全年单补"
 
             if season == "全年单补":
