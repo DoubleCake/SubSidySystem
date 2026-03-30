@@ -149,7 +149,8 @@ export default function FarmersPage() {
   // ── 户详情 ──
   const [detail, setDetail] = useState<HHDetail | null>(null)
   const detailYear = new Date().getFullYear()
-  const [detailTab, setDetailTab] = useState<'members' | 'area' | 'subsidy'>('members')
+  const [detailTab, setDetailTab] = useState<'members' | 'subsidy'>('members')
+  const [areaYear, setAreaYear] = useState(detailYear)
   const [events, setEvents] = useState<HHEvent[]>([])
 
   // ── 历史快照 ──
@@ -1114,8 +1115,7 @@ export default function FarmersPage() {
         <div className="flex border-b border-stone-200 bg-stone-50 items-center">
           {([
             { id: 'members', label: `👥 成员 (${displayMembers.length})` },
-            { id: 'area', label: '📐 面积' },
-            { id: 'subsidy', label: `💰 补贴 (${hh.app_summary.length})` },
+            { id: 'subsidy', label: `💰 补贴记录 (${hh.app_summary.length})` },
           ] as { id: typeof detailTab; label: string }[]).map(t => (
             <button key={t.id} onClick={() => setDetailTab(t.id)}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
@@ -1177,126 +1177,7 @@ export default function FarmersPage() {
             </div>
           )}
 
-          {/* 面积 */}
-          {detailTab === 'area' && areaUsage && (
-            <div className="p-4">
-              {/* 流转信息提示 */}
-              {(Number(areaUsage.trust_out_area ?? 0) > 0 || Number(areaUsage.trust_in_area ?? 0) > 0) && (
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-4 text-xs text-blue-700">
-                  流出 <span className="font-mono font-bold">{areaUsage.trust_out_area?.toFixed(2) ?? 0}</span> 亩
-                  · 流入 <span className="font-mono font-bold">{areaUsage.trust_in_area?.toFixed(2) ?? 0}</span> 亩
-                  · 可耕种 = 承包 - 流出 + 流入
-                  = <span className="font-mono font-bold">{areaUsage.cultivable_area?.toFixed(2) ?? areaUsage.contracted_area}</span> 亩
-                </div>
-              )}
-
-              {/* 承包面积总览 */}
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 text-center shadow-sm">
-                  <div className="text-lg font-bold font-mono text-stone-700">{areaUsage.contracted_area} 亩</div>
-                  <div className="text-xs text-stone-400 mt-1">承包面积</div>
-                </div>
-                <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 text-center shadow-sm">
-                  <div className={`text-lg font-bold font-mono ${areaUsage.is_overdrawn ? 'text-red-500' : 'text-emerald-600'}`}>
-                    {areaUsage.cultivable_area !== undefined ? `${areaUsage.cultivable_area.toFixed(2)}` : areaUsage.contracted_area} 亩
-                  </div>
-                  <div className="text-xs text-stone-400 mt-1">可耕种面积</div>
-                </div>
-              </div>
-
-              {/* 按季节分组展示 */}
-              {areaUsage.season_breakdown ? (
-                <div className="space-y-4">
-                  {Object.entries(areaUsage.season_breakdown).map(([season, usage]) => {
-                    const pct = areaUsage.contracted_area > 0
-                      ? Math.round(usage.used_area / areaUsage.contracted_area * 100)
-                      : 0
-                    return (
-                      <div key={season} className="border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-                        {/* 季节标题栏 */}
-                        <div className={`flex items-center justify-between px-3 py-2 ${usage.is_overdrawn ? 'bg-red-50' : 'bg-stone-50'}`}>
-                          <div className="flex items-center gap-2">
-                            <span className={`text-sm font-bold ${usage.is_overdrawn ? 'text-red-600' : 'text-stone-700'}`}>
-                              {season}
-                            </span>
-                            {usage.is_overdrawn && (
-                              <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">超领 {usage.overdraw_amount.toFixed(2)} 亩</span>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <span className={`text-sm font-mono font-bold ${usage.is_overdrawn ? 'text-red-500' : 'text-emerald-600'}`}>
-                              {usage.used_area.toFixed(2)} 亩
-                            </span>
-                            <span className="text-xs text-stone-400"> / {areaUsage.contracted_area} 亩</span>
-                          </div>
-                        </div>
-
-                        {/* 季节进度条 */}
-                        <div className="px-3 pt-1.5 pb-2">
-                          <div className="bg-stone-100 rounded-full h-2.5 overflow-hidden mb-1.5">
-                            <div
-                              className={`h-full rounded-full transition-all ${usage.is_overdrawn ? 'bg-red-400' : 'bg-emerald-400'}`}
-                              style={{ width: `${Math.min(100, pct)}%` }}
-                            />
-                          </div>
-                          <div className="flex justify-between text-xs text-stone-400">
-                            <span>剩余 {Math.max(0, usage.remaining_area).toFixed(2)} 亩</span>
-                            <span>{pct}%</span>
-                          </div>
-                        </div>
-
-                        {/* 季节内补贴明细 */}
-                        {usage.subsidies?.length > 0 && (
-                          <div className="border-t border-stone-100">
-                            {usage.subsidies.map((s: { subsidy_name: string; apply_year: number; used_area: number }, i: number) => (
-                              <div key={i} className="flex justify-between items-center px-3 py-1.5 border-b border-stone-50 last:border-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-stone-400">{s.apply_year}</span>
-                                  <span className="text-sm text-stone-600">{s.subsidy_name}</span>
-                                </div>
-                                <span className="text-sm font-mono text-amber-600">{s.used_area.toFixed(2)} 亩</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                /* 降级：旧接口无 season_breakdown 时显示原有结构 */
-                <>
-                  {areaUsage.contracted_area > 0 && (
-                    <div className="mb-4">
-                      <div className="flex justify-between text-xs text-stone-400 mb-1.5">
-                        <span>面积使用率</span>
-                        <span>{Math.round(areaUsage.used_area / (areaUsage.cultivable_area ?? areaUsage.contracted_area) * 100)}%</span>
-                      </div>
-                      <div className="bg-stone-100 rounded-full h-3 overflow-hidden">
-                        <div className={`h-full rounded-full transition-all ${areaUsage.is_overdrawn ? 'bg-red-500' : 'bg-emerald-500'}`}
-                          style={{ width: `${Math.min(100, Math.round(areaUsage.used_area / (areaUsage.cultivable_area ?? areaUsage.contracted_area) * 100))}%` }} />
-                      </div>
-                    </div>
-                  )}
-                  {areaUsage.subsidy_breakdown?.length > 0 && (
-                    <div>
-                      <p className="text-xs text-stone-400 mb-2">各项补贴占用明细：</p>
-                      <div className="space-y-2">
-                        {areaUsage.subsidy_breakdown.map((b, i) => (
-                          <div key={i} className="flex justify-between items-center bg-white border border-stone-200 rounded-lg px-3 py-2 shadow-sm">
-                            <span className="text-sm">{b.subsidy_name}</span>
-                            <span className="text-sm font-mono font-bold text-amber-600">{b.apply_area.toFixed(2)}亩</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* 补贴 */}
+          {/* 补贴记录 */}
           {detailTab === 'subsidy' && (
             <div>
               {Object.keys(appsByYear).length === 0 && <div className="py-10 text-center text-stone-300 text-sm">暂无补贴记录</div>}
@@ -1626,6 +1507,8 @@ export default function FarmersPage() {
                 detail={detail}
                 detailTab={detailTab}
                 setDetailTab={setDetailTab}
+                areaYear={areaYear}
+                setAreaYear={setAreaYear}
                 historyDate={getHistoryDateByEventId(historyEventId)}
                 historyEventId={historyEventId}
                 historyDates={historyDates}
@@ -1992,6 +1875,8 @@ function HouseholdDetailContent({
   detail,
   detailTab,
   setDetailTab,
+  areaYear,
+  setAreaYear,
   historyDate,
   historyEventId,
   historyDates,
@@ -2009,8 +1894,10 @@ function HouseholdDetailContent({
   canSplit,
 }: {
   detail: HHDetail
-  detailTab: 'members' | 'area' | 'subsidy'
-  setDetailTab: (t: 'members' | 'area' | 'subsidy') => void
+  detailTab: 'members' | 'subsidy'
+  setDetailTab: (t: 'members' | 'subsidy') => void
+  areaYear: number
+  setAreaYear: (y: number) => void
   historyDate: string | null
   historyEventId: number | null
   historyDates: HistoryDateEvent[]
@@ -2177,26 +2064,56 @@ function HouseholdDetailContent({
         {/* 补贴面积使用情况 - 大春小春等直接展示 */}
         {areaUsage && areaUsage.season_breakdown && Object.keys(areaUsage.season_breakdown).length > 0 && (
           <div className="bg-white border-b border-stone-200 px-4 py-3">
-            <div className="text-xs text-stone-500 mb-2 font-medium">📊 补贴面积使用情况</div>
+            {/* 年份选择器 - 从 app_summary 获取年份 */}
+            {(() => {
+              const allYears = [...new Set(
+                (detail.app_summary || []).map((a: { apply_year: number }) => a.apply_year)
+              )].sort((a, b) => b - a)
+              return (
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs text-stone-500 font-medium">📊 补贴面积使用情况</span>
+                  {allYears.length > 0 && (
+                    <select
+                      value={areaYear}
+                      onChange={e => setAreaYear(Number(e.target.value))}
+                      className="border border-stone-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-emerald-400 bg-white"
+                    >
+                      <option value={0}>全部年份</option>
+                      {allYears.map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  )}
+                  {areaYear !== 0 && (
+                    <span className="text-xs text-emerald-600">已筛选至 {areaYear} 年度</span>
+                  )}
+                </div>
+              )
+            })()}
             <div className="space-y-2">
               {Object.entries(areaUsage.season_breakdown).map(([season, usage]) => {
-                const pct = areaUsage.contracted_area > 0 ? Math.round(usage.used_area / areaUsage.contracted_area * 100) : 0
+                const filteredSubsidies = areaYear === 0
+                  ? usage.subsidies
+                  : (usage.subsidies || []).filter((s: { apply_year: number }) => s.apply_year === areaYear)
+                const yearUsedArea = filteredSubsidies.reduce((sum: number, s: { used_area: number }) => sum + s.used_area, 0)
+                const pct = areaUsage.contracted_area > 0 ? Math.round(yearUsedArea / areaUsage.contracted_area * 100) : 0
+                const isOverdrawn = yearUsedArea > areaUsage.contracted_area
                 return (
                   <div key={season} className="border border-stone-200 rounded-lg overflow-hidden">
-                    <div className={"flex items-center justify-between px-3 py-2 " + (usage.is_overdrawn ? 'bg-red-50' : 'bg-stone-50')}>
+                    <div className={"flex items-center justify-between px-3 py-2 " + (isOverdrawn ? 'bg-red-50' : 'bg-stone-50')}>
                       <div className="flex items-center gap-2">
-                        <span className={"text-sm font-bold " + (usage.is_overdrawn ? 'text-red-600' : 'text-stone-700')}>{season}</span>
-                        {usage.is_overdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">超 {usage.overdraw_amount.toFixed(2)} 亩</span>}
+                        <span className={"text-sm font-bold " + (isOverdrawn ? 'text-red-600' : 'text-stone-700')}>{season}</span>
+                        {isOverdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">超 {(yearUsedArea - areaUsage.contracted_area).toFixed(2)} 亩</span>}
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className={"text-sm font-mono font-bold " + (usage.is_overdrawn ? 'text-red-500' : 'text-emerald-600')}>{usage.used_area.toFixed(2)} 亩</span>
+                        <span className={"text-sm font-mono font-bold " + (isOverdrawn ? 'text-red-500' : 'text-emerald-600')}>{yearUsedArea.toFixed(2)} 亩</span>
                         <span className="text-xs text-stone-400">/ {areaUsage.contracted_area} 亩</span>
                         <span className="text-xs text-stone-500">({pct}%)</span>
                       </div>
                     </div>
                     <div className="px-3 py-1.5 bg-white">
                       <div className="bg-stone-100 rounded-full h-1.5 overflow-hidden">
-                        <div className={"h-full rounded-full " + (usage.is_overdrawn ? 'bg-red-400' : 'bg-emerald-400')} style={{ width: Math.min(100, pct) + "%" }} />
+                        <div className={"h-full rounded-full " + (isOverdrawn ? 'bg-red-400' : 'bg-emerald-400')} style={{ width: Math.min(100, pct) + "%" }} />
                       </div>
                     </div>
                   </div>
@@ -2210,8 +2127,7 @@ function HouseholdDetailContent({
         <div className="flex border-b border-stone-200 bg-stone-50 items-center">
           {([
             { id: 'members', label: `👥 成员 (${displayMembers.length})` },
-            { id: 'area', label: '📐 面积' },
-            { id: 'subsidy', label: `💰 补贴 (${detail.app_summary.length})` },
+            { id: 'subsidy', label: `💰 补贴记录 (${detail.app_summary.length})` },
           ] as { id: typeof detailTab; label: string }[]).map(t => (
             <button key={t.id} onClick={() => setDetailTab(t.id)}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
@@ -2274,126 +2190,7 @@ function HouseholdDetailContent({
           </div>
         )}
 
-        {/* 面积 */}
-        {detailTab === 'area' && areaUsage && (
-          <div className="p-4">
-            {/* 流转信息提示 */}
-            {(Number(areaUsage.trust_out_area ?? 0) > 0 || Number(areaUsage.trust_in_area ?? 0) > 0) && (
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-4 text-xs text-blue-700">
-                流出 <span className="font-mono font-bold">{areaUsage.trust_out_area?.toFixed(2) ?? 0}</span> 亩
-                · 流入 <span className="font-mono font-bold">{areaUsage.trust_in_area?.toFixed(2) ?? 0}</span> 亩
-                · 可耕种 = 承包 - 流出 + 流入
-                = <span className="font-mono font-bold">{areaUsage.cultivable_area?.toFixed(2) ?? areaUsage.contracted_area}</span> 亩
-              </div>
-            )}
-
-            {/* 承包面积总览 */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 text-center shadow-sm">
-                <div className="text-lg font-bold font-mono text-stone-700">{areaUsage.contracted_area} 亩</div>
-                <div className="text-xs text-stone-400 mt-1">承包面积</div>
-              </div>
-              <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 text-center shadow-sm">
-                <div className={`text-lg font-bold font-mono ${areaUsage.is_overdrawn ? 'text-red-500' : 'text-emerald-600'}`}>
-                  {areaUsage.cultivable_area !== undefined ? `${areaUsage.cultivable_area.toFixed(2)}` : areaUsage.contracted_area} 亩
-                </div>
-                <div className="text-xs text-stone-400 mt-1">可耕种面积</div>
-              </div>
-            </div>
-
-            {/* 按季节分组展示 */}
-            {areaUsage.season_breakdown ? (
-              <div className="space-y-4">
-                {Object.entries(areaUsage.season_breakdown).map(([season, usage]) => {
-                  const pct = areaUsage.contracted_area > 0
-                    ? Math.round(usage.used_area / areaUsage.contracted_area * 100)
-                    : 0
-                  return (
-                    <div key={season} className="border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-                      {/* 季节标题栏 */}
-                      <div className={`flex items-center justify-between px-3 py-2 ${usage.is_overdrawn ? 'bg-red-50' : 'bg-stone-50'}`}>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-sm font-bold ${usage.is_overdrawn ? 'text-red-600' : 'text-stone-700'}`}>
-                            {season}
-                          </span>
-                          {usage.is_overdrawn && (
-                            <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">超领 {usage.overdraw_amount.toFixed(2)} 亩</span>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <span className={`text-sm font-mono font-bold ${usage.is_overdrawn ? 'text-red-500' : 'text-emerald-600'}`}>
-                            {usage.used_area.toFixed(2)} 亩
-                          </span>
-                          <span className="text-xs text-stone-400"> / {areaUsage.contracted_area} 亩</span>
-                        </div>
-                      </div>
-
-                      {/* 季节进度条 */}
-                      <div className="px-3 pt-1.5 pb-2">
-                        <div className="bg-stone-100 rounded-full h-2.5 overflow-hidden mb-1.5">
-                          <div
-                            className={`h-full rounded-full transition-all ${usage.is_overdrawn ? 'bg-red-400' : 'bg-emerald-400'}`}
-                            style={{ width: `${Math.min(100, pct)}%` }}
-                          />
-                        </div>
-                        <div className="flex justify-between text-xs text-stone-400">
-                          <span>剩余 {Math.max(0, usage.remaining_area).toFixed(2)} 亩</span>
-                          <span>{pct}%</span>
-                        </div>
-                      </div>
-
-                      {/* 季节内补贴明细 */}
-                      {usage.subsidies?.length > 0 && (
-                        <div className="border-t border-stone-100">
-                          {usage.subsidies.map((s: { subsidy_name: string; apply_year: number; used_area: number }, i: number) => (
-                            <div key={i} className="flex justify-between items-center px-3 py-1.5 border-b border-stone-50 last:border-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-stone-400">{s.apply_year}</span>
-                                <span className="text-sm text-stone-600">{s.subsidy_name}</span>
-                              </div>
-                              <span className="text-sm font-mono text-amber-600">{s.used_area.toFixed(2)} 亩</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              /* 降级：旧接口无 season_breakdown 时显示原有结构 */
-              <>
-                {areaUsage.contracted_area > 0 && (
-                  <div className="mb-4">
-                    <div className="flex justify-between text-xs text-stone-400 mb-1.5">
-                      <span>面积使用率</span>
-                      <span>{Math.round(areaUsage.used_area / (areaUsage.cultivable_area ?? areaUsage.contracted_area) * 100)}%</span>
-                    </div>
-                    <div className="bg-stone-100 rounded-full h-3 overflow-hidden">
-                      <div className={`h-full rounded-full transition-all ${areaUsage.is_overdrawn ? 'bg-red-500' : 'bg-emerald-500'}`}
-                        style={{ width: `${Math.min(100, Math.round(areaUsage.used_area / (areaUsage.cultivable_area ?? areaUsage.contracted_area) * 100))}%` }} />
-                    </div>
-                  </div>
-                )}
-                {areaUsage.subsidy_breakdown?.length > 0 && (
-                  <div>
-                    <p className="text-xs text-stone-400 mb-2">各项补贴占用明细：</p>
-                    <div className="space-y-2">
-                      {areaUsage.subsidy_breakdown.map((b, i) => (
-                        <div key={i} className="flex justify-between items-center bg-white border border-stone-200 rounded-lg px-3 py-2 shadow-sm">
-                          <span className="text-sm">{b.subsidy_name}</span>
-                          <span className="text-sm font-mono font-bold text-amber-600">{b.apply_area.toFixed(2)}亩</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        {/* 补贴 */}
+        {/* 补贴记录 */}
         {detailTab === 'subsidy' && (
           <div>
             {Object.keys(appsByYear).length === 0 && <div className="py-10 text-center text-stone-300 text-sm">暂无补贴记录</div>}

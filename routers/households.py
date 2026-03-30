@@ -16,7 +16,7 @@ from typing import Optional
 from decimal import Decimal
 
 from database import get_db
-from models import FamilyHousehold, FarmerProfile, Village, SubsidyApplication, SubsidyType
+from models import FamilyHousehold, FarmerProfile, Village, SubsidyApplication, SubsidyType, SubsidyPayment, HouseholdAreaUsageCache
 from utils import format_group_no
 
 router = APIRouter(prefix="/api/households", tags=["家庭户管理"])
@@ -155,7 +155,126 @@ def get_contract_area_at_year(household_id: int, db: Session, year: int) -> floa
 
 
 # ─────────────────────────────────────
-#  核心辅助：计算家庭户面积占用情况
+#  核心辅助：重新计算并更新家庭户面积缓存
+# ─────────────────────────────────────
+
+def recalc_household_area_cache(household_id: int, db: Session) -> None:
+    """
+    重新计算指定家庭户的面积占用缓存。
+    规则：
+    1. 申报数据：pay_status in [0,1,2]（待审核、审核通过、已发放）的 apply_area
+    2. 发放数据：直接从 subsidy_payment 表取 apply_area
+    3. 最终使用面积 = 发放面积 if 发放面积 > 0 else 申报面积
+    """
+    hh = db.query(FamilyHousehold).filter(FamilyHousehold.id == household_id).first()
+    if not hh:
+        return
+
+    # 获取所有成员ID
+    member_ids = [m.id for m in db.query(FarmerProfile.id)
+                  .filter(FarmerProfile.household_id == household_id).all()]
+    if not member_ids:
+        # 清除旧缓存
+        db.query(HouseholdAreaUsageCache).filter(
+            HouseholdAreaUsageCache.household_id == household_id
+        ).delete()
+        db.commit()
+        return
+
+    SEASON_ORDER = ["大春", "小春", "全年单补", "临时"]
+
+    # 1. 从申报表计算各年/季节的申报面积
+    app_query = (
+        db.query(
+            SubsidyType.season,
+            SubsidyApplication.apply_year,
+            func.sum(SubsidyApplication.apply_area).label("total_area"),
+        )
+        .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
+        .filter(
+            SubsidyApplication.farmer_id.in_(member_ids),
+            SubsidyType.calc_mode == "per_mu",
+            SubsidyType.count_toward_area == 1,
+            SubsidyApplication.apply_area.isnot(None),
+            SubsidyApplication.pay_status.in_([0, 1, 2]),
+        )
+        .group_by(SubsidyType.season, SubsidyApplication.apply_year)
+        .all()
+    )
+    app_data: dict[tuple, float] = {}
+    all_years = set()
+    for r in app_query:
+        season = r.season or "全年单补"
+        year = r.apply_year
+        all_years.add(year)
+        app_data[(year, season)] = float(r.total_area or 0)
+
+    # 2. 从发放表计算各年/季节的发放面积
+    pay_query = (
+        db.query(
+            SubsidyType.season,
+            SubsidyPayment.payment_year,
+            func.sum(SubsidyPayment.apply_area).label("total_area"),
+        )
+        .join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
+        .filter(
+            SubsidyPayment.farmer_id.in_(member_ids),
+            SubsidyType.calc_mode == "per_mu",
+            SubsidyType.count_toward_area == 1,
+            SubsidyPayment.apply_area.isnot(None),
+        )
+        .group_by(SubsidyType.season, SubsidyPayment.payment_year)
+        .all()
+    )
+    pay_data: dict[tuple, float] = {}
+    for r in pay_query:
+        season = r.season or "全年单补"
+        year = r.payment_year
+        all_years.add(year)
+        pay_data[(year, season)] = float(r.total_area or 0)
+
+    # 3. 更新缓存表
+    for year in all_years:
+        for season in SEASON_ORDER:
+            apply_area = app_data.get((year, season), 0.0)
+            payment_area = pay_data.get((year, season), 0.0)
+            # 最终使用面积：优先用发放面积，没有则用申报面积
+            used_area = payment_area if payment_area > 0 else apply_area
+
+            existing = db.query(HouseholdAreaUsageCache).filter(
+                HouseholdAreaUsageCache.household_id == household_id,
+                HouseholdAreaUsageCache.year == year,
+                HouseholdAreaUsageCache.season == season,
+            ).first()
+
+            if existing:
+                existing.apply_area = Decimal(str(apply_area))
+                existing.payment_area = Decimal(str(payment_area))
+                existing.used_area = Decimal(str(used_area))
+            else:
+                new_cache = HouseholdAreaUsageCache(
+                    household_id=household_id,
+                    year=year,
+                    season=season,
+                    apply_area=Decimal(str(apply_area)),
+                    payment_area=Decimal(str(payment_area)),
+                    used_area=Decimal(str(used_area)),
+                )
+                db.add(new_cache)
+
+    db.commit()
+
+
+def recalc_all_household_caches(db: Session) -> int:
+    """重新计算所有家庭户的面积缓存，返回处理的数量"""
+    household_ids = [hh.id for hh in db.query(FamilyHousehold.id).all()]
+    for hid in household_ids:
+        recalc_household_area_cache(hid, db)
+    return len(household_ids)
+
+
+# ─────────────────────────────────────
+#  核心辅助：计算家庭户面积占用情况（从缓存读取）
 # ─────────────────────────────────────
 
 def calc_household_area_usage(
@@ -166,11 +285,10 @@ def calc_household_area_usage(
     """
     计算一个家庭户的面积使用情况（含流转）：
     - contracted_area:  承包面积（指定年份的实际面积，考虑历史变更）
-                         如果该年份有面积变更，使用变更前的值
     - trust_out_area:   流出面积（该年度流给他人耕种的）
     - trust_in_area:    流入面积（该年度从他人流入的代耕/流转）
     - cultivable_area:  实际可耕种面积 = 承包 - 流出 + 流入
-    - season_breakdown: 按季节分组的面积占用明细
+    - season_breakdown: 按季节分组的面积占用明细（从缓存读取）
     """
     hh = db.query(FamilyHousehold).filter(FamilyHousehold.id == household_id).first()
     if not hh:
@@ -183,8 +301,7 @@ def calc_household_area_usage(
     trust_out = 0.0
     trust_in  = 0.0
     if year:
-        from sqlalchemy import text as _text
-        out_r = db.execute(_text("""
+        out_r = db.execute(text("""
             SELECT COALESCE(SUM(area),0) FROM land_trust
             WHERE owner_household_id=:hid AND trust_year=:yr AND is_active=1
               AND affect_subsidy_calc=1 AND trust_type!='IDLE'
@@ -192,7 +309,7 @@ def calc_household_area_usage(
         """), {"hid": household_id, "yr": year}).scalar()
         trust_out = float(out_r or 0)
 
-        in_r = db.execute(_text("""
+        in_r = db.execute(text("""
             SELECT COALESCE(SUM(area),0) FROM land_trust
             WHERE operator_household_id=:hid AND trust_year=:yr AND is_active=1
               AND affect_subsidy_calc=1
@@ -201,71 +318,31 @@ def calc_household_area_usage(
 
     cultivable = max(0.0, contracted - trust_out + trust_in)
 
-    member_ids = [
-        f.id for f in db.query(FarmerProfile.id)
-                         .filter(FarmerProfile.household_id == household_id).all()
-    ]
-    if not member_ids:
-        return {
-            "contracted_area": contracted,
-            "trust_out_area": trust_out,
-            "trust_in_area": trust_in,
-            "cultivable_area": cultivable,
-            "season_breakdown": {},
-        }
-
-    # 查询按亩计算且计入面积的补贴，按季节+年度+补贴名分组
-    query = (
-        db.query(
-            SubsidyType.subsidy_name,
-            SubsidyType.season,
-            SubsidyApplication.apply_year,
-            func.sum(SubsidyApplication.apply_area).label("total_area"),
-            func.sum(SubsidyApplication.actual_amount).label("total_amount"),
-            func.count(SubsidyApplication.id).label("app_count"),
-        )
-        .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
-        .filter(
-            SubsidyApplication.farmer_id.in_(member_ids),
-            SubsidyType.calc_mode == "per_mu",
-            SubsidyType.count_toward_area == 1,
-            SubsidyApplication.apply_area.isnot(None),
-            SubsidyApplication.pay_status.in_([0, 1, 2]),
-        )
-    )
-    if year:
-        query = query.filter(SubsidyApplication.apply_year == year)
-
-    results = query.group_by(
-        SubsidyType.subsidy_name, SubsidyType.season, SubsidyApplication.apply_year
-    ).all()
-
-    # 季节顺序
+    # ── 从缓存读取季节面积数据 ──
     SEASON_ORDER = ["大春", "小春", "全年单补", "临时"]
 
-    # 初始化季节结构
-    season_data: dict[str, dict] = {s: {"used_area": 0.0, "subsidies": []} for s in SEASON_ORDER}
+    cache_query = db.query(HouseholdAreaUsageCache).filter(
+        HouseholdAreaUsageCache.household_id == household_id
+    )
+    if year:
+        cache_query = cache_query.filter(HouseholdAreaUsageCache.year == year)
 
-    # 按年度+季节汇总
+    cache_records = cache_query.all()
+
+    # 按季节分组
+    season_data: dict[str, dict] = {s: {"used_area": 0.0, "subsidies": []} for s in SEASON_ORDER}
     year_totals: dict[int, dict[str, float]] = {}
 
-    for r in results:
-        area = float(r.total_area or 0)
-        season = r.season or "全年单补"
-        y = r.apply_year
+    for rec in cache_records:
+        season = rec.season
+        y = rec.year
+        used = float(rec.used_area)
 
         if y not in year_totals:
             year_totals[y] = {s: 0.0 for s in SEASON_ORDER}
-        year_totals[y][season] = year_totals[y].get(season, 0.0) + area
+        year_totals[y][season] = year_totals[y].get(season, 0.0) + used
 
-        season_data[season]["used_area"] += area
-        season_data[season]["subsidies"].append({
-            "subsidy_name": r.subsidy_name,
-            "apply_year": y,
-            "used_area": round(area, 2),
-            "total_amount": float(r.total_amount or 0),
-            "app_count": r.app_count,
-        })
+        season_data[season]["used_area"] += used
 
     # 构建 season_breakdown
     season_breakdown: dict[str, dict] = {}
@@ -278,7 +355,7 @@ def calc_household_area_usage(
             "remaining_area": remaining,
             "is_overdrawn": is_overdrawn,
             "overdraw_amount": round(max(0, used - cultivable), 2),
-            "subsidies": sorted(season_data[season]["subsidies"], key=lambda x: -x["apply_year"]),
+            "subsidies": [],  # 缓存不存储明细，仅存储汇总
         }
 
     # 兼容旧字段：取指定年份或最近年份的总额
@@ -298,12 +375,10 @@ def calc_household_area_usage(
         "trust_out_area": trust_out,
         "trust_in_area": trust_in,
         "cultivable_area": round(cultivable, 2),
-        # 兼容旧字段（按指定年份的总量，非季节分组）
         "used_area": total_used,
         "remaining_area": round(remaining, 2),
         "is_overdrawn": is_overdrawn_all,
         "overdraw_amount": round(max(0, total_used - contracted), 2),
-        # 新字段：按季节分组
         "season_breakdown": season_breakdown,
         "year_totals": {
             str(y): {s: round(v, 2) for s, v in seasons.items()}
@@ -1025,6 +1100,29 @@ def remove_member(
 
     db.commit()
     return {"message": msg}
+
+
+@router.post("/recalc-cache")
+def recalc_all_caches(db: Session = Depends(get_db)):
+    """
+    重新计算所有家庭户的面积占用缓存。
+    在补贴申报或发放数据导入后调用此接口刷新缓存。
+    """
+    count = recalc_all_household_caches(db)
+    return {"message": f"已重新计算 {count} 个家庭户的面积缓存"}
+
+
+@router.post("/{household_id}/recalc-cache")
+def recalc_single_household_cache(household_id: int, db: Session = Depends(get_db)):
+    """
+    重新计算指定家庭户的面积占用缓存。
+    在该家庭户的补贴数据发生变化后调用。
+    """
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh:
+        raise HTTPException(404, "家庭户不存在")
+    recalc_household_area_cache(household_id, db)
+    return {"message": f"已重新计算家庭户 {household_id} 的面积缓存"}
 
 
 @router.get("/{household_id}/area-by-year")

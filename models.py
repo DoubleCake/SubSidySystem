@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, Integer, String, SmallInteger, Date,
-    DateTime, Text, DECIMAL, ForeignKey, UniqueConstraint, Index
+    DateTime, Text, DECIMAL, Numeric, ForeignKey, UniqueConstraint, Index
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -51,6 +51,7 @@ class FamilyHousehold(Base):
     village = relationship("Village", back_populates="households")
     members = relationship("FarmerProfile", back_populates="household",
                           foreign_keys="FarmerProfile.household_id")
+    area_cache = relationship("HouseholdAreaUsageCache", back_populates="household")
 
 
 class FarmerProfile(Base):
@@ -180,6 +181,30 @@ class SubsidyPayment(Base):
     # 关联
     farmer       = relationship("FarmerProfile", back_populates="payments")
     subsidy_type = relationship("SubsidyType", back_populates="payments")
+
+
+class HouseholdAreaUsageCache(Base):
+    """家庭户面积占用缓存表 - 预计算各家庭户每年每季节的补贴面积占用"""
+    __tablename__ = "household_area_usage_cache"
+
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    household_id  = Column(Integer, ForeignKey("family_household.id"), nullable=False)
+    year          = Column(SmallInteger, nullable=False)
+    season        = Column(String(20), nullable=False)  # 大春/小春/全年单补/临时
+    apply_area    = Column(Numeric(10, 2), default=0, comment="申报面积汇总")
+    payment_area  = Column(Numeric(10, 2), default=0, comment="发放面积汇总")
+    used_area     = Column(Numeric(10, 2), default=0, comment="最终使用面积(=payment_area if exists else apply_area)")
+    created_at    = Column(DateTime, default=func.now())
+    updated_at    = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("household_id", "year", "season", name="uq_hh_year_season"),
+        Index('ix_hh_area_cache_household', 'household_id'),
+        Index('ix_hh_area_cache_year', 'year'),
+    )
+
+    # 关联
+    household = relationship("FamilyHousehold", back_populates="area_cache")
 
 
 class AuditLog(Base):

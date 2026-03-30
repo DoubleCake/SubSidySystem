@@ -4,7 +4,7 @@ from sqlalchemy import func
 from typing import Optional
 
 from database import get_db
-from models import SubsidyType, SubsidyApplication, SubsidyPayment, FarmerProfile, FamilyHousehold, Village, ErrorLibrary
+from models import SubsidyType, SubsidyApplication, SubsidyPayment, FarmerProfile, FamilyHousehold, Village, ErrorLibrary, HouseholdAreaUsageCache
 from schemas import (
     SubsidyTypeCreate, SubsidyTypeOut,
     ApplicationCreate, ApplicationUpdate, ApplicationOut,
@@ -14,6 +14,109 @@ from schemas import (
 from utils import parse_group_no_to_int, format_group_no
 
 router = APIRouter(prefix="/api/subsidies", tags=["补贴管理"])
+
+
+# ─────────────────────────────────────
+#  批量操作后更新面积缓存
+# ─────────────────────────────────────
+
+def _recalc_household_cache_after_import(db: Session, household_ids: list[int]) -> None:
+    """补贴申报或发放导入后，重新计算相关家庭户的面积缓存"""
+    from sqlalchemy import text
+    SEASON_ORDER = ["大春", "小春", "全年单补", "临时"]
+
+    for household_id in household_ids:
+        hh = db.query(FamilyHousehold).filter(FamilyHousehold.id == household_id).first()
+        if not hh:
+            continue
+
+        member_ids = [m.id for m in db.query(FarmerProfile.id)
+                      .filter(FarmerProfile.household_id == household_id).all()]
+        if not member_ids:
+            db.query(HouseholdAreaUsageCache).filter(
+                HouseholdAreaUsageCache.household_id == household_id
+            ).delete()
+            continue
+
+        # 从申报表计算
+        app_query = (
+            db.query(
+                SubsidyType.season,
+                SubsidyApplication.apply_year,
+                func.sum(SubsidyApplication.apply_area).label("total_area"),
+            )
+            .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
+            .filter(
+                SubsidyApplication.farmer_id.in_(member_ids),
+                SubsidyType.calc_mode == "per_mu",
+                SubsidyType.count_toward_area == 1,
+                SubsidyApplication.apply_area.isnot(None),
+                SubsidyApplication.pay_status.in_([0, 1, 2]),
+            )
+            .group_by(SubsidyType.season, SubsidyApplication.apply_year)
+            .all()
+        )
+        app_data: dict[tuple, float] = {}
+        all_years = set()
+        for r in app_query:
+            season = r.season or "全年单补"
+            year = r.apply_year
+            all_years.add(year)
+            app_data[(year, season)] = float(r.total_area or 0)
+
+        # 从发放表计算
+        pay_query = (
+            db.query(
+                SubsidyType.season,
+                SubsidyPayment.payment_year,
+                func.sum(SubsidyPayment.apply_area).label("total_area"),
+            )
+            .join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
+            .filter(
+                SubsidyPayment.farmer_id.in_(member_ids),
+                SubsidyType.calc_mode == "per_mu",
+                SubsidyType.count_toward_area == 1,
+                SubsidyPayment.apply_area.isnot(None),
+            )
+            .group_by(SubsidyType.season, SubsidyPayment.payment_year)
+            .all()
+        )
+        pay_data: dict[tuple, float] = {}
+        for r in pay_query:
+            season = r.season or "全年单补"
+            year = r.payment_year
+            all_years.add(year)
+            pay_data[(year, season)] = float(r.total_area or 0)
+
+        # 更新缓存
+        for year in all_years:
+            for season in SEASON_ORDER:
+                apply_area = app_data.get((year, season), 0.0)
+                payment_area = pay_data.get((year, season), 0.0)
+                used_area = payment_area if payment_area > 0 else apply_area
+
+                existing = db.query(HouseholdAreaUsageCache).filter(
+                    HouseholdAreaUsageCache.household_id == household_id,
+                    HouseholdAreaUsageCache.year == year,
+                    HouseholdAreaUsageCache.season == season,
+                ).first()
+
+                if existing:
+                    existing.apply_area = apply_area
+                    existing.payment_area = payment_area
+                    existing.used_area = used_area
+                else:
+                    new_cache = HouseholdAreaUsageCache(
+                        household_id=household_id,
+                        year=year,
+                        season=season,
+                        apply_area=apply_area,
+                        payment_area=payment_area,
+                        used_area=used_area,
+                    )
+                    db.add(new_cache)
+
+    db.commit()
 
 
 # ════════════════════════════════
@@ -97,6 +200,7 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
     rows = payload.get("rows", [])
     created, skipped, errors = 0, 0, []
     new_farmers_created = 0
+    affected_households = set()  # 追踪受影响的家庭户
 
     def get_or_create_farmer(id_card: str, real_name: str, village_name: str = "", group_no: str = "") -> FarmerProfile | None:
         """按身份证查找农户，不存在则自动创建（含家庭户）；已存在则检查村组一致性"""
@@ -201,10 +305,14 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
                 bank_card_snapshot=f"****{farmer.bank_card[-4:]}" if farmer and farmer.bank_card else None,
             )
             db.add(app)
+            affected_households.add(farmer.household_id)
             created += 1
         except Exception as e:
             errors.append(str(e))
     db.commit()
+    # 更新相关家庭户的面积缓存
+    if affected_households:
+        _recalc_household_cache_after_import(db, list(affected_households))
     return {"created": created, "skipped": skipped, "errors": errors, "new_farmers": new_farmers_created}
 
 
@@ -1254,6 +1362,7 @@ def batch_import_payments(payload: dict, db: Session = Depends(get_db)):
     """批量导入发放记录"""
     rows = payload.get("rows", [])
     created, skipped, errors = 0, 0, []
+    affected_households = set()  # 追踪受影响的家庭户
 
     for row in rows:
         try:
@@ -1268,6 +1377,7 @@ def batch_import_payments(payload: dict, db: Session = Depends(get_db)):
                 continue
 
             # 如果 farmer_id 为 0 或空，尝试用 id_card 查找农户
+            farmer = None
             if not farmer_id and id_card:
                 farmer = db.query(FarmerProfile).filter(FarmerProfile.id_card == id_card).first()
                 if farmer:
@@ -1275,9 +1385,15 @@ def batch_import_payments(payload: dict, db: Session = Depends(get_db)):
                 else:
                     errors.append(f"{real_name}（{id_card}）：农户不存在，请先在农户管理中添加")
                     continue
-            elif not farmer_id:
+            elif farmer_id:
+                farmer = db.get(FarmerProfile, farmer_id)
+            if not farmer_id or not farmer:
                 errors.append(f"{real_name or '?'}：缺少农户ID或身份证号")
                 continue
+
+            # 追踪受影响的家庭户
+            if farmer.household_id:
+                affected_households.add(farmer.household_id)
 
             # 唯一性检查
             exists = db.query(SubsidyPayment).filter(
@@ -1309,4 +1425,7 @@ def batch_import_payments(payload: dict, db: Session = Depends(get_db)):
             errors.append(str(e))
 
     db.commit()
+    # 更新相关家庭户的面积缓存
+    if affected_households:
+        _recalc_household_cache_after_import(db, list(affected_households))
     return {"created": created, "skipped": skipped, "errors": errors}
