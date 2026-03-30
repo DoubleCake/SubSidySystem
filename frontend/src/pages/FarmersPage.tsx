@@ -1046,10 +1046,11 @@ export default function FarmersPage() {
       overdraw_amount: 0,
       has_trust_data: false,
       subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[],
-      season_breakdown: {} as Record<string, any>
+      season_breakdown: {} as Record<string, any>,
+      year_totals: {} as Record<string, Record<string, number>>
     }
     const areaUsage = historyEventId !== null && snapshotData?.snapshot
-      ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_breakdown: {} as Record<string, any> }
+      ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_breakdown: {} as Record<string, any>, year_totals: {} as Record<string, Record<string, number>> }
       : (hh.area_usage || defaultAreaUsage)
 
     return (
@@ -1931,10 +1932,11 @@ function HouseholdDetailContent({
     overdraw_amount: 0,
     has_trust_data: false,
     subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[],
-    season_breakdown: {} as Record<string, any>
+    season_breakdown: {} as Record<string, any>,
+    year_totals: {} as Record<string, Record<string, number>>
   }
   const areaUsage = historyDate !== null && snapshotData?.snapshot
-    ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_breakdown: {} as Record<string, any> }
+    ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_breakdown: {} as Record<string, any>, year_totals: {} as Record<string, Record<string, number>> }
     : (detail.area_usage || defaultAreaUsage)
 
   return (
@@ -2092,10 +2094,15 @@ function HouseholdDetailContent({
             })()}
             <div className="space-y-2">
               {Object.entries(areaUsage.season_breakdown).map(([season, usage]) => {
-                const filteredSubsidies = areaYear === 0
-                  ? usage.subsidies
-                  : (usage.subsidies || []).filter((s: { apply_year: number }) => s.apply_year === areaYear)
-                const yearUsedArea = filteredSubsidies.reduce((sum: number, s: { used_area: number }) => sum + s.used_area, 0)
+                // 计算该季节在该年度的使用面积
+                let yearUsedArea = 0
+                if (areaYear === 0) {
+                  // 全部年份：使用季节的总使用面积
+                  yearUsedArea = usage.used_area || 0
+                } else {
+                  // 指定年份：从 year_totals 中获取
+                  yearUsedArea = areaUsage.year_totals?.[String(areaYear)]?.[season] || 0
+                }
                 const pct = areaUsage.contracted_area > 0 ? Math.round(yearUsedArea / areaUsage.contracted_area * 100) : 0
                 const isOverdrawn = yearUsedArea > areaUsage.contracted_area
                 return (

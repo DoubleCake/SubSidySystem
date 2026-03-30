@@ -293,6 +293,7 @@ export interface HHDetail {
     is_overdrawn: boolean; overdraw_amount?: number; has_trust_data?: boolean
     season_breakdown?: Record<string, SeasonUsage>
     subsidy_breakdown: { subsidy_name: string; apply_area: number; calc_mode: string }[]
+    year_totals?: Record<string, Record<string, number>>
   }
   app_summary: {
     apply_year: number; farmer_name: string; subsidy_name: string
