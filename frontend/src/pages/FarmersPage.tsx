@@ -2110,6 +2110,102 @@ function HouseholdDetailContent({
           return null
         })()}
 
+        {/* 人口和面积概览 */}
+        <div className="px-4 py-3 bg-gradient-to-b from-stone-50 to-white border-b border-stone-200">
+          <div className="flex items-center gap-4">
+            {/* 人口 */}
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">👥</span>
+              <div>
+                <div className="text-lg font-bold text-stone-700">{displayMembers.length}</div>
+                <div className="text-xs text-stone-400">人口</div>
+              </div>
+            </div>
+
+            <div className="w-px h-10 bg-stone-200" />
+
+            {/* 承包面积 */}
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">📐</span>
+              <div>
+                <div className="text-lg font-bold font-mono text-stone-700">{areaUsage.contracted_area} 亩</div>
+                <div className="text-xs text-stone-400">承包面积</div>
+              </div>
+            </div>
+
+            <div className="w-px h-10 bg-stone-200" />
+
+            {/* 已用面积 */}
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">📊</span>
+              <div>
+                <div className={"text-lg font-bold font-mono " + (areaUsage.is_overdrawn ? 'text-red-500' : 'text-emerald-600')}>
+                  {areaUsage.used_area.toFixed(1)} 亩
+                </div>
+                <div className="text-xs text-stone-400">已用面积</div>
+              </div>
+            </div>
+
+            <div className="w-px h-10 bg-stone-200" />
+
+            {/* 剩余 */}
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">✨</span>
+              <div>
+                <div className={"text-lg font-bold font-mono " + (areaUsage.remaining_area < 0 ? 'text-red-500' : 'text-blue-600')}>
+                  {areaUsage.remaining_area.toFixed(1)} 亩
+                </div>
+                <div className="text-xs text-stone-400">剩余可申请</div>
+              </div>
+            </div>
+
+            {areaUsage.is_overdrawn && (
+              <>
+                <div className="w-px h-10 bg-stone-200" />
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-1">
+                  <span className="text-lg">⚠️</span>
+                  <div>
+                    <div className="text-sm font-bold text-red-600">超限 {(areaUsage.overdraw_amount ?? 0).toFixed(1)} 亩</div>
+                    <div className="text-xs text-red-400">请注意</div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 补贴面积使用情况 - 大春小春等直接展示 */}
+        {areaUsage && areaUsage.season_breakdown && Object.keys(areaUsage.season_breakdown).length > 0 && (
+          <div className="bg-white border-b border-stone-200 px-4 py-3">
+            <div className="text-xs text-stone-500 mb-2 font-medium">📊 补贴面积使用情况</div>
+            <div className="space-y-2">
+              {Object.entries(areaUsage.season_breakdown).map(([season, usage]) => {
+                const pct = areaUsage.contracted_area > 0 ? Math.round(usage.used_area / areaUsage.contracted_area * 100) : 0
+                return (
+                  <div key={season} className="border border-stone-200 rounded-lg overflow-hidden">
+                    <div className={"flex items-center justify-between px-3 py-2 " + (usage.is_overdrawn ? 'bg-red-50' : 'bg-stone-50')}>
+                      <div className="flex items-center gap-2">
+                        <span className={"text-sm font-bold " + (usage.is_overdrawn ? 'text-red-600' : 'text-stone-700')}>{season}</span>
+                        {usage.is_overdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">超 {usage.overdraw_amount.toFixed(2)} 亩</span>}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={"text-sm font-mono font-bold " + (usage.is_overdrawn ? 'text-red-500' : 'text-emerald-600')}>{usage.used_area.toFixed(2)} 亩</span>
+                        <span className="text-xs text-stone-400">/ {areaUsage.contracted_area} 亩</span>
+                        <span className="text-xs text-stone-500">({pct}%)</span>
+                      </div>
+                    </div>
+                    <div className="px-3 py-1.5 bg-white">
+                      <div className="bg-stone-100 rounded-full h-1.5 overflow-hidden">
+                        <div className={"h-full rounded-full " + (usage.is_overdrawn ? 'bg-red-400' : 'bg-emerald-400')} style={{ width: Math.min(100, pct) + "%" }} />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Tab 栏 */}
         <div className="flex border-b border-stone-200 bg-stone-50 items-center">
           {([
