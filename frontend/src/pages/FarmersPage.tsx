@@ -1947,6 +1947,14 @@ function HouseholdDetailContent({
     ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_breakdown: {} as Record<string, any>, year_totals: {} as Record<string, Record<string, number>> }
     : (detail.area_usage || defaultAreaUsage)
 
+  // 按选定年份计算有效统计值（areaYear=0 表示"全部年份"，使用后端已算好的总值）
+  const effectiveUsedArea = areaYear > 0 && areaUsage.year_totals?.[String(areaYear)]
+    ? Object.values(areaUsage.year_totals[String(areaYear)]).reduce((s, v) => s + v, 0)
+    : areaUsage.used_area
+  const effectiveRemainingArea = areaUsage.contracted_area - effectiveUsedArea
+  const effectiveIsOverdrawn = areaUsage.contracted_area > 0 && effectiveUsedArea > areaUsage.contracted_area
+  const effectiveOverdrawAmount = Math.max(0, effectiveUsedArea - areaUsage.contracted_area)
+
   return (
     <div className="flex-1 min-w-0 flex flex-col">
       {/* 顶部卡片 */}
@@ -1957,7 +1965,7 @@ function HouseholdDetailContent({
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
               <span className="text-base font-bold text-white">{detail.household_name}</span>
               <span className="text-emerald-300 text-xs font-mono">{detail.household_code}</span>
-              {areaUsage?.is_overdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">⚠️ 超领</span>}
+              {effectiveIsOverdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">⚠️ 超领</span>}
               {historyDate !== null && <span className="text-xs bg-amber-500/80 text-white px-1.5 py-0.5 rounded">⏳ 快照</span>}
             </div>
             <div className="text-emerald-200 text-xs">📍 {detail.village_full_name}
@@ -2036,8 +2044,8 @@ function HouseholdDetailContent({
             <div className="flex items-center gap-2">
               <span className="text-2xl">📊</span>
               <div>
-                <div className={"text-lg font-bold font-mono " + (areaUsage.is_overdrawn ? 'text-red-500' : 'text-emerald-600')}>
-                  {areaUsage.used_area.toFixed(1)} 亩
+                <div className={"text-lg font-bold font-mono " + (effectiveIsOverdrawn ? 'text-red-500' : 'text-emerald-600')}>
+                  {effectiveUsedArea.toFixed(1)} 亩
                 </div>
                 <div className="text-xs text-stone-400">已用面积</div>
               </div>
@@ -2049,20 +2057,20 @@ function HouseholdDetailContent({
             <div className="flex items-center gap-2">
               <span className="text-2xl">✨</span>
               <div>
-                <div className={"text-lg font-bold font-mono " + (areaUsage.remaining_area < 0 ? 'text-red-500' : 'text-blue-600')}>
-                  {areaUsage.remaining_area.toFixed(1)} 亩
+                <div className={"text-lg font-bold font-mono " + (effectiveRemainingArea < 0 ? 'text-red-500' : 'text-blue-600')}>
+                  {effectiveRemainingArea.toFixed(1)} 亩
                 </div>
                 <div className="text-xs text-stone-400">剩余可申请</div>
               </div>
             </div>
 
-            {areaUsage.is_overdrawn && (
+            {effectiveIsOverdrawn && (
               <>
                 <div className="w-px h-10 bg-stone-200" />
                 <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-1">
                   <span className="text-lg">⚠️</span>
                   <div>
-                    <div className="text-sm font-bold text-red-600">超限 {(areaUsage.overdraw_amount ?? 0).toFixed(1)} 亩</div>
+                    <div className="text-sm font-bold text-red-600">超限 {effectiveOverdrawAmount.toFixed(1)} 亩</div>
                     <div className="text-xs text-red-400">请注意</div>
                   </div>
                 </div>

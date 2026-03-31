@@ -196,7 +196,7 @@ export default function ExternalLinksPage() {
           <button onClick={()=>{ setEditSite(null); setSiteForm({site_type:'link',sort_order:0,is_active:1}); setSiteModal(true) }}
             className="text-xs border border-stone-200 text-stone-500 px-3 py-1.5 rounded-lg hover:border-emerald-300 hover:text-emerald-700">⚙️ 管理网站</button>
           <button onClick={()=>setBatchOpen(true)}
-            className="text-sm bg-emerald-700 text-white px-4 py-2 rounded-lg hover:bg-emerald-600">＋ 保存查询记录</button>
+            className="text-sm bg-emerald-700 text-white px-4 py-2 rounded-lg hover:bg-emerald-600">＋ 批量查询</button>
         </div>
       </div>
 

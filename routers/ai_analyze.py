@@ -7,7 +7,7 @@ from models import SubsidyApplication, FarmerProfile, FamilyHousehold, Village, 
 from schemas import AIAnalyzeRequest
 from utils import desensitize_farmer
 
-router = APIRouter(prefix="/api/ai", tags=["AI分析"])
+router = APIRouter(prefix="/api/ai", tags=["AI分析(暂不接入)"])
 
 
 def _build_analysis_data(year: int, village_name: str | None, db: Session) -> dict:
