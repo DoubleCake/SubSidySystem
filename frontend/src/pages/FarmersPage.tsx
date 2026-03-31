@@ -324,7 +324,7 @@ export default function FarmersPage() {
       // 同时加载所属家庭户信息
       if (f.household_id) {
         try {
-          const hh = await api.getHouseholdDetail(f.household_id, detailYear)
+          const hh = await api.getHouseholdDetail(f.household_id)
           setSelectedFarmerHousehold(hh)
           await loadHouseholdHistoryDates(f.household_id)
         } catch {
@@ -343,7 +343,7 @@ export default function FarmersPage() {
 
   // ── 打开户详情 ──
   const openDetail = async (id: number, skipUrlUpdate = false) => {
-    const d = await api.getHouseholdDetail(id, detailYear)
+    const d = await api.getHouseholdDetail(id)
     setDetail(d); setDetailTab('members'); setEvents([]); setSelectedFarmer(null); setSelectedFarmerHousehold(null)
     setHistoryEventId(null); setSnapshotData(null)
     await loadHouseholdHistoryDates(id)
@@ -355,12 +355,12 @@ export default function FarmersPage() {
   // ── 刷新户详情 ──
   const refreshDetail = async () => {
     if (detail) {
-      const d = await api.getHouseholdDetail(detail.id, detailYear)
+      const d = await api.getHouseholdDetail(detail.id)
       setDetail(d)
     }
     if (selectedFarmer?.household_id) {
       try {
-        const hh = await api.getHouseholdDetail(selectedFarmer.household_id, detailYear)
+        const hh = await api.getHouseholdDetail(selectedFarmer.household_id)
         setSelectedFarmerHousehold(hh)
       } catch {
         setSelectedFarmerHousehold(null)

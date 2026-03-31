@@ -76,7 +76,7 @@ def list_farmers(
     if status is not None:
         where.append("fp.farmer_status = :st"); params["st"] = status
     if village_name:
-        where.append("vg.village_name = :vn");  params["vn"] = village_name
+        where.append("v.village_name = :vn");  params["vn"] = village_name
     if incomplete:
         # 信息不完善：手机、银行卡、土地面积缺任意一项
         where.append("(fp.phone IS NULL OR fp.bank_card IS NULL OR hh.contract_area IS NULL OR hh.contract_area=0)")
@@ -249,10 +249,11 @@ def batch_import_farmers(payload: dict, db: Session = Depends(get_db)):
                     if "farmer_status" in row: fp.farmer_status = int(row["farmer_status"])
                     if row.get("remark") is not None: fp.remark = str(row["remark"]).strip() or None
                     # 更新家庭户信息
-                    if fp.household:
-                        if row.get("contract_area") is not None: fp.household.contract_area = float(row["contract_area"])
-                        if row.get("address"): fp.household.address = str(row["address"]).strip()
-                        if "farmer_status" in row: fp.household.status = int(row["farmer_status"])
+                    hh_upd = db.get(FamilyHousehold, fp.household_id) if fp.household_id else None
+                    if hh_upd:
+                        if row.get("contract_area") is not None: hh_upd.contract_area = float(row["contract_area"])
+                        if row.get("address"): hh_upd.address = str(row["address"]).strip()
+                        if "farmer_status" in row: hh_upd.status = int(row["farmer_status"])
                     updated += 1
                 except Exception as e:
                     errors.append(f"{fp.real_name}：更新失败 {e}")
@@ -336,10 +337,11 @@ def bulk_complete_farmers(payload: dict, db: Session = Depends(get_db)):
             if row.get("phone"):      fp.phone     = str(row["phone"]).strip()
             if row.get("bank_card"):  fp.bank_card = str(row["bank_card"]).strip()
             if row.get("bank_name"):  fp.bank_name = str(row["bank_name"]).strip()
-            if row.get("contract_area") and fp.household:
-                fp.household.contract_area = float(row["contract_area"])
-            if row.get("address") and fp.household:
-                fp.household.address = str(row["address"]).strip()
+            hh_upd = db.get(FamilyHousehold, fp.household_id) if fp.household_id else None
+            if row.get("contract_area") and hh_upd:
+                hh_upd.contract_area = float(row["contract_area"])
+            if row.get("address") and hh_upd:
+                hh_upd.address = str(row["address"]).strip()
             updated += 1
         except Exception as e:
             errors.append(f"{fp.real_name}：{e}")

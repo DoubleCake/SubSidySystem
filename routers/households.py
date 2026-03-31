@@ -318,36 +318,34 @@ def calc_household_area_usage(
 
     cultivable = max(0.0, contracted - trust_out + trust_in)
 
-    # ── 从缓存读取季节面积数据 ──
+    # ── 从缓存读取所有年度数据（不按年过滤，前端用 year_totals 自行筛选）──
     SEASON_ORDER = ["大春", "小春", "全年单补", "临时"]
 
-    cache_query = db.query(HouseholdAreaUsageCache).filter(
+    cache_records = db.query(HouseholdAreaUsageCache).filter(
         HouseholdAreaUsageCache.household_id == household_id
-    )
-    if year:
-        cache_query = cache_query.filter(HouseholdAreaUsageCache.year == year)
+    ).all()
 
-    cache_records = cache_query.all()
-
-    # 按季节分组
-    season_data: dict[str, dict] = {s: {"used_area": 0.0, "subsidies": []} for s in SEASON_ORDER}
+    # 按年度+季节聚合
     year_totals: dict[int, dict[str, float]] = {}
 
     for rec in cache_records:
-        season = rec.season
         y = rec.year
-        used = float(rec.used_area)
-
         if y not in year_totals:
             year_totals[y] = {s: 0.0 for s in SEASON_ORDER}
-        year_totals[y][season] = year_totals[y].get(season, 0.0) + used
+        year_totals[y][rec.season] = year_totals[y].get(rec.season, 0.0) + float(rec.used_area)
 
-        season_data[season]["used_area"] += used
+    # 确定展示年度：优先用请求指定年，否则取最新年
+    if year and year in year_totals:
+        display_year = year
+    elif year_totals:
+        display_year = max(year_totals.keys())
+    else:
+        display_year = None
 
-    # 构建 season_breakdown
+    # season_breakdown 只展示 display_year 的数据（避免跨年叠加）
     season_breakdown: dict[str, dict] = {}
     for season in SEASON_ORDER:
-        used = round(season_data[season]["used_area"], 2)
+        used = round(year_totals.get(display_year, {}).get(season, 0.0) if display_year else 0.0, 2)
         remaining = round(cultivable - used, 2)
         is_overdrawn = cultivable > 0 and used > cultivable
         season_breakdown[season] = {
@@ -355,17 +353,10 @@ def calc_household_area_usage(
             "remaining_area": remaining,
             "is_overdrawn": is_overdrawn,
             "overdraw_amount": round(max(0, used - cultivable), 2),
-            "subsidies": [],  # 缓存不存储明细，仅存储汇总
+            "subsidies": [],
         }
 
-    # 兼容旧字段：取指定年份或最近年份的总额
-    if year and year in year_totals:
-        total_used = round(sum(year_totals[year].values()), 2)
-    elif year_totals:
-        latest_year = max(year_totals.keys())
-        total_used = round(sum(year_totals[latest_year].values()), 2)
-    else:
-        total_used = 0.0
+    total_used = round(sum(year_totals.get(display_year, {}).values()), 2) if display_year else 0.0
 
     remaining = cultivable - total_used
     is_overdrawn_all = cultivable > 0 and total_used > cultivable
@@ -420,7 +411,7 @@ def create_household(data: HouseholdCreateSchema, db: Session = Depends(get_db))
         village_id=village_id,
         group_no=group_no,
         address=data.address,
-        land_area=data.contract_area,
+        contract_area=data.contract_area,
         status=1,
         remark=data.remark,
     )
@@ -478,11 +469,15 @@ def list_households(
             (FarmerProfile.real_name.like(f"%{search}%"))
         )
 
-    total = query.count()
-    households = query.order_by(FamilyHousehold.id).offset((page - 1) * page_size).limit(page_size).all()
+    # overdrawn_only 需要先全量计算再过滤，不能在 SQL 层分页
+    if overdrawn_only:
+        all_households = query.order_by(FamilyHousehold.id).all()
+    else:
+        total = query.count()
+        all_households = query.order_by(FamilyHousehold.id).offset((page - 1) * page_size).limit(page_size).all()
 
     items = []
-    for hh in households:
+    for hh in all_households:
         # 户主信息
         head = db.get(FarmerProfile, hh.head_farmer_id) if hh.head_farmer_id else None
 
@@ -513,11 +508,12 @@ def list_households(
         }
         items.append(row)
 
-    # 超领过滤（在 Python 层面做，避免复杂 SQL）
+    # 超领过滤后再分页
     if overdrawn_only:
         items = [i for i in items if i["is_overdrawn"]]
-        # 同步更新 total
         total = len(items)
+        start = (page - 1) * page_size
+        items = items[start: start + page_size]
 
     return {"total": total, "page": page, "page_size": page_size, "items": items}
 
@@ -566,7 +562,7 @@ def list_overdrawn_households(
                 "contracted_area": float(hh.contract_area),
                 "used_area": area_info["used_area"],
                 "overdraw_amount": area_info["overdraw_amount"],
-                "subsidy_breakdown": area_info["subsidy_breakdown"],
+                "season_breakdown": area_info.get("season_breakdown", {}),
                 "year": year,
             })
 
@@ -630,7 +626,7 @@ def _member_out(m: FarmerProfile) -> dict:
         "phone_masked": mask_phone(m.phone) if m.phone else None,
         "bank_card_masked": mask_bank_card(m.bank_card) if m.bank_card else None,
         "bank_name": m.bank_name,
-        "is_head": 1 if m.household and m.household.head_farmer_id == m.id else 0,
+        "is_head": 1 if m.household_id and db.query(FamilyHousehold.head_farmer_id).filter(FamilyHousehold.id == m.household_id).scalar() == m.id else 0,
         "relation": m.relation,
         "farmer_status": m.farmer_status,
         "remark": m.remark,
@@ -826,10 +822,7 @@ def move_member(req: MemberMoveRequest, db: Session = Depends(get_db)):
 
     # 如果要成为新户主，先把原户主降级
     if req.is_head == 1:
-        old_head = db.query(FarmerProfile).filter(
-            FarmerProfile.household_id == req.target_household_id,
-            FamilyHousehold.head_farmer_id == FarmerProfile.id
-        ).first()
+        old_head = db.get(FarmerProfile, target_hh.head_farmer_id) if target_hh.head_farmer_id else None
         if old_head:
             old_head.relation = "成员"
 
@@ -1566,8 +1559,8 @@ def undo_event(household_id: int, event_id: int,
 
     elif ev.event_type == "LAND_CHANGE":
         # 恢复土地面积
-        if before and "land_area" in before:
-            hh.contract_area = Decimal(str(before["land_area"]))
+        if before and "contract_area" in before:
+            hh.contract_area = Decimal(str(before["contract_area"]))
 
     elif ev.event_type == "STATUS_CHANGE":
         # 恢复家庭户状态
@@ -2144,15 +2137,15 @@ def get_history_snapshot(
         if ev.event_type == "LAND_CHANGE" and ev.event_year > year:
             try:
                 before = _json.loads(ev.before_snapshot) if ev.before_snapshot else {}
-                if "land_area" in before:
-                    contracted_area = float(before["land_area"])
+                if "contract_area" in before:
+                    contracted_area = float(before["contract_area"])
                     break
             except: pass
         elif ev.event_type == "SPLIT" and ev.event_year > year:
             try:
                 before = _json.loads(ev.before_snapshot) if ev.before_snapshot else {}
-                if "land_area" in before:
-                    contracted_area = float(before["land_area"])
+                if "contract_area" in before:
+                    contracted_area = float(before["contract_area"])
                     break
             except: pass
 

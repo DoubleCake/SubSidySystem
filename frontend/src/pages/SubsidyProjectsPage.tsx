@@ -786,7 +786,9 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
       const contractArea = Number(row['contract_area'] || row['承包地面积(亩)']) || 0
       const trustArea = Number(row['trust_area'] || row['代耕代种面积(亩)']) || 0
       const noSubsidyArea = Number(row['no_subsidy_area'] || row['不予补贴面积']) || undefined
-      const area = contractArea + trustArea || Number(row['apply_area'] || row['面积(亩)']) || undefined
+      // 优先使用用户明确映射的 apply_area，没有时才用 contract_area + trust_area 自动求和
+      const applyAreaExplicit = Number(row['apply_area'] || row['种植面积'] || row['面积(亩)']) || 0
+      const area = applyAreaExplicit || (contractArea + trustArea || undefined)
       const amount = Number(row['actual_amount'] || row['实发金额']) || (area ? area * Number(subsidyType.standard_amount || 0) : undefined)
 
       toCreate.push({
@@ -1756,6 +1758,11 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
                   }}
                     className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
                 </div>
+                <div className="col-span-2">
+                  <label className="block text-xs text-stone-400 mb-1">实际补贴面积(亩) <span className="text-stone-300">— 可手动填写，覆盖自动计算值</span></label>
+                  <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))}
+                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                </div>
               </>
             )}
             <div>
@@ -1801,6 +1808,11 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
                   const ta = Number(e.target.value) || undefined
                   setForm(f => ({ ...f, trust_area: ta, apply_area: (f.contract_area || 0) + (ta || 0) || undefined }))
                 }}
+                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs text-stone-400 mb-1">实际补贴面积(亩) <span className="text-stone-300">— 可手动填写，覆盖自动计算值</span></label>
+                <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))}
                   className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
               </div>
             </>

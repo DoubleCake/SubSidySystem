@@ -165,8 +165,8 @@ export const getHouseholds = (params: Record<string, string | number>) =>
 export const getOverdrawnHouseholds = () =>
   req<HH[]>('/api/households/alert/overdrawn')
 
-export const getHouseholdDetail = (id: number, year: number) =>
-  req<HHDetail>(`/api/households/${id}?year=${year}`)
+export const getHouseholdDetail = (id: number, year?: number) =>
+  req<HHDetail>(`/api/households/${id}${year && year > 0 ? `?year=${year}` : ''}`)
 
 export const mergeHouseholds = (data: { source_household_id: number; target_household_id: number; operator?: string }) =>
   req<{ message: string }>('/api/households/merge', {

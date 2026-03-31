@@ -293,11 +293,12 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
                     clean_row["pay_date"] = date_type.fromisoformat(clean_row["pay_date"])
                 except ValueError:
                     clean_row["pay_date"] = None
-            # 面积自动求和：实际补贴面积 = 承包地面积 + 代耕代种面积
+            # 面积处理：apply_area 优先；若未提供，用 contract_area + trust_area 自动求和
             ca = float(clean_row.get("contract_area") or 0)
             ta = float(clean_row.get("trust_area") or 0)
             if ca or ta:
-                clean_row["apply_area"] = round(ca + ta, 2)
+                if not clean_row.get("apply_area"):
+                    clean_row["apply_area"] = round(ca + ta, 2)
                 clean_row["contract_area"] = ca or None
                 clean_row["trust_area"] = ta or None
             app = SubsidyApplication(
@@ -444,6 +445,11 @@ def create_application(data: ApplicationCreate, db: Session = Depends(get_db)):
     db.add(app)
     db.commit()
     db.refresh(app)
+
+    # 触发面积缓存更新
+    if farmer.household_id:
+        _recalc_household_cache_after_import(db, [farmer.household_id])
+
     return {"id": app.id, "message": "创建成功"}
 
 
@@ -452,9 +458,18 @@ def update_application(app_id: int, data: ApplicationUpdate, db: Session = Depen
     app = db.get(SubsidyApplication, app_id)
     if not app:
         raise HTTPException(status_code=404, detail="记录不存在")
-    for k, v in data.model_dump(exclude_unset=True).items():
+    upd = data.model_dump(exclude_unset=True)
+    area_changed = "apply_area" in upd or "pay_status" in upd
+    for k, v in upd.items():
         setattr(app, k, v)
     db.commit()
+
+    # 面积或状态变动时更新缓存
+    if area_changed:
+        farmer = db.get(FarmerProfile, app.farmer_id)
+        if farmer and farmer.household_id:
+            _recalc_household_cache_after_import(db, [farmer.household_id])
+
     return {"message": "更新成功"}
 
 
@@ -1078,23 +1093,42 @@ def batch_pay_applications(payload: dict, db: Session = Depends(get_db)):
     if app_ids and isinstance(app_ids, list) and len(app_ids) > 0:
         # 按指定的 application_ids 批量更新
         ids_str = ','.join(str(int(i)) for i in app_ids)
+        # 先查出受影响的家庭户
+        affected = db.execute(text(f"""
+            SELECT DISTINCT fp.household_id
+            FROM subsidy_application sa
+            JOIN farmer_profile fp ON fp.id = sa.farmer_id
+            WHERE sa.id IN ({ids_str}) AND fp.household_id > 0
+        """)).fetchall()
         result = db.execute(text(f"""
             UPDATE subsidy_application
             SET pay_status = :status, pay_date = :pay_date
             WHERE id IN ({ids_str})
         """), {"status": status, "pay_date": pay_date})
         db.commit()
+        hh_ids = [r[0] for r in affected]
+        if hh_ids:
+            _recalc_household_cache_after_import(db, hh_ids)
         return {"updated": result.rowcount}
 
     if not type_id:
         raise HTTPException(status_code=400, detail="缺少 subsidy_type_id 或 application_ids")
-    # 按 subsidy_type_id 批量更新
+    # 按 subsidy_type_id 批量更新，先查出受影响家庭户
+    affected = db.execute(text("""
+        SELECT DISTINCT fp.household_id
+        FROM subsidy_application sa
+        JOIN farmer_profile fp ON fp.id = sa.farmer_id
+        WHERE sa.subsidy_type_id = :type_id AND fp.household_id > 0
+    """), {"type_id": type_id}).fetchall()
     result = db.execute(text("""
         UPDATE subsidy_application
         SET pay_status = :status, pay_date = :pay_date
         WHERE subsidy_type_id = :type_id
     """), {"status": status, "pay_date": pay_date, "type_id": type_id})
     db.commit()
+    hh_ids = [r[0] for r in affected]
+    if hh_ids:
+        _recalc_household_cache_after_import(db, hh_ids)
     return {"updated": result.rowcount}
 
 
@@ -1342,7 +1376,23 @@ def create_payment(data: PaymentCreate, db: Session = Depends(get_db)):
         remark=data.remark,
     )
     db.add(payment)
+
+    # 同步对应申报记录的 pay_status → 已发放
+    app = db.query(SubsidyApplication).filter(
+        SubsidyApplication.farmer_id == data.farmer_id,
+        SubsidyApplication.subsidy_type_id == data.subsidy_type_id,
+        SubsidyApplication.apply_year == data.payment_year,
+        SubsidyApplication.pay_status.in_([0, 1]),
+    ).first()
+    if app:
+        app.pay_status = 2
+
     db.commit()
+
+    # 重算面积缓存
+    if farmer.household_id:
+        _recalc_household_cache_after_import(db, [farmer.household_id])
+
     return {"id": payment.id, "message": "发放记录创建成功"}
 
 
@@ -1352,8 +1402,27 @@ def delete_payment(payment_id: int, db: Session = Depends(get_db)):
     payment = db.get(SubsidyPayment, payment_id)
     if not payment:
         raise HTTPException(status_code=404, detail="发放记录不存在")
+
+    farmer = db.get(FarmerProfile, payment.farmer_id)
+    household_id = farmer.household_id if farmer else None
+
+    # 回滚对应申报记录的 pay_status → 审核通过（1）
+    app = db.query(SubsidyApplication).filter(
+        SubsidyApplication.farmer_id == payment.farmer_id,
+        SubsidyApplication.subsidy_type_id == payment.subsidy_type_id,
+        SubsidyApplication.apply_year == payment.payment_year,
+        SubsidyApplication.pay_status == 2,
+    ).first()
+    if app:
+        app.pay_status = 1
+
     db.delete(payment)
     db.commit()
+
+    # 重算面积缓存
+    if household_id:
+        _recalc_household_cache_after_import(db, [household_id])
+
     return {"message": "删除成功"}
 
 
@@ -1420,6 +1489,15 @@ def batch_import_payments(payload: dict, db: Session = Depends(get_db)):
                 remark=row.get("remark"),
             )
             db.add(payment)
+            # 同步对应申报记录的 pay_status → 已发放
+            app = db.query(SubsidyApplication).filter(
+                SubsidyApplication.farmer_id == farmer_id,
+                SubsidyApplication.subsidy_type_id == subsidy_type_id,
+                SubsidyApplication.apply_year == payment_year,
+                SubsidyApplication.pay_status.in_([0, 1]),
+            ).first()
+            if app:
+                app.pay_status = 2
             created += 1
         except Exception as e:
             errors.append(str(e))
@@ -1429,3 +1507,25 @@ def batch_import_payments(payload: dict, db: Session = Depends(get_db)):
     if affected_households:
         _recalc_household_cache_after_import(db, list(affected_households))
     return {"created": created, "skipped": skipped, "errors": errors}
+
+
+@router.post("/payments/sync-pay-status")
+def sync_payment_status(db: Session = Depends(get_db)):
+    """
+    一次性修复：将 SubsidyPayment 表中已有发放记录对应的 SubsidyApplication.pay_status 同步为 2（已发放）。
+    历史数据导入后调用一次即可。
+    """
+    payments = db.query(SubsidyPayment).all()
+    synced = 0
+    for p in payments:
+        app = db.query(SubsidyApplication).filter(
+            SubsidyApplication.farmer_id == p.farmer_id,
+            SubsidyApplication.subsidy_type_id == p.subsidy_type_id,
+            SubsidyApplication.apply_year == p.payment_year,
+            SubsidyApplication.pay_status.in_([0, 1]),
+        ).first()
+        if app:
+            app.pay_status = 2
+            synced += 1
+    db.commit()
+    return {"synced": synced, "message": f"已同步 {synced} 条申报记录的发放状态"}
