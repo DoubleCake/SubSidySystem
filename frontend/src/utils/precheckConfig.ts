@@ -1,6 +1,20 @@
 /**
  * 预检表格共享配置
  * 统一 PreCheckPage.tsx 和 SubsidyProjectsPage.tsx 中的预检结果显示
+ *
+ * 扩展性说明：
+ * 1. 添加新的预检错误类型时，需要：
+ *    - 在后端API（routers/precheck.py 和 routers/subsidies.py）中添加相应的字段
+ *    - 在CheckResult类型（frontend/src/types/index.ts）中添加字段定义
+ *    - 在此文件中添加对应的TableConfig配置
+ *
+ * 2. 配置字段说明：
+ *    - field: 对应CheckResult中的字段名
+ *    - title: 表格标题，可以是字符串或函数
+ *    - headers: 表头数组
+ *    - rowMapper: 行数据转换函数，将后端返回的行数据转换为React元素数组
+ *
+ * 3. 前端会自动使用此配置渲染所有预检错误类型的表格
  */
 
 import Tag from '../components/Tag'
