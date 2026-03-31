@@ -11,6 +11,7 @@ import ErrorLibraryPage from './ErrorLibraryPage'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import { years } from '../utils'
+import { PRECHECK_TABLE_CONFIGS } from '../utils/precheckConfig'
 import { getExcelTemplates } from '../api'
 import type { CheckResult, ExcelColumnTemplate } from '../types'
 
@@ -277,6 +278,24 @@ export default function PreCheckPage() {
     ]
   }
 
+  // ActiveTab 到配置字段的映射
+  const getTabConfig = (tabId: ActiveTab) => {
+    const map: Record<ActiveTab, keyof typeof PRECHECK_TABLE_CONFIGS | null> = {
+      'error-library-hits': 'error_library_hits',
+      'format': 'format_errors',
+      'village': 'village_errors',
+      'duplicate': 'duplicate_errors',
+      'gender': 'gender_mismatch',
+      'area-exceeds': 'area_exceeds',
+      'new': 'new_farmers',
+      'removed': 'removed_farmers',
+      'changed': 'changed_farmers',
+      'year': null, // 特殊处理
+    }
+    const field = map[tabId]
+    return field ? PRECHECK_TABLE_CONFIGS[field] : null
+  }
+
   return (
     <div>
       {/* ── 顶层 Tab ── */}
@@ -423,103 +442,37 @@ export default function PreCheckPage() {
 
           {/* Tab 内容 */}
           <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-            {/* 错误库命中 */}
-            {activeTab === 'error-library-hits' && (
-              <ResultTable
-                title="错误库命中 — 这些人员在历史错误记录中出现，请重点关注"
-                empty={result.error_library_hits.length === 0}
-                headers={['行号','姓名','身份证号','所在村','所在组','错误类型','错误原因','来源']}
-                rows={result.error_library_hits.map(r => [
-                  r.row, r.name, r.id_card, r.village, r.group,
-                  <Tag key="t" label={r.error_type} color="red" />,
-                  <span key="r" className="text-red-600 text-xs">{r.error_reason}</span>,
-                  r.source,
-                ])} />
-            )}
-            {/* 格式错误 */}
-            {activeTab === 'format' && (
-              <ResultTable
-                title="格式错误 — 需修复后重新检查"
-                empty={result.format_errors.length === 0}
-                headers={['行号','姓名','身份证号','所在村','所在组','错误详情']}
-                rows={result.format_errors.map(r => [
-                  r.row, r.name || '(空)', r.id_card || '(空)',
-                  r.village || '(空)', r.group || '(空)',
-                  <ul key="e" className="list-none">{r.errors.map((e, i) => <li key={i} className="text-red-600 text-xs">• {e}</li>)}</ul>
-                ])} />
-            )}
-            {/* 村组不存在 */}
-            {activeTab === 'village' && (
-              <ResultTable
-                title="村组不存在 — 请先在「系统设置→村组管理」中添加对应村组"
-                empty={result.village_errors.length === 0}
-                headers={['行号','姓名','身份证号','填写的村','填写的组','提示']}
-                rows={result.village_errors.map(r => [r.row, r.name, r.id_card, r.village, r.group, <span key="e" className="text-amber-600 text-xs">{r.error}</span>])} />
-            )}
-            {/* 重复 */}
-            {activeTab === 'duplicate' && (
-              <ResultTable
-                title="Excel 内部重复身份证 — 同一身份证出现多次"
-                empty={result.duplicate_errors.length === 0}
-                headers={['行号','姓名','身份证号','说明']}
-                rows={result.duplicate_errors.map(r => [r.row, r.name, r.id_card, r.error])} />
-            )}
-            {/* 性别不符 */}
-            {activeTab === 'gender' && (
-              <ResultTable
-                title="性别与身份证不符 — 请核实后修正"
-                empty={result.gender_mismatch.length === 0}
-                headers={['行号','姓名','身份证号','Excel填写性别','身份证推断性别']}
-                rows={result.gender_mismatch.map(r => [r.row, r.name, r.id_card, r.excel_gender, <Tag key="g" label={r.id_card_gender} color={r.id_card_gender === '男' ? 'blue' : 'purple'} />])} />
-            )}
-            {/* 面积超限 */}
-            {activeTab === 'area-exceeds' && (
-              <ResultTable
-                title="面积超限 — 请逐条核实"
-                empty={result.area_exceeds.length === 0}
-                headers={['行号','姓名','身份证号','所在村','所在组','超限类型','承包地','流转出','代耕代种进','不补贴','实际补贴','自有占用','户级已用','户级合计','数据库承包地','超出']}
-                rows={result.area_exceeds.map(r => [
-                  r.row, r.name, r.id_card, r.village, r.group,
-                  <span key="et" className={`text-xs font-semibold ${r.exceed_type === '单行超限' ? 'text-orange-600' : r.exceed_type === '累计超限' ? 'text-blue-600' : 'text-red-600'}`}>{r.exceed_type}</span>,
-                  <span key="c"  className="text-stone-600">{r.contract_area} 亩</span>,
-                  <span key="to" className="text-stone-400">{r.trust_out_area} 亩</span>,
-                  <span key="ti" className="text-stone-400">{r.trust_in_area} 亩</span>,
-                  <span key="n"  className="text-stone-400">{r.no_subsidy_area} 亩</span>,
-                  <span key="as" className="text-emerald-700">{r.actual_subsidy_area} 亩</span>,
-                  <span key="so" className="text-orange-600">{r.self_occupy} 亩</span>,
-                  <span key="hu" className="text-stone-400">{r.hh_used} 亩</span>,
-                  <span key="ht" className="text-orange-600 font-semibold">{r.hh_total} 亩</span>,
-                  <span key="db" className="text-blue-600">{r.db_contract_area} 亩</span>,
-                  <span key="ex" className="text-red-600 font-semibold">+{r.exceed_amount} 亩</span>,
-                ])} />
-            )}
-            {/* 新增农户 */}
-            {activeTab === 'new' && (
-              <ResultTable
-                title={`新增农户（${result.new_farmers.length}人）— 数据库中未存在，本次将新增`}
-                empty={result.new_farmers.length === 0}
-                headers={['行号','姓名','身份证号','所在村','所在组']}
-                rows={result.new_farmers.map(r => [r.row, r.name, r.id_card, r.village, r.group])} />
-            )}
-            {/* 减少农户 */}
-            {activeTab === 'removed' && (
-              <ResultTable
-                title={`减少农户（${result.removed_farmers.length}人）— 数据库在册但本次 Excel 未出现，请确认是否迁出/注销`}
-                empty={result.removed_farmers.length === 0}
-                headers={['姓名','身份证号','所在村','所在组','说明']}
-                rows={result.removed_farmers.map(r => [r.name, r.id_card, r.village, r.group, <span key="n" className="text-blue-600 text-xs">{r.note}</span>])} />
-            )}
-            {/* 字段变更 */}
-            {activeTab === 'changed' && (
-              <ResultTable
-                title="字段变更 — 与数据库已有数据不一致，请人工确认"
-                empty={result.changed_farmers.length === 0}
-                headers={['行号','姓名','身份证号','变更内容']}
-                rows={result.changed_farmers.map(r => [
-                  r.row, r.name, r.id_card,
-                  <ul key="c">{r.changes.map((c, i) => <li key={i} className="text-amber-700 text-xs">• {c}</li>)}</ul>
-                ])} />
-            )}
+            {/* 使用共享配置渲染预检表格 */}
+            {(() => {
+              if (activeTab === 'year') return null // 年度对比特殊处理，稍后渲染
+
+              const config = getTabConfig(activeTab)
+              if (!config) return null
+
+              const data = result[config.field] as any[]
+              if (!data || data.length === 0) {
+                return (
+                  <div className="p-8 text-center text-stone-400">
+                    <div className="text-2xl mb-2">📋</div>
+                    <p className="text-sm">暂无{config.headers[0]?.replace('行号', '')}数据</p>
+                  </div>
+                )
+              }
+
+              const title = typeof config.title === 'function'
+                ? config.title(data.length)
+                : config.title
+
+              return (
+                <ResultTable
+                  key={activeTab}
+                  title={title}
+                  empty={data.length === 0}
+                  headers={config.headers}
+                  rows={data.map((row, index) => config.rowMapper(row, index))}
+                />
+              )
+            })()}
             {/* 年度对比 */}
             {activeTab === 'year' && result.year_compare && (result.year_compare as { year?: number }).year && (() => {
               const yc = result.year_compare as { year: number; db_count: number; excel_count: number; new_count: number; removed_count: number; new_farmers: { id_card: string; name: unknown }[]; removed_farmers: { id_card: string; name: string; village: string }[] }

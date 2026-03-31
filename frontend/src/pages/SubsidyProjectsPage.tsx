@@ -9,6 +9,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import * as api from '../api'
 import type { SubsidyType, SubsidyTypeCreate, ApplicationOut, ApplicationCreate, VillageGroup, ApplicationForPrecheck, ApplicationSearchResult, ExcelColumnTemplate, CheckResult } from '../types'
 import { SUBSIDY_PAY_STATUS, PAY_STATUS, fmt, years } from '../utils'
+import { getPrecheckTableConfigs, PRECHECK_TABLE_CONFIGS } from '../utils/precheckConfig'
 import Tag from '../components/Tag'
 import Modal from '../components/Modal'
 import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
@@ -1583,155 +1584,24 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
               ))}
             </div>
 
-            {/* 错误库命中 */}
-            {(preCheckResults.error_library_hits?.length || 0) > 0 && (
-              <ResultTable
-                title={`⚠️ 错误库命中（${preCheckResults.error_library_hits.length}条）— 这些人员在历史错误记录中出现，请重点关注`}
-                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '错误类型', '错误原因', '来源']}
-                rows={preCheckResults.error_library_hits.map(r => [
-                  r.row, r.name, r.id_card, r.village, r.group,
-                  <Tag key="t" label={r.error_type} color="red" />,
-                  <span key="r" className="text-red-600 text-xs">{r.error_reason}</span>,
-                  r.source,
-                ])}
-              />
-            )}
+            {/* 使用共享配置渲染所有预检表格 */}
+            {getPrecheckTableConfigs().map(config => {
+              const data = preCheckResults[config.field] as any[]
+              if (!data || data.length === 0) return null
 
-            {/* 格式错误 */}
-            {preCheckResults.format_errors.length > 0 && (
-              <ResultTable
-                title={`❌ 格式错误（${preCheckResults.format_errors.length}条）— 需修复后重新检查`}
-                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '错误详情']}
-                rows={preCheckResults.format_errors.map(r => [
-                  r.row, r.name || '(空)', r.id_card || '(空)',
-                  r.village || '(空)', r.group || '(空)',
-                  <ul key="e" className="list-none">{r.errors.map((e: string, i: number) => <li key={i} className="text-red-600 text-xs">• {e}</li>)}</ul>
-                ])}
-              />
-            )}
+              const title = typeof config.title === 'function'
+                ? config.title(data.length)
+                : config.title
 
-            {/* 村组不存在 */}
-            {preCheckResults.village_errors.length > 0 && (
-              <ResultTable
-                title={`⚠️ 村组不存在（${preCheckResults.village_errors.length}条）— 请先在「系统设置→村组管理」中添加`}
-                headers={['行号', '姓名', '身份证号', '填写的村', '填写的组', '提示信息']}
-                rows={preCheckResults.village_errors.map(r => [
-                  r.row, r.name, r.id_card, r.village, r.group,
-                  <span key="e" className="text-amber-600 text-xs">{r.error}</span>
-                ])}
-              />
-            )}
-
-            {/* 重复身份证 */}
-            {(preCheckResults.duplicate_errors?.length || 0) > 0 && (
-              <ResultTable
-                title={`⚠️ Excel内部重复（${preCheckResults.duplicate_errors.length}条）— 同一身份证出现多次`}
-                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '说明']}
-                rows={preCheckResults.duplicate_errors.map(r => [
-                  r.row, r.name, r.id_card, r.village, r.group,
-                  <span key="e" className="text-amber-600 text-xs">{r.error}</span>
-                ])}
-              />
-            )}
-
-            {/* 性别不符 */}
-            {(preCheckResults.gender_mismatch?.length || 0) > 0 && (
-              <ResultTable
-                title={`⚠️ 性别与身份证不符（${preCheckResults.gender_mismatch.length}条）— 请核实后修正`}
-                headers={['行号', '姓名', '身份证号', '所在村', '所在组', 'Excel性别', '身份证推断']}
-                rows={preCheckResults.gender_mismatch.map(r => [
-                  r.row, r.name, r.id_card, r.village, r.group,
-                  r.excel_gender, <Tag key="g" label={r.id_card_gender} color={r.id_card_gender === '男' ? 'blue' : 'purple'} />
-                ])}
-              />
-            )}
-
-            {/* 面积超限 */}
-            {(preCheckResults.area_exceeds?.length || 0) > 0 && (
-              <ResultTable
-                title={`⚠️ 面积超限（${preCheckResults.area_exceeds.length}条）— 请逐条核实`}
-                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '超限类型', '承包地', '流转出', '代耕代种进', '不补贴', '实际补贴', '自有占用', '户级已用', '户级合计', '数据库承包地', '超出']}
-                rows={preCheckResults.area_exceeds.map(r => [
-                  r.row, r.name, r.id_card, r.village, r.group,
-                  <span key="et" className={`text-xs font-semibold ${r.exceed_type === '单行超限' ? 'text-orange-600' : r.exceed_type === '累计超限' ? 'text-blue-600' : 'text-red-600'}`}>{r.exceed_type}</span>,
-                  <span key="c"  className="text-stone-600">{r.contract_area} 亩</span>,
-                  <span key="to" className="text-stone-400">{r.trust_out_area} 亩</span>,
-                  <span key="ti" className="text-stone-400">{r.trust_in_area} 亩</span>,
-                  <span key="n"  className="text-stone-400">{r.no_subsidy_area} 亩</span>,
-                  <span key="as" className="text-emerald-700">{r.actual_subsidy_area} 亩</span>,
-                  <span key="so" className="text-orange-600">{r.self_occupy} 亩</span>,
-                  <span key="hu" className="text-stone-400">{r.hh_used} 亩</span>,
-                  <span key="ht" className="text-orange-600 font-semibold">{r.hh_total} 亩</span>,
-                  <span key="db" className="text-blue-600">{r.db_contract_area} 亩</span>,
-                  <span key="ex" className="text-red-600 font-semibold">+{r.exceed_amount} 亩</span>,
-                ])}
-              />
-            )}
-
-            {/* 承包面积缺失 */}
-            {(preCheckResults.area_missing?.length || 0) > 0 && (
-              <ResultTable
-                title={`⚠️ 承包面积缺失（${preCheckResults.area_missing.length}条）— 有申请面积但数据库中无承包面积记录`}
-                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '申请面积', '说明']}
-                rows={preCheckResults.area_missing.map(r => [
-                  r.row, r.name, r.id_card, r.village, r.group,
-                  <span key="a" className="text-orange-600 font-semibold">{r.contract_area} 亩</span>,
-                  <span key="e" className="text-red-600 text-xs">{r.error}</span>
-                ])}
-              />
-            )}
-
-            {/* 年龄异常 */}
-            {(preCheckResults.age_anomaly?.length || 0) > 0 && (
-              <ResultTable
-                title={`⚠️ 年龄异常（${preCheckResults.age_anomaly.length}条）— 年龄小于16岁或大于100岁，请核实`}
-                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '年龄', '出生年份', '说明']}
-                rows={preCheckResults.age_anomaly.map(r => [
-                  r.row, r.name, r.id_card, r.village, r.group,
-                  <span key="a" className="text-orange-600 font-semibold">{r.age}岁</span>,
-                  r.birth_year,
-                  <span key="e" className="text-red-600 text-xs">{r.error}</span>
-                ])}
-              />
-            )}
-
-            {/* 死亡农户 */}
-            {(preCheckResults.deceased_farmers?.length || 0) > 0 && (
-              <ResultTable
-                title={`🚫 死亡农户（${preCheckResults.deceased_farmers.length}条）— 该农户已标记为离世，不应出现在补贴名单中`}
-                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '说明']}
-                rows={preCheckResults.deceased_farmers.map(r => [
-                  r.row, r.name, r.id_card, r.village, r.group,
-                  <span key="e" className="text-red-600 text-xs">{r.error}</span>
-                ])}
-              />
-            )}
-
-            {/* 同一家庭多成员申请 */}
-            {(preCheckResults.household_duplicates?.length || 0) > 0 && (
-              <ResultTable
-                title={`⚠️ 同一家庭多成员申请（${preCheckResults.household_duplicates.length}条）— 同一家庭户有多人同时申请`}
-                headers={['行号', '姓名', '身份证号', '家庭ID', '其他成员', '说明']}
-                rows={preCheckResults.household_duplicates.map(r => [
-                  r.row, r.name, r.id_card,
-                  <span key="h" className="font-mono text-xs">{r.household_id}</span>,
-                  r.other_members?.join('、') || '-',
-                  <span key="e" className="text-purple-600 text-xs">{r.error}</span>
-                ])}
-              />
-            )}
-
-            {/* 字段变更 */}
-            {(preCheckResults.changed_farmers?.length || 0) > 0 && (
-              <ResultTable
-                title={`ℹ️ 字段变更（${preCheckResults.changed_farmers.length}条）— 与数据库已有数据不一致，请人工确认`}
-                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '变更内容']}
-                rows={preCheckResults.changed_farmers.map(r => [
-                  r.row, r.name, r.id_card, r.village, r.group,
-                  <ul key="c" className="list-none">{r.changes.map((c: string, i: number) => <li key={i} className="text-blue-600 text-xs">• {c}</li>)}</ul>
-                ])}
-              />
-            )}
+              return (
+                <ResultTable
+                  key={config.field}
+                  title={title}
+                  headers={config.headers}
+                  rows={data.map((row, index) => config.rowMapper(row, index))}
+                />
+              )
+            })}
           </div>
         </div>
       )}
