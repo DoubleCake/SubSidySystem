@@ -1649,15 +1649,21 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
             {/* 面积超限 */}
             {(preCheckResults.area_exceeds?.length || 0) > 0 && (
               <ResultTable
-                title={`⚠️ 面积超限（${preCheckResults.area_exceeds.length}条）— 填报面积超过数据库承包面积`}
-                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '实际补贴面积', '承包地面积', '代耕代种', '不予补贴', '数据库承包面积']}
+                title={`⚠️ 面积超限（${preCheckResults.area_exceeds.length}条）— 请逐条核实`}
+                headers={['行号', '姓名', '身份证号', '所在村', '所在组', '超限类型', '承包地', '流转出', '代耕代种进', '不补贴', '实际补贴', '自有占用', '户级已用', '户级合计', '数据库承包地', '超出']}
                 rows={preCheckResults.area_exceeds.map(r => [
                   r.row, r.name, r.id_card, r.village, r.group,
-                  <span key="a" className="text-orange-600 font-semibold">{r.apply_area} 亩</span>,
-                  <span key="c" className="text-stone-500">{r.contract_area} 亩</span>,
-                  <span key="t" className="text-stone-400">{r.trust_area} 亩</span>,
-                  <span key="n" className="text-stone-400">{r.no_subsidy_area} 亩</span>,
-                  <span key="d" className="text-blue-600">{r.db_contract_area} 亩</span>,
+                  <span key="et" className={`text-xs font-semibold ${r.exceed_type === '单行超限' ? 'text-orange-600' : r.exceed_type === '累计超限' ? 'text-blue-600' : 'text-red-600'}`}>{r.exceed_type}</span>,
+                  <span key="c"  className="text-stone-600">{r.contract_area} 亩</span>,
+                  <span key="to" className="text-stone-400">{r.trust_out_area} 亩</span>,
+                  <span key="ti" className="text-stone-400">{r.trust_in_area} 亩</span>,
+                  <span key="n"  className="text-stone-400">{r.no_subsidy_area} 亩</span>,
+                  <span key="as" className="text-emerald-700">{r.actual_subsidy_area} 亩</span>,
+                  <span key="so" className="text-orange-600">{r.self_occupy} 亩</span>,
+                  <span key="hu" className="text-stone-400">{r.hh_used} 亩</span>,
+                  <span key="ht" className="text-orange-600 font-semibold">{r.hh_total} 亩</span>,
+                  <span key="db" className="text-blue-600">{r.db_contract_area} 亩</span>,
+                  <span key="ex" className="text-red-600 font-semibold">+{r.exceed_amount} 亩</span>,
                 ])}
               />
             )}

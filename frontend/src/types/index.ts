@@ -438,7 +438,7 @@ export interface CheckResult {
   duplicate_errors: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
   gender_mismatch: Array<{ row: number; name: string; id_card: string; village: string; group: string; excel_gender: string; id_card_gender: string; error: string }>
   error_library_hits: Array<{ row: number; name: string; id_card: string; village: string; group: string; error_type: string; error_reason: string; source: string }>
-  area_exceeds: Array<{ row: number; name: string; id_card: string; village: string; group: string; apply_area: number; contract_area: number; trust_area: number; no_subsidy_area: number; db_contract_area: number }>
+  area_exceeds: Array<{ row: number; name: string; id_card: string; village: string; group: string; exceed_type: string; contract_area: number; trust_out_area: number; trust_in_area: number; no_subsidy_area: number; actual_subsidy_area: number; self_occupy: number; hh_used: number; hh_total: number; db_contract_area: number; exceed_amount: number }>
   area_missing: Array<{ row: number; name: string; id_card: string; village: string; group: string; contract_area: number; error: string }>
   age_anomaly: Array<{ row: number; name: string; id_card: string; village: string; group: string; age: number; birth_year: number; error: string }>
   deceased_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>

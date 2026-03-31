@@ -15,7 +15,7 @@ from typing import Optional
 import re
 
 from database import get_db
-from models import FarmerProfile, Village, FamilyHousehold, SubsidyApplication, ErrorLibrary
+from models import FarmerProfile, Village, FamilyHousehold, SubsidyApplication, SubsidyType, ErrorLibrary
 from utils import format_group_no, parse_group_no_to_int
 
 router = APIRouter(prefix="/api/precheck", tags=["数据预检查"])
@@ -26,23 +26,32 @@ router = APIRouter(prefix="/api/precheck", tags=["数据预检查"])
 # ─────────────────────────────────────
 
 class PreCheckRow(BaseModel):
+    
     """Excel 中的单行数据（前端解析后传入）"""
-    row_index: int                     # Excel 行号（从2开始，含表头）
-    real_name: Optional[str] = None    # 姓名
-    id_card: Optional[str] = None      # 身份证号
-    village_name: Optional[str] = None # 村名
-    group_no: Optional[str] = None     # 组号
-    phone: Optional[str] = None        # 手机号（可选）
-    bank_card: Optional[str] = None    # 银行卡（可选）
-    contract_area: Optional[float] = None  # 土地面积（Excel中的申请面积）
-    gender: Optional[str] = None       # 性别（可选，中文）
-    # 其他透传字段
-    extra: Optional[dict] = None
+    row_index: int                          # Excel 行号（从2开始，含表头）
+    real_name: Optional[str] = None         # 姓名
+    id_card: Optional[str] = None           # 身份证号
+    village_name: Optional[str] = None      # 村名
+    group_no: Optional[str] = None          # 组号
+    phone: Optional[str] = None             # 手机号（可选）
+    bank_card: Optional[str] = None         # 银行卡（可选）
+    bank_name: Optional[str] = None         # 开户行（可选）
+    actual_subsidy_area: Optional[float] = None # 实际补贴面积（亩，由申报方直接填写）
+    contract_area: Optional[float] = None      # 承包地总面积（亩）---主要是一个记录 不一定准确
+    trust_area: Optional[float] = None         # 流转出面积（亩，给出去的）
+    trust_in_area: Optional[float] = None      # 代耕代种进面积（亩，接收进来的）
+    no_subsidy_area: Optional[float] = None    # 不补贴面积（亩）
+    gender: Optional[str] = None               # 性别（可选，中文）
+    address: Optional[str] = None              # 家庭地址（可选）
+    remark: Optional[str] = None               # 备注（可选）
+    extra: Optional[dict] = None               #
 
+VALID_SEASONS = {"大春", "小春", "全年单补", "临时"}
 
 class PreCheckRequest(BaseModel):
     """预检查请求"""
     rows: list[PreCheckRow]
+    season: Optional[str] = None         # 本次导入的补贴分类：大春|小春|全年单补|临时
     compare_year: Optional[int] = None   # 要与哪一年的补贴数据对比（可不传）
     check_options: Optional[dict] = None # 保留字段，控制哪些项目需要检查
 
@@ -176,13 +185,32 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         (e.id_card.strip(), e.real_name.strip()): e for e in db.query(ErrorLibrary).all()
     }
 
-    # 加载数据库农户的承包面积（按身份证索引）
-    db_land_areas: dict[str, float] = {}
+    # 加载数据库农户的承包面积（按身份证索引）以及 household_id 映射
+    db_land_areas: dict[str, float] = {}      # id_card → 承包面积
+    db_household_ids: dict[str, int] = {}     # id_card → household_id
     for f in db.query(FarmerProfile).join(
         FamilyHousehold, FamilyHousehold.id == FarmerProfile.household_id
     ).all():
-        if f.id_card and f.household and f.household.contract_area:
-            db_land_areas[f.id_card] = float(f.household.contract_area)
+        if f.id_card and f.household:
+            db_household_ids[f.id_card] = f.household_id
+            if f.household.contract_area:
+                db_land_areas[f.id_card] = float(f.household.contract_area)
+
+    # 加载当季家庭户已有的补贴申请面积（按 household_id 索引），用于检测户级超限
+    # 只在指定了 season 且 compare_year 时加载
+    season = (req.season or "").strip()
+    db_hh_season_used: dict[int, float] = {}  # household_id → 当季已用面积
+    if season in VALID_SEASONS and req.compare_year:
+        rows_used = db.query(
+            SubsidyApplication.household_id,
+            func.sum(SubsidyApplication.apply_area).label("total_area")
+        ).join(
+            SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id
+        ).filter(
+            SubsidyApplication.apply_year == req.compare_year,
+            SubsidyType.season == season,
+        ).group_by(SubsidyApplication.household_id).all()
+        db_hh_season_used = {r.household_id: float(r.total_area or 0) for r in rows_used}
 
     # ── 2. 逐行检查 ──
     format_errors:       list[dict] = []   # 格式/类型错误
@@ -239,15 +267,47 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
                 row_errors.append(phone_err)
 
         # ── 2.5 土地面积合理性检查（可选）──
-        if row.contract_area is not None:
+        contract_area_val    = None
+        trust_area_val       = None
+        trust_in_area_val    = None
+        no_subsidy_area_val  = None
+        actual_subsidy_area_val = None
+
+        def _parse_area(val, label) -> tuple[float | None, str | None]:
+            if val is None:
+                return None, None
             try:
-                area = float(row.contract_area)
-                if area < 0:
-                    row_errors.append(f"土地面积不能为负数（{area}）")
-                elif area > 9999:
-                    row_errors.append(f"土地面积异常偏大（{area}亩），请核实")
+                f = float(val)
+                if f < 0:
+                    return f, f"{label}不能为负数（{f}）"
+                return f, None
             except (ValueError, TypeError):
-                row_errors.append(f"土地面积格式错误（{row.contract_area}）")
+                return None, f"{label}格式错误（{val}）"
+
+        contract_area_val,   err = _parse_area(row.contract_area,   "承包地面积")
+        if err: row_errors.append(err)
+        if contract_area_val is not None and contract_area_val > 9999:
+            row_errors.append(f"承包地面积异常偏大（{contract_area_val}亩），请核实")
+        trust_area_val,      err = _parse_area(row.trust_area,      "流转出面积")
+        if err: row_errors.append(err)
+
+        trust_in_area_val,   err = _parse_area(row.trust_in_area,   "代耕代种进面积")
+        if err: row_errors.append(err)
+
+        no_subsidy_area_val, err = _parse_area(row.no_subsidy_area, "不补贴面积")
+        if err: row_errors.append(err)
+
+        actual_subsidy_area_val, err = _parse_area(row.actual_subsidy_area, "实际补贴面积")
+        if err: row_errors.append(err)
+
+        # 面积逻辑关系校验：流转出+不补贴 不能超过承包地
+        if contract_area_val is not None:
+            deduct = (trust_area_val or 0) + (no_subsidy_area_val or 0)
+            if deduct > contract_area_val:
+                row_errors.append(
+                    f"流转出面积({trust_area_val or 0}亩)+不补贴面积({no_subsidy_area_val or 0}亩)"
+                    f"={deduct}亩 超过承包地面积({contract_area_val}亩)"
+                )
 
         # ── 2.6 格式错误汇总 ──
         if row_errors:
@@ -294,18 +354,57 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
                     "error": f"Excel中性别为「{gender_text}」，但身份证显示为「{'男' if gender_from_id == 1 else '女'}」"
                 })
 
-        # ── 2.10 土地面积超承包面积检查 ──
-        if row.contract_area is not None and id_card in db_land_areas:
-            contracted = db_land_areas[id_card]
-            if contracted > 0 and float(row.contract_area) > contracted:
+        # ── 2.10 面积超限双重检查 ──
+        # 情况一：本行实际补贴面积 - 流转出 - 代耕代种进 + 不补贴 > 数据库承包地面积（单行本身逻辑越界）
+        #         即：承包地上自己实际占用的补贴面积 > 承包地面积
+        # 情况二：若指定了 season+compare_year，家庭户在该季下数据库已有申请面积 + 本行面积 > 承包地面积（累计超限）
+        if contract_area_val is not None and id_card in db_land_areas:
+            db_contracted   = db_land_areas[id_card]         # 数据库登记的承包地面积（基准）
+            t_out           = trust_area_val      or 0       # 流转出（给出去，减少自有种植）
+            t_in            = trust_in_area_val   or 0       # 代耕代种进（接收进来）
+            ns_area         = no_subsidy_area_val or 0       # 不补贴面积
+            # 有效补贴面积 = 实际补贴面积 - 流转出 - 代耕代种进 + 不补贴
+            # 优先用申报方直填的实际补贴面积，否则用计算值
+            final_subsidy   = actual_subsidy_area_val if actual_subsidy_area_val is not None \
+                              else round(contract_area_val - t_out - ns_area, 4)
+            # 本行在自有承包地上占用的面积（去掉代耕代种进来的部分）
+            self_occupy     = round(final_subsidy - t_in, 4)
+            # 家庭户当季数据库已有申请面积
+            hh_id           = db_household_ids.get(id_card)
+            hh_used         = db_hh_season_used.get(hh_id, 0) if hh_id else 0
+
+            exceed_type = None
+            exceed_amount = 0.0
+
+            # 情况一：本行自有承包地占用 > 数据库承包地
+            if db_contracted > 0 and self_occupy > db_contracted:
+                exceed_type   = "单行超限"
+                exceed_amount = round(self_occupy - db_contracted, 4)
+
+            # 情况二：户级累计超限（需要 season + compare_year）
+            hh_total = round(hh_used + final_subsidy, 4)
+            if season in VALID_SEASONS and hh_id and db_contracted > 0 and hh_total > db_contracted:
+                if exceed_type:
+                    exceed_type = "单行超限+累计超限"
+                else:
+                    exceed_type   = "累计超限"
+                exceed_amount = max(exceed_amount, round(hh_total - db_contracted, 4))
+
+            if exceed_type:
                 area_exceeds.append({
                     "row": row_no, "name": name, "id_card": id_card,
                     "village": village, "group": group,
-                    "apply_area": float(row.contract_area),
-                    "contract_area": contracted,
-                    "trust_area": 0,
-                    "no_subsidy_area": 0,
-                    "db_contract_area": contracted,
+                    "exceed_type":         exceed_type,           # 超限类型
+                    "contract_area":       contract_area_val,     # Excel填报承包地面积
+                    "trust_out_area":      t_out,                 # 流转出
+                    "trust_in_area":       t_in,                  # 代耕代种进
+                    "no_subsidy_area":     ns_area,               # 不补贴
+                    "actual_subsidy_area": final_subsidy,         # 实际补贴面积
+                    "self_occupy":         self_occupy,           # 自有承包地占用
+                    "hh_used":             hh_used,               # 户级当季已有申请面积
+                    "hh_total":            hh_total,              # 户级累计（已有+本行）
+                    "db_contract_area":    db_contracted,         # 数据库承包地（基准）
+                    "exceed_amount":       exceed_amount,         # 超出量
                 })
 
         # ── 2.11 与数据库比对：字段变更 ──
@@ -453,7 +552,8 @@ def get_template_headers():
         "headers": [
             "姓名*", "身份证号*", "所在村*", "所在组*",
             "性别", "手机号", "银行卡号", "开户行",
-            "土地面积(亩)", "备注"
+            "承包地面积(亩)", "流转出面积(亩)", "不补贴面积(亩)",
+            "家庭地址", "备注"
         ],
         "example": [
             {
@@ -461,7 +561,8 @@ def get_template_headers():
                 "所在村*": "红星村", "所在组*": "一组",
                 "性别": "男", "手机号": "13812340001",
                 "银行卡号": "6222021234560001", "开户行": "农业银行",
-                "土地面积(亩)": 3.5, "备注": ""
+                "承包地面积(亩)": 3.5, "流转出面积(亩)": 0.5, "不补贴面积(亩)": 0,
+                "家庭地址": "红星村一组12号", "备注": ""
             }
         ]
     }

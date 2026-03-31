@@ -17,7 +17,9 @@ from decimal import Decimal
 
 from database import get_db
 from models import FamilyHousehold, FarmerProfile, Village, SubsidyApplication, SubsidyType, SubsidyPayment, HouseholdAreaUsageCache
-from utils import format_group_no
+from utils import format_group_no, parse_group_no_to_int, parse_id_card, mask_id_card, mask_phone, mask_bank_card, gen_household_code
+# 导入预检查函数
+from .precheck import validate_id_card, check_name, check_phone
 
 router = APIRouter(prefix="/api/households", tags=["家庭户管理"])
 
@@ -275,7 +277,7 @@ def recalc_all_household_caches(db: Session) -> int:
 
 # ─────────────────────────────────────
 #  核心辅助：计算家庭户面积占用情况（从缓存读取）
-# ─────────────────────────────────────
+
 
 def calc_household_area_usage(
     household_id: int,
@@ -1217,6 +1219,15 @@ class HouseholdBuildRow(BaseModel):
     is_head: Optional[int] = 0  # 1=户主 0=成员
     relation: Optional[str] = "成员"
     contract_area: Optional[float] = None   # 只有户主行填，设置到家庭户
+    # 以下为可选字段，用于创建或更新农户信息
+    village_name: Optional[str] = None      # 村名，如果提供则用于创建/更新家庭户
+    group_no: Optional[str] = None          # 组号（字符串，如“一组”或“1”）
+    phone: Optional[str] = None
+    bank_card: Optional[str] = None
+    bank_name: Optional[str] = None
+    farmer_status: Optional[int] = 1        # 农户状态：1=在册，2=注销，3=迁出，4=死亡
+    gender: Optional[int] = None            # 性别：1=男，2=女
+    address: Optional[str] = None           # 家庭住址
 
 class HouseholdBuildRequest(BaseModel):
     rows: list[HouseholdBuildRow]
@@ -1224,93 +1235,230 @@ class HouseholdBuildRequest(BaseModel):
 @router.post("/batch-build")
 def batch_build_households(req: HouseholdBuildRequest, db: Session = Depends(get_db)):
     """
-    按 Excel 模板批量组建家庭户：
-    1. 按 household_id 分组
-    2. 每组找到对应农户（按身份证匹配）
-    3. 创建或复用同名家庭户，把成员归入
-    4. 设置户主
+    按 Excel 模板批量组建家庭户（增强版）：
+    1. 逐行格式验证（身份证、姓名、手机号等）
+    2. 按 household_id 分组
+    3. 每组必须有一个户主，户主唯一
+    4. 支持通过 village_name/group_no 指定村组，或从户主现有家庭户获取
+    5. 更新农户信息（手机号、银行卡等）
+    6. 创建或复用家庭户，将成员归入
     """
-    from utils import gen_household_code
-
     rows = req.rows
-    built, updated, errors = 0, 0, []
+    built, updated = 0, 0
+    errors = []  # 业务错误
+    format_errors = []  # 格式错误详情
+    seen_id_cards = {}  # 记录 Excel 内重复身份证
 
-    # 按 household_id 分组
+    # 1. 逐行格式验证
+    valid_rows = []
+    for i, row in enumerate(rows):
+        row_errors = []
+        id_card = (row.id_card or "").strip().upper()
+        real_name = (row.real_name or "").strip()
+        household_id = (row.household_id or "").strip()
+
+        # 必需字段检查
+        if not household_id:
+            row_errors.append("家庭户编号不能为空")
+        if not id_card:
+            row_errors.append("身份证号不能为空")
+        else:
+            # 身份证格式验证
+            id_ok, id_err = validate_id_card(id_card)
+            if not id_ok:
+                row_errors.append(f"身份证格式错误：{id_err}")
+            elif id_card in seen_id_cards:
+                row_errors.append(f"身份证号与第{seen_id_cards[id_card]}行重复")
+            else:
+                seen_id_cards[id_card] = i + 1  # 行号从1开始
+
+        if not real_name:
+            row_errors.append("姓名不能为空")
+        else:
+            name_ok, name_err = check_name(real_name)
+            if not name_ok:
+                row_errors.append(f"姓名格式错误：{name_err}")
+
+        # 手机号格式验证（可选）
+        if row.phone:
+            phone_ok, phone_err = check_phone(str(row.phone))
+            if not phone_ok:
+                row_errors.append(phone_err)
+
+        # 土地面积合理性检查
+        if row.contract_area is not None:
+            try:
+                area = float(row.contract_area)
+                if area < 0:
+                    row_errors.append(f"土地面积不能为负数（{area}）")
+                elif area > 9999:
+                    row_errors.append(f"土地面积异常偏大（{area}亩），请核实")
+            except (ValueError, TypeError):
+                row_errors.append(f"土地面积格式错误（{row.contract_area}）")
+
+        if row_errors:
+            format_errors.append({
+                "row": i + 1,
+                "household_id": household_id,
+                "id_card": id_card,
+                "real_name": real_name,
+                "errors": row_errors
+            })
+        else:
+            valid_rows.append(row)
+
+    # 2. 按 household_id 分组
     from collections import defaultdict
-    groups: dict = defaultdict(list)
-    for r in rows:
-        groups[r.household_id.strip()].append(r)
+    groups = defaultdict(list)
+    for row in valid_rows:
+        groups[row.household_id.strip()].append(row)
 
+    # 3. 处理每个家庭户组
     for hh_label, members in groups.items():
         try:
-            # 找户主行（is_head=1），只取第一个
+            # 3.1 检查户主
             head_rows = [m for m in members if m.is_head == 1]
             if not head_rows:
                 errors.append(f"家庭户 {hh_label}：没有指定户主（is_head=1）")
                 continue
+            if len(head_rows) > 1:
+                errors.append(f"家庭户 {hh_label}：指定了多个户主，只允许一个")
+                continue
 
-            # 解析所有成员对应的 FarmerProfile
+            head_row = head_rows[0]
+
+            # 3.2 确定村组信息
+            # 优先使用户主行提供的 village_name/group_no
+            village_id = None
+            group_no_int = None
+
+            if head_row.village_name or head_row.group_no:
+                # 解析 village_id
+                if head_row.village_name:
+                    village = db.query(Village).filter(Village.village_name == head_row.village_name.strip()).first()
+                    if not village:
+                        # 创建新 Village
+                        village = Village(village_name=head_row.village_name.strip())
+                        db.add(village)
+                        db.flush()
+                    village_id = village.id
+
+                # 解析 group_no
+                if head_row.group_no:
+                    group_no_int = parse_group_no_to_int(head_row.group_no)
+
+            # 如果 village_id 或 group_no_int 仍为空，尝试从户主现有家庭户获取
+            if not village_id or not group_no_int:
+                # 查找户主农户
+                head_farmer = db.query(FarmerProfile).filter(FarmerProfile.id_card == head_row.id_card.strip().upper()).first()
+                if not head_farmer:
+                    errors.append(f"家庭户 {hh_label}：户主身份证 {head_row.id_card} 找不到对应农户")
+                    continue
+
+                if head_farmer.household_id:
+                    hh = db.get(FamilyHousehold, head_farmer.household_id)
+                    if hh:
+                        if not village_id:
+                            village_id = hh.village_id
+                        if not group_no_int:
+                            group_no_int = hh.group_no
+
+            # 最终检查村组完整性
+            if not village_id:
+                errors.append(f"家庭户 {hh_label}：无法确定村信息，请提供 village_name 或确保户主已有家庭户")
+                continue
+            if not group_no_int:
+                errors.append(f"家庭户 {hh_label}：无法确定组信息，请提供 group_no 或确保户主已有家庭户")
+                continue
+
+            # 3.3 处理所有成员
             farmer_objs = []
-            head_farmer = None
+            head_farmer_obj = None
+
             for m in members:
-                ic = m.id_card.strip()
+                ic = m.id_card.strip().upper()
                 fp = db.query(FarmerProfile).filter(FarmerProfile.id_card == ic).first()
                 if not fp:
                     errors.append(f"{hh_label} - {m.real_name or ic}：身份证找不到对应农户，跳过")
                     continue
+
+                # 更新农户信息（如果提供了新值）
+                if m.phone is not None:
+                    fp.phone = m.phone.strip() or None
+                if m.bank_card is not None:
+                    fp.bank_card = m.bank_card.strip() or None
+                if m.bank_name is not None:
+                    fp.bank_name = m.bank_name.strip() or None
+                if m.farmer_status is not None:
+                    fp.farmer_status = m.farmer_status
+                if m.gender is not None:
+                    fp.gender = m.gender
+                if m.relation is not None:
+                    fp.relation = m.relation
+
                 farmer_objs.append((fp, m))
                 if m.is_head == 1:
-                    head_farmer = fp
+                    head_farmer_obj = fp
 
-            if not head_farmer or not farmer_objs:
+            if not head_farmer_obj or not farmer_objs:
                 errors.append(f"家庭户 {hh_label}：没有找到有效成员，跳过")
                 continue
 
-            # 找户主行的 contract_area
-            land = None
-            for m in members:
-                if m.is_head == 1 and m.contract_area:
-                    land = m.contract_area; break
-
-            # 优先复用 head_farmer 已有家庭户（batch_import_farmers 已建户）
+            # 3.4 创建或更新家庭户
             existing_hh = None
-            if head_farmer.household_id:
-                existing_hh = db.get(FamilyHousehold, head_farmer.household_id)
+            if head_farmer_obj.household_id:
+                existing_hh = db.get(FamilyHousehold, head_farmer_obj.household_id)
 
             if not existing_hh:
-                hh_vid = head_farmer.household.village_id if head_farmer.household else None
-                hh_gno = head_farmer.household.group_no if head_farmer.household else None
-                if not hh_vid or not hh_gno:
-                    errors.append(f"家庭户 {hh_label}：户主村组信息不完整，跳过"); continue
+                # 创建新家庭户
                 existing_hh = FamilyHousehold(
-                    household_code=gen_household_code(head_farmer.id),
-                    household_name=f"{head_farmer.real_name}户",
-                    head_farmer_id=head_farmer.id,
-                    village_id=hh_vid,
-                    group_no=hh_gno,
-                    contract_area=land,
+                    household_code=gen_household_code(head_farmer_obj.id),
+                    household_name=f"{head_farmer_obj.real_name}户",
+                    head_farmer_id=head_farmer_obj.id,
+                    village_id=village_id,
+                    group_no=group_no_int,
+                    address=head_row.address,
+                    contract_area=head_row.contract_area,
                     status=1,
                 )
-                db.add(existing_hh); db.flush()
+                db.add(existing_hh)
+                db.flush()
                 built += 1
             else:
-                if land: existing_hh.contract_area = land
-                existing_hh.head_farmer_id = head_farmer.id
+                # 更新现有家庭户
+                if head_row.contract_area is not None:
+                    existing_hh.contract_area = head_row.contract_area
+                existing_hh.head_farmer_id = head_farmer_obj.id
+                # 更新村组信息（如果提供了新的）
+                if village_id:
+                    existing_hh.village_id = village_id
+                if group_no_int:
+                    existing_hh.group_no = group_no_int
+                if head_row.address:
+                    existing_hh.address = head_row.address
                 updated += 1
 
-            # 更新每个成员的 household_id、relation
+            # 3.5 更新所有成员的 household_id 和 relation
             for fp, m in farmer_objs:
                 fp.household_id = existing_hh.id
-                fp.relation = m.relation or ("本人" if m.is_head else "成员")
+                fp.relation = m.relation or ("本人" if m.is_head == 1 else "成员")
 
             db.flush()
 
         except Exception as e:
-            errors.append(f"家庭户 {hh_label}：{str(e)}")
+            errors.append(f"家庭户 {hh_label}：处理失败 - {str(e)}")
+            import traceback
+            traceback.print_exc()
 
     db.commit()
-    return {"built": built, "updated": updated, "errors": errors,
-            "total_groups": len(groups)}
+    return {
+        "built": built,
+        "updated": updated,
+        "errors": errors,
+        "total_groups": len(groups),
+        "format_errors_count": len(format_errors),
+        "format_errors": format_errors
+    }
 
 
 # ══════════════════════════════════════════════════
@@ -2184,7 +2332,6 @@ def get_history_snapshot(
 def split_household(household_id: int, data: dict, db: Session = Depends(get_db)):
     """
     分户操作：将指定成员从原家庭户分出，组建新家庭户。
-    
     data: {
       split_year: int,          # 分户年度（必填）
       split_date: str,          # 分户日期（可选）

@@ -87,9 +87,9 @@ const calcAge = (birth?: string | null) => {
   return now.getFullYear() - b.getFullYear() - (now < new Date(now.getFullYear(), b.getMonth(), b.getDate()) ? 1 : 0)
 }
 
-const FARMER_TEMPLATE_HEADERS = ['姓名*', '身份证号*', '所在村*', '所在组*', '手机号', '银行卡号', '开户行', '地址', '土地面积', '状态']
+const FARMER_TEMPLATE_HEADERS = ['姓名*', '身份证号*', '所在村*', '所在组*', '手机号', '银行卡号', '开户行', '地址', '承包土地面积', '状态']
 const FARMER_TEMPLATE_EXAMPLE = [
-  { '姓名*': '张国强', '身份证号*': '510123196503154231', '所在村*': '红星村', '所在组*': '一组', '手机号': '13812340001', '银行卡号': '6222021234560001', '开户行': '农业银行红星支行', '地址': '红星村一组12号', '土地面积': 3.5, '状态': '在册' },
+  { '姓名*': '张国强', '身份证号*': '510123196503154231', '所在村*': '红星村', '所在组*': '一组', '手机号': '13812340001', '银行卡号': '6222021234560001', '开户行': '农业银行红星支行', '地址': '红星村一组12号', '承包土地面积': 3.5, '状态': '在册' },
 ]
 
 const FARMER_SYSTEM_FIELDS = [
@@ -101,7 +101,7 @@ const FARMER_SYSTEM_FIELDS = [
   { field: 'bank_card',     label: '银行卡号', required: false, type: 'string' },
   { field: 'bank_name',     label: '开户行',   required: false, type: 'string' },
   { field: 'address',       label: '地址',     required: false, type: 'string' },
-  { field: 'land_area',     label: '土地面积', required: false, type: 'decimal' },
+  { field: 'land_area',     label: '承包土地面积', required: false, type: 'decimal' },
   { field: 'farmer_status', label: '状态',     required: false, type: 'status' },
 ]
 
@@ -216,6 +216,7 @@ export default function FarmersPage() {
 
   // ── 批量导入农户 ──
   const [importOpen, setImportOpen] = useState(false)
+  const [importOverwrite, setImportOverwrite] = useState(false)
   const [templates, setTemplates] = useState<ExcelColumnTemplate[]>([])
 
   // ── 加载农户列表 ──
@@ -678,15 +679,15 @@ export default function FarmersPage() {
         bank_card: String(row['bank_card'] || row['银行卡号'] || '').trim() || undefined,
         bank_name: String(row['bank_name'] || row['开户行'] || '').trim() || undefined,
         address: String(row['address'] || row['地址'] || '').trim() || undefined,
-        land_area: Number(row['land_area'] || row['土地面积']) || undefined,
+        land_area: Number(row['land_area'] || row['承包土地面积']) || undefined,
         farmer_status: statusMap[rawStatus] ?? 1,
       })
     })
     if (formatErrors.length > 0 && toCreate.length === 0) return { created: 0, skipped: 0, errors: formatErrors }
-    const res = await api.batchImportFarmers(toCreate as unknown as Parameters<typeof api.batchImportFarmers>[0])
+    const res = await api.batchImportFarmers(toCreate as unknown as Parameters<typeof api.batchImportFarmers>[0], importOverwrite)
     api.getVillageGroups().then(g => { setGroups(g); setVillages([...new Set(g.map(v => v.village_name))]) })
     const allErrors = [...formatErrors, ...(res.errors || [])]
-    if (res.skipped > 0) allErrors.push(`已跳过 ${res.skipped} 条重复身份证记录`)
+    if (res.skipped > 0) allErrors.push(`已跳过 ${res.skipped} 条重复身份证（未开启覆盖）`)
     if (leftTab === 'farmers') loadFarmers()
     return { ...res, errors: allErrors }
   }
@@ -1358,9 +1359,16 @@ export default function FarmersPage() {
               <button onClick={() => setCreateFarmerOpen(true)} className="px-4 py-2.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
                 <span className="mr-1">＋</span>新建农户
               </button>
-              <button onClick={() => setImportOpen(true)} className="px-4 py-2.5 text-sm border border-stone-200 text-stone-700 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
-                <span className="mr-1">↑</span>导入农户
-              </button>
+              <div className="flex items-center gap-0 border border-stone-200 rounded-lg shadow-sm overflow-hidden">
+                <button onClick={() => setImportOpen(true)} className="px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 transition-all font-medium">
+                  <span className="mr-1">↑</span>导入农户
+                </button>
+                <label className={`flex items-center gap-1.5 px-3 py-2.5 text-xs cursor-pointer border-l border-stone-200 transition-colors select-none ${importOverwrite ? 'bg-amber-50 text-amber-700' : 'text-stone-400 hover:bg-stone-50'}`}
+                  title="开启后，重复身份证的记录将被 Excel 中的数据覆盖更新">
+                  <input type="checkbox" checked={importOverwrite} onChange={e => setImportOverwrite(e.target.checked)} className="accent-amber-600 w-3 h-3" />
+                  覆盖重复
+                </label>
+              </div>
               <button onClick={exportCurrentList} className="px-4 py-2.5 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
                 <span className="mr-1">⬇</span>导出
               </button>

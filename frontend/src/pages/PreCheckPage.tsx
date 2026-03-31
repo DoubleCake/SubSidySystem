@@ -22,8 +22,16 @@ interface CheckRow {
   village_name: string
   group_no: string
   phone?: string
-  land_area?: number
+  bank_card?: string
+  bank_name?: string
+  contract_area?: number
+  trust_out_area?: number
+  trust_in_area?: number
+  no_subsidy_area?: number
+  actual_subsidy_area?: number
   gender?: string
+  address?: string
+  remark?: string
 }
 
 type ActiveTab = 'error-library-hits' | 'format' | 'village' | 'duplicate' | 'gender' | 'area-exceeds' | 'new' | 'removed' | 'changed' | 'year'
@@ -31,18 +39,26 @@ type PageTab = 'check' | 'error-lib'
 
 // ─── 预检系统字段（传给 ExcelImportWithMapping）───
 const PRECHECK_SYSTEM_FIELDS = [
-  { field: "real_name",    label: "姓名",     required: true,  type: "string" },
-  { field: "id_card",      label: "身份证号", required: true,  type: "id_card" },
-  { field: "village_name", label: "所在村",   required: true,  type: "string" },
-  { field: "group_no",     label: "所在组",   required: true,  type: "string" },
-  { field: "gender",       label: "性别",     required: false, type: "string" },
-  { field: "phone",        label: "手机号",   required: false, type: "string" },
-  { field: "land_area",    label: "土地面积", required: false, type: "decimal" },
+  { field: "real_name",       label: "姓名",       required: true,  type: "string" },
+  { field: "id_card",         label: "身份证号",   required: true,  type: "id_card" },
+  { field: "village_name",    label: "所在村",     required: true,  type: "string" },
+  { field: "group_no",        label: "所在组",     required: true,  type: "string" },
+  { field: "gender",          label: "性别",       required: false, type: "string" },
+  { field: "phone",           label: "手机号",     required: false, type: "string" },
+  { field: "bank_card",       label: "银行卡号",   required: false, type: "string" },
+  { field: "bank_name",       label: "开户行",     required: false, type: "string" },
+  { field: "contract_area",       label: "承包地面积",   required: false, type: "decimal" },
+  { field: "trust_out_area",          label: "流转出面积",   required: false, type: "decimal" },
+  { field: "trust_in_area",       label: "代耕代种面积",   required: false, type: "decimal" },
+  { field: "no_subsidy_area",     label: "不补贴面积",   required: false, type: "decimal" },
+  { field: "actual_subsidy_area", label: "实际补贴面积", required: false, type: "decimal" },
+  { field: "address",         label: "家庭地址",   required: false, type: "string" },
+  { field: "remark",          label: "备注",       required: false, type: "string" },
 ]
 
-const PRECHECK_TEMPLATE_HEADERS = ['姓名*', '身份证号*', '所在村*', '所在组*', '性别', '手机号', '银行卡号', '开户行', '土地面积(亩)', '备注']
+const PRECHECK_TEMPLATE_HEADERS = ['姓名*', '身份证号*', '所在村*', '所在组*', '性别', '手机号', '银行卡号', '开户行', '承包地面积(亩)', '流转出面积(亩)', '代耕代种进(亩)', '不补贴面积(亩)', '实际补贴面积(亩)', '家庭地址', '备注']
 const PRECHECK_TEMPLATE_EXAMPLE = [
-  { '姓名*': '张国强', '身份证号*': '510123196503154231', '所在村*': '红星村', '所在组*': '一组', '性别': '男', '手机号': '13812340001', '银行卡号': '', '开户行': '', '土地面积(亩)': 3.5, '备注': '' },
+  { '姓名*': '张国强', '身份证号*': '510123196503154231', '所在村*': '红星村', '所在组*': '一组', '性别': '男', '手机号': '13812340001', '银行卡号': '', '开户行': '农业银行', '承包地面积(亩)': 3.5, '流转出面积(亩)': 0.5, '代耕代种进(亩)': 0, '不补贴面积(亩)': 0, '实际补贴面积(亩)': 3.0, '家庭地址': '红星村一组12号', '备注': '' },
 ]
 
 // ─── 导出报告到 Excel ───
@@ -101,9 +117,17 @@ function exportReport(result: CheckResult, fileName = '预检查报告') {
   addSheet('面积超限', result.area_exceeds.map(r => ({
     '行号': r.row, '姓名': r.name, '身份证号': r.id_card,
     '所在村': r.village, '所在组': r.group,
-    '实际补贴面积': r.apply_area, '承包地面积': r.contract_area,
-    '代耕代种面积': r.trust_area, '不予补贴面积': r.no_subsidy_area,
+    '超限类型': r.exceed_type,
+    '承包地面积': r.contract_area,
+    '流转出面积': r.trust_out_area,
+    '代耕代种进': r.trust_in_area,
+    '不补贴面积': r.no_subsidy_area,
+    '实际补贴面积': r.actual_subsidy_area,
+    '自有承包地占用': r.self_occupy,
+    '户级当季已有申请': r.hh_used,
+    '户级合计': r.hh_total,
     '数据库承包面积': r.db_contract_area,
+    '超出面积': r.exceed_amount,
   })))
 
   addSheet('新增农户', result.new_farmers.map(r => ({
@@ -140,6 +164,7 @@ export default function PreCheckPage() {
   const [step, setStep] = useState<'upload' | 'checking' | 'result'>('upload')
   const [rawRows, setRawRows] = useState<CheckRow[]>([])
   const [result, setResult] = useState<CheckResult | null>(null)
+  const [season, setSeason] = useState<string>('')
   const [compareYear, setCompareYear] = useState<number | ''>('')
   const [activeTab, setActiveTab] = useState<ActiveTab>('format')
   const [pageTab, setPageTab] = useState<PageTab>('check')
@@ -164,6 +189,7 @@ export default function PreCheckPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rows,
+          season: season || null,
           compare_year: compareYear || null,
         })
       })
@@ -193,19 +219,29 @@ export default function PreCheckPage() {
       show((e as Error).message, 'err')
       setStep('upload')
     }
-  }, [compareYear, show])
+  }, [season, compareYear, show])
 
   // ExcelImportWithMapping 的 onImport：捕获映射后的行数据，不写入数据库
   const handlePrecheckImport = useCallback(async (mappedRows: Record<string, unknown>[]): Promise<{ created: number; skipped: number; errors: string[] }> => {
+    const toNum = (v: unknown) => v != null && v !== '' ? Number(v) : undefined
+    const toStr = (v: unknown) => v ? String(v).trim() : undefined
     const rows: CheckRow[] = mappedRows.map((r, i) => ({
       row_index: i + 2,
       real_name: String(r.real_name || '').trim(),
       id_card: String(r.id_card || '').trim(),
       village_name: String(r.village_name || '').trim(),
       group_no: String(r.group_no || '').trim(),
-      phone: r.phone ? String(r.phone).trim() : undefined,
-      land_area: r.land_area != null && r.land_area !== '' ? Number(r.land_area) : undefined,
-      gender: r.gender ? String(r.gender).trim() : undefined,
+      phone: toStr(r.phone),
+      bank_card: toStr(r.bank_card),
+      bank_name: toStr(r.bank_name),
+      contract_area: toNum(r.contract_area),
+      trust_out_area: toNum(r.trust_out_area),
+      trust_in_area: toNum(r.trust_in_area),
+      no_subsidy_area: toNum(r.no_subsidy_area),
+      actual_subsidy_area: toNum(r.actual_subsidy_area),
+      gender: toStr(r.gender),
+      address: toStr(r.address),
+      remark: toStr(r.remark),
     }))
     pendingRows.current = rows
     setRawRows(rows)
@@ -293,13 +329,22 @@ export default function PreCheckPage() {
               <h4 className="font-semibold text-stone-700 text-sm mb-3">检查选项</h4>
               <div className="space-y-3">
                 <div>
+                  <label className="block text-xs text-stone-400 mb-1">补贴分类 <span className="text-red-400">*</span></label>
+                  <select value={season} onChange={e => setSeason(e.target.value)}
+                    className={`w-full border rounded-lg px-3 py-2 text-sm bg-white outline-none ${!season ? 'border-amber-300' : 'border-stone-200'}`}>
+                    <option value="">— 请选择 —</option>
+                    {['大春', '小春', '全年单补', '临时'].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <p className="text-xs text-stone-300 mt-1">用于户级累计面积超限检测</p>
+                </div>
+                <div>
                   <label className="block text-xs text-stone-400 mb-1">与哪年的补贴数据对比（可选）</label>
                   <select value={compareYear} onChange={e => setCompareYear(e.target.value ? Number(e.target.value) : '')}
                     className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
                     <option value="">不对比历史年度</option>
                     {years.map(y => <option key={y} value={y}>{y}年</option>)}
                   </select>
-                  <p className="text-xs text-stone-300 mt-1">选择后会对比该年度已有补贴记录，找出新增/减少</p>
+                  <p className="text-xs text-stone-300 mt-1">选择后会对比该年度已有补贴记录，找出新增/减少；同时启用户级累计超限检测</p>
                 </div>
               </div>
             </div>
@@ -430,16 +475,22 @@ export default function PreCheckPage() {
             {/* 面积超限 */}
             {activeTab === 'area-exceeds' && (
               <ResultTable
-                title="面积超限 — 填报面积超过数据库承包面积，请核实"
+                title="面积超限 — 请逐条核实"
                 empty={result.area_exceeds.length === 0}
-                headers={['行号','姓名','身份证号','所在村','所在组','实际补贴面积','承包地面积','代耕代种','不予补贴','数据库承包面积']}
+                headers={['行号','姓名','身份证号','所在村','所在组','超限类型','承包地','流转出','代耕代种进','不补贴','实际补贴','自有占用','户级已用','户级合计','数据库承包地','超出']}
                 rows={result.area_exceeds.map(r => [
                   r.row, r.name, r.id_card, r.village, r.group,
-                  <span key="a" className="text-orange-600 font-semibold">{r.apply_area} 亩</span>,
-                  <span key="c" className="text-stone-500">{r.contract_area} 亩</span>,
-                  <span key="t" className="text-stone-400">{r.trust_area} 亩</span>,
-                  <span key="n" className="text-stone-400">{r.no_subsidy_area} 亩</span>,
-                  <span key="d" className="text-blue-600">{r.db_contract_area} 亩</span>,
+                  <span key="et" className={`text-xs font-semibold ${r.exceed_type === '单行超限' ? 'text-orange-600' : r.exceed_type === '累计超限' ? 'text-blue-600' : 'text-red-600'}`}>{r.exceed_type}</span>,
+                  <span key="c"  className="text-stone-600">{r.contract_area} 亩</span>,
+                  <span key="to" className="text-stone-400">{r.trust_out_area} 亩</span>,
+                  <span key="ti" className="text-stone-400">{r.trust_in_area} 亩</span>,
+                  <span key="n"  className="text-stone-400">{r.no_subsidy_area} 亩</span>,
+                  <span key="as" className="text-emerald-700">{r.actual_subsidy_area} 亩</span>,
+                  <span key="so" className="text-orange-600">{r.self_occupy} 亩</span>,
+                  <span key="hu" className="text-stone-400">{r.hh_used} 亩</span>,
+                  <span key="ht" className="text-orange-600 font-semibold">{r.hh_total} 亩</span>,
+                  <span key="db" className="text-blue-600">{r.db_contract_area} 亩</span>,
+                  <span key="ex" className="text-red-600 font-semibold">+{r.exceed_amount} 亩</span>,
                 ])} />
             )}
             {/* 新增农户 */}
