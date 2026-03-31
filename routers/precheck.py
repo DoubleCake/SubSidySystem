@@ -221,6 +221,10 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
     new_farmers:         list[dict] = []   # Excel 中有、数据库中没有
     error_library_hits:  list[dict] = []   # 错误库命中
     area_exceeds:        list[dict] = []   # 面积超限
+    area_missing:        list[dict] = []   # 承包面积缺失
+    age_anomaly:         list[dict] = []   # 年龄异常
+    deceased_farmers:    list[dict] = []   # 死亡农户
+    household_duplicates: list[dict] = []  # 同一家庭多成员申请
     ok_rows:             list[dict] = []   # 通过所有检查的行
 
     seen_id_cards: dict[str, int] = {}   # 记录 Excel 内已出现的身份证 → 行号
@@ -506,7 +510,11 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
 
     # ── 5. 汇总 ──
     total_rows = len(req.rows)
-    error_rows = len(format_errors) + len(village_errors) + len(duplicate_errors) + len(gender_mismatch) + len(error_library_hits) + len(area_exceeds)
+    error_rows = (
+        len(format_errors) + len(village_errors) + len(duplicate_errors)
+        + len(gender_mismatch) + len(error_library_hits) + len(area_exceeds)
+        + len(area_missing) + len(age_anomaly) + len(deceased_farmers) + len(household_duplicates)
+    )
     summary = {
         "total_rows": total_rows,
         "ok_rows": len(ok_rows),
@@ -517,6 +525,10 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         "gender_mismatch": len(gender_mismatch),
         "error_library_hits": len(error_library_hits),
         "area_exceeds": len(area_exceeds),
+        "area_missing": len(area_missing),
+        "age_anomaly": len(age_anomaly),
+        "deceased_farmers": len(deceased_farmers),
+        "household_duplicates": len(household_duplicates),
         "new_farmers": len(new_farmers),
         "removed_farmers": len(removed_farmers),
         "changed_farmers": len(changed_farmers),
@@ -531,6 +543,10 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         "gender_mismatch": gender_mismatch,
         "error_library_hits": error_library_hits,
         "area_exceeds": area_exceeds,
+        "area_missing": area_missing,
+        "age_anomaly": age_anomaly,
+        "deceased_farmers": deceased_farmers,
+        "household_duplicates": household_duplicates,
         "new_farmers": new_farmers,
         "removed_farmers": removed_farmers,
         "changed_farmers": changed_farmers,
