@@ -25,7 +25,7 @@ lerna-debug.log*
 # 前端构建输出
 dist/
 build/
-static/                # 后端静态文件输出目录（对应 vite.config.ts 中的 outDir）
+static/
 *.tsbuildinfo
 
 # IDE
@@ -38,7 +38,7 @@ static/                # 后端静态文件输出目录（对应 vite.config.ts 
 Thumbs.db
 
 # 项目特定
-.deps_installed        # 启动脚本生成的标记文件
+.deps_installed        
 coverage/
 .nyc_output/
 *.bak
