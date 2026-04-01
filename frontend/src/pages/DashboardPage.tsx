@@ -1,10 +1,11 @@
 /**
- * 首页概览 v2
- * - 今年待办（主动推送异常）
- * - 核心指标卡
- * - 补贴项目发放进度（可点击跳转）
- * - 按村汇总横向柱状图
- * - 新增/退出农户
+ * 首页概览 v3
+ * - 年度选择器（数据完全独立）
+ * - 待办预警栏
+ * - 4个核心指标卡
+ * - 季节概览卡（大春/小春/全年单补/临时）
+ * - 补贴项目列表（按季节分组）+ 按村分布图
+ * - 新增/待核实农户
  */
 import { useState, useEffect } from 'react'
 import * as api from '../api'
@@ -18,7 +19,7 @@ const years = Array.from({ length: 8 }, (_, i) => thisYear + 1 - i)
 type Tab = 'dashboard' | 'farmers' | 'projects' | 'precheck' | 'links' | 'ai' | 'village-groups' | 'households'
 
 type StatsType = {
-  id: number; subsidy_name: string; subsidy_year: number
+  id: number; subsidy_name: string; subsidy_year: number; season: string | null
   calc_mode: string; standard_amount: string | null; standard_unit: string | null
   fund_source: string | null; pay_status: number
   app_count: number; beneficiary_count: number
@@ -32,19 +33,56 @@ type Todos = {
   id_card_errors: number
 }
 
+type SeasonSummary = {
+  season: string
+  project_count: number
+  farmer_count: number
+  total_amount: number
+  total_area: number
+  application_count: number
+}
+
 const PS_CFG: Record<number, { label: string; cls: string; bar: string }> = {
-  0: { label: '未发放',   cls: 'bg-stone-100 text-stone-400',   bar: 'bg-stone-300' },
-  1: { label: '发放中',   cls: 'bg-amber-100 text-amber-600',   bar: 'bg-amber-400' },
-  2: { label: '已完成',   cls: 'bg-emerald-100 text-emerald-700', bar: 'bg-emerald-500' },
+  0: { label: '未发放', cls: 'bg-stone-100 text-stone-400',     bar: 'bg-stone-300'   },
+  1: { label: '发放中', cls: 'bg-amber-100 text-amber-600',     bar: 'bg-amber-400'   },
+  2: { label: '已完成', cls: 'bg-emerald-100 text-emerald-700', bar: 'bg-emerald-500' },
+}
+
+const SEASON_CFG: Record<string, { icon: string; color: string; bg: string; border: string; tag: string }> = {
+  '大春':   { icon: '🌾', color: 'text-emerald-700', bg: 'bg-emerald-50',  border: 'border-emerald-200', tag: '主粮季' },
+  '小春':   { icon: '🌿', color: 'text-lime-700',    bg: 'bg-lime-50',     border: 'border-lime-200',    tag: '冬作物' },
+  '全年单补': { icon: '📅', color: 'text-blue-700',   bg: 'bg-blue-50',     border: 'border-blue-200',    tag: '全年' },
+  '临时':   { icon: '⚡', color: 'text-amber-700',   bg: 'bg-amber-50',    border: 'border-amber-200',   tag: '临时专项' },
+}
+
+// 按季节分组项目
+function groupBySeasonOrder(stats: StatsType[]) {
+  const order = ['大春', '小春', '全年单补', '临时']
+  const groups: Record<string, StatsType[]> = {}
+  for (const s of stats) {
+    const key = s.season || '全年单补'
+    if (!groups[key]) groups[key] = []
+    groups[key].push(s)
+  }
+  const result: { season: string; items: StatsType[] }[] = []
+  for (const k of order) {
+    if (groups[k]?.length) result.push({ season: k, items: groups[k] })
+  }
+  // 不在预定义顺序中的季节放最后
+  for (const k of Object.keys(groups)) {
+    if (!order.includes(k)) result.push({ season: k, items: groups[k] })
+  }
+  return result
 }
 
 export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }) {
-  const [year, setYear]       = useState(thisYear)
-  const [compare, setCompare] = useState<YearCompare | null>(null)
-  const [byVillage, setByVillage] = useState<VillageSummary[]>([])
-  const [stats, setStats]     = useState<StatsType[]>([])
-  const [todos, setTodos]     = useState<Todos | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [year, setYear]             = useState(thisYear)
+  const [compare, setCompare]       = useState<YearCompare | null>(null)
+  const [byVillage, setByVillage]   = useState<VillageSummary[]>([])
+  const [stats, setStats]           = useState<StatsType[]>([])
+  const [seasonData, setSeasonData] = useState<SeasonSummary[]>([])
+  const [todos, setTodos]           = useState<Todos | null>(null)
+  const [loading, setLoading]       = useState(true)
 
   useEffect(() => {
     const ctrl = new AbortController()
@@ -54,39 +92,44 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
         api.getYearCompare(year),
         api.getSummaryByVillage(year),
         api.getSubsidyTypesWithStats(year),
+        api.getSummaryBySeason(year),
         fetch(`/api/subsidies/dashboard/todos?year=${year}`).then(r => r.json()),
-      ]).then(([c, v, s, t]) => {
+      ]).then(([c, v, s, ss, t]) => {
         if (ctrl.signal.aborted) return
-        setCompare(c); setByVillage(v)
-        setStats(s as StatsType[]); setTodos(t as Todos)
+        setCompare(c)
+        setByVillage(v)
+        setStats(s as StatsType[])
+        setSeasonData(ss as SeasonSummary[])
+        setTodos(t as Todos)
       }).catch(e => { if (!ctrl.signal.aborted) console.error(e) })
-       .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
+        .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
     }, 300)
     return () => { clearTimeout(timer); ctrl.abort() }
   }, [year])
 
-  const c     = compare?.current_year
-  const p     = compare?.last_year
-  const diff  = compare?.amount_diff ?? 0
-  const maxV  = Math.max(...byVillage.map(v => v.total_amount), 1)
+  const c      = compare?.current_year
+  const p      = compare?.last_year
+  const diff   = compare?.amount_diff ?? 0
+  const maxV   = Math.max(...byVillage.map(v => v.total_amount), 1)
   const totalV = byVillage.reduce((s, v) => s + v.total_amount, 0)
+  const seasonGroups = groupBySeasonOrder(stats)
 
   const todoItems = todos ? [
     { key: 'incomplete_projects', icon: '📋', label: `${year}年有未完成项目`, val: todos.incomplete_projects, color: 'amber', tab: 'projects' as Tab, hide: todos.incomplete_projects === 0 },
-    { key: 'pending_records',     icon: '💰', label: '补贴记录待发放',        val: todos.pending_records,     color: 'amber', tab: 'projects' as Tab, hide: todos.pending_records === 0 },
+    { key: 'pending_records',     icon: '💰', label: '补贴记录待发放',        val: todos.pending_records,      color: 'amber', tab: 'projects' as Tab, hide: todos.pending_records === 0 },
     { key: 'overdrawn',           icon: '⚠️', label: '家庭户超领预警',         val: todos.overdrawn_households, color: 'red',   tab: 'households' as Tab, hide: todos.overdrawn_households === 0 },
     { key: 'id_errors',           icon: '🪪', label: '身份证格式异常',         val: todos.id_card_errors,       color: 'red',   tab: 'precheck' as Tab, hide: todos.id_card_errors === 0 },
   ].filter(t => !t.hide) : []
 
   return (
     <div>
-      {/* 年份 + 刷新 */}
+      {/* 年份选择器 */}
       <div className="flex items-center gap-2 mb-4">
         <select value={year} onChange={e => setYear(Number(e.target.value))}
           className="border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none font-semibold">
           {years.map(y => <option key={y} value={y}>{y} 年度</option>)}
         </select>
-        <button onClick={() => setYear(y => y)}
+        <button onClick={() => setYear(y => { const v = y; return v })}
           className="px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white text-stone-500 hover:bg-stone-50">
           刷新
         </button>
@@ -98,7 +141,7 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
         )}
       </div>
 
-      {/* 待办提示栏（有问题才显示）*/}
+      {/* 待办预警栏 */}
       {todoItems.length > 0 && (
         <div className="grid grid-cols-2 gap-2 mb-4">
           {todoItems.map(t => (
@@ -113,7 +156,7 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
                   {t.label}
                 </div>
                 <div className={`text-xs mt-0.5 ${t.color === 'red' ? 'text-red-500' : 'text-amber-500'}`}>
-                  共 {t.val} {t.key === 'incomplete_projects' ? '个' : t.key === 'pending_records' ? '条' : '户/条'}  · 点击前往处理 →
+                  共 {t.val} {t.key === 'incomplete_projects' ? '个' : t.key === 'pending_records' ? '条' : '户/条'} · 点击前往处理 →
                 </div>
               </div>
             </button>
@@ -127,21 +170,25 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
       )}
 
       {/* 核心指标卡 */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-4 gap-3 mb-4">
         {[
-          { icon:'💰', label:`${year}年实发总额`,
-            val: c ? `¥${c.total_amount.toLocaleString('zh-CN',{maximumFractionDigits:0})}` : '—',
-            sub: c ? `${c.application_count}笔记录` : '', color:'text-emerald-700', border:'border-emerald-200', bg:'bg-emerald-50/40' },
-          { icon:'📈', label:'较上年变化',
-            val: c&&p ? `${diff>=0?'+':''}¥${Math.abs(diff).toLocaleString('zh-CN',{maximumFractionDigits:0})}` : '—',
-            sub: compare?.amount_diff_pct!=null ? `${diff>=0?'+':''}${compare.amount_diff_pct}%` : '—',
-            color: diff>=0?'text-emerald-700':'text-red-500', border: diff>=0?'border-emerald-200':'border-red-200', bg:'' },
-          { icon:'👥', label:'受益家庭户',
+          { icon: '💰', label: `${year}年实发总额`,
+            val: c ? `¥${c.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}` : '—',
+            sub: c ? `${c.application_count} 笔记录` : '',
+            color: 'text-emerald-700', border: 'border-emerald-200', bg: 'bg-emerald-50/40' },
+          { icon: '📈', label: '较上年变化',
+            val: c && p ? `${diff >= 0 ? '+' : ''}¥${Math.abs(diff).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}` : '—',
+            sub: compare?.amount_diff_pct != null ? `${diff >= 0 ? '+' : ''}${compare.amount_diff_pct}%` : p ? '上年无数据' : '—',
+            color: diff >= 0 ? 'text-emerald-700' : 'text-red-500',
+            border: diff >= 0 ? 'border-emerald-200' : 'border-red-200', bg: '' },
+          { icon: '👥', label: '受益农户数',
             val: c ? String(c.farmer_count) : '—',
-            sub: p ? `上年${p.farmer_count}户` : '', color:'text-blue-600', border:'border-blue-200', bg:'bg-blue-50/40' },
-          { icon:'📋', label:'补贴项目',
+            sub: p ? `上年 ${p.farmer_count} 户` : '上年无记录',
+            color: 'text-blue-600', border: 'border-blue-200', bg: 'bg-blue-50/40' },
+          { icon: '📋', label: '补贴项目',
             val: String(stats.length),
-            sub: `${stats.filter(s=>s.pay_status===2).length}项已完成`, color:'text-purple-600', border:'border-purple-200', bg:'bg-purple-50/40' },
+            sub: `${stats.filter(s => s.pay_status === 2).length} 项已完成`,
+            color: 'text-purple-600', border: 'border-purple-200', bg: 'bg-purple-50/40' },
         ].map(s => (
           <div key={s.label} className={`bg-white border rounded-xl p-4 shadow-sm ${s.border} ${s.bg}`}>
             <div className="flex items-center gap-2 mb-2">
@@ -149,13 +196,45 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
               <span className="text-xs text-stone-400">{s.label}</span>
             </div>
             <div className={`text-2xl font-bold font-mono ${s.color}`}>{s.val}</div>
-            <div className="text-xs text-stone-300 mt-1">{s.sub}</div>
+            <div className="text-xs text-stone-400 mt-1">{s.sub}</div>
           </div>
         ))}
       </div>
 
+      {/* 季节概览卡 */}
+      {seasonData.length > 0 && (
+        <div className="grid gap-3 mb-4" style={{ gridTemplateColumns: `repeat(${seasonData.length}, 1fr)` }}>
+          {seasonData.map(sd => {
+            const cfg = SEASON_CFG[sd.season] ?? { icon: '📌', color: 'text-stone-700', bg: 'bg-stone-50', border: 'border-stone-200', tag: sd.season }
+            return (
+              <div key={sd.season} className={`${cfg.bg} border ${cfg.border} rounded-xl px-4 py-3`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">{cfg.icon}</span>
+                  <span className={`text-sm font-semibold ${cfg.color}`}>{sd.season}</span>
+                  <span className="ml-auto text-xs text-stone-400 bg-white/70 px-1.5 py-0.5 rounded-full">{cfg.tag}</span>
+                </div>
+                <div className={`text-xl font-bold font-mono ${cfg.color}`}>
+                  ¥{sd.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+                </div>
+                <div className="flex gap-3 mt-1.5 text-xs text-stone-500">
+                  <span>{sd.farmer_count} 人</span>
+                  <span>·</span>
+                  <span>{sd.project_count} 项</span>
+                  {sd.total_area > 0 && (
+                    <>
+                      <span>·</span>
+                      <span>{sd.total_area.toLocaleString('zh-CN', { maximumFractionDigits: 1 })} 亩</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       <div className="grid grid-cols-[1fr_300px] gap-4 mb-4">
-        {/* 补贴项目发放进度 */}
+        {/* 补贴项目列表（按季节分组） */}
         <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-stone-100 bg-stone-50 flex justify-between items-center">
             <span className="font-semibold text-stone-700 text-sm">📋 {year}年 补贴项目</span>
@@ -163,54 +242,70 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
           </div>
           {stats.length === 0
             ? <div className="py-10 text-center text-stone-300 text-sm">暂无补贴项目</div>
-            : <div className="divide-y divide-stone-50">
-                {stats.map(s => {
-                  const cfg = PS_CFG[s.pay_status] ?? PS_CFG[0]
-                  const rate = s.total_actual > 0 && s.total_apply > 0
-                    ? Math.min(100, Math.round(s.total_actual / s.total_apply * 100))
-                    : s.pay_status === 2 ? 100 : 0
+            : <div>
+                {seasonGroups.map(group => {
+                  const scfg = SEASON_CFG[group.season] ?? { icon: '📌', color: 'text-stone-600', bg: '', border: '', tag: '' }
                   return (
-                    <button key={s.id} onClick={() => onGoTab('projects')}
-                      className="w-full px-5 py-3 hover:bg-stone-50/50 transition-colors text-left">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                            <span className="text-sm font-semibold text-stone-800">{s.subsidy_name}</span>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.cls}`}>{cfg.label}</span>
-                            <span className="text-xs text-stone-300">{s.calc_mode==='per_mu'?'按亩':'固定'}</span>
-                            {s.fund_source && <span className="text-xs text-stone-300">{s.fund_source}</span>}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-stone-100 rounded-full h-2 overflow-hidden">
-                              <div className={`h-full rounded-full transition-all ${cfg.bar}`} style={{ width:`${rate}%` }} />
-                            </div>
-                            <span className="text-xs font-mono text-stone-400 w-8 text-right">{rate}%</span>
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0 ml-2">
-                          <div className="text-sm font-bold font-mono text-emerald-700">
-                            ¥{s.total_actual.toLocaleString('zh-CN',{maximumFractionDigits:0})}
-                          </div>
-                          <div className="text-xs text-stone-400">{s.beneficiary_count}人 · {s.app_count}笔</div>
-                        </div>
+                    <div key={group.season}>
+                      {/* 季节分组标题 */}
+                      <div className={`px-5 py-1.5 flex items-center gap-2 border-y border-stone-100 bg-stone-50/60`}>
+                        <span className="text-sm">{scfg.icon}</span>
+                        <span className={`text-xs font-semibold ${scfg.color}`}>{group.season}</span>
+                        <span className="text-xs text-stone-300">{group.items.length} 个项目</span>
                       </div>
-                    </button>
+                      <div className="divide-y divide-stone-50">
+                        {group.items.map(s => {
+                          const cfg = PS_CFG[s.pay_status] ?? PS_CFG[0]
+                          const rate = s.total_actual > 0 && s.total_apply > 0
+                            ? Math.min(100, Math.round(s.total_actual / s.total_apply * 100))
+                            : s.pay_status === 2 ? 100 : 0
+                          return (
+                            <button key={s.id} onClick={() => onGoTab('projects')}
+                              className="w-full px-5 py-3 hover:bg-stone-50/50 transition-colors text-left">
+                              <div className="flex items-center gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                    <span className="text-sm font-semibold text-stone-800">{s.subsidy_name}</span>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.cls}`}>{cfg.label}</span>
+                                    <span className="text-xs text-stone-300">{s.calc_mode === 'per_mu' ? '按亩' : '固定'}</span>
+                                    {s.fund_source && <span className="text-xs text-stone-300">{s.fund_source}</span>}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 bg-stone-100 rounded-full h-2 overflow-hidden">
+                                      <div className={`h-full rounded-full transition-all ${cfg.bar}`} style={{ width: `${rate}%` }} />
+                                    </div>
+                                    <span className="text-xs font-mono text-stone-400 w-8 text-right">{rate}%</span>
+                                  </div>
+                                </div>
+                                <div className="text-right shrink-0 ml-2">
+                                  <div className="text-sm font-bold font-mono text-emerald-700">
+                                    ¥{s.total_actual.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+                                  </div>
+                                  <div className="text-xs text-stone-400">{s.beneficiary_count} 人 · {s.app_count} 笔</div>
+                                </div>
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
                   )
                 })}
               </div>
           }
         </div>
 
-        {/* 新增/退出农户 */}
+        {/* 右侧：新增/待核实农户 */}
         <div className="space-y-3">
           {compare && [
-            { title:'🆕 新增农户', list:compare.new_farmers, color:'green' as const },
-            { title:'🔍 待核实农户', list:compare.exit_farmers, color:'amber' as const },
+            { title: '🆕 新增农户', list: compare.new_farmers, color: 'green' as const },
+            { title: '🔍 待核实农户', list: compare.exit_farmers, color: 'amber' as const },
           ].map(block => (
             <div key={block.title} className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
               <div className="px-4 py-2.5 border-b border-stone-100 bg-stone-50 flex justify-between items-center">
                 <span className="font-semibold text-stone-700 text-sm">{block.title}</span>
-                {block.title === '🔍 待核实农户' && block.list.length > 0 && <span className="text-xs text-stone-400">去年有记录今年无</span>}
+                {block.title === '🔍 待核实农户' && block.list.length > 0 &&
+                  <span className="text-xs text-stone-400">去年有今年无</span>}
                 <Tag label={`${block.list.length}人`} color={block.color} />
               </div>
               <div className="max-h-40 overflow-y-auto">
@@ -221,7 +316,7 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
                       <span className="text-sm">{f.name}</span>
                       <div className="flex gap-1.5 items-center">
                         <span className="text-xs text-stone-400">{f.village}</span>
-                        {f.status && <Tag label={FARMER_STATUS[f.status]?.label??'—'} color={FARMER_STATUS[f.status]?.color as 'green'} />}
+                        {f.status && <Tag label={FARMER_STATUS[f.status]?.label ?? '—'} color={FARMER_STATUS[f.status]?.color as 'green'} />}
                       </div>
                     </div>
                   ))
@@ -232,11 +327,11 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
         </div>
       </div>
 
-      {/* 按村汇总 */}
+      {/* 按村分布 */}
       <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
         <div className="px-5 py-3 border-b border-stone-100 bg-stone-50 flex justify-between items-center">
           <span className="font-semibold text-stone-700 text-sm">📍 按村汇总（{year}年）</span>
-          <span className="text-xs text-stone-400 font-mono">合计 ¥{totalV.toLocaleString('zh-CN',{maximumFractionDigits:0})}</span>
+          <span className="text-xs text-stone-400 font-mono">合计 ¥{totalV.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</span>
         </div>
         <div className="divide-y divide-stone-50">
           {byVillage.length === 0 && <div className="py-8 text-center text-stone-300 text-sm">暂无数据</div>}
@@ -247,16 +342,16 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
                 <div className="flex items-center gap-2">
                   <div className="flex-1 bg-stone-100 rounded-full h-3 overflow-hidden">
                     <div className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-full rounded-full transition-all"
-                      style={{ width:`${Math.round(v.total_amount/maxV*100)}%` }} />
+                      style={{ width: `${Math.round(v.total_amount / maxV * 100)}%` }} />
                   </div>
                   <span className="text-xs font-mono text-stone-400 w-8 text-right">
-                    {totalV ? Math.round(v.total_amount/totalV*100) : 0}%
+                    {totalV ? Math.round(v.total_amount / totalV * 100) : 0}%
                   </span>
                 </div>
               </div>
               <div className="text-right shrink-0 w-36">
                 <div className="text-sm font-bold font-mono text-emerald-700">{fmt(v.total_amount)}</div>
-                <div className="text-xs text-stone-400">{v.beneficiaries}人 · {v.application_count}笔</div>
+                <div className="text-xs text-stone-400">{v.beneficiaries} 人 · {v.application_count} 笔</div>
               </div>
             </div>
           ))}

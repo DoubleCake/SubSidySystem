@@ -101,6 +101,11 @@ export const getYearCompare = (year: number) =>
 export const getSummaryByVillage = (year: number) =>
   req<VillageSummary[]>('/api/subsidies/summary/by-village?year=' + year)
 
+export const getSummaryBySeason = (year: number) =>
+  req<{ season: string; project_count: number; farmer_count: number; total_amount: number; total_area: number; application_count: number }[]>(
+    '/api/subsidies/summary/by-season?year=' + year
+  )
+
 // ── AI ──
 export const aiAnalyze = (data: { year: number; village_name?: string; question: string }) =>
   req<{ result: string; data_preview: Record<string, unknown> }>(

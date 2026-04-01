@@ -568,7 +568,7 @@ def summary_by_village(
     from sqlalchemy import text
     # 一条 SQL 完成：按村汇总，全在数据库算
     sql = text("""
-        SELECT vg.village_name,
+        SELECT v.village_name,
                COUNT(DISTINCT sa.farmer_id)              AS beneficiaries,
                ROUND(SUM(COALESCE(sa.actual_amount,0)),2) AS total_amount,
                COUNT(sa.id)                              AS application_count
@@ -600,7 +600,7 @@ def list_types_with_stats(
     params = {"year": year} if year else {}
 
     sql = text(f"""
-        SELECT st.id, st.subsidy_name, st.subsidy_year, st.calc_mode,
+        SELECT st.id, st.subsidy_name, st.subsidy_year, st.season, st.calc_mode,
                st.standard_amount, st.standard_unit, st.fund_source,
                st.category, st.apply_deadline, st.pay_status, st.description,
                st.count_toward_area,
@@ -615,6 +615,44 @@ def list_types_with_stats(
         ORDER BY st.subsidy_year DESC, st.id
     """)
     return [dict(r._mapping) for r in db.execute(sql, params)]
+
+# ════════════════════════════════
+#  按季节汇总（首页用）
+# ════════════════════════════════
+
+@router.get("/summary/by-season")
+def summary_by_season(year: int = Query(...), db: Session = Depends(get_db)):
+    from sqlalchemy import text
+    sql = text("""
+        SELECT
+            COALESCE(st.season, '全年单补') AS season,
+            COUNT(DISTINCT st.id)                         AS project_count,
+            COUNT(DISTINCT sa.farmer_id)                  AS farmer_count,
+            ROUND(SUM(COALESCE(sa.actual_amount, 0)), 2)  AS total_amount,
+            ROUND(SUM(COALESCE(sa.apply_area, 0)), 2)     AS total_area,
+            COUNT(sa.id)                                  AS application_count
+        FROM subsidy_type st
+        LEFT JOIN subsidy_application sa
+               ON sa.subsidy_type_id = st.id AND sa.apply_year = :year
+        WHERE st.subsidy_year = :year
+        GROUP BY COALESCE(st.season, '全年单补')
+    """)
+    rows = {r.season: r for r in db.execute(sql, {"year": year})}
+    season_order = ["大春", "小春", "全年单补", "临时"]
+    result = []
+    for s in season_order:
+        if s in rows:
+            r = rows[s]
+            result.append({
+                "season": s,
+                "project_count": int(r.project_count or 0),
+                "farmer_count": int(r.farmer_count or 0),
+                "total_amount": float(r.total_amount or 0),
+                "total_area": float(r.total_area or 0),
+                "application_count": int(r.application_count or 0),
+            })
+    return result
+
 
 # ════════════════════════════════
 #  应用内补贴查询（外联查询页用）
