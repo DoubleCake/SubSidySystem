@@ -779,12 +779,12 @@ def precheck_applications(
                 continue
             vname = ""
             gno = 1
-            contract_area = 0
+            db_contract_area = 0
             if f.household:
                 if f.household.village:
                     vname = f.household.village.village_name
                 gno = f.household.group_no or 1
-                contract_area = f.household.contract_area or 0
+                db_contract_area = f.household.contract_area or 0
             rows_data.append({
                 "row_index": len(rows_data) + 2,
                 "real_name": f.real_name,
@@ -792,8 +792,8 @@ def precheck_applications(
                 "gender": f.gender,
                 "village_name": vname,
                 "group_no": format_group_no(gno) if isinstance(gno, int) else str(gno),
-                "contract_area": a.apply_area,
-                "db_contract_area": contract_area,
+                "contract_area": a.contract_area,
+                "db_contract_area": db_contract_area,
                 "farmer_id": f.id,
                 "household_id": f.household_id,
             })
