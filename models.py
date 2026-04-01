@@ -69,6 +69,10 @@ class FarmerProfile(Base):
     relation         = Column(String(20), nullable=True, default="本人", comment="与户主关系")
     farmer_status    = Column(SmallInteger, nullable=False, default=1,
                               comment="1在册 2注销 3迁出 4死亡")
+    own_village_id   = Column(Integer, ForeignKey("village.id"), nullable=True,
+                              comment="个人所在村（出嫁/迁居等，NULL=与家庭户相同）")
+    own_group_no     = Column(SmallInteger, nullable=True,
+                              comment="个人所在组（NULL=与家庭户相同）")
     remark           = Column(Text, nullable=True)
     created_at       = Column(DateTime, default=func.now())
     updated_at       = Column(DateTime, default=func.now(), onupdate=func.now())

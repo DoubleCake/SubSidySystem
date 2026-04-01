@@ -91,6 +91,26 @@ if __name__ == "__main__":
 
 
 
+def migrate_db():
+    """数据库结构迁移，每次启动时自动执行（幂等）"""
+    from sqlalchemy import text
+    migrations = [
+        "ALTER TABLE farmer_profile ADD COLUMN own_village_id INTEGER REFERENCES village(id)",
+        "ALTER TABLE farmer_profile ADD COLUMN own_group_no INTEGER",
+    ]
+    with engine.connect() as conn:
+        for sql in migrations:
+            try:
+                conn.execute(text(sql))
+            except Exception:
+                pass  # 列已存在时忽略
+        conn.commit()
+    print("  数据库迁移完成 [OK]")
+
+
+migrate_db()
+
+
 def create_indexes():
     """创建性能索引，首次启动自动执行"""
     from sqlalchemy import text

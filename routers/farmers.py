@@ -21,11 +21,14 @@ _COLS = """
     fp.phone, fp.bank_card, fp.bank_name, fp.relation,
     fp.farmer_status, fp.remark, fp.created_at,
     hh.contract_area, hh.address, hh.household_code, hh.head_farmer_id,
-    COALESCE(v.village_name || format_group_no(hh.group_no), '未知村组') AS village_full_name,
-    v.village_name, hh.group_no
+    fp.own_village_id, fp.own_group_no,
+    COALESCE(fv.village_name, v.village_name, '未知村') || format_group_no(COALESCE(fp.own_group_no, hh.group_no, 1)) AS village_full_name,
+    COALESCE(fv.village_name, v.village_name) AS village_name,
+    COALESCE(fp.own_group_no, hh.group_no) AS group_no
 FROM farmer_profile fp
 LEFT JOIN family_household hh ON fp.household_id = hh.id
 LEFT JOIN village v ON hh.village_id = v.id
+LEFT JOIN village fv ON fp.own_village_id = fv.id
 """
 
 def _to_list(r) -> dict:
@@ -50,6 +53,8 @@ def _to_list(r) -> dict:
         "household_code":   m.get("household_code"),
         "village_name":     m.get("village_name"),
         "group_no":         m.get("group_no"),
+        "own_village_id":   m.get("own_village_id"),
+        "own_group_no":     m.get("own_group_no"),
     }
 
 def _to_detail(r) -> dict:
@@ -188,7 +193,7 @@ def update_farmer(farmer_id: int, data: FarmerUpdate, db: Session = Depends(get_
 
     hh = db.get(FamilyHousehold, farmer.household_id)
 
-    # 处理 village_id / group_no 更新（写入 FamilyHousehold）
+    # village_id / group_no 写入农户个人字段（出嫁/迁居等），不修改家庭户
     new_village_id = upd.pop("village_id", None)
     new_group_no = upd.pop("group_no", None)
 
@@ -197,12 +202,10 @@ def update_farmer(farmer_id: int, data: FarmerUpdate, db: Session = Depends(get_
         setattr(farmer, k, v)
     if hh_fields and hh:
         for k, v in hh_fields.items(): setattr(hh, k, v)
-    if new_village_id is not None or new_group_no is not None:
-        if hh:
-            if new_village_id is not None:
-                hh.village_id = new_village_id
-            if new_group_no is not None:
-                hh.group_no = new_group_no
+    if new_village_id is not None:
+        farmer.own_village_id = new_village_id if new_village_id != 0 else None
+    if new_group_no is not None:
+        farmer.own_group_no = new_group_no if new_group_no != 0 else None
 
     # 如果设农户为"死亡"（4）且该农户是户主，自动转移户主或标记消亡
     old_status = farmer.farmer_status
