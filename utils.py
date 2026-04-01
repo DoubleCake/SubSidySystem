@@ -283,4 +283,6 @@ def check_area_anomaly(
         "self_occupy": self_occupy,
         "hh_total": hh_total,
         "final_subsidy": final_subsidy,
+        "db_contract_area": db_c,
+        "hh_used": hh_used,
     }

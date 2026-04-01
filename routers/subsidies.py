@@ -824,7 +824,7 @@ def precheck_applications(
         village = row["village_name"]
         group = row["group_no"]
         land_area = row["contract_area"]  # Excel中的申请面积（映射后字段名）
-        contract_area = row["contract_area"]
+        db_contract_area_val = row["db_contract_area"]  # 数据库中的承包面积
 
         # 姓名检查
         if not name or not name.strip():
@@ -893,7 +893,8 @@ def precheck_applications(
 
         # 面积异常检查：使用统一的 check_area_anomaly 函数
         excel_contract_area = float(land_area) if land_area is not None else None
-        db_contract_area_val = float(contract_area) if contract_area is not None else None
+        # db_contract_area_val 已经在上面从 row["db_contract_area"] 获取了，这里确保是 float
+        db_contract_area_val = float(db_contract_area_val) if db_contract_area_val is not None else None
 
         # 调用统一的面积异常检查函数
         anomaly_result = check_area_anomaly(
@@ -928,7 +929,7 @@ def precheck_applications(
             })
 
         # 承包面积缺失检查
-        if land_area is not None and (contract_area is None or contract_area == 0):
+        if land_area is not None and (db_contract_area_val is None or db_contract_area_val == 0):
             area_missing.append({
                 "row": row_no, "name": name, "id_card": id_card,
                 "village": village, "group": group,
