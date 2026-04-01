@@ -10,6 +10,7 @@ import * as api from '../api'
 import type { SubsidyType, SubsidyTypeCreate, ApplicationOut, ApplicationCreate, VillageGroup, ApplicationForPrecheck, ApplicationSearchResult, ExcelColumnTemplate, CheckResult } from '../types'
 import { SUBSIDY_PAY_STATUS, PAY_STATUS, fmt, years } from '../utils'
 import { getPrecheckTableConfigs, PRECHECK_TABLE_CONFIGS } from '../utils/precheckConfig'
+import { exportPrecheckReport } from '../utils/exportPrecheckReport'
 import Tag from '../components/Tag'
 import Modal from '../components/Modal'
 import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
@@ -1536,7 +1537,13 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
         <div className="mb-4 bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
           <div className="px-4 py-3 border-b border-stone-100 bg-stone-50 flex justify-between items-center">
             <span className="font-semibold text-stone-700 text-sm">🔍 数据预检结果</span>
-            <button onClick={() => setPreCheckResults(null)} className="text-xs text-stone-400 hover:text-stone-600">✕ 关闭</button>
+            <div className="flex gap-2 items-center">
+              <button onClick={() => exportPrecheckReport(preCheckResults, '补贴项目预检报告')}
+                className="px-3 py-1.5 text-xs bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
+                ↓ 导出报告 Excel
+              </button>
+              <button onClick={() => setPreCheckResults(null)} className="text-xs text-stone-400 hover:text-stone-600">✕ 关闭</button>
+            </div>
           </div>
           <div className="p-4 space-y-4">
             {/* 汇总统计 */}
