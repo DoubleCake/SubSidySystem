@@ -483,6 +483,11 @@ def list_households(
         # 户主信息
         head = db.get(FarmerProfile, hh.head_farmer_id) if hh.head_farmer_id else None
 
+        # 成员数量
+        member_count = db.query(func.count(FarmerProfile.id)).filter(
+            FarmerProfile.household_id == hh.id
+        ).scalar() or 0
+
         # 面积信息
         area_info = calc_household_area_usage(hh.id, db, year)
 
@@ -494,6 +499,7 @@ def list_households(
             "village_name": hh.village.village_name if hh.village else "",
             "group_no": hh.group_no or 1,
             "head_name": head.real_name if head else "（无户主）",
+            "member_count": member_count,
             "status": hh.status,
             "address": hh.address,
             "remark": hh.remark,
@@ -616,8 +622,9 @@ class MemberUpdate(BaseModel):
     group_no: Optional[int] = None      # 所在组变更
 
 
-def _member_out(m: FarmerProfile) -> dict:
+def _member_out(m: FarmerProfile, db: Session) -> dict:
     """成员信息序列化（脱敏）"""
+    head_id = db.query(FamilyHousehold.head_farmer_id).filter(FamilyHousehold.id == m.household_id).scalar() if m.household_id else None
     return {
         "id": m.id,
         "household_id": m.household_id,
@@ -628,7 +635,7 @@ def _member_out(m: FarmerProfile) -> dict:
         "phone_masked": mask_phone(m.phone) if m.phone else None,
         "bank_card_masked": mask_bank_card(m.bank_card) if m.bank_card else None,
         "bank_name": m.bank_name,
-        "is_head": 1 if m.household_id and db.query(FamilyHousehold.head_farmer_id).filter(FamilyHousehold.id == m.household_id).scalar() == m.id else 0,
+        "is_head": 1 if head_id == m.id else 0,
         "relation": m.relation,
         "farmer_status": m.farmer_status,
         "remark": m.remark,
@@ -876,7 +883,7 @@ def list_members(household_id: int, db: Session = Depends(get_db)):
           )
           .all()
     )
-    return [_member_out(m) for m in members]
+    return [_member_out(m, db) for m in members]
 
 
 @router.post("/{household_id}/members")
@@ -943,7 +950,7 @@ def add_member(household_id: int, data: MemberCreate, db: Session = Depends(get_
 
     db.commit()
     db.refresh(member)
-    return {"message": "添加成功", "member": _member_out(member)}
+    return {"message": "添加成功", "member": _member_out(member, db)}
 
 
 @router.put("/{household_id}/members/{farmer_id}")
@@ -1024,7 +1031,7 @@ def update_member(household_id: int, farmer_id: int, data: MemberUpdate, db: Ses
                    event_date=event_date, date_accuracy=date_accuracy)
 
         db.commit()
-        return {"message": "更新成功", "member": _member_out(member)}
+        return {"message": "更新成功", "member": _member_out(member, db)}
     except HTTPException:
         raise
     except Exception as e:
@@ -1566,7 +1573,7 @@ def _snapshot_household(db: Session, household_id: int) -> dict:
         "address": hh.address,
         "remark": hh.remark,
         "head_id": head.id if head else None,
-        "members": [_member_out(m) for m in members],
+        "members": [_member_out(m, db) for m in members],
         "app_summary": subsidy_apps,  # 快照时的补贴申请摘要
         "area_usage": area_info,      # 快照时的面积使用情况
     }
@@ -1892,7 +1899,7 @@ def get_snapshot_at_date(
                   FarmerProfile.id
               ).all()
         )
-        members = [_member_out(m) for m in members_q]
+        members = [_member_out(m, db) for m in members_q]
         # 使用当前数据
         app_summary = []
         area_usage = {}
@@ -1995,7 +2002,7 @@ def get_snapshot_by_event(
                       FarmerProfile.id
                   ).all()
             )
-            members = [_member_out(m) for m in members_q]
+            members = [_member_out(m, db) for m in members_q]
             # 使用当前数据
             app_summary = []
             area_usage = {}
@@ -2074,7 +2081,7 @@ def get_snapshot_by_event(
                   FarmerProfile.id
               ).all()
         )
-        members = [_member_out(m) for m in members_q]
+        members = [_member_out(m, db) for m in members_q]
         # 使用当前数据
         app_summary = []
         area_usage = {}
@@ -2556,10 +2563,11 @@ class HouseholdMergeRequest(BaseModel):
 def merge_households(req: HouseholdMergeRequest, db: Session = Depends(get_db)):
     """
     将 source 家庭户合并入 target 家庭户：
-    1. 所有成员迁入 target
-    2. source 的土地面积可选累加到 target
-    3. source 家庭户被删除
-    4. 记录 MERGE 事件
+    1. 所有成员迁入 target（补贴数据随 farmer_id 自动跟随）
+    2. 土地流转台账中涉及 source 的记录转移到 target
+    3. source 的面积缓存清除，合并后重算 target 缓存
+    4. source 家庭户删除（事件历史保留并转移到 target）
+    5. 记录 MERGE 事件快照
     """
     source = db.get(FamilyHousehold, req.source_household_id)
     target = db.get(FamilyHousehold, req.target_household_id)
@@ -2568,34 +2576,50 @@ def merge_households(req: HouseholdMergeRequest, db: Session = Depends(get_db)):
     if source.id == target.id: raise HTTPException(400, "不能合并到自身")
 
     from datetime import date as _date
+    from models import HouseholdEvent, LandTrust
     now = _date.today()
 
-    # 快照
+    # 快照（合并前）
     src_before = _snapshot_household(db, source.id)
     tgt_before = _snapshot_household(db, target.id)
 
-    # 迁移所有成员到目标户
+    # 1. 迁移所有成员到目标户（补贴申请记录通过 farmer_id 自动跟随）
     members = db.query(FarmerProfile).filter(
         FarmerProfile.household_id == source.id
     ).all()
     for m in members:
         m.household_id = target.id
 
-    # 土地面积以目标户主为准，不做累加，源户面积直接丢弃
-    # 删除源家庭户（先解除关联的事件，避免外键问题—— HouseholdEvent.household_id 有关联）
-    # 事件不删除，只把 household_id 置空或转移
-    from models import HouseholdEvent
+    # 2. 转移土地流转台账中 source 作为流出方/流入方的记录
+    db.query(LandTrust).filter(
+        LandTrust.owner_household_id == source.id
+    ).update({"owner_household_id": target.id})
+    db.query(LandTrust).filter(
+        LandTrust.operator_household_id == source.id
+    ).update({"operator_household_id": target.id})
+
+    # 3. 清除 source 的面积缓存（避免 FK 约束）
+    db.query(HouseholdAreaUsageCache).filter(
+        HouseholdAreaUsageCache.household_id == source.id
+    ).delete()
+
+    # 4. 转移 source 的事件历史到 target
     db.query(HouseholdEvent).filter(
         HouseholdEvent.household_id == source.id
     ).update({"household_id": target.id})
+
     db.flush()
 
+    # 删除 source 家庭户
+    src_name = source.household_name
     db.delete(source)
+    db.flush()
 
+    # 5. 记录 MERGE 事件（保留在 target）
     tgt_after = _snapshot_household(db, target.id)
     _log_event(
         db, target.id, "MERGE", now.year,
-        description=f"合并家庭户「{source.household_name}」（{len(members)}人）入「{target.household_name}」",
+        description=f"合并家庭户「{src_name}」（{len(members)}人）入「{target.household_name}」",
         before={"source": src_before, "target": tgt_before},
         after={"merged_members": len(members), "target": tgt_after},
         event_date=now, date_accuracy="EXACT",
@@ -2603,6 +2627,10 @@ def merge_households(req: HouseholdMergeRequest, db: Session = Depends(get_db)):
     )
 
     db.commit()
+
+    # 合并后重算 target 面积缓存
+    recalc_household_area_cache(target.id, db)
+
     return {
         "message": f"已合并，共迁移 {len(members)} 名成员",
         "merged_household_id": req.source_household_id,

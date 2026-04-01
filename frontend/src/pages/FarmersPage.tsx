@@ -184,9 +184,26 @@ export default function FarmersPage() {
   // ── 合并家庭户（内嵌模式） ──
   const [mergeMode, setMergeMode] = useState(false)
   const [mergeSelected, setMergeSelected] = useState<number[]>([])
+  const [mergeSelectedHouseholds, setMergeSelectedHouseholds] = useState<HH[]>([])
   const [mergeConfirmOpen, setMergeConfirmOpen] = useState(false)
   const [mergeConfirmForm, setMergeConfirmForm] = useState({ contract_area: '', remark: '' })
   const [mergeLoading, setMergeLoading] = useState(false)
+
+  const toggleMergeHousehold = (h: HH) => {
+    const isSelected = mergeSelected.includes(h.id)
+    if (isSelected) {
+      setMergeSelected(prev => prev.filter(id => id !== h.id))
+      setMergeSelectedHouseholds(prev => prev.filter(hh => hh.id !== h.id))
+    } else {
+      setMergeSelected(prev => [...prev, h.id])
+      setMergeSelectedHouseholds(prev => [...prev, h])
+    }
+  }
+
+  const clearMergeSelection = () => {
+    setMergeSelected([])
+    setMergeSelectedHouseholds([])
+  }
 
   // ── 新建农户 ──
   const [createFarmerOpen, setCreateFarmerOpen] = useState(false)
@@ -466,8 +483,8 @@ export default function FarmersPage() {
   // ── 合并家庭户（内嵌模式） ──
   // 点击"确认合并"→弹出确认框，预填土地面积（取目标户已有值）
   const handleMergeConfirm = () => {
-    if (mergeSelected.length < 2) return show('请至少选择 2 个家庭户', 'err')
-    const target = hhList.find(h => h.id === mergeSelected[0])
+    if (mergeSelectedHouseholds.length < 2) return show('请至少选择 2 个家庭户', 'err')
+    const target = mergeSelectedHouseholds[0]
     setMergeConfirmForm({ contract_area: target?.contracted_area?.toString() || '', remark: '' })
     setMergeConfirmOpen(true)
   }
@@ -485,7 +502,7 @@ export default function FarmersPage() {
       }
       show(`✓ 已合并 ${sourceIds.length} 个家庭户到目标户`)
       setMergeMode(false)
-      setMergeSelected([])
+      clearMergeSelection()
       setMergeConfirmOpen(false)
       loadHouseholds()
     } catch (e: unknown) { show((e as Error).message, 'err') } finally {
@@ -891,22 +908,21 @@ export default function FarmersPage() {
       </Modal>
 
       {/* 合并家庭户确认 */}
-      <Modal open={mergeConfirmOpen} title="合并家庭户" onClose={() => { setMergeConfirmOpen(false); setMergeMode(false); setMergeSelected([]) }}
+      <Modal open={mergeConfirmOpen} title="合并家庭户" onClose={() => { setMergeConfirmOpen(false); setMergeMode(false); clearMergeSelection() }}
         onConfirm={confirmMerge} confirmText="确认合并">
         <div className="space-y-4">
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <p className="text-sm text-amber-700 mb-2">确认将以下 <strong>{mergeSelected.length}</strong> 个家庭户合并：</p>
+            <p className="text-sm text-amber-700 mb-2">确认将以下 <strong>{mergeSelectedHouseholds.length}</strong> 个家庭户合并：</p>
             <div className="space-y-1">
-              {mergeSelected.map((hid, i) => {
-                const h = hhList.find(hh => hh.id === hid)
-                return h ? (
-                  <div key={hid} className={`flex items-center gap-2 text-sm ${i === 0 ? 'text-emerald-700 font-medium' : 'text-stone-600'}`}>
-                    {i === 0 && <span className="text-xs bg-emerald-600 text-white px-1.5 py-0.5 rounded">目标户</span>}
-                    <span>{h.household_name}</span>
-                    <span className="text-xs text-stone-400">({h.head_name || '无户主'} · {h.member_count}人 · {h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'})</span>
-                  </div>
-                ) : null
-              })}
+              {mergeSelectedHouseholds.map((h, i) => (
+                <div key={h.id} className={`flex items-center gap-2 text-sm ${i === 0 ? 'text-emerald-700 font-medium' : 'text-stone-600'}`}>
+                  {i === 0
+                    ? <span className="text-xs bg-emerald-600 text-white px-1.5 py-0.5 rounded">目标户</span>
+                    : <span className="text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">被合并</span>}
+                  <span>{h.household_name}</span>
+                  <span className="text-xs text-stone-400">({h.head_name || '无户主'} · {h.member_count ?? '?'}人 · {h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'})</span>
+                </div>
+              ))}
             </div>
           </div>
           <div>
@@ -1340,16 +1356,16 @@ export default function FarmersPage() {
           )}
           {leftTab === 'households' && mergeMode && (
             <div className="flex items-center gap-2 w-full">
-              <button onClick={() => { setMergeMode(false); setMergeSelected([]) }}
+              <button onClick={() => { setMergeMode(false); clearMergeSelection() }}
                 className="px-3 py-2 text-sm border border-stone-300 text-stone-500 rounded-lg hover:bg-stone-50 transition-all">
                 取消合并
               </button>
               <span className="text-sm text-amber-700 font-medium">
-                已选 {mergeSelected.length} 户
-                {mergeSelected.length >= 2 && <span className="text-xs text-stone-400 ml-1">（第1个为目标户）</span>}
+                已选 {mergeSelectedHouseholds.length} 户
+                {mergeSelectedHouseholds.length >= 2 && <span className="text-xs text-stone-400 ml-1">（第1个为目标户）</span>}
               </span>
               <button onClick={handleMergeConfirm}
-                disabled={mergeSelected.length < 2}
+                disabled={mergeSelectedHouseholds.length < 2}
                 className="ml-auto px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium">
                 确认合并
               </button>
@@ -1407,19 +1423,42 @@ export default function FarmersPage() {
             {/* 家庭户列表 */}
             {leftTab === 'households' && (
               <>
+                {/* 合并模式：已选家庭户固定置顶显示 */}
+                {mergeMode && mergeSelectedHouseholds.length > 0 && (
+                  <div className="border-b-2 border-amber-200 bg-amber-50/80">
+                    <div className="px-4 py-1.5 text-xs text-amber-600 font-semibold border-b border-amber-100 flex items-center gap-1">
+                      <span>已选（搜索不影响）</span>
+                      <span className="bg-amber-200 text-amber-800 rounded-full px-1.5 py-0.5 ml-1">{mergeSelectedHouseholds.length}</span>
+                    </div>
+                    {mergeSelectedHouseholds.map((h, i) => (
+                      <div key={`pinned-${h.id}`} className="px-4 py-2.5 border-b border-amber-100 flex items-center gap-2.5 bg-amber-50">
+                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded shrink-0 ${i === 0 ? 'bg-emerald-600 text-white' : 'bg-amber-200 text-amber-800'}`}>
+                          {i === 0 ? '目标' : `被合并${i}`}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-sm text-stone-800 truncate">{h.household_name}</div>
+                          <div className="text-xs text-stone-400">{h.head_name} · {h.member_count ?? '?'}人 · {h.village_full_name}</div>
+                        </div>
+                        <button onClick={() => toggleMergeHousehold(h)}
+                          className="shrink-0 text-stone-400 hover:text-red-500 transition-colors text-lg leading-none px-1">×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {hhLoading && <div className="text-center py-12 text-stone-300">加载中…</div>}
                 {!hhLoading && hhList.length === 0 && <div className="text-center py-12 text-stone-300 text-sm">暂无数据</div>}
                 {hhList.map(h => {
                   const isSelected = mergeSelected.includes(h.id)
+                  if (mergeMode && isSelected) return null
                   if (mergeMode) {
                     return (
                       <div key={h.id}
-                        onClick={() => setMergeSelected(isSelected ? mergeSelected.filter(id => id !== h.id) : [...mergeSelected, h.id])}
+                        onClick={() => toggleMergeHousehold(h)}
                         className={`px-5 py-4 border-b border-stone-100 cursor-pointer transition-all
                           ${isSelected ? 'border-l-4 border-l-amber-500 bg-amber-50' : 'hover:bg-stone-50'}
                           ${h.is_overdrawn && !isSelected ? 'bg-red-50/40' : ''}`}>
                         <div className="flex items-center gap-3">
-                          <input type="checkbox" checked={isSelected} onChange={() => setMergeSelected(isSelected ? mergeSelected.filter(id => id !== h.id) : [...mergeSelected, h.id])}
+                          <input type="checkbox" checked={isSelected} onChange={() => toggleMergeHousehold(h)}
                             className="w-4 h-4 text-amber-600 rounded" />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2.5 mb-1.5">
