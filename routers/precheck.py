@@ -8,15 +8,18 @@
 """
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any, Dict, List
 import re
+from datetime import datetime
 
 from database import get_db
 from models import FarmerProfile, Village, FamilyHousehold, SubsidyApplication, SubsidyType, ErrorLibrary
 from utils import format_group_no, parse_group_no_to_int, validate_id_card, parse_gender_from_id, check_name, check_phone, check_area_anomaly
+from export_utils import export_precheck_report
 
 router = APIRouter(prefix="/api/precheck", tags=["数据预检查"])
 
@@ -514,5 +517,34 @@ def get_template_headers():
             }
         ]
     }
+
+
+# ─────────────────────────────────────
+#  导出预检查报告（后端生成，样式更美观）
+# ─────────────────────────────────────
+
+class ExportPrecheckRequest(BaseModel):
+    """导出预检查报告请求"""
+    result: Dict[str, Any]
+    file_name: Optional[str] = "预检查报告"
+
+
+@router.post("/export")
+def export_precheck(req: ExportPrecheckRequest):
+    """
+    导出预检查报告（使用 openpyxl 生成，样式更美观）
+    接收预检结果，返回 Excel 文件
+    """
+    output = export_precheck_report(req.result)
+
+    # 生成文件名
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    file_name = f"{req.file_name}_{date_str}.xlsx"
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={file_name}"}
+    )
 
 
