@@ -61,6 +61,7 @@ export interface SubsidyType {
   id: number
   subsidy_name: string
   subsidy_year: number
+  season: string | null
   calc_mode: 'fixed' | 'per_mu'   // fixed=固定金额  per_mu=按亩
   standard_amount: string | null   // fixed模式: 每户/人金额; per_mu模式: 每亩金额
   standard_unit: string | null
