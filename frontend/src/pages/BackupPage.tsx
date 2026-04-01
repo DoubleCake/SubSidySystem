@@ -277,9 +277,9 @@ export default function BackupPage() {
                     <td className="px-4 py-2.5 text-sm text-stone-500">{b.size_kb} KB</td>
                     <td className="px-4 py-2.5 text-sm text-stone-500">{b.created}</td>
                     <td className="px-4 py-2.5 flex gap-2">
-                      <a href={`/api/backup/download`} download
+                      <a href={`/api/backup/backups/${b.filename}`} download={b.filename}
                         className="text-xs text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-lg hover:bg-emerald-50">
-                        下载当前库
+                        下载
                       </a>
                       <button onClick={() => deleteBackup(b.filename)}
                         className="text-xs text-red-400 border border-red-200 px-2.5 py-1 rounded-lg hover:bg-red-50">

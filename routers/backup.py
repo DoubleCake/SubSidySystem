@@ -149,8 +149,8 @@ def export_excel(db: Session = Depends(get_db)):
         vn = r.village_name or ''
         gn = format_group_no(r.group_no) if r.group_no else '一组'
         row = list(r)
-        # 所在村组在第11列（index 10），出生日期列已被移除
         row[10] = f"{vn}{gn}"
+        del row[11]  # 删除单独的 group_no 列，避免列数与表头不符
         return row
     write_sheet(ws1,
         ["ID","姓名","性别","身份证号","手机号","银行卡号","开户行",
@@ -177,8 +177,8 @@ def export_excel(db: Session = Depends(get_db)):
         vn = r.village_name or ''
         gn = format_group_no(r.group_no) if r.group_no else '一组'
         row = list(r)
-        # 所在村组在第4列（index 3）
         row[3] = f"{vn}{gn}"
+        del row[4]  # 删除单独的 group_no 列
         return row
     write_sheet(ws2,
         ["ID","户编码","户名","所在村组","承包面积(亩)","户主姓名","状态","地址"],
@@ -208,8 +208,8 @@ def export_excel(db: Session = Depends(get_db)):
         vn = r.village_name or ''
         gn = format_group_no(r.group_no) if r.group_no else '一组'
         row = list(r)
-        # 所在村组在第4列（index 3）
         row[3] = f"{vn}{gn}"
+        del row[4]  # 删除单独的 group_no 列
         return row
     write_sheet(ws3,
         ["ID","姓名","身份证号","所在村组","补贴项目","年度","计算方式",
@@ -285,6 +285,17 @@ async def restore_db(file: UploadFile = File(...)):
         "backup_created": f"before_restore_{ts}.db",
         "restored_size_kb": round(len(content) / 1024, 1),
     }
+
+
+# ─── 下载指定备份文件 ───
+@router.get("/backups/{filename}")
+def download_backup(filename: str):
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="非法文件名")
+    path = os.path.join(BACKUP_DIR, filename)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="备份文件不存在")
+    return FileResponse(path=path, filename=filename, media_type="application/octet-stream")
 
 
 # ─── 删除备份文件 ───
