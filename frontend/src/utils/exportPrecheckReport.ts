@@ -6,6 +6,56 @@ import * as XLSX from 'xlsx'
 import type { CheckResult } from '../types'
 
 /**
+ * 计算列的合适宽度
+ * @param rows 数据行
+ * @param key 列键
+ */
+function getColumnWidth(rows: Record<string, unknown>[], key: string): number {
+  const maxLength = rows.reduce((max, row) => {
+    const value = row[key]
+    const length = value ? String(value).length : 0
+    return Math.max(max, length)
+  }, key.length + 2)
+  // 限制最大宽度为 50 个字符
+  return Math.min(maxLength, 50)
+}
+
+/**
+ * 为所有单元格设置自动换行样式
+ * @param ws worksheet 对象
+ */
+function setWrapText(ws: XLSX.WorkSheet): void {
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1')
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const cellAddress = XLSX.utils.encode_cell({ c: C, r: R })
+      if (!ws[cellAddress]) continue
+
+      // 设置单元格样式：自动换行
+      if (!ws[cellAddress].s) ws[cellAddress].s = {}
+      ws[cellAddress].s.alignment = {
+        wrapText: true,
+        vertical: 'top',
+        horizontal: 'left'
+      }
+    }
+  }
+
+  // 设置行高
+  if (!ws['!rows']) ws['!rows'] = []
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    if (!ws['!rows'][R]) ws['!rows'][R] = {}
+    // 第一行（标题）固定高度
+    if (R === 0) {
+      ws['!rows'][R].hpt = 25
+    } else {
+      // 数据行设置为自适应高度
+      ws['!rows'][R].hpt = 45
+    }
+  }
+}
+
+/**
  * 导出预检报告到 Excel
  * @param result 预检结果
  * @param fileName 文件名（不含扩展名）
@@ -16,6 +66,16 @@ export function exportPrecheckReport(result: CheckResult, fileName = '预检查�
   const addSheet = (name: string, rows: Record<string, unknown>[]) => {
     if (!rows.length) return
     const ws = XLSX.utils.json_to_sheet(rows)
+
+    // 设置列宽自适应
+    const keys = Object.keys(rows[0])
+    ws['!cols'] = keys.map(key => ({
+      wch: getColumnWidth(rows, key)
+    }))
+
+    // 设置自动换行样式
+    setWrapText(ws)
+
     XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31))
   }
 
