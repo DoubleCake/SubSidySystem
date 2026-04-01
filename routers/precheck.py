@@ -16,7 +16,7 @@ import re
 
 from database import get_db
 from models import FarmerProfile, Village, FamilyHousehold, SubsidyApplication, SubsidyType, ErrorLibrary
-from utils import format_group_no, parse_group_no_to_int
+from utils import format_group_no, parse_group_no_to_int, validate_id_card, parse_gender_from_id, check_name, check_phone, check_area_anomaly
 
 router = APIRouter(prefix="/api/precheck", tags=["数据预检查"])
 
@@ -56,86 +56,6 @@ class PreCheckRequest(BaseModel):
     check_options: Optional[dict] = None # 保留字段，控制哪些项目需要检查
 
 
-# ─────────────────────────────────────
-#  身份证号格式校验工具
-# ─────────────────────────────────────
-
-def validate_id_card(id_card: str) -> tuple[bool, str]:
-    """
-    校验身份证号合法性
-    返回: (是否合法, 错误原因)
-    规则：
-      - 18位
-      - 前17位为数字，最后一位为数字或X
-      - 出生日期合法（年月日范围）
-      - 校验码正确（GB11643-1999）
-    """
-    if not id_card:
-        return False, "身份证号为空"
-    id_card = id_card.strip().upper()
-    if len(id_card) != 18:
-        return False, f"长度不是18位（当前{len(id_card)}位）"
-    if not re.match(r'^\d{17}[\dX]$', id_card):
-        return False, "格式不正确（前17位应为数字，最后一位为数字或X）"
-
-    # 出生日期校验
-    try:
-        year  = int(id_card[6:10])
-        month = int(id_card[10:12])
-        day   = int(id_card[12:14])
-        if not (1900 <= year <= 2099):
-            return False, f"出生年份 {year} 不合理"
-        if not (1 <= month <= 12):
-            return False, f"出生月份 {month} 不合理"
-        if not (1 <= day <= 31):
-            return False, f"出生日期 {day} 不合理"
-    except Exception:
-        return False, "出生日期段解析失败"
-
-    # 校验码（GB11643-1999 加权校验）
-    weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
-    check_map = "10X98765432"
-    try:
-        total = sum(int(id_card[i]) * weights[i] for i in range(17))
-        expected_check = check_map[total % 11]
-        if id_card[17] != expected_check:
-            return False, f"校验码错误（应为{expected_check}，实际为{id_card[17]}）"
-    except Exception:
-        return False, "校验码计算失败"
-
-    return True, ""
-
-
-def parse_gender_from_id(id_card: str) -> int:
-    """从身份证解析性别：奇数=男(1)，偶数=女(2)"""
-    if len(id_card) == 18:
-        return 1 if int(id_card[16]) % 2 == 1 else 2
-    return 0  # 无法解析
-
-
-def check_name(name: str) -> tuple[bool, str]:
-    """姓名格式简单校验"""
-    if not name or not name.strip():
-        return False, "姓名为空"
-    name = name.strip()
-    if len(name) < 2:
-        return False, "姓名过短（少于2个字符）"
-    if len(name) > 20:
-        return False, "姓名过长（超过20个字符）"
-    # 允许汉字、少数民族名字中的··点号
-    if not re.match(r'^[\u4e00-\u9fa5·•\-]+$', name):
-        return False, f"姓名包含非法字符（仅允许汉字和间隔符）"
-    return True, ""
-
-
-def check_phone(phone: str) -> tuple[bool, str]:
-    """手机号格式校验（可选字段）"""
-    if not phone or not phone.strip():
-        return True, ""  # 手机号是可选的
-    phone = phone.strip()
-    if not re.match(r'^1[3-9]\d{9}$', phone):
-        return False, f"手机号格式不正确（{phone}）"
-    return True, ""
 
 
 # ─────────────────────────────────────
@@ -376,67 +296,44 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
                 })
 
         # ── 2.10 面积异常检查 ──
-        # 情况一：面积超限
-        #   - 本行实际补贴面积 - 流转出 + 不补贴 > 数据库承包地面积（单行本身逻辑越界，代耕代种忽略）
-        #   - 若指定了 season+compare_year，家庭户在该季下数据库已有申请面积 + 本行面积 > 承包地面积（累计超限）
-        # 情况二：Excel 承包面积 与 数据库承包面积 不一致
-        anomaly_type = None
-        anomaly_details = []
-
         if contract_area_val is not None and id_card in db_land_areas:
             db_contracted   = db_land_areas[id_card]         # 数据库登记的承包地面积（基准）
             t_out           = trust_area_val      or 0       # 流转出（给出去，减少自有种植）
-            t_in            = trust_in_area_val   or 0       # 代耕代种进（接收进来）- 超限检查时忽略
+            t_in            = trust_in_area_val   or 0       # 代耕代种进（接收进来）
             ns_area         = no_subsidy_area_val or 0       # 不补贴面积
-            # 有效补贴面积 = 实际补贴面积 - 流转出 + 不补贴（忽略代耕代种）
-            # 优先用申报方直填的实际补贴面积，否则用计算值
-            final_subsidy   = actual_subsidy_area_val if actual_subsidy_area_val is not None \
-                              else round(contract_area_val - t_out - ns_area, 4)
-            # 本行在自有承包地上占用的面积（忽略代耕代种）
-            self_occupy     = round(final_subsidy, 4)  # 超限检查时不减去 t_in
-            # 家庭户当季数据库已有申请面积
             hh_id           = db_household_ids.get(id_card)
             hh_used         = db_hh_season_used.get(hh_id, 0) if hh_id else 0
 
-            exceed_amount = 0.0
+            # 调用统一的面积异常检查函数
+            anomaly_result = check_area_anomaly(
+                excel_contract_area=contract_area_val,
+                db_contract_area=db_contracted,
+                apply_area=contract_area_val,
+                excel_trust_out=t_out,
+                excel_trust_in=t_in,
+                excel_no_subsidy=ns_area,
+                actual_subsidy_area=actual_subsidy_area_val,
+                season=season if season in VALID_SEASONS else None,
+                hh_used=hh_used,
+                ignore_trust_in=True
+            )
 
-            # 检查一：Excel承包面积与数据库承包面积不一致
-            if abs(contract_area_val - db_contracted) > 0.001:  # 允许0.001的浮点误差
-                anomaly_type = "承包面积不一致" if not anomaly_type else f"{anomaly_type}+承包面积不一致"
-                anomaly_details.append(f"Excel填报{contract_area_val}亩，数据库登记{db_contracted}亩")
-
-            # 检查二：面积超限
-            # 情况A：本行自有承包地占用 > 数据库承包地
-            if db_contracted > 0 and self_occupy > db_contracted:
-                anomaly_type = "面积超限" if not anomaly_type else f"{anomaly_type}+面积超限"
-                exceed_amount = round(self_occupy - db_contracted, 4)
-                anomaly_details.append(f"单行超限{exceed_amount}亩")
-
-            # 情况B：户级累计超限（需要 season + compare_year）
-            hh_total = round(hh_used + final_subsidy, 4)
-            if season in VALID_SEASONS and hh_id and db_contracted > 0 and hh_total > db_contracted:
-                if "面积超限" not in (anomaly_type or ""):
-                    anomaly_type = "面积超限" if not anomaly_type else f"{anomaly_type}+面积超限"
-                hh_exceed = round(hh_total - db_contracted, 4)
-                exceed_amount = max(exceed_amount, hh_exceed)
-                anomaly_details.append(f"累计超限{hh_exceed}亩")
-
-            if anomaly_type:
+            if anomaly_result["anomaly_type"]:
                 area_anomalies.append({
                     "row": row_no, "name": name, "id_card": id_card,
                     "village": village, "group": group,
-                    "anomaly_type":         anomaly_type,          # 异常类型
-                    "anomaly_details":      "；".join(anomaly_details),  # 异常详情
-                    "contract_area":        contract_area_val,     # Excel填报承包地面积
-                    "trust_out_area":       t_out,                 # 流转出
-                    "trust_in_area":        t_in,                  # 代耕代种进
-                    "no_subsidy_area":      ns_area,               # 不补贴
-                    "actual_subsidy_area":  final_subsidy,         # 实际补贴面积
-                    "self_occupy":          self_occupy,           # 自有承包地占用（不含代耕代种）
-                    "hh_used":              hh_used,               # 户级当季已有申请面积
-                    "hh_total":             hh_total,              # 户级累计（已有+本行）
-                    "db_contract_area":     db_contracted,         # 数据库承包地（基准）
-                    "exceed_amount":        exceed_amount,         # 超出量（如果有）
+                    "anomaly_type": anomaly_result["anomaly_type"],
+                    "anomaly_details": "；".join(anomaly_result["anomaly_details"]),
+                    "contract_area": contract_area_val,     # Excel填报承包地面积
+                    "trust_out_area": t_out,                 # 流转出
+                    "trust_in_area": t_in,                  # 代耕代种进
+                    "no_subsidy_area": ns_area,             # 不补贴
+                    "actual_subsidy_area": anomaly_result.get("final_subsidy", actual_subsidy_area_val),  # 实际补贴面积
+                    "self_occupy": anomaly_result["self_occupy"],           # 自有承包地占用（不含代耕代种）
+                    "hh_used": anomaly_result["hh_used"],                     # 户级当季已有申请面积
+                    "hh_total": anomaly_result["hh_total"],                    # 户级累计（已有+本行）
+                    "db_contract_area": db_contracted,         # 数据库承包地（基准）
+                    "exceed_amount": anomaly_result["exceed_amount"],         # 超出量（如果有）
                 })
 
         # ── 2.11 与数据库比对：字段变更 ──

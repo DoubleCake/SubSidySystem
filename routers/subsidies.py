@@ -11,7 +11,7 @@ from schemas import (
     PaymentCreate, PaymentOut,
     YearCompare, YearSummary,
 )
-from utils import parse_group_no_to_int, format_group_no
+from utils import parse_group_no_to_int, format_group_no, validate_id_card, parse_gender_from_id, check_area_anomaly
 
 router = APIRouter(prefix="/api/subsidies", tags=["补贴管理"])
 
@@ -891,38 +891,40 @@ def precheck_applications(
                     "error": f"Excel中性别为「{gender_text}」，但身份证显示为「{'男' if gender_from_id == 1 else '女'}」"
                 })
 
-        # 面积异常检查：面积超限 + Excel承包面积与数据库不一致
-        anomaly_type = None
-        anomaly_details = []
+        # 面积异常检查：使用统一的 check_area_anomaly 函数
         excel_contract_area = float(land_area) if land_area is not None else None
         db_contract_area_val = float(contract_area) if contract_area is not None else None
 
-        # 检查一：Excel承包面积与数据库承包面积不一致
-        if excel_contract_area is not None and db_contract_area_val is not None and db_contract_area_val > 0:
-            if abs(excel_contract_area - db_contract_area_val) > 0.001:
-                anomaly_type = "承包面积不一致"
-                anomaly_details.append(f"Excel填报{excel_contract_area}亩，数据库登记{db_contract_area_val}亩")
+        # 调用统一的面积异常检查函数
+        anomaly_result = check_area_anomaly(
+            excel_contract_area=excel_contract_area,
+            db_contract_area=db_contract_area_val,
+            apply_area=excel_contract_area,
+            excel_trust_out=0,
+            excel_trust_in=0,
+            excel_no_subsidy=0,
+            actual_subsidy_area=excel_contract_area,
+            season=None,
+            hh_used=0,
+            ignore_trust_in=True
+        )
 
-        # 检查二：面积超承包面积
-        if excel_contract_area is not None and db_contract_area_val is not None and db_contract_area_val > 0:
-            if excel_contract_area > db_contract_area_val:
-                if anomaly_type:
-                    anomaly_type = f"{anomaly_type}+面积超限"
-                else:
-                    anomaly_type = "面积超限"
-                anomaly_details.append(f"申请面积{excel_contract_area}亩超过承包地面积{db_contract_area_val}亩")
-
-        if anomaly_type:
+        if anomaly_result["anomaly_type"]:
             area_anomalies.append({
                 "row": row_no, "name": name, "id_card": id_card,
                 "village": village, "group": group,
-                "anomaly_type": anomaly_type,
-                "anomaly_details": "；".join(anomaly_details),
-                "apply_area": excel_contract_area,       # 实际补贴面积
-                "contract_area": excel_contract_area, # Excel承包地面积
-                "db_contract_area": db_contract_area_val, # 数据库中的承包面积
-                "trust_area": float(row.get("trust_area") or 0),    # 代耕代种面积
-                "no_subsidy_area": float(row.get("no_subsidy_area") or 0), # 不予补贴面积
+                "anomaly_type": anomaly_result["anomaly_type"],
+                "anomaly_details": "；".join(anomaly_result["anomaly_details"]),
+                "contract_area": excel_contract_area,     # Excel填报承包地面积
+                "trust_out_area": 0.0,                     # 流转出
+                "trust_in_area": 0.0,                      # 代耕代种进
+                "no_subsidy_area": 0.0,                    # 不补贴
+                "actual_subsidy_area": anomaly_result.get("final_subsidy", excel_contract_area),  # 实际补贴面积
+                "self_occupy": anomaly_result["self_occupy"],           # 自有承包地占用（不含代耕代种）
+                "hh_used": anomaly_result["hh_used"],                     # 户级当季已有申请面积
+                "hh_total": anomaly_result["hh_total"],                    # 户级累计（已有+本行）
+                "db_contract_area": anomaly_result["db_contract_area"] if "db_contract_area" in anomaly_result else db_contract_area_val,  # 数据库承包地（基准）
+                "exceed_amount": anomaly_result["exceed_amount"],         # 超出量（如果有）
             })
 
         # 承包面积缺失检查
