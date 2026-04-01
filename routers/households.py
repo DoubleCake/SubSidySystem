@@ -472,13 +472,18 @@ def list_households(
     if status is not None:
         query = query.filter(FamilyHousehold.status == status)
     if search:
-        # 支持按户名搜索，或按户主姓名搜索
-        query = query.outerjoin(
-            FarmerProfile,
-            (FarmerProfile.household_id == FamilyHousehold.id) & (FamilyHousehold.head_farmer_id == FarmerProfile.id)
-        ).filter(
+        search = search.strip()
+        # 支持按户名搜索，或按任意家庭成员姓名/身份证号搜索
+        from sqlalchemy import exists
+        query = query.filter(
             (FamilyHousehold.household_name.like(f"%{search}%")) |
-            (FarmerProfile.real_name.like(f"%{search}%"))
+            exists().where(
+                (FarmerProfile.household_id == FamilyHousehold.id) &
+                (
+                    (FarmerProfile.real_name.like(f"%{search}%")) |
+                    (FarmerProfile.id_card.like(f"%{search}%"))
+                )
+            )
         )
 
     # overdrawn_only 需要先全量计算再过滤，不能在 SQL 层分页

@@ -8,12 +8,13 @@
 """
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
 from typing import Optional, Any, Dict, List
 import re
+from urllib.parse import quote
 from datetime import datetime
 
 from database import get_db
@@ -540,11 +541,16 @@ def export_precheck(req: ExportPrecheckRequest):
     # 生成文件名
     date_str = datetime.now().strftime("%Y-%m-%d")
     file_name = f"{req.file_name}_{date_str}.xlsx"
+    encoded_filename = quote(file_name, safe='')
 
-    return StreamingResponse(
-        output,
+    headers = {
+        "Content-Disposition": f"attachment; filename={encoded_filename}; filename*=UTF-8''{encoded_filename}"
+    }
+
+    return Response(
+        content=output.getvalue(),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={file_name}"}
+        headers=headers
     )
 
 
