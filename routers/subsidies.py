@@ -804,7 +804,7 @@ def precheck_applications(
     duplicate_errors: list[dict] = []
     error_library_hits: list[dict] = []
     gender_mismatch: list[dict] = []
-    area_exceeds: list[dict] = []
+    area_anomalies: list[dict] = []
     area_missing: list[dict] = []        # 承包面积缺失
     age_anomaly: list[dict] = []          # 年龄异常
     deceased_farmers: list[dict] = []     # 死亡农户
@@ -891,18 +891,39 @@ def precheck_applications(
                     "error": f"Excel中性别为「{gender_text}」，但身份证显示为「{'男' if gender_from_id == 1 else '女'}」"
                 })
 
-        # 面积超承包面积检查
-        if land_area is not None and contract_area is not None and contract_area > 0:
-            if float(land_area) > float(contract_area):
-                area_exceeds.append({
-                    "row": row_no, "name": name, "id_card": id_card,
-                    "village": village, "group": group,
-                    "apply_area": float(land_area),       # 实际补贴面积
-                    "contract_area": float(contract_area), # 承包地面积
-                    "trust_area": float(row.get("trust_area") or 0),    # 代耕代种面积
-                    "no_subsidy_area": float(row.get("no_subsidy_area") or 0), # 不予补贴面积
-                    "db_contract_area": float(contract_area), # 数据库中的承包面积
-                })
+        # 面积异常检查：面积超限 + Excel承包面积与数据库不一致
+        anomaly_type = None
+        anomaly_details = []
+        excel_contract_area = float(land_area) if land_area is not None else None
+        db_contract_area_val = float(contract_area) if contract_area is not None else None
+
+        # 检查一：Excel承包面积与数据库承包面积不一致
+        if excel_contract_area is not None and db_contract_area_val is not None and db_contract_area_val > 0:
+            if abs(excel_contract_area - db_contract_area_val) > 0.001:
+                anomaly_type = "承包面积不一致"
+                anomaly_details.append(f"Excel填报{excel_contract_area}亩，数据库登记{db_contract_area_val}亩")
+
+        # 检查二：面积超承包面积
+        if excel_contract_area is not None and db_contract_area_val is not None and db_contract_area_val > 0:
+            if excel_contract_area > db_contract_area_val:
+                if anomaly_type:
+                    anomaly_type = f"{anomaly_type}+面积超限"
+                else:
+                    anomaly_type = "面积超限"
+                anomaly_details.append(f"申请面积{excel_contract_area}亩超过承包地面积{db_contract_area_val}亩")
+
+        if anomaly_type:
+            area_anomalies.append({
+                "row": row_no, "name": name, "id_card": id_card,
+                "village": village, "group": group,
+                "anomaly_type": anomaly_type,
+                "anomaly_details": "；".join(anomaly_details),
+                "apply_area": excel_contract_area,       # 实际补贴面积
+                "contract_area": excel_contract_area, # Excel承包地面积
+                "db_contract_area": db_contract_area_val, # 数据库中的承包面积
+                "trust_area": float(row.get("trust_area") or 0),    # 代耕代种面积
+                "no_subsidy_area": float(row.get("no_subsidy_area") or 0), # 不予补贴面积
+            })
 
         # 承包面积缺失检查
         if land_area is not None and (contract_area is None or contract_area == 0):
@@ -1010,7 +1031,7 @@ def precheck_applications(
 
     error_rows = (
         len(format_errors) + len(village_errors) + len(duplicate_errors)
-        + len(gender_mismatch) + len(error_library_hits) + len(area_exceeds)
+        + len(gender_mismatch) + len(error_library_hits) + len(area_anomalies)
         + len(area_missing) + len(age_anomaly) + len(deceased_farmers) + len(household_duplicates)
     )
     summary = {
@@ -1022,7 +1043,7 @@ def precheck_applications(
         "duplicate_errors": len(duplicate_errors),
         "gender_mismatch": len(gender_mismatch),
         "error_library_hits": len(error_library_hits),
-        "area_exceeds": len(area_exceeds),
+        "area_anomalies": len(area_anomalies),
         "area_missing": len(area_missing),
         "age_anomaly": len(age_anomaly),
         "deceased_farmers": len(deceased_farmers),
@@ -1040,7 +1061,7 @@ def precheck_applications(
         "duplicate_errors": duplicate_errors,
         "gender_mismatch": gender_mismatch,
         "error_library_hits": error_library_hits,
-        "area_exceeds": area_exceeds,
+        "area_anomalies": area_anomalies,
         "area_missing": area_missing,
         "age_anomaly": age_anomaly,
         "deceased_farmers": deceased_farmers,
