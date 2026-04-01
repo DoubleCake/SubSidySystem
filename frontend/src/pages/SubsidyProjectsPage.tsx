@@ -1549,9 +1549,9 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
                 <div className="text-lg font-bold text-red-600">{preCheckResults.summary?.error_rows || 0}</div>
                 <div className="text-xs text-stone-500">错误</div>
               </div>
-              <div className={`rounded-xl p-3 text-center ${(preCheckResults.summary?.area_exceeds || 0) > 0 ? 'bg-orange-50 border border-orange-100' : 'bg-stone-50 border border-stone-100'}`}>
-                <div className="text-lg font-bold text-orange-600">{preCheckResults.summary?.area_exceeds || 0}</div>
-                <div className="text-xs text-stone-500">面积超限</div>
+              <div className={`rounded-xl p-3 text-center ${(preCheckResults.summary?.area_anomalies || 0) > 0 ? 'bg-orange-50 border border-orange-100' : 'bg-stone-50 border border-stone-100'}`}>
+                <div className="text-lg font-bold text-orange-600">{preCheckResults.summary?.area_anomalies || 0}</div>
+                <div className="text-xs text-stone-500">面积异常</div>
               </div>
               <div className={`rounded-xl p-3 text-center ${(preCheckResults.summary?.error_library_hits || 0) > 0 ? 'bg-red-100 border border-red-200' : 'bg-stone-50 border border-stone-100'}`}>
                 <div className="text-lg font-bold text-red-700">{preCheckResults.summary?.error_library_hits || 0}</div>

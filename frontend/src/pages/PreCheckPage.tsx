@@ -35,7 +35,7 @@ interface CheckRow {
   remark?: string
 }
 
-type ActiveTab = 'error-library-hits' | 'format' | 'village' | 'duplicate' | 'gender' | 'area-exceeds' | 'new' | 'removed' | 'changed' | 'year'
+type ActiveTab = 'error-library-hits' | 'format' | 'village' | 'duplicate' | 'gender' | 'area-anomalies' | 'new' | 'removed' | 'changed' | 'year'
 type PageTab = 'check' | 'error-lib'
 
 // ─── 预检系统字段（传给 ExcelImportWithMapping）───
@@ -83,7 +83,7 @@ function exportReport(result: CheckResult, fileName = '预检查报告') {
     '重复身份证': result.summary.duplicate_errors,
     '性别不符': result.summary.gender_mismatch,
     '错误库命中': result.summary.error_library_hits,
-    '面积超限': result.summary.area_exceeds,
+    '面积异常': result.summary.area_anomalies,
     '新增农户': result.summary.new_farmers,
     '减少农户': result.summary.removed_farmers,
     '字段变更': result.summary.changed_farmers,
@@ -115,11 +115,13 @@ function exportReport(result: CheckResult, fileName = '预检查报告') {
     'Excel性别': r.excel_gender, '身份证性别': r.id_card_gender,
   })))
 
-  addSheet('面积超限', result.area_exceeds.map(r => ({
+  addSheet('面积异常', (result.area_anomalies || []).map(r => ({
     '行号': r.row, '姓名': r.name, '身份证号': r.id_card,
     '所在村': r.village, '所在组': r.group,
-    '超限类型': r.exceed_type,
-    '承包地面积': r.contract_area,
+    '异常类型': r.anomaly_type,
+    '异常详情': r.anomaly_details,
+    'Excel承包地面积': r.contract_area,
+    '数据库承包面积': r.db_contract_area,
     '流转出面积': r.trust_out_area,
     '代耕代种进': r.trust_in_area,
     '不补贴面积': r.no_subsidy_area,
@@ -127,7 +129,6 @@ function exportReport(result: CheckResult, fileName = '预检查报告') {
     '自有承包地占用': r.self_occupy,
     '户级当季已有申请': r.hh_used,
     '户级合计': r.hh_total,
-    '数据库承包面积': r.db_contract_area,
     '超出面积': r.exceed_amount,
   })))
 
@@ -206,7 +207,7 @@ export default function PreCheckPage() {
         { id: 'village', count: data.summary.village_errors },
         { id: 'duplicate', count: data.summary.duplicate_errors },
         { id: 'gender', count: data.summary.gender_mismatch },
-        { id: 'area-exceeds', count: data.summary.area_exceeds },
+        { id: 'area-anomalies', count: data.summary.area_anomalies },
         { id: 'new', count: data.summary.new_farmers },
         { id: 'removed', count: data.summary.removed_farmers },
         { id: 'changed', count: data.summary.changed_farmers },
@@ -270,7 +271,7 @@ export default function PreCheckPage() {
       { id: 'village' as ActiveTab,   label: '村组不存在', count: r.summary.village_errors,   color: 'red'    as const },
       { id: 'duplicate' as ActiveTab, label: '重复身份证', count: r.summary.duplicate_errors, color: 'amber'  as const },
       { id: 'gender' as ActiveTab,    label: '性别不符',   count: r.summary.gender_mismatch,  color: 'amber'  as const },
-      { id: 'area-exceeds' as ActiveTab, label: '面积超限', count: r.summary.area_exceeds,   color: 'orange' as const },
+      { id: 'area-anomalies' as ActiveTab, label: '面积异常', count: r.summary.area_anomalies,   color: 'orange' as const },
       { id: 'new' as ActiveTab,       label: '新增农户',   count: r.summary.new_farmers,      color: 'green'  as const },
       { id: 'removed' as ActiveTab,   label: '减少农户',   count: r.summary.removed_farmers,  color: 'blue'   as const },
       { id: 'changed' as ActiveTab,   label: '字段变更',   count: r.summary.changed_farmers,  color: 'purple' as const },
@@ -286,7 +287,7 @@ export default function PreCheckPage() {
       'village': 'village_errors',
       'duplicate': 'duplicate_errors',
       'gender': 'gender_mismatch',
-      'area-exceeds': 'area_exceeds',
+      'area-anomalies': 'area_anomalies',
       'new': 'new_farmers',
       'removed': 'removed_farmers',
       'changed': 'changed_farmers',

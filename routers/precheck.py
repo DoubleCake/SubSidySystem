@@ -164,18 +164,35 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
     village_name_to_id: dict[str, int] = {v.village_name: v.id for v in db.query(Village).all()}
 
     # 数据库中所有在册农户，以身份证为键
-    db_farmers: dict[str, dict] = {
-        f.id_card: {
+    # 预加载个人村组名（own_village_id → village_name）
+    _own_vid_to_name: dict[int, str] = {v.id: v.village_name for v in db.query(Village).all()}
+
+    def _build_farmer_entry(f: FarmerProfile) -> dict:
+        hh_village = f.household.village.village_name if f.household and f.household.village else ""
+        hh_group   = f.household.group_no if f.household else 1
+        own_village = _own_vid_to_name.get(f.own_village_id) if f.own_village_id else None
+        own_group   = f.own_group_no
+        # 有效村组用于显示
+        eff_village = own_village if own_village else hh_village
+        eff_group   = own_group if own_group else hh_group
+        return {
             "id": f.id,
             "real_name": f.real_name,
-            "village_full_name": (f"{f.household.village.village_name}{format_group_no(f.household.group_no)}" if f.household and f.household.village else ""),
-            "village_name": f.household.village.village_name if f.household and f.household.village else "",
-            "group_no": f.household.group_no if f.household else 1,
+            "village_full_name": f"{eff_village}{format_group_no(eff_group)}" if eff_village else "",
+            "village_name": eff_village,
+            "group_no": eff_group,
+            "hh_village_name": hh_village,
+            "hh_group_no": hh_group,
+            "own_village_name": own_village,
+            "own_group_no": own_group,
             "farmer_status": f.farmer_status,
         }
-        for f in db.query(FarmerProfile).join(
+
+    db_farmers: dict[str, dict] = {
+        f.id_card: _build_farmer_entry(f)
+        for f in db.query(FarmerProfile).outerjoin(
             FamilyHousehold, FamilyHousehold.id == FarmerProfile.household_id
-        ).join(
+        ).outerjoin(
             Village, Village.id == FamilyHousehold.village_id
         ).all()
     }
@@ -220,7 +237,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
     changed_farmers:     list[dict] = []   # 与数据库比对发现字段变化
     new_farmers:         list[dict] = []   # Excel 中有、数据库中没有
     error_library_hits:  list[dict] = []   # 错误库命中
-    area_exceeds:        list[dict] = []   # 面积超限
+    area_anomalies:      list[dict] = []   # 面积异常（超限或承包面积不一致）
     area_missing:        list[dict] = []   # 承包面积缺失
     age_anomaly:         list[dict] = []   # 年龄异常
     deceased_farmers:    list[dict] = []   # 死亡农户
@@ -358,57 +375,68 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
                     "error": f"Excel中性别为「{gender_text}」，但身份证显示为「{'男' if gender_from_id == 1 else '女'}」"
                 })
 
-        # ── 2.10 面积超限双重检查 ──
-        # 情况一：本行实际补贴面积 - 流转出 - 代耕代种进 + 不补贴 > 数据库承包地面积（单行本身逻辑越界）
-        #         即：承包地上自己实际占用的补贴面积 > 承包地面积
-        # 情况二：若指定了 season+compare_year，家庭户在该季下数据库已有申请面积 + 本行面积 > 承包地面积（累计超限）
+        # ── 2.10 面积异常检查 ──
+        # 情况一：面积超限
+        #   - 本行实际补贴面积 - 流转出 + 不补贴 > 数据库承包地面积（单行本身逻辑越界，代耕代种忽略）
+        #   - 若指定了 season+compare_year，家庭户在该季下数据库已有申请面积 + 本行面积 > 承包地面积（累计超限）
+        # 情况二：Excel 承包面积 与 数据库承包面积 不一致
+        anomaly_type = None
+        anomaly_details = []
+
         if contract_area_val is not None and id_card in db_land_areas:
             db_contracted   = db_land_areas[id_card]         # 数据库登记的承包地面积（基准）
             t_out           = trust_area_val      or 0       # 流转出（给出去，减少自有种植）
-            t_in            = trust_in_area_val   or 0       # 代耕代种进（接收进来）
+            t_in            = trust_in_area_val   or 0       # 代耕代种进（接收进来）- 超限检查时忽略
             ns_area         = no_subsidy_area_val or 0       # 不补贴面积
-            # 有效补贴面积 = 实际补贴面积 - 流转出 - 代耕代种进 + 不补贴
+            # 有效补贴面积 = 实际补贴面积 - 流转出 + 不补贴（忽略代耕代种）
             # 优先用申报方直填的实际补贴面积，否则用计算值
             final_subsidy   = actual_subsidy_area_val if actual_subsidy_area_val is not None \
                               else round(contract_area_val - t_out - ns_area, 4)
-            # 本行在自有承包地上占用的面积（去掉代耕代种进来的部分）
-            self_occupy     = round(final_subsidy - t_in, 4)
+            # 本行在自有承包地上占用的面积（忽略代耕代种）
+            self_occupy     = round(final_subsidy, 4)  # 超限检查时不减去 t_in
             # 家庭户当季数据库已有申请面积
             hh_id           = db_household_ids.get(id_card)
             hh_used         = db_hh_season_used.get(hh_id, 0) if hh_id else 0
 
-            exceed_type = None
             exceed_amount = 0.0
 
-            # 情况一：本行自有承包地占用 > 数据库承包地
-            if db_contracted > 0 and self_occupy > db_contracted:
-                exceed_type   = "单行超限"
-                exceed_amount = round(self_occupy - db_contracted, 4)
+            # 检查一：Excel承包面积与数据库承包面积不一致
+            if abs(contract_area_val - db_contracted) > 0.001:  # 允许0.001的浮点误差
+                anomaly_type = "承包面积不一致" if not anomaly_type else f"{anomaly_type}+承包面积不一致"
+                anomaly_details.append(f"Excel填报{contract_area_val}亩，数据库登记{db_contracted}亩")
 
-            # 情况二：户级累计超限（需要 season + compare_year）
+            # 检查二：面积超限
+            # 情况A：本行自有承包地占用 > 数据库承包地
+            if db_contracted > 0 and self_occupy > db_contracted:
+                anomaly_type = "面积超限" if not anomaly_type else f"{anomaly_type}+面积超限"
+                exceed_amount = round(self_occupy - db_contracted, 4)
+                anomaly_details.append(f"单行超限{exceed_amount}亩")
+
+            # 情况B：户级累计超限（需要 season + compare_year）
             hh_total = round(hh_used + final_subsidy, 4)
             if season in VALID_SEASONS and hh_id and db_contracted > 0 and hh_total > db_contracted:
-                if exceed_type:
-                    exceed_type = "单行超限+累计超限"
-                else:
-                    exceed_type   = "累计超限"
-                exceed_amount = max(exceed_amount, round(hh_total - db_contracted, 4))
+                if "面积超限" not in (anomaly_type or ""):
+                    anomaly_type = "面积超限" if not anomaly_type else f"{anomaly_type}+面积超限"
+                hh_exceed = round(hh_total - db_contracted, 4)
+                exceed_amount = max(exceed_amount, hh_exceed)
+                anomaly_details.append(f"累计超限{hh_exceed}亩")
 
-            if exceed_type:
-                area_exceeds.append({
+            if anomaly_type:
+                area_anomalies.append({
                     "row": row_no, "name": name, "id_card": id_card,
                     "village": village, "group": group,
-                    "exceed_type":         exceed_type,           # 超限类型
-                    "contract_area":       contract_area_val,     # Excel填报承包地面积
-                    "trust_out_area":      t_out,                 # 流转出
-                    "trust_in_area":       t_in,                  # 代耕代种进
-                    "no_subsidy_area":     ns_area,               # 不补贴
-                    "actual_subsidy_area": final_subsidy,         # 实际补贴面积
-                    "self_occupy":         self_occupy,           # 自有承包地占用
-                    "hh_used":             hh_used,               # 户级当季已有申请面积
-                    "hh_total":            hh_total,              # 户级累计（已有+本行）
-                    "db_contract_area":    db_contracted,         # 数据库承包地（基准）
-                    "exceed_amount":       exceed_amount,         # 超出量
+                    "anomaly_type":         anomaly_type,          # 异常类型
+                    "anomaly_details":      "；".join(anomaly_details),  # 异常详情
+                    "contract_area":        contract_area_val,     # Excel填报承包地面积
+                    "trust_out_area":       t_out,                 # 流转出
+                    "trust_in_area":        t_in,                  # 代耕代种进
+                    "no_subsidy_area":      ns_area,               # 不补贴
+                    "actual_subsidy_area":  final_subsidy,         # 实际补贴面积
+                    "self_occupy":          self_occupy,           # 自有承包地占用（不含代耕代种）
+                    "hh_used":              hh_used,               # 户级当季已有申请面积
+                    "hh_total":             hh_total,              # 户级累计（已有+本行）
+                    "db_contract_area":     db_contracted,         # 数据库承包地（基准）
+                    "exceed_amount":        exceed_amount,         # 超出量（如果有）
                 })
 
         # ── 2.11 与数据库比对：字段变更 ──
@@ -421,10 +449,17 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
                 changes.append(f"姓名：数据库「{db_f['real_name']}」→ Excel「{name}」")
 
             # 村组变更（组号需归一化后比较：4="四组"="4组"均视为同一组）
-            db_group_int = db_f["group_no"]  # 数据库存的是整数 1,2,3
-            excel_group_int = parse_group_no_to_int(group)  # Excel 可能是"四组"、"4组"等
-            if village != db_f["village_name"] or db_group_int != excel_group_int:
-                db_group_display = format_group_no(db_group_int) if isinstance(db_group_int, int) else str(db_group_int)
+            # 允许匹配个人村组 OR 家庭户村组，任一匹配即视为无变更
+            excel_group_int = parse_group_no_to_int(group)
+            hh_village = db_f.get("hh_village_name", db_f["village_name"])
+            hh_group   = db_f.get("hh_group_no", db_f["group_no"])
+            own_village = db_f.get("own_village_name")
+            own_group   = db_f.get("own_group_no")
+            hh_match  = (village == hh_village and hh_group == excel_group_int)
+            own_match = (own_village is not None and village == own_village and
+                         own_group is not None and own_group == excel_group_int)
+            if not (hh_match or own_match):
+                db_group_display = format_group_no(db_f["group_no"]) if isinstance(db_f["group_no"], int) else str(db_f["group_no"])
                 changes.append(
                     f"村组：数据库「{db_f['village_name']}{db_group_display}」"
                     f"→ Excel「{village}{group}」"
@@ -512,7 +547,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
     total_rows = len(req.rows)
     error_rows = (
         len(format_errors) + len(village_errors) + len(duplicate_errors)
-        + len(gender_mismatch) + len(error_library_hits) + len(area_exceeds)
+        + len(gender_mismatch) + len(error_library_hits) + len(area_anomalies)
         + len(area_missing) + len(age_anomaly) + len(deceased_farmers) + len(household_duplicates)
     )
     summary = {
@@ -524,7 +559,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         "duplicate_errors": len(duplicate_errors),
         "gender_mismatch": len(gender_mismatch),
         "error_library_hits": len(error_library_hits),
-        "area_exceeds": len(area_exceeds),
+        "area_anomalies": len(area_anomalies),
         "area_missing": len(area_missing),
         "age_anomaly": len(age_anomaly),
         "deceased_farmers": len(deceased_farmers),
@@ -542,7 +577,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         "duplicate_errors": duplicate_errors,
         "gender_mismatch": gender_mismatch,
         "error_library_hits": error_library_hits,
-        "area_exceeds": area_exceeds,
+        "area_anomalies": area_anomalies,
         "area_missing": area_missing,
         "age_anomaly": age_anomaly,
         "deceased_farmers": deceased_farmers,

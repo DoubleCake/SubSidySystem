@@ -580,17 +580,21 @@ export default function FarmersPage() {
   const openMemberEdit = (m: HHMember | SnapshotMember) => {
     setMemberEditTarget(m as HHMember)
     const hh = detail ?? selectedFarmerHousehold
-    const v = groups.find(g => g.village_id === hh?.village_id)
-    const g = groups.find(g => g.village_id === hh?.village_id && g.group_no === hh?.group_no)
+    // 优先用农户个人村组，无则回落家庭户村组
+    const hm = m as HHMember
+    const effVid = hm.own_village_id ?? hh?.village_id
+    const effGno = hm.own_group_no ?? hh?.group_no
+    const v = groups.find(g => g.village_id === effVid)
+    const g = groups.find(g => g.village_id === effVid && g.group_no === effGno)
     setMemberForm({
       real_name: m.real_name, id_card: '', gender: String(m.gender),
       relation: m.relation || '成员', is_head: m.is_head === 1,
       phone: '', bank_card: '', bank_name: '', farmer_status: String(m.farmer_status),
       event_date: '',
-      village_id: hh?.village_id ?? 0,
-      group_no: hh?.group_no ?? 1,
+      village_id: effVid ?? 0,
+      group_no: effGno ?? 1,
       village_name: v?.village_name ?? '',
-      group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${hh?.group_no ?? 1}组`,
+      group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${effGno ?? 1}组`,
     })
     setMemberAddOpen(true)
   }
@@ -1646,7 +1650,9 @@ export default function FarmersPage() {
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
               <option value="1">在册</option><option value="2">注销</option><option value="3">迁出</option><option value="4">死亡</option>
             </select></div>
-          <div><label className="block text-xs text-stone-400 mb-1">所在村</label>
+          <div><label className="block text-xs text-stone-400 mb-1">个人所在村
+              <span className="ml-1 text-stone-300 font-normal">（出嫁/迁居等，与户不同时填）</span>
+            </label>
             <div className="relative">
               <input
                 list="member-village-list"
@@ -1686,7 +1692,7 @@ export default function FarmersPage() {
                 <span>+ 创建新村庄「{memberForm.village_name}」</span>
               </button>
             )}</div>
-          <div><label className="block text-xs text-stone-400 mb-1">所在组</label>
+          <div><label className="block text-xs text-stone-400 mb-1">个人所在组</label>
             <div className="relative">
               <input
                 list="member-group-list"
@@ -2151,14 +2157,23 @@ function HouseholdDetailContent({
               {Object.entries(areaUsage.season_breakdown).map(([season, usage]) => {
                 // 计算该季节在该年度的使用面积
                 let yearUsedArea = 0
+                let yearApplyArea = 0  // 预申请面积
+                let yearPaymentArea = 0  // 已发布面积
                 if (areaYear === 0) {
                   // 全部年份：使用季节的总使用面积
                   yearUsedArea = usage.used_area || 0
+                  yearApplyArea = usage.apply_area || 0
+                  yearPaymentArea = usage.payment_area || 0
                 } else {
                   // 指定年份：从 year_totals 中获取
                   yearUsedArea = areaUsage.year_totals?.[String(areaYear)]?.[season] || 0
+                  // 注意：这里我们需要从 season_breakdown 中获取 apply_area 和 payment_area
+                  yearApplyArea = usage.apply_area || 0
+                  yearPaymentArea = usage.payment_area || 0
                 }
                 const pct = areaUsage.contracted_area > 0 ? Math.round(yearUsedArea / areaUsage.contracted_area * 100) : 0
+                const paymentPct = areaUsage.contracted_area > 0 ? Math.round(yearPaymentArea / areaUsage.contracted_area * 100) : 0
+                const applyPct = areaUsage.contracted_area > 0 ? Math.round((yearApplyArea - yearPaymentArea) / areaUsage.contracted_area * 100) : 0
                 const isOverdrawn = yearUsedArea > areaUsage.contracted_area
                 return (
                   <div key={season} className="border border-stone-200 rounded-lg overflow-hidden">
@@ -2174,8 +2189,35 @@ function HouseholdDetailContent({
                       </div>
                     </div>
                     <div className="px-3 py-1.5 bg-white">
-                      <div className="bg-stone-100 rounded-full h-1.5 overflow-hidden">
-                        <div className={"h-full rounded-full " + (isOverdrawn ? 'bg-red-400' : 'bg-emerald-400')} style={{ width: Math.min(100, pct) + "%" }} />
+                      <div className="bg-stone-100 rounded-full h-1.5 overflow-hidden flex">
+                        {/* 已发布面积用绿色 */}
+                        {yearPaymentArea > 0 && (
+                          <div
+                            className="h-full bg-emerald-400"
+                            style={{ width: Math.min(100, paymentPct) + "%" }}
+                          />
+                        )}
+                        {/* 预申请面积用蓝色 */}
+                        {(yearApplyArea - yearPaymentArea) > 0 && (
+                          <div
+                            className="h-full bg-blue-400"
+                            style={{ width: Math.min(100 - paymentPct, applyPct) + "%" }}
+                          />
+                        )}
+                      </div>
+                      <div className="flex gap-3 mt-1 text-xs text-stone-500">
+                        {yearPaymentArea > 0 && (
+                          <span className="flex items-center gap-1">
+                            <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
+                            已发布 {yearPaymentArea.toFixed(2)} 亩
+                          </span>
+                        )}
+                        {(yearApplyArea - yearPaymentArea) > 0 && (
+                          <span className="flex items-center gap-1">
+                            <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                            预申请 {(yearApplyArea - yearPaymentArea).toFixed(2)} 亩
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

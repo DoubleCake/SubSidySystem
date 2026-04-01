@@ -318,7 +318,7 @@ def calc_household_area_usage(
         """), {"hid": household_id, "yr": year}).scalar()
         trust_in = float(in_r or 0)
 
-    cultivable = max(0.0, contracted - trust_out + trust_in)
+    cultivable = max(0.0, contracted - trust_out)
 
     # ── 从缓存读取所有年度数据（不按年过滤，前端用 year_totals 自行筛选）──
     SEASON_ORDER = ["大春", "小春", "全年单补", "临时"]
@@ -327,14 +327,20 @@ def calc_household_area_usage(
         HouseholdAreaUsageCache.household_id == household_id
     ).all()
 
-    # 按年度+季节聚合
+    # 按年度+季节聚合，分别保存申报面积（预申请）和发放面积（已发布）
     year_totals: dict[int, dict[str, float]] = {}
+    year_apply_totals: dict[int, dict[str, float]] = {}  # 预申请面积
+    year_payment_totals: dict[int, dict[str, float]] = {}  # 已发布面积
 
     for rec in cache_records:
         y = rec.year
         if y not in year_totals:
             year_totals[y] = {s: 0.0 for s in SEASON_ORDER}
+            year_apply_totals[y] = {s: 0.0 for s in SEASON_ORDER}
+            year_payment_totals[y] = {s: 0.0 for s in SEASON_ORDER}
         year_totals[y][rec.season] = year_totals[y].get(rec.season, 0.0) + float(rec.used_area)
+        year_apply_totals[y][rec.season] = year_apply_totals[y].get(rec.season, 0.0) + float(rec.apply_area)
+        year_payment_totals[y][rec.season] = year_payment_totals[y].get(rec.season, 0.0) + float(rec.payment_area)
 
     # 确定展示年度：优先用请求指定年，否则取最新年
     if year and year in year_totals:
@@ -348,10 +354,14 @@ def calc_household_area_usage(
     season_breakdown: dict[str, dict] = {}
     for season in SEASON_ORDER:
         used = round(year_totals.get(display_year, {}).get(season, 0.0) if display_year else 0.0, 2)
+        apply_area = round(year_apply_totals.get(display_year, {}).get(season, 0.0) if display_year else 0.0, 2)
+        payment_area = round(year_payment_totals.get(display_year, {}).get(season, 0.0) if display_year else 0.0, 2)
         remaining = round(cultivable - used, 2)
         is_overdrawn = cultivable > 0 and used > cultivable
         season_breakdown[season] = {
             "used_area": used,
+            "apply_area": apply_area,  # 预申请面积
+            "payment_area": payment_area,  # 已发布面积
             "remaining_area": remaining,
             "is_overdrawn": is_overdrawn,
             "overdraw_amount": round(max(0, used - cultivable), 2),
@@ -625,6 +635,20 @@ class MemberUpdate(BaseModel):
 def _member_out(m: FarmerProfile, db: Session) -> dict:
     """成员信息序列化（脱敏）"""
     head_id = db.query(FamilyHousehold.head_farmer_id).filter(FamilyHousehold.id == m.household_id).scalar() if m.household_id else None
+    # 有效村组：优先取农户个人村组，无则取家庭户村组
+    own_village_name: str | None = None
+    if m.own_village_id:
+        own_village_name = db.query(Village.village_name).filter(Village.id == m.own_village_id).scalar()
+    if own_village_name:
+        eff_village = own_village_name
+        eff_group   = m.own_group_no or 1
+    else:
+        hh = db.get(FamilyHousehold, m.household_id) if m.household_id else None
+        if hh:
+            eff_village = db.query(Village.village_name).filter(Village.id == hh.village_id).scalar() or ""
+            eff_group   = hh.group_no or 1
+        else:
+            eff_village, eff_group = "", 1
     return {
         "id": m.id,
         "household_id": m.household_id,
@@ -640,6 +664,9 @@ def _member_out(m: FarmerProfile, db: Session) -> dict:
         "farmer_status": m.farmer_status,
         "remark": m.remark,
         "created_at": m.created_at.isoformat() if m.created_at else None,
+        "own_village_id": m.own_village_id,
+        "own_group_no": m.own_group_no,
+        "village_full_name": f"{eff_village}{format_group_no(eff_group)}" if eff_village else "",
     }
 
 
@@ -1007,12 +1034,11 @@ def update_member(household_id: int, farmer_id: int, data: MemberUpdate, db: Ses
         if data.farmer_status is not None: member.farmer_status = data.farmer_status
         if data.remark       is not None: member.remark       = data.remark or None
 
-        # 处理村组变更（更新家庭户）
-        if hh:
-            if data.village_id is not None:
-                hh.village_id = data.village_id
-            if data.group_no is not None:
-                hh.group_no = data.group_no
+        # 村组变更写入农户个人字段（出嫁/迁居等），不修改家庭户
+        if data.village_id is not None:
+            member.own_village_id = data.village_id if data.village_id != 0 else None
+        if data.group_no is not None:
+            member.own_group_no = data.group_no if data.group_no != 0 else None
 
         after = _snapshot_household(db, household_id)
         today = _date.today()

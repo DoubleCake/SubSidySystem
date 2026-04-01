@@ -27,7 +27,7 @@ export type PrecheckErrorType =
   | 'village_errors'
   | 'duplicate_errors'
   | 'gender_mismatch'
-  | 'area_exceeds'
+  | 'area_anomalies'
   | 'area_missing'
   | 'age_anomaly'
   | 'deceased_farmers'
@@ -112,15 +112,17 @@ export const PRECHECK_TABLE_CONFIGS: Record<PrecheckErrorType, TableConfig> = {
     ],
   },
 
-  // 面积超限
-  area_exceeds: {
-    field: 'area_exceeds',
-    title: (count) => `⚠️ 面积超限（${count}条）— 请逐条核实`,
-    headers: ['行号', '姓名', '身份证号', '所在村', '所在组', '超限类型', '承包地', '流转出', '代耕代种进', '不补贴', '实际补贴', '自有占用', '户级已用', '户级合计', '数据库承包地', '超出'],
+  // 面积异常
+  area_anomalies: {
+    field: 'area_anomalies',
+    title: (count) => `⚠️ 面积异常（${count}条）— 请逐条核实`,
+    headers: ['行号', '姓名', '身份证号', '所在村', '所在组', '异常类型', '异常详情', 'Excel承包地', '数据库承包地', '流转出', '代耕代种进', '不补贴', '实际补贴', '自有占用', '户级已用', '户级合计', '超出'],
     rowMapper: (r) => [
       r.row, r.name, r.id_card, r.village, r.group,
-      <span key="et" className={`text-xs font-semibold ${r.exceed_type === '单行超限' ? 'text-orange-600' : r.exceed_type === '累计超限' ? 'text-blue-600' : 'text-red-600'}`}>{r.exceed_type}</span>,
+      <span key="et" className={`text-xs font-semibold ${r.anomaly_type?.includes('面积超限') ? 'text-orange-600' : r.anomaly_type?.includes('承包面积不一致') ? 'text-purple-600' : 'text-red-600'}`}>{r.anomaly_type}</span>,
+      <span key="ed" className="text-xs text-stone-600">{r.anomaly_details}</span>,
       <span key="c"  className="text-stone-600">{r.contract_area} 亩</span>,
+      <span key="db" className="text-blue-600">{r.db_contract_area} 亩</span>,
       <span key="to" className="text-stone-400">{r.trust_out_area} 亩</span>,
       <span key="ti" className="text-stone-400">{r.trust_in_area} 亩</span>,
       <span key="n"  className="text-stone-400">{r.no_subsidy_area} 亩</span>,
@@ -128,8 +130,7 @@ export const PRECHECK_TABLE_CONFIGS: Record<PrecheckErrorType, TableConfig> = {
       <span key="so" className="text-orange-600">{r.self_occupy} 亩</span>,
       <span key="hu" className="text-stone-400">{r.hh_used} 亩</span>,
       <span key="ht" className="text-orange-600 font-semibold">{r.hh_total} 亩</span>,
-      <span key="db" className="text-blue-600">{r.db_contract_area} 亩</span>,
-      <span key="ex" className="text-red-600 font-semibold">+{r.exceed_amount} 亩</span>,
+      r.exceed_amount > 0 ? <span key="ex" className="text-red-600 font-semibold">+{r.exceed_amount} 亩</span> : '-',
     ],
   },
 
@@ -224,7 +225,7 @@ export const getPrecheckTableConfigs = (): TableConfig[] => [
   PRECHECK_TABLE_CONFIGS.village_errors,
   PRECHECK_TABLE_CONFIGS.duplicate_errors,
   PRECHECK_TABLE_CONFIGS.gender_mismatch,
-  PRECHECK_TABLE_CONFIGS.area_exceeds,
+  PRECHECK_TABLE_CONFIGS.area_anomalies,
   PRECHECK_TABLE_CONFIGS.area_missing,
   PRECHECK_TABLE_CONFIGS.age_anomaly,
   PRECHECK_TABLE_CONFIGS.deceased_farmers,
