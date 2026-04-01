@@ -234,7 +234,7 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
 
         parsed = parse_id_card(id_card) or {}
         fp = FarmerProfile(
-            household_id=0, real_name=real_name, gender=parsed.get("gender", 1),
+            household_id=0, real_name=real_name, gender=parsed.get("gender") or 1,
             id_card=id_card, relation="本人", farmer_status=1,
         )
         db.add(fp); db.flush()
@@ -249,6 +249,7 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
         return fp
 
     for row in rows:
+        sp = db.begin_nested()  # savepoint：每行独立隔离，一行失败不影响其他行
         try:
             # 支持两种模式：传 farmer_id 或 传 id_card+real_name
             farmer = None
@@ -260,6 +261,7 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
                     str(row.get("village_name", "")).strip(), str(row.get("group_no", "")).strip()
                 )
             if not farmer:
+                sp.rollback()
                 errors.append(f"{row.get('real_name','?')}：找不到农户且无法创建（缺少身份证或姓名）")
                 continue
             row = dict(row)
@@ -274,6 +276,7 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
                     SubsidyApplication.pay_status == 0,
                 ).first()
                 if exists:
+                    sp.rollback()
                     skipped += 1
                     continue
             else:
@@ -284,6 +287,7 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
                     SubsidyApplication.pay_status > 0,
                 ).first()
                 if exists:
+                    sp.rollback()
                     skipped += 1
                     continue
             # 关键修复：pay_date 字符串转 Python date 对象
@@ -306,9 +310,11 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
                 bank_card_snapshot=f"****{farmer.bank_card[-4:]}" if farmer and farmer.bank_card else None,
             )
             db.add(app)
+            sp.commit()
             affected_households.add(farmer.household_id)
             created += 1
         except Exception as e:
+            sp.rollback()
             errors.append(str(e))
     db.commit()
     # 更新相关家庭户的面积缓存
