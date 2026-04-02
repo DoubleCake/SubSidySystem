@@ -254,3 +254,13 @@ export const batchImportHouseholdMembers = (householdId: number, rows: Record<st
       method: 'POST', body: JSON.stringify({ rows }),
     }
   )
+
+export const importConfirmedArea = (rows: { real_name: string; id_card: string; confirmed_area: number }[]) =>
+  req<{ success: number; not_found: { id_card: string; real_name: string }[]; mismatch_name: { id_card: string; input_name: string; db_name: string }[]; errors: { id_card: string; reason: string }[] }>(
+    '/api/households/import-confirmed-area', {
+      method: 'POST', body: JSON.stringify({ rows }),
+    }
+  )
+
+export const exportConfirmedAreaDiff = () =>
+  fetch('/api/households/export-confirmed-area-diff')

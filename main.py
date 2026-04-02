@@ -96,6 +96,7 @@ def migrate_db():
     """数据库结构迁移，每次启动时自动执行（幂等）"""
     from sqlalchemy import text
     migrations = [
+        "ALTER TABLE family_household ADD COLUMN confirmed_area DECIMAL(10,2)",
         "ALTER TABLE farmer_profile ADD COLUMN own_village_id INTEGER REFERENCES village(id)",
         "ALTER TABLE farmer_profile ADD COLUMN own_group_no INTEGER",
         "ALTER TABLE subsidy_application ADD COLUMN apply_village_id INTEGER REFERENCES village(id)",

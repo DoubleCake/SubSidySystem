@@ -36,6 +36,7 @@ class FamilyHousehold(Base):
     group_no        = Column(SmallInteger, nullable=False, default=1, comment="所属组，存数字：1=一组，2=二组...")
     address         = Column(String(200), nullable=True)
     contract_area   = Column(DECIMAL(10, 2), nullable=True, comment="承包面积(亩)")
+    confirmed_area  = Column(DECIMAL(10, 2), nullable=True, comment="确权面积(亩)")
     status          = Column(SmallInteger, nullable=False, default=1, comment="1在册 2注销 3迁出")
     remark          = Column(Text, nullable=True)
     created_at      = Column(DateTime, default=func.now())

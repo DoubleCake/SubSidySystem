@@ -253,3 +253,58 @@ def export_precheck_report(result: Dict[str, Any]) -> BytesIO:
     wb.save(output)
     output.seek(0)
     return output
+
+
+def export_confirmed_area_diff(rows: List[Dict[str, Any]]) -> BytesIO:
+    """
+    导出确权面积与承包面积对比报告。
+
+    rows 每条包含：
+      household_name, village_full_name, head_name,
+      contract_area, confirmed_area, diff, status, label
+    """
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    ws = wb.create_sheet("确权面积对比")
+    headers = [
+        "家庭户", "所在村组", "户主姓名",
+        "承包面积(亩)", "确权面积(亩)", "差值(确权-承包)",
+        "对比结果",
+    ]
+    ws.append(headers)
+
+    # 状态对应填充色
+    STATUS_FILL = {
+        "match":            PatternFill(start_color="D9EAD3", end_color="D9EAD3", fill_type="solid"),
+        "confirmed_larger": PatternFill(start_color="FCE5CD", end_color="FCE5CD", fill_type="solid"),
+        "contract_larger":  PatternFill(start_color="CFE2F3", end_color="CFE2F3", fill_type="solid"),
+        "missing":          PatternFill(start_color="F4CCCC", end_color="F4CCCC", fill_type="solid"),
+    }
+
+    for row in rows:
+        status = row.get("status", "missing")
+        ws.append([
+            row.get("household_name", ""),
+            row.get("village_full_name", ""),
+            row.get("head_name", ""),
+            row.get("contract_area", ""),
+            row.get("confirmed_area", ""),
+            row.get("diff", ""),
+            row.get("label", ""),
+        ])
+        # 最后一行上色
+        fill = STATUS_FILL.get(status, PatternFill())
+        for cell in ws[ws.max_row]:
+            cell.fill = fill
+
+    apply_styles(ws, has_alternate_rows=False)
+    # 重新给表头加回蓝色（apply_styles 已覆盖）
+    for cell in ws[1]:
+        cell.font = HEADER_FONT
+        cell.fill = HEADER_FILL
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output

@@ -74,6 +74,7 @@ class HouseholdUpdate(BaseModel):
     """更新家庭户基础信息"""
     household_name: Optional[str] = None
     contract_area: Optional[float] = None   # 承包面积（亩）
+    confirmed_area: Optional[float] = None  # 确权面积（亩）
     village_id: Optional[int] = None       # 所属村（整户迁移时修改）
     group_no: Optional[int] = None         # 所属组（存整数，1=一组）
     address: Optional[str] = None
@@ -520,6 +521,7 @@ def list_households(
             "remark": hh.remark,
             # 面积数据（含季节分组）
             "contracted_area": float(hh.contract_area or 0),
+            "confirmed_area": float(hh.confirmed_area) if hh.confirmed_area is not None else None,
             "trust_out_area": area_info.get("trust_out_area", 0),
             "trust_in_area": area_info.get("trust_in_area", 0),
             "cultivable_area": area_info.get("cultivable_area", float(hh.contract_area or 0)),
@@ -764,6 +766,7 @@ def get_household(
         "group_no": hh.group_no or 1,
         "address": hh.address,
         "contracted_area": float(hh.contract_area or 0),
+        "confirmed_area": float(hh.confirmed_area) if hh.confirmed_area is not None else None,
         "status": hh.status,
         "remark": hh.remark,
         "members": member_list,
@@ -805,6 +808,7 @@ def update_household(
 
     if data.household_name is not None: hh.household_name = data.household_name
     if data.contract_area is not None: hh.contract_area = Decimal(str(data.contract_area))
+    if data.confirmed_area is not None: hh.confirmed_area = Decimal(str(data.confirmed_area))
     if data.address        is not None: hh.address        = data.address
     if data.status         is not None: hh.status         = data.status
     if data.remark         is not None: hh.remark         = data.remark
@@ -833,6 +837,97 @@ def update_household(
 
     db.commit()
     return {"message": "更新成功"}
+
+
+# ─────────────────────────────────────
+#  接口：批量导入确权面积
+# ─────────────────────────────────────
+
+class ConfirmedAreaRow(BaseModel):
+    real_name: str
+    id_card: str
+    confirmed_area: float
+
+class ConfirmedAreaImportRequest(BaseModel):
+    rows: list[ConfirmedAreaRow]
+
+@router.post("/import-confirmed-area")
+def import_confirmed_area(req: ConfirmedAreaImportRequest, db: Session = Depends(get_db)):
+    """
+    批量导入确权面积。
+    通过身份证号找到农户，更新所在家庭户的 confirmed_area。
+    输入字段：real_name, id_card, confirmed_area
+    """
+    from utils import mask_id_card as _mask
+    results = {"success": 0, "not_found": [], "mismatch_name": [], "errors": []}
+
+    for row in req.rows:
+        id_card = row.id_card.strip()
+        real_name = row.real_name.strip()
+
+        farmer = db.query(FarmerProfile).filter(FarmerProfile.id_card == id_card).first()
+        if not farmer:
+            results["not_found"].append({"id_card": _mask(id_card), "real_name": real_name})
+            continue
+
+        if farmer.real_name != real_name:
+            results["mismatch_name"].append({
+                "id_card": _mask(id_card),
+                "input_name": real_name,
+                "db_name": farmer.real_name,
+            })
+            continue  # 姓名不符，拒绝导入
+
+        hh = db.query(FamilyHousehold).filter(FamilyHousehold.id == farmer.household_id).first()
+        if not hh:
+            results["errors"].append({"id_card": _mask(id_card), "reason": "农户无关联家庭户"})
+            continue
+
+        hh.confirmed_area = Decimal(str(row.confirmed_area))
+        results["success"] += 1
+
+    db.commit()
+    return results
+
+
+@router.get("/export-confirmed-area-diff")
+def export_confirmed_area_diff_endpoint(db: Session = Depends(get_db)):
+    """导出全部家庭户的确权面积与承包面积对比 Excel"""
+    from fastapi.responses import StreamingResponse
+    from export_utils import export_confirmed_area_diff
+    from utils import check_confirmed_vs_contract, format_group_no
+
+    rows_q = db.execute(text("""
+        SELECT hh.id, hh.household_name, hh.contract_area, hh.confirmed_area,
+               hh.group_no,
+               v.village_name,
+               (SELECT fp.real_name FROM farmer_profile fp WHERE fp.id = hh.head_farmer_id) AS head_name
+        FROM family_household hh
+        LEFT JOIN village v ON hh.village_id = v.id
+        WHERE hh.status = 1
+        ORDER BY v.village_name, hh.group_no, hh.household_name
+    """)).fetchall()
+
+    data = []
+    for r in rows_q:
+        cmp = check_confirmed_vs_contract(
+            float(r.contract_area) if r.contract_area is not None else None,
+            float(r.confirmed_area) if r.confirmed_area is not None else None,
+        )
+        data.append({
+            "household_name": r.household_name,
+            "village_full_name": f"{r.village_name or ''}{format_group_no(r.group_no)}",
+            "head_name": r.head_name or "",
+            "contract_area": float(r.contract_area) if r.contract_area is not None else "",
+            "confirmed_area": float(r.confirmed_area) if r.confirmed_area is not None else "",
+            "diff": cmp["diff"] if cmp["diff"] is not None else "",
+            "label": cmp["label"],
+            "status": cmp["status"],
+        })
+
+    output = export_confirmed_area_diff(data)
+    headers = {"Content-Disposition": "attachment; filename*=UTF-8''%E7%A1%AE%E6%9D%83%E9%9D%A2%E7%A7%AF%E5%AF%B9%E6%AF%94.xlsx"}
+    return StreamingResponse(output, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
 
 
 # ─────────────────────────────────────

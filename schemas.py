@@ -30,6 +30,7 @@ class HouseholdCreate(BaseModel):
     group_no: int         # 组号数字：1=一组，2=二组
     address: Optional[str] = None
     contract_area: Optional[Decimal] = None
+    confirmed_area: Optional[Decimal] = None
     remark: Optional[str] = None
 
 
@@ -42,6 +43,7 @@ class HouseholdOut(BaseModel):
     group_no: int         # 组号数字
     address: Optional[str]
     contract_area: Optional[Decimal]
+    confirmed_area: Optional[Decimal]
     status: int
     member_count: int     # 动态计算，不存库
     remark: Optional[str]

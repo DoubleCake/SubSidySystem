@@ -236,6 +236,12 @@ export default function FarmersPage() {
   const [importOverwrite, setImportOverwrite] = useState(false)
   const [templates, setTemplates] = useState<ExcelColumnTemplate[]>([])
 
+  // ── 批量导入确权面积 ──
+  const [confirmedAreaImportOpen, setConfirmedAreaImportOpen] = useState(false)
+  const [confirmedAreaRows, setConfirmedAreaRows] = useState<{ real_name: string; id_card: string; confirmed_area: number }[]>([])
+  const [confirmedAreaImportResult, setConfirmedAreaImportResult] = useState<{ success: number; not_found: { id_card: string; real_name: string }[]; mismatch_name: { id_card: string; input_name: string; db_name: string }[]; errors: { id_card: string; reason: string }[] } | null>(null)
+  const [confirmedAreaImporting, setConfirmedAreaImporting] = useState(false)
+
   // ── 加载农户列表 ──
   const loadFarmers = useCallback(async () => {
     setFarmerLoading(true)
@@ -507,6 +513,21 @@ export default function FarmersPage() {
       loadHouseholds()
     } catch (e: unknown) { show((e as Error).message, 'err') } finally {
       setMergeLoading(false)
+    }
+  }
+
+  // ── 确权面积批量导入 ──
+  const submitConfirmedAreaImport = async () => {
+    if (confirmedAreaRows.length === 0) return show('请先解析 Excel 文件', 'err')
+    setConfirmedAreaImporting(true)
+    try {
+      const result = await api.importConfirmedArea(confirmedAreaRows)
+      setConfirmedAreaImportResult(result)
+      show(`导入完成：成功 ${result.success} 条`, result.success > 0 ? 'ok' : 'err')
+      loadHouseholds()
+      if (detail) refreshDetail()
+    } catch (e: unknown) { show((e as Error).message, 'err') } finally {
+      setConfirmedAreaImporting(false)
     }
   }
 
@@ -1352,6 +1373,10 @@ export default function FarmersPage() {
               <button onClick={exportCurrentList} className="px-4 py-2.5 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
                 <span className="mr-1">⬇</span>导出
               </button>
+              <button onClick={() => { setConfirmedAreaRows([]); setConfirmedAreaImportResult(null); setConfirmedAreaImportOpen(true) }}
+                className="px-4 py-2.5 text-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium">
+                <span className="mr-1">↑</span>导入确权面积
+              </button>
               <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer bg-stone-50 px-3 py-2 rounded-lg border border-stone-200 shadow-sm hover:bg-stone-100 transition-all">
                 <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded" />
                 <span className="font-medium">仅看超领</span>
@@ -1919,6 +1944,111 @@ export default function FarmersPage() {
       )}
 
       {renderHouseholdModals()}
+
+      {/* 确权面积批量导入弹窗 */}
+      {confirmedAreaImportOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-2xl w-[560px] max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200">
+              <h3 className="text-base font-semibold text-stone-800">批量导入确权面积</h3>
+              <button onClick={() => setConfirmedAreaImportOpen(false)} className="text-stone-400 hover:text-stone-600 text-xl leading-none">×</button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <p className="text-sm text-stone-500">
+                请上传包含 <span className="font-semibold text-stone-700">姓名、身份证号、确权面积</span> 三列的 Excel 文件（.xlsx/.xls）。
+                系统将按身份证号匹配农户并更新其所在家庭户的确权面积。
+              </p>
+              <div>
+                <label className="block text-xs text-stone-400 mb-1">选择 Excel 文件</label>
+                <input type="file" accept=".xlsx,.xls"
+                  onChange={async e => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const data = await file.arrayBuffer()
+                    const wb = XLSX.read(data)
+                    const ws = wb.Sheets[wb.SheetNames[0]]
+                    const raw: Record<string, unknown>[] = XLSX.utils.sheet_to_json(ws, { defval: '' })
+                    // 自动识别列名（兼容中英文表头）
+                    const rows = raw.map(r => {
+                      const name = String(r['姓名'] ?? r['real_name'] ?? r['名字'] ?? '').trim()
+                      const idCard = String(r['身份证号'] ?? r['id_card'] ?? r['身份证'] ?? '').trim()
+                      const area = parseFloat(String(r['确权面积'] ?? r['confirmed_area'] ?? r['确权面积(亩)'] ?? '0'))
+                      return { real_name: name, id_card: idCard, confirmed_area: isNaN(area) ? 0 : area }
+                    }).filter(r => r.real_name && r.id_card)
+                    setConfirmedAreaRows(rows)
+                    setConfirmedAreaImportResult(null)
+                  }}
+                  className="block w-full text-sm text-stone-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              </div>
+              {confirmedAreaRows.length > 0 && !confirmedAreaImportResult && (
+                <div className="bg-stone-50 rounded-lg p-3 text-sm text-stone-600">
+                  已解析 <span className="font-semibold text-stone-800">{confirmedAreaRows.length}</span> 条记录
+                  <div className="mt-2 max-h-40 overflow-y-auto text-xs space-y-1">
+                    {confirmedAreaRows.slice(0, 5).map((r, i) => (
+                      <div key={i} className="flex gap-3 text-stone-500">
+                        <span className="truncate max-w-[80px]">{r.real_name}</span>
+                        <span className="font-mono">{r.id_card.substring(0, 6)}***{r.id_card.slice(-4)}</span>
+                        <span className="text-blue-600">{r.confirmed_area} 亩</span>
+                      </div>
+                    ))}
+                    {confirmedAreaRows.length > 5 && <div className="text-stone-400">…还有 {confirmedAreaRows.length - 5} 条</div>}
+                  </div>
+                </div>
+              )}
+              {confirmedAreaImportResult && (
+                <div className="space-y-2 text-sm">
+                  <div className="flex gap-3">
+                    <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg font-medium">成功 {confirmedAreaImportResult.success} 条</span>
+                    {confirmedAreaImportResult.not_found.length > 0 && <span className="bg-red-50 text-red-600 px-3 py-1 rounded-lg font-medium">未找到 {confirmedAreaImportResult.not_found.length} 条</span>}
+                    {confirmedAreaImportResult.mismatch_name.length > 0 && <span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-lg font-medium">姓名不符 {confirmedAreaImportResult.mismatch_name.length} 条（已跳过）</span>}
+                    {confirmedAreaImportResult.errors.length > 0 && <span className="bg-red-50 text-red-600 px-3 py-1 rounded-lg font-medium">错误 {confirmedAreaImportResult.errors.length} 条</span>}
+                  </div>
+                  {confirmedAreaImportResult.not_found.length > 0 && (
+                    <div className="bg-red-50 rounded-lg p-2 max-h-28 overflow-y-auto">
+                      <div className="text-xs font-medium text-red-600 mb-1">未找到的记录：</div>
+                      {confirmedAreaImportResult.not_found.map((r, i) => (
+                        <div key={i} className="text-xs text-red-500">{r.real_name} · {r.id_card}</div>
+                      ))}
+                    </div>
+                  )}
+                  {confirmedAreaImportResult.mismatch_name.length > 0 && (
+                    <div className="bg-amber-50 rounded-lg p-2 max-h-28 overflow-y-auto">
+                      <div className="text-xs font-medium text-amber-600 mb-1">姓名不符（已按身份证更新）：</div>
+                      {confirmedAreaImportResult.mismatch_name.map((r, i) => (
+                        <div key={i} className="text-xs text-amber-600">{r.id_card} · 输入"{r.input_name}" vs 库中"{r.db_name}"</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-stone-200">
+              <button onClick={() => setConfirmedAreaImportOpen(false)}
+                className="px-4 py-2 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50">
+                关闭
+              </button>
+              {!confirmedAreaImportResult && (
+                <button onClick={submitConfirmedAreaImport} disabled={confirmedAreaRows.length === 0 || confirmedAreaImporting}
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {confirmedAreaImporting ? '导入中…' : `确认导入 ${confirmedAreaRows.length} 条`}
+                </button>
+              )}
+              {confirmedAreaImportResult && (
+                <button onClick={async () => {
+                  const resp = await api.exportConfirmedAreaDiff()
+                  const blob = await resp.blob()
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a'); a.href = url; a.download = '确权面积对比.xlsx'; a.click()
+                  URL.revokeObjectURL(url)
+                }} className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-500">
+                  导出对比报告
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <Toast {...toast} />
     </div>
   )
@@ -2082,6 +2212,32 @@ function HouseholdDetailContent({
                 <div className="text-xs text-stone-400">承包面积</div>
               </div>
             </div>
+
+            {detail.confirmed_area != null && (
+              <>
+                <div className="w-px h-10 bg-stone-200" />
+                {/* 确权面积 */}
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">📋</span>
+                  <div>
+                    <div className="text-lg font-bold font-mono text-blue-700">{detail.confirmed_area} 亩</div>
+                    <div className="text-xs text-stone-400">确权面积</div>
+                  </div>
+                </div>
+                {(() => {
+                  const diff = Math.round((detail.confirmed_area! - areaUsage.contracted_area) * 100) / 100
+                  if (Math.abs(diff) <= 0.001) return null
+                  return (
+                    <>
+                      <div className="w-px h-10 bg-stone-200" />
+                      <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium ${diff > 0 ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-sky-50 border-sky-200 text-sky-700'}`}>
+                        {diff > 0 ? `确权多 ${diff}亩` : `承包多 ${Math.abs(diff)}亩`}
+                      </div>
+                    </>
+                  )
+                })()}
+              </>
+            )}
 
             <div className="w-px h-10 bg-stone-200" />
 

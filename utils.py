@@ -286,3 +286,31 @@ def check_area_anomaly(
         "db_contract_area": db_c,
         "hh_used": hh_used,
     }
+
+
+def check_confirmed_vs_contract(
+    contract_area: float | None,
+    confirmed_area: float | None,
+) -> dict:
+    """
+    比较承包面积与确权面积的大小关系。
+
+    Returns:
+        dict with:
+          - diff: confirmed_area - contract_area（正=确权大，负=承包大）
+          - status: "match" | "confirmed_larger" | "contract_larger" | "missing"
+          - label: 人类可读描述
+    """
+    if contract_area is None or confirmed_area is None:
+        return {"diff": None, "status": "missing", "label": "数据缺失"}
+
+    c = round(float(contract_area), 2)
+    f = round(float(confirmed_area), 2)
+    diff = round(f - c, 2)
+
+    if abs(diff) <= 0.001:
+        return {"diff": 0.0, "status": "match", "label": "一致"}
+    elif diff > 0:
+        return {"diff": diff, "status": "confirmed_larger", "label": f"确权多{diff}亩"}
+    else:
+        return {"diff": diff, "status": "contract_larger", "label": f"承包多{abs(diff)}亩"}
