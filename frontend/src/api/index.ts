@@ -264,3 +264,16 @@ export const importConfirmedArea = (rows: { real_name: string; id_card: string; 
 
 export const exportConfirmedAreaDiff = () =>
   fetch('/api/households/export-confirmed-area-diff')
+
+// ── 家庭户人工确认 ──
+export const manualConfirmHousehold = (householdId: number, data: { operator?: string; remark?: string }) =>
+  req<{ message: string; household_id: number; confirmed_at: string; confirmed_by: string | null }>(
+    `/api/households/${householdId}/manual-confirm`,
+    { method: 'POST', body: JSON.stringify(data) }
+  )
+
+export const cancelManualConfirm = (householdId: number, data: { operator?: string; remark?: string }) =>
+  req<{ message: string; household_id: number; previous_confirmed_at: string | null; previous_confirmed_by: string | null }>(
+    `/api/households/${householdId}/cancel-confirm`,
+    { method: 'POST', body: JSON.stringify(data) }
+  )

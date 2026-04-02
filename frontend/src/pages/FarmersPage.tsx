@@ -76,6 +76,7 @@ const EVENT_TYPE_CFG: Record<string, { label: string; color: string; icon: strin
   LAND_CHANGE:    { label: '土地变更',   color: 'bg-green-100 text-green-700',     icon: '🌾' },
   STATUS_CHANGE:  { label: '户籍变更',   color: 'bg-red-100 text-red-700',         icon: '📋' },
   VILLAGE_CHANGE: { label: '整户迁移',   color: 'bg-cyan-100 text-cyan-700',       icon: '🏠' },
+  MANUAL_CONFIRM: { label: '人工确认',   color: 'bg-blue-100 text-blue-700',       icon: '✅' },
   REMARK:         { label: '备注说明',   color: 'bg-slate-100 text-slate-500',     icon: '💬' },
 }
 
@@ -238,6 +239,9 @@ export default function FarmersPage() {
 
   // ── 批量导入确权面积 ──
   const [confirmedAreaImportOpen, setConfirmedAreaImportOpen] = useState(false)
+  const [manualConfirmOpen, setManualConfirmOpen] = useState(false)
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
+  const [confirmForm, setConfirmForm] = useState({ operator: '', remark: '' })
   const [confirmedAreaRows, setConfirmedAreaRows] = useState<{ real_name: string; id_card: string; confirmed_area: number }[]>([])
   const [confirmedAreaImportResult, setConfirmedAreaImportResult] = useState<{ success: number; not_found: { id_card: string; real_name: string }[]; mismatch_name: { id_card: string; input_name: string; db_name: string }[]; errors: { id_card: string; reason: string }[] } | null>(null)
   const [confirmedAreaImporting, setConfirmedAreaImporting] = useState(false)
@@ -390,6 +394,40 @@ export default function FarmersPage() {
         setSelectedFarmerHousehold(null)
       }
     }
+  }
+
+  // ── 人工确认家庭户 ──
+  const handleManualConfirm = async () => {
+    if (!detail) return
+    try {
+      await api.manualConfirmHousehold(detail.id, {
+        operator: confirmForm.operator || undefined,
+        remark: confirmForm.remark || undefined,
+      })
+      show('✓ 家庭户信息已确认')
+      setManualConfirmOpen(false)
+      setConfirmForm({ operator: '', remark: '' })
+      await refreshDetail()
+      await loadHouseholds()
+      await loadHouseholdHistoryDates(detail.id)
+    } catch (e: unknown) { show((e as Error).message, 'err') }
+  }
+
+  // ── 取消人工确认 ──
+  const handleCancelConfirm = async () => {
+    if (!detail) return
+    try {
+      await api.cancelManualConfirm(detail.id, {
+        operator: confirmForm.operator || undefined,
+        remark: confirmForm.remark || undefined,
+      })
+      show('✓ 已取消人工确认')
+      setCancelConfirmOpen(false)
+      setConfirmForm({ operator: '', remark: '' })
+      await refreshDetail()
+      await loadHouseholds()
+      await loadHouseholdHistoryDates(detail.id)
+    } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
   // ── 历史快照 ──
@@ -1493,6 +1531,7 @@ export default function FarmersPage() {
                             <div className="flex items-center gap-2.5 mb-1.5">
                               <span className="font-semibold text-base text-stone-800">{h.household_name}</span>
                               <span className="text-xs font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{h.household_code}</span>
+                              {h.is_manually_confirmed === 1 && <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-0.5 rounded-full">✓已确认</span>}
                               {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
                             </div>
                             <div className="flex items-center gap-4 text-xs text-stone-400">
@@ -1601,6 +1640,8 @@ export default function FarmersPage() {
                 onOpenEdit={() => { setEditForm({ household_name: detail.household_name, contract_area: String(detail.contracted_area || ''), village_id: detail.village_id || 0, group_no: detail.group_no || 1, address: detail.address || '', remark: detail.remark || '' }); setEditOpen(true) }}
                 onOpenSplit={() => { setSplitOpen(true); setSplitStep(1); setSplitSelected([]); setSplitNewHead(null); setSplitForm({ household_name: '', split_year: String(new Date().getFullYear()), split_date: '', new_land_area: '', origin_land_area: String(detail.contracted_area || ''), description: '', evidence_type: '', evidence_note: '' }) }}
                 canSplit={detail.members.filter(m => m.farmer_status === 1).length >= 2}
+                onOpenManualConfirm={() => { setConfirmForm({ operator: '', remark: '' }); setManualConfirmOpen(true) }}
+                onOpenCancelConfirm={() => { setConfirmForm({ operator: '', remark: '' }); setCancelConfirmOpen(true) }}
               />
             </div>
           </div>
@@ -1943,6 +1984,70 @@ export default function FarmersPage() {
         </Modal>
       )}
 
+      {/* 人工确认弹窗 */}
+      {manualConfirmOpen && detail && (
+        <Modal open={manualConfirmOpen} title="人工确认家庭户信息" onClose={() => setManualConfirmOpen(false)} onConfirm={handleManualConfirm}>
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-sm text-blue-700">
+              <div className="font-medium mb-1">确认操作说明</div>
+              <p className="text-xs">确认后，该家庭户将标记为"已人工确认"，并记录历史快照。表示该家庭户的信息已经过人工核对无误。</p>
+            </div>
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">家庭户</label>
+              <div className="text-sm font-medium text-stone-700">{detail.household_name} ({detail.household_code})</div>
+            </div>
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">操作人（可选）</label>
+              <input value={confirmForm.operator} onChange={e => setConfirmForm(f => ({ ...f, operator: e.target.value }))}
+                placeholder="请输入操作人姓名" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400" />
+            </div>
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">备注说明（可选）</label>
+              <textarea rows={3} value={confirmForm.remark} onChange={e => setConfirmForm(f => ({ ...f, remark: e.target.value }))}
+                placeholder="请输入备注说明" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 resize-none" />
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* 取消确认弹窗 */}
+      {cancelConfirmOpen && detail && (
+        <Modal open={cancelConfirmOpen} title="取消人工确认" onClose={() => setCancelConfirmOpen(false)} onConfirm={handleCancelConfirm}>
+          <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-sm text-amber-700">
+              <div className="font-medium mb-1">取消确认操作说明</div>
+              <p className="text-xs">取消后，该家庭户的"已人工确认"标记将被移除。此操作也会记录在历史事件中。</p>
+            </div>
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">家庭户</label>
+              <div className="text-sm font-medium text-stone-700">{detail.household_name} ({detail.household_code})</div>
+            </div>
+            {detail.manually_confirmed_at && (
+              <div>
+                <label className="block text-xs text-stone-400 mb-1">原确认时间</label>
+                <div className="text-sm text-stone-600">{new Date(detail.manually_confirmed_at).toLocaleString('zh-CN')}</div>
+              </div>
+            )}
+            {detail.manually_confirmed_by && (
+              <div>
+                <label className="block text-xs text-stone-400 mb-1">原操作人</label>
+                <div className="text-sm text-stone-600">{detail.manually_confirmed_by}</div>
+              </div>
+            )}
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">操作人（可选）</label>
+              <input value={confirmForm.operator} onChange={e => setConfirmForm(f => ({ ...f, operator: e.target.value }))}
+                placeholder="请输入操作人姓名" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-amber-400" />
+            </div>
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">取消原因（可选）</label>
+              <textarea rows={3} value={confirmForm.remark} onChange={e => setConfirmForm(f => ({ ...f, remark: e.target.value }))}
+                placeholder="请输入取消原因" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-amber-400 resize-none" />
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {renderHouseholdModals()}
 
       {/* 确权面积批量导入弹窗 */}
@@ -2076,6 +2181,8 @@ function HouseholdDetailContent({
   onOpenEdit,
   onOpenSplit,
   canSplit,
+  onOpenManualConfirm,
+  onOpenCancelConfirm,
 }: {
   detail: HHDetail
   detailTab: 'members' | 'subsidy'
@@ -2097,6 +2204,8 @@ function HouseholdDetailContent({
   onOpenEdit: () => void
   onOpenSplit: () => void
   canSplit: boolean
+  onOpenManualConfirm: () => void
+  onOpenCancelConfirm: () => void
 }) {
   const appsByYear: Record<number, typeof detail.app_summary> = {}
   detail.app_summary.forEach(a => {
@@ -2140,6 +2249,7 @@ function HouseholdDetailContent({
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
               <span className="text-base font-bold text-white">{detail.household_name}</span>
               <span className="text-emerald-300 text-xs font-mono">{detail.household_code}</span>
+              {detail.is_manually_confirmed === 1 && <span className="text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded">✓ 已确认</span>}
               {effectiveIsOverdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">⚠️ 超领</span>}
               {historyDate !== null && <span className="text-xs bg-amber-500/80 text-white px-1.5 py-0.5 rounded">⏳ 快照</span>}
             </div>
@@ -2159,6 +2269,13 @@ function HouseholdDetailContent({
             <div className="flex flex-col gap-1.5 shrink-0">
               <button onClick={onOpenEdit}
                 className="text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">✏️ 编辑</button>
+              {detail.is_manually_confirmed === 1 ? (
+                <button onClick={onOpenCancelConfirm}
+                  className="text-xs bg-amber-500/80 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">↩️ 取消确认</button>
+              ) : (
+                <button onClick={onOpenManualConfirm}
+                  className="text-xs bg-blue-500/80 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">✓ 人工确认</button>
+              )}
               {canSplit && (
                 <button onClick={onOpenSplit}
                   className="text-xs bg-orange-500/80 hover:bg-orange-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">🔀 分户</button>
@@ -2279,6 +2396,24 @@ function HouseholdDetailContent({
             )}
           </div>
         </div>
+
+        {/* 人工确认信息 */}
+        {detail.is_manually_confirmed === 1 && (
+          <div className="bg-blue-50 border-b border-blue-100 px-4 py-2.5">
+            <div className="flex items-center gap-2 text-xs text-blue-700">
+              <span className="text-lg">✅</span>
+              <span className="font-medium">已人工确认</span>
+              {detail.manually_confirmed_at && (
+                <span className="text-blue-500">
+                  · {new Date(detail.manually_confirmed_at).toLocaleString('zh-CN')}
+                </span>
+              )}
+              {detail.manually_confirmed_by && (
+                <span className="text-blue-500">· 操作人: {detail.manually_confirmed_by}</span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 补贴面积使用情况 - 大春小春等直接展示 */}
         {areaUsage && areaUsage.season_breakdown && Object.keys(areaUsage.season_breakdown).length > 0 && (

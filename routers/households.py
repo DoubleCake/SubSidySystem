@@ -17,6 +17,7 @@ from decimal import Decimal
 
 from database import get_db
 from models import FamilyHousehold, FarmerProfile, Village, SubsidyApplication, SubsidyType, SubsidyPayment, HouseholdAreaUsageCache
+from schemas import HouseholdManualConfirm
 from utils import format_group_no, parse_group_no_to_int, parse_id_card, mask_id_card, mask_phone, mask_bank_card, gen_household_code
 # 导入预检查函数
 from .precheck import validate_id_card, check_name, check_phone
@@ -519,6 +520,10 @@ def list_households(
             "status": hh.status,
             "address": hh.address,
             "remark": hh.remark,
+            # 人工确认字段
+            "is_manually_confirmed": getattr(hh, "is_manually_confirmed", 0),
+            "manually_confirmed_at": hh.manually_confirmed_at.isoformat() if hh.manually_confirmed_at else None,
+            "manually_confirmed_by": hh.manually_confirmed_by,
             # 面积数据（含季节分组）
             "contracted_area": float(hh.contract_area or 0),
             "confirmed_area": float(hh.confirmed_area) if hh.confirmed_area is not None else None,
@@ -769,6 +774,10 @@ def get_household(
         "confirmed_area": float(hh.confirmed_area) if hh.confirmed_area is not None else None,
         "status": hh.status,
         "remark": hh.remark,
+        # 人工确认字段
+        "is_manually_confirmed": getattr(hh, "is_manually_confirmed", 0),
+        "manually_confirmed_at": hh.manually_confirmed_at.isoformat() if hh.manually_confirmed_at else None,
+        "manually_confirmed_by": hh.manually_confirmed_by,
         "members": member_list,
         "area_usage": area_info,
         "app_summary": app_summary,
@@ -2761,4 +2770,119 @@ def merge_households(req: HouseholdMergeRequest, db: Session = Depends(get_db)):
         "message": f"已合并，共迁移 {len(members)} 名成员",
         "merged_household_id": req.source_household_id,
         "target_household_id": req.target_household_id,
+    }
+
+
+# ─────────────────────────────────────
+#  接口：人工确认家庭户信息
+# ─────────────────────────────────────
+
+@router.post("/{household_id}/manual-confirm")
+def manual_confirm_household(
+    household_id: int,
+    req: HouseholdManualConfirm,
+    db: Session = Depends(get_db)
+):
+    """
+    人工确认家庭户信息：
+    1. 更新家庭户的确认状态
+    2. 记录 MANUAL_CONFIRM 事件并保存快照
+    """
+    from datetime import datetime, date as _date
+
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh:
+        raise HTTPException(404, "家庭户不存在")
+
+    # 快照（确认前）
+    before_snapshot = _snapshot_household(db, household_id)
+
+    # 更新确认状态
+    hh.is_manually_confirmed = 1
+    hh.manually_confirmed_at = datetime.now()
+    hh.manually_confirmed_by = req.operator
+
+    # 快照（确认后）
+    after_snapshot = _snapshot_household(db, household_id)
+
+    # 记录事件
+    today = _date.today()
+    desc = "人工确认家庭户信息无误"
+    if req.remark:
+        desc += f"：{req.remark}"
+
+    _log_event(
+        db, household_id, "MANUAL_CONFIRM", today.year,
+        description=desc,
+        before=before_snapshot,
+        after=after_snapshot,
+        event_date=today,
+        date_accuracy="EXACT",
+        operator=req.operator,
+    )
+
+    db.commit()
+
+    return {
+        "message": "家庭户信息已确认",
+        "household_id": household_id,
+        "confirmed_at": hh.manually_confirmed_at.isoformat(),
+        "confirmed_by": hh.manually_confirmed_by,
+    }
+
+
+@router.post("/{household_id}/cancel-confirm")
+def cancel_manual_confirm(
+    household_id: int,
+    req: HouseholdManualConfirm,
+    db: Session = Depends(get_db)
+):
+    """
+    取消人工确认家庭户信息
+    """
+    from datetime import date as _date
+
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh:
+        raise HTTPException(404, "家庭户不存在")
+
+    if not getattr(hh, "is_manually_confirmed", 0):
+        raise HTTPException(400, "该家庭户尚未进行人工确认")
+
+    # 快照（取消前）
+    before_snapshot = _snapshot_household(db, household_id)
+
+    # 更新确认状态
+    hh.is_manually_confirmed = 0
+    confirmed_at = hh.manually_confirmed_at
+    confirmed_by = hh.manually_confirmed_by
+    hh.manually_confirmed_at = None
+    hh.manually_confirmed_by = None
+
+    # 快照（取消后）
+    after_snapshot = _snapshot_household(db, household_id)
+
+    # 记录事件
+    today = _date.today()
+    desc = "取消人工确认"
+    if req.remark:
+        desc += f"：{req.remark}"
+
+    _log_event(
+        db, household_id, "REMARK", today.year,
+        description=desc,
+        before=before_snapshot,
+        after=after_snapshot,
+        event_date=today,
+        date_accuracy="EXACT",
+        operator=req.operator,
+    )
+
+    db.commit()
+
+    return {
+        "message": "已取消人工确认",
+        "household_id": household_id,
+        "previous_confirmed_at": confirmed_at.isoformat() if confirmed_at else None,
+        "previous_confirmed_by": confirmed_by,
     }

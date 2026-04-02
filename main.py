@@ -107,6 +107,9 @@ def migrate_db():
         "ALTER TABLE subsidy_payment ADD COLUMN payment_group_no INTEGER",
         "ALTER TABLE subsidy_payment ADD COLUMN payment_village_name VARCHAR(50)",
         "ALTER TABLE subsidy_payment ADD COLUMN payment_group_display VARCHAR(20)",
+        "ALTER TABLE family_household ADD COLUMN is_manually_confirmed SMALLINT DEFAULT 0",
+        "ALTER TABLE family_household ADD COLUMN manually_confirmed_at DATETIME",
+        "ALTER TABLE family_household ADD COLUMN manually_confirmed_by VARCHAR(50)",
     ]
     with engine.connect() as conn:
         for sql in migrations:

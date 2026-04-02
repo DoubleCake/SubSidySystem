@@ -46,10 +46,19 @@ class HouseholdOut(BaseModel):
     confirmed_area: Optional[Decimal]
     status: int
     member_count: int     # 动态计算，不存库
+    is_manually_confirmed: int  # 0未确认 1已人工确认
+    manually_confirmed_at: Optional[datetime]
+    manually_confirmed_by: Optional[str]
     remark: Optional[str]
 
     class Config:
         from_attributes = True
+
+
+class HouseholdManualConfirm(BaseModel):
+    """人工确认家庭户信息请求"""
+    operator: Optional[str] = None  # 操作人
+    remark: Optional[str] = None    # 备注说明
 
 
 # ───────────── 农户 ─────────────

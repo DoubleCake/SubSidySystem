@@ -38,6 +38,9 @@ class FamilyHousehold(Base):
     contract_area   = Column(DECIMAL(10, 2), nullable=True, comment="承包面积(亩)")
     confirmed_area  = Column(DECIMAL(10, 2), nullable=True, comment="确权面积(亩)")
     status          = Column(SmallInteger, nullable=False, default=1, comment="1在册 2注销 3迁出")
+    is_manually_confirmed = Column(SmallInteger, nullable=False, default=0, comment="0未确认 1已人工确认")
+    manually_confirmed_at = Column(DateTime, nullable=True, comment="人工确认时间")
+    manually_confirmed_by = Column(String(50), nullable=True, comment="人工确认操作人")
     remark          = Column(Text, nullable=True)
     created_at      = Column(DateTime, default=func.now())
     updated_at      = Column(DateTime, default=func.now(), onupdate=func.now())
@@ -435,6 +438,7 @@ class HouseholdEvent(Base):
                              MERGE=合户（两户合一户）
                              LAND_CHANGE=土地面积变更
                              STATUS_CHANGE=家庭户状态变更
+                             MANUAL_CONFIRM=人工确认信息
                              REMARK=备注说明（无具体分类的记录）
                              """)
     event_year      = Column(SmallInteger, nullable=False, comment="事件发生年度")

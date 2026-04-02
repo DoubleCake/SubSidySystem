@@ -276,6 +276,9 @@ export interface HH {
   is_overdrawn: boolean; overdraw_amount: number
   season_breakdown?: Record<string, SeasonUsage>
   member_count: number; status: number; address: string | null; remark: string | null
+  is_manually_confirmed: number
+  manually_confirmed_at: string | null
+  manually_confirmed_by: string | null
 }
 
 export interface HHMember {
@@ -290,6 +293,9 @@ export interface HHDetail {
   village_full_name: string; village_id: number; group_no: number
   contracted_area: number; confirmed_area?: number | null; status: number
   address: string | null; remark: string | null
+  is_manually_confirmed: number
+  manually_confirmed_at: string | null
+  manually_confirmed_by: string | null
   members: HHMember[]
   area_usage: {
     contracted_area: number; trust_out_area?: number; trust_in_area?: number
