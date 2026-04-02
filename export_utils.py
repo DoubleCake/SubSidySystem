@@ -140,23 +140,49 @@ def export_precheck_report(result: Dict[str, Any]) -> BytesIO:
 
     # 2. 错误库命中
     headers = ["行号", "姓名", "身份证号", "所在村", "所在组", "错误类型", "错误原因", "来源"]
-    add_sheet_from_data(wb, "错误库命中", headers, result.get("error_library_hits", []))
+    data = [
+        {"行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+         "所在村": r.get("village"), "所在组": r.get("group"),
+         "错误类型": r.get("error_type"), "错误原因": r.get("error_reason"), "来源": r.get("source")}
+        for r in result.get("error_library_hits", [])
+    ]
+    add_sheet_from_data(wb, "错误库命中", headers, data)
 
     # 3. 格式错误
     headers = ["行号", "姓名", "身份证号", "所在村", "所在组", "错误内容"]
-    add_sheet_from_data(wb, "格式错误", headers, result.get("format_errors", []))
+    data = [
+        {"行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+         "所在村": r.get("village"), "所在组": r.get("group"),
+         "错误内容": "；".join(r["errors"]) if isinstance(r.get("errors"), list) else r.get("errors", "")}
+        for r in result.get("format_errors", [])
+    ]
+    add_sheet_from_data(wb, "格式错误", headers, data)
 
     # 4. 村组不存在
     headers = ["行号", "姓名", "身份证号", "所在村", "所在组", "错误信息"]
-    add_sheet_from_data(wb, "村组不存在", headers, result.get("village_errors", []))
+    data = [
+        {"行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+         "所在村": r.get("village"), "所在组": r.get("group"), "错误信息": r.get("error")}
+        for r in result.get("village_errors", [])
+    ]
+    add_sheet_from_data(wb, "村组不存在", headers, data)
 
     # 5. 重复身份证
     headers = ["行号", "姓名", "身份证号", "错误信息"]
-    add_sheet_from_data(wb, "重复身份证", headers, result.get("duplicate_errors", []))
+    data = [
+        {"行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"), "错误信息": r.get("error")}
+        for r in result.get("duplicate_errors", [])
+    ]
+    add_sheet_from_data(wb, "重复身份证", headers, data)
 
     # 6. 性别不符
     headers = ["行号", "姓名", "身份证号", "Excel性别", "身份证性别"]
-    add_sheet_from_data(wb, "性别不符", headers, result.get("gender_mismatch", []))
+    data = [
+        {"行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+         "Excel性别": r.get("excel_gender"), "身份证性别": r.get("id_card_gender")}
+        for r in result.get("gender_mismatch", [])
+    ]
+    add_sheet_from_data(wb, "性别不符", headers, data)
 
     # 7. 面积异常
     headers = [
@@ -205,27 +231,21 @@ def export_precheck_report(result: Dict[str, Any]) -> BytesIO:
 
     # 9. 减少农户
     headers = ["姓名", "身份证号", "所在村", "所在组", "说明"]
-    data = []
-    for r in result.get("removed_farmers", []):
-        data.append({
-            "姓名": r.get("name"),
-            "身份证号": r.get("id_card"),
-            "所在村": r.get("village"),
-            "所在组": r.get("group"),
-            "说明": r.get("note"),
-        })
+    data = [
+        {"姓名": r.get("name"), "身份证号": r.get("id_card"),
+         "所在村": r.get("village"), "所在组": r.get("group"),
+         "说明": "有补贴记录但未在本次导入中"}
+        for r in result.get("removed_farmers", [])
+    ]
     add_sheet_from_data(wb, "减少农户", headers, data)
 
     # 10. 字段变更
     headers = ["行号", "姓名", "身份证号", "变更内容"]
-    data = []
-    for r in result.get("changed_farmers", []):
-        data.append({
-            "行号": r.get("row"),
-            "姓名": r.get("name"),
-            "身份证号": r.get("id_card"),
-            "变更内容": r.get("changes"),
-        })
+    data = [
+        {"行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+         "变更内容": "；".join(r["changes"]) if isinstance(r.get("changes"), list) else r.get("changes", "")}
+        for r in result.get("changed_farmers", [])
+    ]
     add_sheet_from_data(wb, "字段变更", headers, data)
 
     # 保存到内存
