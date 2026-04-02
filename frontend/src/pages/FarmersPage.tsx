@@ -1601,9 +1601,6 @@ export default function FarmersPage() {
               )}
             </div>
           </div>
-        </div>
-      </div>
-
       {/* ── 右侧：详情面板 ── */}
       <div className="flex-1 min-w-0 flex flex-col">
         {selectedFarmer ? (
@@ -2166,13 +2163,38 @@ export default function FarmersPage() {
           </div>
         </div>
       )}
-
+      </div>
       <Toast {...toast} />
     </div>
   )
 }
 
 // ── 家庭户详情内容子组件 ──
+type HouseholdDetailContentProps = {
+  detail: HHDetail
+  detailTab: 'members' | 'subsidy'
+  setDetailTab: (t: 'members' | 'subsidy') => void
+  areaYear: number
+  setAreaYear: (y: number) => void
+  historyDate: string | null
+  historyEventId: number | null
+  historyDates: HistoryDateEvent[]
+  snapshotData: SnapshotAtResponse | null
+  events: HHEvent[]
+  historyDateIsNull: boolean
+  onOpenMemberImport: () => void
+  onOpenMemberAdd: () => void
+  onOpenEvent: () => void
+  onOpenFarmer: (id: number) => void
+  onOpenMemberEdit: (m: HHMember | SnapshotMember) => void
+  onRemoveMember: (m: HHMember | SnapshotMember) => void
+  onOpenEdit: () => void
+  onOpenSplit: () => void
+  canSplit: boolean
+  onOpenManualConfirm: () => void
+  onOpenCancelConfirm: () => void
+}
+
 function HouseholdDetailContent({
   detail,
   detailTab,
@@ -2196,30 +2218,7 @@ function HouseholdDetailContent({
   canSplit,
   onOpenManualConfirm,
   onOpenCancelConfirm,
-}: {
-  detail: HHDetail
-  detailTab: 'members' | 'subsidy'
-  setDetailTab: (t: 'members' | 'subsidy') => void
-  areaYear: number
-  setAreaYear: (y: number) => void
-  historyDate: string | null
-  historyEventId: number | null
-  historyDates: HistoryDateEvent[]
-  snapshotData: SnapshotAtResponse | null
-  events: HHEvent[]
-  historyDateIsNull: boolean
-  onOpenMemberImport: () => void
-  onOpenMemberAdd: () => void
-  onOpenEvent: () => void
-  onOpenFarmer: (id: number) => void
-  onOpenMemberEdit: (m: HHMember | SnapshotMember) => void
-  onRemoveMember: (m: HHMember | SnapshotMember) => void
-  onOpenEdit: () => void
-  onOpenSplit: () => void
-  canSplit: boolean
-  onOpenManualConfirm: () => void
-  onOpenCancelConfirm: () => void
-}) {
+}: HouseholdDetailContentProps) {
   const appsByYear: Record<number, typeof detail.app_summary> = {}
   detail.app_summary.forEach(a => {
     if (!appsByYear[a.apply_year]) appsByYear[a.apply_year] = []
