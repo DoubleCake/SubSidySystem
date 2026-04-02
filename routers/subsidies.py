@@ -305,8 +305,25 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
                     clean_row["apply_area"] = round(ca + ta, 2)
                 clean_row["contract_area"] = ca or None
                 clean_row["trust_area"] = ta or None
+            # 村组快照：优先使用农户个人村组，否则用家庭户村组
+            hh = farmer.household
+            village_id = farmer.own_village_id or (hh.village_id if hh else None)
+            group_no = farmer.own_group_no or (hh.group_no if hh else None)
+            village_name = None
+            group_display = None
+
+            if village_id:
+                village = db.get(Village, village_id)
+                village_name = village.village_name if village else None
+            if group_no:
+                group_display = format_group_no(group_no)
+
             app = SubsidyApplication(
                 **clean_row,
+                apply_village_id=village_id,
+                apply_group_no=group_no,
+                apply_village_name=village_name,
+                apply_group_display=group_display,
                 bank_card_snapshot=f"****{farmer.bank_card[-4:]}" if farmer and farmer.bank_card else None,
             )
             db.add(app)
@@ -444,8 +461,26 @@ def create_application(data: ApplicationCreate, db: Session = Depends(get_db)):
         from datetime import date as date_type
         try: data_dict["pay_date"] = date_type.fromisoformat(data_dict["pay_date"])
         except ValueError: data_dict["pay_date"] = None
+
+    # 村组快照：优先使用农户个人村组，否则用家庭户村组
+    hh = farmer.household
+    village_id = farmer.own_village_id or (hh.village_id if hh else None)
+    group_no = farmer.own_group_no or (hh.group_no if hh else None)
+    village_name = None
+    group_display = None
+
+    if village_id:
+        village = db.get(Village, village_id)
+        village_name = village.village_name if village else None
+    if group_no:
+        group_display = format_group_no(group_no)
+
     app = SubsidyApplication(
         **data_dict,
+        apply_village_id=village_id,
+        apply_group_no=group_no,
+        apply_village_name=village_name,
+        apply_group_display=group_display,
         bank_card_snapshot=f"****{farmer.bank_card[-4:]}" if farmer.bank_card else None,
     )
     db.add(app)
@@ -1429,12 +1464,30 @@ def create_payment(data: PaymentCreate, db: Session = Depends(get_db)):
     if not farmer:
         raise HTTPException(status_code=404, detail="农户不存在")
 
+    # 村组快照：优先使用农户个人村组，否则用家庭户村组
+    hh = farmer.household
+    village_id = farmer.own_village_id or (hh.village_id if hh else None)
+    group_no = farmer.own_group_no or (hh.group_no if hh else None)
+    village_name = None
+    group_display = None
+
+    if village_id:
+        village = db.get(Village, village_id)
+        village_name = village.village_name if village else None
+    if group_no:
+        from utils import format_group_no
+        group_display = format_group_no(group_no)
+
     payment = SubsidyPayment(
         farmer_id=data.farmer_id,
         subsidy_type_id=data.subsidy_type_id,
         payment_year=data.payment_year,
         amount=data.amount,
         payment_date=data.payment_date,
+        payment_village_id=village_id,
+        payment_group_no=group_no,
+        payment_village_name=village_name,
+        payment_group_display=group_display,
         apply_area=data.apply_area,
         contract_area=data.contract_area,
         trust_area=data.trust_area,
@@ -1542,12 +1595,30 @@ def batch_import_payments(payload: dict, db: Session = Depends(get_db)):
                 skipped += 1
                 continue
 
+            # 村组快照：优先使用农户个人村组，否则用家庭户村组
+            hh = farmer.household
+            village_id = farmer.own_village_id or (hh.village_id if hh else None)
+            group_no = farmer.own_group_no or (hh.group_no if hh else None)
+            village_name = None
+            group_display = None
+
+            if village_id:
+                village = db.get(Village, village_id)
+                village_name = village.village_name if village else None
+            if group_no:
+                from utils import format_group_no
+                group_display = format_group_no(group_no)
+
             payment = SubsidyPayment(
                 farmer_id=farmer_id,
                 subsidy_type_id=subsidy_type_id,
                 payment_year=payment_year,
                 amount=row.get("amount"),
                 payment_date=row.get("payment_date"),
+                payment_village_id=village_id,
+                payment_group_no=group_no,
+                payment_village_name=village_name,
+                payment_group_display=group_display,
                 apply_area=row.get("apply_area"),
                 contract_area=row.get("contract_area"),
                 trust_area=row.get("trust_area"),

@@ -98,6 +98,14 @@ def migrate_db():
     migrations = [
         "ALTER TABLE farmer_profile ADD COLUMN own_village_id INTEGER REFERENCES village(id)",
         "ALTER TABLE farmer_profile ADD COLUMN own_group_no INTEGER",
+        "ALTER TABLE subsidy_application ADD COLUMN apply_village_id INTEGER REFERENCES village(id)",
+        "ALTER TABLE subsidy_application ADD COLUMN apply_group_no INTEGER",
+        "ALTER TABLE subsidy_application ADD COLUMN apply_village_name VARCHAR(50)",
+        "ALTER TABLE subsidy_application ADD COLUMN apply_group_display VARCHAR(20)",
+        "ALTER TABLE subsidy_payment ADD COLUMN payment_village_id INTEGER REFERENCES village(id)",
+        "ALTER TABLE subsidy_payment ADD COLUMN payment_group_no INTEGER",
+        "ALTER TABLE subsidy_payment ADD COLUMN payment_village_name VARCHAR(50)",
+        "ALTER TABLE subsidy_payment ADD COLUMN payment_group_display VARCHAR(20)",
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -106,6 +114,72 @@ def migrate_db():
             except Exception:
                 pass  # 列已存在时忽略
         conn.commit()
+
+        # 历史数据回填：用当前农户状态填充村组快照
+        try:
+            # 1. 回填 subsidy_application
+            fill_app = text("""
+                UPDATE subsidy_application
+                SET apply_village_id = COALESCE(
+                    (SELECT own_village_id FROM farmer_profile WHERE farmer_profile.id = subsidy_application.farmer_id),
+                    (SELECT village_id FROM family_household
+                     WHERE family_household.id = (SELECT household_id FROM farmer_profile WHERE farmer_profile.id = subsidy_application.farmer_id))
+                ),
+                apply_group_no = COALESCE(
+                    (SELECT own_group_no FROM farmer_profile WHERE farmer_profile.id = subsidy_application.farmer_id),
+                    (SELECT group_no FROM family_household
+                     WHERE family_household.id = (SELECT household_id FROM farmer_profile WHERE farmer_profile.id = subsidy_application.farmer_id))
+                )
+                WHERE apply_village_id IS NULL OR apply_group_no IS NULL
+            """)
+            conn.execute(fill_app)
+
+            # 2. 更新村名和组显示名
+            update_names = text("""
+                UPDATE subsidy_application
+                SET apply_village_name = (SELECT village_name FROM village WHERE village.id = subsidy_application.apply_village_id),
+                    apply_group_display = CASE subsidy_application.apply_group_no
+                        WHEN 1 THEN '一组' WHEN 2 THEN '二组' WHEN 3 THEN '三组' WHEN 4 THEN '四组'
+                        WHEN 5 THEN '五组' WHEN 6 THEN '六组' WHEN 7 THEN '七组' WHEN 8 THEN '八组'
+                        WHEN 9 THEN '九组' WHEN 10 THEN '十组' ELSE '未知组' END
+                WHERE apply_village_id IS NOT NULL AND (apply_village_name IS NULL OR apply_group_display IS NULL)
+            """)
+            conn.execute(update_names)
+
+            # 3. 回填 subsidy_payment（类似逻辑）
+            fill_pay = text("""
+                UPDATE subsidy_payment
+                SET payment_village_id = COALESCE(
+                    (SELECT own_village_id FROM farmer_profile WHERE farmer_profile.id = subsidy_payment.farmer_id),
+                    (SELECT village_id FROM family_household
+                     WHERE family_household.id = (SELECT household_id FROM farmer_profile WHERE farmer_profile.id = subsidy_payment.farmer_id))
+                ),
+                payment_group_no = COALESCE(
+                    (SELECT own_group_no FROM farmer_profile WHERE farmer_profile.id = subsidy_payment.farmer_id),
+                    (SELECT group_no FROM family_household
+                     WHERE family_household.id = (SELECT household_id FROM farmer_profile WHERE farmer_profile.id = subsidy_payment.farmer_id))
+                )
+                WHERE payment_village_id IS NULL OR payment_group_no IS NULL
+            """)
+            conn.execute(fill_pay)
+
+            update_pay_names = text("""
+                UPDATE subsidy_payment
+                SET payment_village_name = (SELECT village_name FROM village WHERE village.id = subsidy_payment.payment_village_id),
+                    payment_group_display = CASE subsidy_payment.payment_group_no
+                        WHEN 1 THEN '一组' WHEN 2 THEN '二组' WHEN 3 THEN '三组' WHEN 4 THEN '四组'
+                        WHEN 5 THEN '五组' WHEN 6 THEN '六组' WHEN 7 THEN '七组' WHEN 8 THEN '八组'
+                        WHEN 9 THEN '九组' WHEN 10 THEN '十组' ELSE '未知组' END
+                WHERE payment_village_id IS NOT NULL AND (payment_village_name IS NULL OR payment_group_display IS NULL)
+            """)
+            conn.execute(update_pay_names)
+
+            conn.commit()
+            print("  历史数据回填完成 [OK]")
+        except Exception as e:
+            print(f"  历史数据回填跳过（可能已填充）: {e}")
+            conn.rollback()
+
     print("  数据库迁移完成 [OK]")
 
 
