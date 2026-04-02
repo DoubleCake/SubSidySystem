@@ -11,7 +11,14 @@ import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import { years } from '../utils'
 import { PRECHECK_TABLE_CONFIGS } from '../utils/precheckConfig'
-import { exportPrecheckReport } from '../utils/exportPrecheckReport'
+import {
+  exportPrecheckReport,
+  exportPrecheckReportWithOptions,
+  PRECHECK_SHEET_OPTIONS,
+  SheetKey,
+  getVillagesFromResult,
+  getDefaultSelectedSheets
+} from '../utils/exportPrecheckReport'
 import { getExcelTemplates } from '../api'
 import type { CheckResult, ExcelColumnTemplate } from '../types'
 
@@ -73,6 +80,13 @@ export default function PreCheckPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('format')
   const [pageTab, setPageTab] = useState<PageTab>('check')
 
+  // 导出选项状态
+  const [exportModalOpen, setExportModalOpen] = useState(false)
+  const [splitByVillage, setSplitByVillage] = useState(false)
+  const [selectedSheets, setSelectedSheets] = useState<SheetKey[]>([])
+  const [villages, setVillages] = useState<string[]>([])
+  const [isExporting, setIsExporting] = useState(false)
+
   // ExcelImportWithMapping 状态
   const [importOpen, setImportOpen] = useState(false)
   const [templates, setTemplates] = useState<ExcelColumnTemplate[]>([])
@@ -82,6 +96,17 @@ export default function PreCheckPage() {
   useEffect(() => {
     getExcelTemplates('PRECHECK').then(setTemplates).catch(() => {})
   }, [])
+
+  // 当结果变化时，更新导出选项
+  useEffect(() => {
+    if (result) {
+      setSelectedSheets(getDefaultSelectedSheets(result))
+      setVillages(getVillagesFromResult(result))
+    } else {
+      setSelectedSheets([])
+      setVillages([])
+    }
+  }, [result])
 
   // 执行后端检查
   const runCheck = useCallback(async (rows: CheckRow[]) => {
@@ -124,6 +149,49 @@ export default function PreCheckPage() {
       setStep('upload')
     }
   }, [season, compareYear, show])
+
+  // 导出带选项的报告
+  const handleExportWithOptions = async () => {
+    if (!result || isExporting) return
+
+    setIsExporting(true)
+    try {
+      await exportPrecheckReportWithOptions(
+        result,
+        {
+          splitByVillage,
+          selectedSheets: selectedSheets.length > 0 ? selectedSheets : ['summary']
+        },
+        '预检查报告'
+      )
+      setExportModalOpen(false)
+    } catch (error) {
+      console.error('导出失败:', error)
+      show('导出失败，请重试', 'err')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // 切换sheet选择
+  const toggleSheet = (sheetKey: SheetKey) => {
+    if (selectedSheets.includes(sheetKey)) {
+      setSelectedSheets(selectedSheets.filter(s => s !== sheetKey))
+    } else {
+      setSelectedSheets([...selectedSheets, sheetKey])
+    }
+  }
+
+  // 选择/取消选择所有sheet
+  const toggleAllSheets = () => {
+    if (selectedSheets.length === PRECHECK_SHEET_OPTIONS.length) {
+      // 取消全选（保留summary）
+      setSelectedSheets(['summary'])
+    } else {
+      // 全选
+      setSelectedSheets(PRECHECK_SHEET_OPTIONS.map(opt => opt.key))
+    }
+  }
 
   // ExcelImportWithMapping 的 onImport：捕获映射后的行数据，不写入数据库
   const handlePrecheckImport = useCallback(async (mappedRows: Record<string, unknown>[]): Promise<{ created: number; skipped: number; errors: string[] }> => {
@@ -321,6 +389,10 @@ export default function PreCheckPage() {
               className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
               ↓ 导出完整报告 Excel
             </button>
+            <button onClick={() => setExportModalOpen(true)}
+              className="px-3 py-2 text-sm bg-blue-700 text-white rounded-lg hover:bg-blue-600">
+              ⚙️ 导出选项
+            </button>
             <div className="ml-auto text-xs text-stone-400 flex items-center">
               {result.summary.total_rows} 行
             </div>
@@ -487,6 +559,144 @@ export default function PreCheckPage() {
         onImport={handlePrecheckImport}
         onSuccess={handleImportSuccess}
       />
+
+      {/* 导出选项对话框 */}
+      {exportModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* 标题栏 */}
+            <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-stone-800">导出选项</h3>
+                <p className="text-xs text-stone-400 mt-1">选择导出方式和包含的sheet</p>
+              </div>
+              <button onClick={() => setExportModalOpen(false)} className="text-stone-400 hover:text-stone-600">
+                ✕
+              </button>
+            </div>
+
+            {/* 内容区 */}
+            <div className="p-6 overflow-y-auto flex-1">
+              {/* 分村导出选项 */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-stone-700">分村导出</h4>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={splitByVillage}
+                      onChange={(e) => setSplitByVillage(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+                <p className="text-sm text-stone-500 mb-3">
+                  {splitByVillage
+                    ? `将按村生成独立的Excel文件（共${villages.length}个村），并打包为ZIP下载`
+                    : '所有数据将合并到一个Excel文件中'}
+                </p>
+                {splitByVillage && villages.length > 0 && (
+                  <div className="bg-stone-50 border border-stone-200 rounded-lg p-3">
+                    <p className="text-xs text-stone-500 mb-2">涉及的村：</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {villages.map(village => (
+                        <span key={village} className="px-2 py-1 bg-white border border-stone-200 rounded text-xs">
+                          {village}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Sheet选择 */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-stone-700">选择包含的sheet</h4>
+                  <button
+                    onClick={toggleAllSheets}
+                    className="text-xs text-blue-600 hover:text-blue-800"
+                  >
+                    {selectedSheets.length === PRECHECK_SHEET_OPTIONS.length ? '取消全选' : '全选'}
+                  </button>
+                </div>
+                <p className="text-sm text-stone-500 mb-3">勾选需要导出的sheet，未勾选的sheet将不会包含在导出文件中</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {PRECHECK_SHEET_OPTIONS.map(opt => {
+                    const data = result?.[opt.key as keyof CheckResult] as any[] | undefined
+                    const count = data?.length || 0
+                    const isSelected = selectedSheets.includes(opt.key)
+                    const hasData = count > 0 || opt.key === 'summary'
+
+                    return (
+                      <label
+                        key={opt.key}
+                        className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                          isSelected
+                            ? 'bg-blue-50 border-blue-300'
+                            : 'bg-white border-stone-200 hover:bg-stone-50'
+                        } ${!hasData ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => hasData && toggleSheet(opt.key)}
+                          disabled={!hasData}
+                          className="mr-3 h-4 w-4 text-blue-600 rounded"
+                        />
+                        <div className="flex-1">
+                          <div className="font-medium text-sm text-stone-700">{opt.label}</div>
+                          {opt.hasCount && (
+                            <div className="text-xs text-stone-400 mt-1">
+                              {count > 0 ? `${count}条数据` : '无数据'}
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* 导出说明 */}
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 text-xs text-blue-700">
+                <p className="font-semibold mb-1">导出说明：</p>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li>汇总sheet始终包含，即使未勾选</li>
+                  <li>无数据的sheet将不会生成，即使勾选</li>
+                  <li>分村导出时，每个村的Excel文件将只包含该村的数据</li>
+                  <li>分村导出将自动打包为ZIP文件下载</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* 底部按钮 */}
+            <div className="px-6 py-4 border-t border-stone-200 flex justify-end gap-3">
+              <button
+                onClick={() => setExportModalOpen(false)}
+                className="px-4 py-2 text-sm border border-stone-200 rounded-lg bg-white text-stone-600 hover:bg-stone-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleExportWithOptions}
+                disabled={isExporting || selectedSheets.length === 0}
+                className="px-4 py-2 text-sm bg-blue-700 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isExporting ? (
+                  <>
+                    <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                    导出中...
+                  </>
+                ) : (
+                  `↓ 导出${splitByVillage ? 'ZIP' : 'Excel'}`
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Toast {...toast} />
     </div>

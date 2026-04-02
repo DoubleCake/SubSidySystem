@@ -1291,7 +1291,7 @@ def get_application_stats(
 ):
     """
     获取补贴项目的完整统计数据（不分页）
-    返回：总额、各村分布、年度对比数据
+    返回：总额、总人数、总面积、各村分布、年度对比数据
     """
     from sqlalchemy import func, text
     from collections import defaultdict
@@ -1301,25 +1301,26 @@ def get_application_stats(
         SubsidyApplication.subsidy_type_id == subsidy_type_id,
         SubsidyApplication.apply_year == year
     )
-    
+
     apps = q.all()
-    
+
     if not apps:
         return {
             "totalAmount": 0,
             "totalFarmers": 0,
+            "totalArea": 0,
             "villageDistribution": [],
             "yearComparison": None
         }
-    
-    # 总额和总人数
-    # 如果actual_amount为空，使用apply_amount作为备选
+
+    # 总额、总面积、去重农户数
     total_amount = sum(float(app.actual_amount or app.apply_amount or 0) for app in apps)
-    farmer_ids = [app.farmer_id for app in apps]
-    
+    total_area = sum(float(app.apply_area or 0) for app in apps)
+    unique_farmer_ids = set(app.farmer_id for app in apps)
+
     # 各村统计
-    village_stats = defaultdict(lambda: {"amount": 0, "count": 0})
-    
+    village_stats = defaultdict(lambda: {"amount": 0, "count": 0, "area": 0})
+
     for app in apps:
         # 获取农户信息
         farmer = db.get(FarmerProfile, app.farmer_id)
@@ -1327,11 +1328,13 @@ def get_application_stats(
             village = farmer.household.village.village_name
         else:
             village = "未知村"
-        
+
         amount = float(app.actual_amount or app.apply_amount or 0)
+        area = float(app.apply_area or 0)
         village_stats[village]["amount"] += amount
         village_stats[village]["count"] += 1
-    
+        village_stats[village]["area"] += area
+
     # 转换为列表并排序
     village_distribution = [
         {"village": village, **data}
@@ -1351,10 +1354,11 @@ def get_application_stats(
             ).all()
 
             compare_farmer_ids = [app.farmer_id for app in compare_apps]
+            compare_unique_farmer_ids = set(compare_farmer_ids)
 
             # 计算新增和减少的农户
-            new_farmers = list(set(farmer_ids) - set(compare_farmer_ids))
-            removed_farmers = list(set(compare_farmer_ids) - set(farmer_ids))
+            new_farmers = list(unique_farmer_ids - compare_unique_farmer_ids)
+            removed_farmers = list(compare_unique_farmer_ids - unique_farmer_ids)
 
             # 申报总面积和总人数
             total_apply_area = sum(float(app.apply_area or 0) for app in apps)
@@ -1366,15 +1370,16 @@ def get_application_stats(
                 "compare_type_name": compare_type.subsidy_name,
                 "new_farmers_count": len(new_farmers),
                 "removed_farmers_count": len(removed_farmers),
-                "new_farmers": new_farmers[:100],
-                "removed_farmers": removed_farmers[:100],
+                "new_farmers": list(new_farmers)[:100],
+                "removed_farmers": list(removed_farmers)[:100],
                 "total_apply_area": round(total_apply_area, 2),
-                "total_farmers": len(farmer_ids)
+                "total_farmers": len(unique_farmer_ids)
             }
 
     return {
         "totalAmount": round(total_amount, 2),
-        "totalFarmers": len(farmer_ids),
+        "totalFarmers": len(unique_farmer_ids),
+        "totalArea": round(total_area, 2),
         "villageDistribution": village_distribution,
         "yearComparison": year_comparison
     }

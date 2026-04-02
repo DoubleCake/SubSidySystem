@@ -20,7 +20,7 @@ from datetime import datetime
 from database import get_db
 from models import FarmerProfile, Village, FamilyHousehold, SubsidyApplication, SubsidyType, ErrorLibrary
 from utils import format_group_no, parse_group_no_to_int, validate_id_card, parse_gender_from_id, check_name, check_phone, check_area_anomaly
-from export_utils import export_precheck_report
+from export_utils import export_precheck_report, export_precheck_report_with_options
 
 router = APIRouter(prefix="/api/precheck", tags=["数据预检查"])
 
@@ -530,6 +530,14 @@ class ExportPrecheckRequest(BaseModel):
     file_name: Optional[str] = "预检查报告"
 
 
+class ExportPrecheckWithOptionsRequest(BaseModel):
+    """带选项的导出预检查报告请求"""
+    result: Dict[str, Any]
+    file_name: Optional[str] = "预检查报告"
+    split_by_village: Optional[bool] = False
+    selected_sheets: Optional[List[str]] = None
+
+
 @router.post("/export")
 def export_precheck(req: ExportPrecheckRequest):
     """
@@ -550,6 +558,31 @@ def export_precheck(req: ExportPrecheckRequest):
     return Response(
         content=output.getvalue(),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers
+    )
+
+
+@router.post("/export-with-options")
+def export_precheck_with_options(req: ExportPrecheckWithOptionsRequest):
+    """
+    带选项导出预检查报告
+    支持分村导出、选择sheet
+    """
+    buffer, filename, media_type = export_precheck_report_with_options(
+        req.result,
+        split_by_village=req.split_by_village or False,
+        selected_sheets=req.selected_sheets,
+        file_name=req.file_name
+    )
+
+    encoded_filename = quote(filename, safe='')
+    headers = {
+        "Content-Disposition": f"attachment; filename={encoded_filename}; filename*=UTF-8''{encoded_filename}"
+    }
+
+    return Response(
+        content=buffer.getvalue(),
+        media_type=media_type,
         headers=headers
     )
 

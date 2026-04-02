@@ -3,6 +3,7 @@ Excel 导出工具（使用 openpyxl）
 提供更美观的样式和更好的格式控制
 """
 from io import BytesIO
+import zipfile
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment, Protection
 from openpyxl.utils import get_column_letter
@@ -308,3 +309,226 @@ def export_confirmed_area_diff(rows: List[Dict[str, Any]]) -> BytesIO:
     wb.save(output)
     output.seek(0)
     return output
+
+
+def _filter_data_by_village(data: List[Dict[str, Any]], village_name: str) -> List[Dict[str, Any]]:
+    """按村筛选数据"""
+    result = []
+    for row in data:
+        row_village = row.get("village", row.get("village_name", ""))
+        if row_village == village_name:
+            result.append(row)
+    return result
+
+
+def _get_all_villages(result: Dict[str, Any]) -> List[str]:
+    """从结果中获取所有涉及的村名"""
+    villages = set()
+
+    # 遍历所有可能包含村信息的字段
+    village_fields = ["error_library_hits", "format_errors", "village_errors",
+                      "duplicate_errors", "gender_mismatch", "area_anomalies",
+                      "new_farmers", "removed_farmers", "changed_farmers"]
+
+    for field in village_fields:
+        data = result.get(field, [])
+        for row in data:
+            village = row.get("village", row.get("village_name", ""))
+            if village:
+                villages.add(village)
+
+    return sorted(list(villages))
+
+
+def export_precheck_report_by_village(
+    result: Dict[str, Any],
+    village_name: str,
+    selected_sheets: Optional[List[str]] = None
+) -> BytesIO:
+    """
+    导出单个村的预检查报告
+    """
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    sheet_configs = {
+        "汇总": (add_summary_sheet, "summary"),
+        "错误库命中": (add_sheet_from_data, "error_library_hits",
+                       ["行号", "姓名", "身份证号", "所在村", "所在组", "错误类型", "错误原因", "来源"]),
+        "格式错误": (add_sheet_from_data, "format_errors",
+                    ["行号", "姓名", "身份证号", "所在村", "所在组", "错误内容"]),
+        "村组不存在": (add_sheet_from_data, "village_errors",
+                     ["行号", "姓名", "身份证号", "所在村", "所在组", "错误信息"]),
+        "重复身份证": (add_sheet_from_data, "duplicate_errors",
+                      ["行号", "姓名", "身份证号", "错误信息"]),
+        "性别不符": (add_sheet_from_data, "gender_mismatch",
+                   ["行号", "姓名", "身份证号", "Excel性别", "身份证性别"]),
+        "面积异常": (add_sheet_from_data, "area_anomalies",
+                   ["行号", "姓名", "身份证号", "所在村", "所在组", "异常类型", "异常详情",
+                    "Excel承包地面积", "数据库承包面积", "流转出面积", "代耕代种进",
+                    "不补贴面积", "实际补贴面积", "自有承包地占用", "户级当季已有申请",
+                    "户级合计", "超出面积"]),
+        "承包面积缺失": (add_sheet_from_data, "area_missing",
+                     ["行号", "姓名", "身份证号", "所在村", "所在组", "申请面积", "说明"]),
+        "年龄异常": (add_sheet_from_data, "age_anomaly",
+                   ["行号", "姓名", "身份证号", "所在村", "所在组", "年龄", "出生年份", "说明"]),
+        "死亡农户": (add_sheet_from_data, "deceased_farmers",
+                   ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"]),
+        "同一家庭多成员申请": (add_sheet_from_data, "household_duplicates",
+                       ["行号", "姓名", "身份证号", "家庭ID", "其他成员", "说明"]),
+        "新增农户": (add_sheet_from_data, "new_farmers",
+                    ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"]),
+        "减少农户": (add_sheet_from_data, "removed_farmers",
+                    ["姓名", "身份证号", "所在村", "所在组", "说明"]),
+        "字段变更": (add_sheet_from_data, "changed_farmers",
+                    ["行号", "姓名", "身份证号", "变更内容"]),
+    }
+
+    # 如果没有指定sheet，默认全部
+    if not selected_sheets:
+        selected_sheets = list(sheet_configs.keys())
+
+    for sheet_name in selected_sheets:
+        if sheet_name not in sheet_configs:
+            continue
+
+        config = sheet_configs[sheet_name]
+        if sheet_name == "汇总":
+            # 汇总表需要特殊处理，只显示该村相关的统计
+            add_summary_sheet(wb, result.get("summary", {}))
+        else:
+            func, data_key, headers = config
+            data = result.get(data_key, [])
+            filtered_data = _filter_data_by_village(data, village_name)
+            if filtered_data:
+                add_sheet_from_data(wb, sheet_name, headers, filtered_data)
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output
+
+
+def export_precheck_report_zip(
+    result: Dict[str, Any],
+    selected_sheets: Optional[List[str]] = None,
+    file_name: str = "预检查报告"
+) -> BytesIO:
+    """
+    导出分村的预检查报告，打包成 ZIP
+    每个村一个 Excel 文件
+    """
+    from datetime import datetime
+
+    zip_buffer = BytesIO()
+
+    # 获取所有涉及的村
+    villages = _get_all_villages(result)
+
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        # 为每个村生成 Excel 并添加到 ZIP
+        for village in villages:
+            excel_buffer = export_precheck_report_by_village(result, village, selected_sheets)
+            date_str = datetime.now().strftime("%Y-%m-%d")
+            safe_village_name = village.replace("/", "_").replace("\\", "_")
+            excel_filename = f"{file_name}_{safe_village_name}_{date_str}.xlsx"
+            zipf.writestr(excel_filename, excel_buffer.getvalue())
+
+        # 如果没有村的数据，生成一个说明文件
+        if not villages:
+            zipf.writestr("说明.txt", "本次检查数据中没有村信息，无法按村拆分导出。")
+
+    zip_buffer.seek(0)
+    return zip_buffer
+
+
+def export_precheck_report_with_options(
+    result: Dict[str, Any],
+    split_by_village: bool = False,
+    selected_sheets: Optional[List[str]] = None,
+    file_name: str = "预检查报告"
+) -> tuple[BytesIO, str, str]:
+    """
+    根据选项导出预检查报告
+
+    Returns:
+        (buffer, filename, media_type)
+    """
+    from datetime import datetime
+
+    date_str = datetime.now().strftime("%Y-%m-%d")
+
+    if split_by_village:
+        # 分村导出，返回 ZIP
+        buffer = export_precheck_report_zip(result, selected_sheets, file_name)
+        filename = f"{file_name}_分村_{date_str}.zip"
+        media_type = "application/zip"
+    else:
+        # 不分村，按选择的 sheet 导出单个 Excel
+        wb = Workbook()
+        wb.remove(wb.active)
+
+        # 默认的 sheet 配置和顺序
+        all_sheets = [
+            ("汇总", lambda: add_summary_sheet(wb, result.get("summary", {}))),
+            ("错误库命中", lambda: add_sheet_from_data(wb, "错误库命中",
+                ["行号", "姓名", "身份证号", "所在村", "所在组", "错误类型", "错误原因", "来源"],
+                result.get("error_library_hits", []))),
+            ("格式错误", lambda: add_sheet_from_data(wb, "格式错误",
+                ["行号", "姓名", "身份证号", "所在村", "所在组", "错误内容"],
+                result.get("format_errors", []))),
+            ("村组不存在", lambda: add_sheet_from_data(wb, "村组不存在",
+                ["行号", "姓名", "身份证号", "所在村", "所在组", "错误信息"],
+                result.get("village_errors", []))),
+            ("重复身份证", lambda: add_sheet_from_data(wb, "重复身份证",
+                ["行号", "姓名", "身份证号", "错误信息"],
+                result.get("duplicate_errors", []))),
+            ("性别不符", lambda: add_sheet_from_data(wb, "性别不符",
+                ["行号", "姓名", "身份证号", "Excel性别", "身份证性别"],
+                result.get("gender_mismatch", []))),
+            ("面积异常", lambda: add_sheet_from_data(wb, "面积异常",
+                ["行号", "姓名", "身份证号", "所在村", "所在组", "异常类型", "异常详情",
+                 "Excel承包地面积", "数据库承包面积", "流转出面积", "代耕代种进",
+                 "不补贴面积", "实际补贴面积", "自有承包地占用", "户级当季已有申请",
+                 "户级合计", "超出面积"],
+                result.get("area_anomalies", []))),
+            ("承包面积缺失", lambda: add_sheet_from_data(wb, "承包面积缺失",
+                ["行号", "姓名", "身份证号", "所在村", "所在组", "申请面积", "说明"],
+                result.get("area_missing", []))),
+            ("年龄异常", lambda: add_sheet_from_data(wb, "年龄异常",
+                ["行号", "姓名", "身份证号", "所在村", "所在组", "年龄", "出生年份", "说明"],
+                result.get("age_anomaly", []))),
+            ("死亡农户", lambda: add_sheet_from_data(wb, "死亡农户",
+                ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"],
+                result.get("deceased_farmers", []))),
+            ("同一家庭多成员申请", lambda: add_sheet_from_data(wb, "同一家庭多成员申请",
+                ["行号", "姓名", "身份证号", "家庭ID", "其他成员", "说明"],
+                result.get("household_duplicates", []))),
+            ("新增农户", lambda: add_sheet_from_data(wb, "新增农户",
+                ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"],
+                result.get("new_farmers", []))),
+            ("减少农户", lambda: add_sheet_from_data(wb, "减少农户",
+                ["姓名", "身份证号", "所在村", "所在组", "说明"],
+                result.get("removed_farmers", []))),
+            ("字段变更", lambda: add_sheet_from_data(wb, "字段变更",
+                ["行号", "姓名", "身份证号", "变更内容"],
+                result.get("changed_farmers", []))),
+        ]
+
+        # 如果没有选择 sheet，默认全部
+        if not selected_sheets:
+            selected_sheets = [name for name, _ in all_sheets]
+
+        # 按选择的顺序添加 sheet
+        for sheet_name, sheet_func in all_sheets:
+            if sheet_name in selected_sheets:
+                sheet_func()
+
+        buffer = BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        filename = f"{file_name}_{date_str}.xlsx"
+        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+    return buffer, filename, media_type
+

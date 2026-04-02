@@ -943,7 +943,8 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
   const [stats, setStats] = useState<{
     totalAmount: number
     totalFarmers: number
-    villageDistribution: Array<{ village: string; amount: number; count: number }>
+    totalArea: number
+    villageDistribution: Array<{ village: string; amount: number; count: number; area: number }>
     yearComparison: {
       current_year: number
       compare_year: number
@@ -959,6 +960,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
   }>({
     totalAmount: 0,
     totalFarmers: 0,
+    totalArea: 0,
     villageDistribution: [],
     yearComparison: null
   })
@@ -1024,6 +1026,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
         ['统计项', '数值'],
         ['发放总额', `¥${stats.totalAmount.toLocaleString()}`],
         ['总人数', `${stats.totalFarmers}人`],
+        ['总面积', `${stats.totalArea}亩`],
         ['涉及村庄', `${stats.villageDistribution.length}个`],
         [''],
         ['年度对比数据'],
@@ -1038,11 +1041,11 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
       
       // 2. 各村分布工作表
       const villageData = [
-        ['村名', '发放金额(元)', '人数', '占比(%)'],
+        ['村名', '发放金额(元)', '人数', '面积(亩)', '占比(%)'],
         ...stats.villageDistribution.map(item => {
           const total = stats.villageDistribution.reduce((sum, v) => sum + v.amount, 0)
           const percentage = total > 0 ? ((item.amount / total) * 100).toFixed(2) : '0.00'
-          return [item.village, item.amount, item.count, percentage]
+          return [item.village, item.amount, item.count, item.area, percentage]
         })
       ]
       const villageWs = XLSX.utils.aoa_to_sheet(villageData)
@@ -1110,7 +1113,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-stone-700">📊 数据概览</span>
             {statsExpanded && (
-              <span className="text-xs text-stone-400">发放总额 ¥{stats.totalAmount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })} · {stats.totalFarmers}人 · {stats.villageDistribution.length}个村</span>
+              <span className="text-xs text-stone-400">发放总额 ¥{stats.totalAmount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })} · {stats.totalFarmers}人 · 总面积 {stats.totalArea}亩 · {stats.villageDistribution.length}个村</span>
             )}
           </div>
           <span className="text-stone-400 text-sm">{statsExpanded ? '▲ 收起' : '▼ 展开'}</span>
@@ -1144,7 +1147,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
                 <div className="text-sm text-emerald-600 mb-2">发放总额</div>
                 <div className="text-2xl font-bold font-mono text-emerald-700">
@@ -1159,6 +1162,16 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
                 <div className="text-sm text-blue-600 mb-2">涉及村庄</div>
                 <div className="text-2xl font-bold text-blue-700">{stats.villageDistribution.length}</div>
                 <div className="text-sm text-blue-600 mt-2">个村</div>
+              </div>
+
+              <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
+                <div className="text-sm text-purple-600 mb-2">总面积</div>
+                <div className="text-2xl font-bold font-mono text-purple-700">
+                  {stats.totalArea.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}亩
+                </div>
+                <div className="text-sm text-purple-600 mt-2">
+                  补贴面积合计
+                </div>
               </div>
             </div>
 
@@ -1227,6 +1240,44 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* 各村详细数据表格 */}
+                <div className="mt-6 overflow-x-auto border border-stone-200 rounded-lg">
+                  <table className="w-full border-collapse min-w-[600px]">
+                    <thead className="bg-stone-50 border-b border-stone-200">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-stone-500 whitespace-nowrap">村名</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-stone-500 whitespace-nowrap">发放金额(元)</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-stone-500 whitespace-nowrap">人数</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-stone-500 whitespace-nowrap">面积(亩)</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-stone-500 whitespace-nowrap">占比</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stats.villageDistribution.map((item, index) => {
+                        const totalAmount = stats.villageDistribution.reduce((sum, v) => sum + v.amount, 0)
+                        const percentage = totalAmount > 0 ? ((item.amount / totalAmount) * 100).toFixed(1) : '0.0'
+                        return (
+                          <tr key={item.village} className={`border-b border-stone-100 ${index % 2 === 0 ? 'bg-white' : 'bg-stone-50'}`}>
+                            <td className="px-4 py-2 text-sm text-stone-700">{item.village}</td>
+                            <td className="px-4 py-2 text-sm font-mono text-stone-900">¥{item.amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                            <td className="px-4 py-2 text-sm text-stone-600">{item.count}</td>
+                            <td className="px-4 py-2 text-sm font-mono text-stone-600">{item.area.toFixed(2)}</td>
+                            <td className="px-4 py-2 text-sm text-stone-500">{percentage}%</td>
+                          </tr>
+                        )
+                      })}
+                      {/* 总计行 */}
+                      <tr className="bg-emerald-50 border-t border-stone-200">
+                        <td className="px-4 py-2 text-sm font-semibold text-stone-700">总计</td>
+                        <td className="px-4 py-2 text-sm font-mono font-bold text-emerald-700">¥{stats.villageDistribution.reduce((sum, v) => sum + v.amount, 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-4 py-2 text-sm font-semibold text-stone-700">{stats.villageDistribution.reduce((sum, v) => sum + v.count, 0)}</td>
+                        <td className="px-4 py-2 text-sm font-mono font-bold text-emerald-700">{stats.villageDistribution.reduce((sum, v) => sum + v.area, 0).toFixed(2)}</td>
+                        <td className="px-4 py-2 text-sm font-semibold text-stone-700">100%</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}

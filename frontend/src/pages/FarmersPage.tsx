@@ -1398,7 +1398,7 @@ export default function FarmersPage() {
         </div>
 
         {/* 工具栏 - 操作按钮 */}
-        <div className="flex gap-2 mb-4 flex-wrap">
+        <div className="flex gap-2 mb-3 flex-wrap">
                     {leftTab === 'households' && !mergeMode && (
             <>
               <button onClick={() => setCreateHhOpen(true)} className="px-4 py-2.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
@@ -1421,6 +1421,18 @@ export default function FarmersPage() {
               </label>
             </>
           )}
+        </div>
+
+        {/* 家庭户列表 - 标签说明 */}
+        {leftTab === 'households' && !mergeMode && (
+          <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2.5 mb-3 flex items-center gap-3 text-sm">
+            <span className="text-blue-600">💡</span>
+            <span className="text-blue-700">
+              <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium mr-2">✓已确认</span>
+              标签表示该家庭户信息已经通过人工确认核实
+            </span>
+          </div>
+        )}
           {leftTab === 'households' && mergeMode && (
             <div className="flex items-center gap-2 w-full">
               <button onClick={() => { setMergeMode(false); clearMergeSelection() }}
@@ -1531,7 +1543,7 @@ export default function FarmersPage() {
                             <div className="flex items-center gap-2.5 mb-1.5">
                               <span className="font-semibold text-base text-stone-800">{h.household_name}</span>
                               <span className="text-xs font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{h.household_code}</span>
-                              {h.is_manually_confirmed === 1 && <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-0.5 rounded-full">✓已确认</span>}
+                              {h.is_manually_confirmed === 1 && <span className="text-xs text-emerald-700 font-medium bg-emerald-100 px-2 py-0.5 rounded-full">✓已确认</span>}
                               {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
                             </div>
                             <div className="flex items-center gap-4 text-xs text-stone-400">
@@ -1554,6 +1566,7 @@ export default function FarmersPage() {
                       <div className="flex items-center gap-2.5 mb-1.5">
                         <span className="font-semibold text-base text-stone-800">{h.household_name}</span>
                         <span className="text-xs font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{h.household_code}</span>
+                        {h.is_manually_confirmed === 1 && <span className="text-xs text-emerald-700 font-medium bg-emerald-100 px-2 py-0.5 rounded-full">✓已确认</span>}
                         {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
                       </div>
                       <div className="flex items-center gap-4 text-xs text-stone-400">
