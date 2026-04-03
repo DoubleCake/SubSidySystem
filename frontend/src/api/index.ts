@@ -277,3 +277,22 @@ export const cancelManualConfirm = (householdId: number, data: { operator?: stri
     `/api/households/${householdId}/cancel-confirm`,
     { method: 'POST', body: JSON.stringify(data) }
   )
+
+export const batchConfirmHouseholds = (data: { household_ids: number[]; operator?: string; remark?: string }) =>
+  req<{
+    message: string
+    total: number
+    confirmed: number
+    skipped: number
+    errors: { household_id: number; error: string }[]
+    results: { household_id: number; household_name: string; status: string; message: string }[]
+  }>(
+    '/api/households/batch-confirm',
+    { method: 'POST', body: JSON.stringify(data) }
+  )
+
+export const deleteHousehold = (householdId: number) =>
+  req<{ message: string; household_id: number }>(
+    `/api/households/${householdId}`,
+    { method: 'DELETE' }
+  )

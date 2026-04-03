@@ -59,6 +59,14 @@ class HouseholdManualConfirm(BaseModel):
     """人工确认家庭户信息请求"""
     operator: Optional[str] = None  # 操作人
     remark: Optional[str] = None    # 备注说明
+    household_ids: Optional[list[int]] = None  # 批量确认时使用
+
+
+class HouseholdBatchConfirm(BaseModel):
+    """批量确认家庭户请求"""
+    household_ids: list[int]
+    operator: Optional[str] = None
+    remark: Optional[str] = None
 
 
 # ───────────── 农户 ─────────────

@@ -17,7 +17,7 @@ from decimal import Decimal
 
 from database import get_db
 from models import FamilyHousehold, FarmerProfile, Village, SubsidyApplication, SubsidyType, SubsidyPayment, HouseholdAreaUsageCache
-from schemas import HouseholdManualConfirm
+from schemas import HouseholdManualConfirm, HouseholdBatchConfirm
 from utils import format_group_no, parse_group_no_to_int, parse_id_card, mask_id_card, mask_phone, mask_bank_card, gen_household_code
 # 导入预检查函数
 from .precheck import validate_id_card, check_name, check_phone
@@ -455,6 +455,7 @@ def list_households(
     village_name:  Optional[str] = Query(None),
     status:        Optional[int] = Query(None),
     overdrawn_only: bool         = Query(False, description="只显示超领家庭"),
+    confirmed_only: Optional[int] = Query(None, description="只显示已确认/未确认的家庭户，1=已确认，0=未确认"),
     search:        Optional[str] = Query(None, description="搜索户名/户主姓名"),
     year:          Optional[int] = Query(None, description="指定年度计算面积占用"),
     page:          int           = Query(1, ge=1),
@@ -473,6 +474,8 @@ def list_households(
         query = query.filter(Village.village_name == village_name)
     if status is not None:
         query = query.filter(FamilyHousehold.status == status)
+    if confirmed_only is not None:
+        query = query.filter(FamilyHousehold.is_manually_confirmed == confirmed_only)
     if search:
         search = search.strip()
         # 支持按户名搜索，或按任意家庭成员姓名/身份证号搜索
@@ -2886,3 +2889,160 @@ def cancel_manual_confirm(
         "previous_confirmed_at": confirmed_at.isoformat() if confirmed_at else None,
         "previous_confirmed_by": confirmed_by,
     }
+
+
+@router.post("/batch-confirm")
+def batch_confirm_households(
+    req: HouseholdBatchConfirm,
+    db: Session = Depends(get_db)
+):
+    """
+    批量人工确认家庭户信息
+    """
+    from datetime import datetime, date as _date
+
+    # 获取需要确认的家庭户ID列表（从请求体中）
+    household_ids = req.household_ids if hasattr(req, 'household_ids') and req.household_ids else []
+    if not household_ids:
+        raise HTTPException(400, "未提供要确认的家庭户ID列表")
+
+    results = []
+    errors = []
+
+    for household_id in household_ids:
+        hh = db.get(FamilyHousehold, household_id)
+        if not hh:
+            errors.append({"household_id": household_id, "error": "家庭户不存在"})
+            continue
+
+        # 如果已经确认，跳过
+        if getattr(hh, "is_manually_confirmed", 0) == 1:
+            results.append({
+                "household_id": household_id,
+                "household_name": hh.household_name,
+                "status": "skipped",
+                "message": "已经确认过"
+            })
+            continue
+
+        # 快照（确认前）
+        before_snapshot = _snapshot_household(db, household_id)
+
+        # 更新确认状态
+        hh.is_manually_confirmed = 1
+        hh.manually_confirmed_at = datetime.now()
+        hh.manually_confirmed_by = req.operator
+
+        # 快照（确认后）
+        after_snapshot = _snapshot_household(db, household_id)
+
+        # 记录事件
+        today = _date.today()
+        desc = "批量人工确认家庭户信息无误"
+        if req.remark:
+            desc += f"：{req.remark}"
+
+        _log_event(
+            db, household_id, "MANUAL_CONFIRM", today.year,
+            description=desc,
+            before=before_snapshot,
+            after=after_snapshot,
+            event_date=today,
+            date_accuracy="EXACT",
+            operator=req.operator,
+        )
+
+        results.append({
+            "household_id": household_id,
+            "household_name": hh.household_name,
+            "status": "confirmed",
+            "message": "确认成功"
+        })
+
+    db.commit()
+
+    return {
+        "message": f"批量确认完成：成功{len([r for r in results if r['status'] == 'confirmed'])}个，跳过{len([r for r in results if r['status'] == 'skipped'])}个",
+        "total": len(household_ids),
+        "confirmed": len([r for r in results if r['status'] == 'confirmed']),
+        "skipped": len([r for r in results if r['status'] == 'skipped']),
+        "errors": errors,
+        "results": results,
+    }
+
+
+@router.delete("/{household_id}")
+def delete_household(
+    household_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    删除家庭户（含校验）：
+    1. 检查是否存在补贴申请记录
+    2. 检查是否存在土地流转记录
+    3. 检查成员数量
+    4. 如有重要数据则阻止删除
+    """
+    hh = db.get(FamilyHousehold, household_id)
+    if not hh:
+        raise HTTPException(404, "家庭户不存在")
+
+    # 校验1：检查是否有成员
+    member_count = db.query(func.count(FarmerProfile.id)).filter(
+        FarmerProfile.household_id == household_id
+    ).scalar() or 0
+
+    # 校验2：检查是否有补贴申请记录
+    from models import SubsidyApplication
+    app_count = db.query(func.count(SubsidyApplication.id)).filter(
+        SubsidyApplication.household_id == household_id
+    ).scalar() or 0
+
+    # 校验3：检查是否有土地流转记录（作为转出方或转入方）
+    from models import LandTrust
+    trust_out_count = db.query(func.count(LandTrust.id)).filter(
+        LandTrust.owner_household_id == household_id
+    ).scalar() or 0
+    trust_in_count = db.query(func.count(LandTrust.id)).filter(
+        LandTrust.operator_household_id == household_id
+    ).scalar() or 0
+
+    # 校验4：检查是否有家庭户变更事件
+    from models import HouseholdEvent
+    event_count = db.query(func.count(HouseholdEvent.id)).filter(
+        HouseholdEvent.household_id == household_id
+    ).scalar() or 0
+
+    warnings = []
+    if member_count > 0:
+        warnings.append(f"该家庭户仍有 {member_count} 名成员未迁出")
+    if app_count > 0:
+        warnings.append(f"该家庭户已有 {app_count} 条补贴申请记录")
+    if trust_out_count > 0:
+        warnings.append(f"该家庭户已有 {trust_out_count} 条土地转出记录")
+    if trust_in_count > 0:
+        warnings.append(f"该家庭户已有 {trust_in_count} 条土地转入记录")
+    if event_count > 0:
+        warnings.append(f"该家庭户已有 {event_count} 条变更事件记录")
+
+    if warnings:
+        raise HTTPException(
+            400,
+            f"无法删除：该家庭户存在关联数据；{'; '.join(warnings)}。请先处理相关数据后再尝试删除。"
+        )
+
+    # 执行删除（硬删除）
+    db.delete(hh)
+    db.commit()
+
+    return {
+        "message": "家庭户已删除",
+        "household_id": household_id,
+    }
+
+
+class HouseholdBatchConfirm(BaseModel):
+    """批量确认家庭户请求"""
+    household_ids: list[int]
+    operator: Optional[str] = None
+    remark: Optional[str] = None

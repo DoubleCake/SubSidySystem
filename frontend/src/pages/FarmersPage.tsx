@@ -145,7 +145,19 @@ export default function FarmersPage() {
   const [search, setSearch] = useState('')
   const [villageFilter, setVillageFilter] = useState('')
   const [overdrawnOnly, setOverdrawnOnly] = useState(false)
+  const [confirmedFilter, setConfirmedFilter] = useState<string>('') // ''=全部, '1'=已确认, '0'=未确认
   const yearFilter = new Date().getFullYear()
+
+  // ── 批量确认状态 ──
+  const [batchConfirmMode, setBatchConfirmMode] = useState(false)
+  const [batchSelected, setBatchSelected] = useState<number[]>([])
+  const [batchSelectedHouseholds, setBatchSelectedHouseholds] = useState<HH[]>([])
+  const [batchConfirmLoading, setBatchConfirmLoading] = useState(false)
+
+  // ── 删除确认状态 ──
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<HH | HHDetail | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   // ── 户详情 ──
   const [detail, setDetail] = useState<HHDetail | null>(null)
@@ -204,6 +216,63 @@ export default function FarmersPage() {
   const clearMergeSelection = () => {
     setMergeSelected([])
     setMergeSelectedHouseholds([])
+  }
+
+  // ── 批量确认家庭户 ──
+  const toggleBatchConfirm = (h: HH) => {
+    const isSelected = batchSelected.includes(h.id)
+    if (isSelected) {
+      setBatchSelected(prev => prev.filter(id => id !== h.id))
+      setBatchSelectedHouseholds(prev => prev.filter(hh => hh.id !== h.id))
+    } else {
+      setBatchSelected(prev => [...prev, h.id])
+      setBatchSelectedHouseholds(prev => [...prev, h])
+    }
+  }
+
+  const clearBatchSelection = () => {
+    setBatchSelected([])
+    setBatchSelectedHouseholds([])
+  }
+
+  const handleBatchConfirm = async () => {
+    if (batchSelected.length === 0) return
+    setBatchConfirmLoading(true)
+    try {
+      const r = await api.batchConfirmHouseholds({
+        household_ids: batchSelected,
+        operator: '系统批量确认'
+      })
+      show(`批量确认完成：${r.confirmed}个成功，${r.skipped}个已确认过`, 'ok')
+      setBatchConfirmMode(false)
+      clearBatchSelection()
+      await loadHouseholds()
+    } catch (e: unknown) {
+      show((e as Error).message, 'err')
+    } finally {
+      setBatchConfirmLoading(false)
+    }
+  }
+
+  // ── 删除家庭户 ──
+  const handleDeleteHousehold = async () => {
+    if (!deleteTarget) return
+    setDeleteLoading(true)
+    try {
+      await api.deleteHousehold(deleteTarget.id)
+      show(`家庭户「${deleteTarget.household_name}」已删除`, 'ok')
+      setDeleteConfirmOpen(false)
+      setDeleteTarget(null)
+      await loadHouseholds()
+      if (detail?.id === deleteTarget.id) {
+        setDetail(null)
+        setSelectedFarmerHousehold(null)
+      }
+    } catch (e: unknown) {
+      show((e as Error).message, 'err')
+    } finally {
+      setDeleteLoading(false)
+    }
   }
 
   // ── 新建农户 ──
@@ -266,10 +335,11 @@ export default function FarmersPage() {
       if (search) p.search = search
       if (villageFilter) p.village_name = villageFilter
       if (overdrawnOnly) p.overdrawn_only = '1'
+      if (confirmedFilter) p.confirmed_only = confirmedFilter
       const r = await api.getHouseholds(p)
       setHhList(r.items); setHhTotal(r.total)
     } finally { setHhLoading(false) }
-  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly])
+  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter])
 
   useEffect(() => {
     if (leftTab === 'farmers') loadFarmers()
@@ -1387,7 +1457,7 @@ export default function FarmersPage() {
         </div>
 
         {/* 工具栏 - 搜索和筛选 */}
-        <div className="flex gap-2 mb-3">
+        <div className="flex gap-2 mb-3 flex-wrap">
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={leftTab === 'farmers' ? '搜索农户姓名或身份证…' : '搜索户名或户主…'}
             className="flex-1 min-w-32 border border-stone-200 rounded-lg px-3.5 py-2.5 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 bg-white shadow-sm transition-all" />
           <select value={villageFilter} onChange={e => { setVillageFilter(e.target.value); leftTab === 'farmers' ? setFarmerPage(1) : setHhPage(1) }}
@@ -1395,6 +1465,14 @@ export default function FarmersPage() {
             <option value="">全部村庄</option>
             {villages.map(v => <option key={v} value={v}>{v}</option>)}
           </select>
+          {leftTab === 'households' && (
+            <select value={confirmedFilter} onChange={e => { setConfirmedFilter(e.target.value); setHhPage(1) }}
+              className="border border-stone-200 rounded-lg px-3 py-2.5 text-sm bg-white outline-none shadow-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all">
+              <option value="">全部确认状态</option>
+              <option value="1">✓ 已确认</option>
+              <option value="0">✗ 未确认</option>
+            </select>
+          )}
         </div>
 
         {/* 工具栏 - 操作按钮 */}
@@ -1414,6 +1492,10 @@ export default function FarmersPage() {
               <button onClick={() => { setConfirmedAreaRows([]); setConfirmedAreaImportResult(null); setConfirmedAreaImportOpen(true) }}
                 className="px-4 py-2.5 text-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium">
                 <span className="mr-1">↑</span>导入确权面积
+              </button>
+              <button onClick={() => { setBatchConfirmMode(true); setBatchSelected([]); setBatchSelectedHouseholds([]) }}
+                className="px-4 py-2.5 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium bg-blue-50">
+                <span className="mr-1">✓</span>批量确认
               </button>
               <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer bg-stone-50 px-3 py-2 rounded-lg border border-stone-200 shadow-sm hover:bg-stone-100 transition-all">
                 <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded" />
@@ -1449,7 +1531,26 @@ export default function FarmersPage() {
                 确认合并
               </button>
             </div>
-          )}          {leftTab === 'farmers' && (
+          )}
+          {/* 批量确认模式 */}
+          {leftTab === 'households' && batchConfirmMode && (
+            <div className="flex items-center gap-2 w-full">
+              <button onClick={() => { setBatchConfirmMode(false); clearBatchSelection() }}
+                className="px-3 py-2 text-sm border border-stone-300 text-stone-500 rounded-lg hover:bg-stone-50 transition-all">
+                取消批量确认
+              </button>
+              <span className="text-sm text-blue-700 font-medium">
+                已选 {batchSelectedHouseholds.length} 户
+                <span className="text-xs text-stone-400 ml-1">（仅确认未确认的家庭户）</span>
+              </span>
+              <button onClick={handleBatchConfirm}
+                disabled={batchSelected.length === 0 || batchConfirmLoading}
+                className="ml-auto px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2">
+                {batchConfirmLoading ? <><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>确认中...</> : '✓ 确认所选'}
+              </button>
+            </div>
+          )}
+          {leftTab === 'farmers' && (
             <>
               <button onClick={() => setCreateFarmerOpen(true)} className="px-4 py-2.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
                 <span className="mr-1">＋</span>新建农户
@@ -1528,7 +1629,39 @@ export default function FarmersPage() {
                 {!hhLoading && hhList.length === 0 && <div className="text-center py-12 text-stone-300 text-sm">暂无数据</div>}
                 {hhList.map(h => {
                   const isSelected = mergeSelected.includes(h.id)
+                  const isBatchSelected = batchSelected.includes(h.id)
                   if (mergeMode && isSelected) return null
+                  if (batchConfirmMode) {
+                    // 批量确认模式：显示复选框，已确认的显示为禁用状态
+                    return (
+                      <div key={h.id}
+                        className={`px-5 py-4 border-b border-stone-100 transition-all
+                          ${h.is_manually_confirmed === 1 ? 'bg-stone-50 opacity-60' : 'hover:bg-blue-50 cursor-pointer'}
+                          ${isBatchSelected && h.is_manually_confirmed !== 1 ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}`}>
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox"
+                            checked={isBatchSelected}
+                            onChange={() => h.is_manually_confirmed !== 1 && toggleBatchConfirm(h)}
+                            disabled={h.is_manually_confirmed === 1}
+                            className="w-4 h-4 text-blue-600 rounded disabled:opacity-40" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2.5 mb-1.5">
+                              <span className="font-semibold text-base text-stone-800">{h.household_name}</span>
+                              <span className="text-xs font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{h.household_code}</span>
+                              {h.is_manually_confirmed === 1 && <span className="text-xs text-emerald-700 font-medium bg-emerald-100 px-2 py-0.5 rounded-full">✓已确认</span>}
+                              {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
+                            </div>
+                            <div className="flex items-center gap-4 text-xs text-stone-400">
+                              <span>{h.head_name ? `户主:${h.head_name}` : '无户主'}</span>
+                              <span className="bg-stone-100 px-2 py-0.5 rounded">{h.member_count}人</span>
+                              <span>{h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'}</span>
+                              <span className="ml-auto truncate max-w-[180px]">{h.village_full_name}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
                   if (mergeMode) {
                     return (
                       <div key={h.id}
@@ -1652,6 +1785,7 @@ export default function FarmersPage() {
                 canSplit={detail.members.filter(m => m.farmer_status === 1).length >= 2}
                 onOpenManualConfirm={() => { setConfirmForm({ operator: '', remark: '' }); setManualConfirmOpen(true) }}
                 onOpenCancelConfirm={() => { setConfirmForm({ operator: '', remark: '' }); setCancelConfirmOpen(true) }}
+                onDelete={() => { setDeleteTarget(detail); setDeleteConfirmOpen(true) }}
               />
             </div>
           </div>
@@ -2163,6 +2297,50 @@ export default function FarmersPage() {
           </div>
         </div>
       )}
+
+      {/* 删除家庭户确认弹窗 */}
+      {deleteConfirmOpen && deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl w-[480px] max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200">
+              <h3 className="text-base font-semibold text-red-600">⚠️ 删除家庭户</h3>
+              <button onClick={() => setDeleteConfirmOpen(false)} className="text-stone-400 hover:text-stone-600 text-xl leading-none">×</button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-red-700 font-medium mb-2">确定要删除以下家庭户吗？此操作不可撤销。</p>
+                <div className="text-sm text-stone-700">
+                  <p><span className="font-semibold">户名：</span>{deleteTarget.household_name}</p>
+                  <p><span className="font-semibold">户号：</span>{deleteTarget.household_code}</p>
+                  <p><span className="font-semibold">村组：</span>{deleteTarget.village_full_name}</p>
+                  <p><span className="font-semibold">成员数：</span>{'member_count' in deleteTarget ? deleteTarget.member_count : (deleteTarget as HHDetail).members?.length ?? 0}人</p>
+                </div>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <p className="text-sm text-amber-700">
+                  <span className="font-semibold">删除条件：</span>该家庭户必须满足以下条件才能删除：
+                </p>
+                <ul className="text-sm text-amber-600 mt-2 space-y-1 list-disc list-inside">
+                  <li>没有在册成员</li>
+                  <li>没有补贴申请记录</li>
+                  <li>没有土地流转记录</li>
+                  <li>没有家庭户变更事件记录</li>
+                </ul>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-stone-200">
+              <button onClick={() => setDeleteConfirmOpen(false)}
+                className="px-4 py-2 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50">
+                取消
+              </button>
+              <button onClick={handleDeleteHousehold} disabled={deleteLoading}
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                {deleteLoading ? <><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>删除中...</> : '确认删除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
       <Toast {...toast} />
     </div>
@@ -2193,6 +2371,7 @@ type HouseholdDetailContentProps = {
   canSplit: boolean
   onOpenManualConfirm: () => void
   onOpenCancelConfirm: () => void
+  onDelete: () => void
 }
 
 function HouseholdDetailContent({
@@ -2218,6 +2397,7 @@ function HouseholdDetailContent({
   canSplit,
   onOpenManualConfirm,
   onOpenCancelConfirm,
+  onDelete,
 }: HouseholdDetailContentProps) {
   const appsByYear: Record<number, typeof detail.app_summary> = {}
   detail.app_summary.forEach(a => {
@@ -2292,6 +2472,8 @@ function HouseholdDetailContent({
                 <button onClick={onOpenSplit}
                   className="text-xs bg-orange-500/80 hover:bg-orange-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">🔀 分户</button>
               )}
+              <button onClick={onDelete}
+                className="text-xs bg-red-500/80 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">🗑️ 删除</button>
             </div>
           )}
         </div>
