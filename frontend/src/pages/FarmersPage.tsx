@@ -638,10 +638,11 @@ export default function FarmersPage() {
         })
       }
       show(`✓ 已合并 ${sourceIds.length} 个家庭户到目标户`)
+      setMergeConfirmOpen(false)
       setMergeMode(false)
       clearMergeSelection()
-      setMergeConfirmOpen(false)
-      loadHouseholds()
+      setHhPage(1)
+      await loadHouseholds()
     } catch (e: unknown) { show((e as Error).message, 'err') } finally {
       setMergeLoading(false)
     }
@@ -1514,7 +1515,7 @@ export default function FarmersPage() {
               <button onClick={() => setCreateHhOpen(true)} className="px-4 py-2.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
                 <span className="mr-1">＋</span>创建新家庭户
               </button>
-              <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]) }}
+              <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]); setHhPage(1) }}
                 className="px-4 py-2.5 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 shadow-sm transition-all font-medium bg-amber-50">
                 <span className="mr-1">⊞</span>合并家庭户
               </button>
@@ -1854,11 +1855,15 @@ export default function FarmersPage() {
           <div><label className="block text-xs text-stone-400 mb-1">所在组</label>
             <select value={editForm.group_no || 1} onChange={e => setEditForm(f => ({ ...f, group_no: Number(e.target.value) }))}
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
-              <option value={1}>第1组</option>
-              <option value={2}>第2组</option>
-              <option value={3}>第3组</option>
-              <option value={4}>第4组</option>
-              <option value={5}>第5组</option>
+              <option value={1}>一组</option>
+              <option value={2}>二组</option>
+              <option value={3}>三组</option>
+              <option value={4}>四组</option>
+              <option value={5}>五组</option>
+              <option value={6}>六组</option>
+              <option value={7}>七组</option>
+              <option value={8}>八组</option>
+              <option value={9}>九组</option>
             </select>
           </div>
           <div><label className="block text-xs text-stone-400 mb-1">承包土地面积（亩）</label>
