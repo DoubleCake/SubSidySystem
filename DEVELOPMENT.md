@@ -252,3 +252,76 @@ test: 测试相关
 - **P0**: 影响核心功能使用，建议尽快完成
 - **P1**: 重要功能，能显著提升效率
 - **P2**: 优化项，有空时可以做
+
+## 性能瓶颈
+当前状态评估
+索引层面：整体健康，已有 18+ 个索引覆盖主要查询字段，这块基础打得不错。
+
+真正的风险在查询架构层面，存在三类严重问题：
+
+🔴 高风险瓶颈（已快到临界点）
+1. 家庭户列表 — N+1 查询
+households.py:502-542 — 每翻一页（20 条）触发 60+ 次数据库查询：
+
+
+for hh in all_households:
+    head = db.get(FarmerProfile, hh.head_farmer_id)  # ← 每户 1 次
+    member_count = db.query(func.count(...)).filter(...).scalar()  # ← 每户 1 次
+    area_info = calc_household_area_usage(hh.id, db, year)  # ← 每户 8+ 次
+3 万数据时预估延迟：3~5 秒/页。
+
+2. 超领预警 — 全表 × 面积计算
+households.py:558-609 — 无分页，全量加载后逐户计算面积：
+
+假设 6 成有承包地 → 18,000 户 × 8 次查询 = 14 万次查询
+预估延迟：30+ 秒
+3. 全量重算缓存
+households.py:272-277：
+
+
+for hid in household_ids:       # 3 万次迭代
+    recalc_household_area_cache(hid, db)  # 每次 8+ 查询
+3 万户时：24 万次查询，60+ 秒。
+
+⚠️ 中风险（目前可用，之后会出问题）
+4. 缺少几个关键复合索引
+
+-- 申报表：年度+支付状态（补贴列表筛选用）
+CREATE INDEX idx_sa_year_status ON subsidy_application(apply_year, pay_status);
+
+-- 家庭户：状态+村组（户籍列表筛选用）
+CREATE INDEX idx_hh_status_village ON family_household(status, village_id);
+
+-- 是否人工确认（筛选用）
+CREATE INDEX idx_hh_confirmed ON family_household(is_manually_confirmed);
+
+-- 发放表：年度（目前只有复合索引）
+CREATE INDEX idx_sp_year ON subsidy_payment(payment_year);
+5. 批量导入全表预加载
+household_import.py 预加载时把整个 farmer_profile 表读进内存字典。3 万条数据约 15MB，单次可接受，但并发时会有压力。
+
+优化建议（按优先级）
+优先级	改动	预期收益
+P0	修复家庭户列表 N+1，改为 JOIN 或批量 IN 查询	60 次→2 次，5s→200ms
+P0	超领预警改用 SQL 子查询，在 DB 层过滤而非内存过滤	14 万次→10 次
+P1	补充上面 4 个复合索引	筛选查询快 10~100 倍
+P1	recalc_all_household_caches 改为批量 SQL 更新	60s→5s
+P2	家庭户列表的"面积占用"列考虑读缓存表而非实时计算	消除每页的聚合开销
+不需要担心的
+农户列表（FarmersPage）：纯 SQL + LIMIT/OFFSET，3 万条完全没问题
+补贴申请列表：分页正确，索引完备
+SQLite 本身：3 万数据对 SQLite 不是挑战，读写都在毫秒级，不需要换库
+要我先从哪个瓶颈开始动手修复？P0 的两个问题（家庭户列表 N+1 + 超领预警）影响最直接，建议优先处理
+
+
+优化建议（按优先级）
+优先级	改动	预期收益
+P0	修复家庭户列表 N+1，改为 JOIN 或批量 IN 查询	60 次→2 次，5s→200ms
+P0	超领预警改用 SQL 子查询，在 DB 层过滤而非内存过滤	14 万次→10 次
+P1	补充上面 4 个复合索引	筛选查询快 10~100 倍
+P1	recalc_all_household_caches 改为批量 SQL 更新	60s→5s
+P2	家庭户列表的"面积占用"列考虑读缓存表而非实时计算	消除每页的聚合开销
+不需要担心的
+农户列表（FarmersPage）：纯 SQL + LIMIT/OFFSET，3 万条完全没问题
+补贴申请列表：分页正确，索引完备
+SQLite 本身：3 万数据对 SQLite 不是挑战，读写都在毫秒级，不需要换库
