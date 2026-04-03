@@ -2755,7 +2755,7 @@ def split_household(household_id: int, data: dict, db: Session = Depends(get_db)
         village_id       = hh.village_id,
         group_no         = hh.group_no,
         address          = hh.address,
-        land_area        = Decimal(str(data["new_land_area"])) if data.get("new_land_area") else None,
+        contract_area    = Decimal(str(data["new_land_area"])) if data.get("new_land_area") else None,
         status           = 1,
         remark           = f"由「{hh.household_name}」于{split_year}年分户组建",
     )
