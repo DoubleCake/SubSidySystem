@@ -296,3 +296,59 @@ export const deleteHousehold = (householdId: number) =>
     `/api/households/${householdId}`,
     { method: 'DELETE' }
   )
+
+// ── 家庭户批量导入 ──
+export interface HouseholdImportRow {
+  real_name: string
+  id_card: string
+  address: string
+  head_relation?: string
+  phone?: string
+  bank_card?: string
+  bank_name?: string
+  gender?: string
+}
+
+export interface HouseholdImportPreview {
+  groups: {
+    address: string
+    action: 'create' | 'merge_one' | 'merge_multi'
+    head_name: string
+    head_id_card: string
+    member_count: number
+    members: { real_name: string; id_card: string; is_head: boolean; in_db: boolean; has_errors: boolean }[]
+    matched_hh_info: { id: number; household_code: string; household_name: string; village_name: string; group_display: string; contract_area: number | null }[]
+    target_village_name: string
+    target_group_display: string
+    total_area_after_merge: number | null
+    warnings: string[]
+    has_errors: boolean
+  }[]
+  row_errors: { row: number; name: string; errors: string[] }[]
+  summary: {
+    total_rows: number
+    total_groups: number
+    new_households: number
+    merge_single: number
+    merge_multi: number
+    error_rows: number
+  }
+}
+
+export interface HouseholdImportResult {
+  created_households: number
+  merged_households: number
+  created_farmers: number
+  skipped_farmers: number
+  errors: string[]
+}
+
+export const previewHouseholdImport = (rows: HouseholdImportRow[]) =>
+  req<HouseholdImportPreview>('/api/household-import/preview', {
+    method: 'POST', body: JSON.stringify({ rows }),
+  })
+
+export const executeHouseholdImport = (rows: HouseholdImportRow[]) =>
+  req<HouseholdImportResult>('/api/household-import/execute', {
+    method: 'POST', body: JSON.stringify({ rows }),
+  })

@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import engine
 from models import Base
-from routers import farmers, subsidies, ai_analyze, settings, precheck, households, external_links, backup, eligibility, excel_templates, land, error_library
+from routers import farmers, subsidies, ai_analyze, settings, precheck, households, external_links, backup, eligibility, excel_templates, land, error_library, household_import
 
 Base.metadata.create_all(bind=engine)
 
@@ -36,6 +36,7 @@ app.include_router(eligibility.router)
 app.include_router(excel_templates.router)
 app.include_router(land.router)
 app.include_router(error_library.router)
+app.include_router(household_import.router)
 
 @app.get("/api/health")
 def health():
@@ -110,6 +111,7 @@ def migrate_db():
         "ALTER TABLE family_household ADD COLUMN is_manually_confirmed SMALLINT DEFAULT 0",
         "ALTER TABLE family_household ADD COLUMN manually_confirmed_at DATETIME",
         "ALTER TABLE family_household ADD COLUMN manually_confirmed_by VARCHAR(50)",
+        "ALTER TABLE family_household ADD COLUMN registered_address TEXT",
     ]
     with engine.connect() as conn:
         for sql in migrations:
