@@ -616,9 +616,38 @@ def list_households(
             )
         )
 
-    # overdrawn_only 需要先全量计算再过滤，不能在 SQL 层分页
+    # overdrawn_only: 利用缓存表预筛选超领户，避免全表扫描
     if overdrawn_only:
-        all_households = query.order_by(FamilyHousehold.id).all()
+        # 先从缓存表找出该年度使用面积 > 承包面积的家庭户
+        if not year:
+            year = db.query(func.max(SubsidyApplication.apply_year)).scalar() or 2024
+
+        # 1. 汇总缓存表中该年度每户的总使用面积
+        cache_summary = db.query(
+            HouseholdAreaUsageCache.household_id,
+            func.sum(HouseholdAreaUsageCache.used_area).label("total_used")
+        ).filter(
+            HouseholdAreaUsageCache.year == year
+        ).group_by(HouseholdAreaUsageCache.household_id).subquery()
+
+        # 2. 找出总使用面积 > 承包面积的家庭户
+        overdrawn_hh_ids = db.query(FamilyHousehold.id).join(
+            cache_summary, cache_summary.c.household_id == FamilyHousehold.id
+        ).filter(
+            FamilyHousehold.contract_area.isnot(None),
+            FamilyHousehold.contract_area > 0,
+            cache_summary.c.total_used > FamilyHousehold.contract_area
+        ).all()
+        overdrawn_hh_ids = [hid for (hid,) in overdrawn_hh_ids]
+
+        # 3. 用筛选后的 ID 过滤主查询
+        if overdrawn_hh_ids:
+            query = query.filter(FamilyHousehold.id.in_(overdrawn_hh_ids))
+            total = query.count()
+            all_households = query.order_by(FamilyHousehold.id).offset((page - 1) * page_size).limit(page_size).all()
+        else:
+            total = 0
+            all_households = []
     else:
         total = query.count()
         all_households = query.order_by(FamilyHousehold.id).offset((page - 1) * page_size).limit(page_size).all()
@@ -679,13 +708,6 @@ def list_households(
             "season_breakdown": area_info.get("season_breakdown", {}),
         }
         items.append(row)
-
-    # 超领过滤后再分页
-    if overdrawn_only:
-        items = [i for i in items if i["is_overdrawn"]]
-        total = len(items)
-        start = (page - 1) * page_size
-        items = items[start: start + page_size]
 
     return {"total": total, "page": page, "page_size": page_size, "items": items}
 
