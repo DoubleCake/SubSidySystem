@@ -498,17 +498,31 @@ def list_households(
         total = query.count()
         all_households = query.order_by(FamilyHousehold.id).offset((page - 1) * page_size).limit(page_size).all()
 
+    # 预加载所有关联数据（一次性 SQL 查询，避免 N+1）
+    household_ids = [hh.id for hh in all_households]
+
+    # 1. 预加载所有户主信息
+    head_ids = [hh.head_farmer_id for hh in all_households if hh.head_farmer_id]
+    if head_ids:
+        heads = db.query(FarmerProfile).filter(FarmerProfile.id.in_(head_ids)).all()
+        head_map = {f.id: f for f in heads}
+    else:
+        head_map = {}
+
+    # 2. 预加载所有家庭户的成员数量（一次性聚合查询）
+    member_counts = db.query(
+        FarmerProfile.household_id,
+        func.count(FarmerProfile.id).label("count")
+    ).filter(FarmerProfile.household_id.in_(household_ids)).group_by(FarmerProfile.household_id).all()
+    member_count_map = {hid: cnt for hid, cnt in [(mc.household_id, mc.count) for mc in member_counts]}
+
+    # 3. 批量预加载面积信息
     items = []
     for hh in all_households:
-        # 户主信息
-        head = db.get(FarmerProfile, hh.head_farmer_id) if hh.head_farmer_id else None
+        # 从预加载的数据获取信息（不触发新查询）
+        head = head_map.get(hh.head_farmer_id) if hh.head_farmer_id else None
+        member_count = member_count_map.get(hh.id, 0)
 
-        # 成员数量
-        member_count = db.query(func.count(FarmerProfile.id)).filter(
-            FarmerProfile.household_id == hh.id
-        ).scalar() or 0
-
-        # 面积信息
         area_info = calc_household_area_usage(hh.id, db, year)
 
         row = {

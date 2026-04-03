@@ -203,13 +203,18 @@ def create_indexes():
         "CREATE INDEX IF NOT EXISTS idx_sa_type         ON subsidy_application(subsidy_type_id)",
         "CREATE INDEX IF NOT EXISTS idx_sa_year_farmer  ON subsidy_application(apply_year, farmer_id)",
         "CREATE INDEX IF NOT EXISTS idx_sa_year_type    ON subsidy_application(apply_year, subsidy_type_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sa_year_status  ON subsidy_application(apply_year, pay_status)",
         # 农户表
         "CREATE INDEX IF NOT EXISTS idx_fp_household    ON farmer_profile(household_id)",
         "CREATE INDEX IF NOT EXISTS idx_fp_id_card      ON farmer_profile(id_card)",
         "CREATE INDEX IF NOT EXISTS idx_fp_status       ON farmer_profile(farmer_status)",
         "CREATE INDEX IF NOT EXISTS idx_fp_name         ON farmer_profile(real_name)",
         # 家庭户
-        "CREATE INDEX IF NOT EXISTS idx_hh_village     ON family_household(village_id)",
+        "CREATE INDEX IF NOT EXISTS idx_hh_village      ON family_household(village_id)",
+        "CREATE INDEX IF NOT EXISTS idx_hh_status_village ON family_household(status, village_id)",
+        "CREATE INDEX IF NOT EXISTS idx_hh_confirmed    ON family_household(is_manually_confirmed)",
+        # 补贴发放表
+        "CREATE INDEX IF NOT EXISTS idx_sp_year          ON subsidy_payment(payment_year)",
         # 补贴类型
         "CREATE INDEX IF NOT EXISTS idx_st_year         ON subsidy_type(subsidy_year)",
     ]
