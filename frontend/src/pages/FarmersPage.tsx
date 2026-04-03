@@ -208,8 +208,12 @@ export default function FarmersPage() {
       setMergeSelected(prev => prev.filter(id => id !== h.id))
       setMergeSelectedHouseholds(prev => prev.filter(hh => hh.id !== h.id))
     } else {
+      // 添加前去重，防止重复添加
       setMergeSelected(prev => [...prev, h.id])
-      setMergeSelectedHouseholds(prev => [...prev, h])
+      setMergeSelectedHouseholds(prev => {
+        if (prev.some(hh => hh.id === h.id)) return prev
+        return [...prev, h]
+      })
     }
   }
 
@@ -225,8 +229,12 @@ export default function FarmersPage() {
       setBatchSelected(prev => prev.filter(id => id !== h.id))
       setBatchSelectedHouseholds(prev => prev.filter(hh => hh.id !== h.id))
     } else {
+      // 添加前去重，防止重复添加
       setBatchSelected(prev => [...prev, h.id])
-      setBatchSelectedHouseholds(prev => [...prev, h])
+      setBatchSelectedHouseholds(prev => {
+        if (prev.some(hh => hh.id === h.id)) return prev
+        return [...prev, h]
+      })
     }
   }
 
