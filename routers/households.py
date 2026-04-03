@@ -578,7 +578,7 @@ def create_household(data: HouseholdCreateSchema, db: Session = Depends(get_db))
 @router.get("")
 def list_households(
     village_name:  Optional[str] = Query(None),
-    status:        Optional[int] = Query(None),
+    status:        Optional[int] = Query(1, description="家庭户状态：1在册 2注销 3迁出，默认仅显示在册"),
     overdrawn_only: bool         = Query(False, description="只显示超领家庭"),
     confirmed_only: Optional[int] = Query(None, description="只显示已确认/未确认的家庭户，1=已确认，0=未确认"),
     search:        Optional[str] = Query(None, description="搜索户名/户主姓名"),

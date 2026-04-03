@@ -146,6 +146,7 @@ export default function FarmersPage() {
   const [villageFilter, setVillageFilter] = useState('')
   const [overdrawnOnly, setOverdrawnOnly] = useState(false)
   const [confirmedFilter, setConfirmedFilter] = useState<string>('') // ''=全部, '1'=已确认, '0'=未确认
+  const [statusFilter, setStatusFilter] = useState<string>('1') // ''=全部, '1'=在册, '2'=注销, '3'=迁出
   const yearFilter = new Date().getFullYear()
 
   // ── 批量确认状态 ──
@@ -344,10 +345,11 @@ export default function FarmersPage() {
       if (villageFilter) p.village_name = villageFilter
       if (overdrawnOnly) p.overdrawn_only = '1'
       if (confirmedFilter) p.confirmed_only = confirmedFilter
+      if (statusFilter) p.status = statusFilter
       const r = await api.getHouseholds(p)
       setHhList(r.items); setHhTotal(r.total)
     } finally { setHhLoading(false) }
-  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter])
+  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter])
 
   useEffect(() => {
     if (leftTab === 'farmers') loadFarmers()
@@ -1487,12 +1489,21 @@ export default function FarmersPage() {
             {villages.map(v => <option key={v} value={v}>{v}</option>)}
           </select>
           {leftTab === 'households' && (
-            <select value={confirmedFilter} onChange={e => { setConfirmedFilter(e.target.value); setHhPage(1) }}
-              className="border border-stone-200 rounded-lg px-3 py-2.5 text-sm bg-white outline-none shadow-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all">
-              <option value="">全部确认状态</option>
-              <option value="1">✓ 已确认</option>
-              <option value="0">✗ 未确认</option>
-            </select>
+            <>
+              <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setHhPage(1) }}
+                className="border border-stone-200 rounded-lg px-3 py-2.5 text-sm bg-white outline-none shadow-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all">
+                <option value="">全部状态</option>
+                <option value="1">✓ 在册</option>
+                <option value="2">✗ 注销</option>
+                <option value="3">➡️ 迁出</option>
+              </select>
+              <select value={confirmedFilter} onChange={e => { setConfirmedFilter(e.target.value); setHhPage(1) }}
+                className="border border-stone-200 rounded-lg px-3 py-2.5 text-sm bg-white outline-none shadow-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all">
+                <option value="">全部确认状态</option>
+                <option value="1">✓ 已确认</option>
+                <option value="0">✗ 未确认</option>
+              </select>
+            </>
           )}
         </div>
 
