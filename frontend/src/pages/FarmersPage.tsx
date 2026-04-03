@@ -1570,8 +1570,7 @@ export default function FarmersPage() {
               </button>
             </>
           )}
-        </div>
-
+        
         {/* 列表 */}
         <div className="flex-1 bg-white border border-stone-200 rounded-xl overflow-hidden shadow-md flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto">
@@ -1735,6 +1734,7 @@ export default function FarmersPage() {
             </div>
           </div>
         </div>
+      </div>
       {/* ── 右侧：详情面板 ── */}
       <div className="flex-1 min-w-0 flex flex-col">
         {selectedFarmer ? (
