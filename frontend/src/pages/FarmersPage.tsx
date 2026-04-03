@@ -1494,9 +1494,9 @@ export default function FarmersPage() {
               <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setHhPage(1) }}
                 className="border border-stone-200 rounded-lg px-3 py-2.5 text-sm bg-white outline-none shadow-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all">
                 <option value="">全部状态</option>
-                <option value="1">✓ 在册</option>
-                <option value="2">✗ 注销</option>
-                <option value="3">➡️ 迁出</option>
+                <option value="1">在册</option>
+                <option value="2">注销</option>
+                <option value="3">迁出</option>
               </select>
               <select value={confirmedFilter} onChange={e => { setConfirmedFilter(e.target.value); setHhPage(1) }}
                 className="border border-stone-200 rounded-lg px-3 py-2.5 text-sm bg-white outline-none shadow-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all">
@@ -1512,23 +1512,23 @@ export default function FarmersPage() {
         <div className="flex gap-2 mb-3 flex-wrap">
                     {leftTab === 'households' && !mergeMode && (
             <>
-              <button onClick={() => setCreateHhOpen(true)} className="px-4 py-2.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
-                <span className="mr-1">＋</span>创建新家庭户
+              <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
+                <span className="mr-1.5 text-xs">＋</span>创建新家庭户
               </button>
               <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]); setHhPage(1) }}
-                className="px-4 py-2.5 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 shadow-sm transition-all font-medium bg-amber-50">
-                <span className="mr-1">⊞</span>合并家庭户
+                className="px-3 py-2 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 shadow-sm transition-all font-medium bg-amber-50">
+                <span className="mr-1.5 text-xs">⊞</span>合并家庭户
               </button>
-              <button onClick={exportCurrentList} className="px-4 py-2.5 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
-                <span className="mr-1">⬇</span>导出
+              <button onClick={exportCurrentList} className="px-3 py-2 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
+                <span className="mr-1.5 text-xs">⬇</span>导出
               </button>
               <button onClick={() => { setConfirmedAreaRows([]); setConfirmedAreaImportResult(null); setConfirmedAreaImportOpen(true) }}
-                className="px-4 py-2.5 text-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium">
-                <span className="mr-1">↑</span>导入确权面积
+                className="px-3 py-2 text-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium">
+                <span className="mr-1.5 text-xs">↑</span>导入确权面积
               </button>
               <button onClick={() => { setBatchConfirmMode(true); setBatchSelected([]); setBatchSelectedHouseholds([]); setMergeMode(false); setMergeSelected([]); setMergeSelectedHouseholds([]) }}
-                className="px-4 py-2.5 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium bg-blue-50">
-                <span className="mr-1">✓</span>批量确认
+                className="px-3 py-2 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium bg-blue-50">
+                <span className="mr-1.5 text-xs">✓</span>批量确认
               </button>
               <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer bg-stone-50 px-3 py-2 rounded-lg border border-stone-200 shadow-sm hover:bg-stone-100 transition-all">
                 <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded" />
