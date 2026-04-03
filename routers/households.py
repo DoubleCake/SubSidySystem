@@ -595,11 +595,19 @@ def list_overdrawn_households(
         FamilyHousehold.contract_area > 0,
     ).all()
 
+    # 预加载所有户主信息（避免 N+1）
+    head_ids = [hh.head_farmer_id for hh in all_hh if hh.head_farmer_id]
+    if head_ids:
+        heads = db.query(FarmerProfile).filter(FarmerProfile.id.in_(head_ids)).all()
+        head_map = {f.id: f for f in heads}
+    else:
+        head_map = {}
+
     overdrawn = []
     for hh in all_hh:
         area_info = calc_household_area_usage(hh.id, db, year)
         if area_info.get("is_overdrawn"):
-            head = db.get(FarmerProfile, hh.head_farmer_id) if hh.head_farmer_id else None
+            head = head_map.get(hh.head_farmer_id) if hh.head_farmer_id else None
             overdrawn.append({
                 "household_id": hh.id,
                 "household_code": hh.household_code,
