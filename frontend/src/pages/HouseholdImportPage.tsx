@@ -18,7 +18,7 @@ const ACTION_LABEL: Record<string, { label: string; color: string }> = {
 
 // ── 组件 ──
 export default function HouseholdImportPage() {
-  const { toasts, showToast, removeToast } = useToast()
+  const { toast, show } = useToast()
 
   // Excel 解析结果
   const [headers, setHeaders] = useState<string[]>([])
@@ -56,7 +56,7 @@ export default function HouseholdImportPage() {
       const wb = XLSX.read(data, { type: 'array' })
       const ws = wb.Sheets[wb.SheetNames[0]]
       const json = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: '', raw: false })
-      if (json.length === 0) { showToast('Excel 为空', 'error'); return }
+      if (json.length === 0) { show('Excel 为空', 'err'); return }
       const hdrs = Object.keys(json[0])
       setHeaders(hdrs)
       setRawRows(json)
@@ -93,7 +93,7 @@ export default function HouseholdImportPage() {
   // ── 预览 ──
   const handlePreview = async () => {
     if (!colMap.real_name || !colMap.id_card || !colMap.address) {
-      showToast('姓名、身份证号、家庭住址列为必填', 'error'); return
+      show('姓名、身份证号、家庭住址列为必填', 'err'); return
     }
     setLoading(true)
     try {
@@ -102,7 +102,7 @@ export default function HouseholdImportPage() {
       setPreview(res)
       setStep(3)
     } catch (e: unknown) {
-      showToast((e as Error).message, 'error')
+      show((e as Error).message, 'err')
     } finally {
       setLoading(false)
     }
@@ -117,7 +117,7 @@ export default function HouseholdImportPage() {
       setResult(res)
       setStep(4)
     } catch (e: unknown) {
-      showToast((e as Error).message, 'error')
+      show((e as Error).message, 'err')
     } finally {
       setLoading(false)
     }
@@ -142,7 +142,7 @@ export default function HouseholdImportPage() {
 
   return (
     <div className="space-y-5">
-      <Toast toasts={toasts} onRemove={removeToast} />
+      <Toast msg={toast?.msg} type={toast?.type} />
 
       {/* 标题 */}
       <div className="flex items-center justify-between">
