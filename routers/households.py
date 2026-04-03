@@ -3203,8 +3203,10 @@ def delete_household(
 
     # 校验2：检查是否有补贴申请记录
     from models import SubsidyApplication
-    app_count = db.query(func.count(SubsidyApplication.id)).filter(
-        SubsidyApplication.household_id == household_id
+    app_count = db.query(func.count(SubsidyApplication.id)).join(
+        FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id
+    ).filter(
+        FarmerProfile.household_id == household_id
     ).scalar() or 0
 
     # 校验3：检查是否有土地流转记录（作为转出方或转入方）
