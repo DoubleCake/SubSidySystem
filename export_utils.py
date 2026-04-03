@@ -321,6 +321,91 @@ def _filter_data_by_village(data: List[Dict[str, Any]], village_name: str) -> Li
     return result
 
 
+def _transform_sheet_data(sheet_name: str, raw_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """将原始英文key数据转换为中文key数据，供 add_sheet_from_data 使用"""
+
+    def join_list(val, sep="；"):
+        if isinstance(val, (list, tuple)):
+            return sep.join(str(x) for x in val)
+        return val or ""
+
+    transforms = {
+        "错误库命中": lambda r: {
+            "行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+            "所在村": r.get("village"), "所在组": r.get("group"),
+            "错误类型": r.get("error_type"), "错误原因": r.get("error_reason"), "来源": r.get("source"),
+        },
+        "格式错误": lambda r: {
+            "行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+            "所在村": r.get("village"), "所在组": r.get("group"),
+            "错误内容": join_list(r.get("errors")),
+        },
+        "村组不存在": lambda r: {
+            "行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+            "所在村": r.get("village"), "所在组": r.get("group"), "错误信息": r.get("error"),
+        },
+        "重复身份证": lambda r: {
+            "行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+            "错误信息": r.get("error"),
+        },
+        "性别不符": lambda r: {
+            "行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+            "Excel性别": r.get("excel_gender"), "身份证性别": r.get("id_card_gender"),
+        },
+        "面积异常": lambda r: {
+            "行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+            "所在村": r.get("village"), "所在组": r.get("group"),
+            "异常类型": r.get("anomaly_type"), "异常详情": r.get("anomaly_details"),
+            "Excel承包地面积": r.get("contract_area"), "数据库承包面积": r.get("db_contract_area"),
+            "流转出面积": r.get("trust_out_area"), "代耕代种进": r.get("trust_in_area"),
+            "不补贴面积": r.get("no_subsidy_area"), "实际补贴面积": r.get("actual_subsidy_area"),
+            "自有承包地占用": r.get("self_occupy"), "户级当季已有申请": r.get("hh_used"),
+            "户级合计": r.get("hh_total"), "超出面积": r.get("exceed_amount"),
+        },
+        "承包面积缺失": lambda r: {
+            "行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+            "所在村": r.get("village"), "所在组": r.get("group"),
+            "申请面积": r.get("apply_area", r.get("contract_area")),
+            "说明": r.get("reason", r.get("note", "")),
+        },
+        "年龄异常": lambda r: {
+            "行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+            "所在村": r.get("village"), "所在组": r.get("group"),
+            "年龄": r.get("age"), "出生年份": r.get("birth_year"),
+            "说明": r.get("reason", r.get("note", "")),
+        },
+        "死亡农户": lambda r: {
+            "行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+            "所在村": r.get("village"), "所在组": r.get("group"),
+            "说明": r.get("reason", r.get("note", "")),
+        },
+        "同一家庭多成员申请": lambda r: {
+            "行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+            "家庭ID": r.get("household_id"), "其他成员": join_list(r.get("other_members")),
+            "说明": r.get("reason", r.get("note", "")),
+        },
+        "新增农户": lambda r: {
+            "行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+            "所在村": r.get("village"), "所在组": r.get("group"),
+            "说明": "数据库中不存在，将新增",
+        },
+        "减少农户": lambda r: {
+            "姓名": r.get("name"), "身份证号": r.get("id_card"),
+            "所在村": r.get("village"), "所在组": r.get("group"),
+            "说明": "有补贴记录但未在本次导入中",
+        },
+        "字段变更": lambda r: {
+            "行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
+            "变更内容": join_list(r.get("changes")),
+        },
+    }
+
+    transform_fn = transforms.get(sheet_name)
+    if not transform_fn:
+        return raw_rows
+    return [transform_fn(row) for row in raw_rows]
+
+
 def _get_all_villages(result: Dict[str, Any]) -> List[str]:
     """从结果中获取所有涉及的村名"""
     villages = set()
@@ -400,8 +485,9 @@ def export_precheck_report_by_village(
             func, data_key, headers = config
             data = result.get(data_key, [])
             filtered_data = _filter_data_by_village(data, village_name)
-            if filtered_data:
-                add_sheet_from_data(wb, sheet_name, headers, filtered_data)
+            transformed = _transform_sheet_data(sheet_name, filtered_data)
+            if transformed:
+                add_sheet_from_data(wb, sheet_name, headers, transformed)
 
     output = BytesIO()
     wb.save(output)
@@ -468,61 +554,54 @@ def export_precheck_report_with_options(
         wb = Workbook()
         wb.remove(wb.active)
 
-        # 默认的 sheet 配置和顺序
-        all_sheets = [
-            ("汇总", lambda: add_summary_sheet(wb, result.get("summary", {}))),
-            ("错误库命中", lambda: add_sheet_from_data(wb, "错误库命中",
-                ["行号", "姓名", "身份证号", "所在村", "所在组", "错误类型", "错误原因", "来源"],
-                result.get("error_library_hits", []))),
-            ("格式错误", lambda: add_sheet_from_data(wb, "格式错误",
-                ["行号", "姓名", "身份证号", "所在村", "所在组", "错误内容"],
-                result.get("format_errors", []))),
-            ("村组不存在", lambda: add_sheet_from_data(wb, "村组不存在",
-                ["行号", "姓名", "身份证号", "所在村", "所在组", "错误信息"],
-                result.get("village_errors", []))),
-            ("重复身份证", lambda: add_sheet_from_data(wb, "重复身份证",
-                ["行号", "姓名", "身份证号", "错误信息"],
-                result.get("duplicate_errors", []))),
-            ("性别不符", lambda: add_sheet_from_data(wb, "性别不符",
-                ["行号", "姓名", "身份证号", "Excel性别", "身份证性别"],
-                result.get("gender_mismatch", []))),
-            ("面积异常", lambda: add_sheet_from_data(wb, "面积异常",
-                ["行号", "姓名", "身份证号", "所在村", "所在组", "异常类型", "异常详情",
-                 "Excel承包地面积", "数据库承包面积", "流转出面积", "代耕代种进",
-                 "不补贴面积", "实际补贴面积", "自有承包地占用", "户级当季已有申请",
-                 "户级合计", "超出面积"],
-                result.get("area_anomalies", []))),
-            ("承包面积缺失", lambda: add_sheet_from_data(wb, "承包面积缺失",
-                ["行号", "姓名", "身份证号", "所在村", "所在组", "申请面积", "说明"],
-                result.get("area_missing", []))),
-            ("年龄异常", lambda: add_sheet_from_data(wb, "年龄异常",
-                ["行号", "姓名", "身份证号", "所在村", "所在组", "年龄", "出生年份", "说明"],
-                result.get("age_anomaly", []))),
-            ("死亡农户", lambda: add_sheet_from_data(wb, "死亡农户",
-                ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"],
-                result.get("deceased_farmers", []))),
-            ("同一家庭多成员申请", lambda: add_sheet_from_data(wb, "同一家庭多成员申请",
-                ["行号", "姓名", "身份证号", "家庭ID", "其他成员", "说明"],
-                result.get("household_duplicates", []))),
-            ("新增农户", lambda: add_sheet_from_data(wb, "新增农户",
-                ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"],
-                result.get("new_farmers", []))),
-            ("减少农户", lambda: add_sheet_from_data(wb, "减少农户",
-                ["姓名", "身份证号", "所在村", "所在组", "说明"],
-                result.get("removed_farmers", []))),
-            ("字段变更", lambda: add_sheet_from_data(wb, "字段变更",
-                ["行号", "姓名", "身份证号", "变更内容"],
-                result.get("changed_farmers", []))),
+        # sheet 名称 → (result key, headers)，None 表示汇总特殊处理
+        sheet_defs = [
+            ("汇总", None, None),
+            ("错误库命中", "error_library_hits",
+             ["行号", "姓名", "身份证号", "所在村", "所在组", "错误类型", "错误原因", "来源"]),
+            ("格式错误", "format_errors",
+             ["行号", "姓名", "身份证号", "所在村", "所在组", "错误内容"]),
+            ("村组不存在", "village_errors",
+             ["行号", "姓名", "身份证号", "所在村", "所在组", "错误信息"]),
+            ("重复身份证", "duplicate_errors",
+             ["行号", "姓名", "身份证号", "错误信息"]),
+            ("性别不符", "gender_mismatch",
+             ["行号", "姓名", "身份证号", "Excel性别", "身份证性别"]),
+            ("面积异常", "area_anomalies",
+             ["行号", "姓名", "身份证号", "所在村", "所在组", "异常类型", "异常详情",
+              "Excel承包地面积", "数据库承包面积", "流转出面积", "代耕代种进",
+              "不补贴面积", "实际补贴面积", "自有承包地占用", "户级当季已有申请",
+              "户级合计", "超出面积"]),
+            ("承包面积缺失", "area_missing",
+             ["行号", "姓名", "身份证号", "所在村", "所在组", "申请面积", "说明"]),
+            ("年龄异常", "age_anomaly",
+             ["行号", "姓名", "身份证号", "所在村", "所在组", "年龄", "出生年份", "说明"]),
+            ("死亡农户", "deceased_farmers",
+             ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"]),
+            ("同一家庭多成员申请", "household_duplicates",
+             ["行号", "姓名", "身份证号", "家庭ID", "其他成员", "说明"]),
+            ("新增农户", "new_farmers",
+             ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"]),
+            ("减少农户", "removed_farmers",
+             ["姓名", "身份证号", "所在村", "所在组", "说明"]),
+            ("字段变更", "changed_farmers",
+             ["行号", "姓名", "身份证号", "变更内容"]),
         ]
 
         # 如果没有选择 sheet，默认全部
         if not selected_sheets:
-            selected_sheets = [name for name, _ in all_sheets]
+            selected_sheets = [name for name, _, _ in sheet_defs]
 
-        # 按选择的顺序添加 sheet
-        for sheet_name, sheet_func in all_sheets:
-            if sheet_name in selected_sheets:
-                sheet_func()
+        # 按顺序添加 sheet
+        for sheet_name, data_key, headers in sheet_defs:
+            if sheet_name not in selected_sheets:
+                continue
+            if sheet_name == "汇总":
+                add_summary_sheet(wb, result.get("summary", {}))
+            else:
+                raw_data = result.get(data_key, [])
+                transformed = _transform_sheet_data(sheet_name, raw_data)
+                add_sheet_from_data(wb, sheet_name, headers, transformed)
 
         buffer = BytesIO()
         wb.save(buffer)
