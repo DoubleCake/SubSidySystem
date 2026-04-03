@@ -419,6 +419,9 @@ export default function FarmersPage() {
       setHistoryEventId(null)
       setSnapshotData(null)
       setEvents([])
+      // 切换到农户时清除合并和批量确认状态
+      setMergeMode(false); setMergeSelected([]); setMergeSelectedHouseholds([])
+      setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([])
       // 同时加载所属家庭户信息
       if (f.household_id) {
         try {
@@ -444,6 +447,9 @@ export default function FarmersPage() {
     const d = await api.getHouseholdDetail(id)
     setDetail(d); setDetailTab('members'); setEvents([]); setSelectedFarmer(null); setSelectedFarmerHousehold(null)
     setHistoryEventId(null); setSnapshotData(null)
+    // 打开详情时清除合并和批量确认状态
+    setMergeMode(false); setMergeSelected([]); setMergeSelectedHouseholds([])
+    setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([])
     await loadHouseholdHistoryDates(id)
     if (!skipUrlUpdate) {
       updateUrl({ tab: 'households', farmerId: null, householdId: id })
@@ -544,6 +550,13 @@ export default function FarmersPage() {
     setSnapshotData(null)
     setHistoryDates([])
     setEvents([])
+    // 切换 Tab 时清除合并和批量确认状态
+    setMergeMode(false)
+    setMergeSelected([])
+    setMergeSelectedHouseholds([])
+    setBatchConfirmMode(false)
+    setBatchSelected([])
+    setBatchSelectedHouseholds([])
     updateUrl({ tab, farmerId: null, householdId: null })
   }
 
@@ -1482,7 +1495,7 @@ export default function FarmersPage() {
               <button onClick={() => setCreateHhOpen(true)} className="px-4 py-2.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
                 <span className="mr-1">＋</span>创建新家庭户
               </button>
-              <button onClick={() => { setMergeMode(true); setMergeSelected([]) }}
+              <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]) }}
                 className="px-4 py-2.5 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 shadow-sm transition-all font-medium bg-amber-50">
                 <span className="mr-1">⊞</span>合并家庭户
               </button>
@@ -1493,7 +1506,7 @@ export default function FarmersPage() {
                 className="px-4 py-2.5 text-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium">
                 <span className="mr-1">↑</span>导入确权面积
               </button>
-              <button onClick={() => { setBatchConfirmMode(true); setBatchSelected([]); setBatchSelectedHouseholds([]) }}
+              <button onClick={() => { setBatchConfirmMode(true); setBatchSelected([]); setBatchSelectedHouseholds([]); setMergeMode(false); setMergeSelected([]); setMergeSelectedHouseholds([]) }}
                 className="px-4 py-2.5 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium bg-blue-50">
                 <span className="mr-1">✓</span>批量确认
               </button>
