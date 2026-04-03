@@ -149,6 +149,38 @@ export interface ApplicationSearchResult {
   pay_status: number
   pay_date: string | null
   remark: string | null
+  proxy_remark?: string | null
+}
+
+export interface PaymentOut {
+  id: number
+  farmer_id: number
+  farmer_name: string
+  subsidy_type_id: number
+  subsidy_name: string
+  payment_year: number
+  amount: string | null
+  payment_date: string | null
+  bank_card_masked: string | null
+  bank_name: string | null
+  remark: string | null
+  proxy_remark: string | null
+}
+
+export interface PaymentCreate {
+  farmer_id: number
+  subsidy_type_id: number
+  payment_year: number
+  amount?: number
+  payment_date?: string
+  apply_area?: number
+  contract_area?: number
+  trust_area?: number
+  no_subsidy_area?: number
+  bank_card?: string
+  bank_name?: string
+  remark?: string
+  proxy_remark?: string
 }
 
 export interface ApplicationCreate {

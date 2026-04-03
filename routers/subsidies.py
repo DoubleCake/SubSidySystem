@@ -1445,6 +1445,7 @@ def list_payments(
                 "bank_card_masked": f"****{p[0].bank_card[-4:]}" if p[0].bank_card else None,
                 "bank_name": p[0].bank_name,
                 "remark": p[0].remark,
+                "proxy_remark": p[0].proxy_remark,
             }
             for p in rows
         ]
@@ -1500,6 +1501,7 @@ def create_payment(data: PaymentCreate, db: Session = Depends(get_db)):
         bank_card=data.bank_card,
         bank_name=data.bank_name,
         remark=data.remark,
+        proxy_remark=data.proxy_remark,
     )
     db.add(payment)
 
@@ -1520,6 +1522,25 @@ def create_payment(data: PaymentCreate, db: Session = Depends(get_db)):
         _recalc_household_cache_after_import(db, [farmer.household_id])
 
     return {"id": payment.id, "message": "发放记录创建成功"}
+
+
+@router.put("/payments/{payment_id}")
+def update_payment(payment_id: int, data: dict, db: Session = Depends(get_db)):
+    """更新发放记录"""
+    payment = db.get(SubsidyPayment, payment_id)
+    if not payment:
+        raise HTTPException(status_code=404, detail="发放记录不存在")
+
+    # 更新字段
+    update_fields = ["amount", "payment_date", "apply_area", "contract_area",
+                     "trust_area", "no_subsidy_area", "bank_card", "bank_name",
+                     "remark", "proxy_remark"]
+    for k, v in data.items():
+        if k in update_fields and hasattr(payment, k):
+            setattr(payment, k, v)
+
+    db.commit()
+    return {"message": "更新成功"}
 
 
 @router.delete("/payments/{payment_id}")
@@ -1631,6 +1652,7 @@ def batch_import_payments(payload: dict, db: Session = Depends(get_db)):
                 bank_card=row.get("bank_card"),
                 bank_name=row.get("bank_name"),
                 remark=row.get("remark"),
+                proxy_remark=row.get("proxy_remark"),
             )
             db.add(payment)
             # 同步对应申报记录的 pay_status → 已发放

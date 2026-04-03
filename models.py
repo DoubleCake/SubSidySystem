@@ -184,6 +184,7 @@ class SubsidyPayment(Base):
     bank_name           = Column(String(50), nullable=True, comment="开户行")
     operator_id         = Column(Integer, nullable=True)
     remark              = Column(Text, nullable=True)
+    proxy_remark        = Column(Text, nullable=True, comment="代领备注")
     created_at          = Column(DateTime, default=func.now())
     updated_at          = Column(DateTime, default=func.now(), onupdate=func.now())
 

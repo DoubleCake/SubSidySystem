@@ -216,6 +216,7 @@ class PaymentCreate(BaseModel):
     bank_card: Optional[str] = None
     bank_name: Optional[str] = None
     remark: Optional[str] = None
+    proxy_remark: Optional[str] = None
 
 
 class PaymentOut(BaseModel):
@@ -230,6 +231,7 @@ class PaymentOut(BaseModel):
     bank_card_masked: Optional[str]
     bank_name: Optional[str]
     remark: Optional[str]
+    proxy_remark: Optional[str]
 
     class Config:
         from_attributes = True
