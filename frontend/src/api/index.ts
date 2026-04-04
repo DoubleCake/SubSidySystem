@@ -94,6 +94,23 @@ export const batchImportApplications = (rows: ApplicationCreate[]) =>
     { method: 'POST', body: JSON.stringify({ rows }) }
   )
 
+// ── 代领关系 ──
+export const getProxies = (params: Record<string, string | number>) =>
+  req<any[]>('/api/subsidies/proxies?' + new URLSearchParams(params as Record<string, string>))
+
+export const createProxy = (data: {
+  application_id?: number
+  payment_id?: number
+  beneficiary_farmer_id: number
+  proxy_farmer_id: number
+  proxy_type: string
+  remark?: string
+}) =>
+  req<{ id: number }>('/api/subsidies/proxies', { method: 'POST', body: JSON.stringify(data) })
+
+export const deleteProxy = (id: number) =>
+  req('/api/subsidies/proxies/' + id, { method: 'DELETE' })
+
 // ── 汇总 ──
 export const getYearCompare = (year: number) =>
   req<YearCompare>('/api/subsidies/summary/compare?year=' + year)
