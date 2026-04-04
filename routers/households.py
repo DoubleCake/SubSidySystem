@@ -487,14 +487,16 @@ def calc_household_area_usage(
         used = round(year_totals.get(display_year, {}).get(season, 0.0) if display_year else 0.0, 2)
         apply_area = round(year_apply_totals.get(display_year, {}).get(season, 0.0) if display_year else 0.0, 2)
         payment_area = round(year_payment_totals.get(display_year, {}).get(season, 0.0) if display_year else 0.0, 2)
-        # 注意：季节级别只显示面积，不单独判断超领，超领只看家庭户全年总和
+        # 季节级别也判断超领
+        is_season_overdrawn = cultivable > 0 and used > cultivable
+        season_overdraw_amount = round(max(0, used - cultivable), 2) if is_season_overdrawn else 0.0
         season_breakdown[season] = {
             "used_area": used,
             "apply_area": apply_area,  # 预申请面积
             "payment_area": payment_area,  # 已发布面积
-            "remaining_area": max(0.0, cultivable - total_used) if is_overdrawn_all else max(0.0, cultivable - used),
-            "is_overdrawn": False,  # 季节级别不判断超领
-            "overdraw_amount": 0.0,  # 季节级别不计算超领
+            "remaining_area": max(0.0, cultivable - used),
+            "is_overdrawn": is_season_overdrawn,
+            "overdraw_amount": season_overdraw_amount,
             "subsidies": [],
         }
 
@@ -803,19 +805,24 @@ def list_overdrawn_households(
         total_used = round(sum(year_totals.get(display_year, {}).values()), 2) if display_year else 0.0
         is_overdrawn = cultivable > 0 and total_used > cultivable
 
-        if is_overdrawn:
+        # 检查是否有任意一个季节超领或全年超领
+        has_season_overdrawn = False
+        season_breakdown: dict[str, dict] = {}
+        if display_year:
+            for season in SEASON_ORDER:
+                used = round(year_totals[display_year].get(season, 0.0), 2)
+                season_overdrawn = cultivable > 0 and used > cultivable
+                overdraw_amt = round(max(0, used - cultivable), 2) if season_overdrawn else 0.0
+                if season_overdrawn:
+                    has_season_overdrawn = True
+                season_breakdown[season] = {
+                    "used_area": used,
+                    "is_overdrawn": season_overdrawn,
+                    "overdraw_amount": overdraw_amt,
+                }
+
+        if is_overdrawn or has_season_overdrawn:
             head = head_map.get(hh.head_farmer_id) if hh.head_farmer_id else None
-            # 构建季节明细
-            season_breakdown: dict[str, dict] = {}
-            if display_year:
-                for season in SEASON_ORDER:
-                    used = round(year_totals[display_year].get(season, 0.0), 2)
-                    season_breakdown[season] = {
-                        "used_area": used,
-                        # 注意：季节级别不判断超领，只记录面积，超领只看家庭户总和
-                        "is_overdrawn": False,
-                        "overdraw_amount": 0.0,
-                    }
             overdrawn.append({
                 "household_id": hh.id,
                 "household_code": hh.household_code,
@@ -3278,4 +3285,34 @@ class HouseholdBatchConfirm(BaseModel):
     """批量确认家庭户请求"""
     household_ids: list[int]
     operator: Optional[str] = None
+
+
+@router.post("/refresh-cache")
+def refresh_area_cache(
+    household_id: Optional[int] = Query(None, description="指定家庭户ID，不传则刷新所有"),
+    db: Session = Depends(get_db)
+):
+    """
+    强制刷新家庭户面积占用缓存。
+    - 如果传了 household_id，只刷新该家庭户
+    - 如果不传，刷新所有家庭户
+    """
+    if household_id:
+        # 刷新单个家庭户
+        hh = db.query(FamilyHousehold).filter(FamilyHousehold.id == household_id).first()
+        if not hh:
+            raise HTTPException(404, "家庭户不存在")
+        recalc_household_area_cache(household_id, db)
+        return {
+            "message": f"已刷新家庭户 {hh.household_name} 的面积缓存",
+            "household_id": household_id,
+            "household_name": hh.household_name
+        }
+    else:
+        # 刷新所有家庭户
+        count = recalc_all_household_caches(db)
+        return {
+            "message": f"已刷新全部 {count} 个家庭户的面积缓存",
+            "total": count
+        }
     remark: Optional[str] = None

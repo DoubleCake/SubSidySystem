@@ -297,6 +297,12 @@ export const deleteHousehold = (householdId: number) =>
     { method: 'DELETE' }
   )
 
+export const refreshAreaCache = (householdId?: number) =>
+  req<{ message: string; household_id?: number; household_name?: string; total?: number }>(
+    `/api/households/refresh-cache${householdId ? `?household_id=${householdId}` : ''}`,
+    { method: 'POST' }
+  )
+
 // ── 家庭户批量导入 ──
 export interface HouseholdImportRow {
   real_name: string

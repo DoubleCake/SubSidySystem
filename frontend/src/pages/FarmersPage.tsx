@@ -466,6 +466,27 @@ export default function FarmersPage() {
     }
   }
 
+  // ── 刷新面积缓存 ──
+  const [refreshingCache, setRefreshingCache] = useState(false)
+  const handleRefreshCache = async (householdId?: number) => {
+    if (refreshingCache) return
+    setRefreshingCache(true)
+    try {
+      const r = await api.refreshAreaCache(householdId)
+      show(r.message)
+      if (householdId) {
+        refreshDetail()
+      } else {
+        loadHouseholds()
+        refreshDetail()
+      }
+    } catch (e: unknown) {
+      show((e as Error).message, 'err')
+    } finally {
+      setRefreshingCache(false)
+    }
+  }
+
   // ── 刷新户详情 ──
   const refreshDetail = async () => {
     if (detail) {
@@ -1530,6 +1551,11 @@ export default function FarmersPage() {
                 className="px-3 py-2 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium bg-blue-50">
                 <span className="mr-1.5 text-xs">✓</span>批量确认
               </button>
+              <button onClick={() => handleRefreshCache()} disabled={refreshingCache}
+                className="px-3 py-2 text-sm border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 shadow-sm hover:shadow transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                <span className="mr-1.5 text-xs">{refreshingCache ? '⏳' : '🔄'}</span>
+                {refreshingCache ? '刷新中…' : '刷新缓存'}
+              </button>
               <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer bg-stone-50 px-3 py-2 rounded-lg border border-stone-200 shadow-sm hover:bg-stone-100 transition-all">
                 <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded" />
                 <span className="font-medium">仅看超领</span>
@@ -2509,6 +2535,10 @@ function HouseholdDetailContent({
                 <button onClick={onOpenSplit}
                   className="text-xs bg-orange-500/80 hover:bg-orange-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">🔀 分户</button>
               )}
+              <button onClick={() => handleRefreshCache(detail.id)} disabled={refreshingCache}
+                className="text-xs bg-purple-500/80 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                {refreshingCache ? '⏳' : '🔄'} 刷新缓存
+              </button>
               <button onClick={onDelete}
                 className="text-xs bg-red-500/80 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">🗑️ 删除</button>
             </div>
