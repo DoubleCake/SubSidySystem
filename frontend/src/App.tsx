@@ -136,7 +136,7 @@ function Layout() {
       </header>
 
       <main className="flex-1">
-        <div className="max-w-screen-xl mx-auto px-5 py-5">
+        <div className="max-w-screen-xl mx-auto px-5 py-5 pb-8">
           <Routes>
             <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
             <Route path="/farmers"   element={<FarmersPage />} />
