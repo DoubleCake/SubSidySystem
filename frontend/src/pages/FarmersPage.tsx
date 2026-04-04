@@ -1846,6 +1846,8 @@ export default function FarmersPage() {
                 onOpenManualConfirm={() => { setConfirmForm({ operator: '', remark: '' }); setManualConfirmOpen(true) }}
                 onOpenCancelConfirm={() => { setConfirmForm({ operator: '', remark: '' }); setCancelConfirmOpen(true) }}
                 onDelete={() => { setDeleteTarget(detail); setDeleteConfirmOpen(true) }}
+                onRefreshCache={handleRefreshCache}
+                refreshingCache={refreshingCache}
               />
             </div>
           </div>
@@ -2435,6 +2437,8 @@ type HouseholdDetailContentProps = {
   onOpenManualConfirm: () => void
   onOpenCancelConfirm: () => void
   onDelete: () => void
+  onRefreshCache: (householdId: number) => void
+  refreshingCache: boolean
 }
 
 function HouseholdDetailContent({
@@ -2461,6 +2465,8 @@ function HouseholdDetailContent({
   onOpenManualConfirm,
   onOpenCancelConfirm,
   onDelete,
+  onRefreshCache,
+  refreshingCache,
 }: HouseholdDetailContentProps) {
   const appsByYear: Record<number, typeof detail.app_summary> = {}
   detail.app_summary.forEach(a => {
@@ -2535,7 +2541,7 @@ function HouseholdDetailContent({
                 <button onClick={onOpenSplit}
                   className="text-xs bg-orange-500/80 hover:bg-orange-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">🔀 分户</button>
               )}
-              <button onClick={() => handleRefreshCache(detail.id)} disabled={refreshingCache}
+              <button onClick={() => onRefreshCache(detail.id)} disabled={refreshingCache}
                 className="text-xs bg-purple-500/80 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 {refreshingCache ? '⏳' : '🔄'} 刷新缓存
               </button>
