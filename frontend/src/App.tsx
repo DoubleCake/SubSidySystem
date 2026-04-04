@@ -63,7 +63,7 @@ function Layout() {
 
   return (
     <div className="min-h-screen bg-stone-100 flex flex-col" style={{ fontFamily: "'Noto Serif SC','SimSun',Georgia,serif" }}>
-      <header className="bg-emerald-800 text-white sticky top-0 z-40 shadow-lg shrink-0">
+      <header className="bg-emerald-800 text-white sticky top-0 z-40 shadow-lg">
         <div className="max-w-screen-xl mx-auto px-5 flex items-center gap-4" style={{ height: 52 }}>
           {/* Logo */}
           <div className="font-bold text-base tracking-wide whitespace-nowrap flex items-center gap-2 shrink-0 cursor-pointer"
@@ -135,31 +135,33 @@ function Layout() {
         )}
       </header>
 
-      <main className="flex-1 max-w-screen-xl mx-auto px-5 py-5 w-full">
-        <Routes>
-          <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
-          <Route path="/farmers"   element={<FarmersPage />} />
-          <Route path="/projects"  element={<SubsidyProjectsPage />} />
-          <Route path="/precheck"  element={<PreCheckPage />} />
-          <Route path="/links"     element={<ExternalLinksPage />} />
-          <Route path="/ai"        element={<AIPage />} />
-          <Route path="/settings/village-groups" element={<SettingsPage />} />
-          <Route path="/settings/backup" element={<BackupPage />} />
-          <Route path="/settings/excel-templates" element={<ExcelTemplatePage />} />
-          <Route path="/settings/land-trust" element={<LandTrustPage />} />
-          <Route path="/settings/household-import" element={<HouseholdImportPage />} />
-          {/* 404 fallback */}
-          <Route path="*" element={
-            <div className="text-center py-24 text-stone-300">
-              <div className="text-5xl mb-3">🌾</div>
-              <p className="text-sm">页面不存在，<button className="text-emerald-600 hover:underline" onClick={() => navigate('/')}>返回首页</button></p>
-            </div>
-          } />
-        </Routes>
+      <main className="flex-1">
+        <div className="max-w-screen-xl mx-auto px-5 py-5">
+          <Routes>
+            <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
+            <Route path="/farmers"   element={<FarmersPage />} />
+            <Route path="/projects"  element={<SubsidyProjectsPage />} />
+            <Route path="/precheck"  element={<PreCheckPage />} />
+            <Route path="/links"     element={<ExternalLinksPage />} />
+            <Route path="/ai"        element={<AIPage />} />
+            <Route path="/settings/village-groups" element={<SettingsPage />} />
+            <Route path="/settings/backup" element={<BackupPage />} />
+            <Route path="/settings/excel-templates" element={<ExcelTemplatePage />} />
+            <Route path="/settings/land-trust" element={<LandTrustPage />} />
+            <Route path="/settings/household-import" element={<HouseholdImportPage />} />
+            {/* 404 fallback */}
+            <Route path="*" element={
+              <div className="text-center py-24 text-stone-300">
+                <div className="text-5xl mb-3">🌾</div>
+                <p className="text-sm">页面不存在，<button className="text-emerald-600 hover:underline" onClick={() => navigate('/')}>返回首页</button></p>
+              </div>
+            } />
+          </Routes>
+        </div>
       </main>
 
       {/* 底部语录展示 */}
-      <footer className="shrink-0">
+      <footer>
         <div className={`w-full py-6 ${colorTheme.bg} ${colorTheme.text}`}>
           <div className="max-w-screen-xl mx-auto px-5 text-center">
             <div className="text-lg font-medium italic">
