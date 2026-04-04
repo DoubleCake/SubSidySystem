@@ -148,6 +148,8 @@ class SubsidyApplication(Base):
     remark              = Column(Text, nullable=True)
     created_at          = Column(DateTime, default=func.now())
     updated_at          = Column(DateTime, default=func.now(), onupdate=func.now())
+    # 代领相关字段
+    is_proxy            = Column(SmallInteger, nullable=False, default=0, comment="0=普通,1=代领")
 
     # 索引
     __table_args__ = (
@@ -160,6 +162,7 @@ class SubsidyApplication(Base):
     # 关联
     farmer       = relationship("FarmerProfile", back_populates="applications")
     subsidy_type = relationship("SubsidyType", back_populates="applications")
+    proxy_relations = relationship("SubsidyProxy", back_populates="application")
 
 
 class SubsidyPayment(Base):
@@ -186,6 +189,8 @@ class SubsidyPayment(Base):
     remark              = Column(Text, nullable=True)
     proxy_remark        = Column(Text, nullable=True, comment="代领备注")
     pay_status          = Column(SmallInteger, nullable=False, default=2, comment="发放状态: 0=待发放,1=部分发放,2=已发放")
+    # 代领相关字段
+    is_proxy            = Column(SmallInteger, nullable=False, default=0, comment="0=普通,1=代领")
     created_at          = Column(DateTime, default=func.now())
     updated_at          = Column(DateTime, default=func.now(), onupdate=func.now())
 
@@ -200,6 +205,41 @@ class SubsidyPayment(Base):
     # 关联
     farmer       = relationship("FarmerProfile", back_populates="payments")
     subsidy_type = relationship("SubsidyType", back_populates="payments")
+    proxy_relations = relationship("SubsidyProxy", back_populates="payment")
+
+
+class SubsidyProxy(Base):
+    """补贴代领关系表"""
+    __tablename__ = "subsidy_proxy"
+
+    id                  = Column(Integer, primary_key=True, autoincrement=True)
+    # 关联的补贴记录（申请或发放）
+    application_id      = Column(Integer, ForeignKey("subsidy_application.id"), nullable=True)
+    payment_id          = Column(Integer, ForeignKey("subsidy_payment.id"), nullable=True)
+    # 实际受益人（面积计入此家庭）
+    beneficiary_farmer_id = Column(Integer, ForeignKey("farmer_profile.id"), nullable=False)
+    # 代领人（实际领钱的人）
+    proxy_farmer_id     = Column(Integer, ForeignKey("farmer_profile.id"), nullable=False)
+    # 代领类型: proxy=代人领取, receive=被人代领
+    proxy_type          = Column(String(20), nullable=False, comment="proxy=代人领取, receive=被人代领")
+    # 代领关系说明
+    remark              = Column(Text, nullable=True)
+    created_at          = Column(DateTime, default=func.now())
+    updated_at          = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # 索引
+    __table_args__ = (
+        Index('ix_subsidy_proxy_application', 'application_id'),
+        Index('ix_subsidy_proxy_payment', 'payment_id'),
+        Index('ix_subsidy_proxy_beneficiary', 'beneficiary_farmer_id'),
+        Index('ix_subsidy_proxy_proxy', 'proxy_farmer_id'),
+    )
+
+    # 关联
+    application = relationship("SubsidyApplication", back_populates="proxy_relations")
+    payment = relationship("SubsidyPayment", back_populates="proxy_relations")
+    beneficiary_farmer = relationship("FarmerProfile", foreign_keys=[beneficiary_farmer_id])
+    proxy_farmer = relationship("FarmerProfile", foreign_keys=[proxy_farmer_id])
 
 
 class HouseholdAreaUsageCache(Base):
