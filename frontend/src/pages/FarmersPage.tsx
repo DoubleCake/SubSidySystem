@@ -1484,9 +1484,9 @@ export default function FarmersPage() {
   //  主渲染：两栏布局
   // ═══════════════════════════════════════════════
   return (
-    <div className="flex gap-5 h-[calc(100vh-140px)]">
+    <div className="flex gap-5">
       {/* ── 左侧：Tab + 列表 ── */}
-      <div className="w-[32%] shrink-0 flex flex-col">
+      <div className="w-[32%] shrink-0 flex flex-col sticky top-[88px] self-start" style={{ maxHeight: 'calc(100vh - 104px)' }}>
         {/* Tab 切换 */}
         <div className="flex mb-4 bg-stone-100 rounded-xl p-1.5 shadow-sm">
           <button onClick={() => handleTabChange('households')}
@@ -2812,7 +2812,7 @@ function HouseholdDetailContent({
       </div>
 
       {/* Tab 内容 */}
-      <div className="flex-1 bg-white border border-stone-200 rounded-xl overflow-hidden shadow-md overflow-y-auto">
+      <div className="flex-1 bg-white border border-stone-200 rounded-xl overflow-hidden shadow-md">
         {/* 成员 */}
         {detailTab === 'members' && (
           <div className="p-4 grid gap-2">
