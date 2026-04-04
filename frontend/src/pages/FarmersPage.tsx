@@ -1533,29 +1533,33 @@ export default function FarmersPage() {
         <div className="flex gap-2 mb-3 flex-wrap">
                     {leftTab === 'households' && !mergeMode && (
             <>
-              <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
-                <span className="mr-1.5 text-xs">＋</span>创建新家庭户
-              </button>
-              <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]); setHhPage(1) }}
-                className="px-3 py-2 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 shadow-sm transition-all font-medium bg-amber-50">
-                <span className="mr-1.5 text-xs">⊞</span>合并家庭户
-              </button>
-              <button onClick={exportCurrentList} className="px-3 py-2 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
-                <span className="mr-1.5 text-xs">⬇</span>导出
-              </button>
-              <button onClick={() => { setConfirmedAreaRows([]); setConfirmedAreaImportResult(null); setConfirmedAreaImportOpen(true) }}
-                className="px-3 py-2 text-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium">
-                <span className="mr-1.5 text-xs">↑</span>导入确权面积
-              </button>
-              <button onClick={() => { setBatchConfirmMode(true); setBatchSelected([]); setBatchSelectedHouseholds([]); setMergeMode(false); setMergeSelected([]); setMergeSelectedHouseholds([]) }}
-                className="px-3 py-2 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium bg-blue-50">
-                <span className="mr-1.5 text-xs">✓</span>批量确认
-              </button>
-              <button onClick={() => handleRefreshCache()} disabled={refreshingCache}
-                className="px-3 py-2 text-sm border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 shadow-sm hover:shadow transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed">
-                <span className="mr-1.5 text-xs">{refreshingCache ? '⏳' : '🔄'}</span>
-                {refreshingCache ? '刷新中…' : '刷新缓存'}
-              </button>
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
+                  <span className="mr-1.5 text-xs">＋</span>创建新家庭户
+                </button>
+                <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]); setHhPage(1) }}
+                  className="px-3 py-2 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 shadow-sm transition-all font-medium bg-amber-50">
+                  <span className="mr-1.5 text-xs">⊞</span>合并家庭户
+                </button>
+                <button onClick={exportCurrentList} className="px-3 py-2 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
+                  <span className="mr-1.5 text-xs">⬇</span>导出
+                </button>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => { setConfirmedAreaRows([]); setConfirmedAreaImportResult(null); setConfirmedAreaImportOpen(true) }}
+                  className="px-3 py-2 text-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium">
+                  <span className="mr-1.5 text-xs">↑</span>导入确权面积
+                </button>
+                <button onClick={() => { setBatchConfirmMode(true); setBatchSelected([]); setBatchSelectedHouseholds([]); setMergeMode(false); setMergeSelected([]); setMergeSelectedHouseholds([]) }}
+                  className="px-3 py-2 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium bg-blue-50">
+                  <span className="mr-1.5 text-xs">✓</span>批量确认
+                </button>
+                <button onClick={() => handleRefreshCache()} disabled={refreshingCache}
+                  className="px-3 py-2 text-sm border-2 border-purple-500 text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 shadow-sm hover:shadow transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
+                  <span className="mr-1.5 text-xs">{refreshingCache ? '⏳' : '🔄'}</span>
+                  {refreshingCache ? '刷新中…' : '刷新缓存'}
+                </button>
+              </div>
               <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer bg-stone-50 px-3 py-2 rounded-lg border border-stone-200 shadow-sm hover:bg-stone-100 transition-all">
                 <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded" />
                 <span className="font-medium">仅看超领</span>
