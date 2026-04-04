@@ -201,6 +201,7 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
             SubsidyType.count_toward_area == 1,
             SubsidyApplication.apply_area.isnot(None),
             SubsidyApplication.pay_status.in_([0, 1, 2]),
+            SubsidyApplication.is_proxy == 0,
         )
         .group_by(SubsidyType.season, SubsidyApplication.apply_year)
         .all()
@@ -226,6 +227,7 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
             SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyPayment.apply_area.isnot(None),
+            SubsidyPayment.is_proxy == 0,
         )
         .group_by(SubsidyType.season, SubsidyPayment.payment_year)
         .all()
@@ -315,6 +317,7 @@ def recalc_all_household_caches(db: Session) -> int:
             SubsidyType.count_toward_area == 1,
             SubsidyApplication.apply_area.isnot(None),
             SubsidyApplication.pay_status.in_([0, 1, 2]),
+            SubsidyApplication.is_proxy == 0,
         )
         .group_by(FarmerProfile.household_id, SubsidyApplication.apply_year, SubsidyType.season)
         .all()
@@ -339,6 +342,7 @@ def recalc_all_household_caches(db: Session) -> int:
             SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyPayment.apply_area.isnot(None),
+            SubsidyPayment.is_proxy == 0,
         )
         .group_by(FarmerProfile.household_id, SubsidyPayment.payment_year, SubsidyType.season)
         .all()
@@ -1538,6 +1542,7 @@ def get_area_by_year(household_id: int, db: Session = Depends(get_db)):
             SubsidyType.count_toward_area == 1,
             SubsidyApplication.apply_area.isnot(None),
             SubsidyApplication.pay_status.in_([0, 1, 2]),
+            SubsidyApplication.is_proxy == 0,
         )
         .group_by(
             SubsidyApplication.apply_year, SubsidyType.subsidy_name, SubsidyType.season
