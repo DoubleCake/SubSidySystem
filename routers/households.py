@@ -479,26 +479,24 @@ def calc_household_area_usage(
 
     # season_breakdown 只展示 display_year 的数据（避免跨年叠加）
     season_breakdown: dict[str, dict] = {}
+    total_used = round(sum(year_totals.get(display_year, {}).values()), 2) if display_year else 0.0
+    remaining = cultivable - total_used
+    is_overdrawn_all = cultivable > 0 and total_used > cultivable
+
     for season in SEASON_ORDER:
         used = round(year_totals.get(display_year, {}).get(season, 0.0) if display_year else 0.0, 2)
         apply_area = round(year_apply_totals.get(display_year, {}).get(season, 0.0) if display_year else 0.0, 2)
         payment_area = round(year_payment_totals.get(display_year, {}).get(season, 0.0) if display_year else 0.0, 2)
-        remaining = round(cultivable - used, 2)
-        is_overdrawn = cultivable > 0 and used > cultivable
+        # 注意：季节级别只显示面积，不单独判断超领，超领只看家庭户全年总和
         season_breakdown[season] = {
             "used_area": used,
             "apply_area": apply_area,  # 预申请面积
             "payment_area": payment_area,  # 已发布面积
-            "remaining_area": remaining,
-            "is_overdrawn": is_overdrawn,
-            "overdraw_amount": round(max(0, used - cultivable), 2),
+            "remaining_area": max(0.0, cultivable - total_used) if is_overdrawn_all else max(0.0, cultivable - used),
+            "is_overdrawn": False,  # 季节级别不判断超领
+            "overdraw_amount": 0.0,  # 季节级别不计算超领
             "subsidies": [],
         }
-
-    total_used = round(sum(year_totals.get(display_year, {}).values()), 2) if display_year else 0.0
-
-    remaining = cultivable - total_used
-    is_overdrawn_all = cultivable > 0 and total_used > cultivable
 
     return {
         "contracted_area": contracted,
@@ -814,8 +812,9 @@ def list_overdrawn_households(
                     used = round(year_totals[display_year].get(season, 0.0), 2)
                     season_breakdown[season] = {
                         "used_area": used,
-                        "is_overdrawn": cultivable > 0 and used > cultivable,
-                        "overdraw_amount": round(max(0, used - cultivable), 2),
+                        # 注意：季节级别不判断超领，只记录面积，超领只看家庭户总和
+                        "is_overdrawn": False,
+                        "overdraw_amount": 0.0,
                     }
             overdrawn.append({
                 "household_id": hh.id,
@@ -824,8 +823,9 @@ def list_overdrawn_households(
                 "head_name": head.real_name if head else "—",
                 "village": f"{hh.village.village_name}{format_group_no(hh.group_no)}" if hh.village else "",
                 "contracted_area": contracted,
+                "cultivable_area": cultivable,
                 "used_area": total_used,
-                "overdraw_amount": round(max(0, total_used - contracted), 2),
+                "overdraw_amount": round(max(0, total_used - cultivable), 2),
                 "season_breakdown": season_breakdown,
                 "year": year,
             })
