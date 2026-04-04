@@ -113,6 +113,7 @@ def migrate_db():
         "ALTER TABLE family_household ADD COLUMN manually_confirmed_by VARCHAR(50)",
         "ALTER TABLE family_household ADD COLUMN registered_address TEXT",
         "ALTER TABLE subsidy_payment ADD COLUMN proxy_remark TEXT",
+        "ALTER TABLE subsidy_payment ADD COLUMN pay_status SMALLINT DEFAULT 2",
     ]
     with engine.connect() as conn:
         for sql in migrations:

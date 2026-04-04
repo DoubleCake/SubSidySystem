@@ -1395,6 +1395,7 @@ def list_payments(
     subsidy_type_id: Optional[int] = Query(None),
     village_name: Optional[str] = Query(None),
     farmer_id: Optional[int] = Query(None),
+    pay_status: Optional[int] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=500),
     db: Session = Depends(get_db),
@@ -1417,6 +1418,8 @@ def list_payments(
         q = q.filter(SubsidyPayment.farmer_id == farmer_id)
     if village_name:
         q = q.filter(Village.village_name == village_name)
+    if pay_status is not None:
+        q = q.filter(SubsidyPayment.pay_status == pay_status)
 
     total = q.count()
     offset = (page - 1) * page_size
@@ -1446,6 +1449,7 @@ def list_payments(
                 "bank_name": p[0].bank_name,
                 "remark": p[0].remark,
                 "proxy_remark": p[0].proxy_remark,
+                "pay_status": p[0].pay_status,
             }
             for p in rows
         ]
@@ -1502,6 +1506,7 @@ def create_payment(data: PaymentCreate, db: Session = Depends(get_db)):
         bank_name=data.bank_name,
         remark=data.remark,
         proxy_remark=data.proxy_remark,
+        pay_status=data.pay_status,
     )
     db.add(payment)
 
@@ -1534,7 +1539,7 @@ def update_payment(payment_id: int, data: dict, db: Session = Depends(get_db)):
     # 更新字段
     update_fields = ["amount", "payment_date", "apply_area", "contract_area",
                      "trust_area", "no_subsidy_area", "bank_card", "bank_name",
-                     "remark", "proxy_remark"]
+                     "remark", "proxy_remark", "pay_status"]
     for k, v in data.items():
         if k in update_fields and hasattr(payment, k):
             setattr(payment, k, v)

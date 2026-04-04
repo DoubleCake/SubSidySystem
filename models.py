@@ -185,6 +185,7 @@ class SubsidyPayment(Base):
     operator_id         = Column(Integer, nullable=True)
     remark              = Column(Text, nullable=True)
     proxy_remark        = Column(Text, nullable=True, comment="代领备注")
+    pay_status          = Column(SmallInteger, nullable=False, default=2, comment="发放状态: 0=待发放,1=部分发放,2=已发放")
     created_at          = Column(DateTime, default=func.now())
     updated_at          = Column(DateTime, default=func.now(), onupdate=func.now())
 

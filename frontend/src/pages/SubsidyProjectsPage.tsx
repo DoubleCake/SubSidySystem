@@ -298,9 +298,19 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
-  const [search, setSearch] = useState('')
-  // 筛选状态
-  const [filters, setFilters] = useState({
+
+  // Tab状态管理（必须在最前面声明）
+  const [activeTab, setActiveTab] = useState<'preApply' | 'disbursement'>('preApply')
+  const switchTab = (tab: 'preApply' | 'disbursement') => {
+    setActiveTab(tab)
+    setPage(1)
+    setSelectedIds([])
+  }
+
+  // 两个列表分别维护独立的搜索和筛选状态
+  const [searchPreApply, setSearchPreApply] = useState('')
+  const [searchDisbursement, setSearchDisbursement] = useState('')
+  const [filtersPreApply, setFiltersPreApply] = useState({
     village: '',
     payStatus: '',
     minAmount: '',
@@ -308,6 +318,19 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
     dateFrom: '',
     dateTo: ''
   })
+  const [filtersDisbursement, setFiltersDisbursement] = useState({
+    village: '',
+    payStatus: '',
+    minAmount: '',
+    maxAmount: '',
+    dateFrom: '',
+    dateTo: ''
+  })
+
+  // 当前激活的搜索和筛选
+  const search = activeTab === 'preApply' ? searchPreApply : searchDisbursement
+  const filters = activeTab === 'preApply' ? filtersPreApply : filtersDisbursement
+
   // 村庄列表用于筛选
   const [villages, setVillages] = useState<string[]>([])
   const [loadingVillages, setLoadingVillages] = useState(false)
@@ -317,7 +340,24 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
     setApps([])
     setTotal(0)
     setPage(1)
-    setSearch('')
+    setSearchPreApply('')
+    setSearchDisbursement('')
+    setFiltersPreApply({
+      village: '',
+      payStatus: '',
+      minAmount: '',
+      maxAmount: '',
+      dateFrom: '',
+      dateTo: ''
+    })
+    setFiltersDisbursement({
+      village: '',
+      payStatus: '',
+      minAmount: '',
+      maxAmount: '',
+      dateFrom: '',
+      dateTo: ''
+    })
   }, [subsidyType.id])
 
   // 加载模板列表
@@ -350,21 +390,47 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
 
   // 处理筛选变化
   const handleFilterChange = (field: string, value: string) => {
-    setFilters(prev => ({ ...prev, [field]: value }))
+    if (activeTab === 'preApply') {
+      setFiltersPreApply(prev => ({ ...prev, [field]: value }))
+    } else {
+      setFiltersDisbursement(prev => ({ ...prev, [field]: value }))
+    }
     // 重置页码到第一页
     setPage(1)
   }
 
+  // 处理搜索变化
+  const handleSearchChange = (value: string) => {
+    if (activeTab === 'preApply') {
+      setSearchPreApply(value)
+    } else {
+      setSearchDisbursement(value)
+    }
+  }
+
   // 清除所有筛选
   const clearFilters = () => {
-    setFilters({
-      village: '',
-      payStatus: '',
-      minAmount: '',
-      maxAmount: '',
-      dateFrom: '',
-      dateTo: ''
-    })
+    if (activeTab === 'preApply') {
+      setFiltersPreApply({
+        village: '',
+        payStatus: '',
+        minAmount: '',
+        maxAmount: '',
+        dateFrom: '',
+        dateTo: ''
+      })
+      setSearchPreApply('')
+    } else {
+      setFiltersDisbursement({
+        village: '',
+        payStatus: '',
+        minAmount: '',
+        maxAmount: '',
+        dateFrom: '',
+        dateTo: ''
+      })
+      setSearchDisbursement('')
+    }
     setPage(1)
   }
 
@@ -435,14 +501,6 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
     }
   }, [subsidyType.id, subsidyType.subsidy_year])
 
-  // Tab状态管理（必须在 load 之前声明，因为 load 依赖 activeTab）
-  const [activeTab, setActiveTab] = useState<'preApply' | 'disbursement'>('preApply')
-  const switchTab = (tab: 'preApply' | 'disbursement') => {
-    setActiveTab(tab)
-    setPage(1)
-    setSelectedIds([])
-  }
-
   // 关键修复：直接用 /applications 接口，传 subsidy_type_id 过滤
   const load = useCallback(async () => {
     setLoading(true)
@@ -455,13 +513,14 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
           payment_year: subsidyType.subsidy_year,
         }
         if (search) params.search = search
+        if (filters.payStatus) params.pay_status = filters.payStatus
         if (filters.village) params.village_name = filters.village
         if (filters.dateFrom) params.date_from = filters.dateFrom
         if (filters.dateTo) params.date_to = filters.dateTo
 
         const res = await fetch(`/api/subsidies/payments?${new URLSearchParams(params as Record<string, string>)}`).then(r => r.json())
         // 转换为与申报列表相同的格式以便统一展示
-        setApps(res.items.map((p: { id: number; farmer_id: number; farmer_name: string; subsidy_type_id: number; subsidy_name: string; village_name: string; group_no: string; payment_year: number; amount: number; payment_date: string; apply_area: number; contract_area: number; trust_area: number; no_subsidy_area: number; bank_card_masked: string; bank_name: string; remark: string; proxy_remark: string }) => ({
+        setApps(res.items.map((p: { id: number; farmer_id: number; farmer_name: string; subsidy_type_id: number; subsidy_name: string; village_name: string; group_no: string; payment_year: number; amount: number; payment_date: string; apply_area: number; contract_area: number; trust_area: number; no_subsidy_area: number; bank_card_masked: string; bank_name: string; remark: string; proxy_remark: string; pay_status: number }) => ({
           id: p.id,
           farmer_id: p.farmer_id,
           farmer_name: p.farmer_name,
@@ -475,7 +534,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
           trust_area: p.trust_area,
           no_subsidy_area: p.no_subsidy_area,
           actual_amount: p.amount,
-          pay_status: 2, // 发放默认已发放
+          pay_status: p.pay_status,
           pay_date: p.payment_date,
           bank_card_masked: p.bank_card_masked,
           bank_name: p.bank_name,
@@ -494,7 +553,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
         year: subsidyType.subsidy_year,
       }
       if (search) params.search = search
-      // 按当前Tab自动过滤：预申请只显示 pay_status=0
+      // 按当前Tab自动过滤：预申请只显示 pay_status=0，除非用户选择了其他状态
       if (filters.payStatus) {
         params.pay_status = filters.payStatus
       } else {
@@ -1547,7 +1606,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
             <input
               type="text"
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => handleSearchChange(e.target.value)}
               placeholder="姓名/身份证"
               className="flex-1 border border-stone-200 rounded-lg px-2 py-1.5 text-xs outline-none"
             />

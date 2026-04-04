@@ -217,6 +217,7 @@ class PaymentCreate(BaseModel):
     bank_name: Optional[str] = None
     remark: Optional[str] = None
     proxy_remark: Optional[str] = None
+    pay_status: int = 2
 
 
 class PaymentOut(BaseModel):
@@ -232,6 +233,7 @@ class PaymentOut(BaseModel):
     bank_name: Optional[str]
     remark: Optional[str]
     proxy_remark: Optional[str]
+    pay_status: int
 
     class Config:
         from_attributes = True
