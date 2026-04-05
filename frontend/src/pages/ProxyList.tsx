@@ -52,7 +52,7 @@ export default function ProxyList({ subsidyType, show }: ProxyListProps) {
       }
       if (search) params.search = search
 
-      const response = await fetch(`/api/subsidies/proxy-relations?${new URLSearchParams(params as Record<string, string>)}`).then(r => r.json())
+      const response = await fetch(`/api/subsidies/proxies?${new URLSearchParams(params as Record<string, string>)}`).then(r => r.json())
       setProxies(response.items || [])
       setTotal(response.total || 0)
     } catch (error) {
@@ -69,7 +69,7 @@ export default function ProxyList({ subsidyType, show }: ProxyListProps) {
 
   const deleteProxy = async (id: number) => {
     try {
-      const response = await fetch(`/api/subsidies/proxy-relations/${id}`, { method: 'DELETE' })
+      const response = await fetch(`/api/subsidies/proxies/${id}`, { method: 'DELETE' })
       if (!response.ok) throw new Error('删除失败')
       show('✓ 代领关系已删除')
       setDeleteId(null)

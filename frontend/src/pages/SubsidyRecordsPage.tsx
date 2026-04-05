@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import Tag from '../components/Tag'
 import Modal from '../components/Modal'
 import ResultTable from '../components/ResultTable'
+import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import * as api from '../api'
@@ -17,6 +18,14 @@ import { exportPrecheckReportWithOptions, PRECHECK_SHEET_OPTIONS, SheetKey, getV
 import PreApplyList from './PreApplyList'
 import DisbursementList from './DisbursementList'
 import ProxyList from './ProxyList'
+
+// 代领导入字段配置
+const PROXY_IMPORT_FIELDS = [
+  { field: 'beneficiary_id_card', label: '被代领人身份证', required: true, type: 'id_card' },
+  { field: 'proxy_id_card', label: '代领人身份证', required: true, type: 'id_card' },
+  { field: 'proxy_type', label: '代领类型', required: false, type: 'string' },
+  { field: 'remark', label: '备注', required: false, type: 'string' },
+]
 
 type StatsType = {
   id: number
@@ -97,6 +106,17 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
   const [idInput, setIdInput] = useState('')
   const [farmerHint, setFarmerHint] = useState('')
   const [farmerId, setFarmerId] = useState<number | null>(null)
+
+  // 代领表单相关状态
+  const [proxyAddOpen, setProxyAddOpen] = useState(false)
+  const [proxyImportOpen, setProxyImportOpen] = useState(false)
+  const [proxyRefreshKey, setProxyRefreshKey] = useState(0)
+  const [proxyForm, setProxyForm] = useState<{
+    beneficiary_id_card: string
+    proxy_id_card: string
+    proxy_type: string
+    remark: string
+  }>({ beneficiary_id_card: '', proxy_id_card: '', proxy_type: '代领', remark: '' })
 
   // 预检相关
   const [preCheckLoading, setPreCheckLoading] = useState(false)
@@ -222,6 +242,123 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
       console.error('批量删除失败:', error)
       show('批量删除失败: ' + (error as Error).message, 'err')
     }
+  }
+
+  // 代领新增
+  const handleProxyAdd = async () => {
+    if (!proxyForm.beneficiary_id_card.trim()) {
+      show('请输入被代领人身份证', 'err')
+      return
+    }
+    if (!proxyForm.proxy_id_card.trim()) {
+      show('请输入代领人身份证', 'err')
+      return
+    }
+    try {
+      // 先通过身份证查找农户ID
+      const beneficiaryResp = await fetch('/api/farmers/batch-lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_cards: [proxyForm.beneficiary_id_card.trim()] })
+      }).then(r => r.json())
+
+      const proxyResp = await fetch('/api/farmers/batch-lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_cards: [proxyForm.proxy_id_card.trim()] })
+      }).then(r => r.json())
+
+      const beneficiaryId = beneficiaryResp.results?.[proxyForm.beneficiary_id_card.trim()]
+      const proxyId = proxyResp.results?.[proxyForm.proxy_id_card.trim()]
+
+      if (!beneficiaryId) {
+        show('未找到被代领人信息，请检查身份证号', 'err')
+        return
+      }
+      if (!proxyId) {
+        show('未找到代领人信息，请检查身份证号', 'err')
+        return
+      }
+
+      await api.createProxy({
+        beneficiary_farmer_id: beneficiaryId,
+        proxy_farmer_id: proxyId,
+        proxy_type: proxyForm.proxy_type,
+        remark: proxyForm.remark || undefined,
+      })
+      show('✓ 代领关系创建成功')
+      setProxyAddOpen(false)
+      setProxyRefreshKey(prev => prev + 1)
+      setProxyForm({ beneficiary_id_card: '', proxy_id_card: '', proxy_type: '代领', remark: '' })
+    } catch (error) {
+      show('创建失败: ' + (error as Error).message, 'err')
+    }
+  }
+
+  // 代领Excel导入
+  const handleProxyImport = async (rows: Record<string, unknown>[]) => {
+    const proxies: { beneficiary_id_card: string; proxy_id_card: string; proxy_type: string; remark: string }[] = []
+    const errors: string[] = []
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]
+      // ExcelImportWithMapping passes mapped field names (system_field)
+      const beneficiaryIdCard = String(row['beneficiary_id_card'] || row['被代领人身份证'] || '').trim()
+      const proxyIdCard = String(row['proxy_id_card'] || row['代领人身份证'] || '').trim()
+
+      if (!beneficiaryIdCard || !proxyIdCard) {
+        errors.push(`第${i + 2}行：被代领人或代领人身份证为空`)
+        continue
+      }
+
+      proxies.push({
+        beneficiary_id_card: beneficiaryIdCard,
+        proxy_id_card: proxyIdCard,
+        proxy_type: String(row['proxy_type'] || row['代领类型'] || '代领').trim(),
+        remark: String(row['remark'] || row['备注'] || '').trim(),
+      })
+    }
+
+    if (proxies.length === 0) {
+      show('没有有效的代领数据', 'err')
+      return { created: 0, skipped: 0, errors }
+    }
+
+    // 批量查找农户ID
+    const allIdCards = [...new Set(proxies.flatMap(p => [p.beneficiary_id_card, p.proxy_id_card]))]
+    const lookupResp = await fetch('/api/farmers/batch-lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id_cards: allIdCards })
+    }).then(r => r.json())
+
+    const results = lookupResp.results || {}
+    let successCount = 0
+
+    for (const p of proxies) {
+      const beneficiaryId = results[p.beneficiary_id_card]
+      const proxyId = results[p.proxy_id_card]
+
+      if (!beneficiaryId || !proxyId) {
+        errors.push(`身份证匹配失败: ${p.beneficiary_id_card} -> ${beneficiaryId ? '✓' : '✗'}, ${p.proxy_id_card} -> ${proxyId ? '✓' : '✗'}`)
+        continue
+      }
+
+      try {
+        await api.createProxy({
+          beneficiary_farmer_id: beneficiaryId,
+          proxy_farmer_id: proxyId,
+          proxy_type: p.proxy_type,
+          remark: p.remark || undefined,
+        })
+        successCount++
+      } catch (e) {
+        errors.push(`创建失败: ${p.beneficiary_id_card}`)
+      }
+    }
+
+    show(`✓ 成功导入 ${successCount} 条代领关系${errors.length > 0 ? `，失败 ${errors.length} 条` : ''}`, errors.length > 0 ? 'err' : 'ok')
+    return { created: successCount, skipped: proxies.length - successCount, errors }
   }
 
   // 获取村庄列表
@@ -545,19 +682,35 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
               ) : '🔍 全部数据预检'}
             </button>
           )}
-          <span className="text-xs text-stone-400">共 {total} 条</span>
-          <div className="flex gap-2 items-center">
-            {selectedIds.length > 0 && (
-              <button onClick={batchDelete}
-                className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-1.5">
-                🗑️ 删除选中 ({selectedIds.length})
+          {activeTab === 'proxy' && (
+            <>
+              <button onClick={() => setProxyImportOpen(true)}
+                className="px-3 py-1.5 text-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 flex items-center gap-1.5">
+                ↑ Excel导入
               </button>
-            )}
-            <button onClick={() => setAddOpen(true)}
-              className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
-              ＋ 新增一条
-            </button>
-          </div>
+              <button onClick={() => setProxyAddOpen(true)}
+                className="px-3 py-1.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
+                ＋ 新增代领
+              </button>
+            </>
+          )}
+          {activeTab !== 'proxy' && (
+            <>
+              <span className="text-xs text-stone-400">共 {total} 条</span>
+              <div className="flex gap-2 items-center">
+                {selectedIds.length > 0 && (
+                  <button onClick={batchDelete}
+                    className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-1.5">
+                    🗑️ 删除选中 ({selectedIds.length})
+                  </button>
+                )}
+                <button onClick={() => setAddOpen(true)}
+                  className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
+                  ＋ 新增一条
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -653,7 +806,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
       )}
 
       {activeTab === 'proxy' && (
-        <ProxyList subsidyType={subsidyType} show={show} />
+        <ProxyList key={proxyRefreshKey} subsidyType={subsidyType} show={show} />
       )}
 
       {/* 预检结果展示 */}
@@ -774,6 +927,70 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
           </div>
         </div>
       )}
+
+      {/* 代领新增表单 */}
+      <Modal open={proxyAddOpen} title="新增代领关系" onClose={() => setProxyAddOpen(false)}
+        onConfirm={handleProxyAdd} width={480}>
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+            请输入被代领人和代领人的身份证信息，系统将自动匹配农户信息。
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">被代领人身份证 *</label>
+            <input value={proxyForm.beneficiary_id_card} onChange={e => setProxyForm(f => ({ ...f, beneficiary_id_card: e.target.value }))}
+              placeholder="请输入被代领人身份证号"
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 font-mono" />
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">代领人身份证 *</label>
+            <input value={proxyForm.proxy_id_card} onChange={e => setProxyForm(f => ({ ...f, proxy_id_card: e.target.value }))}
+              placeholder="请输入代领人身份证号"
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 font-mono" />
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">代领类型</label>
+            <select value={proxyForm.proxy_type} onChange={e => setProxyForm(f => ({ ...f, proxy_type: e.target.value }))}
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+              <option value="代领">代领</option>
+              <option value="监护人">监护人</option>
+              <option value="委托">委托</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-stone-400 mb-1">备注</label>
+            <textarea rows={2} value={proxyForm.remark} onChange={e => setProxyForm(f => ({ ...f, remark: e.target.value }))}
+              placeholder="可选"
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none" />
+          </div>
+        </div>
+      </Modal>
+
+      {/* 代领Excel导入 */}
+      <ExcelImportWithMapping open={proxyImportOpen} onClose={() => setProxyImportOpen(false)}
+        title="代领关系Excel导入"
+        templateHeaders={['被代领人身份证*', '代领人身份证*', '代领类型', '备注']}
+        templateExample={[{ '被代领人身份证*': '510123196503154231', '代领人身份证*': '510123196503154232', '代领类型': '代领', '备注': '' }]}
+        systemFields={PROXY_IMPORT_FIELDS}
+        templates={[]}
+        onDetectColumns={async (columns) => {
+          return {
+            columns: columns.map(col => ({
+              excel_column: col,
+              suggested_field: col.includes('被代领') ? 'beneficiary_id_card' :
+                             col.includes('代领') && col.includes('人') ? 'proxy_id_card' :
+                             col.includes('类型') ? 'proxy_type' :
+                             col.includes('备注') ? 'remark' : null,
+              confidence: 0.9,
+              alternatives: [],
+            })),
+            recommended_templates: [],
+          }
+        }}
+        onSaveTemplate={async () => ({ id: 0 })}
+        onImport={handleProxyImport}
+        onSuccess={() => setProxyRefreshKey(prev => prev + 1)}
+      />
 
       {toast && <Toast msg={toast.msg} type={toast.type} />}
     </div>

@@ -686,6 +686,7 @@ export interface ConfirmedAreaImportProps {
 }
 
 export function ConfirmedAreaImport({ open, confirmedAreaRows, setConfirmedAreaRows, confirmedAreaImportResult, confirmedAreaImporting, onSubmit, onClose }: ConfirmedAreaImportProps) {
+  if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-[560px] max-h-[80vh] flex flex-col">
