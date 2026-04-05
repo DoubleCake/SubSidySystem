@@ -11,6 +11,7 @@ import BackupPage from './pages/BackupPage'
 import ExcelTemplatePage from './pages/ExcelTemplatePage'
 import LandTrustPage from './pages/LandTrustPage'
 import HouseholdImportPage from './pages/HouseholdImportPage'
+import ProxyManagePage from './pages/ProxyManagePage'
 import { healthCheck } from './api'
 import { useState } from 'react'
 import { QUOTES, COLOR_THEMES } from './utils/quotes'
@@ -149,6 +150,8 @@ function Layout() {
             <Route path="/settings/excel-templates" element={<ExcelTemplatePage />} />
             <Route path="/settings/land-trust" element={<LandTrustPage />} />
             <Route path="/settings/household-import" element={<HouseholdImportPage />} />
+            <Route path="/proxy/application/:applicationId" element={<ProxyManagePage />} />
+            <Route path="/proxy/payment/:paymentId" element={<ProxyManagePage />} />
             {/* 404 fallback */}
             <Route path="*" element={
               <div className="text-center py-24 text-stone-300">
