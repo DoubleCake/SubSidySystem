@@ -10,101 +10,30 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import * as api from '../api'
-import type { VillageGroup, HH, HHDetail, HHMember, HHEvent, HistoryDateEvent, SnapshotAtResponse, FarmerDetail, FarmerOut, SnapshotMember } from '../types'
-import { FARMER_STATUS, PAY_STATUS, fmt, parseIdCardInfo, years } from '../utils'
-import Tag from '../components/Tag'
-import Modal from '../components/Modal'
-import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
-import ExcelImport from '../components/ExcelImport'
-import type { ExcelColumnTemplate } from '../types'
+import type { VillageGroup, HH, HHDetail, HHMember, HHEvent, HistoryDateEvent, SnapshotAtResponse, FarmerDetail, FarmerOut, SnapshotMember, ExcelColumnTemplate } from '../types'
+import { FARMER_STATUS, parseIdCardInfo } from '../utils'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 
-// ── 样式常量 ──
-const COLORS = {
-  primary: {
-    50: 'bg-emerald-50',
-    100: 'bg-emerald-100',
-    500: 'bg-emerald-500',
-    600: 'bg-emerald-600',
-    700: 'bg-emerald-700',
-    text: 'text-emerald-600',
-    textHover: 'hover:text-emerald-700',
-    border: 'border-emerald-600',
-    borderLight: 'border-emerald-200',
-  },
-  secondary: {
-    50: 'bg-blue-50',
-    500: 'bg-blue-500',
-    600: 'bg-blue-600',
-    text: 'text-blue-600',
-    border: 'border-blue-600',
-    borderLight: 'border-blue-200',
-  },
-  warning: {
-    50: 'bg-amber-50',
-    100: 'bg-amber-100',
-    500: 'bg-amber-500',
-    text: 'text-amber-600',
-  },
-  danger: {
-    50: 'bg-red-50',
-    500: 'bg-red-500',
-    text: 'text-red-600',
-    borderLight: 'border-red-200',
-  },
-  neutral: {
-    50: 'bg-slate-50',
-    100: 'bg-slate-100',
-    200: 'bg-slate-200',
-    text: 'text-slate-600',
-    textMuted: 'text-slate-400',
-    border: 'border-slate-200',
-  }
-}
-
-// ── 事件类型配置 ──
-const EVENT_TYPE_CFG: Record<string, { label: string; color: string; icon: string }> = {
-  ORIGINAL:       { label: '原始数据',   color: 'bg-slate-100 text-slate-600',     icon: '📌' },
-  FOUND:          { label: '建档登记',   color: 'bg-blue-100 text-blue-700',       icon: '📝' },
-  MEMBER_ADD:     { label: '成员新增',   color: 'bg-emerald-100 text-emerald-700', icon: '➕' },
-  MEMBER_REMOVE:  { label: '成员移出',   color: 'bg-amber-100 text-amber-700',     icon: '➖' },
-  MEMBER_STATUS:  { label: '状态变更',   color: 'bg-slate-100 text-slate-600',     icon: '🔄' },
-  HEAD_CHANGE:    { label: '户主变更',   color: 'bg-purple-100 text-purple-700',   icon: '👤' },
-  SPLIT:          { label: '分户',       color: 'bg-orange-100 text-orange-700',   icon: '🔀' },
-  MERGE:          { label: '合户',       color: 'bg-teal-100 text-teal-700',       icon: '🔗' },
-  LAND_CHANGE:    { label: '土地变更',   color: 'bg-green-100 text-green-700',     icon: '🌾' },
-  STATUS_CHANGE:  { label: '户籍变更',   color: 'bg-red-100 text-red-700',         icon: '📋' },
-  VILLAGE_CHANGE: { label: '整户迁移',   color: 'bg-cyan-100 text-cyan-700',       icon: '🏠' },
-  MANUAL_CONFIRM: { label: '人工确认',   color: 'bg-blue-100 text-blue-700',       icon: '✅' },
-  REMARK:         { label: '备注说明',   color: 'bg-slate-100 text-slate-500',     icon: '💬' },
-}
-
-const GENDER = (g: number) => g === 1 ? '男' : '女'
-const calcAge = (birth?: string | null) => {
-  if (!birth) return null
-  const b = new Date(birth)
-  const now = new Date()
-  return now.getFullYear() - b.getFullYear() - (now < new Date(now.getFullYear(), b.getMonth(), b.getDate()) ? 1 : 0)
-}
-
-const FARMER_TEMPLATE_HEADERS = ['姓名*', '身份证号*', '所在村*', '所在组*', '手机号', '银行卡号', '开户行', '地址', '承包土地面积', '状态']
-const FARMER_TEMPLATE_EXAMPLE = [
-  { '姓名*': '张国强', '身份证号*': '510123196503154231', '所在村*': '红星村', '所在组*': '一组', '手机号': '13812340001', '银行卡号': '6222021234560001', '开户行': '农业银行红星支行', '地址': '红星村一组12号', '承包土地面积': 3.5, '状态': '在册' },
-]
-
-const FARMER_SYSTEM_FIELDS = [
-  { field: 'real_name',     label: '姓名',     required: true,  type: 'string' },
-  { field: 'id_card',       label: '身份证号', required: true,  type: 'id_card' },
-  { field: 'village_name',  label: '所在村',   required: true,  type: 'string' },
-  { field: 'group_no',      label: '所在组',   required: true,  type: 'string' },
-  { field: 'phone',         label: '手机号',   required: false, type: 'phone' },
-  { field: 'bank_card',     label: '银行卡号', required: false, type: 'string' },
-  { field: 'bank_name',     label: '开户行',   required: false, type: 'string' },
-  { field: 'address',       label: '地址',     required: false, type: 'string' },
-  { field: 'land_area',     label: '承包土地面积', required: false, type: 'decimal' },
-  { field: 'farmer_status', label: '状态',     required: false, type: 'status' },
-]
+// Components
+import FarmerList from './FarmerList'
+import HouseholdList from './HouseholdList'
+import { FarmerDetail as FarmerDetailCard, FarmerHouseholdDetail, HistorySidebar } from './FarmerDetail'
+import { HouseholdDetailContent } from './HouseholdDetail'
+import {
+  CreateHhForm,
+  CreateFarmerForm,
+  MergeConfirmForm,
+  MemberForm,
+  SplitWizardForm,
+  EventForm,
+  ConfirmForm,
+  DeleteConfirmForm,
+  ConfirmedAreaImport,
+  FarmerImport,
+  MemberImport,
+  EditHouseholdForm,
+} from './FarmerForms'
 
 type LeftTab = 'farmers' | 'households'
 
@@ -209,7 +138,6 @@ export default function FarmersPage() {
       setMergeSelected(prev => prev.filter(id => id !== h.id))
       setMergeSelectedHouseholds(prev => prev.filter(hh => hh.id !== h.id))
     } else {
-      // 添加前去重，防止重复添加
       setMergeSelected(prev => [...prev, h.id])
       setMergeSelectedHouseholds(prev => {
         if (prev.some(hh => hh.id === h.id)) return prev
@@ -230,7 +158,6 @@ export default function FarmersPage() {
       setBatchSelected(prev => prev.filter(id => id !== h.id))
       setBatchSelectedHouseholds(prev => prev.filter(hh => hh.id !== h.id))
     } else {
-      // 添加前去重，防止重复添加
       setBatchSelected(prev => [...prev, h.id])
       setBatchSelectedHouseholds(prev => {
         if (prev.some(hh => hh.id === h.id)) return prev
@@ -639,7 +566,6 @@ export default function FarmersPage() {
   }
 
   // ── 合并家庭户（内嵌模式） ──
-  // 点击"确认合并"→弹出确认框，预填土地面积（取目标户已有值）
   const handleMergeConfirm = () => {
     if (mergeSelectedHouseholds.length < 2) return show('请至少选择 2 个家庭户', 'err')
     const target = mergeSelectedHouseholds[0]
@@ -774,7 +700,6 @@ export default function FarmersPage() {
   }
 
   // ── 成员批量导入 ──
-  // Excel列名 -> API字段名 映射
   const MEMBER_IMPORT_ALIAS: Record<string, string> = {
     '身份证号*': 'id_card', '身份证号': 'id_card',
     '姓名*': 'real_name', '姓名': 'real_name',
@@ -903,7 +828,7 @@ export default function FarmersPage() {
       }))
       return { columns: cols, recommended_templates: raw.recommended_templates || [] }
     } catch {
-      return { columns: columns.map(c => ({ excel_column: c, suggested_field: null, confidence: 0, alternatives: [] as Array<{ field: string; confidence: number }> })) }
+      return { columns: columns.map(c => ({ excel_column: c, suggested_field: null, confidence: 0, alternatives: [] as Array<{ field: string; confidence: number }> })), recommended_templates: [] as Array<{ field: string; confidence: number }> }
     }
   }
 
@@ -928,7 +853,7 @@ export default function FarmersPage() {
       const rows = res.items.map(f => ({
         '姓名': f.real_name,
         '身份证号': f.id_card_masked,
-        '性别': GENDER(f.gender),
+        '性别': f.gender === 1 ? '男' : '女',
         '所在村组': f.village_full_name,
         '手机号': f.phone_masked || '',
         '状态': FARMER_STATUS[f.farmer_status]?.label ?? '未知',
@@ -972,512 +897,6 @@ export default function FarmersPage() {
       if (next.has(yr)) next.delete(yr); else next.add(yr)
       return next
     })
-  }
-
-  // ── 共享弹窗（新建家庭户 / 导入农户）──
-  const renderHouseholdModals = () => (
-    <>
-      <Modal open={createHhOpen} title="新建家庭户" onClose={() => setCreateHhOpen(false)} onConfirm={submitCreateHh}>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            <label className="block text-xs text-stone-400 mb-1">户名 *</label>
-            <input value={createHhForm.household_name} onChange={e => setCreateHhForm(f => ({ ...f, household_name: e.target.value }))} placeholder="如：张三户"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
-          </div>
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">所在村组 *</label>
-            <select value={createHhForm.village_group_id || ''} onChange={e => setCreateHhForm(f => ({ ...f, village_group_id: Number(e.target.value) }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
-              <option value="">请选择</option>
-              {groups.map(g => <option key={g.id} value={g.id}>{g.full_name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">承包土地面积（亩）</label>
-            <input type="number" step="0.01" value={createHhForm.contract_area} onChange={e => setCreateHhForm(f => ({ ...f, contract_area: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
-          </div>
-          <div className="col-span-2">
-            <label className="block text-xs text-stone-400 mb-1">地址</label>
-            <input value={createHhForm.address} onChange={e => setCreateHhForm(f => ({ ...f, address: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
-          </div>
-          <div className="col-span-2">
-            <label className="block text-xs text-stone-400 mb-1">备注</label>
-            <textarea rows={2} value={createHhForm.remark} onChange={e => setCreateHhForm(f => ({ ...f, remark: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none" />
-          </div>
-        </div>
-      </Modal>
-
-      <ExcelImportWithMapping open={importOpen} onClose={() => setImportOpen(false)} title="农户信息导入"
-        templateHeaders={FARMER_TEMPLATE_HEADERS} templateExample={FARMER_TEMPLATE_EXAMPLE}
-        systemFields={FARMER_SYSTEM_FIELDS}
-        templates={templates.map(t => ({
-          id: t.id,
-          template_name: t.template_name,
-          column_mapping: t.column_mapping.map(m => ({
-            excel_column: m.excel_column,
-            system_field: m.system_field,
-            required: m.required,
-          })),
-        }))}
-        onDetectColumns={detectExcelColumns} onSaveTemplate={saveColumnMappingTemplate}
-        onImport={handleImport} onSuccess={() => leftTab === 'farmers' ? loadFarmers() : loadHouseholds()} />
-
-      {/* 新建农户 */}
-      <Modal open={createFarmerOpen} title="新建农户" onClose={() => setCreateFarmerOpen(false)} onConfirm={submitCreateFarmer}>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            <label className="block text-xs text-stone-400 mb-1">姓名 *</label>
-            <input value={createFarmerForm.real_name} onChange={e => setCreateFarmerForm(f => ({ ...f, real_name: e.target.value }))}
-              placeholder="请输入姓名"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
-          </div>
-          <div className="col-span-2">
-            <label className="block text-xs text-stone-400 mb-1">身份证号 *</label>
-            <input value={createFarmerForm.id_card} onChange={e => setCreateFarmerForm(f => ({ ...f, id_card: e.target.value }))}
-              placeholder="18位身份证号"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
-          </div>
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">性别</label>
-            <select value={createFarmerForm.gender} onChange={e => setCreateFarmerForm(f => ({ ...f, gender: Number(e.target.value) as 1|2 }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
-              <option value={1}>男</option>
-              <option value={2}>女</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">手机号</label>
-            <input value={createFarmerForm.phone} onChange={e => setCreateFarmerForm(f => ({ ...f, phone: e.target.value }))}
-              placeholder="可选"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
-          </div>
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">所在村 *</label>
-            <select value={createFarmerForm.village_name} onChange={e => setCreateFarmerForm(f => ({ ...f, village_name: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
-              <option value="">请选择</option>
-              {villages.map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">所在组 *</label>
-            <select value={createFarmerForm.group_no} onChange={e => setCreateFarmerForm(f => ({ ...f, group_no: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
-              <option value="">请选择</option>
-              {['一组','二组','三组','四组','五组','六组','七组','八组','九组','十组'].map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
-          </div>
-          <div className="col-span-2">
-            <label className="block text-xs text-stone-400 mb-1">承包土地面积（亩）</label>
-            <input type="number" step="0.01" value={createFarmerForm.contract_area} onChange={e => setCreateFarmerForm(f => ({ ...f, contract_area: e.target.value }))}
-              placeholder="可选"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
-          </div>
-          <div className="col-span-2">
-            <label className="block text-xs text-stone-400 mb-1">备注</label>
-            <textarea rows={2} value={createFarmerForm.remark} onChange={e => setCreateFarmerForm(f => ({ ...f, remark: e.target.value }))}
-              placeholder="可选"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none" />
-          </div>
-        </div>
-      </Modal>
-
-      {/* 合并家庭户确认 */}
-      <Modal open={mergeConfirmOpen} title="合并家庭户" onClose={() => { setMergeConfirmOpen(false); setMergeMode(false); clearMergeSelection() }}
-        onConfirm={confirmMerge} confirmText="确认合并">
-        <div className="space-y-4">
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <p className="text-sm text-amber-700 mb-2">确认将以下 <strong>{mergeSelectedHouseholds.length}</strong> 个家庭户合并：</p>
-            <div className="space-y-1">
-              {mergeSelectedHouseholds.map((h, i) => (
-                <div key={h.id} className={`flex items-center gap-2 text-sm ${i === 0 ? 'text-emerald-700 font-medium' : 'text-stone-600'}`}>
-                  {i === 0
-                    ? <span className="text-xs bg-emerald-600 text-white px-1.5 py-0.5 rounded">目标户</span>
-                    : <span className="text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">被合并</span>}
-                  <span>{h.household_name}</span>
-                  <span className="text-xs text-stone-400">({h.head_name || '无户主'} · {h.member_count ?? '?'}人 · {h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'})</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs text-stone-400 mb-1">备注</label>
-            <textarea rows={2} value={mergeConfirmForm.remark} onChange={e => setMergeConfirmForm(f => ({ ...f, remark: e.target.value }))}
-              placeholder="可选"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none" />
-          </div>
-        </div>
-      </Modal>
-    </>
-  )
-
-  // ── 农户详情卡片（上半部分）──
-  const renderFarmerDetail = () => {
-    if (!selectedFarmer) return null
-    const fd = selectedFarmer
-    const apps = fd.applications || []
-    const totalAmt = apps.reduce((s, a) => s + Number(a.actual_amount || 0), 0)
-    const age = calcAge(fd.birth_date)
-
-    return (
-      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-md mb-4">
-        <div className="bg-gradient-to-r from-emerald-700 to-emerald-600 px-6 py-5 flex items-center gap-5">
-          <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold text-white shrink-0">
-            {fd.real_name.slice(-1)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 mb-1 flex-wrap">
-              <span className="text-xl font-bold text-white">{fd.real_name}</span>
-              <span className="text-emerald-200 text-sm">{GENDER(fd.gender)}</span>
-              {age && <span className="text-emerald-200 text-sm">{age} 岁</span>}
-              <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded">{FARMER_STATUS[fd.farmer_status]?.label ?? '未知'}</span>
-              {fd.is_head ? <span className="text-xs bg-purple-500/80 text-white px-2 py-0.5 rounded">户主</span> : <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded">{fd.relation || '成员'}</span>}
-            </div>
-            <div className="text-emerald-200 text-sm">📍 {fd.village_full_name}</div>
-          </div>
-          <div className="text-right shrink-0">
-            <div className="text-2xl font-bold font-mono text-white">¥{totalAmt.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
-            <div className="text-emerald-200 text-xs mt-0.5">累计获得补贴</div>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-0 divide-x divide-stone-100">
-          <div className="p-5">
-            <h3 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">个人信息</h3>
-            <div className="space-y-3">
-              {[
-                ['姓名', fd.real_name],
-                ['性别', GENDER(fd.gender)],
-                ['年龄', age ? `${age} 岁` : '—'],
-                ['身份证号', <span key="id" className="font-mono text-amber-600 text-xs select-all">{fd.id_card || fd.id_card_masked}</span>],
-                ['手机号', <span key="ph" className="font-mono text-xs">{fd.phone || fd.phone_masked || '—'}</span>],
-                ['所在村组', fd.village_full_name],
-              ].map(([k, v], i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="text-xs text-stone-400 w-20 shrink-0">{k}</span>
-                  <span className="text-sm text-stone-700">{v as React.ReactNode}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="p-5">
-            <h3 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">银行 & 其他</h3>
-            <div className="space-y-3">
-              {[
-                ['银行卡号', <span key="bc" className="font-mono text-xs text-amber-600 select-all">{fd.bank_card || fd.bank_card_masked || '—'}</span>],
-                ['开户行', fd.bank_name || '—'],
-                ['农户状态', <Tag key="st" label={FARMER_STATUS[fd.farmer_status]?.label ?? '未知'} color={FARMER_STATUS[fd.farmer_status]?.color as 'green'} />],
-                ['备注', fd.remark || '—'],
-                ['录入时间', fd.created_at ? fd.created_at.slice(0, 10) : '—'],
-              ].map(([k, v], i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="text-xs text-stone-400 w-20 shrink-0">{k}</span>
-                  <span className="text-sm text-stone-700">{v as React.ReactNode}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        {/* 补贴记录 */}
-        {apps.length > 0 && (
-          <div className="border-t border-stone-200">
-            <div className="px-5 py-3 bg-stone-50 border-b border-stone-100">
-              <span className="text-sm font-medium text-stone-700">补贴记录 ({apps.length})</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead><tr className="bg-stone-50 border-b border-stone-200">
-                  {['年度', '补贴项目', '面积', '申请金额', '实发金额', '状态'].map(h => (
-                    <th key={h} className="px-4 py-2 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>
-                  ))}
-                </tr></thead>
-                <tbody>
-                  {apps.map(a => (
-                    <tr key={a.id} className="border-b border-stone-50 hover:bg-stone-50 transition-colors">
-                      <td className="px-4 py-2 text-sm font-bold text-emerald-600">{a.apply_year}</td>
-                      <td className="px-4 py-2 text-sm">{a.subsidy_name}</td>
-                      <td className="px-4 py-2 text-sm font-mono">{a.apply_area ? `${a.apply_area}亩` : '—'}</td>
-                      <td className="px-4 py-2 text-sm font-mono text-stone-500">{fmt(a.apply_amount)}</td>
-                      <td className="px-4 py-2 text-sm font-mono font-bold" style={{ color: a.actual_amount ? '#059669' : '#d97706' }}>
-                        {a.actual_amount ? fmt(a.actual_amount) : '待发放'}
-                      </td>
-                      <td className="px-4 py-2"><Tag label={PAY_STATUS[a.pay_status]?.label} color={PAY_STATUS[a.pay_status]?.color as 'green'} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="px-4 py-2 bg-emerald-50 border-t border-emerald-100 flex justify-end gap-6 text-sm">
-              <span className="text-stone-500">合计 {apps.length} 笔</span>
-              <span className="font-bold font-mono text-emerald-700">¥{totalAmt.toFixed(2)}</span>
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // ── 家庭户详情卡片（下半部分，从属于农户）──
-  const renderFarmerHouseholdDetail = () => {
-    if (!selectedFarmerHousehold) return null
-
-    const hh = selectedFarmerHousehold
-    const appsByYear: Record<number, typeof hh.app_summary> = {}
-    hh.app_summary.forEach(a => {
-      if (!appsByYear[a.apply_year]) appsByYear[a.apply_year] = []
-      appsByYear[a.apply_year].push(a)
-    })
-    const displayMembers = historyEventId !== null && snapshotData?.snapshot ? snapshotData.snapshot.members : hh.members
-    const defaultAreaUsage = {
-      contracted_area: hh.contracted_area || 0,
-      trust_out_area: 0,
-      trust_in_area: 0,
-      cultivable_area: hh.contracted_area || 0,
-      used_area: 0,
-      remaining_area: hh.contracted_area || 0,
-      is_overdrawn: false,
-      overdraw_amount: 0,
-      has_trust_data: false,
-      subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[],
-      season_breakdown: {} as Record<string, any>,
-      year_totals: {} as Record<string, Record<string, number>>
-    }
-    const areaUsage = historyEventId !== null && snapshotData?.snapshot
-      ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_breakdown: {} as Record<string, any>, year_totals: {} as Record<string, Record<string, number>> }
-      : (hh.area_usage || defaultAreaUsage)
-
-    return (
-      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-md">
-        {/* 历史模式提示 */}
-        {historyEventId !== null && (
-          <div className="bg-amber-50 border border-amber-200 px-4 py-2.5 flex items-center gap-3 shrink-0">
-            <span className="text-amber-600 text-sm">⏳</span>
-            <span className="text-sm text-amber-700 font-medium">正在查看 <b>{getHistoryDateByEventId(historyEventId)}</b> 历史快照</span>
-            {historyLoading && <span className="text-xs text-amber-500">加载中…</span>}
-            <button onClick={exitHistory} className="ml-auto text-xs text-amber-600 hover:text-amber-800 underline">返回当前</button>
-          </div>
-        )}
-
-        {/* 顶部卡片 */}
-        <div className="bg-gradient-to-r from-emerald-800 to-emerald-700 px-5 py-3.5 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-lg font-bold text-white shrink-0">🏠</div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-              <span className="text-base font-bold text-white">{hh.household_name}</span>
-              <span className="text-emerald-300 text-xs font-mono">{hh.household_code}</span>
-              {areaUsage?.is_overdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">⚠️ 超领</span>}
-              {historyEventId !== null && <span className="text-xs bg-amber-500/80 text-white px-1.5 py-0.5 rounded">⏳ 快照</span>}
-            </div>
-            <div className="text-emerald-200 text-xs">📍 {hh.village_full_name}
-              {hh.address && <span className="ml-1 text-emerald-300">{hh.address}</span>}
-            </div>
-          </div>
-          <div className="text-right shrink-0 mr-2">
-            <div className="text-lg font-bold font-mono text-white">
-              {historyEventId !== null && snapshotData?.snapshot
-                ? (snapshotData.snapshot.contract_area > 0 ? `${snapshotData.snapshot.contract_area}亩` : '未设置')
-                : (hh.contracted_area > 0 ? `${hh.contracted_area}亩` : '未设置')}
-            </div>
-            <div className="text-emerald-300 text-xs">承包面积</div>
-          </div>
-        </div>
-
-        {/* 快照备注信息 */}
-        {historyEventId !== null && (() => {
-          const currentEvent = historyDates.find(e => e.event_id === historyEventId)
-          if (currentEvent?.description) {
-            const cfg = EVENT_TYPE_CFG[currentEvent.event_type] || EVENT_TYPE_CFG.REMARK
-            return (
-              <div className="bg-stone-50 border-b border-stone-200 px-5 py-3">
-                <div className="flex items-start gap-2">
-                  <span className="text-lg shrink-0">{cfg.icon}</span>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${cfg.color}`}>{cfg.label}</span>
-                      <span className="text-xs text-stone-500">{currentEvent.date || `${currentEvent.event_year}年`}</span>
-                    </div>
-                    <p className="text-sm text-stone-700">{currentEvent.description}</p>
-                  </div>
-                </div>
-              </div>
-            )
-          }
-          return null
-        })()}
-
-        {/* Tab 栏 */}
-        <div className="flex border-b border-stone-200 bg-stone-50 items-center">
-          {([
-            { id: 'members', label: `👥 成员 (${displayMembers.length})` },
-            { id: 'subsidy', label: `💰 补贴记录 (${hh.app_summary.length})` },
-          ] as { id: typeof detailTab; label: string }[]).map(t => (
-            <button key={t.id} onClick={() => setDetailTab(t.id)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
-                ${detailTab === t.id ? 'border-emerald-600 text-emerald-700 bg-white' : 'border-transparent text-stone-500 hover:text-stone-700'}`}>
-              {t.label}
-            </button>
-          ))}
-          {historyEventId === null && (
-            <div className="ml-auto px-2 flex gap-1.5">
-              {detailTab === 'members' && (
-                <>
-                  <button onClick={() => setMemberImportOpen(true)} className="text-xs border border-emerald-200 text-emerald-700 px-2.5 py-1 rounded-lg hover:bg-emerald-50 transition-colors">↑ 批量导入</button>
-                  <button onClick={() => { setMemberEditTarget(null); const v = groups.find(g => g.village_id === detail?.village_id); const g = groups.find(g => g.village_id === detail?.village_id && g.group_no === detail?.group_no); setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` }); setMemberAddOpen(true) }}
-                    className="text-xs bg-emerald-700 text-white px-2.5 py-1 rounded-lg hover:bg-emerald-600 transition-colors">＋ 成员</button>
-                  <button onClick={() => setEventOpen(true)} className="text-xs border border-stone-200 text-stone-600 px-2.5 py-1 rounded-lg hover:bg-stone-50 transition-colors">＋ 补录</button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Tab 内容 */}
-        <div className="max-h-80 overflow-y-auto">
-          {/* 成员 */}
-          {detailTab === 'members' && (
-            <div className="p-4 grid gap-2">
-              {displayMembers.length === 0 && <div className="text-center py-8 text-stone-300 text-sm">暂无成员记录</div>}
-              {displayMembers.map(m => (
-                <div key={m.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 border transition-colors
-                  ${m.is_head ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-stone-200 hover:border-stone-300 hover:bg-stone-50'}
-                  ${m.farmer_status !== 1 ? 'opacity-60' : ''}`}>
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0
-                    ${m.is_head ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-500'}`}>
-                    {m.real_name.slice(-1)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm text-stone-800">{m.real_name}</span>
-                      {m.is_head === 1 && <Tag label="户主" color="green" />}
-                      {m.relation && <Tag label={m.relation} color="gray" />}
-                      {m.farmer_status !== 1 && <Tag label={FARMER_STATUS[m.farmer_status]?.label ?? '异常'} color="red" />}
-                    </div>
-                    <div className="text-xs text-stone-400 mt-0.5">
-                      {m.gender === 1 ? '男' : '女'}
-                      {m.phone_masked && <span className="ml-2">{m.phone_masked}</span>}
-                      <span className="ml-2 font-mono">{m.id_card_masked}</span>
-                    </div>
-                  </div>
-                  {historyEventId === null && (
-                    <div className="flex gap-1.5 shrink-0">
-                      {selectedFarmer?.id !== m.id && (
-                        <button onClick={() => openFarmer(m.id)} className="text-xs text-emerald-700 border border-emerald-200 px-2 py-1 rounded-lg hover:bg-emerald-50 transition-colors">查看</button>
-                      )}
-                      <button onClick={() => openMemberEdit(m)} className="text-xs border border-stone-200 text-stone-500 px-2 py-1 rounded-lg hover:border-stone-300 transition-colors">编辑</button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* 补贴记录 */}
-          {detailTab === 'subsidy' && (
-            <div>
-              {Object.keys(appsByYear).length === 0 && <div className="py-10 text-center text-stone-300 text-sm">暂无补贴记录</div>}
-              {Object.entries(appsByYear).sort((a, b) => Number(b[0]) - Number(a[0])).map(([yr, apps]) => (
-                <div key={yr}>
-                  <div className="px-5 py-2 bg-stone-50 border-b border-stone-100 text-xs font-bold text-stone-500">
-                    {yr}年度 · {apps.length}条 · 合计 ¥{apps.reduce((s, a) => s + (a.actual_amount || 0), 0).toFixed(2)}
-                  </div>
-                  {apps.map((a, i) => (
-                    <div key={i} className="flex items-center gap-3 px-5 py-2.5 border-b border-stone-50 hover:bg-stone-50 transition-colors">
-                      <span className="text-sm text-stone-500 w-16 shrink-0">{a.farmer_name}</span>
-                      <span className="text-sm flex-1">{a.subsidy_name}</span>
-                      {a.apply_area && <span className="text-xs text-stone-400 font-mono">{a.apply_area}亩</span>}
-                      <span className="text-sm font-mono font-bold text-emerald-700">{a.actual_amount ? fmt(a.actual_amount) : '—'}</span>
-                      <Tag label={PAY_STATUS[a.pay_status]?.label || '—'} color={PAY_STATUS[a.pay_status]?.color as 'green'} />
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
-
-        </div>
-      </div>
-    )
-  }
-
-  // ── 历史记录侧边栏 ──
-  const renderHistorySidebar = (householdId?: number) => {
-    const hhId = householdId ?? detail?.id ?? selectedFarmerHousehold?.id
-    return (
-      <div className="w-48 shrink-0">
-        <div className="bg-white border border-stone-200 rounded-xl shadow-md">
-          <div className="px-3 py-2 border-b border-stone-100 bg-stone-50">
-            <div className="text-xs font-semibold text-stone-600">历史记录</div>
-          </div>
-          <div className="py-2 px-2 space-y-1 max-h-[50vh] overflow-y-auto">
-            <button onClick={exitHistory}
-              className={`w-full py-2.5 rounded-lg text-xs font-medium transition-all text-left px-3
-                ${historyEventId === null ? 'bg-emerald-600 text-white shadow-sm' : 'text-stone-500 hover:bg-stone-100'}`}>
-              当前
-            </button>
-            {(() => {
-              const regularEvents = historyDates.filter(ev => ev.event_type !== 'ORIGINAL')
-              const originalEntry = historyDates.find(ev => ev.event_type === 'ORIGINAL')
-              const byYear: Record<number, HistoryDateEvent[]> = {}
-              regularEvents.forEach(ev => {
-                if (!byYear[ev.event_year]) byYear[ev.event_year] = []
-                byYear[ev.event_year].push(ev)
-              })
-              return (
-                <>
-                  {Object.entries(byYear).sort((a, b) => Number(b[0]) - Number(a[0])).map(([yrStr, evts]) => {
-                    const yr = Number(yrStr)
-                    const expanded = expandedYears.has(yr)
-                    return (
-                      <div key={yr}>
-                        <button onClick={() => toggleYear(yr)}
-                          className="w-full py-2 px-3 rounded-lg text-xs font-medium text-stone-600 hover:bg-stone-100 flex items-center gap-1.5 transition-colors">
-                          <span className={`inline-block transition-transform ${expanded ? 'rotate-90' : ''}`}>▸</span>
-                          {yr}年
-                          <span className="ml-auto text-[11px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">{evts.length}</span>
-                        </button>
-                        {expanded && (
-                          <div className="ml-4 space-y-1 border-l-2 border-stone-100 pl-2 mt-1">
-                            {evts.map(ev => {
-                              const cfg = EVENT_TYPE_CFG[ev.event_type] || EVENT_TYPE_CFG.REMARK
-                              return (
-                                <button key={ev.event_id} onClick={() => loadSnapshotAt(ev.date, hhId, ev.event_id)}
-                                  className={`w-full text-left px-2.5 py-2 rounded-lg text-xs transition-all
-                                    ${historyEventId === ev.event_id ? 'bg-amber-100 text-amber-800 font-medium shadow-sm' : 'text-stone-500 hover:bg-amber-50 hover:text-amber-800'}`}>
-                                  <div className="flex items-center gap-1.5">
-                                    <span>{cfg.icon}</span>
-                                    <span>{ev.date?.slice(5) || ev.event_year}</span>
-                                  </div>
-                                </button>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                  {originalEntry && (
-                    <>
-                      <div className="my-2 mx-2 border-t border-dashed border-stone-200" />
-                      <button onClick={() => loadSnapshotAt(originalEntry.date, hhId, originalEntry.event_id)}
-                        className={`w-full text-left px-3 py-2.5 rounded-lg text-xs transition-all
-                          ${historyEventId === originalEntry.event_id ? 'bg-blue-100 text-blue-800 font-medium shadow-sm' : 'text-stone-500 hover:bg-blue-50 hover:text-blue-800'}`}>
-                        <span className="mr-1.5">{EVENT_TYPE_CFG.ORIGINAL.icon}</span>
-                        初始状态
-                      </button>
-                    </>
-                  )}
-                </>
-              )
-            })()}
-            {historyDates.length === 0 && (
-              <div className="text-center py-5 text-xs text-stone-300">暂无变更记录</div>
-            )}
-          </div>
-        </div>
-      </div>
-    )
   }
 
   // ═══════════════════════════════════════════════
@@ -1531,7 +950,7 @@ export default function FarmersPage() {
 
         {/* 工具栏 - 操作按钮 */}
         <div className="flex gap-2 mb-3 flex-wrap">
-                    {leftTab === 'households' && !mergeMode && (
+          {leftTab === 'households' && !mergeMode && (
             <>
               <div className="flex gap-2 flex-wrap">
                 <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
@@ -1578,202 +997,90 @@ export default function FarmersPage() {
             </span>
           </div>
         )}
-          {leftTab === 'households' && mergeMode && (
-            <div className="flex items-center gap-2 w-full">
-              <button onClick={() => { setMergeMode(false); clearMergeSelection() }}
-                className="px-3 py-2 text-sm border border-stone-300 text-stone-500 rounded-lg hover:bg-stone-50 transition-all">
-                取消合并
+        {leftTab === 'households' && mergeMode && (
+          <div className="flex items-center gap-2 w-full">
+            <button onClick={() => { setMergeMode(false); clearMergeSelection() }}
+              className="px-3 py-2 text-sm border border-stone-300 text-stone-500 rounded-lg hover:bg-stone-50 transition-all">
+              取消合并
+            </button>
+            <span className="text-sm text-amber-700 font-medium">
+              已选 {mergeSelectedHouseholds.length} 户
+              {mergeSelectedHouseholds.length >= 2 && <span className="text-xs text-stone-400 ml-1">（第1个为目标户）</span>}
+            </span>
+            <button onClick={handleMergeConfirm}
+              disabled={mergeSelectedHouseholds.length < 2}
+              className="ml-auto px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium">
+              确认合并
+            </button>
+          </div>
+        )}
+        {/* 批量确认模式 */}
+        {leftTab === 'households' && batchConfirmMode && (
+          <div className="flex items-center gap-2 w-full">
+            <button onClick={() => { setBatchConfirmMode(false); clearBatchSelection() }}
+              className="px-3 py-2 text-sm border border-stone-300 text-stone-500 rounded-lg hover:bg-stone-50 transition-all">
+              取消批量确认
+            </button>
+            <span className="text-sm text-blue-700 font-medium">
+              已选 {batchSelectedHouseholds.length} 户
+              <span className="text-xs text-stone-400 ml-1">（仅确认未确认的家庭户）</span>
+            </span>
+            <button onClick={handleBatchConfirm}
+              disabled={batchSelected.length === 0 || batchConfirmLoading}
+              className="ml-auto px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2">
+              {batchConfirmLoading ? <><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>确认中...</> : '✓ 确认所选'}
+            </button>
+          </div>
+        )}
+        {leftTab === 'farmers' && (
+          <>
+            <button onClick={() => setCreateFarmerOpen(true)} className="px-4 py-2.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
+              <span className="mr-1">＋</span>新建农户
+            </button>
+            <div className="flex items-center gap-0 border border-stone-200 rounded-lg shadow-sm overflow-hidden">
+              <button onClick={() => setImportOpen(true)} className="px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 transition-all font-medium">
+                <span className="mr-1">↑</span>导入农户
               </button>
-              <span className="text-sm text-amber-700 font-medium">
-                已选 {mergeSelectedHouseholds.length} 户
-                {mergeSelectedHouseholds.length >= 2 && <span className="text-xs text-stone-400 ml-1">（第1个为目标户）</span>}
-              </span>
-              <button onClick={handleMergeConfirm}
-                disabled={mergeSelectedHouseholds.length < 2}
-                className="ml-auto px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium">
-                确认合并
-              </button>
+              <label className={`flex items-center gap-1.5 px-3 py-2.5 text-xs cursor-pointer border-l border-stone-200 transition-colors select-none ${importOverwrite ? 'bg-amber-50 text-amber-700' : 'text-stone-400 hover:bg-stone-50'}`}
+                title="开启后，重复身份证的记录将被 Excel 中的数据覆盖更新">
+                <input type="checkbox" checked={importOverwrite} onChange={e => setImportOverwrite(e.target.checked)} className="accent-amber-600 w-3 h-3" />
+                覆盖重复
+              </label>
             </div>
-          )}
-          {/* 批量确认模式 */}
-          {leftTab === 'households' && batchConfirmMode && (
-            <div className="flex items-center gap-2 w-full">
-              <button onClick={() => { setBatchConfirmMode(false); clearBatchSelection() }}
-                className="px-3 py-2 text-sm border border-stone-300 text-stone-500 rounded-lg hover:bg-stone-50 transition-all">
-                取消批量确认
-              </button>
-              <span className="text-sm text-blue-700 font-medium">
-                已选 {batchSelectedHouseholds.length} 户
-                <span className="text-xs text-stone-400 ml-1">（仅确认未确认的家庭户）</span>
-              </span>
-              <button onClick={handleBatchConfirm}
-                disabled={batchSelected.length === 0 || batchConfirmLoading}
-                className="ml-auto px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2">
-                {batchConfirmLoading ? <><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>确认中...</> : '✓ 确认所选'}
-              </button>
-            </div>
-          )}
-          {leftTab === 'farmers' && (
-            <>
-              <button onClick={() => setCreateFarmerOpen(true)} className="px-4 py-2.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
-                <span className="mr-1">＋</span>新建农户
-              </button>
-              <div className="flex items-center gap-0 border border-stone-200 rounded-lg shadow-sm overflow-hidden">
-                <button onClick={() => setImportOpen(true)} className="px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 transition-all font-medium">
-                  <span className="mr-1">↑</span>导入农户
-                </button>
-                <label className={`flex items-center gap-1.5 px-3 py-2.5 text-xs cursor-pointer border-l border-stone-200 transition-colors select-none ${importOverwrite ? 'bg-amber-50 text-amber-700' : 'text-stone-400 hover:bg-stone-50'}`}
-                  title="开启后，重复身份证的记录将被 Excel 中的数据覆盖更新">
-                  <input type="checkbox" checked={importOverwrite} onChange={e => setImportOverwrite(e.target.checked)} className="accent-amber-600 w-3 h-3" />
-                  覆盖重复
-                </label>
-              </div>
-              <button onClick={exportCurrentList} className="px-4 py-2.5 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
-                <span className="mr-1">⬇</span>导出
-              </button>
-            </>
-          )}
-        
+            <button onClick={exportCurrentList} className="px-4 py-2.5 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
+              <span className="mr-1">⬇</span>导出
+            </button>
+          </>
+        )}
+
         {/* 列表 */}
         <div className="flex-1 bg-white border border-stone-200 rounded-xl overflow-hidden shadow-md flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto">
             {/* 农户列表 */}
             {leftTab === 'farmers' && (
-              <>
-                {farmerLoading && <div className="text-center py-12 text-stone-300">加载中…</div>}
-                {!farmerLoading && farmerList.length === 0 && <div className="text-center py-12 text-stone-300 text-sm">暂无数据</div>}
-                {farmerList.map(f => (
-                  <div key={f.id}
-                    onClick={() => openFarmer(f.id)}
-                    className={`px-5 py-4 border-b border-stone-100 cursor-pointer transition-all hover:bg-stone-50
-                      ${selectedFarmer?.id === f.id ? 'bg-emerald-50 border-l-4 border-l-emerald-600 shadow-inner' : ''}`}>
-                    <div className="flex items-center gap-2.5 mb-1.5">
-                      <span className="font-semibold text-base text-stone-800">{f.real_name}</span>
-                      {f.is_head === 1 && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">户主</span>}
-                      <Tag label={FARMER_STATUS[f.farmer_status]?.label ?? '未知'} color={FARMER_STATUS[f.farmer_status]?.color as 'green'} />
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-stone-400">
-                      <span className="font-mono">{f.id_card_masked}</span>
-                      <span className="bg-stone-100 px-2 py-0.5 rounded">{GENDER(f.gender)}</span>
-                      <span className="ml-auto truncate max-w-[180px]">{f.village_full_name}</span>
-                    </div>
-                  </div>
-                ))}
-              </>
+              <FarmerList
+                farmers={farmerList}
+                loading={farmerLoading}
+                selectedId={selectedFarmer?.id ?? null}
+                onSelect={openFarmer}
+              />
             )}
 
             {/* 家庭户列表 */}
             {leftTab === 'households' && (
-              <>
-                {/* 合并模式：已选家庭户固定置顶显示 */}
-                {mergeMode && mergeSelectedHouseholds.length > 0 && (
-                  <div className="border-b-2 border-amber-200 bg-amber-50/80">
-                    <div className="px-4 py-1.5 text-xs text-amber-600 font-semibold border-b border-amber-100 flex items-center gap-1">
-                      <span>已选（搜索不影响）</span>
-                      <span className="bg-amber-200 text-amber-800 rounded-full px-1.5 py-0.5 ml-1">{mergeSelectedHouseholds.length}</span>
-                    </div>
-                    {mergeSelectedHouseholds.map((h, i) => (
-                      <div key={`pinned-${h.id}`} className="px-4 py-2.5 border-b border-amber-100 flex items-center gap-2.5 bg-amber-50">
-                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded shrink-0 ${i === 0 ? 'bg-emerald-600 text-white' : 'bg-amber-200 text-amber-800'}`}>
-                          {i === 0 ? '目标' : `被合并${i}`}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-sm text-stone-800 truncate">{h.household_name}</div>
-                          <div className="text-xs text-stone-400">{h.head_name} · {h.member_count ?? '?'}人 · {h.village_full_name}</div>
-                        </div>
-                        <button onClick={() => toggleMergeHousehold(h)}
-                          className="shrink-0 text-stone-400 hover:text-red-500 transition-colors text-lg leading-none px-1">×</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {hhLoading && <div className="text-center py-12 text-stone-300">加载中…</div>}
-                {!hhLoading && hhList.length === 0 && <div className="text-center py-12 text-stone-300 text-sm">暂无数据</div>}
-                {hhList.map(h => {
-                  const isSelected = mergeSelected.includes(h.id)
-                  const isBatchSelected = batchSelected.includes(h.id)
-                  if (mergeMode && isSelected) return null
-                  if (batchConfirmMode) {
-                    // 批量确认模式：显示复选框，已确认的显示为禁用状态
-                    return (
-                      <div key={h.id}
-                        className={`px-5 py-4 border-b border-stone-100 transition-all
-                          ${h.is_manually_confirmed === 1 ? 'bg-stone-50 opacity-60' : 'hover:bg-blue-50 cursor-pointer'}
-                          ${isBatchSelected && h.is_manually_confirmed !== 1 ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}`}>
-                        <div className="flex items-center gap-3">
-                          <input type="checkbox"
-                            checked={isBatchSelected}
-                            onChange={() => h.is_manually_confirmed !== 1 && toggleBatchConfirm(h)}
-                            disabled={h.is_manually_confirmed === 1}
-                            className="w-4 h-4 text-blue-600 rounded disabled:opacity-40" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2.5 mb-1.5">
-                              <span className="font-semibold text-base text-stone-800">{h.household_name}</span>
-                              <span className="text-xs font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{h.household_code}</span>
-                              {h.is_manually_confirmed === 1 && <span className="text-xs text-emerald-700 font-medium bg-emerald-100 px-2 py-0.5 rounded-full">✓已确认</span>}
-                              {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
-                            </div>
-                            <div className="flex items-center gap-4 text-xs text-stone-400">
-                              <span>{h.head_name ? `户主:${h.head_name}` : '无户主'}</span>
-                              <span className="bg-stone-100 px-2 py-0.5 rounded">{h.member_count}人</span>
-                              <span>{h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'}</span>
-                              <span className="ml-auto truncate max-w-[180px]">{h.village_full_name}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  }
-                  if (mergeMode) {
-                    return (
-                      <div key={h.id}
-                        onClick={() => toggleMergeHousehold(h)}
-                        className={`px-5 py-4 border-b border-stone-100 cursor-pointer transition-all
-                          ${isSelected ? 'border-l-4 border-l-amber-500 bg-amber-50' : 'hover:bg-stone-50'}
-                          ${h.is_overdrawn && !isSelected ? 'bg-red-50/40' : ''}`}>
-                        <div className="flex items-center gap-3">
-                          <input type="checkbox" checked={isSelected} onChange={() => toggleMergeHousehold(h)}
-                            className="w-4 h-4 text-amber-600 rounded" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2.5 mb-1.5">
-                              <span className="font-semibold text-base text-stone-800">{h.household_name}</span>
-                              <span className="text-xs font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{h.household_code}</span>
-                              {h.is_manually_confirmed === 1 && <span className="text-xs text-emerald-700 font-medium bg-emerald-100 px-2 py-0.5 rounded-full">✓已确认</span>}
-                              {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
-                            </div>
-                            <div className="flex items-center gap-4 text-xs text-stone-400">
-                              <span>{h.head_name ? `户主:${h.head_name}` : '无户主'}</span>
-                              <span className="bg-stone-100 px-2 py-0.5 rounded">{h.member_count}人</span>
-                              <span>{h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'}</span>
-                              <span className="ml-auto truncate max-w-[180px]">{h.village_full_name}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  }
-                  return (
-                    <div key={h.id}
-                      onClick={() => openDetail(h.id)}
-                      className={`px-5 py-4 border-b border-stone-100 cursor-pointer transition-all hover:bg-stone-50
-                        ${detail?.id === h.id ? 'bg-emerald-50 border-l-4 border-l-emerald-600 shadow-inner' : ''}
-                        ${h.is_overdrawn ? 'bg-red-50/40' : ''}`}>
-                      <div className="flex items-center gap-2.5 mb-1.5">
-                        <span className="font-semibold text-base text-stone-800">{h.household_name}</span>
-                        <span className="text-xs font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{h.household_code}</span>
-                        {h.is_manually_confirmed === 1 && <span className="text-xs text-emerald-700 font-medium bg-emerald-100 px-2 py-0.5 rounded-full">✓已确认</span>}
-                        {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-stone-400">
-                        <span>{h.head_name ? `户主:${h.head_name}` : '无户主'}</span>
-                        <span className="bg-stone-100 px-2 py-0.5 rounded">{h.member_count}人</span>
-                        <span>{h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'}</span>
-                        <span className="ml-auto truncate max-w-[180px]">{h.village_full_name}</span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </>
+              <HouseholdList
+                households={hhList}
+                loading={hhLoading}
+                selectedId={detail?.id ?? null}
+                mergeMode={mergeMode}
+                batchConfirmMode={batchConfirmMode}
+                mergeSelected={mergeSelected}
+                batchSelected={batchSelected}
+                mergeSelectedHouseholds={mergeSelectedHouseholds}
+                onSelect={openDetail}
+                onToggleMerge={toggleMergeHousehold}
+                onToggleBatch={toggleBatchConfirm}
+              />
             )}
           </div>
 
@@ -1803,12 +1110,46 @@ export default function FarmersPage() {
         {selectedFarmer ? (
           /* 选中农户：上半部分个人信息 + 下半部分家庭户信息 */
           <div className="flex-1 flex flex-col min-h-0">
-            {renderFarmerDetail()}
+            <FarmerDetailCard selectedFarmer={selectedFarmer} />
             {selectedFarmerHousehold && (
               <div className="flex gap-4 flex-1 min-h-0">
-                {renderHistorySidebar(selectedFarmerHousehold.id)}
+                <HistorySidebar
+                  householdId={selectedFarmerHousehold.id}
+                  historyEventId={historyEventId}
+                  historyDates={historyDates}
+                  expandedYears={expandedYears}
+                  onExitHistory={exitHistory}
+                  onToggleYear={toggleYear}
+                  onLoadSnapshotAt={loadSnapshotAt}
+                />
                 <div className="flex-1 min-h-0">
-                  {renderFarmerHouseholdDetail()}
+                  <FarmerHouseholdDetail
+                    selectedFarmerHousehold={selectedFarmerHousehold}
+                    historyEventId={historyEventId}
+                    snapshotData={snapshotData}
+                    historyDates={historyDates}
+                    historyLoading={historyLoading}
+                    detailTab={detailTab}
+                    setDetailTab={setDetailTab}
+                    onExitHistory={exitHistory}
+                    onLoadSnapshotAt={loadSnapshotAt}
+                    selectedFarmerId={selectedFarmer?.id ?? null}
+                    groups={groups}
+                    onOpenMemberEdit={openMemberEdit}
+                    onOpenFarmer={openFarmer}
+                    onOpenMemberAdd={() => {
+                      const v = groups.find(g => g.village_id === detail?.village_id)
+                      const g = groups.find(g => g.village_id === detail?.village_id && g.group_no === detail?.group_no)
+                      setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` })
+                      setMemberAddOpen(true)
+                    }}
+                    onOpenMemberImport={() => setMemberImportOpen(true)}
+                    onOpenEvent={() => setEventOpen(true)}
+                    getHistoryDateByEventId={getHistoryDateByEventId}
+                    memberForm={memberForm}
+                    setMemberForm={setMemberForm}
+                    memberEditTarget={memberEditTarget}
+                  />
                 </div>
               </div>
             )}
@@ -1824,7 +1165,15 @@ export default function FarmersPage() {
         ) : detail ? (
           /* 选中家庭户：显示家庭户详情 */
           <div className="flex gap-4 flex-1 min-h-0">
-            {renderHistorySidebar(detail.id)}
+            <HistorySidebar
+              householdId={detail.id}
+              historyEventId={historyEventId}
+              historyDates={historyDates}
+              expandedYears={expandedYears}
+              onExitHistory={exitHistory}
+              onToggleYear={toggleYear}
+              onLoadSnapshotAt={loadSnapshotAt}
+            />
             <div className="flex-1 min-h-0">
               <HouseholdDetailContent
                 detail={detail}
@@ -1839,7 +1188,12 @@ export default function FarmersPage() {
                 events={events}
                 historyDateIsNull={historyEventId === null}
                 onOpenMemberImport={() => setMemberImportOpen(true)}
-                onOpenMemberAdd={() => { setMemberEditTarget(null); const v = groups.find(g => g.village_id === detail?.village_id); const g = groups.find(g => g.village_id === detail?.village_id && g.group_no === detail?.group_no); setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` }); setMemberAddOpen(true) }}
+                onOpenMemberAdd={() => {
+                  const v = groups.find(g => g.village_id === detail?.village_id)
+                  const g = groups.find(g => g.village_id === detail?.village_id && g.group_no === detail?.group_no)
+                  setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` })
+                  setMemberAddOpen(true)
+                }}
                 onOpenEvent={() => setEventOpen(true)}
                 onOpenFarmer={openFarmer}
                 onOpenMemberEdit={openMemberEdit}
@@ -1869,1017 +1223,166 @@ export default function FarmersPage() {
 
       {/* ═══════ 弹窗 ═══════ */}
 
+      {/* 新建家庭户 */}
+      <CreateHhForm
+        open={createHhOpen}
+        groups={groups}
+        createHhForm={createHhForm}
+        setCreateHhForm={setCreateHhForm}
+        onSubmit={submitCreateHh}
+        onClose={() => setCreateHhOpen(false)}
+      />
+
+      {/* 新建农户 */}
+      <CreateFarmerForm
+        open={createFarmerOpen}
+        villages={villages}
+        createFarmerForm={createFarmerForm}
+        setCreateFarmerForm={setCreateFarmerForm}
+        onSubmit={submitCreateFarmer}
+        onClose={() => setCreateFarmerOpen(false)}
+      />
+
+      {/* 合并家庭户确认 */}
+      <MergeConfirmForm
+        open={mergeConfirmOpen}
+        mergeSelectedHouseholds={mergeSelectedHouseholds}
+        mergeConfirmForm={mergeConfirmForm}
+        setMergeConfirmForm={setMergeConfirmForm}
+        onSubmit={confirmMerge}
+        onClose={() => { setMergeConfirmOpen(false); setMergeMode(false); clearMergeSelection() }}
+        loading={mergeLoading}
+      />
+
       {/* 编辑家庭户 */}
-      <Modal open={editOpen} title="编辑家庭户信息" onClose={() => setEditOpen(false)} onConfirm={submitEdit}>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2"><label className="block text-xs text-stone-400 mb-1">户名</label>
-            <input value={editForm.household_name} onChange={e => setEditForm(f => ({ ...f, household_name: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
-          <div><label className="block text-xs text-stone-400 mb-1">所在村 *</label>
-            <select value={editForm.village_id || ''} onChange={e => setEditForm(f => ({ ...f, village_id: Number(e.target.value) }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
-              <option value="">请选择</option>
-              {[...new Map(groups.map(g => [g.village_id, g])).values()].map(g => (
-                <option key={g.village_id} value={g.village_id}>{g.village_name}</option>
-              ))}
-            </select>
-          </div>
-          <div><label className="block text-xs text-stone-400 mb-1">所在组</label>
-            <select value={editForm.group_no || 1} onChange={e => setEditForm(f => ({ ...f, group_no: Number(e.target.value) }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
-              <option value={1}>一组</option>
-              <option value={2}>二组</option>
-              <option value={3}>三组</option>
-              <option value={4}>四组</option>
-              <option value={5}>五组</option>
-              <option value={6}>六组</option>
-              <option value={7}>七组</option>
-              <option value={8}>八组</option>
-              <option value={9}>九组</option>
-            </select>
-          </div>
-          <div><label className="block text-xs text-stone-400 mb-1">承包土地面积（亩）</label>
-            <input type="number" step="0.01" value={editForm.contract_area} onChange={e => setEditForm(f => ({ ...f, contract_area: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
-          <div><label className="block text-xs text-stone-400 mb-1">地址</label>
-            <input value={editForm.address} onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
-          <div className="col-span-2"><label className="block text-xs text-stone-400 mb-1">备注</label>
-            <textarea rows={2} value={editForm.remark} onChange={e => setEditForm(f => ({ ...f, remark: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none" /></div>
-        </div>
-      </Modal>
+      <EditHouseholdForm
+        open={editOpen}
+        editForm={editForm}
+        groups={groups}
+        onSubmit={submitEdit}
+        onClose={() => setEditOpen(false)}
+        setEditForm={setEditForm}
+      />
 
       {/* 成员增改 */}
-      <Modal open={memberAddOpen} title={memberEditTarget ? `编辑成员 · ${memberEditTarget.real_name}` : '新增成员'}
-        onClose={() => { setMemberAddOpen(false); setMemberEditTarget(null) }} onConfirm={submitMember}>
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className="block text-xs text-stone-400 mb-1">姓名 *</label>
-            <input value={memberForm.real_name} onChange={e => setMemberForm(f => ({ ...f, real_name: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
-          {!memberEditTarget && (
-            <div><label className="block text-xs text-stone-400 mb-1">身份证号 *</label>
-              <input value={memberForm.id_card} onChange={e => setMemberForm(f => ({ ...f, id_card: e.target.value }))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 font-mono" /></div>
-          )}
-          <div><label className="block text-xs text-stone-400 mb-1">与户主关系</label>
-            <input value={memberForm.relation} onChange={e => setMemberForm(f => ({ ...f, relation: e.target.value }))} placeholder="如：本人、妻子、父亲"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
-          <div><label className="block text-xs text-stone-400 mb-1">状态</label>
-            <select value={memberForm.farmer_status} onChange={e => setMemberForm(f => ({ ...f, farmer_status: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
-              <option value="1">在册</option><option value="2">注销</option><option value="3">迁出</option><option value="4">死亡</option>
-            </select></div>
-          <div><label className="block text-xs text-stone-400 mb-1">个人所在村
-              <span className="ml-1 text-stone-300 font-normal">（出嫁/迁居等，与户不同时填）</span>
-            </label>
-            <div className="relative">
-              <input
-                list="member-village-list"
-                value={memberForm.village_name}
-                onChange={async e => {
-                  const vname = e.target.value.trim()
-                  const found = groups.find(g => g.village_name === vname)
-                  if (found) {
-                    setMemberForm(f => ({ ...f, village_name: vname, village_id: found.village_id, group_no: 1, group_name: '' }))
-                  } else if (vname) {
-                    setMemberForm(f => ({ ...f, village_name: vname, village_id: 0, group_no: 1, group_name: '' }))
-                  } else {
-                    setMemberForm(f => ({ ...f, village_name: '', village_id: 0 }))
-                  }
-                }}
-                placeholder="输入或选择村名"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"
-              />
-              <datalist id="member-village-list">
-                {[...new Map(groups.map(g => [g.village_id, g])).values()].map(g => (
-                  <option key={g.village_id} value={g.village_name} />
-                ))}
-              </datalist>
-            </div>
-            {memberForm.village_id === 0 && memberForm.village_name && (
-              <button type="button" onClick={async () => {
-                const vname = memberForm.village_name.trim()
-                if (!vname) return
-                try {
-                  const res = await api.createVillageGroup({ village_name: vname, group_no: 1 })
-                  const newGroup = { id: res.id, village_id: res.village_id, village_name: vname, group_no: 1, full_name: `${vname}村1组` }
-                  setGroups(g => [...g, newGroup])
-                  setMemberForm(f => ({ ...f, village_id: res.village_id, group_no: 1 }))
-                  show(`✓ 村庄「${vname}」已创建（默认第1组）`, 'ok')
-                } catch (e: any) { show(`创建失败：${e.message}`, 'err') }
-              }} className="mt-1 text-xs text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
-                <span>+ 创建新村庄「{memberForm.village_name}」</span>
-              </button>
-            )}</div>
-          <div><label className="block text-xs text-stone-400 mb-1">个人所在组</label>
-            <div className="relative">
-              <input
-                list="member-group-list"
-                value={memberForm.group_name}
-                onChange={e => {
-                  const villageGroups = groups.filter(g => g.village_id === memberForm.village_id)
-                  const found = villageGroups.find(g => g.full_name.replace(g.village_name, '').replace('村', '') === e.target.value)
-                  if (found) {
-                    setMemberForm(f => ({ ...f, group_name: e.target.value, group_no: found.group_no }))
-                  } else {
-                    const num = parseInt(e.target.value.replace(/[^0-9]/g, ''))
-                    if (num > 0) setMemberForm(f => ({ ...f, group_name: e.target.value, group_no: num }))
-                    else setMemberForm(f => ({ ...f, group_name: e.target.value }))
-                  }
-                }}
-                placeholder="输入或选择组名"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"
-              />
-              <datalist id="member-group-list">
-                {groups.filter(g => g.village_id === memberForm.village_id).map(g => (
-                  <option key={g.id} value={g.full_name.replace(g.village_name, '').replace('村', '')} />
-                ))}
-              </datalist>
-            </div>
-            {memberForm.village_id !== 0 && !groups.some(g => g.village_id === memberForm.village_id && g.full_name.replace(g.village_name, '').replace('村', '') === memberForm.group_name) && memberForm.group_name && (
-              <button type="button" onClick={async () => {
-                if (!memberForm.village_id || !memberForm.group_name) return
-                const v = groups.find(g => g.village_id === memberForm.village_id)
-                const gname = memberForm.group_name
-                const gno = parseInt(gname.replace(/[^0-9]/g, '')) || 1
-                try {
-                  const res = await api.createVillageGroup({ village_name: v?.village_name || memberForm.village_name, group_no: gno })
-                  const newGroup = { id: res.id, village_id: res.village_id, village_name: v?.village_name || memberForm.village_name, group_no: gno, full_name: `${v?.village_name || memberForm.village_name}村${gno}组` }
-                  setGroups(g => [...g, newGroup])
-                  setMemberForm(f => ({ ...f, group_no: gno }))
-                  show(`✓ 组「${gname}」已创建`, 'ok')
-                } catch (e: any) { show(`创建失败：${e.message}`, 'err') }
-              }} className="mt-1 text-xs text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
-                <span>+ 创建新组「{memberForm.group_name}」</span>
-              </button>
-            )}</div>
-          <div><label className="block text-xs text-stone-400 mb-1">变动时间（选填）</label>
-            <input type="date" value={memberForm.event_date} onChange={e => setMemberForm(f => ({ ...f, event_date: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
-          <div><label className="block text-xs text-stone-400 mb-1">手机号</label>
-            <input value={memberForm.phone} onChange={e => setMemberForm(f => ({ ...f, phone: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
-          <div><label className="block text-xs text-stone-400 mb-1">银行卡号</label>
-            <input value={memberForm.bank_card} onChange={e => setMemberForm(f => ({ ...f, bank_card: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 font-mono" /></div>
-          <div className="col-span-2 flex items-center gap-2 pt-1">
-            <input type="checkbox" id="is_head_chk" checked={memberForm.is_head} onChange={e => setMemberForm(f => ({ ...f, is_head: e.target.checked }))} />
-            <label htmlFor="is_head_chk" className="text-sm text-stone-600 cursor-pointer">设为本户户主</label>
-            {memberForm.is_head && <span className="text-xs text-amber-600">（原户主将降为普通成员）</span>}
-          </div>
-        </div>
-      </Modal>
+      <MemberForm
+        open={memberAddOpen}
+        memberEditTarget={memberEditTarget}
+        memberForm={memberForm}
+        setMemberForm={setMemberForm}
+        groups={groups}
+        onSubmit={submitMember}
+        onClose={() => { setMemberAddOpen(false); setMemberEditTarget(null) }}
+        showToast={show}
+        setGroups={setGroups}
+      />
 
       {/* 成员批量导入 */}
       {(detail || selectedFarmerHousehold) && (
-        <ExcelImport open={memberImportOpen} onClose={() => setMemberImportOpen(false)}
-          title={`成员导入 · ${(detail || selectedFarmerHousehold)?.household_name}`}
-          templateHeaders={['身份证号*', '姓名*', '是否户主', '与户主关系', '手机号', '银行卡号', '开户行', '状态']}
-          templateExample={[{ '身份证号*': '510123196503154231', '姓名*': '张国强', '是否户主': '1', '与户主关系': '本人', '手机号': '138xxxx0001', '银行卡号': '', '开户行': '', '状态': '在册' }]}
-          onImport={handleMemberImport} onSuccess={refreshDetail} />
+        <MemberImport
+          open={memberImportOpen}
+          householdName={(detail || selectedFarmerHousehold)?.household_name || ''}
+          onImport={handleMemberImport}
+          onSuccess={refreshDetail}
+          onClose={() => setMemberImportOpen(false)}
+        />
       )}
 
       {/* 分户向导 */}
       {(detail || selectedFarmerHousehold) && (
-        <Modal open={splitOpen} title="分户向导" onClose={() => setSplitOpen(false)}
-          onConfirm={splitStep === 3 ? submitSplit : () => {
-            if (splitStep === 1 && splitNewHead) {
-              const headName = (detail || selectedFarmerHousehold)?.members.find(m => m.id === splitNewHead)?.real_name || ''
-              setSplitForm(f => ({ ...f, household_name: headName + '户' }))
-            }
-            setSplitStep(s => (s + 1) as 1 | 2 | 3)
-          }}
-          confirmText={splitStep === 3 ? '确认分户' : `下一步 (${splitStep}/3)`} width={560}>
-          <div>
-            <div className="flex items-center gap-2 mb-5">
-              {['选择分出成员', '填写新户信息', '确认分户'].map((label, i) => (
-                <div key={i} className="flex items-center gap-1.5">
-                  {i > 0 && <div className={`w-8 h-px ${i < splitStep ? 'bg-emerald-400' : 'bg-stone-200'}`} />}
-                  <div className={`flex items-center gap-1.5 text-xs font-medium ${splitStep === i + 1 ? 'text-emerald-700' : i + 1 < splitStep ? 'text-stone-400' : 'text-stone-300'}`}>
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${splitStep === i + 1 ? 'bg-emerald-700 text-white' : i + 1 < splitStep ? 'bg-emerald-100 text-emerald-600' : 'bg-stone-100 text-stone-300'}`}>
-                      {i + 1 < splitStep ? '✓' : i + 1}
-                    </div>
-                    {label}
-                  </div>
-                </div>
-              ))}
-            </div>
-            {splitStep === 1 && (
-              <div>
-                <p className="text-xs text-stone-400 mb-3">勾选要从本户分出的成员（至少1人，户主不能被分出）</p>
-                <div className="space-y-2">
-                  {(detail || selectedFarmerHousehold)?.members.filter(m => m.is_head !== 1).map(m => (
-                    <label key={m.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all
-                      ${splitSelected.includes(m.id) ? 'bg-orange-50 border-orange-300' : 'bg-white border-stone-200 hover:border-stone-300 hover:bg-stone-50'}`}>
-                      <input type="checkbox" checked={splitSelected.includes(m.id)}
-                        onChange={e => setSplitSelected(prev => e.target.checked ? [...prev, m.id] : prev.filter(id => id !== m.id))} className="w-4 h-4" />
-                      <div className="flex-1">
-                        <span className="font-semibold text-sm">{m.real_name}</span>
-                        <span className="text-xs text-stone-400 ml-2">{m.relation}</span>
-                        {splitSelected.includes(m.id) && (
-                          <label className="ml-3 flex items-center gap-1 inline-flex cursor-pointer" onClick={e => e.stopPropagation()}>
-                            <input type="radio" name="new_head" value={m.id} checked={splitNewHead === m.id} onChange={() => setSplitNewHead(m.id)} className="w-4 h-4" />
-                            <span className="text-xs text-orange-700">设为新户户主</span>
-                          </label>
-                        )}
-                      </div>
-                    </label>
-                  ))}
-                  {(detail || selectedFarmerHousehold)?.members.filter(m => m.is_head === 1).map(m => (
-                    <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl border border-stone-100 bg-stone-50 opacity-50">
-                      <input type="checkbox" disabled className="w-4 h-4" />
-                      <span className="text-sm">{m.real_name}</span>
-                      <Tag label="户主（不可分出）" color="gray" />
-                    </div>
-                  ))}
-                </div>
-                {splitSelected.length > 0 && !splitNewHead && <p className="text-xs text-amber-600 mt-2">请选择新户的户主</p>}
-              </div>
-            )}
-            {splitStep === 2 && (
-              <div className="space-y-3">
-                <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 text-xs text-orange-700">
-                  将分出 {splitSelected.length} 名成员，户主为「{(detail || selectedFarmerHousehold)?.members.find(m => m.id === splitNewHead)?.real_name}」
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2">
-                    <label className="block text-xs text-stone-400 mb-1">新家庭户名称 *</label>
-                    <input value={splitForm.household_name} onChange={e => setSplitForm(f => ({ ...f, household_name: e.target.value }))}
-                      placeholder={`{(detail || selectedFarmerHousehold)?.members.find(m => m.id === splitNewHead)?.real_name || ''}户`}
-                      className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-stone-400 mb-1">分户年度 *</label>
-                    <select value={splitForm.split_year} onChange={e => setSplitForm(f => ({ ...f, split_year: e.target.value }))}
-                      className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
-                      {years.map(y => <option key={y} value={y}>{y}年</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-stone-400 mb-1">分户日期</label>
-                    <input type="date" value={splitForm.split_date} onChange={e => setSplitForm(f => ({ ...f, split_date: e.target.value }))}
-                      className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-stone-400 mb-1">新户土地面积（亩）</label>
-                    <input type="number" step="0.01" value={splitForm.new_land_area} onChange={e => setSplitForm(f => ({ ...f, new_land_area: e.target.value }))}
-                      placeholder="可不填" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-stone-400 mb-1">原户调整后面积（亩）</label>
-                    <input type="number" step="0.01" value={splitForm.origin_land_area} onChange={e => setSplitForm(f => ({ ...f, origin_land_area: e.target.value }))}
-                      placeholder="不变则不填" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-xs text-stone-400 mb-1">分户原因/说明</label>
-                    <textarea rows={2} value={splitForm.description} onChange={e => setSplitForm(f => ({ ...f, description: e.target.value }))}
-                      placeholder="如：子女独立成家" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none" />
-                  </div>
-                </div>
-              </div>
-            )}
-            {splitStep === 3 && (
-              <div className="space-y-3">
-                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-2">
-                  <p className="text-sm font-semibold text-orange-800">请确认分户信息</p>
-                  <div className="text-xs text-orange-700 space-y-1">
-                    <p>原户：{(detail || selectedFarmerHousehold)?.household_name} → 将保留 {((detail || selectedFarmerHousehold)?.members.length || 0) - splitSelected.length} 名成员</p>
-                    <p>新户：{splitForm.household_name || '（未填写）'} → {splitSelected.length} 名成员</p>
-                    <p>新户户主：{(detail || selectedFarmerHousehold)?.members.find(m => m.id === splitNewHead)?.real_name}</p>
-                    <p>年度：{splitForm.split_year}年{splitForm.split_date ? ` · ${splitForm.split_date}` : ''}</p>
-                    {splitForm.new_land_area && <p>新户面积：{splitForm.new_land_area}亩</p>}
-                    {splitForm.origin_land_area && <p>原户调整后面积：{splitForm.origin_land_area}亩</p>}
-                  </div>
-                </div>
-                <p className="text-xs text-stone-400">分户后系统将自动：为新户创建户籍档案 · 将成员移入新户 · 在两户的变更历史中各记录一条分户事件</p>
-              </div>
-            )}
-          </div>
-        </Modal>
+        <SplitWizardForm
+          open={splitOpen}
+          splitStep={splitStep}
+          splitSelected={splitSelected}
+          splitNewHead={splitNewHead}
+          splitForm={splitForm}
+          members={(detail || selectedFarmerHousehold)?.members || []}
+          householdName={(detail || selectedFarmerHousehold)?.household_name}
+          setSplitStep={setSplitStep}
+          setSplitSelected={setSplitSelected}
+          setSplitNewHead={setSplitNewHead}
+          setSplitForm={setSplitForm}
+          onSubmit={submitSplit}
+          onClose={() => setSplitOpen(false)}
+        />
       )}
 
       {/* 补录事件 */}
       {(detail || selectedFarmerHousehold) && (
-        <Modal open={eventOpen} title="补录历史事件" onClose={() => setEventOpen(false)} onConfirm={submitEvent}>
-          <div className="space-y-3">
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700">
-              用于补录系统上线前的历史变动，或记录口头协议等无法自动捕获的事项。
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className="block text-xs text-stone-400 mb-1">事件类型</label>
-                <select value={eventForm.event_type} onChange={e => setEventForm(f => ({ ...f, event_type: e.target.value }))}
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
-                  {Object.entries(EVENT_TYPE_CFG).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
-                </select></div>
-              <div><label className="block text-xs text-stone-400 mb-1">发生年度 *</label>
-                <select value={eventForm.event_year} onChange={e => setEventForm(f => ({ ...f, event_year: e.target.value }))}
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
-                  {years.map(y => <option key={y} value={y}>{y}年</option>)}
-                </select></div>
-              <div><label className="block text-xs text-stone-400 mb-1">精确日期（可选）</label>
-                <input type="date" value={eventForm.event_date} onChange={e => setEventForm(f => ({ ...f, event_date: e.target.value }))}
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
-              <div><label className="block text-xs text-stone-400 mb-1">证明材料类型</label>
-                <select value={eventForm.evidence_type} onChange={e => setEventForm(f => ({ ...f, evidence_type: e.target.value }))}
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
-                  <option value="NONE">无</option><option value="ID_CARD">身份证</option>
-                  <option value="HOUSEHOLD_REG">户籍证明</option><option value="VILLAGE_PROOF">村委证明</option>
-                  <option value="COURT">法院文书</option><option value="OTHER">其他</option>
-                </select></div>
-              <div className="col-span-2"><label className="block text-xs text-stone-400 mb-1">事件描述 *</label>
-                <textarea rows={3} value={eventForm.description} onChange={e => setEventForm(f => ({ ...f, description: e.target.value }))}
-                  placeholder="请描述发生了什么" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none" /></div>
-              <div className="col-span-2"><label className="block text-xs text-stone-400 mb-1">证明材料说明</label>
-                <input value={eventForm.evidence_note} onChange={e => setEventForm(f => ({ ...f, evidence_note: e.target.value }))}
-                  placeholder="如：村委证明第2024-08号" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
-            </div>
-          </div>
-        </Modal>
+        <EventForm
+          open={eventOpen}
+          eventForm={eventForm}
+          setEventForm={setEventForm}
+          onSubmit={submitEvent}
+          onClose={() => setEventOpen(false)}
+        />
       )}
 
       {/* 人工确认弹窗 */}
       {manualConfirmOpen && detail && (
-        <Modal open={manualConfirmOpen} title="人工确认家庭户信息" onClose={() => setManualConfirmOpen(false)} onConfirm={handleManualConfirm}>
-          <div className="space-y-4">
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-sm text-blue-700">
-              <div className="font-medium mb-1">确认操作说明</div>
-              <p className="text-xs">确认后，该家庭户将标记为"已人工确认"，并记录历史快照。表示该家庭户的信息已经过人工核对无误。</p>
-            </div>
-            <div>
-              <label className="block text-xs text-stone-400 mb-1">家庭户</label>
-              <div className="text-sm font-medium text-stone-700">{detail.household_name} ({detail.household_code})</div>
-            </div>
-            <div>
-              <label className="block text-xs text-stone-400 mb-1">操作人（可选）</label>
-              <input value={confirmForm.operator} onChange={e => setConfirmForm(f => ({ ...f, operator: e.target.value }))}
-                placeholder="请输入操作人姓名" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400" />
-            </div>
-            <div>
-              <label className="block text-xs text-stone-400 mb-1">备注说明（可选）</label>
-              <textarea rows={3} value={confirmForm.remark} onChange={e => setConfirmForm(f => ({ ...f, remark: e.target.value }))}
-                placeholder="请输入备注说明" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 resize-none" />
-            </div>
-          </div>
-        </Modal>
+        <ConfirmForm
+          open={manualConfirmOpen}
+          title="人工确认家庭户信息"
+          description={'确认后，该家庭户将标记为"已人工确认"，并记录历史快照。表示该家庭户的信息已经过人工核对无误。'}
+          confirmForm={confirmForm}
+          setConfirmForm={setConfirmForm}
+          onSubmit={handleManualConfirm}
+          onClose={() => setManualConfirmOpen(false)}
+          submitText="确认"
+          type="manual_confirm"
+          detail={detail}
+        />
       )}
 
       {/* 取消确认弹窗 */}
       {cancelConfirmOpen && detail && (
-        <Modal open={cancelConfirmOpen} title="取消人工确认" onClose={() => setCancelConfirmOpen(false)} onConfirm={handleCancelConfirm}>
-          <div className="space-y-4">
-            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-sm text-amber-700">
-              <div className="font-medium mb-1">取消确认操作说明</div>
-              <p className="text-xs">取消后，该家庭户的"已人工确认"标记将被移除。此操作也会记录在历史事件中。</p>
-            </div>
-            <div>
-              <label className="block text-xs text-stone-400 mb-1">家庭户</label>
-              <div className="text-sm font-medium text-stone-700">{detail.household_name} ({detail.household_code})</div>
-            </div>
-            {detail.manually_confirmed_at && (
-              <div>
-                <label className="block text-xs text-stone-400 mb-1">原确认时间</label>
-                <div className="text-sm text-stone-600">{new Date(detail.manually_confirmed_at).toLocaleString('zh-CN')}</div>
-              </div>
-            )}
-            {detail.manually_confirmed_by && (
-              <div>
-                <label className="block text-xs text-stone-400 mb-1">原操作人</label>
-                <div className="text-sm text-stone-600">{detail.manually_confirmed_by}</div>
-              </div>
-            )}
-            <div>
-              <label className="block text-xs text-stone-400 mb-1">操作人（可选）</label>
-              <input value={confirmForm.operator} onChange={e => setConfirmForm(f => ({ ...f, operator: e.target.value }))}
-                placeholder="请输入操作人姓名" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-amber-400" />
-            </div>
-            <div>
-              <label className="block text-xs text-stone-400 mb-1">取消原因（可选）</label>
-              <textarea rows={3} value={confirmForm.remark} onChange={e => setConfirmForm(f => ({ ...f, remark: e.target.value }))}
-                placeholder="请输入取消原因" className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-amber-400 resize-none" />
-            </div>
-          </div>
-        </Modal>
+        <ConfirmForm
+          open={cancelConfirmOpen}
+          title="取消人工确认"
+          description={'取消后，该家庭户的"已人工确认"标记将被移除。此操作也会记录在历史事件中。'}
+          confirmForm={confirmForm}
+          setConfirmForm={setConfirmForm}
+          onSubmit={handleCancelConfirm}
+          onClose={() => setCancelConfirmOpen(false)}
+          submitText="确认取消"
+          type="cancel_confirm"
+          detail={detail}
+        />
       )}
 
-      {renderHouseholdModals()}
+      {/* 确权面积批量导入 */}
+      <ConfirmedAreaImport
+        open={confirmedAreaImportOpen}
+        confirmedAreaRows={confirmedAreaRows}
+        setConfirmedAreaRows={setConfirmedAreaRows}
+        confirmedAreaImportResult={confirmedAreaImportResult}
+        confirmedAreaImporting={confirmedAreaImporting}
+        onSubmit={submitConfirmedAreaImport}
+        onClose={() => setConfirmedAreaImportOpen(false)}
+      />
 
-      {/* 确权面积批量导入弹窗 */}
-      {confirmedAreaImportOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-2xl w-[560px] max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200">
-              <h3 className="text-base font-semibold text-stone-800">批量导入确权面积</h3>
-              <button onClick={() => setConfirmedAreaImportOpen(false)} className="text-stone-400 hover:text-stone-600 text-xl leading-none">×</button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-              <p className="text-sm text-stone-500">
-                请上传包含 <span className="font-semibold text-stone-700">姓名、身份证号、确权面积</span> 三列的 Excel 文件（.xlsx/.xls）。
-                系统将按身份证号匹配农户并更新其所在家庭户的确权面积。
-              </p>
-              <div>
-                <label className="block text-xs text-stone-400 mb-1">选择 Excel 文件</label>
-                <input type="file" accept=".xlsx,.xls"
-                  onChange={async e => {
-                    const file = e.target.files?.[0]
-                    if (!file) return
-                    const data = await file.arrayBuffer()
-                    const wb = XLSX.read(data)
-                    const ws = wb.Sheets[wb.SheetNames[0]]
-                    const raw: Record<string, unknown>[] = XLSX.utils.sheet_to_json(ws, { defval: '' })
-                    // 自动识别列名（兼容中英文表头）
-                    const rows = raw.map(r => {
-                      const name = String(r['姓名'] ?? r['real_name'] ?? r['名字'] ?? '').trim()
-                      const idCard = String(r['身份证号'] ?? r['id_card'] ?? r['身份证'] ?? '').trim()
-                      const area = parseFloat(String(r['确权面积'] ?? r['confirmed_area'] ?? r['确权面积(亩)'] ?? '0'))
-                      return { real_name: name, id_card: idCard, confirmed_area: isNaN(area) ? 0 : area }
-                    }).filter(r => r.real_name && r.id_card)
-                    setConfirmedAreaRows(rows)
-                    setConfirmedAreaImportResult(null)
-                  }}
-                  className="block w-full text-sm text-stone-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-              </div>
-              {confirmedAreaRows.length > 0 && !confirmedAreaImportResult && (
-                <div className="bg-stone-50 rounded-lg p-3 text-sm text-stone-600">
-                  已解析 <span className="font-semibold text-stone-800">{confirmedAreaRows.length}</span> 条记录
-                  <div className="mt-2 max-h-40 overflow-y-auto text-xs space-y-1">
-                    {confirmedAreaRows.slice(0, 5).map((r, i) => (
-                      <div key={i} className="flex gap-3 text-stone-500">
-                        <span className="truncate max-w-[80px]">{r.real_name}</span>
-                        <span className="font-mono">{r.id_card.substring(0, 6)}***{r.id_card.slice(-4)}</span>
-                        <span className="text-blue-600">{r.confirmed_area} 亩</span>
-                      </div>
-                    ))}
-                    {confirmedAreaRows.length > 5 && <div className="text-stone-400">…还有 {confirmedAreaRows.length - 5} 条</div>}
-                  </div>
-                </div>
-              )}
-              {confirmedAreaImportResult && (
-                <div className="space-y-2 text-sm">
-                  <div className="flex gap-3">
-                    <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg font-medium">成功 {confirmedAreaImportResult.success} 条</span>
-                    {confirmedAreaImportResult.not_found.length > 0 && <span className="bg-red-50 text-red-600 px-3 py-1 rounded-lg font-medium">未找到 {confirmedAreaImportResult.not_found.length} 条</span>}
-                    {confirmedAreaImportResult.mismatch_name.length > 0 && <span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-lg font-medium">姓名不符 {confirmedAreaImportResult.mismatch_name.length} 条（已跳过）</span>}
-                    {confirmedAreaImportResult.errors.length > 0 && <span className="bg-red-50 text-red-600 px-3 py-1 rounded-lg font-medium">错误 {confirmedAreaImportResult.errors.length} 条</span>}
-                  </div>
-                  {confirmedAreaImportResult.not_found.length > 0 && (
-                    <div className="bg-red-50 rounded-lg p-2 max-h-28 overflow-y-auto">
-                      <div className="text-xs font-medium text-red-600 mb-1">未找到的记录：</div>
-                      {confirmedAreaImportResult.not_found.map((r, i) => (
-                        <div key={i} className="text-xs text-red-500">{r.real_name} · {r.id_card}</div>
-                      ))}
-                    </div>
-                  )}
-                  {confirmedAreaImportResult.mismatch_name.length > 0 && (
-                    <div className="bg-amber-50 rounded-lg p-2 max-h-28 overflow-y-auto">
-                      <div className="text-xs font-medium text-amber-600 mb-1">姓名不符（已按身份证更新）：</div>
-                      {confirmedAreaImportResult.mismatch_name.map((r, i) => (
-                        <div key={i} className="text-xs text-amber-600">{r.id_card} · 输入"{r.input_name}" vs 库中"{r.db_name}"</div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-stone-200">
-              <button onClick={() => setConfirmedAreaImportOpen(false)}
-                className="px-4 py-2 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50">
-                关闭
-              </button>
-              {!confirmedAreaImportResult && (
-                <button onClick={submitConfirmedAreaImport} disabled={confirmedAreaRows.length === 0 || confirmedAreaImporting}
-                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {confirmedAreaImporting ? '导入中…' : `确认导入 ${confirmedAreaRows.length} 条`}
-                </button>
-              )}
-              {confirmedAreaImportResult && (
-                <button onClick={async () => {
-                  const resp = await api.exportConfirmedAreaDiff()
-                  const blob = await resp.blob()
-                  const url = URL.createObjectURL(blob)
-                  const a = document.createElement('a'); a.href = url; a.download = '确权面积对比.xlsx'; a.click()
-                  URL.revokeObjectURL(url)
-                }} className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-500">
-                  导出对比报告
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 删除家庭户确认 */}
+      <DeleteConfirmForm
+        open={deleteConfirmOpen}
+        deleteTarget={deleteTarget}
+        loading={deleteLoading}
+        onSubmit={handleDeleteHousehold}
+        onClose={() => setDeleteConfirmOpen(false)}
+      />
 
-      {/* 删除家庭户确认弹窗 */}
-      {deleteConfirmOpen && deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-2xl w-[480px] max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200">
-              <h3 className="text-base font-semibold text-red-600">⚠️ 删除家庭户</h3>
-              <button onClick={() => setDeleteConfirmOpen(false)} className="text-stone-400 hover:text-stone-600 text-xl leading-none">×</button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-6 py-4">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                <p className="text-sm text-red-700 font-medium mb-2">确定要删除以下家庭户吗？此操作不可撤销。</p>
-                <div className="text-sm text-stone-700">
-                  <p><span className="font-semibold">户名：</span>{deleteTarget.household_name}</p>
-                  <p><span className="font-semibold">户号：</span>{deleteTarget.household_code}</p>
-                  <p><span className="font-semibold">村组：</span>{deleteTarget.village_full_name}</p>
-                  <p><span className="font-semibold">成员数：</span>{'member_count' in deleteTarget ? deleteTarget.member_count : (deleteTarget as HHDetail).members?.length ?? 0}人</p>
-                </div>
-              </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <p className="text-sm text-amber-700">
-                  <span className="font-semibold">删除条件：</span>该家庭户必须满足以下条件才能删除：
-                </p>
-                <ul className="text-sm text-amber-600 mt-2 space-y-1 list-disc list-inside">
-                  <li>没有在册成员</li>
-                  <li>没有补贴申请记录</li>
-                  <li>没有土地流转记录</li>
-                  <li>没有家庭户变更事件记录</li>
-                </ul>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-stone-200">
-              <button onClick={() => setDeleteConfirmOpen(false)}
-                className="px-4 py-2 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50">
-                取消
-              </button>
-              <button onClick={handleDeleteHousehold} disabled={deleteLoading}
-                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-                {deleteLoading ? <><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>删除中...</> : '确认删除'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 农户导入 */}
+      <FarmerImport
+        open={importOpen}
+        templates={templates}
+        importOverwrite={importOverwrite}
+        onClose={() => setImportOpen(false)}
+        onDetectColumns={detectExcelColumns}
+        onSaveTemplate={saveColumnMappingTemplate}
+        onImport={handleImport}
+        onSuccess={() => leftTab === 'farmers' ? loadFarmers() : loadHouseholds()}
+      />
+
       <Toast {...toast} />
-    </div>
-  )
-}
-
-// ── 家庭户详情内容子组件 ──
-type HouseholdDetailContentProps = {
-  detail: HHDetail
-  detailTab: 'members' | 'subsidy'
-  setDetailTab: (t: 'members' | 'subsidy') => void
-  areaYear: number
-  setAreaYear: (y: number) => void
-  historyDate: string | null
-  historyEventId: number | null
-  historyDates: HistoryDateEvent[]
-  snapshotData: SnapshotAtResponse | null
-  events: HHEvent[]
-  historyDateIsNull: boolean
-  onOpenMemberImport: () => void
-  onOpenMemberAdd: () => void
-  onOpenEvent: () => void
-  onOpenFarmer: (id: number) => void
-  onOpenMemberEdit: (m: HHMember | SnapshotMember) => void
-  onRemoveMember: (m: HHMember | SnapshotMember) => void
-  onOpenEdit: () => void
-  onOpenSplit: () => void
-  canSplit: boolean
-  onOpenManualConfirm: () => void
-  onOpenCancelConfirm: () => void
-  onDelete: () => void
-  onRefreshCache: (householdId: number) => void
-  refreshingCache: boolean
-}
-
-function HouseholdDetailContent({
-  detail,
-  detailTab,
-  setDetailTab,
-  areaYear,
-  setAreaYear,
-  historyDate,
-  historyEventId,
-  historyDates,
-  snapshotData,
-  events,
-  historyDateIsNull,
-  onOpenMemberImport,
-  onOpenMemberAdd,
-  onOpenEvent,
-  onOpenFarmer,
-  onOpenMemberEdit,
-  onRemoveMember,
-  onOpenEdit,
-  onOpenSplit,
-  canSplit,
-  onOpenManualConfirm,
-  onOpenCancelConfirm,
-  onDelete,
-  onRefreshCache,
-  refreshingCache,
-}: HouseholdDetailContentProps) {
-  const appsByYear: Record<number, typeof detail.app_summary> = {}
-  detail.app_summary.forEach(a => {
-    if (!appsByYear[a.apply_year]) appsByYear[a.apply_year] = []
-    appsByYear[a.apply_year].push(a)
-  })
-  const displayMembers = historyDate !== null && snapshotData?.snapshot ? snapshotData.snapshot.members : detail.members
-  const defaultAreaUsage = {
-    contracted_area: detail.contracted_area || 0,
-    trust_out_area: 0,
-    trust_in_area: 0,
-    cultivable_area: detail.contracted_area || 0,
-    used_area: 0,
-    remaining_area: detail.contracted_area || 0,
-    is_overdrawn: false,
-    overdraw_amount: 0,
-    has_trust_data: false,
-    subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[],
-    season_breakdown: {} as Record<string, any>,
-    year_totals: {} as Record<string, Record<string, number>>
-  }
-  const areaUsage = historyDate !== null && snapshotData?.snapshot
-    ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_breakdown: {} as Record<string, any>, year_totals: {} as Record<string, Record<string, number>> }
-    : (detail.area_usage || defaultAreaUsage)
-
-  // 按选定年份计算有效统计值（areaYear=0 表示"全部年份"，使用后端已算好的总值）
-  const effectiveUsedArea = areaYear > 0 && areaUsage.year_totals?.[String(areaYear)]
-    ? Object.values(areaUsage.year_totals[String(areaYear)]).reduce((s, v) => s + v, 0)
-    : areaUsage.used_area
-  const effectiveRemainingArea = areaUsage.contracted_area - effectiveUsedArea
-  const effectiveIsOverdrawn = areaUsage.contracted_area > 0 && effectiveUsedArea > areaUsage.contracted_area
-  const effectiveOverdrawAmount = Math.max(0, effectiveUsedArea - areaUsage.contracted_area)
-
-  return (
-    <div className="flex-1 min-w-0 flex flex-col">
-      {/* 顶部卡片 */}
-      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-md mb-3 shrink-0">
-        <div className="bg-gradient-to-r from-emerald-800 to-emerald-700 px-5 py-3.5 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-lg font-bold text-white shrink-0">🏠</div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-              <span className="text-base font-bold text-white">{detail.household_name}</span>
-              <span className="text-emerald-300 text-xs font-mono">{detail.household_code}</span>
-              {detail.is_manually_confirmed === 1 && <span className="text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded">✓ 已确认</span>}
-              {effectiveIsOverdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">⚠️ 超领</span>}
-              {historyDate !== null && <span className="text-xs bg-amber-500/80 text-white px-1.5 py-0.5 rounded">⏳ 快照</span>}
-            </div>
-            <div className="text-emerald-200 text-xs">📍 {detail.village_full_name}
-              {detail.address && <span className="ml-1 text-emerald-300">{detail.address}</span>}
-            </div>
-          </div>
-          <div className="text-right shrink-0 mr-2">
-            <div className="text-lg font-bold font-mono text-white">
-              {historyDate !== null && snapshotData?.snapshot
-                ? (snapshotData.snapshot.contract_area > 0 ? `${snapshotData.snapshot.contract_area}亩` : '未设置')
-                : (detail.contracted_area > 0 ? `${detail.contracted_area}亩` : '未设置')}
-            </div>
-            <div className="text-emerald-300 text-xs">承包面积</div>
-          </div>
-          {historyDateIsNull && (
-            <div className="flex flex-col gap-1.5 shrink-0">
-              <button onClick={onOpenEdit}
-                className="text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">✏️ 编辑</button>
-              {detail.is_manually_confirmed === 1 ? (
-                <button onClick={onOpenCancelConfirm}
-                  className="text-xs bg-amber-500/80 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">↩️ 取消确认</button>
-              ) : (
-                <button onClick={onOpenManualConfirm}
-                  className="text-xs bg-blue-500/80 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">✓ 人工确认</button>
-              )}
-              {canSplit && (
-                <button onClick={onOpenSplit}
-                  className="text-xs bg-orange-500/80 hover:bg-orange-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">🔀 分户</button>
-              )}
-              <button onClick={() => onRefreshCache(detail.id)} disabled={refreshingCache}
-                className="text-xs bg-purple-500/80 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                {refreshingCache ? '⏳' : '🔄'} 刷新缓存
-              </button>
-              <button onClick={onDelete}
-                className="text-xs bg-red-500/80 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">🗑️ 删除</button>
-            </div>
-          )}
-        </div>
-
-        {/* 快照备注信息 */}
-        {historyEventId !== null && (() => {
-          const currentEvent = historyDates.find(e => e.event_id === historyEventId)
-          if (currentEvent?.description) {
-            const cfg = EVENT_TYPE_CFG[currentEvent.event_type] || EVENT_TYPE_CFG.REMARK
-            return (
-              <div className="bg-stone-50 border-b border-stone-200 px-5 py-3">
-                <div className="flex items-start gap-2">
-                  <span className="text-lg shrink-0">{cfg.icon}</span>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${cfg.color}`}>{cfg.label}</span>
-                      <span className="text-xs text-stone-500">{currentEvent.date || `${currentEvent.event_year}年`}</span>
-                    </div>
-                    <p className="text-sm text-stone-700">{currentEvent.description}</p>
-                  </div>
-                </div>
-              </div>
-            )
-          }
-          return null
-        })()}
-
-        {/* 人口和面积概览 */}
-        <div className="px-4 py-3 bg-gradient-to-b from-stone-50 to-white border-b border-stone-200">
-          <div className="flex items-center gap-4">
-            {/* 人口 */}
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">👥</span>
-              <div>
-                <div className="text-lg font-bold text-stone-700">{displayMembers.length}</div>
-                <div className="text-xs text-stone-400">人口</div>
-              </div>
-            </div>
-
-            <div className="w-px h-10 bg-stone-200" />
-
-            {/* 承包面积 */}
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">📐</span>
-              <div>
-                <div className="text-lg font-bold font-mono text-stone-700">{areaUsage.contracted_area} 亩</div>
-                <div className="text-xs text-stone-400">承包面积</div>
-              </div>
-            </div>
-
-            {detail.confirmed_area != null && (
-              <>
-                <div className="w-px h-10 bg-stone-200" />
-                {/* 确权面积 */}
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">📋</span>
-                  <div>
-                    <div className="text-lg font-bold font-mono text-blue-700">{detail.confirmed_area} 亩</div>
-                    <div className="text-xs text-stone-400">确权面积</div>
-                  </div>
-                </div>
-                {(() => {
-                  const diff = Math.round((detail.confirmed_area! - areaUsage.contracted_area) * 100) / 100
-                  if (Math.abs(diff) <= 0.001) return null
-                  return (
-                    <>
-                      <div className="w-px h-10 bg-stone-200" />
-                      <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium ${diff > 0 ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-sky-50 border-sky-200 text-sky-700'}`}>
-                        {diff > 0 ? `确权多 ${diff}亩` : `承包多 ${Math.abs(diff)}亩`}
-                      </div>
-                    </>
-                  )
-                })()}
-              </>
-            )}
-
-            <div className="w-px h-10 bg-stone-200" />
-
-            {/* 已用面积 */}
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">📊</span>
-              <div>
-                <div className={"text-lg font-bold font-mono " + (effectiveIsOverdrawn ? 'text-red-500' : 'text-emerald-600')}>
-                  {effectiveUsedArea.toFixed(1)} 亩
-                </div>
-                <div className="text-xs text-stone-400">已用面积</div>
-              </div>
-            </div>
-
-            <div className="w-px h-10 bg-stone-200" />
-
-            {/* 剩余 */}
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">✨</span>
-              <div>
-                <div className={"text-lg font-bold font-mono " + (effectiveRemainingArea < 0 ? 'text-red-500' : 'text-blue-600')}>
-                  {effectiveRemainingArea.toFixed(1)} 亩
-                </div>
-                <div className="text-xs text-stone-400">剩余可申请</div>
-              </div>
-            </div>
-
-            {effectiveIsOverdrawn && (
-              <>
-                <div className="w-px h-10 bg-stone-200" />
-                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-1">
-                  <span className="text-lg">⚠️</span>
-                  <div>
-                    <div className="text-sm font-bold text-red-600">超限 {effectiveOverdrawAmount.toFixed(1)} 亩</div>
-                    <div className="text-xs text-red-400">请注意</div>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* 人工确认信息 */}
-        {detail.is_manually_confirmed === 1 && (
-          <div className="bg-blue-50 border-b border-blue-100 px-4 py-2.5">
-            <div className="flex items-center gap-2 text-xs text-blue-700">
-              <span className="text-lg">✅</span>
-              <span className="font-medium">已人工确认</span>
-              {detail.manually_confirmed_at && (
-                <span className="text-blue-500">
-                  · {new Date(detail.manually_confirmed_at).toLocaleString('zh-CN')}
-                </span>
-              )}
-              {detail.manually_confirmed_by && (
-                <span className="text-blue-500">· 操作人: {detail.manually_confirmed_by}</span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* 补贴面积使用情况 - 大春小春等直接展示 */}
-        {areaUsage && areaUsage.season_breakdown && Object.keys(areaUsage.season_breakdown).length > 0 && (
-          <div className="bg-white border-b border-stone-200 px-4 py-3">
-            {/* 年份选择器 - 从 app_summary 获取年份 */}
-            {(() => {
-              const allYears = [...new Set(
-                (detail.app_summary || []).map((a: { apply_year: number }) => a.apply_year)
-              )].sort((a, b) => b - a)
-              return (
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs text-stone-500 font-medium">📊 补贴面积使用情况</span>
-                  {allYears.length > 0 && (
-                    <select
-                      value={areaYear}
-                      onChange={e => setAreaYear(Number(e.target.value))}
-                      className="border border-stone-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-emerald-400 bg-white"
-                    >
-                      <option value={0}>全部年份</option>
-                      {allYears.map(y => (
-                        <option key={y} value={y}>{y}</option>
-                      ))}
-                    </select>
-                  )}
-                  {areaYear !== 0 && (
-                    <span className="text-xs text-emerald-600">已筛选至 {areaYear} 年度</span>
-                  )}
-                </div>
-              )
-            })()}
-            <div className="space-y-2">
-              {Object.entries(areaUsage.season_breakdown).map(([season, usage]) => {
-                // 计算该季节在该年度的使用面积
-                let yearUsedArea = 0
-                let yearApplyArea = 0  // 预申请面积
-                let yearPaymentArea = 0  // 已发布面积
-                if (areaYear === 0) {
-                  // 全部年份：使用季节的总使用面积
-                  yearUsedArea = usage.used_area || 0
-                  yearApplyArea = usage.apply_area || 0
-                  yearPaymentArea = usage.payment_area || 0
-                } else {
-                  // 指定年份：从 year_totals 中获取
-                  yearUsedArea = areaUsage.year_totals?.[String(areaYear)]?.[season] || 0
-                  // 注意：这里我们需要从 season_breakdown 中获取 apply_area 和 payment_area
-                  yearApplyArea = usage.apply_area || 0
-                  yearPaymentArea = usage.payment_area || 0
-                }
-                const pct = areaUsage.contracted_area > 0 ? Math.round(yearUsedArea / areaUsage.contracted_area * 100) : 0
-                const paymentPct = areaUsage.contracted_area > 0 ? Math.round(yearPaymentArea / areaUsage.contracted_area * 100) : 0
-                const applyPct = areaUsage.contracted_area > 0 ? Math.round((yearApplyArea - yearPaymentArea) / areaUsage.contracted_area * 100) : 0
-                const isOverdrawn = yearUsedArea > areaUsage.contracted_area
-                return (
-                  <div key={season} className="border border-stone-200 rounded-lg overflow-hidden">
-                    <div className={"flex items-center justify-between px-3 py-2 " + (isOverdrawn ? 'bg-red-50' : 'bg-stone-50')}>
-                      <div className="flex items-center gap-2">
-                        <span className={"text-sm font-bold " + (isOverdrawn ? 'text-red-600' : 'text-stone-700')}>{season}</span>
-                        {isOverdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">超 {(yearUsedArea - areaUsage.contracted_area).toFixed(2)} 亩</span>}
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className={"text-sm font-mono font-bold " + (isOverdrawn ? 'text-red-500' : 'text-emerald-600')}>{yearUsedArea.toFixed(2)} 亩</span>
-                        <span className="text-xs text-stone-400">/ {areaUsage.contracted_area} 亩</span>
-                        <span className="text-xs text-stone-500">({pct}%)</span>
-                      </div>
-                    </div>
-                    <div className="px-3 py-1.5 bg-white">
-                      <div className="bg-stone-100 rounded-full h-1.5 overflow-hidden flex">
-                        {/* 已发布面积用绿色 */}
-                        {yearPaymentArea > 0 && (
-                          <div
-                            className="h-full bg-emerald-400"
-                            style={{ width: Math.min(100, paymentPct) + "%" }}
-                          />
-                        )}
-                        {/* 预申请面积用蓝色 */}
-                        {(yearApplyArea - yearPaymentArea) > 0 && (
-                          <div
-                            className="h-full bg-blue-400"
-                            style={{ width: Math.min(100 - paymentPct, applyPct) + "%" }}
-                          />
-                        )}
-                      </div>
-                      <div className="flex gap-3 mt-1 text-xs text-stone-500">
-                        {yearPaymentArea > 0 && (
-                          <span className="flex items-center gap-1">
-                            <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
-                            已发布 {yearPaymentArea.toFixed(2)} 亩
-                          </span>
-                        )}
-                        {(yearApplyArea - yearPaymentArea) > 0 && (
-                          <span className="flex items-center gap-1">
-                            <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                            预申请 {(yearApplyArea - yearPaymentArea).toFixed(2)} 亩
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Tab 栏 */}
-        <div className="flex border-b border-stone-200 bg-stone-50 items-center">
-          {([
-            { id: 'members', label: `👥 成员 (${displayMembers.length})` },
-            { id: 'subsidy', label: `💰 补贴记录 (${detail.app_summary.length})` },
-          ] as { id: typeof detailTab; label: string }[]).map(t => (
-            <button key={t.id} onClick={() => setDetailTab(t.id)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
-                ${detailTab === t.id ? 'border-emerald-600 text-emerald-700 bg-white' : 'border-transparent text-stone-500 hover:text-stone-700'}`}>
-              {t.label}
-            </button>
-          ))}
-          {historyDateIsNull && (
-            <div className="ml-auto px-2 flex gap-1.5">
-              {detailTab === 'members' && (
-                <>
-                  <button onClick={onOpenMemberImport} className="text-xs border border-emerald-200 text-emerald-700 px-2.5 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors">↑ 批量导入</button>
-                  <button onClick={onOpenMemberAdd} className="text-xs bg-emerald-700 text-white px-2.5 py-1.5 rounded-lg hover:bg-emerald-600 transition-colors">＋ 成员</button>
-                  <button onClick={onOpenEvent} className="text-xs border border-stone-200 text-stone-600 px-2.5 py-1.5 rounded-lg hover:bg-stone-50 transition-colors">＋ 补录</button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Tab 内容 */}
-      <div className="flex-1 bg-white border border-stone-200 rounded-xl overflow-hidden shadow-md">
-        {/* 成员 */}
-        {detailTab === 'members' && (
-          <div className="p-4 grid gap-2">
-            {displayMembers.length === 0 && <div className="text-center py-8 text-stone-300 text-sm">暂无成员记录</div>}
-            {displayMembers.map(m => (
-              <div key={m.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 border transition-all
-                ${m.is_head ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-stone-200 hover:border-stone-300 hover:bg-stone-50'}
-                ${m.farmer_status !== 1 ? 'opacity-60' : ''}`}>
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0
-                  ${m.is_head ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-500'}`}>
-                  {m.real_name.slice(-1)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-stone-800">{m.real_name}</span>
-                    {m.is_head === 1 && <Tag label="户主" color="green" />}
-                    {m.relation && <Tag label={m.relation} color="gray" />}
-                    {m.farmer_status !== 1 && <Tag label={FARMER_STATUS[m.farmer_status]?.label ?? '异常'} color="red" />}
-                  </div>
-                  <div className="text-xs text-stone-400 mt-0.5">
-                    {m.gender === 1 ? '男' : '女'}
-                    {m.phone_masked && <span className="ml-2">{m.phone_masked}</span>}
-                    <span className="ml-2 font-mono">{m.id_card_masked}</span>
-                  </div>
-                </div>
-                {historyDateIsNull && (
-                  <div className="flex gap-1.5 shrink-0">
-                    <button onClick={() => onOpenFarmer(m.id)} className="text-xs text-emerald-700 border border-emerald-200 px-2 py-1 rounded-lg hover:bg-emerald-50 transition-colors">查看农户</button>
-                    <button onClick={() => onOpenMemberEdit(m)} className="text-xs border border-stone-200 text-stone-500 px-2 py-1 rounded-lg hover:border-stone-300 transition-colors">编辑</button>
-                    {m.is_head !== 1 && (
-                      <button onClick={() => onRemoveMember(m)} className="text-xs border border-amber-200 text-amber-600 px-2 py-1 rounded-lg hover:bg-amber-50 transition-colors">移出</button>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* 补贴记录 */}
-        {detailTab === 'subsidy' && (
-          <div>
-            {Object.keys(appsByYear).length === 0 && <div className="py-10 text-center text-stone-300 text-sm">暂无补贴记录</div>}
-            {Object.entries(appsByYear).sort((a, b) => Number(b[0]) - Number(a[0])).map(([yr, apps]) => (
-              <div key={yr}>
-                <div className="px-5 py-2 bg-stone-50 border-b border-stone-100 text-xs font-bold text-stone-500">
-                  {yr}年度 · {apps.length}条 · 合计 ¥{apps.reduce((s, a) => s + (a.actual_amount || 0), 0).toFixed(2)}
-                </div>
-                {apps.map((a, i) => (
-                  <div key={i} className="flex items-center gap-3 px-5 py-2.5 border-b border-stone-50 hover:bg-stone-50 transition-colors">
-                    <span className="text-sm text-stone-500 w-16 shrink-0">{a.farmer_name}</span>
-                    <span className="text-sm flex-1">{a.subsidy_name}</span>
-                    {a.apply_area && <span className="text-xs text-stone-400 font-mono">{a.apply_area}亩</span>}
-                    <span className="text-sm font-mono font-bold text-emerald-700">{a.actual_amount ? fmt(a.actual_amount) : '—'}</span>
-                    <Tag label={PAY_STATUS[a.pay_status]?.label || '—'} color={PAY_STATUS[a.pay_status]?.color as 'green'} />
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
-
-      </div>
     </div>
   )
 }
