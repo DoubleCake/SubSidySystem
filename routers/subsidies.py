@@ -1732,14 +1732,9 @@ def list_proxies(
     if proxy_farmer_id:
         q = q.filter(SubsidyProxy.proxy_farmer_id == proxy_farmer_id)
 
-    # 按补贴类型筛选（通过关联的申请或发放记录）
+    # 按补贴类型筛选（直接使用存储的 subsidy_type_id）
     if subsidy_type_id:
-        q = q.outerjoin(SubsidyApplication, SubsidyProxy.application_id == SubsidyApplication.id)\
-             .outerjoin(SubsidyPayment, SubsidyProxy.payment_id == SubsidyPayment.id)\
-             .filter(
-                 (SubsidyApplication.subsidy_type_id == subsidy_type_id) |
-                 (SubsidyPayment.subsidy_type_id == subsidy_type_id)
-             )
+        q = q.filter(SubsidyProxy.subsidy_type_id == subsidy_type_id)
 
     results = q.order_by(SubsidyProxy.created_at.desc()).all()
 
@@ -1760,7 +1755,7 @@ def list_proxies(
             proxy_dict['proxy_farmer_name'] = proxy_farmer.real_name
         proxy_list.append(proxy_dict)
 
-    return proxy_list
+    return {"items": proxy_list, "total": len(proxy_list)}
 
 
 @router.post("/proxies")
@@ -1777,21 +1772,31 @@ def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="代领人不存在")
 
     # 验证关联的补贴记录存在
+    subsidy_type_id = data.subsidy_type_id
     if data.application_id:
         app = db.get(SubsidyApplication, data.application_id)
         if not app:
             raise HTTPException(status_code=404, detail="补贴申请记录不存在")
         # 更新申请记录的 is_proxy 标记
         app.is_proxy = 1
+        # 同步补贴项目类型
+        if not subsidy_type_id:
+            subsidy_type_id = app.subsidy_type_id
     if data.payment_id:
         pay = db.get(SubsidyPayment, data.payment_id)
         if not pay:
             raise HTTPException(status_code=404, detail="补贴发放记录不存在")
         # 更新发放记录的 is_proxy 标记
         pay.is_proxy = 1
+        # 同步补贴项目类型
+        if not subsidy_type_id:
+            subsidy_type_id = pay.subsidy_type_id
 
     # 创建代领关系
-    proxy_rel = SubsidyProxy(**data.model_dump())
+    proxy_rel = SubsidyProxy(
+        **data.model_dump(),
+        subsidy_type_id=subsidy_type_id,
+    )
     db.add(proxy_rel)
     db.commit()
     db.refresh(proxy_rel)

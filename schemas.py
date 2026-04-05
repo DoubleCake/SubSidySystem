@@ -244,6 +244,7 @@ class PaymentOut(BaseModel):
 class SubsidyProxyCreate(BaseModel):
     application_id: Optional[int] = None
     payment_id: Optional[int] = None
+    subsidy_type_id: Optional[int] = None
     beneficiary_farmer_id: int
     proxy_farmer_id: int
     proxy_type: str  # proxy=代人领取, receive=被人代领
@@ -254,6 +255,7 @@ class SubsidyProxyOut(BaseModel):
     id: int
     application_id: Optional[int]
     payment_id: Optional[int]
+    subsidy_type_id: Optional[int]
     beneficiary_farmer_id: int
     proxy_farmer_id: int
     proxy_type: str

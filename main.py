@@ -116,6 +116,7 @@ def migrate_db():
         "ALTER TABLE subsidy_payment ADD COLUMN pay_status SMALLINT DEFAULT 2",
         "ALTER TABLE subsidy_application ADD COLUMN is_proxy SMALLINT DEFAULT 0",
         "ALTER TABLE subsidy_payment ADD COLUMN is_proxy SMALLINT DEFAULT 0",
+        "ALTER TABLE subsidy_proxy ADD COLUMN subsidy_type_id INTEGER REFERENCES subsidy_type(id)",
     ]
     with engine.connect() as conn:
         for sql in migrations:

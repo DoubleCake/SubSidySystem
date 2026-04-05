@@ -204,6 +204,7 @@ export interface SubsidyProxyOut {
 export interface SubsidyProxyCreate {
   application_id?: number
   payment_id?: number
+  subsidy_type_id?: number
   beneficiary_farmer_id: number
   proxy_farmer_id: number
   proxy_type: string

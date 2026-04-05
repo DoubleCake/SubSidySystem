@@ -216,6 +216,8 @@ class SubsidyProxy(Base):
     # 关联的补贴记录（申请或发放）
     application_id      = Column(Integer, ForeignKey("subsidy_application.id"), nullable=True)
     payment_id          = Column(Integer, ForeignKey("subsidy_payment.id"), nullable=True)
+    # 所属补贴项目类型（创建时代项目信息存储在此）
+    subsidy_type_id     = Column(Integer, ForeignKey("subsidy_type.id"), nullable=True)
     # 实际受益人（面积计入此家庭）
     beneficiary_farmer_id = Column(Integer, ForeignKey("farmer_profile.id"), nullable=False)
     # 代领人（实际领钱的人）

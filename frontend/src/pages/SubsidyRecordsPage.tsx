@@ -284,6 +284,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
         beneficiary_farmer_id: beneficiaryId,
         proxy_farmer_id: proxyId,
         proxy_type: proxyForm.proxy_type,
+        subsidy_type_id: subsidyType.id,
         remark: proxyForm.remark || undefined,
       })
       show('✓ 代领关系创建成功')
