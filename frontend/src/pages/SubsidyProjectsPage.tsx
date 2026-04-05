@@ -520,7 +520,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
 
         const res = await fetch(`/api/subsidies/payments?${new URLSearchParams(params as Record<string, string>)}`).then(r => r.json())
         // 转换为与申报列表相同的格式以便统一展示
-        setApps(res.items.map((p: { id: number; farmer_id: number; farmer_name: string; subsidy_type_id: number; subsidy_name: string; village_name: string; group_no: string; payment_year: number; amount: number; payment_date: string; apply_area: number; contract_area: number; trust_area: number; no_subsidy_area: number; bank_card_masked: string; bank_name: string; remark: string; proxy_remark: string; pay_status: number }) => ({
+        setApps(res.items.map((p: { id: number; farmer_id: number; farmer_name: string; subsidy_type_id: number; subsidy_name: string; village_name: string; group_no: string; payment_year: number; amount: number; payment_date: string; apply_area: number; contract_area: number; trust_area: number; no_subsidy_area: number; bank_card_masked: string; bank_name: string; remark: string; proxy_remark: string; pay_status: number; is_proxy: number }) => ({
           id: p.id,
           farmer_id: p.farmer_id,
           farmer_name: p.farmer_name,
@@ -540,6 +540,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
           bank_name: p.bank_name,
           remark: p.remark,
           proxy_remark: p.proxy_remark,
+          is_proxy: p.is_proxy,
         })))
         setTotal(res.total)
         setLoading(false)
@@ -1675,7 +1676,14 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
                     )}
                   </button>
                 </td>
-                <td className="px-2 py-2 text-sm font-semibold whitespace-nowrap">{a.farmer_name}</td>
+                <td className="px-2 py-2 text-sm font-semibold whitespace-nowrap">
+                  <div className="flex items-center gap-1">
+                    {a.farmer_name}
+                    {a.is_proxy === 1 && (
+                      <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">代领</span>
+                    )}
+                  </div>
+                </td>
                 <td className="px-2 py-2 text-xs font-mono text-stone-400 whitespace-nowrap">{a.id_card_masked || '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono text-stone-400 whitespace-nowrap">{a.phone || '—'}</td>
                 <td className="px-2 py-2 text-xs text-stone-400 whitespace-nowrap">{a.village || '—'}</td>

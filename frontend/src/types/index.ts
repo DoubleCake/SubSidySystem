@@ -150,6 +150,7 @@ export interface ApplicationSearchResult {
   pay_date: string | null
   remark: string | null
   proxy_remark?: string | null
+  is_proxy?: number
 }
 
 export interface PaymentOut {
@@ -165,6 +166,8 @@ export interface PaymentOut {
   bank_name: string | null
   remark: string | null
   proxy_remark: string | null
+  is_proxy?: number
+  pay_status?: number
 }
 
 export interface PaymentCreate {
