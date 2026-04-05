@@ -767,6 +767,8 @@ def search_applications(
             "pay_status":      a.pay_status,
             "pay_date":        str(a.pay_date) if a.pay_date else None,
             "remark":          a.remark,
+            "proxy_remark":    None,
+            "is_proxy":        a.is_proxy,
         })
     return {"total": total, "page": page, "page_size": page_size, "items": rows}
 
@@ -1451,6 +1453,7 @@ def list_payments(
                 "remark": p[0].remark,
                 "proxy_remark": p[0].proxy_remark,
                 "pay_status": p[0].pay_status,
+                "is_proxy": p[0].is_proxy,
             }
             for p in rows
         ]

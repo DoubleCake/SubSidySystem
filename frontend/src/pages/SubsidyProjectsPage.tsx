@@ -15,6 +15,7 @@ import Tag from '../components/Tag'
 import Modal from '../components/Modal'
 import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
 import ResultTable from '../components/ResultTable'
+import ProxyManageModal from '../components/ProxyManageModal'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import * as XLSX from 'xlsx'
@@ -372,6 +373,14 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
   const [batchPayOpen, setBatchPayOpen] = useState(false)
   const [templates, setTemplates] = useState<ExcelColumnTemplate[]>([])
   const [selectedTmplId, setSelectedTmplId] = useState<number | null>(null)
+  // 代领管理
+  const [proxyModalOpen, setProxyModalOpen] = useState(false)
+  const [proxyTarget, setProxyTarget] = useState<{
+    applicationId?: number
+    paymentId?: number
+    beneficiaryFarmerId?: number
+    beneficiaryFarmerName?: string
+  } | null>(null)
   const [checkResult, setCheckResult] = useState<{
     passed:number; failed:number; warning:number
     failed_list:{real_name:string;id_card_masked:string;issues:string[]}[]
@@ -1705,6 +1714,21 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
                 <td className="px-2 py-2">
                   <div className="flex gap-1">
                     <button onClick={() => openEdit(a)} className="text-xs text-stone-400 border border-stone-200 px-2 py-1 rounded hover:text-emerald-700 hover:border-emerald-200">编辑</button>
+                    <button onClick={() => {
+                      setProxyTarget({
+                        applicationId: activeTab === 'preApply' ? a.id : undefined,
+                        paymentId: activeTab === 'disbursement' ? a.id : undefined,
+                        beneficiaryFarmerId: a.farmer_id,
+                        beneficiaryFarmerName: a.farmer_name,
+                      })
+                      setProxyModalOpen(true)
+                    }} className={`text-xs px-2 py-1 rounded border ${
+                      a.is_proxy === 1
+                        ? 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100'
+                        : 'text-stone-400 border-stone-200 hover:text-stone-600 hover:border-stone-300'
+                    }`}>
+                      {a.is_proxy === 1 ? '代领中' : '代领'}
+                    </button>
                     <button onClick={() => setDeleteId(a.id)} className="text-xs text-red-400 border border-red-100 px-2 py-1 rounded hover:bg-red-50">删</button>
                   </div>
                 </td>
@@ -2087,6 +2111,23 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
           </div>
         </div>
       )}
+
+      {/* 代领关系管理弹窗 */}
+      <ProxyManageModal
+        open={proxyModalOpen}
+        onClose={() => {
+          setProxyModalOpen(false)
+          setProxyTarget(null)
+        }}
+        applicationId={proxyTarget?.applicationId}
+        paymentId={proxyTarget?.paymentId}
+        beneficiaryFarmerId={proxyTarget?.beneficiaryFarmerId}
+        beneficiaryFarmerName={proxyTarget?.beneficiaryFarmerName}
+        onProxyChanged={() => {
+          // 代领关系变更后刷新列表
+          load()
+        }}
+      />
 
       {toast && <Toast msg={toast.msg} type={toast.type} />}
     </div>

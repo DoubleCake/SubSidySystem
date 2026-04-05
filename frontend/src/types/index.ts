@@ -186,6 +186,56 @@ export interface PaymentCreate {
   proxy_remark?: string
 }
 
+// 代领关系相关
+export interface SubsidyProxyOut {
+  id: number
+  application_id?: number
+  payment_id?: number
+  beneficiary_farmer_id: number
+  proxy_farmer_id: number
+  proxy_type: string
+  remark?: string
+  created_at: string
+  updated_at: string
+  beneficiary_farmer_name?: string
+  proxy_farmer_name?: string
+}
+
+export interface SubsidyProxyCreate {
+  application_id?: number
+  payment_id?: number
+  beneficiary_farmer_id: number
+  proxy_farmer_id: number
+  proxy_type: string
+  remark?: string
+}
+
+// ApplicationSearchResult 扩展 is_proxy 字段
+export interface ApplicationSearchResult {
+  id: number
+  farmer_id: number
+  farmer_name: string
+  id_card_masked?: string
+  phone?: string | null
+  village?: string
+  group_no?: string
+  subsidy_type_id: number
+  subsidy_name: string
+  calc_mode?: string
+  apply_year: number
+  apply_area: string | null
+  contract_area: string | null
+  trust_area: string | null
+  no_subsidy_area: string | null
+  apply_amount: string | null
+  actual_amount: string | null
+  pay_status: number
+  pay_date: string | null
+  remark: string | null
+  proxy_remark?: string | null
+  is_proxy?: number
+}
+
 export interface ApplicationCreate {
   farmer_id: number
   subsidy_type_id: number

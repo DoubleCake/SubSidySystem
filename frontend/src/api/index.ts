@@ -6,6 +6,7 @@ import type {
   ErrorLibraryItem, ErrorLibraryCreate,
   HH, HHDetail, HHEvent, HistoryDateEvent, SnapshotAtResponse,
   HouseholdCreate, MemberCreate, MemberUpdate, MemberMoveRequest,
+  SubsidyProxyOut, SubsidyProxyCreate,
 } from '../types'
 
 const BASE = ''
@@ -96,16 +97,9 @@ export const batchImportApplications = (rows: ApplicationCreate[]) =>
 
 // ── 代领关系 ──
 export const getProxies = (params: Record<string, string | number>) =>
-  req<any[]>('/api/subsidies/proxies?' + new URLSearchParams(params as Record<string, string>))
+  req<SubsidyProxyOut[]>('/api/subsidies/proxies?' + new URLSearchParams(params as Record<string, string>))
 
-export const createProxy = (data: {
-  application_id?: number
-  payment_id?: number
-  beneficiary_farmer_id: number
-  proxy_farmer_id: number
-  proxy_type: string
-  remark?: string
-}) =>
+export const createProxy = (data: SubsidyProxyCreate) =>
   req<{ id: number }>('/api/subsidies/proxies', { method: 'POST', body: JSON.stringify(data) })
 
 export const deleteProxy = (id: number) =>
