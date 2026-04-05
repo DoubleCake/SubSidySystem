@@ -587,6 +587,7 @@ def list_households(
     confirmed_only: Optional[int] = Query(None, description="只显示已确认/未确认的家庭户，1=已确认，0=未确认"),
     search:        Optional[str] = Query(None, description="搜索户名/户主姓名"),
     year:          Optional[int] = Query(None, description="指定年度计算面积占用"),
+    min_app_count: Optional[int] = Query(None, description="最少补贴记录数"),
     page:          int           = Query(1, ge=1),
     page_size:     int           = Query(20, ge=1, le=100),
     db: Session = Depends(get_db)
@@ -619,6 +620,34 @@ def list_households(
                 )
             )
         )
+
+    # min_app_count: 按补贴记录数筛选
+    if min_app_count is not None:
+        from sqlalchemy import func as sql_func
+        app_count_subq = db.query(
+            SubsidyApplication.farmer_id,
+            sql_func.count(SubsidyApplication.id).label("app_count")
+        ).join(
+            FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id
+        ).group_by(SubsidyApplication.farmer_id).subquery()
+
+        hh_with_apps = db.query(app_count_subq.c.farmer_id).filter(
+            app_count_subq.c.app_count >= min_app_count
+        ).subquery()
+
+        valid_hh_ids = db.query(FamilyHousehold.id).join(
+            FarmerProfile, FarmerProfile.household_id == FamilyHousehold.id
+        ).join(
+            hh_with_apps, hh_with_apps.c.farmer_id == FarmerProfile.id
+        ).distinct().all()
+        valid_hh_ids = [hid for (hid,) in valid_hh_ids]
+
+        if valid_hh_ids:
+            query = query.filter(FamilyHousehold.id.in_(valid_hh_ids))
+        else:
+            total = 0
+            all_households = []
+            return {"total": 0, "page": page, "page_size": page_size, "items": []}
 
     # overdrawn_only: 利用缓存表预筛选超领户，避免全表扫描
     if overdrawn_only:
