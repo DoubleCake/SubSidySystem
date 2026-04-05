@@ -1716,11 +1716,13 @@ def list_proxies(
     payment_id: Optional[int] = Query(None),
     beneficiary_farmer_id: Optional[int] = Query(None),
     proxy_farmer_id: Optional[int] = Query(None),
+    subsidy_type_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
 ):
     """查询代领关系列表"""
-    from models import SubsidyProxy
+    from models import SubsidyProxy, SubsidyApplication, SubsidyPayment
     q = db.query(SubsidyProxy)
+
     if application_id:
         q = q.filter(SubsidyProxy.application_id == application_id)
     if payment_id:
@@ -1729,7 +1731,36 @@ def list_proxies(
         q = q.filter(SubsidyProxy.beneficiary_farmer_id == beneficiary_farmer_id)
     if proxy_farmer_id:
         q = q.filter(SubsidyProxy.proxy_farmer_id == proxy_farmer_id)
-    return q.order_by(SubsidyProxy.created_at.desc()).all()
+
+    # 按补贴类型筛选（通过关联的申请或发放记录）
+    if subsidy_type_id:
+        q = q.outerjoin(SubsidyApplication, SubsidyProxy.application_id == SubsidyApplication.id)\
+             .outerjoin(SubsidyPayment, SubsidyProxy.payment_id == SubsidyPayment.id)\
+             .filter(
+                 (SubsidyApplication.subsidy_type_id == subsidy_type_id) |
+                 (SubsidyPayment.subsidy_type_id == subsidy_type_id)
+             )
+
+    results = q.order_by(SubsidyProxy.created_at.desc()).all()
+
+    # 附加受益人、代领人姓名信息
+    from models import FarmerProfile
+    proxy_list = []
+    for proxy in results:
+        proxy_dict = {
+            **proxy.__dict__,
+            'beneficiary_farmer_name': None,
+            'proxy_farmer_name': None,
+        }
+        beneficiary = db.get(FarmerProfile, proxy.beneficiary_farmer_id)
+        if beneficiary:
+            proxy_dict['beneficiary_farmer_name'] = beneficiary.real_name
+        proxy_farmer = db.get(FarmerProfile, proxy.proxy_farmer_id)
+        if proxy_farmer:
+            proxy_dict['proxy_farmer_name'] = proxy_farmer.real_name
+        proxy_list.append(proxy_dict)
+
+    return proxy_list
 
 
 @router.post("/proxies")
