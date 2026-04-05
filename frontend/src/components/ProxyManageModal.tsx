@@ -117,98 +117,109 @@ export default function ProxyManageModal({
       open={open}
       title="代领关系管理"
       onClose={onClose}
-      hideConfirm
     >
       <div className="space-y-4">
-        {/* 受益人信息 */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-          <div className="text-xs text-amber-600 mb-1">受益人</div>
-          <div className="font-semibold text-amber-800">{beneficiaryFarmerName || '—'}</div>
-        </div>
+        {/* 加载状态 */}
+        {loading && (
+          <div className="text-center py-8 text-stone-400">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-2"></div>
+            加载中...
+          </div>
+        )}
 
-        {/* 现有代领关系 */}
-        {hasExistingProxy && (
-          <div className="border border-stone-200 rounded-lg overflow-hidden">
-            <div className="bg-stone-50 px-3 py-2 text-xs font-semibold text-stone-500 border-b border-stone-200">
-              当前代领关系
+        {!loading && (
+          <>
+            {/* 受益人信息 */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <div className="text-xs text-amber-600 mb-1">受益人</div>
+              <div className="font-semibold text-amber-800">{beneficiaryFarmerName || '—'}</div>
             </div>
-            <div className="divide-y divide-stone-100">
-              {proxies.map(proxy => (
-                <div key={proxy.id} className="px-3 py-2 flex items-center justify-between">
-                  <div>
-                    <div className="font-medium text-stone-700">
-                      {getProxyFarmerName(proxy)}
-                    </div>
-                    {proxy.remark && (
-                      <div className="text-xs text-stone-400">{proxy.remark}</div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => handleDeleteProxy(proxy.id)}
-                    className="text-xs text-red-500 hover:text-red-600 border border-red-200 px-2 py-1 rounded hover:bg-red-50"
-                  >
-                    取消代领
-                  </button>
+
+            {/* 现有代领关系 */}
+            {hasExistingProxy && (
+              <div className="border border-stone-200 rounded-lg overflow-hidden">
+                <div className="bg-stone-50 px-3 py-2 text-xs font-semibold text-stone-500 border-b border-stone-200">
+                  当前代领关系
                 </div>
-              ))}
+                <div className="divide-y divide-stone-100">
+                  {proxies.map(proxy => (
+                    <div key={proxy.id} className="px-3 py-2 flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-stone-700">
+                          {getProxyFarmerName(proxy)}
+                        </div>
+                        {proxy.remark && (
+                          <div className="text-xs text-stone-400">{proxy.remark}</div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleDeleteProxy(proxy.id)}
+                        className="text-xs text-red-500 hover:text-red-600 border border-red-200 px-2 py-1 rounded hover:bg-red-50"
+                      >
+                        取消代领
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 设置新代领 */}
+            {!hasExistingProxy && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs text-stone-400 mb-1">搜索代领人</label>
+                  <input
+                    type="text"
+                    value={searchKeyword}
+                    onChange={(e) => setSearchKeyword(e.target.value)}
+                    placeholder="输入姓名或身份证搜索"
+                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-stone-400 mb-1">选择代领人</label>
+                  <select
+                    value={selectedProxyFarmerId}
+                    onChange={(e) => setSelectedProxyFarmerId(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"
+                  >
+                    <option value="">— 请选择代领人 —</option>
+                    {filteredFarmers.map(farmer => (
+                      <option key={farmer.id} value={farmer.id}>
+                        {farmer.real_name} ({farmer.village_full_name})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-stone-400 mb-1">代领备注（可选）</label>
+                  <input
+                    type="text"
+                    value={proxyRemark}
+                    onChange={(e) => setProxyRemark(e.target.value)}
+                    placeholder="填写代领原因等说明"
+                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"
+                  />
+                </div>
+
+                <button
+                  onClick={handleCreateProxy}
+                  disabled={!selectedProxyFarmerId}
+                  className="w-full px-4 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  设置代领
+                </button>
+              </div>
+            )}
+
+            <div className="text-xs text-stone-400 pt-2 border-t border-stone-100">
+              提示：代领关系仅对当前这一条记录有效，每次代领都需要重新设置。
             </div>
-          </div>
+          </>
         )}
-
-        {/* 设置新代领 */}
-        {!hasExistingProxy && (
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs text-stone-400 mb-1">搜索代领人</label>
-              <input
-                type="text"
-                value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-                placeholder="输入姓名或身份证搜索"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs text-stone-400 mb-1">选择代领人</label>
-              <select
-                value={selectedProxyFarmerId}
-                onChange={(e) => setSelectedProxyFarmerId(e.target.value || '')}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"
-              >
-                <option value="">— 请选择代领人 —</option>
-                {filteredFarmers.map(farmer => (
-                  <option key={farmer.id} value={farmer.id}>
-                    {farmer.real_name} ({farmer.village_full_name})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs text-stone-400 mb-1">代领备注（可选）</label>
-              <input
-                type="text"
-                value={proxyRemark}
-                onChange={(e) => setProxyRemark(e.target.value)}
-                placeholder="填写代领原因等说明"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400"
-              />
-            </div>
-
-            <button
-              onClick={handleCreateProxy}
-              disabled={!selectedProxyFarmerId}
-              className="w-full px-4 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              设置代领
-            </button>
-          </div>
-        )}
-
-        <div className="text-xs text-stone-400 pt-2 border-t border-stone-100">
-          提示：代领关系仅对当前这一条记录有效，每次代领都需要重新设置。
-        </div>
       </div>
     </Modal>
   )
