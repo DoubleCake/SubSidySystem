@@ -1803,7 +1803,6 @@ def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
     if proxy.household_id:
         affected_households.add(proxy.household_id)
     if affected_households:
-        from routers.households import _recalc_household_cache_after_import
         _recalc_household_cache_after_import(db, list(affected_households))
 
     return {"id": proxy_rel.id, "message": "代领关系创建成功"}
@@ -1841,7 +1840,6 @@ def delete_proxy(proxy_id: int, db: Session = Depends(get_db)):
 
     # 触发面积缓存更新
     if affected_households:
-        from routers.households import _recalc_household_cache_after_import
         _recalc_household_cache_after_import(db, list(affected_households))
 
     return {"message": "代领关系删除成功"}
