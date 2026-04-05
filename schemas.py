@@ -216,6 +216,8 @@ class PaymentCreate(BaseModel):
     bank_card: Optional[str] = None
     bank_name: Optional[str] = None
     remark: Optional[str] = None
+    proxy_remark: Optional[str] = None
+    pay_status: int = 2
 
 
 class PaymentOut(BaseModel):
@@ -230,6 +232,34 @@ class PaymentOut(BaseModel):
     bank_card_masked: Optional[str]
     bank_name: Optional[str]
     remark: Optional[str]
+    proxy_remark: Optional[str]
+    pay_status: int
+    is_proxy: int
+
+    class Config:
+        from_attributes = True
+
+
+# ───────────── 代领关系 ─────────────
+class SubsidyProxyCreate(BaseModel):
+    application_id: Optional[int] = None
+    payment_id: Optional[int] = None
+    beneficiary_farmer_id: int
+    proxy_farmer_id: int
+    proxy_type: str  # proxy=代人领取, receive=被人代领
+    remark: Optional[str] = None
+
+
+class SubsidyProxyOut(BaseModel):
+    id: int
+    application_id: Optional[int]
+    payment_id: Optional[int]
+    beneficiary_farmer_id: int
+    proxy_farmer_id: int
+    proxy_type: str
+    remark: Optional[str]
+    created_at: str
+    updated_at: str
 
     class Config:
         from_attributes = True

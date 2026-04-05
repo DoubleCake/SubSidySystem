@@ -35,6 +35,7 @@ const SUBSIDY_IMPORT_FIELDS = [
   { field: "village_name",    label: "所在村",       required: false, type: "string" },
   { field: "group_no",        label: "所在组",       required: false, type: "string" },
   { field: "remark",          label: "备注",         required: false, type: "string" },
+  { field: "proxy_remark",    label: "代领备注",     required: false, type: "string" },
 ]
 
 type StatsType = SubsidyType & {
@@ -293,13 +294,24 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
   show: (msg: string, type?: 'ok' | 'err') => void
   toast: { msg: string; type: 'ok' | 'err' } | null
 }) {
+  const navigate = useNavigate()
   const [apps, setApps] = useState<ApplicationSearchResult[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
-  const [search, setSearch] = useState('')
-  // 筛选状态
-  const [filters, setFilters] = useState({
+
+  // Tab状态管理（必须在最前面声明）
+  const [activeTab, setActiveTab] = useState<'preApply' | 'disbursement'>('preApply')
+  const switchTab = (tab: 'preApply' | 'disbursement') => {
+    setActiveTab(tab)
+    setPage(1)
+    setSelectedIds([])
+  }
+
+  // 两个列表分别维护独立的搜索和筛选状态
+  const [searchPreApply, setSearchPreApply] = useState('')
+  const [searchDisbursement, setSearchDisbursement] = useState('')
+  const [filtersPreApply, setFiltersPreApply] = useState({
     village: '',
     payStatus: '',
     minAmount: '',
@@ -307,6 +319,19 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
     dateFrom: '',
     dateTo: ''
   })
+  const [filtersDisbursement, setFiltersDisbursement] = useState({
+    village: '',
+    payStatus: '',
+    minAmount: '',
+    maxAmount: '',
+    dateFrom: '',
+    dateTo: ''
+  })
+
+  // 当前激活的搜索和筛选
+  const search = activeTab === 'preApply' ? searchPreApply : searchDisbursement
+  const filters = activeTab === 'preApply' ? filtersPreApply : filtersDisbursement
+
   // 村庄列表用于筛选
   const [villages, setVillages] = useState<string[]>([])
   const [loadingVillages, setLoadingVillages] = useState(false)
@@ -316,7 +341,24 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
     setApps([])
     setTotal(0)
     setPage(1)
-    setSearch('')
+    setSearchPreApply('')
+    setSearchDisbursement('')
+    setFiltersPreApply({
+      village: '',
+      payStatus: '',
+      minAmount: '',
+      maxAmount: '',
+      dateFrom: '',
+      dateTo: ''
+    })
+    setFiltersDisbursement({
+      village: '',
+      payStatus: '',
+      minAmount: '',
+      maxAmount: '',
+      dateFrom: '',
+      dateTo: ''
+    })
   }, [subsidyType.id])
 
   // 加载模板列表
@@ -340,7 +382,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10))
   const [batchLoading, setBatchLoading] = useState(false)
 
-  const [form, setForm] = useState<Partial<ApplicationCreate>>({
+  const [form, setForm] = useState<Partial<ApplicationCreate> & { proxy_remark?: string }>({
     pay_status: 2, subsidy_type_id: subsidyType.id, apply_year: subsidyType.subsidy_year,
   })
   const [idInput, setIdInput] = useState('')
@@ -349,21 +391,47 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
 
   // 处理筛选变化
   const handleFilterChange = (field: string, value: string) => {
-    setFilters(prev => ({ ...prev, [field]: value }))
+    if (activeTab === 'preApply') {
+      setFiltersPreApply(prev => ({ ...prev, [field]: value }))
+    } else {
+      setFiltersDisbursement(prev => ({ ...prev, [field]: value }))
+    }
     // 重置页码到第一页
     setPage(1)
   }
 
+  // 处理搜索变化
+  const handleSearchChange = (value: string) => {
+    if (activeTab === 'preApply') {
+      setSearchPreApply(value)
+    } else {
+      setSearchDisbursement(value)
+    }
+  }
+
   // 清除所有筛选
   const clearFilters = () => {
-    setFilters({
-      village: '',
-      payStatus: '',
-      minAmount: '',
-      maxAmount: '',
-      dateFrom: '',
-      dateTo: ''
-    })
+    if (activeTab === 'preApply') {
+      setFiltersPreApply({
+        village: '',
+        payStatus: '',
+        minAmount: '',
+        maxAmount: '',
+        dateFrom: '',
+        dateTo: ''
+      })
+      setSearchPreApply('')
+    } else {
+      setFiltersDisbursement({
+        village: '',
+        payStatus: '',
+        minAmount: '',
+        maxAmount: '',
+        dateFrom: '',
+        dateTo: ''
+      })
+      setSearchDisbursement('')
+    }
     setPage(1)
   }
 
@@ -434,14 +502,6 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
     }
   }, [subsidyType.id, subsidyType.subsidy_year])
 
-  // Tab状态管理（必须在 load 之前声明，因为 load 依赖 activeTab）
-  const [activeTab, setActiveTab] = useState<'preApply' | 'disbursement'>('preApply')
-  const switchTab = (tab: 'preApply' | 'disbursement') => {
-    setActiveTab(tab)
-    setPage(1)
-    setSelectedIds([])
-  }
-
   // 关键修复：直接用 /applications 接口，传 subsidy_type_id 过滤
   const load = useCallback(async () => {
     setLoading(true)
@@ -454,13 +514,14 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
           payment_year: subsidyType.subsidy_year,
         }
         if (search) params.search = search
+        if (filters.payStatus) params.pay_status = filters.payStatus
         if (filters.village) params.village_name = filters.village
         if (filters.dateFrom) params.date_from = filters.dateFrom
         if (filters.dateTo) params.date_to = filters.dateTo
 
         const res = await fetch(`/api/subsidies/payments?${new URLSearchParams(params as Record<string, string>)}`).then(r => r.json())
         // 转换为与申报列表相同的格式以便统一展示
-        setApps(res.items.map((p: { id: number; farmer_id: number; farmer_name: string; subsidy_type_id: number; subsidy_name: string; village_name: string; group_no: string; payment_year: number; amount: number; payment_date: string; apply_area: number; contract_area: number; trust_area: number; no_subsidy_area: number; bank_card_masked: string; bank_name: string; remark: string }) => ({
+        setApps(res.items.map((p: { id: number; farmer_id: number; farmer_name: string; subsidy_type_id: number; subsidy_name: string; village_name: string; group_no: string; payment_year: number; amount: number; payment_date: string; apply_area: number; contract_area: number; trust_area: number; no_subsidy_area: number; bank_card_masked: string; bank_name: string; remark: string; proxy_remark: string; pay_status: number; is_proxy: number }) => ({
           id: p.id,
           farmer_id: p.farmer_id,
           farmer_name: p.farmer_name,
@@ -474,11 +535,13 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
           trust_area: p.trust_area,
           no_subsidy_area: p.no_subsidy_area,
           actual_amount: p.amount,
-          pay_status: 2, // 发放默认已发放
+          pay_status: p.pay_status,
           pay_date: p.payment_date,
           bank_card_masked: p.bank_card_masked,
           bank_name: p.bank_name,
           remark: p.remark,
+          proxy_remark: p.proxy_remark,
+          is_proxy: p.is_proxy,
         })))
         setTotal(res.total)
         setLoading(false)
@@ -492,7 +555,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
         year: subsidyType.subsidy_year,
       }
       if (search) params.search = search
-      // 按当前Tab自动过滤：预申请只显示 pay_status=0
+      // 按当前Tab自动过滤：预申请只显示 pay_status=0，除非用户选择了其他状态
       if (filters.payStatus) {
         params.pay_status = filters.payStatus
       } else {
@@ -549,20 +612,40 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
   const submitEdit = async () => {
     if (!editTarget) return
     try {
-      await api.updateApplication(editTarget.id, {
-        actual_amount: form.actual_amount,
-        apply_area: form.apply_area,
-        contract_area: form.contract_area,
-        trust_area: form.trust_area,
-        no_subsidy_area: form.no_subsidy_area,
-        pay_date: form.pay_date,
-        remark: form.remark, pay_status: form.pay_status
-      })
+      if (activeTab === 'disbursement') {
+        // 发放记录调用发放API
+        await fetch(`/api/subsidies/payments/${editTarget.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: form.actual_amount,
+            apply_area: form.apply_area,
+            contract_area: form.contract_area,
+            trust_area: form.trust_area,
+            no_subsidy_area: form.no_subsidy_area,
+            payment_date: form.pay_date,
+            remark: form.remark,
+            proxy_remark: form.proxy_remark
+          })
+        })
+      } else {
+        // 预申请记录调用申请API
+        await api.updateApplication(editTarget.id, {
+          actual_amount: form.actual_amount,
+          apply_area: form.apply_area,
+          contract_area: form.contract_area,
+          trust_area: form.trust_area,
+          no_subsidy_area: form.no_subsidy_area,
+          pay_date: form.pay_date,
+          remark: form.remark,
+          pay_status: form.pay_status
+        })
+      }
       show('✓ 更新成功'); setEditTarget(null); load()
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
-  const openEdit = (a: ApplicationSearchResult) => {
+  const openEdit = (a: ApplicationSearchResult & { proxy_remark?: string | null }) => {
     // 将ApplicationSearchResult转换为ApplicationOut
     const appOut: ApplicationOut = {
       id: a.id,
@@ -589,7 +672,8 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
       trust_area: a.trust_area ? Number(a.trust_area) : undefined,
       no_subsidy_area: a.no_subsidy_area ? Number(a.no_subsidy_area) : undefined,
       pay_date: a.pay_date ?? undefined,
-      remark: a.remark ?? undefined
+      remark: a.remark ?? undefined,
+      proxy_remark: a.proxy_remark ?? undefined
     })
   }
 
@@ -722,19 +806,19 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
     ? selectedTmpl.column_mapping.filter(m => m.system_field).map(m => m.excel_column + (m.required ? '*' : ''))
     : isPreApply
       ? ['身份证号*', '姓名*', '种植面积', '承包地面积(亩)', '代耕代种面积(亩)', '不予补贴面积(亩)', '所在村', '所在组', '备注']
-      : ['身份证号*', '姓名*', '实发金额', '承包地面积(亩)', '代耕代种面积(亩)', '不予补贴面积(亩)', '打款日期', '所在村', '所在组', '备注']
+      : ['身份证号*', '姓名*', '实发金额', '承包地面积(亩)', '代耕代种面积(亩)', '不予补贴面积(亩)', '打款日期', '所在村', '所在组', '备注', '代领备注']
   const IMPORT_EXAMPLE = selectedTmpl
     ? [Object.fromEntries(selectedTmpl.column_mapping.filter(m => m.system_field).map(m => {
         const sample: Record<string, unknown> = {
           id_card: '510123196503154231', real_name: '张国强', actual_amount: 420,
           contract_area: 2.5, trust_area: 1.0, pay_date: `${subsidyType.subsidy_year}-07-15`,
-          village_name: '红星村', group_no: '一组', remark: '',
+          village_name: '红星村', group_no: '一组', remark: '', proxy_remark: '',
         }
         return [m.excel_column, sample[m.system_field!] ?? '']
       }))]
     : isPreApply
       ? [{ '身份证号*': '510123196503154231', '姓名*': '张国强', '种植面积': 3.5, '承包地面积(亩)': 2.5, '代耕代种面积(亩)': 1.0, '不予补贴面积(亩)': 0.5, '所在村': '红星村', '所在组': '一组', '备注': '' }]
-      : [{ '身份证号*': '510123196503154231', '姓名*': '张国强', '实发金额': 420, '承包地面积(亩)': 2.5, '代耕代种面积(亩)': 1.0, '不予补贴面积(亩)': 0.5, '打款日期': `${subsidyType.subsidy_year}-07-15`, '所在村': '红星村', '所在组': '一组', '备注': '' }]
+      : [{ '身份证号*': '510123196503154231', '姓名*': '张国强', '实发金额': 420, '承包地面积(亩)': 2.5, '代耕代种面积(亩)': 1.0, '不予补贴面积(亩)': 0.5, '打款日期': `${subsidyType.subsidy_year}-07-15`, '所在村': '红星村', '所在组': '一组', '备注': '', '代领备注': '' }]
 
   // 模板列名→系统字段映射表（excel_column → system_field）
   const tmplMapping = selectedTmpl
@@ -807,6 +891,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
         pay_status: isPreApplyMode ? 0 : 2,
         pay_date: isPreApplyMode ? undefined : (String(row['pay_date'] || row['打款日期'] || '').trim() || undefined),
         remark: String(row['remark'] || row['备注'] || '').trim() || undefined,
+        proxy_remark: String(row['proxy_remark'] || row['代领备注'] || '').trim() || undefined,
       })
     }
     if (errors.length && !toCreate.length) return { created: 0, skipped: 0, errors }
@@ -828,6 +913,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
         bank_card: r.bank_card,
         bank_name: r.bank_name,
         remark: r.remark,
+        proxy_remark: r.proxy_remark,
       }))
       const res = await fetch('/api/subsidies/payments/batch-import', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1522,7 +1608,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
             <input
               type="text"
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => handleSearchChange(e.target.value)}
               placeholder="姓名/身份证"
               className="flex-1 border border-stone-200 rounded-lg px-2 py-1.5 text-xs outline-none"
             />
@@ -1562,7 +1648,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
                 )}
               </button>
             </th>
-            {['姓名', '身份证', '手机号', '所在村', '所在组', '实际补贴面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额', '状态', '打款日期', '备注', '操作'].map(h => (
+            {['姓名', '身份证', '手机号', '所在村', '所在组', '实际补贴面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额', '状态', '打款日期', '备注', '代领备注', '操作'].map(h => (
               <th key={h} className="px-2 py-2 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>
             ))}
           </tr></thead>
@@ -1591,7 +1677,14 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
                     )}
                   </button>
                 </td>
-                <td className="px-2 py-2 text-sm font-semibold whitespace-nowrap">{a.farmer_name}</td>
+                <td className="px-2 py-2 text-sm font-semibold whitespace-nowrap">
+                  <div className="flex items-center gap-1">
+                    {a.farmer_name}
+                    {a.is_proxy === 1 && (
+                      <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">代领</span>
+                    )}
+                  </div>
+                </td>
                 <td className="px-2 py-2 text-xs font-mono text-stone-400 whitespace-nowrap">{a.id_card_masked || '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono text-stone-400 whitespace-nowrap">{a.phone || '—'}</td>
                 <td className="px-2 py-2 text-xs text-stone-400 whitespace-nowrap">{a.village || '—'}</td>
@@ -1609,9 +1702,27 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
                 <td className="px-2 py-2"><Tag label={PAY_STATUS[a.pay_status]?.label || '—'} color={PAY_STATUS[a.pay_status]?.color as 'green'} /></td>
                 <td className="px-2 py-2 text-xs font-mono text-stone-400 whitespace-nowrap">{a.pay_date ?? '—'}</td>
                 <td className="px-2 py-2 text-xs text-stone-400 max-w-[120px] truncate" title={a.remark || ''}>{a.remark || '—'}</td>
+                <td className="px-2 py-2 text-xs text-stone-500 max-w-[120px] truncate" title={a.proxy_remark || ''}>{a.proxy_remark || '—'}</td>
                 <td className="px-2 py-2">
                   <div className="flex gap-1">
                     <button onClick={() => openEdit(a)} className="text-xs text-stone-400 border border-stone-200 px-2 py-1 rounded hover:text-emerald-700 hover:border-emerald-200">编辑</button>
+                    <button onClick={() => {
+                      const state = {
+                        beneficiaryFarmerId: a.farmer_id,
+                        beneficiaryFarmerName: a.farmer_name,
+                      }
+                      if (activeTab === 'preApply') {
+                        navigate(`/proxy/application/${a.id}`, { state })
+                      } else {
+                        navigate(`/proxy/payment/${a.id}`, { state })
+                      }
+                    }} className={`text-xs px-2 py-1 rounded border ${
+                      a.is_proxy === 1
+                        ? 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100'
+                        : 'text-stone-400 border-stone-200 hover:text-stone-600 hover:border-stone-300'
+                    }`}>
+                      {a.is_proxy === 1 ? '代领中' : '代领'}
+                    </button>
                     <button onClick={() => setDeleteId(a.id)} className="text-xs text-red-400 border border-red-100 px-2 py-1 rounded hover:bg-red-50">删</button>
                   </div>
                 </td>
@@ -1769,6 +1880,13 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
               <input value={form.remark ?? ''} onChange={e => setForm(f => ({ ...f, remark: e.target.value || undefined }))}
                 className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
             </div>
+            {activeTab === 'disbursement' && (
+              <div>
+                <label className="block text-xs text-stone-400 mb-1">代领备注</label>
+                <input value={form.proxy_remark ?? ''} onChange={e => setForm(f => ({ ...f, proxy_remark: e.target.value || undefined }))}
+                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+              </div>
+            )}
           </div>
         </div>
       </Modal>
@@ -1819,6 +1937,9 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
           <div className="col-span-2"><label className="block text-xs text-stone-400 mb-1">备注</label>
             <input value={form.remark ?? ''} onChange={e => setForm(f => ({ ...f, remark: e.target.value || undefined }))}
+              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
+          <div className="col-span-2"><label className="block text-xs text-stone-400 mb-1">代领备注</label>
+            <input value={form.proxy_remark ?? ''} onChange={e => setForm(f => ({ ...f, proxy_remark: e.target.value || undefined }))}
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
         </div>
       </Modal>
@@ -1984,6 +2105,7 @@ function RecordsPage({ subsidyType, onBack, show, toast }: {
           </div>
         </div>
       )}
+
 
       {toast && <Toast msg={toast.msg} type={toast.type} />}
     </div>

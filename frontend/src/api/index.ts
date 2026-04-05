@@ -6,6 +6,7 @@ import type {
   ErrorLibraryItem, ErrorLibraryCreate,
   HH, HHDetail, HHEvent, HistoryDateEvent, SnapshotAtResponse,
   HouseholdCreate, MemberCreate, MemberUpdate, MemberMoveRequest,
+  SubsidyProxyOut, SubsidyProxyCreate,
 } from '../types'
 
 const BASE = ''
@@ -93,6 +94,16 @@ export const batchImportApplications = (rows: ApplicationCreate[]) =>
     '/api/subsidies/applications/batch-import',
     { method: 'POST', body: JSON.stringify({ rows }) }
   )
+
+// ── 代领关系 ──
+export const getProxies = (params: Record<string, string | number>) =>
+  req<SubsidyProxyOut[]>('/api/subsidies/proxies?' + new URLSearchParams(params as Record<string, string>))
+
+export const createProxy = (data: SubsidyProxyCreate) =>
+  req<{ id: number }>('/api/subsidies/proxies', { method: 'POST', body: JSON.stringify(data) })
+
+export const deleteProxy = (id: number) =>
+  req('/api/subsidies/proxies/' + id, { method: 'DELETE' })
 
 // ── 汇总 ──
 export const getYearCompare = (year: number) =>
@@ -295,6 +306,12 @@ export const deleteHousehold = (householdId: number) =>
   req<{ message: string; household_id: number }>(
     `/api/households/${householdId}`,
     { method: 'DELETE' }
+  )
+
+export const refreshAreaCache = (householdId?: number) =>
+  req<{ message: string; household_id?: number; household_name?: string; total?: number }>(
+    `/api/households/refresh-cache${householdId ? `?household_id=${householdId}` : ''}`,
+    { method: 'POST' }
   )
 
 // ── 家庭户批量导入 ──

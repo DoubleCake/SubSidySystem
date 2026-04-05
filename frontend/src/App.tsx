@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useMemo } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import FarmersPage from './pages/FarmersPage'
 import SubsidyProjectsPage from './pages/SubsidyProjectsPage'
@@ -11,8 +11,10 @@ import BackupPage from './pages/BackupPage'
 import ExcelTemplatePage from './pages/ExcelTemplatePage'
 import LandTrustPage from './pages/LandTrustPage'
 import HouseholdImportPage from './pages/HouseholdImportPage'
+import ProxyManagePage from './pages/ProxyManagePage'
 import { healthCheck } from './api'
 import { useState } from 'react'
+import { QUOTES, COLOR_THEMES } from './utils/quotes'
 
 const mainNav = [
   { to: '/',            label: '首页',     icon: '📊', end: true },
@@ -40,6 +42,13 @@ function Layout() {
 
   const isSettings = location.pathname.startsWith('/settings')
 
+  // 随机选择一条语录和颜色主题（页面加载时确定，保持不变）
+  const { quote, colorTheme } = useMemo(() => {
+    const randomQuote = QUOTES[Math.floor(Math.random() * QUOTES.length)]
+    const randomColor = COLOR_THEMES[Math.floor(Math.random() * COLOR_THEMES.length)]
+    return { quote: randomQuote, colorTheme: randomColor }
+  }, [])
+
   useEffect(() => {
     healthCheck().then(() => setOnline(true)).catch(() => setOnline(false))
   }, [])
@@ -54,7 +63,7 @@ function Layout() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-stone-100" style={{ fontFamily: "'Noto Serif SC','SimSun',Georgia,serif" }}>
+    <div className="min-h-screen bg-stone-100 flex flex-col" style={{ fontFamily: "'Noto Serif SC','SimSun',Georgia,serif" }}>
       <header className="bg-emerald-800 text-white sticky top-0 z-40 shadow-lg">
         <div className="max-w-screen-xl mx-auto px-5 flex items-center gap-4" style={{ height: 52 }}>
           {/* Logo */}
@@ -127,28 +136,43 @@ function Layout() {
         )}
       </header>
 
-      <main className="max-w-screen-xl mx-auto px-5 py-5">
-        <Routes>
-          <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
-          <Route path="/farmers"   element={<FarmersPage />} />
-          <Route path="/projects"  element={<SubsidyProjectsPage />} />
-          <Route path="/precheck"  element={<PreCheckPage />} />
-          <Route path="/links"     element={<ExternalLinksPage />} />
-          <Route path="/ai"        element={<AIPage />} />
-          <Route path="/settings/village-groups" element={<SettingsPage />} />
-          <Route path="/settings/backup" element={<BackupPage />} />
-          <Route path="/settings/excel-templates" element={<ExcelTemplatePage />} />
-          <Route path="/settings/land-trust" element={<LandTrustPage />} />
-          <Route path="/settings/household-import" element={<HouseholdImportPage />} />
-          {/* 404 fallback */}
-          <Route path="*" element={
-            <div className="text-center py-24 text-stone-300">
-              <div className="text-5xl mb-3">🌾</div>
-              <p className="text-sm">页面不存在，<button className="text-emerald-600 hover:underline" onClick={() => navigate('/')}>返回首页</button></p>
-            </div>
-          } />
-        </Routes>
+      <main className="flex-1">
+        <div className="max-w-screen-xl mx-auto px-5 py-5 pb-8">
+          <Routes>
+            <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
+            <Route path="/farmers"   element={<FarmersPage />} />
+            <Route path="/projects"  element={<SubsidyProjectsPage />} />
+            <Route path="/precheck"  element={<PreCheckPage />} />
+            <Route path="/links"     element={<ExternalLinksPage />} />
+            <Route path="/ai"        element={<AIPage />} />
+            <Route path="/settings/village-groups" element={<SettingsPage />} />
+            <Route path="/settings/backup" element={<BackupPage />} />
+            <Route path="/settings/excel-templates" element={<ExcelTemplatePage />} />
+            <Route path="/settings/land-trust" element={<LandTrustPage />} />
+            <Route path="/settings/household-import" element={<HouseholdImportPage />} />
+            <Route path="/proxy/application/:applicationId" element={<ProxyManagePage />} />
+            <Route path="/proxy/payment/:paymentId" element={<ProxyManagePage />} />
+            {/* 404 fallback */}
+            <Route path="*" element={
+              <div className="text-center py-24 text-stone-300">
+                <div className="text-5xl mb-3">🌾</div>
+                <p className="text-sm">页面不存在，<button className="text-emerald-600 hover:underline" onClick={() => navigate('/')}>返回首页</button></p>
+              </div>
+            } />
+          </Routes>
+        </div>
       </main>
+
+      {/* 底部语录展示 */}
+      <footer>
+        <div className={`w-full py-6 ${colorTheme.bg} ${colorTheme.text}`}>
+          <div className="max-w-screen-xl mx-auto px-5 text-center">
+            <div className="text-lg font-medium italic">
+              " {quote} "
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

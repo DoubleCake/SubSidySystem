@@ -4,12 +4,13 @@ from sqlalchemy import func
 from typing import Optional
 
 from database import get_db
-from models import SubsidyType, SubsidyApplication, SubsidyPayment, FarmerProfile, FamilyHousehold, Village, ErrorLibrary, HouseholdAreaUsageCache
+from models import SubsidyType, SubsidyApplication, SubsidyPayment, FarmerProfile, FamilyHousehold, Village, ErrorLibrary, HouseholdAreaUsageCache, SubsidyProxy
 from schemas import (
     SubsidyTypeCreate, SubsidyTypeOut,
     ApplicationCreate, ApplicationUpdate, ApplicationOut,
     PaymentCreate, PaymentOut,
     YearCompare, YearSummary,
+    SubsidyProxyCreate, SubsidyProxyOut,
 )
 from utils import parse_group_no_to_int, format_group_no, validate_id_card, parse_gender_from_id, check_area_anomaly
 
@@ -766,6 +767,8 @@ def search_applications(
             "pay_status":      a.pay_status,
             "pay_date":        str(a.pay_date) if a.pay_date else None,
             "remark":          a.remark,
+            "proxy_remark":    None,
+            "is_proxy":        a.is_proxy,
         })
     return {"total": total, "page": page, "page_size": page_size, "items": rows}
 
@@ -1395,6 +1398,7 @@ def list_payments(
     subsidy_type_id: Optional[int] = Query(None),
     village_name: Optional[str] = Query(None),
     farmer_id: Optional[int] = Query(None),
+    pay_status: Optional[int] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=500),
     db: Session = Depends(get_db),
@@ -1417,6 +1421,8 @@ def list_payments(
         q = q.filter(SubsidyPayment.farmer_id == farmer_id)
     if village_name:
         q = q.filter(Village.village_name == village_name)
+    if pay_status is not None:
+        q = q.filter(SubsidyPayment.pay_status == pay_status)
 
     total = q.count()
     offset = (page - 1) * page_size
@@ -1445,6 +1451,9 @@ def list_payments(
                 "bank_card_masked": f"****{p[0].bank_card[-4:]}" if p[0].bank_card else None,
                 "bank_name": p[0].bank_name,
                 "remark": p[0].remark,
+                "proxy_remark": p[0].proxy_remark,
+                "pay_status": p[0].pay_status,
+                "is_proxy": p[0].is_proxy,
             }
             for p in rows
         ]
@@ -1500,6 +1509,8 @@ def create_payment(data: PaymentCreate, db: Session = Depends(get_db)):
         bank_card=data.bank_card,
         bank_name=data.bank_name,
         remark=data.remark,
+        proxy_remark=data.proxy_remark,
+        pay_status=data.pay_status,
     )
     db.add(payment)
 
@@ -1520,6 +1531,25 @@ def create_payment(data: PaymentCreate, db: Session = Depends(get_db)):
         _recalc_household_cache_after_import(db, [farmer.household_id])
 
     return {"id": payment.id, "message": "发放记录创建成功"}
+
+
+@router.put("/payments/{payment_id}")
+def update_payment(payment_id: int, data: dict, db: Session = Depends(get_db)):
+    """更新发放记录"""
+    payment = db.get(SubsidyPayment, payment_id)
+    if not payment:
+        raise HTTPException(status_code=404, detail="发放记录不存在")
+
+    # 更新字段
+    update_fields = ["amount", "payment_date", "apply_area", "contract_area",
+                     "trust_area", "no_subsidy_area", "bank_card", "bank_name",
+                     "remark", "proxy_remark", "pay_status"]
+    for k, v in data.items():
+        if k in update_fields and hasattr(payment, k):
+            setattr(payment, k, v)
+
+    db.commit()
+    return {"message": "更新成功"}
 
 
 @router.delete("/payments/{payment_id}")
@@ -1631,6 +1661,7 @@ def batch_import_payments(payload: dict, db: Session = Depends(get_db)):
                 bank_card=row.get("bank_card"),
                 bank_name=row.get("bank_name"),
                 remark=row.get("remark"),
+                proxy_remark=row.get("proxy_remark"),
             )
             db.add(payment)
             # 同步对应申报记录的 pay_status → 已发放
@@ -1673,3 +1704,113 @@ def sync_payment_status(db: Session = Depends(get_db)):
             synced += 1
     db.commit()
     return {"synced": synced, "message": f"已同步 {synced} 条申报记录的发放状态"}
+
+
+# ════════════════════════════════
+#  代领关系管理
+# ════════════════════════════════
+
+@router.get("/proxies")
+def list_proxies(
+    application_id: Optional[int] = Query(None),
+    payment_id: Optional[int] = Query(None),
+    beneficiary_farmer_id: Optional[int] = Query(None),
+    proxy_farmer_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """查询代领关系列表"""
+    from models import SubsidyProxy
+    q = db.query(SubsidyProxy)
+    if application_id:
+        q = q.filter(SubsidyProxy.application_id == application_id)
+    if payment_id:
+        q = q.filter(SubsidyProxy.payment_id == payment_id)
+    if beneficiary_farmer_id:
+        q = q.filter(SubsidyProxy.beneficiary_farmer_id == beneficiary_farmer_id)
+    if proxy_farmer_id:
+        q = q.filter(SubsidyProxy.proxy_farmer_id == proxy_farmer_id)
+    return q.order_by(SubsidyProxy.created_at.desc()).all()
+
+
+@router.post("/proxies")
+def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
+    """创建代领关系"""
+    from models import SubsidyProxy, SubsidyApplication, SubsidyPayment, FarmerProfile
+
+    # 验证农户存在
+    beneficiary = db.get(FarmerProfile, data.beneficiary_farmer_id)
+    if not beneficiary:
+        raise HTTPException(status_code=404, detail="受益人不存在")
+    proxy = db.get(FarmerProfile, data.proxy_farmer_id)
+    if not proxy:
+        raise HTTPException(status_code=404, detail="代领人不存在")
+
+    # 验证关联的补贴记录存在
+    if data.application_id:
+        app = db.get(SubsidyApplication, data.application_id)
+        if not app:
+            raise HTTPException(status_code=404, detail="补贴申请记录不存在")
+        # 更新申请记录的 is_proxy 标记
+        app.is_proxy = 1
+    if data.payment_id:
+        pay = db.get(SubsidyPayment, data.payment_id)
+        if not pay:
+            raise HTTPException(status_code=404, detail="补贴发放记录不存在")
+        # 更新发放记录的 is_proxy 标记
+        pay.is_proxy = 1
+
+    # 创建代领关系
+    proxy_rel = SubsidyProxy(**data.model_dump())
+    db.add(proxy_rel)
+    db.commit()
+    db.refresh(proxy_rel)
+
+    # 触发面积缓存更新
+    affected_households = set()
+    if beneficiary.household_id:
+        affected_households.add(beneficiary.household_id)
+    if proxy.household_id:
+        affected_households.add(proxy.household_id)
+    if affected_households:
+        from routers.households import _recalc_household_cache_after_import
+        _recalc_household_cache_after_import(db, list(affected_households))
+
+    return {"id": proxy_rel.id, "message": "代领关系创建成功"}
+
+
+@router.delete("/proxies/{proxy_id}")
+def delete_proxy(proxy_id: int, db: Session = Depends(get_db)):
+    """删除代领关系"""
+    from models import SubsidyProxy, SubsidyApplication, SubsidyPayment
+
+    proxy_rel = db.get(SubsidyProxy, proxy_id)
+    if not proxy_rel:
+        raise HTTPException(status_code=404, detail="代领关系不存在")
+
+    # 清除相关补贴记录的 is_proxy 标记
+    affected_households = set()
+    if proxy_rel.application_id:
+        app = db.get(SubsidyApplication, proxy_rel.application_id)
+        if app:
+            app.is_proxy = 0
+            # 获取受益人家庭户
+            if app.farmer.household_id:
+                affected_households.add(app.farmer.household_id)
+    if proxy_rel.payment_id:
+        pay = db.get(SubsidyPayment, proxy_rel.payment_id)
+        if pay:
+            pay.is_proxy = 0
+            # 获取代领人家庭户
+            if pay.farmer.household_id:
+                affected_households.add(pay.farmer.household_id)
+
+    # 删除代领关系
+    db.delete(proxy_rel)
+    db.commit()
+
+    # 触发面积缓存更新
+    if affected_households:
+        from routers.households import _recalc_household_cache_after_import
+        _recalc_household_cache_after_import(db, list(affected_households))
+
+    return {"message": "代领关系删除成功"}

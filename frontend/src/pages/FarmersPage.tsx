@@ -146,6 +146,7 @@ export default function FarmersPage() {
   const [villageFilter, setVillageFilter] = useState('')
   const [overdrawnOnly, setOverdrawnOnly] = useState(false)
   const [confirmedFilter, setConfirmedFilter] = useState<string>('') // ''=全部, '1'=已确认, '0'=未确认
+  const [statusFilter, setStatusFilter] = useState<string>('1') // ''=全部, '1'=在册, '2'=注销, '3'=迁出
   const yearFilter = new Date().getFullYear()
 
   // ── 批量确认状态 ──
@@ -344,10 +345,11 @@ export default function FarmersPage() {
       if (villageFilter) p.village_name = villageFilter
       if (overdrawnOnly) p.overdrawn_only = '1'
       if (confirmedFilter) p.confirmed_only = confirmedFilter
+      if (statusFilter) p.status = statusFilter
       const r = await api.getHouseholds(p)
       setHhList(r.items); setHhTotal(r.total)
     } finally { setHhLoading(false) }
-  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter])
+  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter])
 
   useEffect(() => {
     if (leftTab === 'farmers') loadFarmers()
@@ -461,6 +463,27 @@ export default function FarmersPage() {
     await loadHouseholdHistoryDates(id)
     if (!skipUrlUpdate) {
       updateUrl({ tab: 'households', farmerId: null, householdId: id })
+    }
+  }
+
+  // ── 刷新面积缓存 ──
+  const [refreshingCache, setRefreshingCache] = useState(false)
+  const handleRefreshCache = async (householdId?: number) => {
+    if (refreshingCache) return
+    setRefreshingCache(true)
+    try {
+      const r = await api.refreshAreaCache(householdId)
+      show(r.message)
+      if (householdId) {
+        refreshDetail()
+      } else {
+        loadHouseholds()
+        refreshDetail()
+      }
+    } catch (e: unknown) {
+      show((e as Error).message, 'err')
+    } finally {
+      setRefreshingCache(false)
     }
   }
 
@@ -636,10 +659,11 @@ export default function FarmersPage() {
         })
       }
       show(`✓ 已合并 ${sourceIds.length} 个家庭户到目标户`)
+      setMergeConfirmOpen(false)
       setMergeMode(false)
       clearMergeSelection()
-      setMergeConfirmOpen(false)
-      loadHouseholds()
+      setHhPage(1)
+      await loadHouseholds()
     } catch (e: unknown) { show((e as Error).message, 'err') } finally {
       setMergeLoading(false)
     }
@@ -1460,9 +1484,9 @@ export default function FarmersPage() {
   //  主渲染：两栏布局
   // ═══════════════════════════════════════════════
   return (
-    <div className="flex gap-5 h-[calc(100vh-140px)]">
+    <div className="flex gap-5">
       {/* ── 左侧：Tab + 列表 ── */}
-      <div className="w-[32%] shrink-0 flex flex-col">
+      <div className="w-[32%] shrink-0 flex flex-col sticky top-[88px] self-start" style={{ maxHeight: 'calc(100vh - 104px)' }}>
         {/* Tab 切换 */}
         <div className="flex mb-4 bg-stone-100 rounded-xl p-1.5 shadow-sm">
           <button onClick={() => handleTabChange('households')}
@@ -1487,12 +1511,21 @@ export default function FarmersPage() {
             {villages.map(v => <option key={v} value={v}>{v}</option>)}
           </select>
           {leftTab === 'households' && (
-            <select value={confirmedFilter} onChange={e => { setConfirmedFilter(e.target.value); setHhPage(1) }}
-              className="border border-stone-200 rounded-lg px-3 py-2.5 text-sm bg-white outline-none shadow-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all">
-              <option value="">全部确认状态</option>
-              <option value="1">✓ 已确认</option>
-              <option value="0">✗ 未确认</option>
-            </select>
+            <>
+              <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setHhPage(1) }}
+                className="border border-stone-200 rounded-lg px-3 py-2.5 text-sm bg-white outline-none shadow-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all">
+                <option value="">全部状态</option>
+                <option value="1">在册</option>
+                <option value="2">注销</option>
+                <option value="3">迁出</option>
+              </select>
+              <select value={confirmedFilter} onChange={e => { setConfirmedFilter(e.target.value); setHhPage(1) }}
+                className="border border-stone-200 rounded-lg px-3 py-2.5 text-sm bg-white outline-none shadow-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all">
+                <option value="">全部确认状态</option>
+                <option value="1">✓ 已确认</option>
+                <option value="0">✗ 未确认</option>
+              </select>
+            </>
           )}
         </div>
 
@@ -1500,24 +1533,33 @@ export default function FarmersPage() {
         <div className="flex gap-2 mb-3 flex-wrap">
                     {leftTab === 'households' && !mergeMode && (
             <>
-              <button onClick={() => setCreateHhOpen(true)} className="px-4 py-2.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
-                <span className="mr-1">＋</span>创建新家庭户
-              </button>
-              <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]) }}
-                className="px-4 py-2.5 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 shadow-sm transition-all font-medium bg-amber-50">
-                <span className="mr-1">⊞</span>合并家庭户
-              </button>
-              <button onClick={exportCurrentList} className="px-4 py-2.5 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
-                <span className="mr-1">⬇</span>导出
-              </button>
-              <button onClick={() => { setConfirmedAreaRows([]); setConfirmedAreaImportResult(null); setConfirmedAreaImportOpen(true) }}
-                className="px-4 py-2.5 text-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium">
-                <span className="mr-1">↑</span>导入确权面积
-              </button>
-              <button onClick={() => { setBatchConfirmMode(true); setBatchSelected([]); setBatchSelectedHouseholds([]); setMergeMode(false); setMergeSelected([]); setMergeSelectedHouseholds([]) }}
-                className="px-4 py-2.5 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium bg-blue-50">
-                <span className="mr-1">✓</span>批量确认
-              </button>
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 shadow-sm hover:shadow transition-all font-medium">
+                  <span className="mr-1.5 text-xs">＋</span>创建新家庭户
+                </button>
+                <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]); setHhPage(1) }}
+                  className="px-3 py-2 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 shadow-sm transition-all font-medium bg-amber-50">
+                  <span className="mr-1.5 text-xs">⊞</span>合并家庭户
+                </button>
+                <button onClick={exportCurrentList} className="px-3 py-2 text-sm border border-stone-200 text-stone-600 rounded-lg hover:bg-stone-50 shadow-sm hover:shadow transition-all font-medium">
+                  <span className="mr-1.5 text-xs">⬇</span>导出
+                </button>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => { setConfirmedAreaRows([]); setConfirmedAreaImportResult(null); setConfirmedAreaImportOpen(true) }}
+                  className="px-3 py-2 text-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium">
+                  <span className="mr-1.5 text-xs">↑</span>导入确权面积
+                </button>
+                <button onClick={() => { setBatchConfirmMode(true); setBatchSelected([]); setBatchSelectedHouseholds([]); setMergeMode(false); setMergeSelected([]); setMergeSelectedHouseholds([]) }}
+                  className="px-3 py-2 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 shadow-sm hover:shadow transition-all font-medium bg-blue-50">
+                  <span className="mr-1.5 text-xs">✓</span>批量确认
+                </button>
+                <button onClick={() => handleRefreshCache()} disabled={refreshingCache}
+                  className="px-3 py-2 text-sm border-2 border-purple-500 text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 shadow-sm hover:shadow transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
+                  <span className="mr-1.5 text-xs">{refreshingCache ? '⏳' : '🔄'}</span>
+                  {refreshingCache ? '刷新中…' : '刷新缓存'}
+                </button>
+              </div>
               <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer bg-stone-50 px-3 py-2 rounded-lg border border-stone-200 shadow-sm hover:bg-stone-100 transition-all">
                 <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-emerald-600 rounded" />
                 <span className="font-medium">仅看超领</span>
@@ -1808,6 +1850,8 @@ export default function FarmersPage() {
                 onOpenManualConfirm={() => { setConfirmForm({ operator: '', remark: '' }); setManualConfirmOpen(true) }}
                 onOpenCancelConfirm={() => { setConfirmForm({ operator: '', remark: '' }); setCancelConfirmOpen(true) }}
                 onDelete={() => { setDeleteTarget(detail); setDeleteConfirmOpen(true) }}
+                onRefreshCache={handleRefreshCache}
+                refreshingCache={refreshingCache}
               />
             </div>
           </div>
@@ -1843,11 +1887,15 @@ export default function FarmersPage() {
           <div><label className="block text-xs text-stone-400 mb-1">所在组</label>
             <select value={editForm.group_no || 1} onChange={e => setEditForm(f => ({ ...f, group_no: Number(e.target.value) }))}
               className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
-              <option value={1}>第1组</option>
-              <option value={2}>第2组</option>
-              <option value={3}>第3组</option>
-              <option value={4}>第4组</option>
-              <option value={5}>第5组</option>
+              <option value={1}>一组</option>
+              <option value={2}>二组</option>
+              <option value={3}>三组</option>
+              <option value={4}>四组</option>
+              <option value={5}>五组</option>
+              <option value={6}>六组</option>
+              <option value={7}>七组</option>
+              <option value={8}>八组</option>
+              <option value={9}>九组</option>
             </select>
           </div>
           <div><label className="block text-xs text-stone-400 mb-1">承包土地面积（亩）</label>
@@ -2393,6 +2441,8 @@ type HouseholdDetailContentProps = {
   onOpenManualConfirm: () => void
   onOpenCancelConfirm: () => void
   onDelete: () => void
+  onRefreshCache: (householdId: number) => void
+  refreshingCache: boolean
 }
 
 function HouseholdDetailContent({
@@ -2419,6 +2469,8 @@ function HouseholdDetailContent({
   onOpenManualConfirm,
   onOpenCancelConfirm,
   onDelete,
+  onRefreshCache,
+  refreshingCache,
 }: HouseholdDetailContentProps) {
   const appsByYear: Record<number, typeof detail.app_summary> = {}
   detail.app_summary.forEach(a => {
@@ -2493,6 +2545,10 @@ function HouseholdDetailContent({
                 <button onClick={onOpenSplit}
                   className="text-xs bg-orange-500/80 hover:bg-orange-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">🔀 分户</button>
               )}
+              <button onClick={() => onRefreshCache(detail.id)} disabled={refreshingCache}
+                className="text-xs bg-purple-500/80 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                {refreshingCache ? '⏳' : '🔄'} 刷新缓存
+              </button>
               <button onClick={onDelete}
                 className="text-xs bg-red-500/80 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">🗑️ 删除</button>
             </div>
@@ -2760,7 +2816,7 @@ function HouseholdDetailContent({
       </div>
 
       {/* Tab 内容 */}
-      <div className="flex-1 bg-white border border-stone-200 rounded-xl overflow-hidden shadow-md overflow-y-auto">
+      <div className="flex-1 bg-white border border-stone-200 rounded-xl overflow-hidden shadow-md">
         {/* 成员 */}
         {detailTab === 'members' && (
           <div className="p-4 grid gap-2">
