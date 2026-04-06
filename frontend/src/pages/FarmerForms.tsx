@@ -424,9 +424,12 @@ export function SplitWizardForm({ open, splitStep, splitSelected, splitNewHead, 
   return (
     <Modal open={open} title="分户向导" onClose={onClose}
       onConfirm={splitStep === 3 ? onSubmit : () => {
-        if (splitStep === 1 && splitNewHead) {
-          const headName = members.find(m => m.id === splitNewHead)?.real_name || ''
-          setSplitForm(f => ({ ...f, household_name: headName + '户' }))
+        if (splitStep === 1) {
+          // 如果没有选择户主，也可以进入下一步，但在最后确认时会提示
+          const headName = splitNewHead ? members.find(m => m.id === splitNewHead)?.real_name || '' : ''
+          if (headName) {
+            setSplitForm(f => ({ ...f, household_name: headName + '户' }))
+          }
         }
         setSplitStep(s => (s + 1) as 1 | 2 | 3)
       }}
@@ -474,7 +477,7 @@ export function SplitWizardForm({ open, splitStep, splitSelected, splitNewHead, 
                 </div>
               ))}
             </div>
-            {splitSelected.length > 0 && !splitNewHead && <p className="text-xs text-amber-600 mt-2">请选择新户的户主</p>}
+            {splitSelected.length > 0 && !splitNewHead && <p className="text-xs text-amber-600 mt-2">提示：未选择户主，将默认选择列表中第一位作为新户户主</p>}
           </div>
         )}
         {splitStep === 2 && (
@@ -521,12 +524,17 @@ export function SplitWizardForm({ open, splitStep, splitSelected, splitNewHead, 
         )}
         {splitStep === 3 && (
           <div className="space-y-3">
-            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-2">
-              <p className="text-sm font-semibold text-orange-800">请确认分户信息</p>
-              <div className="text-xs text-orange-700 space-y-1">
+            <div className={`border rounded-xl p-4 space-y-2 ${!splitNewHead ? 'bg-amber-50 border-amber-200' : 'bg-orange-50 border-orange-200'}`}>
+              <p className={`text-sm font-semibold ${!splitNewHead ? 'text-amber-800' : 'text-orange-800'}`}>
+                {!splitNewHead ? '⚠️ 请确认分户信息（未选择户主）' : '请确认分户信息'}
+              </p>
+              <div className={`text-xs space-y-1 ${!splitNewHead ? 'text-amber-700' : 'text-orange-700'}`}>
                 <p>原户：{householdName || ''} → 将保留 {members.length - splitSelected.length} 名成员</p>
                 <p>新户：{splitForm.household_name || '（未填写）'} → {splitSelected.length} 名成员</p>
-                <p>新户户主：{members.find(m => m.id === splitNewHead)?.real_name}</p>
+                <p>新户户主：{splitNewHead
+                  ? members.find(m => m.id === splitNewHead)?.real_name
+                  : <span className="font-bold">{members.find(m => m.id === splitSelected[0])?.real_name}（默认第一位）</span>
+                }</p>
                 <p>年度：{splitForm.split_year}年{splitForm.split_date ? ` · ${splitForm.split_date}` : ''}</p>
                 {splitForm.new_land_area && <p>新户面积：{splitForm.new_land_area}亩</p>}
                 {splitForm.origin_land_area && <p>原户调整后面积：{splitForm.origin_land_area}亩</p>}

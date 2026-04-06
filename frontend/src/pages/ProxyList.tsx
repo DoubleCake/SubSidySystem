@@ -9,20 +9,19 @@ import * as api from '../api'
 
 interface ProxyRelation {
   id: number
-  application_id: number
-  payment_id: number
-  beneficiary_id: number
-  beneficiary_name: string
-  beneficiary_id_card_masked: string
-  proxy_id: number
-  proxy_name: string
-  proxy_id_card_masked: string
-  subsidy_type_id: number
-  subsidy_name: string
-  amount: number
-  relation_type: string
-  remark: string
+  application_id?: number
+  payment_id?: number
+  beneficiary_farmer_id: number
+  proxy_farmer_id: number
+  proxy_type: string
+  remark?: string
   created_at: string
+  updated_at: string
+  beneficiary_farmer_name?: string
+  beneficiary_id_card_masked?: string
+  proxy_farmer_name?: string
+  proxy_id_card_masked?: string
+  subsidy_type_id?: number
 }
 
 interface ProxyListProps {
@@ -96,25 +95,23 @@ export default function ProxyList({ subsidyType, show }: ProxyListProps) {
       <table className="w-full border-collapse min-w-[800px]">
         <thead>
           <tr className="bg-stone-50 border-b-2 border-stone-200">
-            {['被代领人', '被代领人身份证', '代领人', '代领人身份证', '补贴项目', '金额', '关系类型', '备注', '创建时间', '操作'].map(h => (
+            {['被代领人', '被代领人身份证', '代领人', '代领人身份证', '关系类型', '备注', '创建时间', '操作'].map(h => (
               <th key={h} className="px-3 py-2.5 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {loading && <tr><td colSpan={10} className="text-center py-10 text-stone-300">加载中…</td></tr>}
+          {loading && <tr><td colSpan={8} className="text-center py-10 text-stone-300">加载中…</td></tr>}
           {!loading && proxies.length === 0 && (
-            <tr><td colSpan={10} className="text-center py-10 text-stone-300 text-sm">暂无代领关系记录</td></tr>
+            <tr><td colSpan={8} className="text-center py-10 text-stone-300 text-sm">暂无代领关系记录</td></tr>
           )}
           {!loading && proxies.map(p => (
             <tr key={p.id} className="border-b border-stone-50 hover:bg-stone-50">
-              <td className="px-3 py-2.5 text-sm font-semibold text-stone-700">{p.beneficiary_name}</td>
-              <td className="px-3 py-2.5 text-xs font-mono text-stone-400">{p.beneficiary_id_card_masked}</td>
-              <td className="px-3 py-2.5 text-sm text-stone-600">{p.proxy_name}</td>
-              <td className="px-3 py-2.5 text-xs font-mono text-stone-400">{p.proxy_id_card_masked}</td>
-              <td className="px-3 py-2.5 text-xs text-stone-500">{p.subsidy_name}</td>
-              <td className="px-3 py-2.5 text-sm font-mono font-bold text-emerald-700">¥{p.amount.toFixed(2)}</td>
-              <td className="px-3 py-2.5"><Tag label={p.relation_type || '代领'} color="amber" /></td>
+              <td className="px-3 py-2.5 text-sm font-semibold text-stone-700">{p.beneficiary_farmer_name || '—'}</td>
+              <td className="px-3 py-2.5 text-xs font-mono text-stone-400">{p.beneficiary_id_card_masked || '—'}</td>
+              <td className="px-3 py-2.5 text-sm text-stone-600">{p.proxy_farmer_name || '—'}</td>
+              <td className="px-3 py-2.5 text-xs font-mono text-stone-400">{p.proxy_id_card_masked || '—'}</td>
+              <td className="px-3 py-2.5"><Tag label={p.proxy_type || '代领'} color="amber" /></td>
               <td className="px-3 py-2.5 text-xs text-stone-400 max-w-[150px] truncate" title={p.remark || ''}>{p.remark || '—'}</td>
               <td className="px-3 py-2.5 text-xs font-mono text-stone-400">{p.created_at?.split('T')[0] || '—'}</td>
               <td className="px-3 py-2.5">

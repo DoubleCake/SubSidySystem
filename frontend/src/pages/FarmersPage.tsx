@@ -735,18 +735,42 @@ export default function FarmersPage() {
   // ── 分户向导 ──
   const submitSplit = async () => {
     const hhId = detail?.id ?? selectedFarmerHousehold?.id
-    if (!hhId || !splitNewHead || splitSelected.length === 0) return
-    if (!splitForm.household_name.trim()) return show('请填写新家庭户名称', 'err')
+    if (!hhId || splitSelected.length === 0) return
+
+    const members = (detail || selectedFarmerHousehold)?.members || []
+
+    // 如果没有选择户主，使用第一位作为默认
+    let actualHeadId = splitNewHead
+    let actualHouseholdName = splitForm.household_name
+
+    if (!actualHeadId) {
+      actualHeadId = splitSelected[0]
+      const defaultHeadName = members.find((m: any) => m.id === actualHeadId)?.real_name || ''
+
+      // 如果没有填写户名，使用默认户主名
+      if (!actualHouseholdName.trim()) {
+        actualHouseholdName = defaultHeadName + '户'
+      }
+
+      // 询问用户是否确认使用第一位作为户主
+      const confirmed = window.confirm(
+        `未选择新户户主，将默认选择「${defaultHeadName}」作为新户户主，户名为「${actualHouseholdName}」。\n\n确认继续吗？`
+      )
+      if (!confirmed) return
+    }
+
+    if (!actualHouseholdName.trim()) return show('请填写新家庭户名称', 'err')
+
     try {
       const r = await api.splitHousehold(hhId, {
         split_year: Number(splitForm.split_year),
         split_date: splitForm.split_date || null,
-        new_household_name: splitForm.household_name,
+        new_household_name: actualHouseholdName,
         member_ids: splitSelected,
-        new_head_id: splitNewHead,
+        new_head_id: actualHeadId,
         new_land_area: splitForm.new_land_area ? Number(splitForm.new_land_area) : null,
         origin_land_area: splitForm.origin_land_area ? Number(splitForm.origin_land_area) : null,
-        description: splitForm.description || `分户：${splitSelected.length}名成员独立组建「${splitForm.household_name}」`,
+        description: splitForm.description || `分户：${splitSelected.length}名成员独立组建「${actualHouseholdName}」`,
         evidence_type: splitForm.evidence_type || null,
         evidence_note: splitForm.evidence_note || null,
       })
