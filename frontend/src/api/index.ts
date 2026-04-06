@@ -59,6 +59,49 @@ export const bulkCompleteFarmers = (rows: Record<string, unknown>[]) =>
   req<{ updated: number; errors: string[] }>('/api/farmers/bulk-complete', {
     method: 'POST', body: JSON.stringify({ rows }),
   })
+
+// ── 家庭关系导入 & 多户主拆分 ──
+export interface FamilyRelationRow {
+  row_index: number
+  real_name?: string
+  id_card?: string
+  relation?: string
+  age?: number
+  address?: string
+}
+
+export interface ImportFamilyRelationsResult {
+  stage1_updated: number
+  stage1_not_found: string[]
+  stage1_relation_errors: string[]
+  stage2_split?: {
+    split_count: number
+    created_households: number
+    migrated_members: number
+    details: { 原家庭: string; 新家庭: string; 新户主: string; 迁移人数: number }[]
+  }
+}
+
+export const importFamilyRelations = (rows: FamilyRelationRow[], splitVillages?: string[]) =>
+  req<ImportFamilyRelationsResult>('/api/farmers/import-relations', {
+    method: 'POST',
+    body: JSON.stringify({ rows, split_villages: splitVillages }),
+  })
+
+export interface MultiHeadHouseholdInfo {
+  household_id: number
+  household_name: string
+  village_name: string
+  head_count: number
+  heads: { id: number; real_name: string; relation: string; id_card_masked?: string }[]
+  all_members: { id: number; real_name: string; relation: string; id_card_masked?: string }[]
+}
+
+export const getMultiHeadHouseholds = (villageNames?: string[]) =>
+  req<{ households: MultiHeadHouseholdInfo[] }>(
+    '/api/farmers/households-with-multi-head' + (villageNames && villageNames.length > 0 ? `?village_names=${villageNames.join(',')}` : '')
+  )
+
 // ── 补贴类型 ──
 export const getSubsidyTypes = (year?: number) =>
   req<SubsidyType[]>('/api/subsidies/types' + (year ? `?year=${year}` : ''))

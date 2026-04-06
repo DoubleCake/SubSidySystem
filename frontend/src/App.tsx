@@ -11,6 +11,7 @@ import BackupPage from './pages/BackupPage'
 import ExcelTemplatePage from './pages/ExcelTemplatePage'
 import LandTrustPage from './pages/LandTrustPage'
 import HouseholdImportPage from './pages/HouseholdImportPage'
+import FamilyRelationImportPage from './pages/FamilyRelationImportPage'
 import ProxyManagePage from './pages/ProxyManagePage'
 import { healthCheck } from './api'
 import { useState } from 'react'
@@ -31,6 +32,7 @@ const settingNav = [
   { to: '/settings/excel-templates',  label: 'Excel模板',  icon: '📋' },
   { to: '/settings/land-trust',      label: '土地流转',   icon: '🌾' },
   { to: '/settings/household-import', label: '户籍批量导入', icon: '📥' },
+  { to: '/settings/family-relation-import', label: '家庭关系导入', icon: '👪' },
 ]
 
 function Layout() {
@@ -150,6 +152,7 @@ function Layout() {
             <Route path="/settings/excel-templates" element={<ExcelTemplatePage />} />
             <Route path="/settings/land-trust" element={<LandTrustPage />} />
             <Route path="/settings/household-import" element={<HouseholdImportPage />} />
+            <Route path="/settings/family-relation-import" element={<FamilyRelationImportPage />} />
             <Route path="/proxy/application/:applicationId" element={<ProxyManagePage />} />
             {/* 404 fallback */}
             <Route path="*" element={

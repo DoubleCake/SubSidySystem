@@ -376,3 +376,290 @@ def batch_get_id_cards(payload: dict, db: Session = Depends(get_db)):
     rows = db.query(FarmerProfile.id, FarmerProfile.id_card)\
              .filter(FarmerProfile.id.in_(clean)).all()
     return {"results": {str(r.id): r.id_card for r in rows}}
+
+
+# ════════════════════════════════════════════════════════════════
+#  家庭关系导入 & 多户主拆分
+# ════════════════════════════════════════════════════════════════
+
+from pydantic import BaseModel
+from datetime import date
+
+
+class FamilyRelationRow(BaseModel):
+    """Excel 中的一行家庭关系数据"""
+    row_index: int                     # Excel行号
+    real_name: Optional[str] = None    # 姓名
+    id_card: Optional[str] = None      # 身份证号
+    relation: Optional[str] = None     # 与户主关系
+    age: Optional[int] = None         # 年龄
+    address: Optional[str] = None      # 地址
+
+
+class ImportFamilyRelationsRequest(BaseModel):
+    """批量导入家庭关系请求"""
+    rows: list[FamilyRelationRow]
+    # 可选：仅对这些村庄执行多户主拆分（为空则不拆分）
+    split_villages: Optional[list[str]] = None
+
+
+# 关系映射：Excel值 → farmer_profile.relation 值
+RELATION_MAP = {
+    "户主": "head",
+    "妻子": "spouse",
+    "夫": "spouse",
+    "父亲": "parent",
+    "母亲": "parent",
+    "长子": "child",
+    "次子": "child",
+    "三子": "child",
+    "四子": "child",
+    "子": "child",
+    "长女": "child",
+    "次女": "child",
+    "三女": "child",
+    "女": "child",
+    "儿媳": "child",
+    "女婿": "child",
+    "孙子": "grandchild",
+    "孙女": "grandchild",
+    "外孙子": "grandchild",
+    "外孙女": "grandchild",
+    "孙": "grandchild",
+    "外孙": "grandchild",
+}
+
+
+def _parse_birth_year(id_card: str) -> Optional[int]:
+    """从身份证号提取出生年份"""
+    if not id_card or len(id_card) < 14:
+        return None
+    try:
+        return int(id_card[6:10])
+    except:
+        return None
+
+
+def _get_age_from_id_card(id_card: str, ref_year: int = 2026) -> Optional[int]:
+    """从身份证号估算年龄"""
+    birth_year = _parse_birth_year(id_card)
+    if birth_year:
+        return ref_year - birth_year
+    return None
+
+
+
+@router.post("/import-relations")
+def import_family_relations(req: ImportFamilyRelationsRequest, db: Session = Depends(get_db)):
+    """
+    阶段一：导入家庭关系
+    - 根据身份证号匹配农户，更新 relation 字段
+    - 如果指定了 split_villages，执行阶段二：多户主家庭拆分
+    """
+    updated = 0
+    not_found = []
+    relation_errors = []
+
+    # 构建身份证号 → farmer 映射
+    id_cards = [r.id_card for r in req.rows if r.id_card]
+    id_card_to_farmer: dict[str, FarmerProfile] = {}
+    if id_cards:
+        farmers = db.query(FarmerProfile).filter(FarmerProfile.id_card.in_(id_cards)).all()
+        id_card_to_farmer = {f.id_card: f for f in farmers}
+
+    # 阶段一：更新关系字段
+    for row in req.rows:
+        if not row.id_card:
+            relation_errors.append(f"行{row.row_index}：缺少身份证号")
+            continue
+        farmer = id_card_to_farmer.get(row.id_card)
+        if not farmer:
+            not_found.append(f"{row.real_name or '未知'}({row.id_card[:6]}***): 未找到")
+            continue
+
+        # 映射关系
+        raw_relation = row.relation
+        if raw_relation:
+            mapped = RELATION_MAP.get(raw_relation.strip())
+            if mapped:
+                farmer.relation = mapped
+            else:
+                # 尝试直接保存原始值
+                farmer.relation = raw_relation.strip()
+        else:
+            farmer.relation = None
+
+        # 临时存储年龄（用于后续拆分）
+        if row.age:
+            farmer._relation_age = row.age
+
+        updated += 1
+
+    db.commit()
+
+    result = {
+        "stage1_updated": updated,
+        "stage1_not_found": not_found,
+        "stage1_relation_errors": relation_errors,
+    }
+
+    # 阶段二：多户主拆分
+    if req.split_villages and req.split_villages:
+        split_result = _split_multi_head_households(db, req.split_villages)
+        result["stage2_split"] = split_result
+
+    return result
+
+
+def _split_multi_head_households(db: Session, village_names: list[str]) -> dict:
+    """
+    阶段二：拆分指定村庄的多户主家庭
+
+    规则：
+    1. 同一家庭中多个"户主" → 拆分成多个家庭
+    2. 年龄最大的户主留在原家庭，其他户主分出去
+    3. 次要户主的直系亲属（配偶、子女）跟随该户主迁移
+    4. 其他人（父母、祖父母）留在原家庭
+
+    简化假设：在多户主家庭中，配偶和子女跟随他们所属的户主
+    """
+    # 查询指定村庄的所有家庭户
+    village_ids = [v.id for v in db.query(Village).filter(Village.village_name.in_(village_names)).all()]
+    if not village_ids:
+        return {"skipped": "未找到指定的村庄", "details": []}
+
+    households = db.query(FamilyHousehold).filter(FamilyHousehold.village_id.in_(village_ids)).all()
+    hh_ids = [h.id for h in households]
+
+    # 查询所有成员
+    members = db.query(FarmerProfile).filter(FarmerProfile.household_id.in_(hh_ids)).all()
+
+    # 按家庭户分组
+    hh_members: dict[int, list[FarmerProfile]] = {}
+    for m in members:
+        if m.household_id not in hh_members:
+            hh_members[m.household_id] = []
+        hh_members[m.household_id].append(m)
+
+    split_details = []
+    split_count = 0
+    created_households = 0
+    migrated_members = 0
+
+    for hh in households:
+        members_list = hh_members.get(hh.id, [])
+
+        # 找出所有户主
+        heads = [m for m in members_list if m.relation == "head"]
+        if len(heads) <= 1:
+            continue
+
+        # 按年龄排序，选择最年长的为主要户主
+        def get_farmer_age(f: FarmerProfile) -> int:
+            age = getattr(f, '_relation_age', None)
+            if age:
+                return age
+            return _get_age_from_id_card(f.id_card) or 0
+
+        heads_sorted = sorted(heads, key=get_farmer_age, reverse=True)
+        main_head = heads_sorted[0]
+        other_heads = heads_sorted[1:]
+
+        # 为每个次要户主创建新家庭
+        for other_head in other_heads:
+            # 创建新家庭户
+            new_hh = FamilyHousehold(
+                household_code=hh.household_code + f"_S{created_households + 1}",
+                household_name=hh.household_name,
+                village_id=hh.village_id,
+                group_no=hh.group_no,
+                address=hh.address,
+                contract_area=hh.contract_area,
+                confirmed_area=hh.confirmed_area,
+                status=hh.status,
+            )
+            db.add(new_hh)
+            db.flush()
+
+            # 移动该户主到新家庭
+            other_head.household_id = new_hh.id
+            other_head.relation = "head"
+            new_hh.head_farmer_id = other_head.id
+            migrated_count = 1
+
+            # 移动该户主的直系亲属（配偶、子女）
+            for m in members_list:
+                if m.id == other_head.id:
+                    continue
+                # 配偶和子女跟随户主迁移
+                if m.relation in ("spouse", "child"):
+                    m.household_id = new_hh.id
+                    migrated_count += 1
+
+            migrated_members += migrated_count
+            created_households += 1
+            split_details.append({
+                "原家庭": f"{hh.household_name}(ID:{hh.id})",
+                "新家庭": f"{hh.household_name}_分户(ID:{new_hh.id})",
+                "新户主": other_head.real_name,
+                "迁移人数": migrated_count,
+            })
+
+        split_count += 1
+
+    db.commit()
+    return {
+        "split_count": split_count,
+        "created_households": created_households,
+        "migrated_members": migrated_members,
+        "details": split_details,
+    }
+
+
+@router.get("/households-with-multi-head")
+def list_multi_head_households(village_names: str = Query(None, description="村庄名，逗号分隔"), db: Session = Depends(get_db)):
+    """
+    查询指定村庄中有多户主的家庭（供前端确认哪些需要拆分）
+    village_names: 如 "村1,村2"
+    """
+    if village_names:
+        names = [n.strip() for n in village_names.split(",") if n.strip()]
+    else:
+        names = []
+
+    village_ids = [v.id for v in db.query(Village).filter(Village.village_name.in_(names)).all()] if names else []
+
+    if not village_ids:
+        return {"households": []}
+
+    households = db.query(FamilyHousehold).filter(FamilyHousehold.village_id.in_(village_ids)).all()
+    hh_ids = [h.id for h in households]
+
+    members = db.query(FarmerProfile).filter(FarmerProfile.household_id.in_(hh_ids)).all()
+
+    hh_members: dict[int, list] = {}
+    for m in members:
+        if m.household_id not in hh_members:
+            hh_members[m.household_id] = []
+        hh_members[m.household_id].append({
+            "id": m.id,
+            "real_name": m.real_name,
+            "relation": m.relation,
+            "id_card_masked": mask_id_card(m.id_card) if m.id_card else None,
+        })
+
+    result = []
+    for hh in households:
+        members_list = hh_members.get(hh.id, [])
+        heads = [m for m in members_list if m.get("relation") == "head"]
+        if len(heads) > 1:
+            result.append({
+                "household_id": hh.id,
+                "household_name": hh.household_name,
+                "village_name": hh.village.village_name if hh.village else "",
+                "head_count": len(heads),
+                "heads": heads,
+                "all_members": members_list,
+            })
+
+    return {"households": result}
