@@ -1137,10 +1137,20 @@ def get_household(
                             "remark": pr.remark,
                         }
 
-        # 第三步：构建结果
-        app_summary = []
+        # 第三步：构建结果 - 同一项目同一农户同一年度优先显示发放记录
+        # 先按 (farmer_id, subsidy_name, apply_year) 去重，发放记录优先
+        unique_map = {}  # (farmer_id, subsidy_name, apply_year) -> (record_type, r, key)
         for record_type, r in all_rows:
             key = (record_type, r.record_id)
+            unique_key = (r.farmer_id, r.subsidy_name, r.apply_year)
+
+            # 如果是发放记录，或者还没有记录，就添加/替换
+            if unique_key not in unique_map or record_type == "payment":
+                unique_map[unique_key] = (record_type, r, key)
+
+        # 构建最终的 app_summary
+        app_summary = []
+        for (record_type, r, key) in unique_map.values():
             app_summary.append({
                 "apply_year": r.apply_year,
                 "farmer_id": r.farmer_id,

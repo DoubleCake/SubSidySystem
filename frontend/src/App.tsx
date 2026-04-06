@@ -151,7 +151,6 @@ function Layout() {
             <Route path="/settings/land-trust" element={<LandTrustPage />} />
             <Route path="/settings/household-import" element={<HouseholdImportPage />} />
             <Route path="/proxy/application/:applicationId" element={<ProxyManagePage />} />
-            <Route path="/proxy/payment/:paymentId" element={<ProxyManagePage />} />
             {/* 404 fallback */}
             <Route path="*" element={
               <div className="text-center py-24 text-stone-300">

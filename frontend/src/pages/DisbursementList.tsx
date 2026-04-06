@@ -527,10 +527,6 @@ export default function DisbursementList({
                 <td className="px-2 py-2">
                   <div className="flex gap-1">
                     <button onClick={() => openEdit(a)} className="text-xs text-stone-400 border border-stone-200 px-2 py-1 rounded hover:text-emerald-700 hover:border-emerald-200">编辑</button>
-                    <button onClick={() => navigate(`/proxy/payment/${a.id}`, { state: { beneficiaryFarmerId: a.farmer_id, beneficiaryFarmerName: a.farmer_name } })}
-                      className={`text-xs px-2 py-1 rounded border ${a.is_proxy === 1 ? 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100' : 'text-stone-400 border-stone-200 hover:text-stone-600 hover:border-stone-300'}`}>
-                      {a.is_proxy === 1 ? '代领中' : '代领'}
-                    </button>
                     <button onClick={() => setDeleteId(a.id)} className="text-xs text-red-400 border border-red-100 px-2 py-1 rounded hover:bg-red-50">删</button>
                   </div>
                 </td>
