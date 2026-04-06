@@ -16,7 +16,7 @@ from typing import Optional
 from decimal import Decimal
 
 from database import get_db
-from models import FamilyHousehold, FarmerProfile, Village, SubsidyApplication, SubsidyType, SubsidyPayment, HouseholdAreaUsageCache
+from models import FamilyHousehold, FarmerProfile, Village, SubsidyApplication, SubsidyType, SubsidyPayment, SubsidyProxy, HouseholdAreaUsageCache
 from schemas import HouseholdManualConfirm, HouseholdBatchConfirm
 from utils import format_group_no, parse_group_no_to_int, parse_id_card, mask_id_card, mask_phone, mask_bank_card, gen_household_code
 # 导入预检查函数
@@ -1024,7 +1024,6 @@ def get_household(
         )
 
         # 查询补贴发放记录
-        from models import SubsidyPayment
         pay_rows = (
             db.query(
                 SubsidyPayment.payment_year.label("apply_year"),
