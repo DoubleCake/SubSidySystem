@@ -188,6 +188,8 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
     SEASON_ORDER = ["大春", "小春", "全年单补", "临时"]
 
     # 1. 从申报表计算各年/季节的申报面积
+    # 注意：不再排除 is_proxy=1 的记录，因为代领关系的面积需要计入受益人家庭
+    # is_proxy=1 的记录按 farmer_id 计入 farmer 的家庭
     app_query = (
         db.query(
             SubsidyType.season,
@@ -201,7 +203,6 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
             SubsidyType.count_toward_area == 1,
             SubsidyApplication.apply_area.isnot(None),
             SubsidyApplication.pay_status.in_([0, 1, 2]),
-            SubsidyApplication.is_proxy == 0,
         )
         .group_by(SubsidyType.season, SubsidyApplication.apply_year)
         .all()
@@ -227,7 +228,6 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
             SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyPayment.apply_area.isnot(None),
-            SubsidyPayment.is_proxy == 0,
         )
         .group_by(SubsidyType.season, SubsidyPayment.payment_year)
         .all()
@@ -301,6 +301,7 @@ def recalc_all_household_caches(db: Session) -> int:
     all_member_ids = [mid for mids in household_members.values() for mid in mids]
 
     # 3. 一次性获取所有申报数据（按 household_id + year + season 聚合）
+    # 注意：不再排除 is_proxy=1 的记录，因为代领关系的面积需要计入受益人家庭
     app_data: dict[tuple[int, int, str], float] = {}
     app_query = (
         db.query(
@@ -317,7 +318,6 @@ def recalc_all_household_caches(db: Session) -> int:
             SubsidyType.count_toward_area == 1,
             SubsidyApplication.apply_area.isnot(None),
             SubsidyApplication.pay_status.in_([0, 1, 2]),
-            SubsidyApplication.is_proxy == 0,
         )
         .group_by(FarmerProfile.household_id, SubsidyApplication.apply_year, SubsidyType.season)
         .all()
@@ -342,7 +342,6 @@ def recalc_all_household_caches(db: Session) -> int:
             SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyPayment.apply_area.isnot(None),
-            SubsidyPayment.is_proxy == 0,
         )
         .group_by(FarmerProfile.household_id, SubsidyPayment.payment_year, SubsidyType.season)
         .all()
@@ -1708,7 +1707,6 @@ def get_area_by_year(household_id: int, db: Session = Depends(get_db)):
             SubsidyType.count_toward_area == 1,
             SubsidyApplication.apply_area.isnot(None),
             SubsidyApplication.pay_status.in_([0, 1, 2]),
-            SubsidyApplication.is_proxy == 0,
         )
         .group_by(
             SubsidyApplication.apply_year, SubsidyType.subsidy_name, SubsidyType.season

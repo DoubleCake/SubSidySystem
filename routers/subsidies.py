@@ -1933,7 +1933,7 @@ def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
         # 同步补贴项目类型
         if not subsidy_type_id:
             subsidy_type_id = app.subsidy_type_id
-    if data.payment_id:
+    elif data.payment_id:
         pay = db.get(SubsidyPayment, data.payment_id)
         if not pay:
             raise HTTPException(status_code=404, detail="补贴发放记录不存在")
@@ -1942,6 +1942,31 @@ def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
         # 同步补贴项目类型
         if not subsidy_type_id:
             subsidy_type_id = pay.subsidy_type_id
+    else:
+        # 当没有指定具体记录时，自动查找并更新对应记录
+        # proxy_type='代领'/'proxy': 受益人是 beneficiary_farmer_id，标记 beneficiary 的记录
+        # proxy_type='被代领'/'receive': 代领人是 beneficiary_farmer_id，标记 proxy_farmer 的记录
+        if subsidy_type_id:
+            # 根据 proxy_type 确定要标记的 farmer_id
+            target_farmer_id = data.beneficiary_farmer_id if data.proxy_type in ('proxy', '代领') else data.proxy_farmer_id
+
+            # 查找该农户在该补贴类型下的所有未发放申请记录
+            apps_to_update = db.query(SubsidyApplication).filter(
+                SubsidyApplication.farmer_id == target_farmer_id,
+                SubsidyApplication.subsidy_type_id == subsidy_type_id,
+                SubsidyApplication.is_proxy == 0,
+            ).all()
+            for app in apps_to_update:
+                app.is_proxy = 1
+
+            # 查找该农户在该补贴类型下的所有未发放发放记录
+            pays_to_update = db.query(SubsidyPayment).filter(
+                SubsidyPayment.farmer_id == target_farmer_id,
+                SubsidyPayment.subsidy_type_id == subsidy_type_id,
+                SubsidyPayment.is_proxy == 0,
+            ).all()
+            for pay in pays_to_update:
+                pay.is_proxy = 1
 
     # 创建代领关系
     proxy_rel = SubsidyProxy(
