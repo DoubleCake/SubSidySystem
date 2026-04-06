@@ -998,6 +998,7 @@ def get_household(
     member_ids = [m.id for m in members]
     app_summary = []
     if member_ids:
+        # 第一步：查询补贴申请记录（不 JOIN 代领表，减少不必要的关联）
         rows = (
             db.query(
                 SubsidyApplication.apply_year,
@@ -1012,6 +1013,7 @@ def get_household(
                 SubsidyApplication.apply_village_name,
                 SubsidyApplication.apply_group_display,
                 SubsidyApplication.is_proxy,
+                SubsidyApplication.id.label("app_id"),
             )
             .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id)
             .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
@@ -1019,6 +1021,47 @@ def get_household(
             .order_by(SubsidyApplication.apply_year.desc())
             .all()
         )
+
+        # 第二步：只对 is_proxy=1 的记录查询代领详情（性能优化）
+        proxy_map = {}  # app_id -> proxy_info
+        proxy_app_ids = [r.app_id for r in rows if r.is_proxy == 1]
+        if proxy_app_ids:
+            proxy_rows = (
+                db.query(
+                    SubsidyProxy.application_id,
+                    SubsidyProxy.proxy_type,
+                    SubsidyProxy.beneficiary_farmer_id,
+                    SubsidyProxy.proxy_farmer_id,
+                    SubsidyProxy.remark,
+                )
+                .filter(SubsidyProxy.application_id.in_(proxy_app_ids))
+                .all()
+            )
+            # 批量查询相关农户姓名
+            involved_farmer_ids = set()
+            for pr in proxy_rows:
+                involved_farmer_ids.add(pr.beneficiary_farmer_id)
+                involved_farmer_ids.add(pr.proxy_farmer_id)
+            farmer_names = {f.id: f.real_name for f in db.query(FarmerProfile).filter(FarmerProfile.id.in_(involved_farmer_ids)).all()} if involved_farmer_ids else {}
+
+            for pr in proxy_rows:
+                if pr.application_id in [r.app_id for r in rows]:
+                    # 判断角色
+                    orig_row = next(r for r in rows if r.app_id == pr.application_id)
+                    if orig_row.farmer_id == pr.beneficiary_farmer_id:
+                        proxy_map[pr.application_id] = {
+                            "type": "被代领",
+                            "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
+                            "remark": pr.remark,
+                        }
+                    elif orig_row.farmer_id == pr.proxy_farmer_id:
+                        proxy_map[pr.application_id] = {
+                            "type": "代领",
+                            "beneficiary_name": farmer_names.get(pr.beneficiary_farmer_id, "未知"),
+                            "remark": pr.remark,
+                        }
+
+        # 第三步：构建结果
         app_summary = [
             {
                 "apply_year": r.apply_year,
@@ -1033,6 +1076,7 @@ def get_household(
                 "apply_village_name": r.apply_village_name or "",
                 "apply_group_display": r.apply_group_display or "",
                 "is_proxy": r.is_proxy or 0,
+                "proxy_info": proxy_map.get(r.app_id),
             }
             for r in rows
         ]
@@ -1955,6 +1999,7 @@ def _snapshot_household(db: Session, household_id: int) -> dict:
                 SubsidyApplication.apply_village_name,
                 SubsidyApplication.apply_group_display,
                 SubsidyApplication.is_proxy,
+                SubsidyApplication.id.label("app_id"),
             )
             .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id)
             .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
@@ -1962,6 +2007,43 @@ def _snapshot_household(db: Session, household_id: int) -> dict:
             .order_by(SubsidyApplication.apply_year.desc())
             .all()
         )
+
+        # 只对 is_proxy=1 的记录查询代领详情
+        proxy_map = {}
+        proxy_app_ids = [r.app_id for r in rows if r.is_proxy == 1]
+        if proxy_app_ids:
+            proxy_rows = (
+                db.query(
+                    SubsidyProxy.application_id,
+                    SubsidyProxy.proxy_type,
+                    SubsidyProxy.beneficiary_farmer_id,
+                    SubsidyProxy.proxy_farmer_id,
+                    SubsidyProxy.remark,
+                )
+                .filter(SubsidyProxy.application_id.in_(proxy_app_ids))
+                .all()
+            )
+            involved_farmer_ids = set()
+            for pr in proxy_rows:
+                involved_farmer_ids.add(pr.beneficiary_farmer_id)
+                involved_farmer_ids.add(pr.proxy_farmer_id)
+            farmer_names = {f.id: f.real_name for f in db.query(FarmerProfile).filter(FarmerProfile.id.in_(involved_farmer_ids)).all()} if involved_farmer_ids else {}
+            for pr in proxy_rows:
+                if pr.application_id in proxy_app_ids:
+                    orig_row = next(r for r in rows if r.app_id == pr.application_id)
+                    if orig_row.farmer_id == pr.beneficiary_farmer_id:
+                        proxy_map[pr.application_id] = {
+                            "type": "被代领",
+                            "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
+                            "remark": pr.remark,
+                        }
+                    elif orig_row.farmer_id == pr.proxy_farmer_id:
+                        proxy_map[pr.application_id] = {
+                            "type": "代领",
+                            "beneficiary_name": farmer_names.get(pr.beneficiary_farmer_id, "未知"),
+                            "remark": pr.remark,
+                        }
+
         subsidy_apps = [
             {
                 "apply_year": r.apply_year,
@@ -1976,6 +2058,7 @@ def _snapshot_household(db: Session, household_id: int) -> dict:
                 "apply_village_name": r.apply_village_name or "",
                 "apply_group_display": r.apply_group_display or "",
                 "is_proxy": r.is_proxy or 0,
+                "proxy_info": proxy_map.get(r.app_id),
             }
             for r in rows
         ]

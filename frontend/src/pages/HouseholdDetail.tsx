@@ -467,11 +467,14 @@ export function HouseholdDetailContent({
                     )}
                     <span className="text-sm flex-1">{a.subsidy_name}</span>
                     {a.apply_area && <span className="text-xs text-stone-400 font-mono">{a.apply_area}亩</span>}
-                    {a.is_proxy === 1 && (
+                    {a.proxy_info && (
                       <span className="group relative">
-                        <Tag label="代领" color="amber" />
+                        <Tag label={a.proxy_info.type} color="amber" />
                         <div className="absolute right-0 top-full mt-1 bg-stone-800 text-white text-xs px-2 py-1.5 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                          存在代领关系
+                          {a.proxy_info.type === '代领'
+                            ? <>代领人: {a.proxy_info.beneficiary_name}</>
+                            : <>代领人: {a.proxy_info.proxy_name}</>}
+                          {a.proxy_info.remark && <div className="text-stone-400 mt-0.5">{a.proxy_info.remark}</div>}
                         </div>
                       </span>
                     )}
