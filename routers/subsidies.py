@@ -1878,24 +1878,28 @@ def list_proxies(
 
     results = q.order_by(SubsidyProxy.created_at.desc()).all()
 
-    # 附加受益人、代领人信息（姓名和打码身份证）
+    # 附加受益人、代领人信息（姓名和完整身份证）
     proxy_list = []
     for proxy in results:
         proxy_dict = {
             **proxy.__dict__,
             'beneficiary_farmer_name': None,
             'beneficiary_id_card_masked': None,
+            'beneficiary_id_card': None,
             'proxy_farmer_name': None,
             'proxy_id_card_masked': None,
+            'proxy_id_card': None,
         }
         beneficiary = db.get(FarmerProfile, proxy.beneficiary_farmer_id)
         if beneficiary:
             proxy_dict['beneficiary_farmer_name'] = beneficiary.real_name
+            proxy_dict['beneficiary_id_card'] = beneficiary.id_card
             if beneficiary.id_card and len(beneficiary.id_card) == 18:
                 proxy_dict['beneficiary_id_card_masked'] = beneficiary.id_card[:6] + "********" + beneficiary.id_card[-4:]
         proxy_farmer = db.get(FarmerProfile, proxy.proxy_farmer_id)
         if proxy_farmer:
             proxy_dict['proxy_farmer_name'] = proxy_farmer.real_name
+            proxy_dict['proxy_id_card'] = proxy_farmer.id_card
             if proxy_farmer.id_card and len(proxy_farmer.id_card) == 18:
                 proxy_dict['proxy_id_card_masked'] = proxy_farmer.id_card[:6] + "********" + proxy_farmer.id_card[-4:]
         # 移除 SQLAlchemy 内部字段

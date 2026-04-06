@@ -368,7 +368,7 @@ export interface HH {
 }
 
 export interface HHMember {
-  id: number; real_name: string; gender: number; id_card_masked: string
+  id: number; real_name: string; gender: number; id_card_masked: string; id_card?: string
   is_head: number; relation: string | null; farmer_status: number; phone_masked?: string | null
   own_village_id?: number | null; own_group_no?: number | null
   village_full_name?: string

@@ -19,8 +19,10 @@ interface ProxyRelation {
   updated_at: string
   beneficiary_farmer_name?: string
   beneficiary_id_card_masked?: string
+  beneficiary_id_card?: string
   proxy_farmer_name?: string
   proxy_id_card_masked?: string
+  proxy_id_card?: string
   subsidy_type_id?: number
 }
 
@@ -108,9 +110,9 @@ export default function ProxyList({ subsidyType, show }: ProxyListProps) {
           {!loading && proxies.map(p => (
             <tr key={p.id} className="border-b border-stone-50 hover:bg-stone-50">
               <td className="px-3 py-2.5 text-sm font-semibold text-stone-700">{p.beneficiary_farmer_name || '—'}</td>
-              <td className="px-3 py-2.5 text-xs font-mono text-stone-400">{p.beneficiary_id_card_masked || '—'}</td>
+              <td className="px-3 py-2.5 text-xs font-mono text-stone-400">{p.beneficiary_id_card || '—'}</td>
               <td className="px-3 py-2.5 text-sm text-stone-600">{p.proxy_farmer_name || '—'}</td>
-              <td className="px-3 py-2.5 text-xs font-mono text-stone-400">{p.proxy_id_card_masked || '—'}</td>
+              <td className="px-3 py-2.5 text-xs font-mono text-stone-400">{p.proxy_id_card || '—'}</td>
               <td className="px-3 py-2.5"><Tag label={p.proxy_type || '代领'} color="amber" /></td>
               <td className="px-3 py-2.5 text-xs text-stone-400 max-w-[150px] truncate" title={p.remark || ''}>{p.remark || '—'}</td>
               <td className="px-3 py-2.5 text-xs font-mono text-stone-400">{p.created_at?.split('T')[0] || '—'}</td>

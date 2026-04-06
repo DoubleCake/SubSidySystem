@@ -982,6 +982,7 @@ def get_household(
             "id": m.id,
             "real_name": m.real_name,
             "gender": m.gender,
+            "id_card": m.id_card,  # 完整身份证号
             "id_card_masked": m.id_card[:6] + "********" + m.id_card[-4:] if m.id_card else "",
             "is_head": 1 if hh.head_farmer_id == m.id else 0,
             "relation": m.relation,
@@ -1055,44 +1056,43 @@ def get_household(
             all_rows.append(("payment", r))
 
         # 第二步：查询代领详情（同时查询申请和发放的代领关系）
+        # 不再依赖 is_proxy 字段，直接查询所有与本户成员相关的代领关系
         proxy_map = {}  # (record_type, record_id) -> proxy_info
-        proxy_app_ids = [(typ, r.record_id) for typ, r in all_rows if r.is_proxy == 1]
 
-        if proxy_app_ids:
-            # 分别提取申请和发放的ID
-            app_ids_for_proxy = [rid for typ, rid in proxy_app_ids if typ == "application"]
-            pay_ids_for_proxy = [rid for typ, rid in proxy_app_ids if typ == "payment"]
+        # 获取所有申请和发放记录的ID
+        all_app_ids = [r.record_id for typ, r in all_rows if typ == "application"]
+        all_pay_ids = [r.record_id for typ, r in all_rows if typ == "payment"]
 
-            # 查询申请记录的代领关系
-            proxy_app_rows = []
-            if app_ids_for_proxy:
-                proxy_app_rows = (
-                    db.query(
-                        SubsidyProxy.application_id.label("link_id"),
-                        SubsidyProxy.proxy_type,
-                        SubsidyProxy.beneficiary_farmer_id,
-                        SubsidyProxy.proxy_farmer_id,
-                        SubsidyProxy.remark,
-                    )
-                    .filter(SubsidyProxy.application_id.in_(app_ids_for_proxy))
-                    .all()
+        # 查询所有相关的代领关系（不管 is_proxy 字段）
+        proxy_app_rows = []
+        if all_app_ids:
+            proxy_app_rows = (
+                db.query(
+                    SubsidyProxy.application_id.label("link_id"),
+                    SubsidyProxy.proxy_type,
+                    SubsidyProxy.beneficiary_farmer_id,
+                    SubsidyProxy.proxy_farmer_id,
+                    SubsidyProxy.remark,
                 )
+                .filter(SubsidyProxy.application_id.in_(all_app_ids))
+                .all()
+            )
 
-            # 查询发放记录的代领关系
-            proxy_pay_rows = []
-            if pay_ids_for_proxy:
-                proxy_pay_rows = (
-                    db.query(
-                        SubsidyProxy.payment_id.label("link_id"),
-                        SubsidyProxy.proxy_type,
-                        SubsidyProxy.beneficiary_farmer_id,
-                        SubsidyProxy.proxy_farmer_id,
-                        SubsidyProxy.remark,
-                    )
-                    .filter(SubsidyProxy.payment_id.in_(pay_ids_for_proxy))
-                    .all()
+        proxy_pay_rows = []
+        if all_pay_ids:
+            proxy_pay_rows = (
+                db.query(
+                    SubsidyProxy.payment_id.label("link_id"),
+                    SubsidyProxy.proxy_type,
+                    SubsidyProxy.beneficiary_farmer_id,
+                    SubsidyProxy.proxy_farmer_id,
+                    SubsidyProxy.remark,
                 )
+                .filter(SubsidyProxy.payment_id.in_(all_pay_ids))
+                .all()
+            )
 
+        if proxy_app_rows or proxy_pay_rows:
             # 批量查询相关农户姓名
             involved_farmer_ids = set()
             for pr in proxy_app_rows + proxy_pay_rows:

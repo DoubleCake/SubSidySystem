@@ -430,7 +430,7 @@ export function HouseholdDetailContent({
                   <div className="text-xs text-stone-400 mt-0.5">
                     {m.gender === 1 ? '男' : '女'}
                     {m.phone_masked && <span className="ml-2">{m.phone_masked}</span>}
-                    <span className="ml-2 font-mono">{m.id_card_masked}</span>
+                    <span className="ml-2 font-mono">{m.id_card || m.id_card_masked}</span>
                   </div>
                 </div>
                 {historyDateIsNull && (
@@ -458,7 +458,38 @@ export function HouseholdDetailContent({
                 </div>
                 {apps.map((a, i) => (
                   <div key={i} className="flex items-center gap-3 px-5 py-2.5 border-b border-stone-50 hover:bg-stone-50 transition-colors">
-                    <span className="text-sm text-stone-500 w-16 shrink-0">{a.farmer_name}</span>
+                    <div className="flex items-center gap-2 flex-wrap w-16 shrink-0">
+                      <span className="text-sm text-stone-500">{a.farmer_name}</span>
+                      {a.proxy_info && (() => {
+                        const proxy = a.proxy_info
+                        const targetId = proxy.type === '代领' ? proxy.beneficiary_farmer_id : proxy.proxy_farmer_id
+                        const canClick = targetId != null
+                        return (
+                          <span className="group relative">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (canClick) onOpenFarmer(targetId)
+                              }}
+                              className={canClick ? 'cursor-pointer hover:opacity-80' : ''}
+                            >
+                              <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded border border-amber-200">
+                                {proxy.type}
+                              </span>
+                            </button>
+                            <div className="absolute left-0 top-full mt-1 bg-stone-800 text-white text-xs px-2 py-1.5 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                              {proxy.type === '代领'
+                                ? <>代领人: {proxy.beneficiary_name}</>
+                                : <>代领人: {proxy.proxy_name}</>}
+                              {proxy.remark && <div className="text-stone-400 mt-0.5">{proxy.remark}</div>}
+                              {canClick && (
+                                <div className="text-emerald-400 mt-0.5">点击查看农户详情 →</div>
+                              )}
+                            </div>
+                          </span>
+                        )
+                      })()}
+                    </div>
                     {/* 村组信息 */}
                     {(a.apply_village_name || a.apply_group_display) && (
                       <span className="text-xs text-stone-400 font-mono bg-stone-100 px-1.5 py-0.5 rounded">
@@ -467,33 +498,6 @@ export function HouseholdDetailContent({
                     )}
                     <span className="text-sm flex-1">{a.subsidy_name}</span>
                     {a.apply_area && <span className="text-xs text-stone-400 font-mono">{a.apply_area}亩</span>}
-                    {a.proxy_info && (() => {
-                      const proxy = a.proxy_info
-                      const targetId = proxy.type === '代领' ? proxy.beneficiary_farmer_id : proxy.proxy_farmer_id
-                      const canClick = targetId != null
-                      return (
-                        <span className="group relative">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              if (canClick) onOpenFarmer(targetId)
-                            }}
-                            className={canClick ? 'cursor-pointer hover:opacity-80' : ''}
-                          >
-                            <Tag label={proxy.type} color="amber" />
-                          </button>
-                          <div className="absolute right-0 top-full mt-1 bg-stone-800 text-white text-xs px-2 py-1.5 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                            {proxy.type === '代领'
-                              ? <>代领人: {proxy.beneficiary_name}</>
-                              : <>代领人: {proxy.proxy_name}</>}
-                            {proxy.remark && <div className="text-stone-400 mt-0.5">{proxy.remark}</div>}
-                            {canClick && (
-                              <div className="text-emerald-400 mt-0.5">点击查看农户详情 →</div>
-                            )}
-                          </div>
-                        </span>
-                      )
-                    })()}
                     <span className="text-sm font-mono font-bold text-emerald-700">{a.actual_amount ? fmt(a.actual_amount) : '—'}</span>
                     <Tag label={PAY_STATUS[a.pay_status]?.label || '—'} color={PAY_STATUS[a.pay_status]?.color as 'green'} />
                   </div>
