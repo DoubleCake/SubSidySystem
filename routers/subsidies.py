@@ -1821,7 +1821,7 @@ def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
 
     # 创建代领关系
     proxy_rel = SubsidyProxy(
-        **data.model_dump(),
+        **data.model_dump(exclude={'subsidy_type_id'}),
         subsidy_type_id=subsidy_type_id,
     )
     db.add(proxy_rel)
