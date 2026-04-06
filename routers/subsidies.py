@@ -1399,11 +1399,14 @@ def list_payments(
     village_name: Optional[str] = Query(None),
     farmer_id: Optional[int] = Query(None),
     pay_status: Optional[int] = Query(None),
+    search: Optional[str] = Query(None, description="姓名或身份证号"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
     """查询补贴发放记录"""
+    from sqlalchemy import or_ as sql_or
+
     q = db.query(
         SubsidyPayment, FarmerProfile.real_name, SubsidyType.subsidy_name,
         Village.village_name, FamilyHousehold.group_no
@@ -1423,6 +1426,13 @@ def list_payments(
         q = q.filter(Village.village_name == village_name)
     if pay_status is not None:
         q = q.filter(SubsidyPayment.pay_status == pay_status)
+    if search:
+        q = q.filter(
+            sql_or(
+                FarmerProfile.real_name.contains(search),
+                FarmerProfile.id_card.contains(search)
+            )
+        )
 
     total = q.count()
     offset = (page - 1) * page_size
@@ -1717,10 +1727,17 @@ def list_proxies(
     beneficiary_farmer_id: Optional[int] = Query(None),
     proxy_farmer_id: Optional[int] = Query(None),
     subsidy_type_id: Optional[int] = Query(None),
+    search: Optional[str] = Query(None, description="被代领人/代领人姓名"),
     db: Session = Depends(get_db),
 ):
     """查询代领关系列表"""
-    from models import SubsidyProxy, SubsidyApplication, SubsidyPayment
+    from models import SubsidyProxy, SubsidyApplication, SubsidyPayment, FarmerProfile
+    from sqlalchemy.orm import aliased
+    from sqlalchemy import or_ as sql_or
+
+    BeneficiaryFarmer = aliased(FarmerProfile)
+    ProxyFarmer = aliased(FarmerProfile)
+
     q = db.query(SubsidyProxy)
 
     if application_id:
@@ -1736,10 +1753,20 @@ def list_proxies(
     if subsidy_type_id:
         q = q.filter(SubsidyProxy.subsidy_type_id == subsidy_type_id)
 
+    # 按姓名搜索（被代领人或代领人）
+    if search:
+        q = q.join(BeneficiaryFarmer, BeneficiaryFarmer.id == SubsidyProxy.beneficiary_farmer_id)\
+             .join(ProxyFarmer, ProxyFarmer.id == SubsidyProxy.proxy_farmer_id)\
+             .filter(
+                 sql_or(
+                     BeneficiaryFarmer.real_name.contains(search),
+                     ProxyFarmer.real_name.contains(search)
+                 )
+             )
+
     results = q.order_by(SubsidyProxy.created_at.desc()).all()
 
     # 附加受益人、代领人姓名信息
-    from models import FarmerProfile
     proxy_list = []
     for proxy in results:
         proxy_dict = {

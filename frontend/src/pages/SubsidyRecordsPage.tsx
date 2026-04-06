@@ -432,11 +432,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
         year: subsidyType.subsidy_year,
       }
       if (search) params.search = search
-      if (filters.payStatus) {
-        params.pay_status = filters.payStatus
-      } else {
-        params.pay_status = 0
-      }
+      if (filters.payStatus) params.pay_status = filters.payStatus
       if (filters.village) params.village = filters.village
       if (filters.minAmount) params.min_amount = filters.minAmount
       if (filters.maxAmount) params.max_amount = filters.maxAmount
