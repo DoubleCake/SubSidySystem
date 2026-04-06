@@ -459,8 +459,22 @@ export function HouseholdDetailContent({
                 {apps.map((a, i) => (
                   <div key={i} className="flex items-center gap-3 px-5 py-2.5 border-b border-stone-50 hover:bg-stone-50 transition-colors">
                     <span className="text-sm text-stone-500 w-16 shrink-0">{a.farmer_name}</span>
+                    {/* 村组信息 */}
+                    {(a.apply_village_name || a.apply_group_display) && (
+                      <span className="text-xs text-stone-400 font-mono bg-stone-100 px-1.5 py-0.5 rounded">
+                        {a.apply_village_name}{a.apply_group_display}
+                      </span>
+                    )}
                     <span className="text-sm flex-1">{a.subsidy_name}</span>
                     {a.apply_area && <span className="text-xs text-stone-400 font-mono">{a.apply_area}亩</span>}
+                    {a.is_proxy === 1 && (
+                      <span className="group relative">
+                        <Tag label="代领" color="amber" />
+                        <div className="absolute right-0 top-full mt-1 bg-stone-800 text-white text-xs px-2 py-1.5 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                          存在代领关系
+                        </div>
+                      </span>
+                    )}
                     <span className="text-sm font-mono font-bold text-emerald-700">{a.actual_amount ? fmt(a.actual_amount) : '—'}</span>
                     <Tag label={PAY_STATUS[a.pay_status]?.label || '—'} color={PAY_STATUS[a.pay_status]?.color as 'green'} />
                   </div>

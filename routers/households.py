@@ -1009,6 +1009,9 @@ def get_household(
                 SubsidyApplication.apply_amount,
                 SubsidyApplication.actual_amount,
                 SubsidyApplication.pay_status,
+                SubsidyApplication.apply_village_name,
+                SubsidyApplication.apply_group_display,
+                SubsidyApplication.is_proxy,
             )
             .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id)
             .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
@@ -1019,6 +1022,7 @@ def get_household(
         app_summary = [
             {
                 "apply_year": r.apply_year,
+                "farmer_id": r.farmer_id,
                 "farmer_name": r.real_name,
                 "subsidy_name": r.subsidy_name,
                 "calc_mode": r.calc_mode,
@@ -1026,6 +1030,9 @@ def get_household(
                 "apply_amount": float(r.apply_amount) if r.apply_amount else None,
                 "actual_amount": float(r.actual_amount) if r.actual_amount else None,
                 "pay_status": r.pay_status,
+                "apply_village_name": r.apply_village_name or "",
+                "apply_group_display": r.apply_group_display or "",
+                "is_proxy": r.is_proxy or 0,
             }
             for r in rows
         ]
@@ -1945,6 +1952,9 @@ def _snapshot_household(db: Session, household_id: int) -> dict:
                 SubsidyApplication.apply_amount,
                 SubsidyApplication.actual_amount,
                 SubsidyApplication.pay_status,
+                SubsidyApplication.apply_village_name,
+                SubsidyApplication.apply_group_display,
+                SubsidyApplication.is_proxy,
             )
             .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id)
             .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
@@ -1955,6 +1965,7 @@ def _snapshot_household(db: Session, household_id: int) -> dict:
         subsidy_apps = [
             {
                 "apply_year": r.apply_year,
+                "farmer_id": r.farmer_id,
                 "farmer_name": r.real_name,
                 "subsidy_name": r.subsidy_name,
                 "calc_mode": r.calc_mode,
@@ -1962,6 +1973,9 @@ def _snapshot_household(db: Session, household_id: int) -> dict:
                 "apply_amount": float(r.apply_amount) if r.apply_amount else None,
                 "actual_amount": float(r.actual_amount) if r.actual_amount else None,
                 "pay_status": r.pay_status,
+                "apply_village_name": r.apply_village_name or "",
+                "apply_group_display": r.apply_group_display or "",
+                "is_proxy": r.is_proxy or 0,
             }
             for r in rows
         ]

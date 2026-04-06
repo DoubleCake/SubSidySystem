@@ -392,8 +392,9 @@ export interface HHDetail {
     year_totals?: Record<string, Record<string, number>>
   }
   app_summary: {
-    apply_year: number; farmer_name: string; subsidy_name: string
+    apply_year: number; farmer_id: number; farmer_name: string; subsidy_name: string
     calc_mode: string; apply_area: number | null; actual_amount: number | null; pay_status: number
+    apply_village_name: string; apply_group_display: string; is_proxy: number
   }[]
 }
 
