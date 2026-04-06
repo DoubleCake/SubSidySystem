@@ -350,6 +350,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
           beneficiary_farmer_id: beneficiaryId,
           proxy_farmer_id: proxyId,
           proxy_type: p.proxy_type,
+          subsidy_type_id: subsidyType.id,
           remark: p.remark || undefined,
         })
         successCount++

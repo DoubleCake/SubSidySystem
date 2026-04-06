@@ -1944,11 +1944,11 @@ def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
             subsidy_type_id = pay.subsidy_type_id
     else:
         # 当没有指定具体记录时，自动查找并更新对应记录
-        # proxy_type='代领'/'proxy': 受益人是 beneficiary_farmer_id，标记 beneficiary 的记录
-        # proxy_type='被代领'/'receive': 代领人是 beneficiary_farmer_id，标记 proxy_farmer 的记录
+        # proxy_type='代领'/'proxy': 记录挂在代领人名下(farmer_id=proxy_farmer_id)，标记 proxy_farmer 的记录
+        # proxy_type='被代领'/'receive': 记录挂在受益人名下(farmer_id=beneficiary_farmer_id)，标记 beneficiary 的记录
         if subsidy_type_id:
             # 根据 proxy_type 确定要标记的 farmer_id
-            target_farmer_id = data.beneficiary_farmer_id if data.proxy_type in ('proxy', '代领') else data.proxy_farmer_id
+            target_farmer_id = data.proxy_farmer_id if data.proxy_type in ('proxy', '代领') else data.beneficiary_farmer_id
 
             # 查找该农户在该补贴类型下的所有未发放申请记录
             apps_to_update = db.query(SubsidyApplication).filter(
