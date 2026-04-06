@@ -22,7 +22,9 @@ router = APIRouter(prefix="/api/subsidies", tags=["补贴管理"])
 # ─────────────────────────────────────
 
 def _recalc_household_cache_after_import(db: Session, household_ids: list[int]) -> None:
-    """补贴申报或发放导入后，重新计算相关家庭户的面积缓存"""
+    """补贴申报或发放导入后，重新计算相关家庭户的面积缓存
+    代领逻辑：本户成员作为代领人的不计入面积；本户成员作为受益人的要计入面积
+    """
     from sqlalchemy import text
     SEASON_ORDER = ["大春", "小春", "全年单补", "临时"]
 
@@ -39,12 +41,57 @@ def _recalc_household_cache_after_import(db: Session, household_ids: list[int]) 
             ).delete()
             continue
 
-        # 从申报表计算
+        # 获取本户所有成员作为代领人的代领关系（不计入面积）
+        proxy_as_proxy = {}  # { ('app'|'pay', id): True }
+        proxy_query = db.query(SubsidyProxy).filter(
+            SubsidyProxy.proxy_farmer_id.in_(member_ids)
+        ).all()
+        for pr in proxy_query:
+            if pr.application_id:
+                proxy_as_proxy[('app', pr.application_id)] = True
+            if pr.payment_id:
+                proxy_as_proxy[('pay', pr.payment_id)] = True
+
+        # 获取本户所有成员作为受益人的代领关系（需要计入面积）
+        proxy_as_beneficiary_app = {}  # { (year, season): [area] }
+        proxy_as_beneficiary_pay = {}  # { (year, season): [area] }
+
+        beneficiary_proxy_query = db.query(SubsidyProxy).filter(
+            SubsidyProxy.beneficiary_farmer_id.in_(member_ids)
+        ).all()
+
+        for pr in beneficiary_proxy_query:
+            # 查找对应的申请记录
+            if pr.application_id:
+                app = db.get(SubsidyApplication, pr.application_id)
+                if app and app.apply_area:
+                    st = db.get(SubsidyType, app.subsidy_type_id)
+                    if st and st.calc_mode == "per_mu" and st.count_toward_area == 1:
+                        season = st.season or "全年单补"
+                        key = (app.apply_year, season)
+                        if key not in proxy_as_beneficiary_app:
+                            proxy_as_beneficiary_app[key] = []
+                        proxy_as_beneficiary_app[key].append(float(app.apply_area))
+
+            # 查找对应的发放记录
+            if pr.payment_id:
+                pay = db.get(SubsidyPayment, pr.payment_id)
+                if pay and pay.apply_area:
+                    st = db.get(SubsidyType, pay.subsidy_type_id)
+                    if st and st.calc_mode == "per_mu" and st.count_toward_area == 1:
+                        season = st.season or "全年单补"
+                        key = (pay.payment_year, season)
+                        if key not in proxy_as_beneficiary_pay:
+                            proxy_as_beneficiary_pay[key] = []
+                        proxy_as_beneficiary_pay[key].append(float(pay.apply_area))
+
+        # 从申报表计算（排除本户成员作为代领人的记录）
         app_query = (
             db.query(
                 SubsidyType.season,
                 SubsidyApplication.apply_year,
-                func.sum(SubsidyApplication.apply_area).label("total_area"),
+                SubsidyApplication.apply_area,
+                SubsidyApplication.id,
             )
             .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
             .filter(
@@ -54,23 +101,37 @@ def _recalc_household_cache_after_import(db: Session, household_ids: list[int]) 
                 SubsidyApplication.apply_area.isnot(None),
                 SubsidyApplication.pay_status.in_([0, 1, 2]),
             )
-            .group_by(SubsidyType.season, SubsidyApplication.apply_year)
             .all()
         )
         app_data: dict[tuple, float] = {}
         all_years = set()
         for r in app_query:
+            # 跳过本户成员作为代领人的记录
+            if ('app', r.id) in proxy_as_proxy:
+                continue
             season = r.season or "全年单补"
             year = r.apply_year
             all_years.add(year)
-            app_data[(year, season)] = float(r.total_area or 0)
+            key = (year, season)
+            if key not in app_data:
+                app_data[key] = 0.0
+            app_data[key] += float(r.apply_area or 0)
 
-        # 从发放表计算
+        # 加上本户成员作为受益人的申请记录面积
+        for key, areas in proxy_as_beneficiary_app.items():
+            year, season = key
+            all_years.add(year)
+            if key not in app_data:
+                app_data[key] = 0.0
+            app_data[key] += sum(areas)
+
+        # 从发放表计算（排除本户成员作为代领人的记录）
         pay_query = (
             db.query(
                 SubsidyType.season,
                 SubsidyPayment.payment_year,
-                func.sum(SubsidyPayment.apply_area).label("total_area"),
+                SubsidyPayment.apply_area,
+                SubsidyPayment.id,
             )
             .join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
             .filter(
@@ -79,15 +140,28 @@ def _recalc_household_cache_after_import(db: Session, household_ids: list[int]) 
                 SubsidyType.count_toward_area == 1,
                 SubsidyPayment.apply_area.isnot(None),
             )
-            .group_by(SubsidyType.season, SubsidyPayment.payment_year)
             .all()
         )
         pay_data: dict[tuple, float] = {}
         for r in pay_query:
+            # 跳过本户成员作为代领人的记录
+            if ('pay', r.id) in proxy_as_proxy:
+                continue
             season = r.season or "全年单补"
             year = r.payment_year
             all_years.add(year)
-            pay_data[(year, season)] = float(r.total_area or 0)
+            key = (year, season)
+            if key not in pay_data:
+                pay_data[key] = 0.0
+            pay_data[key] += float(r.apply_area or 0)
+
+        # 加上本户成员作为受益人的发放记录面积
+        for key, areas in proxy_as_beneficiary_pay.items():
+            year, season = key
+            all_years.add(year)
+            if key not in pay_data:
+                pay_data[key] = 0.0
+            pay_data[key] += sum(areas)
 
         # 更新缓存
         for year in all_years:
@@ -1438,6 +1512,44 @@ def list_payments(
     offset = (page - 1) * page_size
     rows = q.order_by(SubsidyPayment.payment_year.desc(), SubsidyPayment.id.desc()).offset(offset).limit(page_size).all()
 
+    # 查询代领关系，自动同步备注信息
+    payment_ids = [p[0].id for p in rows]
+    proxy_map = {}
+    if payment_ids:
+        proxy_rows = (
+            db.query(
+                SubsidyProxy.payment_id,
+                SubsidyProxy.proxy_type,
+                SubsidyProxy.beneficiary_farmer_id,
+                SubsidyProxy.proxy_farmer_id,
+                SubsidyProxy.remark,
+            )
+            .filter(SubsidyProxy.payment_id.in_(payment_ids))
+            .all()
+        )
+        # 批量查询相关农户姓名和身份证
+        involved_farmer_ids = set()
+        for pr in proxy_rows:
+            involved_farmer_ids.add(pr.beneficiary_farmer_id)
+            involved_farmer_ids.add(pr.proxy_farmer_id)
+        farmer_info = {}
+        if involved_farmer_ids:
+            farmers = db.query(FarmerProfile).filter(FarmerProfile.id.in_(involved_farmer_ids)).all()
+            for f in farmers:
+                id_card_masked = ""
+                if f.id_card and len(f.id_card) == 18:
+                    id_card_masked = f.id_card[:6] + "********" + f.id_card[-4:]
+                farmer_info[f.id] = {"name": f.real_name, "id_card_masked": id_card_masked}
+
+        for pr in proxy_rows:
+            beneficiary_info = farmer_info.get(pr.beneficiary_farmer_id, {"name": "未知", "id_card_masked": ""})
+            proxy_info = farmer_info.get(pr.proxy_farmer_id, {"name": "未知", "id_card_masked": ""})
+            # 构建代领备注信息
+            auto_remark = f"{pr.proxy_type}: {beneficiary_info['name']}({beneficiary_info['id_card_masked']}) 由 {proxy_info['name']}({proxy_info['id_card_masked']}) 代领"
+            if pr.remark:
+                auto_remark += f" | 备注: {pr.remark}"
+            proxy_map[pr.payment_id] = auto_remark
+
     return {
         "total": total,
         "page": page,
@@ -1461,7 +1573,7 @@ def list_payments(
                 "bank_card_masked": f"****{p[0].bank_card[-4:]}" if p[0].bank_card else None,
                 "bank_name": p[0].bank_name,
                 "remark": p[0].remark,
-                "proxy_remark": p[0].proxy_remark,
+                "proxy_remark": proxy_map.get(p[0].id, p[0].proxy_remark),
                 "pay_status": p[0].pay_status,
                 "is_proxy": p[0].is_proxy,
             }
