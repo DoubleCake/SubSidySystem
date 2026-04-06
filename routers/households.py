@@ -1110,12 +1110,14 @@ def get_household(
                         proxy_map[key] = {
                             "type": "被代领",
                             "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
+                            "proxy_farmer_id": pr.proxy_farmer_id,
                             "remark": pr.remark,
                         }
                     elif orig_row.farmer_id == pr.proxy_farmer_id:
                         proxy_map[key] = {
                             "type": "代领",
                             "beneficiary_name": farmer_names.get(pr.beneficiary_farmer_id, "未知"),
+                            "beneficiary_farmer_id": pr.beneficiary_farmer_id,
                             "remark": pr.remark,
                         }
 
@@ -1128,12 +1130,14 @@ def get_household(
                         proxy_map[key] = {
                             "type": "被代领",
                             "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
+                            "proxy_farmer_id": pr.proxy_farmer_id,
                             "remark": pr.remark,
                         }
                     elif orig_row.farmer_id == pr.proxy_farmer_id:
                         proxy_map[key] = {
                             "type": "代领",
                             "beneficiary_name": farmer_names.get(pr.beneficiary_farmer_id, "未知"),
+                            "beneficiary_farmer_id": pr.beneficiary_farmer_id,
                             "remark": pr.remark,
                         }
 
