@@ -489,7 +489,7 @@ export function HouseholdDetailContent({
                               {labelType}
                             </span>
                           </button>
-                          <div className="left-full bottom-full mt-1 bg-stone-800 text-white text-xs px-2 py-1.5 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                          <div className=" left-0 top-full mt-1 bg-stone-800 text-white text-xs px-2 py-1.5 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                             {isBeneficiary
                               ? <>受益人: {proxy.beneficiary_name} → 代领人: {proxy.proxy_name}</>
                               : <>代领人: {proxy.proxy_name} → 受益人: {proxy.beneficiary_name}</>}
