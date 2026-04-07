@@ -982,11 +982,11 @@ def get_household(
     # 面积占用详情
     area_info = calc_household_area_usage(household_id, db, year)
 
-    # 所有成员的补贴申请摘要（按年度）
+    # 所有成员的补贴申请摘要（按年度）- 使用新 beneficiary_id 逻辑
     member_ids = [m.id for m in members]
     app_summary = []
     if member_ids:
-        # 第一步：查询当前家庭成员相关的代领关系（用于后续判断标签类型）
+        # 查询所有代领关系（用于显示标签）
         all_proxy_relations = (
             db.query(SubsidyProxy)
             .filter(
@@ -997,28 +997,27 @@ def get_household(
             ).all()
         )
 
-        # 获取所有涉及的代领记录的 application_id 和 payment_id
-        proxy_app_ids = set()
-        proxy_pay_ids = set()
-        for pr in all_proxy_relations:
-            if pr.application_id:
-                proxy_app_ids.add(pr.application_id)
-            if pr.payment_id:
-                proxy_pay_ids.add(pr.payment_id)
-
-        # 获取所有涉及的 farmer_id（用于后续查询）
+        # 获取所有涉及的农户姓名
         all_involved_farmer_ids = set(member_ids)
         for pr in all_proxy_relations:
             all_involved_farmer_ids.add(pr.beneficiary_farmer_id)
             all_involved_farmer_ids.add(pr.proxy_farmer_id)
+        farmer_names = {f.id: f.real_name for f in db.query(FarmerProfile).filter(FarmerProfile.id.in_(all_involved_farmer_ids)).all()} if all_involved_farmer_ids else {}
 
-        # 第二步：查询补贴申请记录
-        # 包括：1. member_ids 自己申请的；2. 代领关系中涉及的（beneficiary 或 proxy）的记录
+        # 建立代领关系映射（用于快速查找）
+        # 按 (beneficiary_id, proxy_id, subsidy_type_id) 查找
+        proxy_by_key = {}
+        for pr in all_proxy_relations:
+            key = (pr.beneficiary_farmer_id, pr.proxy_farmer_id, pr.subsidy_type_id)
+            proxy_by_key[key] = pr
+
+        # 查询补贴申请记录 - 使用 beneficiary_id 关联到本家庭成员
         app_rows = (
             db.query(
                 SubsidyApplication.apply_year,
                 SubsidyApplication.farmer_id,
-                FarmerProfile.real_name,
+                SubsidyApplication.beneficiary_id,
+                FarmerProfile.real_name.label("farmer_name"),
                 SubsidyType.subsidy_name,
                 SubsidyType.calc_mode,
                 SubsidyApplication.apply_area,
@@ -1030,35 +1029,20 @@ def get_household(
                 SubsidyApplication.is_proxy,
                 SubsidyApplication.id.label("record_id"),
             )
-            .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id)
+            .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.beneficiary_id)
             .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
-            .filter(
-                or_(
-                    SubsidyApplication.farmer_id.in_(member_ids),
-                    # 代领记录：通过 is_proxy 关联到本户的代领关系
-                    SubsidyApplication.is_proxy.in_([pr.id for pr in all_proxy_relations]) if all_proxy_relations else False
-                )
-            )
+            .filter(FarmerProfile.household_id == household_id)
             .order_by(SubsidyApplication.apply_year.desc())
             .all()
         )
 
-        # 过滤逻辑：
-        # 1. 原始记录（is_proxy=0 或 null）：保留
-        # 2. 复制记录（is_proxy>0）：只保留 farmer_id 在 member_ids 中的记录
-        #    - 如果 farmer_id 是当前家庭成员，说明这条记录属于当前家庭（不管是受益人还是代领人的复制记录）
-        #    - 如果 farmer_id 不是当前家庭成员，说明是外家庭的记录，需要排除
-        app_rows = [
-            r for r in app_rows
-            if r.is_proxy == 0 or r.is_proxy is None or r.farmer_id in set(member_ids)
-        ]
-
-        # 查询补贴发放记录
+        # 查询补贴发放记录 - 使用 beneficiary_id 关联到本家庭成员
         pay_rows = (
             db.query(
                 SubsidyPayment.payment_year.label("apply_year"),
                 SubsidyPayment.farmer_id,
-                FarmerProfile.real_name,
+                SubsidyPayment.beneficiary_id,
+                FarmerProfile.real_name.label("farmer_name"),
                 SubsidyType.subsidy_name,
                 SubsidyType.calc_mode,
                 SubsidyPayment.apply_area,
@@ -1070,113 +1054,75 @@ def get_household(
                 SubsidyPayment.is_proxy,
                 SubsidyPayment.id.label("record_id"),
             )
-            .join(FarmerProfile, FarmerProfile.id == SubsidyPayment.farmer_id)
+            .join(FarmerProfile, FarmerProfile.id == SubsidyPayment.beneficiary_id)
             .join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
-            .filter(
-                or_(
-                    SubsidyPayment.farmer_id.in_(member_ids),
-                    # 代领记录：通过 is_proxy 关联到本户的代领关系
-                    SubsidyPayment.is_proxy.in_([pr.id for pr in all_proxy_relations]) if all_proxy_relations else False
-                )
-            )
+            .filter(FarmerProfile.household_id == household_id)
             .order_by(SubsidyPayment.payment_year.desc())
             .all()
         )
 
-        # 过滤逻辑同上
-        pay_rows = [
-            r for r in pay_rows
-            if r.is_proxy == 0 or r.is_proxy is None or r.farmer_id in set(member_ids)
-        ]
+        # 构建代领关系信息 - 新逻辑
+        def build_proxy_info(record_type, r):
+            # 判断是否有代领关系：farmer_id != beneficiary_id
+            if r.farmer_id == r.beneficiary_id:
+                return None
+
+            # 查找代领关系
+            # 首先从 proxy_by_key 查找
+            pr = None
+            key = (r.beneficiary_id, r.farmer_id, None)  # 先不限制 subsidy_type
+            for (b, p, st), proxy in proxy_by_key.items():
+                if b == r.beneficiary_id and p == r.farmer_id:
+                    pr = proxy
+                    break
+
+            if not pr:
+                # 如果没找到，直接查询
+                pr = db.query(SubsidyProxy).filter(
+                    SubsidyProxy.beneficiary_farmer_id == r.beneficiary_id,
+                    SubsidyProxy.proxy_farmer_id == r.farmer_id
+                ).first()
+
+            if not pr:
+                return None
+
+            # 显示受益标签（因为这条记录的 beneficiary 是本户成员）
+            return {
+                "type": "受益",
+                "beneficiary_name": farmer_names.get(pr.beneficiary_farmer_id, "未知"),
+                "beneficiary_farmer_id": pr.beneficiary_farmer_id,
+                "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
+                "proxy_farmer_id": pr.proxy_farmer_id,
+                "remark": pr.remark,
+            }
 
         # 合并申请和发放记录
         all_rows = []
         for r in app_rows:
-            all_rows.append(("application", r))
+            proxy_info = build_proxy_info("application", r)
+            all_rows.append(("application", r, proxy_info))
         for r in pay_rows:
-            all_rows.append(("payment", r))
+            proxy_info = build_proxy_info("payment", r)
+            all_rows.append(("payment", r, proxy_info))
 
-        # 第三步：构建代领关系映射
-        # 新模式：is_proxy = subsidy_proxy.id，直接通过 is_proxy 查找
-        proxy_map = {}  # (record_type, record_id) -> proxy_info
-        farmer_names = {f.id: f.real_name for f in db.query(FarmerProfile).filter(FarmerProfile.id.in_(all_involved_farmer_ids)).all()} if all_involved_farmer_ids else {}
-
-        # 建立 id -> proxy_relation 的映射
-        proxy_by_id = {pr.id: pr for pr in all_proxy_relations}
-
-        # 处理申请记录的代领关系
-        for r in app_rows:
-            # 新模式：is_proxy 直接存储 proxy_rel.id
-            if r.is_proxy and r.is_proxy > 0:
-                pr = proxy_by_id.get(r.is_proxy)
-                if pr:
-                    key = ("application", r.record_id)
-                    # 判断当前查看者在这个代领关系中的角色
-                    if r.farmer_id == pr.beneficiary_farmer_id:
-                        # 记录挂在受益人名下
-                        proxy_map[key] = {
-                            "type": "受益",
-                            "beneficiary_name": farmer_names.get(pr.beneficiary_farmer_id, "未知"),
-                            "beneficiary_farmer_id": pr.beneficiary_farmer_id,
-                            "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
-                            "proxy_farmer_id": pr.proxy_farmer_id,
-                            "remark": pr.remark,
-                        }
-                    elif r.farmer_id == pr.proxy_farmer_id:
-                        # 记录挂在代领人名下
-                        proxy_map[key] = {
-                            "type": "代领",
-                            "beneficiary_name": farmer_names.get(pr.beneficiary_farmer_id, "未知"),
-                            "beneficiary_farmer_id": pr.beneficiary_farmer_id,
-                            "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
-                            "proxy_farmer_id": pr.proxy_farmer_id,
-                            "remark": pr.remark,
-                        }
-
-        # 处理发放记录的代领关系
-        for r in pay_rows:
-            # 新模式：is_proxy 直接存储 proxy_rel.id
-            if r.is_proxy and r.is_proxy > 0:
-                pr = proxy_by_id.get(r.is_proxy)
-                if pr:
-                    key = ("payment", r.record_id)
-                    if r.farmer_id == pr.beneficiary_farmer_id:
-                        proxy_map[key] = {
-                            "type": "受益",
-                            "beneficiary_name": farmer_names.get(pr.beneficiary_farmer_id, "未知"),
-                            "beneficiary_farmer_id": pr.beneficiary_farmer_id,
-                            "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
-                            "proxy_farmer_id": pr.proxy_farmer_id,
-                            "remark": pr.remark,
-                        }
-                    elif r.farmer_id == pr.proxy_farmer_id:
-                        proxy_map[key] = {
-                            "type": "代领",
-                            "beneficiary_name": farmer_names.get(pr.beneficiary_farmer_id, "未知"),
-                            "beneficiary_farmer_id": pr.beneficiary_farmer_id,
-                            "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
-                            "proxy_farmer_id": pr.proxy_farmer_id,
-                            "remark": pr.remark,
-                        }
-
-        # 第三步：构建结果 - 同一项目同一农户同一年度优先显示发放记录
-        # 先按 (farmer_id, subsidy_name, apply_year) 去重，发放记录优先
-        unique_map = {}  # (farmer_id, subsidy_name, apply_year) -> (record_type, r, key)
-        for record_type, r in all_rows:
-            key = (record_type, r.record_id)
-            unique_key = (r.farmer_id, r.subsidy_name, r.apply_year)
-
-            # 如果是发放记录，或者还没有记录，就添加/替换
+        # 同一项目同一受益人同一年度优先显示发放记录
+        # 按 (beneficiary_id, subsidy_name, apply_year) 去重
+        unique_map = {}
+        for record_type, r, proxy_info in all_rows:
+            unique_key = (r.beneficiary_id, r.subsidy_name, r.apply_year)
             if unique_key not in unique_map or record_type == "payment":
-                unique_map[unique_key] = (record_type, r, key)
+                unique_map[unique_key] = (record_type, r, proxy_info)
 
         # 构建最终的 app_summary
         app_summary = []
-        for (record_type, r, key) in unique_map.values():
+        for (record_type, r, proxy_info) in unique_map.values():
+            # 获取受益人姓名（从 farmer_names 或直接查询）
+            beneficiary_name = farmer_names.get(r.beneficiary_id, "未知")
+
             app_summary.append({
                 "apply_year": r.apply_year,
-                "farmer_id": r.farmer_id,
-                "farmer_name": r.real_name,
+                "farmer_id": r.beneficiary_id,  # 显示受益人
+                "farmer_name": beneficiary_name,  # 显示受益人姓名
                 "subsidy_name": r.subsidy_name,
                 "calc_mode": r.calc_mode,
                 "apply_area": float(r.apply_area) if r.apply_area else None,
@@ -1186,7 +1132,7 @@ def get_household(
                 "apply_village_name": r.apply_village_name or "",
                 "apply_group_display": r.apply_group_display or "",
                 "is_proxy": r.is_proxy or 0,
-                "proxy_info": proxy_map.get(key),
+                "proxy_info": proxy_info,
             })
 
         # 按年度倒序排序
