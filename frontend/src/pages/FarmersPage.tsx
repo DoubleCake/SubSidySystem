@@ -416,6 +416,23 @@ export default function FarmersPage() {
     }
   }
 
+  // ── 重新计算未确认家庭户承包地面积 ──
+  const [recalculatingArea, setRecalculatingArea] = useState(false)
+  const handleRecalcUnconfirmedArea = async () => {
+    if (recalculatingArea) return
+    setRecalculatingArea(true)
+    try {
+      const r = await api.recalcUnconfirmedContractArea()
+      show(r.message, 'ok')
+      loadHouseholds()
+      refreshDetail()
+    } catch (e: unknown) {
+      show((e as Error).message, 'err')
+    } finally {
+      setRecalculatingArea(false)
+    }
+  }
+
   // ── 刷新户详情 ──
   const refreshDetail = async () => {
     if (detail) {
@@ -1003,6 +1020,11 @@ export default function FarmersPage() {
                   className="px-3 py-2 text-sm border-2 border-purple-500 text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 shadow-sm hover:shadow transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
                   <span className="mr-1.5 text-xs">{refreshingCache ? '⏳' : '🔄'}</span>
                   {refreshingCache ? '刷新中…' : '刷新缓存'}
+                </button>
+                <button onClick={handleRecalcUnconfirmedArea} disabled={recalculatingArea}
+                  className="px-3 py-2 text-sm border-2 border-amber-500 text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100 shadow-sm hover:shadow transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
+                  <span className="mr-1.5 text-xs">{recalculatingArea ? '⏳' : '📐'}</span>
+                  {recalculatingArea ? '计算中…' : '重算未确认户承包面积'}
                 </button>
               </div>
               <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer bg-stone-50 px-3 py-2 rounded-lg border border-stone-200 shadow-sm hover:bg-stone-100 transition-all">

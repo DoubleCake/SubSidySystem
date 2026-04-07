@@ -3562,4 +3562,98 @@ def refresh_area_cache(
             "message": f"已刷新全部 {count} 个家庭户的面积缓存",
             "total": count
         }
-    remark: Optional[str] = None
+
+
+# ══════════════════════════════════════════════════
+#  重新计算未确认家庭户承包地面积
+# ══════════════════════════════════════════════════
+
+@router.post("/recalc-unconfirmed-contract-area")
+def recalc_unconfirmed_contract_area(db: Session = Depends(get_db)):
+    """
+    重新计算未确认家庭户的承包地面积：
+    - 仅针对 is_manually_confirmed = 0 的家庭户
+    - 优先使用2025年补贴发放数据中的承包面积之和
+    - 如果2025年没有数据，则使用2024年的数据
+    - 只计算受益农户的记录（排除代领记录）
+    """
+    from sqlalchemy import text
+    from models import FamilyHousehold
+
+    # 获取所有未确认的家庭户
+    unconfirmed_households = db.query(FamilyHousehold).filter(
+        FamilyHousehold.is_manually_confirmed == 0
+    ).all()
+
+    if not unconfirmed_households:
+        return {
+            "message": "没有未确认的家庭户需要计算",
+            "total": 0,
+            "updated": 0
+        }
+
+    updated_count = 0
+    results = []
+
+    for hh in unconfirmed_households:
+        # 优先查询2025年的数据
+        sql_2025 = text("""
+            SELECT ROUND(SUM(COALESCE(sp.contract_area, 0)), 2) as total_contract_area
+            FROM subsidy_payment sp
+            JOIN farmer_profile fp ON sp.farmer_id = fp.id
+            WHERE fp.household_id = :household_id
+                AND sp.payment_year = 2025
+                AND sp.is_proxy = 0
+        """)
+        result_2025 = db.execute(sql_2025, {"household_id": hh.id}).fetchone()
+        area_2025 = float(result_2025[0]) if result_2025 and result_2025[0] else 0.0
+
+        if area_2025 > 0:
+            # 使用2025年数据
+            hh.contract_area = area_2025
+            updated_count += 1
+            results.append({
+                "household_id": hh.id,
+                "household_name": hh.household_name,
+                "year_used": 2025,
+                "contract_area": area_2025
+            })
+        else:
+            # 查询2024年的数据
+            sql_2024 = text("""
+                SELECT ROUND(SUM(COALESCE(sp.contract_area, 0)), 2) as total_contract_area
+                FROM subsidy_payment sp
+                JOIN farmer_profile fp ON sp.farmer_id = fp.id
+                WHERE fp.household_id = :household_id
+                    AND sp.payment_year = 2024
+                    AND sp.is_proxy = 0
+            """)
+            result_2024 = db.execute(sql_2024, {"household_id": hh.id}).fetchone()
+            area_2024 = float(result_2024[0]) if result_2024 and result_2024[0] else 0.0
+
+            if area_2024 > 0:
+                hh.contract_area = area_2024
+                updated_count += 1
+                results.append({
+                    "household_id": hh.id,
+                    "household_name": hh.household_name,
+                    "year_used": 2024,
+                    "contract_area": area_2024
+                })
+            else:
+                results.append({
+                    "household_id": hh.id,
+                    "household_name": hh.household_name,
+                    "year_used": None,
+                    "contract_area": None,
+                    "message": "2024和2025年都没有补贴数据"
+                })
+
+    db.commit()
+
+    return {
+        "message": f"重新计算完成：共处理{len(unconfirmed_households)}个未确认家庭户，更新{updated_count}个",
+        "total": len(unconfirmed_households),
+        "updated": updated_count,
+        "results": results
+    }

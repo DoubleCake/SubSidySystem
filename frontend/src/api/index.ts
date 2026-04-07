@@ -386,6 +386,20 @@ export const refreshAreaCache = (householdId?: number) =>
     { method: 'POST' }
   )
 
+export const recalcUnconfirmedContractArea = () =>
+  req<{
+    message: string
+    total: number
+    updated: number
+    results: Array<{
+      household_id: number
+      household_name: string
+      year_used: number | null
+      contract_area: number | null
+      message?: string
+    }>
+  }>('/api/households/recalc-unconfirmed-contract-area', { method: 'POST' })
+
 // ── 家庭户批量导入 ──
 export interface HouseholdImportRow {
   real_name: string
