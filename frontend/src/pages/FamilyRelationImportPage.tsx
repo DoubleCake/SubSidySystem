@@ -4,7 +4,7 @@
  * 1. 上传Excel，根据身份证号匹配农户，更新relation字段
  * 2. 对指定村庄执行多户主家庭拆分
  */
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import * as api from '../api'
 import type { FamilyRelationRow } from '../api'
@@ -17,9 +17,38 @@ export default function FamilyRelationImportPage() {
 
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<api.ImportFamilyRelationsResult | null>(null)
-  const [villageInput, setVillageInput] = useState('')
   const [previewRows, setPreviewRows] = useState<FamilyRelationRow[]>([])
   const [headers, setHeaders] = useState<string[]>([])
+
+  // 村庄多选
+  const [villages, setVillages] = useState<string[]>([])
+  const [selectedVillages, setSelectedVillages] = useState<Set<string>>(new Set())
+  const [villageLoading, setVillageLoading] = useState(false)
+
+  // 加载村庄列表
+  useEffect(() => {
+    api.getVillageGroups().then(groups => {
+      // 提取唯一村名
+      const unique = [...new Set(groups.map(g => g.village_name))].sort()
+      setVillages(unique)
+    }).catch(() => {
+      show('加载村庄列表失败', 'err')
+    })
+  }, [])
+
+  // 切换村庄选择
+  const toggleVillage = (v: string) => {
+    const next = new Set(selectedVillages)
+    if (next.has(v)) next.delete(v)
+    else next.add(v)
+    setSelectedVillages(next)
+  }
+
+  // 全选/取消全选
+  const selectAll = (select: boolean) => {
+    if (select) setSelectedVillages(new Set(villages))
+    else setSelectedVillages(new Set())
+  }
 
   // 读取Excel文件
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,12 +105,8 @@ export default function FamilyRelationImportPage() {
 
     setLoading(true)
     try {
-      const splitVillages = villageInput
-        .split(',')
-        .map(v => v.trim())
-        .filter(v => v.length > 0)
-
-      const res = await api.importFamilyRelations(previewRows, splitVillages.length > 0 ? splitVillages : undefined)
+      const splitVillages = selectedVillages.size > 0 ? Array.from(selectedVillages) : undefined
+      const res = await api.importFamilyRelations(previewRows, splitVillages)
       setResult(res)
 
       if (res.stage1_updated > 0) {
@@ -103,24 +128,22 @@ export default function FamilyRelationImportPage() {
   // 预览多户主家庭
   const [multiHeadPreview, setMultiHeadPreview] = useState<api.MultiHeadHouseholdInfo[]>([])
   const handlePreviewSplit = async () => {
-    const splitVillages = villageInput
-      .split(',')
-      .map(v => v.trim())
-      .filter(v => v.length > 0)
-
-    if (splitVillages.length === 0) {
-      show('请输入要预览的村庄名', 'err')
+    if (selectedVillages.size === 0) {
+      show('请选择要预览的村庄', 'err')
       return
     }
 
+    setVillageLoading(true)
     try {
-      const res = await api.getMultiHeadHouseholds(splitVillages)
+      const res = await api.getMultiHeadHouseholds(Array.from(selectedVillages))
       setMultiHeadPreview(res.households)
       if (res.households.length === 0) {
         show('这些村庄没有发现多户主家庭', 'ok')
       }
     } catch (err: any) {
       show(err.message || '预览失败', 'err')
+    } finally {
+      setVillageLoading(false)
     }
   }
 
@@ -144,26 +167,40 @@ export default function FamilyRelationImportPage() {
           </p>
         </div>
 
-        {/* 村庄输入（用于拆分） */}
+        {/* 村庄选择（多选框） */}
         <div>
-          <label className="block text-sm font-medium mb-2">
-            指定拆分的村庄（逗号分隔，留空则只更新关系不拆分）
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={villageInput}
-              onChange={e => setVillageInput(e.target.value)}
-              placeholder="如：村1,村2,村3"
-              className="flex-1 border rounded px-3 py-2 text-sm"
-            />
-            <button
-              onClick={handlePreviewSplit}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm"
-            >
-              预览多户主家庭
-            </button>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium">
+              选择村庄（用于多户主拆分，不选则只更新关系不拆分）
+            </label>
+            <div className="flex gap-2 text-xs">
+              <button onClick={() => selectAll(true)} className="text-blue-600 hover:underline">全选</button>
+              <span className="text-gray-400">|</span>
+              <button onClick={() => selectAll(false)} className="text-blue-600 hover:underline">取消全选</button>
+            </div>
           </div>
+          <div className="border rounded p-3 max-h-48 overflow-y-auto">
+            {villages.length === 0 ? (
+              <div className="text-sm text-gray-400">加载中...</div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {villages.map(v => (
+                  <label key={v} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 rounded px-2 py-1">
+                    <input
+                      type="checkbox"
+                      checked={selectedVillages.has(v)}
+                      onChange={() => toggleVillage(v)}
+                      className="rounded"
+                    />
+                    <span>{v}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+          {selectedVillages.size > 0 && (
+            <div className="text-xs text-gray-500 mt-1">已选择 {selectedVillages.size} 个村庄</div>
+          )}
         </div>
 
         {/* 预览数据 */}
@@ -197,6 +234,17 @@ export default function FamilyRelationImportPage() {
             <p className="text-xs text-gray-500 mt-1">共 {previewRows.length} 行</p>
           </div>
         )}
+
+        {/* 预览多户主家庭 */}
+        <div className="flex gap-2">
+          <button
+            onClick={handlePreviewSplit}
+            disabled={villageLoading || selectedVillages.size === 0}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm disabled:opacity-50"
+          >
+            {villageLoading ? '加载中...' : '预览多户主家庭'}
+          </button>
+        </div>
 
         {/* 多户主家庭预览 */}
         {multiHeadPreview.length > 0 && (
