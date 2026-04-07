@@ -102,6 +102,55 @@ def list_farmers(
     return {"total": total, "page": page, "page_size": page_size,
             "items": [_to_list(r) for r in rows]}
 
+# ── 多户主家庭查询 ──
+@router.get("/households-with-multi-head")
+def list_multi_head_households(village_names: str = Query(None, description="村庄名，逗号分隔"), db: Session = Depends(get_db)):
+    """
+    查询指定村庄中有多户主的家庭（供前端确认哪些需要拆分）
+    village_names: 如 "村1,村2"
+    """
+    if village_names:
+        names = [n.strip() for n in village_names.split(",") if n.strip()]
+    else:
+        names = []
+
+    village_ids = [v.id for v in db.query(Village).filter(Village.village_name.in_(names)).all()] if names else []
+
+    if not village_ids:
+        return {"households": []}
+
+    households = db.query(FamilyHousehold).filter(FamilyHousehold.village_id.in_(village_ids)).all()
+    hh_ids = [h.id for h in households]
+
+    members = db.query(FarmerProfile).filter(FarmerProfile.household_id.in_(hh_ids)).all()
+
+    hh_members: dict[int, list] = {}
+    for m in members:
+        if m.household_id not in hh_members:
+            hh_members[m.household_id] = []
+        hh_members[m.household_id].append({
+            "id": m.id,
+            "real_name": m.real_name,
+            "relation": m.relation,
+            "id_card_masked": mask_id_card(m.id_card) if m.id_card else None,
+        })
+
+    result = []
+    for hh in households:
+        members_list = hh_members.get(hh.id, [])
+        heads = [m for m in members_list if m.get("relation") == "head"]
+        if len(heads) > 1:
+            result.append({
+                "household_id": hh.id,
+                "household_name": hh.household_name,
+                "village_name": hh.village.village_name if hh.village else "",
+                "head_count": len(heads),
+                "heads": heads,
+                "all_members": members_list,
+            })
+
+    return {"households": result}
+
 # ── 详情 ──
 @router.get("/{farmer_id}")
 def get_farmer(farmer_id: int, db: Session = Depends(get_db)):
@@ -614,52 +663,3 @@ def _split_multi_head_households(db: Session, village_names: list[str]) -> dict:
         "migrated_members": migrated_members,
         "details": split_details,
     }
-
-
-@router.get("/households-with-multi-head")
-def list_multi_head_households(village_names: str = Query(None, description="村庄名，逗号分隔"), db: Session = Depends(get_db)):
-    """
-    查询指定村庄中有多户主的家庭（供前端确认哪些需要拆分）
-    village_names: 如 "村1,村2"
-    """
-    if village_names:
-        names = [n.strip() for n in village_names.split(",") if n.strip()]
-    else:
-        names = []
-
-    village_ids = [v.id for v in db.query(Village).filter(Village.village_name.in_(names)).all()] if names else []
-
-    if not village_ids:
-        return {"households": []}
-
-    households = db.query(FamilyHousehold).filter(FamilyHousehold.village_id.in_(village_ids)).all()
-    hh_ids = [h.id for h in households]
-
-    members = db.query(FarmerProfile).filter(FarmerProfile.household_id.in_(hh_ids)).all()
-
-    hh_members: dict[int, list] = {}
-    for m in members:
-        if m.household_id not in hh_members:
-            hh_members[m.household_id] = []
-        hh_members[m.household_id].append({
-            "id": m.id,
-            "real_name": m.real_name,
-            "relation": m.relation,
-            "id_card_masked": mask_id_card(m.id_card) if m.id_card else None,
-        })
-
-    result = []
-    for hh in households:
-        members_list = hh_members.get(hh.id, [])
-        heads = [m for m in members_list if m.get("relation") == "head"]
-        if len(heads) > 1:
-            result.append({
-                "household_id": hh.id,
-                "household_name": hh.household_name,
-                "village_name": hh.village.village_name if hh.village else "",
-                "head_count": len(heads),
-                "heads": heads,
-                "all_members": members_list,
-            })
-
-    return {"households": result}
