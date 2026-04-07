@@ -1125,19 +1125,23 @@ def get_household(
                     key = ("application", r.record_id)
                     # 判断当前查看者在这个代领关系中的角色
                     if r.farmer_id == pr.beneficiary_farmer_id:
-                        # 记录挂在受益人名下，显示"被代领"
+                        # 记录挂在受益人名下
                         proxy_map[key] = {
                             "type": "受益",
+                            "beneficiary_name": farmer_names.get(pr.beneficiary_farmer_id, "未知"),
+                            "beneficiary_farmer_id": pr.beneficiary_farmer_id,
                             "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
                             "proxy_farmer_id": pr.proxy_farmer_id,
                             "remark": pr.remark,
                         }
                     elif r.farmer_id == pr.proxy_farmer_id:
-                        # 记录挂在代领人名下，显示"代领"
+                        # 记录挂在代领人名下
                         proxy_map[key] = {
                             "type": "代领",
                             "beneficiary_name": farmer_names.get(pr.beneficiary_farmer_id, "未知"),
                             "beneficiary_farmer_id": pr.beneficiary_farmer_id,
+                            "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
+                            "proxy_farmer_id": pr.proxy_farmer_id,
                             "remark": pr.remark,
                         }
 
@@ -1151,6 +1155,8 @@ def get_household(
                     if r.farmer_id == pr.beneficiary_farmer_id:
                         proxy_map[key] = {
                             "type": "受益",
+                            "beneficiary_name": farmer_names.get(pr.beneficiary_farmer_id, "未知"),
+                            "beneficiary_farmer_id": pr.beneficiary_farmer_id,
                             "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
                             "proxy_farmer_id": pr.proxy_farmer_id,
                             "remark": pr.remark,
@@ -1160,6 +1166,8 @@ def get_household(
                             "type": "代领",
                             "beneficiary_name": farmer_names.get(pr.beneficiary_farmer_id, "未知"),
                             "beneficiary_farmer_id": pr.beneficiary_farmer_id,
+                            "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
+                            "proxy_farmer_id": pr.proxy_farmer_id,
                             "remark": pr.remark,
                         }
 

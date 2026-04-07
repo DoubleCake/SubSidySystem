@@ -468,13 +468,13 @@ export function HouseholdDetailContent({
                       </span>
                     )}
                     <span className="text-sm flex-1">{a.subsidy_name}</span>
-                    {/* 代领标签 - 根据当前记录的 farmer_id 判断显示"受益"还是"代领" */}
+                    {/* 代领标签 */}
                     {a.proxy_info && (() => {
                       const proxy = a.proxy_info
-                      // 根据当前记录属于受益人还是代领人来决定标签类型
-                      const isBeneficiary = a.farmer_id === proxy.beneficiary_farmer_id
-                      const labelType = isBeneficiary ? '受益' : '代领'
-                      const targetId = isBeneficiary ? proxy.proxy_farmer_id : proxy.beneficiary_farmer_id
+                      // proxy_info.type 由后端设置：受益人记录="受益"，代领人记录="代领"
+                      const labelType = proxy.type
+                      // 点击跳转到另一方（不是当前记录所属的人）
+                      const targetId = labelType === '受益' ? proxy.proxy_farmer_id : proxy.beneficiary_farmer_id
                       const canClick = targetId != null
                       return (
                         <span className="group relative">
@@ -489,8 +489,8 @@ export function HouseholdDetailContent({
                               {labelType}
                             </span>
                           </button>
-                          <div className=" left-0 top-full mt-1 bg-stone-800 text-white text-xs px-2 py-1.5 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                            {isBeneficiary
+                          <div className="left-0 top-full mt-1 bg-stone-800 text-white text-xs px-2 py-1.5 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                            {labelType === '受益'
                               ? <>受益人: {proxy.beneficiary_name} → 代领人: {proxy.proxy_name}</>
                               : <>代领人: {proxy.proxy_name} → 受益人: {proxy.beneficiary_name}</>}
                             {proxy.remark && <div className="text-stone-400 mt-0.5">{proxy.remark}</div>}
