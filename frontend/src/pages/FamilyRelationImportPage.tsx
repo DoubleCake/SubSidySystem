@@ -134,12 +134,17 @@ export default function FamilyRelationImportPage() {
       return
     }
 
+    if (previewRows.length === 0) {
+      show('请先上传Excel文件', 'err')
+      return
+    }
+
     setVillageLoading(true)
     try {
-      const res = await api.getMultiHeadHouseholds(Array.from(selectedVillages))
+      const res = await api.previewMultiHeadHouseholds(Array.from(selectedVillages), previewRows)
       setMultiHeadPreview(res.households)
       if (res.households.length === 0) {
-        show('这些村庄没有发现多户主家庭', 'ok')
+        show('这些村庄在Excel中没有发现多户主家庭（或Excel中只有1个户主标记）', 'ok')
       }
     } catch (err: any) {
       show(err.message || '预览失败', 'err')

@@ -93,13 +93,22 @@ export interface MultiHeadHouseholdInfo {
   household_name: string
   village_name: string
   head_count: number
-  heads: { id: number; real_name: string; relation: string; id_card_masked?: string }[]
-  all_members: { id: number; real_name: string; relation: string; id_card_masked?: string }[]
+  heads: { id: number; real_name: string; relation: string; id_card?: string; id_card_masked?: string }[]
+  all_members: { id: number; real_name: string; relation: string; id_card?: string; id_card_masked?: string }[]
 }
 
 export const getMultiHeadHouseholds = (villageNames?: string[]) =>
   req<{ households: MultiHeadHouseholdInfo[] }>(
     '/api/farmers/households-with-multi-head' + (villageNames && villageNames.length > 0 ? `?village_names=${villageNames.join(',')}` : '')
+  )
+
+export const previewMultiHeadHouseholds = (villageNames: string[], excelRows: FamilyRelationRow[]) =>
+  req<{ households: MultiHeadHouseholdInfo[] }>(
+    '/api/farmers/households-with-multi-head-preview',
+    {
+      method: 'POST',
+      body: JSON.stringify({ village_names: villageNames, excel_rows: excelRows }),
+    }
   )
 
 // ── 补贴类型 ──
