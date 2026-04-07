@@ -2045,40 +2045,23 @@ def get_stats_by_village(
     """
     from sqlalchemy import text
 
-    # 首先获取需要排除的代领人记录ID（只保留受益人的记录）
-    # 逻辑：如果一条记录是代领人(is_proxy>0)且存在对应的受益人记录，则排除这条代领人记录
-    proxy_exclude_sql = text("""
-        WITH proxy_relations AS (
-            SELECT DISTINCT
-                sp.beneficiary_farmer_id,
-                sp.proxy_farmer_id,
-                sp.subsidy_type_id
-            FROM subsidy_proxy sp
-            WHERE sp.subsidy_type_id = :subsidy_type_id
-        )
-        -- 找出需要排除的代领人记录（存在代领关系且是代领人方的记录）
-        SELECT DISTINCT sa.id
-        FROM subsidy_application sa
-        JOIN proxy_relations pr ON sa.farmer_id = pr.proxy_farmer_id
-            AND sa.subsidy_type_id = pr.subsidy_type_id
-        WHERE sa.subsidy_type_id = :subsidy_type_id
-            AND sa.apply_year = :year
-            AND sa.is_proxy > 0
-            -- 确保对应的受益人记录存在
-            AND EXISTS (
-                SELECT 1 FROM subsidy_application sa2
-                WHERE sa2.farmer_id = pr.beneficiary_farmer_id
-                    AND sa2.subsidy_type_id = pr.subsidy_type_id
-                    AND sa2.apply_year = :year
-            )
-    """)
-    exclude_ids = [row[0] for row in db.execute(proxy_exclude_sql, {
-        "subsidy_type_id": subsidy_type_id,
-        "year": year
-    }).fetchall()]
-
-    # 主统计SQL - 按村统计，排除重复的代领人记录
+    # 主统计SQL - 按村统计，使用子查询排除重复的代领人记录
     stats_sql = text("""
+        WITH exclude_applications AS (
+            SELECT DISTINCT sa.id
+            FROM subsidy_application sa
+            JOIN subsidy_proxy pr ON sa.farmer_id = pr.proxy_farmer_id
+                AND sa.subsidy_type_id = pr.subsidy_type_id
+            WHERE sa.subsidy_type_id = :subsidy_type_id
+                AND sa.apply_year = :year
+                AND sa.is_proxy > 0
+                AND EXISTS (
+                    SELECT 1 FROM subsidy_application sa2
+                    WHERE sa2.farmer_id = pr.beneficiary_farmer_id
+                        AND sa2.subsidy_type_id = pr.subsidy_type_id
+                        AND sa2.apply_year = :year
+                )
+        )
         SELECT
             v.village_name,
             COUNT(DISTINCT fp.id) as farmer_count,
@@ -2094,13 +2077,28 @@ def get_stats_by_village(
         JOIN village v ON hh.village_id = v.id
         WHERE sa.subsidy_type_id = :subsidy_type_id
             AND sa.apply_year = :year
-            AND (:exclude_empty OR sa.id NOT IN :exclude_ids)
+            AND sa.id NOT IN (SELECT id FROM exclude_applications)
         GROUP BY v.village_name
         ORDER BY v.village_name
     """)
 
     # 发放表统计（如果有发放数据的话）
     payment_stats_sql = text("""
+        WITH exclude_payments AS (
+            SELECT DISTINCT sp.id
+            FROM subsidy_payment sp
+            JOIN subsidy_proxy pr ON sp.farmer_id = pr.proxy_farmer_id
+                AND sp.subsidy_type_id = pr.subsidy_type_id
+            WHERE sp.subsidy_type_id = :subsidy_type_id
+                AND sp.payment_year = :year
+                AND sp.is_proxy > 0
+                AND EXISTS (
+                    SELECT 1 FROM subsidy_payment sp2
+                    WHERE sp2.farmer_id = pr.beneficiary_farmer_id
+                        AND sp2.subsidy_type_id = pr.subsidy_type_id
+                        AND sp2.payment_year = :year
+                )
+        )
         SELECT
             v.village_name,
             COUNT(DISTINCT fp.id) as farmer_count,
@@ -2116,7 +2114,7 @@ def get_stats_by_village(
         JOIN village v ON hh.village_id = v.id
         WHERE sp.subsidy_type_id = :subsidy_type_id
             AND sp.payment_year = :year
-            AND (:exclude_empty OR sp.id NOT IN :exclude_ids)
+            AND sp.id NOT IN (SELECT id FROM exclude_payments)
         GROUP BY v.village_name
         ORDER BY v.village_name
     """)
@@ -2130,42 +2128,9 @@ def get_stats_by_village(
     use_payment = payment_count > 0
     sql = payment_stats_sql if use_payment else stats_sql
 
-    # 获取需要排除的代领记录ID（针对发放表）
-    payment_exclude_sql = text("""
-        WITH proxy_relations AS (
-            SELECT DISTINCT
-                sp.beneficiary_farmer_id,
-                sp.proxy_farmer_id,
-                sp.subsidy_type_id
-            FROM subsidy_proxy sp
-            WHERE sp.subsidy_type_id = :subsidy_type_id
-        )
-        SELECT DISTINCT sp.id
-        FROM subsidy_payment sp
-        JOIN proxy_relations pr ON sp.farmer_id = pr.proxy_farmer_id
-            AND sp.subsidy_type_id = pr.subsidy_type_id
-        WHERE sp.subsidy_type_id = :subsidy_type_id
-            AND sp.payment_year = :year
-            AND sp.is_proxy > 0
-            AND EXISTS (
-                SELECT 1 FROM subsidy_payment sp2
-                WHERE sp2.farmer_id = pr.beneficiary_farmer_id
-                    AND sp2.subsidy_type_id = pr.subsidy_type_id
-                    AND sp2.payment_year = :year
-            )
-    """)
-
-    if use_payment:
-        exclude_ids = [row[0] for row in db.execute(payment_exclude_sql, {
-            "subsidy_type_id": subsidy_type_id,
-            "year": year
-        }).fetchall()]
-
     params = {
         "subsidy_type_id": subsidy_type_id,
-        "year": year,
-        "exclude_ids": tuple(exclude_ids) if exclude_ids else (0,),
-        "exclude_empty": len(exclude_ids) == 0
+        "year": year
     }
 
     rows = db.execute(sql, params).fetchall()
