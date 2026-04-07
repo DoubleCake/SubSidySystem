@@ -1047,30 +1047,19 @@ def get_household(
             .filter(
                 or_(
                     SubsidyApplication.farmer_id.in_(member_ids),
-                    # 新模式：is_proxy 存储 proxy_rel.id，查找关联到本户的代领记录
-                    SubsidyApplication.is_proxy.in_([pr.id for pr in all_proxy_relations])
-                )
-            )
-            # 排除beneficiary的复制记录（farmer_id=beneficiary且is_proxy>0），复制记录只属于beneficiary个人
-            .filter(
-                not_(
-                    and_(
-                        or_(
-                            *[and_(
-                                SubsidyApplication.farmer_id == pr.beneficiary_farmer_id,
-                                SubsidyApplication.is_proxy > 0
-                            ) for pr in all_proxy_relations],
-                            *[and_(
-                                SubsidyApplication.farmer_id == pr.proxy_farmer_id,
-                                SubsidyApplication.is_proxy > 0
-                            ) for pr in all_proxy_relations]
-                        )
-                    )
+                    # 代领记录：通过 is_proxy 关联到本户的代领关系
+                    SubsidyApplication.is_proxy.in_([pr.id for pr in all_proxy_relations]) if all_proxy_relations else False
                 )
             )
             .order_by(SubsidyApplication.apply_year.desc())
             .all()
         )
+
+        # 过滤掉 beneficiary 的复制记录（这些记录只属于 beneficiary 个人）
+        app_rows = [
+            r for r in app_rows
+            if not (r.is_proxy and r.is_proxy > 0 and r.farmer_id in [pr.beneficiary_farmer_id for pr in all_proxy_relations])
+        ]
 
         # 查询补贴发放记录
         pay_rows = (
@@ -1094,30 +1083,19 @@ def get_household(
             .filter(
                 or_(
                     SubsidyPayment.farmer_id.in_(member_ids),
-                    # 新模式：is_proxy 存储 proxy_rel.id，查找关联到本户的代领记录
-                    SubsidyPayment.is_proxy.in_([pr.id for pr in all_proxy_relations])
-                )
-            )
-            # 排除beneficiary的复制记录（farmer_id=beneficiary且is_proxy>0），复制记录只属于beneficiary个人
-            .filter(
-                not_(
-                    and_(
-                        or_(
-                            *[and_(
-                                SubsidyPayment.farmer_id == pr.beneficiary_farmer_id,
-                                SubsidyPayment.is_proxy > 0
-                            ) for pr in all_proxy_relations],
-                            *[and_(
-                                SubsidyPayment.farmer_id == pr.proxy_farmer_id,
-                                SubsidyPayment.is_proxy > 0
-                            ) for pr in all_proxy_relations]
-                        )
-                    )
+                    # 代领记录：通过 is_proxy 关联到本户的代领关系
+                    SubsidyPayment.is_proxy.in_([pr.id for pr in all_proxy_relations]) if all_proxy_relations else False
                 )
             )
             .order_by(SubsidyPayment.payment_year.desc())
             .all()
         )
+
+        # 过滤掉 beneficiary 的复制记录（这些记录只属于 beneficiary 个人）
+        pay_rows = [
+            r for r in pay_rows
+            if not (r.is_proxy and r.is_proxy > 0 and r.farmer_id in [pr.beneficiary_farmer_id for pr in all_proxy_relations])
+        ]
 
         # 合并申请和发放记录
         all_rows = []
