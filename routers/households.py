@@ -164,17 +164,18 @@ def get_contract_area_at_year(household_id: int, db: Session, year: int) -> floa
 
 def recalc_household_area_cache(household_id: int, db: Session) -> None:
     """
-    重新计算指定家庭户的面积占用缓存。
+    重新计算指定家庭户的面积占用缓存（新方案：使用 beneficiary_id）。
     规则：
     1. 申报数据：pay_status in [0,1,2]（待审核、审核通过、已发放）的 apply_area
     2. 发放数据：直接从 subsidy_payment 表取 apply_area
     3. 最终使用面积 = 发放面积 if 发放面积 > 0 else 申报面积
+    4. 使用 beneficiary_id 来确定面积归属哪个家庭
     """
     hh = db.query(FamilyHousehold).filter(FamilyHousehold.id == household_id).first()
     if not hh:
         return
 
-    # 获取所有成员ID
+    # 获取所有成员ID（用于找到 benefit_id 是这些成员的记录）
     member_ids = [m.id for m in db.query(FarmerProfile.id)
                   .filter(FarmerProfile.household_id == household_id).all()]
     if not member_ids:
@@ -188,8 +189,7 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
     SEASON_ORDER = ["大春", "小春", "全年单补", "临时"]
 
     # 1. 从申报表计算各年/季节的申报面积
-    # 注意：不再排除 is_proxy=1 的记录，因为代领关系的面积需要计入受益人家庭
-    # is_proxy=1 的记录按 farmer_id 计入 farmer 的家庭
+    # 使用 beneficiary_id 关联到本家庭成员的记录
     app_query = (
         db.query(
             SubsidyType.season,
@@ -197,8 +197,9 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
             func.sum(SubsidyApplication.apply_area).label("total_area"),
         )
         .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
+        .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.beneficiary_id)
         .filter(
-            SubsidyApplication.farmer_id.in_(member_ids),
+            FarmerProfile.household_id == household_id,
             SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyApplication.apply_area.isnot(None),
@@ -216,6 +217,7 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
         app_data[(year, season)] = float(r.total_area or 0)
 
     # 2. 从发放表计算各年/季节的发放面积
+    # 使用 beneficiary_id 关联到本家庭成员的记录
     pay_query = (
         db.query(
             SubsidyType.season,
@@ -223,8 +225,9 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
             func.sum(SubsidyPayment.apply_area).label("total_area"),
         )
         .join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
+        .join(FarmerProfile, FarmerProfile.id == SubsidyPayment.beneficiary_id)
         .filter(
-            SubsidyPayment.farmer_id.in_(member_ids),
+            FarmerProfile.household_id == household_id,
             SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyPayment.apply_area.isnot(None),
@@ -272,36 +275,21 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
 
 
 def recalc_all_household_caches(db: Session) -> int:
-    """重新计算所有家庭户的面积缓存（批量更新版本），返回处理的数量"""
+    """重新计算所有家庭户的面积缓存（批量更新版本，使用 beneficiary_id），返回处理的数量"""
     from decimal import Decimal
 
     SEASON_ORDER = ["大春", "小春", "全年单补", "临时"]
 
-    # 1. 一次性获取所有家庭户的成员映射：household_id -> [member_id]
-    member_query = db.query(
-        FarmerProfile.household_id,
-        FarmerProfile.id
-    ).filter(FarmerProfile.household_id.isnot(None)).all()
-
-    household_members: dict[int, list[int]] = {}
-    for hid, mid in member_query:
-        if hid not in household_members:
-            household_members[hid] = []
-        household_members[hid].append(mid)
-
-    all_household_ids = list(household_members.keys())
+    # 1. 一次性获取所有家庭户（不依赖成员，因为可能有代领关系记录关联）
+    all_household_ids = [hid for (hid,) in db.query(FamilyHousehold.id).all()]
 
     if not all_household_ids:
-        # 没有成员的家庭户，清空缓存
+        # 没有家庭户，清空缓存
         db.query(HouseholdAreaUsageCache).delete()
         db.commit()
         return 0
 
-    # 2. 一次性构建所有成员ID列表（用于后续查询）
-    all_member_ids = [mid for mids in household_members.values() for mid in mids]
-
-    # 3. 一次性获取所有申报数据（按 household_id + year + season 聚合）
-    # 注意：不再排除 is_proxy=1 的记录，因为代领关系的面积需要计入受益人家庭
+    # 2. 一次性获取所有申报数据（按 beneficiary_id 的 household_id + year + season 聚合）
     app_data: dict[tuple[int, int, str], float] = {}
     app_query = (
         db.query(
@@ -310,10 +298,10 @@ def recalc_all_household_caches(db: Session) -> int:
             SubsidyType.season,
             func.sum(SubsidyApplication.apply_area).label("total_area"),
         )
-        .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id)
+        .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.beneficiary_id)
         .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
         .filter(
-            SubsidyApplication.farmer_id.in_(all_member_ids),
+            FarmerProfile.household_id.isnot(None),
             SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyApplication.apply_area.isnot(None),
@@ -326,7 +314,7 @@ def recalc_all_household_caches(db: Session) -> int:
         s = season or "全年单补"
         app_data[(hid, year, s)] = float(area or 0)
 
-    # 4. 一次性获取所有发放数据（按 household_id + year + season 聚合）
+    # 3. 一次性获取所有发放数据（按 beneficiary_id 的 household_id + year + season 聚合）
     pay_data: dict[tuple[int, int, str], float] = {}
     pay_query = (
         db.query(
@@ -335,10 +323,10 @@ def recalc_all_household_caches(db: Session) -> int:
             SubsidyType.season,
             func.sum(SubsidyPayment.apply_area).label("total_area"),
         )
-        .join(FarmerProfile, FarmerProfile.id == SubsidyPayment.farmer_id)
+        .join(FarmerProfile, FarmerProfile.id == SubsidyPayment.beneficiary_id)
         .join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
         .filter(
-            SubsidyPayment.farmer_id.in_(all_member_ids),
+            FarmerProfile.household_id.isnot(None),
             SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyPayment.apply_area.isnot(None),
@@ -3575,7 +3563,7 @@ def recalc_unconfirmed_contract_area(db: Session = Depends(get_db)):
     - 仅针对 is_manually_confirmed = 0 的家庭户
     - 优先使用2025年补贴发放数据中的承包面积之和
     - 如果2025年没有数据，则使用2024年的数据
-    - 排除代领人的记录（通过subsidy_proxy表判断，只计算受益人记录）
+    - 使用 beneficiary_id 关联到受益人，统计受益人的家庭户面积
     """
     from sqlalchemy import text
     from models import FamilyHousehold
@@ -3596,21 +3584,13 @@ def recalc_unconfirmed_contract_area(db: Session = Depends(get_db)):
     results = []
 
     for hh in unconfirmed_households:
-        # 优先查询2025年的数据
+        # 优先查询2025年的数据：通过 beneficiary_id 关联到该家庭户的农户
         sql_2025 = text("""
-            WITH proxy_payments AS (
-                -- 找出所有代领人的payment记录（这些需要排除）
-                SELECT DISTINCT sp.id
-                FROM subsidy_payment sp
-                JOIN subsidy_proxy spr ON sp.is_proxy = spr.id
-                WHERE sp.farmer_id = spr.proxy_farmer_id
-            )
             SELECT ROUND(SUM(COALESCE(sp.contract_area, 0)), 2) as total_contract_area
             FROM subsidy_payment sp
-            JOIN farmer_profile fp ON sp.farmer_id = fp.id
+            JOIN farmer_profile fp ON sp.beneficiary_id = fp.id
             WHERE fp.household_id = :household_id
                 AND sp.payment_year = 2025
-                AND sp.id NOT IN (SELECT id FROM proxy_payments)
         """)
         result_2025 = db.execute(sql_2025, {"household_id": hh.id}).fetchone()
         area_2025 = float(result_2025[0]) if result_2025 and result_2025[0] else 0.0
@@ -3628,19 +3608,11 @@ def recalc_unconfirmed_contract_area(db: Session = Depends(get_db)):
         else:
             # 查询2024年的数据
             sql_2024 = text("""
-                WITH proxy_payments AS (
-                    -- 找出所有代领人的payment记录（这些需要排除）
-                    SELECT DISTINCT sp.id
-                    FROM subsidy_payment sp
-                    JOIN subsidy_proxy spr ON sp.is_proxy = spr.id
-                    WHERE sp.farmer_id = spr.proxy_farmer_id
-                )
                 SELECT ROUND(SUM(COALESCE(sp.contract_area, 0)), 2) as total_contract_area
                 FROM subsidy_payment sp
-                JOIN farmer_profile fp ON sp.farmer_id = fp.id
+                JOIN farmer_profile fp ON sp.beneficiary_id = fp.id
                 WHERE fp.household_id = :household_id
                     AND sp.payment_year = 2024
-                    AND sp.id NOT IN (SELECT id FROM proxy_payments)
             """)
             result_2024 = db.execute(sql_2024, {"household_id": hh.id}).fetchone()
             area_2024 = float(result_2024[0]) if result_2024 and result_2024[0] else 0.0

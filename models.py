@@ -127,7 +127,8 @@ class SubsidyApplication(Base):
     __tablename__ = "subsidy_application"
 
     id                  = Column(Integer, primary_key=True, autoincrement=True)
-    farmer_id           = Column(Integer, ForeignKey("farmer_profile.id"), nullable=False)
+    farmer_id           = Column(Integer, ForeignKey("farmer_profile.id"), nullable=False, comment="领款人ID（代领时为代领人）")
+    beneficiary_id      = Column(Integer, ForeignKey("farmer_profile.id"), nullable=False, comment="实际受益人ID（面积计入此家庭）")
     subsidy_type_id     = Column(Integer, ForeignKey("subsidy_type.id"), nullable=False)
     apply_year          = Column(SmallInteger, nullable=False)
     apply_amount        = Column(DECIMAL(10, 2), nullable=True, comment="申请金额")
@@ -148,8 +149,8 @@ class SubsidyApplication(Base):
     remark              = Column(Text, nullable=True)
     created_at          = Column(DateTime, default=func.now())
     updated_at          = Column(DateTime, default=func.now(), onupdate=func.now())
-    # 代领相关字段
-    is_proxy            = Column(SmallInteger, nullable=False, default=0, comment="0=普通,1=代领")
+    # 代领相关字段（保留兼容，新代码用 beneficiary_id 判断）
+    is_proxy            = Column(SmallInteger, nullable=False, default=0, comment="0=普通,1=代领（兼容旧数据）")
 
     # 索引
     __table_args__ = (
@@ -170,7 +171,8 @@ class SubsidyPayment(Base):
     __tablename__ = "subsidy_payment"
 
     id                  = Column(Integer, primary_key=True, autoincrement=True)
-    farmer_id           = Column(Integer, ForeignKey("farmer_profile.id"), nullable=False)
+    farmer_id           = Column(Integer, ForeignKey("farmer_profile.id"), nullable=False, comment="领款人ID（代领时为代领人）")
+    beneficiary_id      = Column(Integer, ForeignKey("farmer_profile.id"), nullable=False, comment="实际受益人ID（面积计入此家庭）")
     subsidy_type_id     = Column(Integer, ForeignKey("subsidy_type.id"), nullable=False)
     payment_year        = Column(SmallInteger, nullable=False, comment="发放年份")
     amount              = Column(DECIMAL(10, 2), nullable=True, comment="发放金额")
@@ -189,8 +191,8 @@ class SubsidyPayment(Base):
     remark              = Column(Text, nullable=True)
     proxy_remark        = Column(Text, nullable=True, comment="代领备注")
     pay_status          = Column(SmallInteger, nullable=False, default=2, comment="发放状态: 0=待发放,1=部分发放,2=已发放")
-    # 代领相关字段
-    is_proxy            = Column(SmallInteger, nullable=False, default=0, comment="0=普通,1=代领")
+    # 代领相关字段（保留兼容，新代码用 beneficiary_id 判断）
+    is_proxy            = Column(SmallInteger, nullable=False, default=0, comment="0=普通,1=代领（兼容旧数据）")
     created_at          = Column(DateTime, default=func.now())
     updated_at          = Column(DateTime, default=func.now(), onupdate=func.now())
 

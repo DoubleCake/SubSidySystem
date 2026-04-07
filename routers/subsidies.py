@@ -1913,7 +1913,7 @@ def list_proxies(
 
 @router.post("/proxies")
 def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
-    """创建代领关系"""
+    """创建代领关系（新方案：不复制记录，使用 beneficiary_id）"""
     from models import SubsidyProxy, SubsidyApplication, SubsidyPayment, FarmerProfile
 
     # 验证农户存在
@@ -1939,11 +1939,12 @@ def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
         app = db.get(SubsidyApplication, data.application_id)
         if not app:
             raise HTTPException(status_code=404, detail="补贴申请记录不存在")
-        # 更新申请记录的 is_proxy 标记
-        app.is_proxy = 1
         # 同步补贴项目类型
         if not subsidy_type_id:
             subsidy_type_id = app.subsidy_type_id
+        # 设置 beneficiary_id 为受益人（原记录是代领人申请的）
+        app.beneficiary_id = data.beneficiary_farmer_id
+        app.is_proxy = 1  # 兼容旧代码标记
     elif data.payment_id:
         pay = db.get(SubsidyPayment, data.payment_id)
         if not pay:
@@ -1951,29 +1952,29 @@ def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
         # 同步补贴项目类型
         if not subsidy_type_id:
             subsidy_type_id = pay.subsidy_type_id
-        # 注意：先不设置 is_proxy，等 proxy_rel 创建后再更新
+        # 设置 beneficiary_id 为受益人（原记录是代领人领取的）
+        pay.beneficiary_id = data.beneficiary_farmer_id
+        pay.is_proxy = 1  # 兼容旧代码标记
     else:
-        # 当没有指定具体记录时，自动查找代领人的发放记录并复制给受益人
+        # 当没有指定具体记录时，自动查找代领人的相关记录并更新 beneficiary_id
         if subsidy_type_id:
-            # 自动查找代领人在该补贴项目下的发放记录
-            # 查找最近一年的发放记录
-            pay_to_copy = db.query(SubsidyPayment).filter(
-                SubsidyPayment.farmer_id == data.proxy_farmer_id,
-                SubsidyPayment.subsidy_type_id == subsidy_type_id,
-            ).order_by(SubsidyPayment.payment_year.desc()).first()
-
-            if pay_to_copy:
-                # 找到发放记录，标记稍后复制
-                data._pay_to_copy = pay_to_copy
-
-            # 同时标记已有的申请记录
+            # 更新代领人的申请记录 beneficiary_id
             apps_to_update = db.query(SubsidyApplication).filter(
                 SubsidyApplication.farmer_id == data.proxy_farmer_id,
                 SubsidyApplication.subsidy_type_id == subsidy_type_id,
-                SubsidyApplication.is_proxy == 0,
             ).all()
             for app in apps_to_update:
+                app.beneficiary_id = data.beneficiary_farmer_id
                 app.is_proxy = 1
+
+            # 更新代领人的发放记录 beneficiary_id
+            pays_to_update = db.query(SubsidyPayment).filter(
+                SubsidyPayment.farmer_id == data.proxy_farmer_id,
+                SubsidyPayment.subsidy_type_id == subsidy_type_id,
+            ).all()
+            for pay in pays_to_update:
+                pay.beneficiary_id = data.beneficiary_farmer_id
+                pay.is_proxy = 1
 
     # 创建代领关系
     proxy_rel = SubsidyProxy(
@@ -1981,42 +1982,6 @@ def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
         subsidy_type_id=subsidy_type_id,
     )
     db.add(proxy_rel)
-    db.flush()  # 获取 proxy_rel.id
-
-    # 复制发放记录给受益人
-    pay_source = None
-    if data.payment_id:
-        pay_source = db.get(SubsidyPayment, data.payment_id)
-    elif hasattr(data, '_pay_to_copy') and data._pay_to_copy:
-        pay_source = data._pay_to_copy
-
-    if pay_source:
-        # 创建复制记录，farmer_id 改为受益人
-        pay_copy = SubsidyPayment(
-            farmer_id=data.beneficiary_farmer_id,
-            subsidy_type_id=pay_source.subsidy_type_id,
-            payment_year=pay_source.payment_year,
-            amount=pay_source.amount,
-            payment_date=pay_source.payment_date,
-            payment_village_id=pay_source.payment_village_id,
-            payment_group_no=pay_source.payment_group_no,
-            payment_village_name=pay_source.payment_village_name,
-            payment_group_display=pay_source.payment_group_display,
-            apply_area=pay_source.apply_area,
-            contract_area=pay_source.contract_area,
-            trust_area=pay_source.trust_area,
-            no_subsidy_area=pay_source.no_subsidy_area,
-            bank_card=pay_source.bank_card,
-            bank_name=pay_source.bank_name,
-            operator_id=pay_source.operator_id,
-            remark=pay_source.remark,
-            proxy_remark=data.remark or pay_source.proxy_remark,
-            pay_status=pay_source.pay_status,
-            is_proxy=proxy_rel.id,  # 指向代领关系
-        )
-        db.add(pay_copy)
-        # 更新原记录的 is_proxy（标记为这是代领方的记录）
-        pay_source.is_proxy = proxy_rel.id
 
     db.commit()
     db.refresh(proxy_rel)
@@ -2041,27 +2006,12 @@ def get_stats_by_village(
 ):
     """
     按村统计面积数据（实际补贴面积、承包地面积、代耕代种面积、不予补贴面积）
-    代领关系处理：代领人的记录不计入，只计入受益人的记录（避免重复计算）
+    代领关系处理：使用 beneficiary_id 关联受益人，数据自动去重
     """
     from sqlalchemy import text
 
-    # 主统计SQL - 按村统计，使用子查询排除重复的代领人记录
+    # 主统计SQL - 按村统计，使用 beneficiary_id 关联受益人家庭
     stats_sql = text("""
-        WITH exclude_applications AS (
-            SELECT DISTINCT sa.id
-            FROM subsidy_application sa
-            JOIN subsidy_proxy pr ON sa.farmer_id = pr.proxy_farmer_id
-                AND sa.subsidy_type_id = pr.subsidy_type_id
-            WHERE sa.subsidy_type_id = :subsidy_type_id
-                AND sa.apply_year = :year
-                AND sa.is_proxy > 0
-                AND EXISTS (
-                    SELECT 1 FROM subsidy_application sa2
-                    WHERE sa2.farmer_id = pr.beneficiary_farmer_id
-                        AND sa2.subsidy_type_id = pr.subsidy_type_id
-                        AND sa2.apply_year = :year
-                )
-        )
         SELECT
             v.village_name,
             COUNT(DISTINCT fp.id) as farmer_count,
@@ -2072,33 +2022,17 @@ def get_stats_by_village(
             ROUND(SUM(COALESCE(sa.no_subsidy_area, 0)), 2) as total_no_subsidy_area,
             ROUND(SUM(COALESCE(sa.actual_amount, sa.apply_amount, 0)), 2) as total_amount
         FROM subsidy_application sa
-        JOIN farmer_profile fp ON sa.farmer_id = fp.id
+        JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
         JOIN family_household hh ON fp.household_id = hh.id
         JOIN village v ON hh.village_id = v.id
         WHERE sa.subsidy_type_id = :subsidy_type_id
             AND sa.apply_year = :year
-            AND sa.id NOT IN (SELECT id FROM exclude_applications)
         GROUP BY v.village_name
         ORDER BY v.village_name
     """)
 
     # 发放表统计（如果有发放数据的话）
     payment_stats_sql = text("""
-        WITH exclude_payments AS (
-            SELECT DISTINCT sp.id
-            FROM subsidy_payment sp
-            JOIN subsidy_proxy pr ON sp.farmer_id = pr.proxy_farmer_id
-                AND sp.subsidy_type_id = pr.subsidy_type_id
-            WHERE sp.subsidy_type_id = :subsidy_type_id
-                AND sp.payment_year = :year
-                AND sp.is_proxy > 0
-                AND EXISTS (
-                    SELECT 1 FROM subsidy_payment sp2
-                    WHERE sp2.farmer_id = pr.beneficiary_farmer_id
-                        AND sp2.subsidy_type_id = pr.subsidy_type_id
-                        AND sp2.payment_year = :year
-                )
-        )
         SELECT
             v.village_name,
             COUNT(DISTINCT fp.id) as farmer_count,
@@ -2109,12 +2043,11 @@ def get_stats_by_village(
             ROUND(SUM(COALESCE(sp.no_subsidy_area, 0)), 2) as total_no_subsidy_area,
             ROUND(SUM(COALESCE(sp.amount, 0)), 2) as total_amount
         FROM subsidy_payment sp
-        JOIN farmer_profile fp ON sp.farmer_id = fp.id
+        JOIN farmer_profile fp ON sp.beneficiary_id = fp.id
         JOIN family_household hh ON fp.household_id = hh.id
         JOIN village v ON hh.village_id = v.id
         WHERE sp.subsidy_type_id = :subsidy_type_id
             AND sp.payment_year = :year
-            AND sp.id NOT IN (SELECT id FROM exclude_payments)
         GROUP BY v.village_name
         ORDER BY v.village_name
     """)
@@ -2181,48 +2114,69 @@ def get_stats_by_village(
 
 @router.delete("/proxies/{proxy_id}")
 def delete_proxy(proxy_id: int, db: Session = Depends(get_db)):
-    """删除代领关系"""
+    """删除代领关系（新方案：恢复 beneficiary_id 为 farmer_id）"""
     from models import SubsidyProxy, SubsidyApplication, SubsidyPayment
 
     proxy_rel = db.get(SubsidyProxy, proxy_id)
     if not proxy_rel:
         raise HTTPException(status_code=404, detail="代领关系不存在")
 
-    # 清除相关补贴记录的 is_proxy 标记
+    # 清除相关补贴记录的 beneficiary_id 和 is_proxy 标记
     affected_households = set()
 
     # 处理 application_id 的情况
     if proxy_rel.application_id:
         app = db.get(SubsidyApplication, proxy_rel.application_id)
         if app:
+            # 恢复 beneficiary_id 为 farmer_id（自己领自己的）
+            app.beneficiary_id = app.farmer_id
             app.is_proxy = 0
-            # 获取受益人家庭户
+            # 获取相关家庭户
             beneficiary = db.get(FarmerProfile, proxy_rel.beneficiary_farmer_id)
-            if beneficiary and beneficiary.household_id:
-                affected_households.add(beneficiary.household_id)
-
-    # 处理 payment_id 的情况：删除为受益人生成的复制记录，恢复原记录的 is_proxy
-    if proxy_rel.payment_id:
-        # 查找并删除受益人的复制记录（is_proxy = proxy_id 且 farmer_id = beneficiary_farmer_id）
-        copied_pays = db.query(SubsidyPayment).filter(
-            SubsidyPayment.is_proxy == proxy_id,
-            SubsidyPayment.farmer_id == proxy_rel.beneficiary_farmer_id,
-        ).all()
-        for cp in copied_pays:
-            db.delete(cp)
-            # 获取受益人家庭户
-            beneficiary = db.get(FarmerProfile, cp.farmer_id)
-            if beneficiary and beneficiary.household_id:
-                affected_households.add(beneficiary.household_id)
-
-        # 恢复原记录的 is_proxy
-        original_pay = db.get(SubsidyPayment, proxy_rel.payment_id)
-        if original_pay:
-            original_pay.is_proxy = 0
-            # 获取代领人家庭户
             proxy_farmer = db.get(FarmerProfile, proxy_rel.proxy_farmer_id)
+            if beneficiary and beneficiary.household_id:
+                affected_households.add(beneficiary.household_id)
             if proxy_farmer and proxy_farmer.household_id:
                 affected_households.add(proxy_farmer.household_id)
+
+    # 处理 payment_id 的情况
+    if proxy_rel.payment_id:
+        original_pay = db.get(SubsidyPayment, proxy_rel.payment_id)
+        if original_pay:
+            # 恢复 beneficiary_id 为 farmer_id
+            original_pay.beneficiary_id = original_pay.farmer_id
+            original_pay.is_proxy = 0
+
+    # 如果没有指定具体记录，则查找该代领关系影响的所有记录并恢复
+    subsidy_type_id = proxy_rel.subsidy_type_id
+    if subsidy_type_id:
+        # 恢复申请记录
+        apps_to_restore = db.query(SubsidyApplication).filter(
+            SubsidyApplication.farmer_id == proxy_rel.proxy_farmer_id,
+            SubsidyApplication.subsidy_type_id == subsidy_type_id,
+            SubsidyApplication.beneficiary_id == proxy_rel.beneficiary_farmer_id,
+        ).all()
+        for app in apps_to_restore:
+            app.beneficiary_id = app.farmer_id
+            app.is_proxy = 0
+
+        # 恢复发放记录
+        pays_to_restore = db.query(SubsidyPayment).filter(
+            SubsidyPayment.farmer_id == proxy_rel.proxy_farmer_id,
+            SubsidyPayment.subsidy_type_id == subsidy_type_id,
+            SubsidyPayment.beneficiary_id == proxy_rel.beneficiary_farmer_id,
+        ).all()
+        for pay in pays_to_restore:
+            pay.beneficiary_id = pay.farmer_id
+            pay.is_proxy = 0
+
+    # 获取相关家庭户
+    beneficiary = db.get(FarmerProfile, proxy_rel.beneficiary_farmer_id)
+    proxy_farmer = db.get(FarmerProfile, proxy_rel.proxy_farmer_id)
+    if beneficiary and beneficiary.household_id:
+        affected_households.add(beneficiary.household_id)
+    if proxy_farmer and proxy_farmer.household_id:
+        affected_households.add(proxy_farmer.household_id)
 
     # 删除代领关系
     db.delete(proxy_rel)

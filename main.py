@@ -117,6 +117,8 @@ def migrate_db():
         "ALTER TABLE subsidy_application ADD COLUMN is_proxy SMALLINT DEFAULT 0",
         "ALTER TABLE subsidy_payment ADD COLUMN is_proxy SMALLINT DEFAULT 0",
         "ALTER TABLE subsidy_proxy ADD COLUMN subsidy_type_id INTEGER REFERENCES subsidy_type(id)",
+        "ALTER TABLE subsidy_application ADD COLUMN beneficiary_id INTEGER REFERENCES farmer_profile(id)",
+        "ALTER TABLE subsidy_payment ADD COLUMN beneficiary_id INTEGER REFERENCES farmer_profile(id)",
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -191,6 +193,83 @@ def migrate_db():
             print(f"  历史数据回填跳过（可能已填充）: {e}")
             conn.rollback()
 
+        # 数据迁移：回填 beneficiary_id 字段
+        try:
+            # 1. 先处理 subsidy_application 表
+            # 情况1：没有代领关系的记录（is_proxy = 0），beneficiary_id = farmer_id
+            fill_beneficiary_app_normal = text("""
+                UPDATE subsidy_application
+                SET beneficiary_id = farmer_id
+                WHERE is_proxy = 0 AND beneficiary_id IS NULL
+            """)
+            conn.execute(fill_beneficiary_app_normal)
+
+            # 情况2：有代领关系的记录，通过 subsidy_proxy 表判断
+            # 首先处理代领人记录（需要找到对应的受益人）
+            fill_beneficiary_app_proxy = text("""
+                UPDATE subsidy_application
+                SET beneficiary_id = (
+                    SELECT beneficiary_farmer_id
+                    FROM subsidy_proxy
+                    WHERE subsidy_proxy.application_id = subsidy_application.id
+                )
+                WHERE is_proxy > 0
+                  AND beneficiary_id IS NULL
+                  AND EXISTS (
+                      SELECT 1 FROM subsidy_proxy
+                      WHERE subsidy_proxy.application_id = subsidy_application.id
+                  )
+            """)
+            conn.execute(fill_beneficiary_app_proxy)
+
+            # 情况3：剩下的记录（可能是复制出来的受益人记录），beneficiary_id = farmer_id
+            fill_beneficiary_app_remaining = text("""
+                UPDATE subsidy_application
+                SET beneficiary_id = farmer_id
+                WHERE beneficiary_id IS NULL
+            """)
+            conn.execute(fill_beneficiary_app_remaining)
+
+            # 2. 处理 subsidy_payment 表（类似逻辑）
+            # 情况1：没有代领关系的记录
+            fill_beneficiary_pay_normal = text("""
+                UPDATE subsidy_payment
+                SET beneficiary_id = farmer_id
+                WHERE is_proxy = 0 AND beneficiary_id IS NULL
+            """)
+            conn.execute(fill_beneficiary_pay_normal)
+
+            # 情况2：有代领关系的记录
+            fill_beneficiary_pay_proxy = text("""
+                UPDATE subsidy_payment
+                SET beneficiary_id = (
+                    SELECT beneficiary_farmer_id
+                    FROM subsidy_proxy
+                    WHERE subsidy_proxy.payment_id = subsidy_payment.id
+                )
+                WHERE is_proxy > 0
+                  AND beneficiary_id IS NULL
+                  AND EXISTS (
+                      SELECT 1 FROM subsidy_proxy
+                      WHERE subsidy_proxy.payment_id = subsidy_payment.id
+                  )
+            """)
+            conn.execute(fill_beneficiary_pay_proxy)
+
+            # 情况3：剩下的记录
+            fill_beneficiary_pay_remaining = text("""
+                UPDATE subsidy_payment
+                SET beneficiary_id = farmer_id
+                WHERE beneficiary_id IS NULL
+            """)
+            conn.execute(fill_beneficiary_pay_remaining)
+
+            conn.commit()
+            print("  beneficiary_id 数据回填完成 [OK]")
+        except Exception as e:
+            print(f"  beneficiary_id 数据回填跳过（可能已填充）: {e}")
+            conn.rollback()
+
     print("  数据库迁移完成 [OK]")
 
 
@@ -222,6 +301,11 @@ def create_indexes():
         "CREATE INDEX IF NOT EXISTS idx_sp_year          ON subsidy_payment(payment_year)",
         # 补贴类型
         "CREATE INDEX IF NOT EXISTS idx_st_year         ON subsidy_type(subsidy_year)",
+        # beneficiary_id 索引（用于按受益人统计）
+        "CREATE INDEX IF NOT EXISTS idx_sa_beneficiary  ON subsidy_application(beneficiary_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sp_beneficiary  ON subsidy_payment(beneficiary_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sa_year_beneficiary ON subsidy_application(apply_year, beneficiary_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sp_year_beneficiary ON subsidy_payment(payment_year, beneficiary_id)",
     ]
     with engine.connect() as conn:
         for sql in indexes:
