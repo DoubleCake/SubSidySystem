@@ -62,7 +62,7 @@ export default function FamilyRelationImportPage() {
       }))
 
       setPreviewRows(rows)
-      show(`已解析 ${rows.length} 行数据`, 'succ')
+      show(`已解析 ${rows.length} 行数据`, 'ok')
     }
     reader.readAsArrayBuffer(file)
   }
@@ -85,13 +85,13 @@ export default function FamilyRelationImportPage() {
       setResult(res)
 
       if (res.stage1_updated > 0) {
-        show(`成功更新 ${res.stage1_updated} 条关系记录`, 'succ')
+        show(`成功更新 ${res.stage1_updated} 条关系记录`, 'ok')
       }
       if (res.stage1_not_found.length > 0) {
-        show(`有 ${res.stage1_not_found.length} 条记录未找到匹配农户`, 'warn')
+        show(`有 ${res.stage1_not_found.length} 条记录未找到匹配农户`, 'err')
       }
       if (res.stage2_split) {
-        show(`拆分完成：新建 ${res.stage2_split.created_households} 个家庭户，移动 ${res.stage2_split.migrated_members} 人`, 'succ')
+        show(`拆分完成：新建 ${res.stage2_split.created_households} 个家庭户，移动 ${res.stage2_split.migrated_members} 人`, 'ok')
       }
     } catch (err: any) {
       show(err.message || '导入失败', 'err')
@@ -117,7 +117,7 @@ export default function FamilyRelationImportPage() {
       const res = await api.getMultiHeadHouseholds(splitVillages)
       setMultiHeadPreview(res.households)
       if (res.households.length === 0) {
-        show('这些村庄没有发现多户主家庭', 'succ')
+        show('这些村庄没有发现多户主家庭', 'ok')
       }
     } catch (err: any) {
       show(err.message || '预览失败', 'err')
