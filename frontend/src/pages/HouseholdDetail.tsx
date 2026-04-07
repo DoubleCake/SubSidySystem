@@ -468,10 +468,13 @@ export function HouseholdDetailContent({
                       </span>
                     )}
                     <span className="text-sm flex-1">{a.subsidy_name}</span>
-                    {/* 代领标签 - 移到项目名称后面 */}
+                    {/* 代领标签 - 根据当前记录的 farmer_id 判断显示"受益"还是"代领" */}
                     {a.proxy_info && (() => {
                       const proxy = a.proxy_info
-                      const targetId = proxy.type === '代领' ? proxy.beneficiary_farmer_id : proxy.proxy_farmer_id
+                      // 根据当前记录属于受益人还是代领人来决定标签类型
+                      const isBeneficiary = a.farmer_id === proxy.beneficiary_farmer_id
+                      const labelType = isBeneficiary ? '受益' : '代领'
+                      const targetId = isBeneficiary ? proxy.proxy_farmer_id : proxy.beneficiary_farmer_id
                       const canClick = targetId != null
                       return (
                         <span className="group relative">
@@ -483,13 +486,13 @@ export function HouseholdDetailContent({
                             className={canClick ? 'cursor-pointer hover:opacity-80' : ''}
                           >
                             <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded border border-amber-200">
-                              {proxy.type}
+                              {labelType}
                             </span>
                           </button>
-                          <div className="absolute left-0 top-full mt-1 bg-stone-800 text-white text-xs px-2 py-1.5 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                            {proxy.type === '代领'
-                              ? <>代领人: {proxy.beneficiary_name}</>
-                              : <>受益人: {proxy.proxy_name}</>}
+                          <div className="left-full bottom-full mt-1 bg-stone-800 text-white text-xs px-2 py-1.5 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                            {isBeneficiary
+                              ? <>受益人: {proxy.beneficiary_name} → 代领人: {proxy.proxy_name}</>
+                              : <>代领人: {proxy.proxy_name} → 受益人: {proxy.beneficiary_name}</>}
                             {proxy.remark && <div className="text-stone-400 mt-0.5">{proxy.remark}</div>}
                             {canClick && (
                               <div className="text-emerald-400 mt-0.5">点击查看农户详情 →</div>

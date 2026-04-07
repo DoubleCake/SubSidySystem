@@ -1055,10 +1055,14 @@ def get_household(
             .all()
         )
 
-        # 过滤掉 beneficiary 的复制记录（这些记录只属于 beneficiary 个人）
+        # 过滤逻辑：
+        # 1. 原始记录（is_proxy=0 或 null）：保留
+        # 2. 复制记录（is_proxy>0）：只保留 farmer_id 在 member_ids 中的记录
+        #    - 如果 farmer_id 是当前家庭成员，说明这条记录属于当前家庭（不管是受益人还是代领人的复制记录）
+        #    - 如果 farmer_id 不是当前家庭成员，说明是外家庭的记录，需要排除
         app_rows = [
             r for r in app_rows
-            if not (r.is_proxy and r.is_proxy > 0 and r.farmer_id in [pr.beneficiary_farmer_id for pr in all_proxy_relations])
+            if r.is_proxy == 0 or r.is_proxy is None or r.farmer_id in set(member_ids)
         ]
 
         # 查询补贴发放记录
@@ -1091,10 +1095,10 @@ def get_household(
             .all()
         )
 
-        # 过滤掉 beneficiary 的复制记录（这些记录只属于 beneficiary 个人）
+        # 过滤逻辑同上
         pay_rows = [
             r for r in pay_rows
-            if not (r.is_proxy and r.is_proxy > 0 and r.farmer_id in [pr.beneficiary_farmer_id for pr in all_proxy_relations])
+            if r.is_proxy == 0 or r.is_proxy is None or r.farmer_id in set(member_ids)
         ]
 
         # 合并申请和发放记录
