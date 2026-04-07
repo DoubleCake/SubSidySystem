@@ -393,8 +393,8 @@ export interface HHDetail {
   }
   app_summary: {
     apply_year: number; farmer_id: number; farmer_name: string; subsidy_name: string
-    calc_mode: string; apply_area: number | null; actual_amount: number | null; pay_status: number
-    apply_village_name: string; apply_group_display: string; is_proxy: number
+    calc_mode: string; apply_area: number | null; apply_amount: number | null; actual_amount: number | null
+    pay_status: number; apply_village_name: string; apply_group_display: string; is_proxy: number
     proxy_info?: { type: string; proxy_name?: string; beneficiary_name?: string; proxy_farmer_id?: number; beneficiary_farmer_id?: number; remark?: string } | null
   }[]
 }

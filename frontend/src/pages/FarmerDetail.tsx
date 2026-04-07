@@ -12,14 +12,25 @@ import type { FarmerDetail, HHDetail, HistoryDateEvent, SnapshotAtResponse, HHMe
 // ── 农户详情卡片 Props ──
 export interface FarmerDetailProps {
   selectedFarmer: FarmerDetail | null
+  /** 是否显示补贴记录（与家庭户一致），默认false显示个人applications */
+  showAppSummary?: boolean
+  /** app_summary数据（showAppSummary=true时使用） */
+  appSummary?: {
+    apply_year: number; farmer_id: number; farmer_name: string; subsidy_name: string
+    calc_mode: string; apply_area: number | null; apply_amount: number | null; actual_amount: number | null
+    pay_status: number; apply_village_name: string; apply_group_display: string; is_proxy: number
+    proxy_info?: { type: string; proxy_name?: string; beneficiary_name?: string; proxy_farmer_id?: number; beneficiary_farmer_id?: number; remark?: string } | null
+  }[]
 }
 
 // ── 农户详情卡片 ──
-export function FarmerDetail({ selectedFarmer }: FarmerDetailProps) {
+export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: FarmerDetailProps) {
   if (!selectedFarmer) return null
   const fd = selectedFarmer
-  const apps = fd.applications || []
-  const totalAmt = apps.reduce((s, a) => s + Number(a.actual_amount || 0), 0)
+  const apps: any[] = showAppSummary && appSummary
+    ? appSummary
+    : (fd.applications || [])
+  const totalAmt = apps.reduce((s: number, a: any) => s + Number(a.actual_amount || 0), 0)
   const age = calcAge(fd.birth_date)
 
   return (
@@ -94,8 +105,8 @@ export function FarmerDetail({ selectedFarmer }: FarmerDetailProps) {
                 ))}
               </tr></thead>
               <tbody>
-                {apps.map(a => (
-                  <tr key={a.id} className="border-b border-stone-50 hover:bg-stone-50 transition-colors">
+                {apps.map((a, idx) => (
+                  <tr key={a.id ?? `app-${a.farmer_id}-${a.apply_year}-${a.subsidy_name}`} className="border-b border-stone-50 hover:bg-stone-50 transition-colors">
                     <td className="px-4 py-2 text-sm font-bold text-emerald-600">{a.apply_year}</td>
                     <td className="px-4 py-2 text-sm">{a.subsidy_name}</td>
                     <td className="px-4 py-2 text-sm font-mono">{a.apply_area ? `${a.apply_area}亩` : '—'}</td>

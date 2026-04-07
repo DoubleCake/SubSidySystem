@@ -1051,6 +1051,23 @@ def get_household(
                     SubsidyApplication.is_proxy.in_([pr.id for pr in all_proxy_relations])
                 )
             )
+            # 排除beneficiary的复制记录（farmer_id=beneficiary且is_proxy>0），复制记录只属于beneficiary个人
+            .filter(
+                not_(
+                    and_(
+                        or_(
+                            *[and_(
+                                SubsidyApplication.farmer_id == pr.beneficiary_farmer_id,
+                                SubsidyApplication.is_proxy > 0
+                            ) for pr in all_proxy_relations],
+                            *[and_(
+                                SubsidyApplication.farmer_id == pr.proxy_farmer_id,
+                                SubsidyApplication.is_proxy > 0
+                            ) for pr in all_proxy_relations]
+                        )
+                    )
+                )
+            )
             .order_by(SubsidyApplication.apply_year.desc())
             .all()
         )
@@ -1079,6 +1096,23 @@ def get_household(
                     SubsidyPayment.farmer_id.in_(member_ids),
                     # 新模式：is_proxy 存储 proxy_rel.id，查找关联到本户的代领记录
                     SubsidyPayment.is_proxy.in_([pr.id for pr in all_proxy_relations])
+                )
+            )
+            # 排除beneficiary的复制记录（farmer_id=beneficiary且is_proxy>0），复制记录只属于beneficiary个人
+            .filter(
+                not_(
+                    and_(
+                        or_(
+                            *[and_(
+                                SubsidyPayment.farmer_id == pr.beneficiary_farmer_id,
+                                SubsidyPayment.is_proxy > 0
+                            ) for pr in all_proxy_relations],
+                            *[and_(
+                                SubsidyPayment.farmer_id == pr.proxy_farmer_id,
+                                SubsidyPayment.is_proxy > 0
+                            ) for pr in all_proxy_relations]
+                        )
+                    )
                 )
             )
             .order_by(SubsidyPayment.payment_year.desc())
