@@ -42,6 +42,8 @@ export default function ProxyList({ subsidyType, show }: ProxyListProps) {
   const [page, setPage] = useState(1)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [selectAll, setSelectAll] = useState(false)
 
   const loadProxies = useCallback(async () => {
     setLoading(true)
@@ -68,6 +70,12 @@ export default function ProxyList({ subsidyType, show }: ProxyListProps) {
     loadProxies()
   }, [loadProxies])
 
+  // 切换页码或搜索时清空选中
+  useEffect(() => {
+    setSelectedIds(new Set())
+    setSelectAll(false)
+  }, [page, search])
+
   const deleteProxy = async (id: number) => {
     try {
       const response = await fetch(`/api/subsidies/proxies/${id}`, { method: 'DELETE' })
@@ -80,35 +88,86 @@ export default function ProxyList({ subsidyType, show }: ProxyListProps) {
     }
   }
 
+  // 批量删除
+  const batchDelete = async () => {
+    if (selectedIds.size === 0) {
+      show('请先选择要删除的代领关系', 'err')
+      return
+    }
+    try {
+      await Promise.all([...selectedIds].map(id =>
+        fetch(`/api/subsidies/proxies/${id}`, { method: 'DELETE' })
+      ))
+      show(`✓ 已删除 ${selectedIds.size} 条代领关系`)
+      setSelectedIds(new Set())
+      setSelectAll(false)
+      loadProxies()
+    } catch (error) {
+      show('批量删除失败: ' + (error as Error).message, 'err')
+    }
+  }
+
+  // 切换单选
+  const toggleSelect = (id: number) => {
+    const next = new Set(selectedIds)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    setSelectedIds(next)
+    setSelectAll(false)
+  }
+
+  // 全选/取消全选
+  const toggleSelectAll = () => {
+    if (selectAll) {
+      setSelectedIds(new Set())
+      setSelectAll(false)
+    } else {
+      setSelectedIds(new Set(proxies.map(p => p.id)))
+      setSelectAll(true)
+    }
+  }
+
   return (
     <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
       {/* 搜索栏 */}
-      <div className="px-4 py-3 border-b border-stone-200 bg-stone-50/50 flex items-center gap-3">
+      <div className="px-4 py-3 border-b border-stone-200 bg-stone-50/50 flex items-center gap-3 flex-wrap">
         <span className="text-xs text-stone-400">搜索：</span>
-        <div className="flex items-center gap-1 flex-1 min-w-[200px] max-w-[300px]">
+        <div className="flex items-center gap-1 min-w-[200px] max-w-[300px]">
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="被代领人/代领人姓名"
             className="flex-1 border border-stone-200 rounded-lg px-2 py-1.5 text-xs outline-none" />
           <button onClick={() => setPage(1)} className="px-2 py-1 text-xs bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">搜索</button>
         </div>
         <span className="text-xs text-stone-400">共 {total} 条</span>
+        {selectedIds.size > 0 && (
+          <button onClick={batchDelete}
+            className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-500">
+            批量删除 ({selectedIds.size})
+          </button>
+        )}
       </div>
 
       <table className="w-full border-collapse min-w-[800px]">
         <thead>
           <tr className="bg-stone-50 border-b-2 border-stone-200">
+            <th className="px-3 py-2.5 text-left text-xs text-stone-400 font-semibold whitespace-nowrap w-10">
+              <input type="checkbox" checked={selectAll && proxies.length > 0} onChange={toggleSelectAll} className="rounded" />
+            </th>
             {['被代领人', '被代领人身份证', '代领人', '代领人身份证', '关系类型', '备注', '创建时间', '操作'].map(h => (
               <th key={h} className="px-3 py-2.5 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {loading && <tr><td colSpan={8} className="text-center py-10 text-stone-300">加载中…</td></tr>}
+          {loading && <tr><td colSpan={9} className="text-center py-10 text-stone-300">加载中…</td></tr>}
           {!loading && proxies.length === 0 && (
-            <tr><td colSpan={8} className="text-center py-10 text-stone-300 text-sm">暂无代领关系记录</td></tr>
+            <tr><td colSpan={9} className="text-center py-10 text-stone-300 text-sm">暂无代领关系记录</td></tr>
           )}
           {!loading && proxies.map(p => (
-            <tr key={p.id} className="border-b border-stone-50 hover:bg-stone-50">
+            <tr key={p.id} className={`border-b border-stone-50 hover:bg-stone-50 ${selectedIds.has(p.id) ? 'bg-amber-50' : ''}`}>
+              <td className="px-3 py-2.5">
+                <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} className="rounded" />
+              </td>
               <td className="px-3 py-2.5 text-sm font-semibold text-stone-700">{p.beneficiary_farmer_name || '—'}</td>
               <td className="px-3 py-2.5 text-xs font-mono text-stone-400">{p.beneficiary_id_card || '—'}</td>
               <td className="px-3 py-2.5 text-sm text-stone-600">{p.proxy_farmer_name || '—'}</td>

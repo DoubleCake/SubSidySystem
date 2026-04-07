@@ -346,6 +346,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
       }
 
       try {
+        // 后台自动处理：代领人 + 项目 + 年份 → 发放记录 → 复制给受益人
         await api.createProxy({
           beneficiary_farmer_id: beneficiaryId,
           proxy_farmer_id: proxyId,
@@ -354,8 +355,13 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
           remark: p.remark || undefined,
         })
         successCount++
-      } catch (e) {
-        errors.push(`创建失败: ${p.beneficiary_id_card}`)
+      } catch (e: any) {
+        const msg = e?.message || ''
+        if (msg.includes('重复') || msg.includes('已存在')) {
+          errors.push(`重复: ${p.beneficiary_id_card} (已存在代领关系)`)
+        } else {
+          errors.push(`创建失败: ${p.beneficiary_id_card} - ${msg}`)
+        }
       }
     }
 

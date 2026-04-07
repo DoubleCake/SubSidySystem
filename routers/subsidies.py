@@ -1828,9 +1828,11 @@ def sync_payment_status(db: Session = Depends(get_db)):
     return {"synced": synced, "message": f"已同步 {synced} 条申报记录的发放状态"}
 
 
+
+
 # ════════════════════════════════
 #  代领关系管理
-# ════════════════════════════════
+# ════════════════════════
 
 @router.get("/proxies")
 def list_proxies(
@@ -1922,6 +1924,15 @@ def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
     if not proxy:
         raise HTTPException(status_code=404, detail="代领人不存在")
 
+    # 检查重复：同一受益人 + 同一补贴项目类型已存在代领关系
+    if data.subsidy_type_id:
+        existing = db.query(SubsidyProxy).filter(
+            SubsidyProxy.beneficiary_farmer_id == data.beneficiary_farmer_id,
+            SubsidyProxy.subsidy_type_id == data.subsidy_type_id,
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="该受益人已有此项目的代领关系，请勿重复创建")
+
     # 验证关联的补贴记录存在
     subsidy_type_id = data.subsidy_type_id
     if data.application_id:
@@ -1942,30 +1953,27 @@ def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
             subsidy_type_id = pay.subsidy_type_id
         # 注意：先不设置 is_proxy，等 proxy_rel 创建后再更新
     else:
-        # 当没有指定具体记录时，自动查找并更新对应记录
-        # proxy_type='代领'/'proxy': 记录挂在代领人名下(farmer_id=proxy_farmer_id)，标记 proxy_farmer 的记录
-        # proxy_type='被代领'/'receive': 记录挂在受益人名下(farmer_id=beneficiary_farmer_id)，标记 beneficiary 的记录
+        # 当没有指定具体记录时，自动查找代领人的发放记录并复制给受益人
         if subsidy_type_id:
-            # 根据 proxy_type 确定要标记的 farmer_id
-            target_farmer_id = data.proxy_farmer_id if data.proxy_type in ('proxy', '代领') else data.beneficiary_farmer_id
+            # 自动查找代领人在该补贴项目下的发放记录
+            # 查找最近一年的发放记录
+            pay_to_copy = db.query(SubsidyPayment).filter(
+                SubsidyPayment.farmer_id == data.proxy_farmer_id,
+                SubsidyPayment.subsidy_type_id == subsidy_type_id,
+            ).order_by(SubsidyPayment.payment_year.desc()).first()
 
-            # 查找该农户在该补贴类型下的所有未发放申请记录
+            if pay_to_copy:
+                # 找到发放记录，标记稍后复制
+                data._pay_to_copy = pay_to_copy
+
+            # 同时标记已有的申请记录
             apps_to_update = db.query(SubsidyApplication).filter(
-                SubsidyApplication.farmer_id == target_farmer_id,
+                SubsidyApplication.farmer_id == data.proxy_farmer_id,
                 SubsidyApplication.subsidy_type_id == subsidy_type_id,
                 SubsidyApplication.is_proxy == 0,
             ).all()
             for app in apps_to_update:
                 app.is_proxy = 1
-
-            # 查找该农户在该补贴类型下的所有未发放发放记录
-            pays_to_update = db.query(SubsidyPayment).filter(
-                SubsidyPayment.farmer_id == target_farmer_id,
-                SubsidyPayment.subsidy_type_id == subsidy_type_id,
-                SubsidyPayment.is_proxy == 0,
-            ).all()
-            for pay in pays_to_update:
-                pay.is_proxy = 1
 
     # 创建代领关系
     proxy_rel = SubsidyProxy(
@@ -1975,36 +1983,40 @@ def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
     db.add(proxy_rel)
     db.flush()  # 获取 proxy_rel.id
 
-    # 如果指定了 payment_id，复制一条记录给受益人
+    # 复制发放记录给受益人
+    pay_source = None
     if data.payment_id:
-        pay = db.get(SubsidyPayment, data.payment_id)
-        if pay:
-            # 创建复制记录，farmer_id 改为受益人
-            pay_copy = SubsidyPayment(
-                farmer_id=data.beneficiary_farmer_id,
-                subsidy_type_id=pay.subsidy_type_id,
-                payment_year=pay.payment_year,
-                amount=pay.amount,
-                payment_date=pay.payment_date,
-                payment_village_id=pay.payment_village_id,
-                payment_group_no=pay.payment_group_no,
-                payment_village_name=pay.payment_village_name,
-                payment_group_display=pay.payment_group_display,
-                apply_area=pay.apply_area,
-                contract_area=pay.contract_area,
-                trust_area=pay.trust_area,
-                no_subsidy_area=pay.no_subsidy_area,
-                bank_card=pay.bank_card,
-                bank_name=pay.bank_name,
-                operator_id=pay.operator_id,
-                remark=pay.remark,
-                proxy_remark=data.remark or pay.proxy_remark,
-                pay_status=pay.pay_status,
-                is_proxy=proxy_rel.id,  # 指向代领关系
-            )
-            db.add(pay_copy)
-            # 更新原记录的 is_proxy（标记为这是代领方的记录）
-            pay.is_proxy = proxy_rel.id
+        pay_source = db.get(SubsidyPayment, data.payment_id)
+    elif hasattr(data, '_pay_to_copy') and data._pay_to_copy:
+        pay_source = data._pay_to_copy
+
+    if pay_source:
+        # 创建复制记录，farmer_id 改为受益人
+        pay_copy = SubsidyPayment(
+            farmer_id=data.beneficiary_farmer_id,
+            subsidy_type_id=pay_source.subsidy_type_id,
+            payment_year=pay_source.payment_year,
+            amount=pay_source.amount,
+            payment_date=pay_source.payment_date,
+            payment_village_id=pay_source.payment_village_id,
+            payment_group_no=pay_source.payment_group_no,
+            payment_village_name=pay_source.payment_village_name,
+            payment_group_display=pay_source.payment_group_display,
+            apply_area=pay_source.apply_area,
+            contract_area=pay_source.contract_area,
+            trust_area=pay_source.trust_area,
+            no_subsidy_area=pay_source.no_subsidy_area,
+            bank_card=pay_source.bank_card,
+            bank_name=pay_source.bank_name,
+            operator_id=pay_source.operator_id,
+            remark=pay_source.remark,
+            proxy_remark=data.remark or pay_source.proxy_remark,
+            pay_status=pay_source.pay_status,
+            is_proxy=proxy_rel.id,  # 指向代领关系
+        )
+        db.add(pay_copy)
+        # 更新原记录的 is_proxy（标记为这是代领方的记录）
+        pay_source.is_proxy = proxy_rel.id
 
     db.commit()
     db.refresh(proxy_rel)
