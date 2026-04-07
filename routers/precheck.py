@@ -408,12 +408,24 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
     # 找出有多人申请的家庭户
     for hh_id, members in excel_household_members.items():
         if len(members) > 1:
-            # 获取该家庭户的村组信息
-            first_member = members[0]
+            # 优先从数据库获取村组信息（Excel 行可能有格式错误导致村名为空）
+            hh_village = ""
+            hh_group = ""
+            for m in members:
+                db_entry = db_farmers.get(m["id_card"])
+                if db_entry and db_entry.get("village_name"):
+                    hh_village = db_entry["village_name"]
+                    raw_g = db_entry.get("group_no")
+                    hh_group = format_group_no(raw_g) if isinstance(raw_g, int) else str(raw_g or "")
+                    break
+            # 如果数据库也无村组信息，回退到 Excel 数据
+            if not hh_village:
+                hh_village = members[0]["village"]
+                hh_group = members[0]["group"]
             household_duplicates.append({
                 "household_id": hh_id,
-                "village": first_member["village"],
-                "group": first_member["group"],
+                "village": hh_village,
+                "group": hh_group,
                 "member_count": len(members),
                 "members": members,
             })
