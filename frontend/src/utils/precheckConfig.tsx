@@ -173,13 +173,14 @@ export const PRECHECK_TABLE_CONFIGS: Record<PrecheckErrorType, TableConfig> = {
   // 同一家庭多成员申请
   household_duplicates: {
     field: 'household_duplicates',
-    title: (count) => `⚠️ 同一家庭多成员申请（${count}条）— 同一家庭户有多人同时申请`,
-    headers: ['行号', '姓名', '身份证号', '家庭ID', '其他成员', '说明'],
+    title: (count) => `⚠️ 同一家庭多成员申请（${count}户）— 同一家庭户有多人同时申请`,
+    headers: ['家庭ID', '村', '组', '成员人数', '成员列表'],
     rowMapper: (r) => [
-      r.row, r.name, r.id_card,
       <span key="h" className="font-mono text-xs">{r.household_id}</span>,
-      r.other_members?.join('、') || '-',
-      <span key="e" className="text-purple-600 text-xs">{r.error}</span>,
+      r.village,
+      r.group,
+      r.member_count,
+      r.members?.map((m: any) => m.name).join('、') || '-',
     ],
   },
 

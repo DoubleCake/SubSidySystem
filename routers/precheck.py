@@ -388,6 +388,36 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
                 "village_id": village_id,
             })
 
+    # ── 2.5 检测同一家庭户多人申请 ──
+    # 构建 household_id -> [成员列表] 的映射（只统计 Excel 中出现的）
+    excel_household_members: dict[int, list] = {}  # household_id -> [{id_card, name, village, group, row}]
+    for row in req.rows:
+        id_card = (row.id_card or "").strip().upper()
+        if id_card in db_household_ids:
+            hh_id = db_household_ids[id_card]
+            if hh_id not in excel_household_members:
+                excel_household_members[hh_id] = []
+            excel_household_members[hh_id].append({
+                "id_card": id_card,
+                "name": (row.real_name or "").strip(),
+                "village": (row.village_name or "").strip(),
+                "group": (row.group_no or "").strip(),
+                "row": row.row_index,
+            })
+
+    # 找出有多人申请的家庭户
+    for hh_id, members in excel_household_members.items():
+        if len(members) > 1:
+            # 获取该家庭户的村组信息
+            first_member = members[0]
+            household_duplicates.append({
+                "household_id": hh_id,
+                "village": first_member["village"],
+                "group": first_member["group"],
+                "member_count": len(members),
+                "members": members,
+            })
+
     # ── 3. 数据库中存在但 Excel 中没有的：减少的农户 ──
     excel_id_cards = set(seen_id_cards.keys())
     removed_farmers: list[dict] = []
