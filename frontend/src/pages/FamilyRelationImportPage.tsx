@@ -77,7 +77,8 @@ export default function FamilyRelationImportPage() {
       const addressCol = findCol(['地址', '住址', '家庭住址'])
 
       if (!nameCol || !idCardCol || !relationCol) {
-        show('未找到必要的列（姓名、身份证号、与户主关系）', 'err')
+        const info = `未找到必要的列。\n实际列名: ${hdrs.join(', ')}\n匹配: 姓名=${nameCol}, 身份证=${idCardCol}, 关系=${relationCol}`
+        show(info, 'err')
         return
       }
 
