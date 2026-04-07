@@ -3575,7 +3575,7 @@ def recalc_unconfirmed_contract_area(db: Session = Depends(get_db)):
     - 仅针对 is_manually_confirmed = 0 的家庭户
     - 优先使用2025年补贴发放数据中的承包面积之和
     - 如果2025年没有数据，则使用2024年的数据
-    - 只计算受益农户的记录（排除代领记录）
+    - 排除代领人的记录（通过subsidy_proxy表判断，只计算受益人记录）
     """
     from sqlalchemy import text
     from models import FamilyHousehold
@@ -3598,12 +3598,19 @@ def recalc_unconfirmed_contract_area(db: Session = Depends(get_db)):
     for hh in unconfirmed_households:
         # 优先查询2025年的数据
         sql_2025 = text("""
+            WITH proxy_payments AS (
+                -- 找出所有代领人的payment记录（这些需要排除）
+                SELECT DISTINCT sp.id
+                FROM subsidy_payment sp
+                JOIN subsidy_proxy spr ON sp.is_proxy = spr.id
+                WHERE sp.farmer_id = spr.proxy_farmer_id
+            )
             SELECT ROUND(SUM(COALESCE(sp.contract_area, 0)), 2) as total_contract_area
             FROM subsidy_payment sp
             JOIN farmer_profile fp ON sp.farmer_id = fp.id
             WHERE fp.household_id = :household_id
                 AND sp.payment_year = 2025
-                AND sp.is_proxy = 0
+                AND sp.id NOT IN (SELECT id FROM proxy_payments)
         """)
         result_2025 = db.execute(sql_2025, {"household_id": hh.id}).fetchone()
         area_2025 = float(result_2025[0]) if result_2025 and result_2025[0] else 0.0
@@ -3621,12 +3628,19 @@ def recalc_unconfirmed_contract_area(db: Session = Depends(get_db)):
         else:
             # 查询2024年的数据
             sql_2024 = text("""
+                WITH proxy_payments AS (
+                    -- 找出所有代领人的payment记录（这些需要排除）
+                    SELECT DISTINCT sp.id
+                    FROM subsidy_payment sp
+                    JOIN subsidy_proxy spr ON sp.is_proxy = spr.id
+                    WHERE sp.farmer_id = spr.proxy_farmer_id
+                )
                 SELECT ROUND(SUM(COALESCE(sp.contract_area, 0)), 2) as total_contract_area
                 FROM subsidy_payment sp
                 JOIN farmer_profile fp ON sp.farmer_id = fp.id
                 WHERE fp.household_id = :household_id
                     AND sp.payment_year = 2024
-                    AND sp.is_proxy = 0
+                    AND sp.id NOT IN (SELECT id FROM proxy_payments)
             """)
             result_2024 = db.execute(sql_2024, {"household_id": hh.id}).fetchone()
             area_2024 = float(result_2024[0]) if result_2024 and result_2024[0] else 0.0
