@@ -2033,6 +2033,187 @@ def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
     return {"id": proxy_rel.id, "message": "代领关系创建成功"}
 
 
+@router.get("/applications/stats-by-village")
+def get_stats_by_village(
+    subsidy_type_id: int = Query(...),
+    year: int = Query(...),
+    db: Session = Depends(get_db)
+):
+    """
+    按村统计面积数据（实际补贴面积、承包地面积、代耕代种面积、不予补贴面积）
+    代领关系处理：代领人的记录不计入，只计入受益人的记录（避免重复计算）
+    """
+    from sqlalchemy import text
+
+    # 首先获取需要排除的代领人记录ID（只保留受益人的记录）
+    # 逻辑：如果一条记录是代领人(is_proxy>0)且存在对应的受益人记录，则排除这条代领人记录
+    proxy_exclude_sql = text("""
+        WITH proxy_relations AS (
+            SELECT DISTINCT
+                sp.beneficiary_farmer_id,
+                sp.proxy_farmer_id,
+                sp.subsidy_type_id
+            FROM subsidy_proxy sp
+            WHERE sp.subsidy_type_id = :subsidy_type_id
+        )
+        -- 找出需要排除的代领人记录（存在代领关系且是代领人方的记录）
+        SELECT DISTINCT sa.id
+        FROM subsidy_application sa
+        JOIN proxy_relations pr ON sa.farmer_id = pr.proxy_farmer_id
+            AND sa.subsidy_type_id = pr.subsidy_type_id
+        WHERE sa.subsidy_type_id = :subsidy_type_id
+            AND sa.apply_year = :year
+            AND sa.is_proxy > 0
+            -- 确保对应的受益人记录存在
+            AND EXISTS (
+                SELECT 1 FROM subsidy_application sa2
+                WHERE sa2.farmer_id = pr.beneficiary_farmer_id
+                    AND sa2.subsidy_type_id = pr.subsidy_type_id
+                    AND sa2.apply_year = :year
+            )
+    """)
+    exclude_ids = [row[0] for row in db.execute(proxy_exclude_sql, {
+        "subsidy_type_id": subsidy_type_id,
+        "year": year
+    }).fetchall()]
+
+    # 主统计SQL - 按村统计，排除重复的代领人记录
+    stats_sql = text("""
+        SELECT
+            v.village_name,
+            COUNT(DISTINCT fp.id) as farmer_count,
+            COUNT(DISTINCT sa.id) as record_count,
+            ROUND(SUM(COALESCE(sa.apply_area, 0)), 2) as total_apply_area,
+            ROUND(SUM(COALESCE(sa.contract_area, 0)), 2) as total_contract_area,
+            ROUND(SUM(COALESCE(sa.trust_area, 0)), 2) as total_trust_area,
+            ROUND(SUM(COALESCE(sa.no_subsidy_area, 0)), 2) as total_no_subsidy_area,
+            ROUND(SUM(COALESCE(sa.actual_amount, sa.apply_amount, 0)), 2) as total_amount
+        FROM subsidy_application sa
+        JOIN farmer_profile fp ON sa.farmer_id = fp.id
+        JOIN family_household hh ON fp.household_id = hh.id
+        JOIN village v ON hh.village_id = v.id
+        WHERE sa.subsidy_type_id = :subsidy_type_id
+            AND sa.apply_year = :year
+            AND (:exclude_empty OR sa.id NOT IN :exclude_ids)
+        GROUP BY v.village_name
+        ORDER BY v.village_name
+    """)
+
+    # 发放表统计（如果有发放数据的话）
+    payment_stats_sql = text("""
+        SELECT
+            v.village_name,
+            COUNT(DISTINCT fp.id) as farmer_count,
+            COUNT(DISTINCT sp.id) as record_count,
+            ROUND(SUM(COALESCE(sp.apply_area, 0)), 2) as total_apply_area,
+            ROUND(SUM(COALESCE(sp.contract_area, 0)), 2) as total_contract_area,
+            ROUND(SUM(COALESCE(sp.trust_area, 0)), 2) as total_trust_area,
+            ROUND(SUM(COALESCE(sp.no_subsidy_area, 0)), 2) as total_no_subsidy_area,
+            ROUND(SUM(COALESCE(sp.amount, 0)), 2) as total_amount
+        FROM subsidy_payment sp
+        JOIN farmer_profile fp ON sp.farmer_id = fp.id
+        JOIN family_household hh ON fp.household_id = hh.id
+        JOIN village v ON hh.village_id = v.id
+        WHERE sp.subsidy_type_id = :subsidy_type_id
+            AND sp.payment_year = :year
+            AND (:exclude_empty OR sp.id NOT IN :exclude_ids)
+        GROUP BY v.village_name
+        ORDER BY v.village_name
+    """)
+
+    # 先查有没有发放数据
+    payment_count = db.query(func.count(SubsidyPayment.id)).filter(
+        SubsidyPayment.subsidy_type_id == subsidy_type_id,
+        SubsidyPayment.payment_year == year
+    ).scalar()
+
+    use_payment = payment_count > 0
+    sql = payment_stats_sql if use_payment else stats_sql
+
+    # 获取需要排除的代领记录ID（针对发放表）
+    payment_exclude_sql = text("""
+        WITH proxy_relations AS (
+            SELECT DISTINCT
+                sp.beneficiary_farmer_id,
+                sp.proxy_farmer_id,
+                sp.subsidy_type_id
+            FROM subsidy_proxy sp
+            WHERE sp.subsidy_type_id = :subsidy_type_id
+        )
+        SELECT DISTINCT sp.id
+        FROM subsidy_payment sp
+        JOIN proxy_relations pr ON sp.farmer_id = pr.proxy_farmer_id
+            AND sp.subsidy_type_id = pr.subsidy_type_id
+        WHERE sp.subsidy_type_id = :subsidy_type_id
+            AND sp.payment_year = :year
+            AND sp.is_proxy > 0
+            AND EXISTS (
+                SELECT 1 FROM subsidy_payment sp2
+                WHERE sp2.farmer_id = pr.beneficiary_farmer_id
+                    AND sp2.subsidy_type_id = pr.subsidy_type_id
+                    AND sp2.payment_year = :year
+            )
+    """)
+
+    if use_payment:
+        exclude_ids = [row[0] for row in db.execute(payment_exclude_sql, {
+            "subsidy_type_id": subsidy_type_id,
+            "year": year
+        }).fetchall()]
+
+    params = {
+        "subsidy_type_id": subsidy_type_id,
+        "year": year,
+        "exclude_ids": tuple(exclude_ids) if exclude_ids else (0,),
+        "exclude_empty": len(exclude_ids) == 0
+    }
+
+    rows = db.execute(sql, params).fetchall()
+
+    village_stats = []
+    totals = {
+        "village": "合计",
+        "farmer_count": 0,
+        "record_count": 0,
+        "total_apply_area": 0.0,
+        "total_contract_area": 0.0,
+        "total_trust_area": 0.0,
+        "total_no_subsidy_area": 0.0,
+        "total_amount": 0.0
+    }
+
+    for r in rows:
+        stat = {
+            "village": r.village_name,
+            "farmer_count": r.farmer_count,
+            "record_count": r.record_count,
+            "total_apply_area": float(r.total_apply_area or 0),
+            "total_contract_area": float(r.total_contract_area or 0),
+            "total_trust_area": float(r.total_trust_area or 0),
+            "total_no_subsidy_area": float(r.total_no_subsidy_area or 0),
+            "total_amount": float(r.total_amount or 0)
+        }
+        village_stats.append(stat)
+
+        totals["farmer_count"] += stat["farmer_count"]
+        totals["record_count"] += stat["record_count"]
+        totals["total_apply_area"] += stat["total_apply_area"]
+        totals["total_contract_area"] += stat["total_contract_area"]
+        totals["total_trust_area"] += stat["total_trust_area"]
+        totals["total_no_subsidy_area"] += stat["total_no_subsidy_area"]
+        totals["total_amount"] += stat["total_amount"]
+
+    # 对合计值进行四舍五入
+    for key in ["total_apply_area", "total_contract_area", "total_trust_area", "total_no_subsidy_area", "total_amount"]:
+        totals[key] = round(totals[key], 2)
+
+    return {
+        "by_village": village_stats,
+        "total": totals,
+        "data_source": "payment" if use_payment else "application"
+    }
+
+
 @router.delete("/proxies/{proxy_id}")
 def delete_proxy(proxy_id: int, db: Session = Depends(get_db)):
     """删除代领关系"""

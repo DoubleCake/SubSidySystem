@@ -169,6 +169,26 @@ export const getSummaryBySeason = (year: number) =>
     '/api/subsidies/summary/by-season?year=' + year
   )
 
+export interface VillageAreaStats {
+  village: string
+  farmer_count: number
+  record_count: number
+  total_apply_area: number
+  total_contract_area: number
+  total_trust_area: number
+  total_no_subsidy_area: number
+  total_amount: number
+}
+
+export interface AreaStatsResponse {
+  by_village: VillageAreaStats[]
+  total: VillageAreaStats
+  data_source: 'payment' | 'application'
+}
+
+export const getAreaStatsByVillage = (subsidyTypeId: number, year: number) =>
+  req<AreaStatsResponse>(`/api/subsidies/applications/stats-by-village?subsidy_type_id=${subsidyTypeId}&year=${year}`)
+
 // ── AI ──
 export const aiAnalyze = (data: { year: number; village_name?: string; question: string }) =>
   req<{ result: string; data_preview: Record<string, unknown> }>(

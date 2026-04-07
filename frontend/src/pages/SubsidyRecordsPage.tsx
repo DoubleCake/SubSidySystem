@@ -15,6 +15,7 @@ import type { ApplicationSearchResult, ApplicationCreate, ApplicationOut, ExcelC
 import { PAY_STATUS } from '../utils'
 import { getPrecheckTableConfigs, PRECHECK_TABLE_CONFIGS } from '../utils/precheckConfig'
 import { exportPrecheckReportWithOptions, PRECHECK_SHEET_OPTIONS, SheetKey, getVillagesFromResult, getDefaultSelectedSheets } from '../utils/exportPrecheckReport'
+import { exportAreaStatsToExcel } from '../utils/exportAreaStats'
 import PreApplyList from './PreApplyList'
 import DisbursementList from './DisbursementList'
 import ProxyList from './ProxyList'
@@ -159,6 +160,11 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
 
   const [comparableTypes, setComparableTypes] = useState<Array<{ id: number; subsidy_name: string; subsidy_year: number }>>([])
   const [selectedCompareType, setSelectedCompareType] = useState<number | null>(null)
+
+  // 面积统计状态
+  const [areaStats, setAreaStats] = useState<api.AreaStatsResponse | null>(null)
+  const [loadingAreaStats, setLoadingAreaStats] = useState(false)
+  const [areaStatsExpanded, setAreaStatsExpanded] = useState(false)
 
   // 当 subsidyType 改变时重置状态
   useEffect(() => {
@@ -570,10 +576,37 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
     }
   }, [subsidyType.id, subsidyType.subsidy_year, selectedCompareType])
 
+  // 加载面积统计数据
+  const loadAreaStats = useCallback(async () => {
+    if (!areaStatsExpanded) return
+    setLoadingAreaStats(true)
+    try {
+      const data = await api.getAreaStatsByVillage(subsidyType.id, subsidyType.subsidy_year)
+      setAreaStats(data)
+    } catch (error) {
+      console.error('加载面积统计失败:', error)
+      show('加载面积统计失败', 'err')
+    } finally {
+      setLoadingAreaStats(false)
+    }
+  }, [subsidyType.id, subsidyType.subsidy_year, areaStatsExpanded, show])
+
+  // 导出面积统计Excel
+  const handleExportAreaStats = () => {
+    if (!areaStats) return
+    exportAreaStatsToExcel(areaStats, subsidyType.subsidy_name, subsidyType.subsidy_year)
+  }
+
   useEffect(() => {
     loadStats()
     loadComparableTypes()
   }, [loadStats, loadComparableTypes])
+
+  useEffect(() => {
+    if (areaStatsExpanded) {
+      loadAreaStats()
+    }
+  }, [areaStatsExpanded, loadAreaStats])
 
   // 数据概览展开/收起状态
   const [statsExpanded, setStatsExpanded] = useState(false)
@@ -642,6 +675,95 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
                 <div className="text-sm text-purple-600 mt-2">补贴面积合计</div>
               </div>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* 面积统计 - 可折叠下拉框 */}
+      <div className="mb-4 bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
+        <button
+          onClick={() => setAreaStatsExpanded(!areaStatsExpanded)}
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-stone-50 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-stone-700">📐 面积统计</span>
+            {areaStatsExpanded && areaStats && (
+              <span className="text-xs text-stone-400">
+                合计：{areaStats.total.total_apply_area}亩 / {areaStats.by_village.length}个村
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {areaStats && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleExportAreaStats()
+                }}
+                className="px-3 py-1 text-xs bg-emerald-700 text-white rounded-lg hover:bg-emerald-600"
+              >
+                ↓ 导出Excel
+              </button>
+            )}
+            <span className="text-stone-400 text-sm">{areaStatsExpanded ? '▲ 收起' : '▼ 展开'}</span>
+          </div>
+        </button>
+
+        {areaStatsExpanded && (
+          <div className="px-4 pb-4 border-t border-stone-100">
+            {loadingAreaStats ? (
+              <div className="py-8 text-center text-stone-400">
+                <span className="animate-spin inline-block w-4 h-4 border-2 border-stone-300 border-t-emerald-500 rounded-full mr-2" />
+                加载中...
+              </div>
+            ) : areaStats ? (
+              <div className="overflow-x-auto mt-4">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-stone-50 border-b border-stone-200">
+                      <th className="px-3 py-2 text-left font-medium text-stone-600">村名</th>
+                      <th className="px-3 py-2 text-right font-medium text-stone-600">农户数</th>
+                      <th className="px-3 py-2 text-right font-medium text-stone-600">记录数</th>
+                      <th className="px-3 py-2 text-right font-medium text-stone-600">实际补贴面积(亩)</th>
+                      <th className="px-3 py-2 text-right font-medium text-stone-600">承包地面积(亩)</th>
+                      <th className="px-3 py-2 text-right font-medium text-stone-600">代耕代种面积(亩)</th>
+                      <th className="px-3 py-2 text-right font-medium text-stone-600">不予补贴面积(亩)</th>
+                      <th className="px-3 py-2 text-right font-medium text-stone-600">补贴金额(元)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {areaStats.by_village.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-stone-50">
+                        <td className="px-3 py-2 text-stone-700">{row.village}</td>
+                        <td className="px-3 py-2 text-right text-stone-600">{row.farmer_count}</td>
+                        <td className="px-3 py-2 text-right text-stone-600">{row.record_count}</td>
+                        <td className="px-3 py-2 text-right font-mono text-stone-700">{row.total_apply_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right font-mono text-stone-600">{row.total_contract_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right font-mono text-stone-600">{row.total_trust_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right font-mono text-stone-600">{row.total_no_subsidy_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right font-mono text-emerald-700">¥{row.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      </tr>
+                    ))}
+                    <tr className="bg-stone-100 font-semibold">
+                      <td className="px-3 py-2 text-stone-800">{areaStats.total.village}</td>
+                      <td className="px-3 py-2 text-right text-stone-800">{areaStats.total.farmer_count}</td>
+                      <td className="px-3 py-2 text-right text-stone-800">{areaStats.total.record_count}</td>
+                      <td className="px-3 py-2 text-right font-mono text-stone-800">{areaStats.total.total_apply_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-3 py-2 text-right font-mono text-stone-800">{areaStats.total.total_contract_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-3 py-2 text-right font-mono text-stone-800">{areaStats.total.total_trust_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-3 py-2 text-right font-mono text-stone-800">{areaStats.total.total_no_subsidy_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-3 py-2 text-right font-mono text-emerald-800">¥{areaStats.total.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div className="mt-2 text-xs text-stone-400">
+                  数据来源：{areaStats.data_source === 'payment' ? '发放记录' : '预申请记录'}
+                  {areaStats.by_village.length > 0 && ' · 代领记录已去重，仅统计受益人'}
+                </div>
+              </div>
+            ) : (
+              <div className="py-8 text-center text-stone-400">暂无数据</div>
+            )}
           </div>
         )}
       </div>
