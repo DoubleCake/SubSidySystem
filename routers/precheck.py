@@ -143,14 +143,16 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
     db_hh_season_used: dict[int, float] = {}  # household_id → 当季已用面积
     if season in VALID_SEASONS and req.compare_year:
         rows_used = db.query(
-            SubsidyApplication.household_id,
+            FarmerProfile.household_id,
             func.sum(SubsidyApplication.apply_area).label("total_area")
+        ).join(
+            FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id
         ).join(
             SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id
         ).filter(
             SubsidyApplication.apply_year == req.compare_year,
             SubsidyType.season == season,
-        ).group_by(SubsidyApplication.household_id).all()
+        ).group_by(FarmerProfile.household_id).all()
         db_hh_season_used = {r.household_id: float(r.total_area or 0) for r in rows_used}
 
     # ── 2. 逐行检查 ──
