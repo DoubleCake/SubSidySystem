@@ -380,9 +380,11 @@ def _transform_sheet_data(sheet_name: str, raw_rows: List[Dict[str, Any]]) -> Li
             "说明": r.get("reason", r.get("note", "")),
         },
         "同一家庭多成员申请": lambda r: {
-            "行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
-            "家庭ID": r.get("household_id"), "其他成员": join_list(r.get("other_members")),
-            "说明": r.get("reason", r.get("note", "")),
+            "家庭ID": r.get("household_id"),
+            "所在村": r.get("village"),
+            "所在组": r.get("group"),
+            "成员人数": r.get("member_count"),
+            "成员列表": join_list([m.get("name") or m.get("real_name", "") for m in (r.get("members") or [])]),
         },
         "新增农户": lambda r: {
             "行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
@@ -413,7 +415,8 @@ def _get_all_villages(result: Dict[str, Any]) -> List[str]:
     # 遍历所有可能包含村信息的字段
     village_fields = ["error_library_hits", "format_errors", "village_errors",
                       "duplicate_errors", "gender_mismatch", "area_anomalies",
-                      "new_farmers", "removed_farmers", "changed_farmers"]
+                      "new_farmers", "removed_farmers", "changed_farmers",
+                      "household_duplicates"]
 
     for field in village_fields:
         data = result.get(field, [])
@@ -460,7 +463,7 @@ def export_precheck_report_by_village(
         "死亡农户": (add_sheet_from_data, "deceased_farmers",
                    ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"]),
         "同一家庭多成员申请": (add_sheet_from_data, "household_duplicates",
-                       ["行号", "姓名", "身份证号", "家庭ID", "其他成员", "说明"]),
+                       ["家庭ID", "所在村", "所在组", "成员人数", "成员列表"]),
         "新增农户": (add_sheet_from_data, "new_farmers",
                     ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"]),
         "减少农户": (add_sheet_from_data, "removed_farmers",
@@ -579,7 +582,7 @@ def export_precheck_report_with_options(
             ("死亡农户", "deceased_farmers",
              ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"]),
             ("同一家庭多成员申请", "household_duplicates",
-             ["行号", "姓名", "身份证号", "家庭ID", "其他成员", "说明"]),
+             ["家庭ID", "所在村", "所在组", "成员人数", "成员列表"]),
             ("新增农户", "new_farmers",
              ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"]),
             ("减少农户", "removed_farmers",
