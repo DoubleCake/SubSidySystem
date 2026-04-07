@@ -1937,11 +1937,10 @@ def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
         pay = db.get(SubsidyPayment, data.payment_id)
         if not pay:
             raise HTTPException(status_code=404, detail="补贴发放记录不存在")
-        # 更新发放记录的 is_proxy 标记
-        pay.is_proxy = 1
         # 同步补贴项目类型
         if not subsidy_type_id:
             subsidy_type_id = pay.subsidy_type_id
+        # 注意：先不设置 is_proxy，等 proxy_rel 创建后再更新
     else:
         # 当没有指定具体记录时，自动查找并更新对应记录
         # proxy_type='代领'/'proxy': 记录挂在代领人名下(farmer_id=proxy_farmer_id)，标记 proxy_farmer 的记录
@@ -1974,6 +1973,39 @@ def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
         subsidy_type_id=subsidy_type_id,
     )
     db.add(proxy_rel)
+    db.flush()  # 获取 proxy_rel.id
+
+    # 如果指定了 payment_id，复制一条记录给受益人
+    if data.payment_id:
+        pay = db.get(SubsidyPayment, data.payment_id)
+        if pay:
+            # 创建复制记录，farmer_id 改为受益人
+            pay_copy = SubsidyPayment(
+                farmer_id=data.beneficiary_farmer_id,
+                subsidy_type_id=pay.subsidy_type_id,
+                payment_year=pay.payment_year,
+                amount=pay.amount,
+                payment_date=pay.payment_date,
+                payment_village_id=pay.payment_village_id,
+                payment_group_no=pay.payment_group_no,
+                payment_village_name=pay.payment_village_name,
+                payment_group_display=pay.payment_group_display,
+                apply_area=pay.apply_area,
+                contract_area=pay.contract_area,
+                trust_area=pay.trust_area,
+                no_subsidy_area=pay.no_subsidy_area,
+                bank_card=pay.bank_card,
+                bank_name=pay.bank_name,
+                operator_id=pay.operator_id,
+                remark=pay.remark,
+                proxy_remark=data.remark or pay.proxy_remark,
+                pay_status=pay.pay_status,
+                is_proxy=proxy_rel.id,  # 指向代领关系
+            )
+            db.add(pay_copy)
+            # 更新原记录的 is_proxy（标记为这是代领方的记录）
+            pay.is_proxy = proxy_rel.id
+
     db.commit()
     db.refresh(proxy_rel)
 
@@ -2000,20 +2032,39 @@ def delete_proxy(proxy_id: int, db: Session = Depends(get_db)):
 
     # 清除相关补贴记录的 is_proxy 标记
     affected_households = set()
+
+    # 处理 application_id 的情况
     if proxy_rel.application_id:
         app = db.get(SubsidyApplication, proxy_rel.application_id)
         if app:
             app.is_proxy = 0
             # 获取受益人家庭户
-            if app.farmer.household_id:
-                affected_households.add(app.farmer.household_id)
+            beneficiary = db.get(FarmerProfile, proxy_rel.beneficiary_farmer_id)
+            if beneficiary and beneficiary.household_id:
+                affected_households.add(beneficiary.household_id)
+
+    # 处理 payment_id 的情况：删除为受益人生成的复制记录，恢复原记录的 is_proxy
     if proxy_rel.payment_id:
-        pay = db.get(SubsidyPayment, proxy_rel.payment_id)
-        if pay:
-            pay.is_proxy = 0
+        # 查找并删除受益人的复制记录（is_proxy = proxy_id 且 farmer_id = beneficiary_farmer_id）
+        copied_pays = db.query(SubsidyPayment).filter(
+            SubsidyPayment.is_proxy == proxy_id,
+            SubsidyPayment.farmer_id == proxy_rel.beneficiary_farmer_id,
+        ).all()
+        for cp in copied_pays:
+            db.delete(cp)
+            # 获取受益人家庭户
+            beneficiary = db.get(FarmerProfile, cp.farmer_id)
+            if beneficiary and beneficiary.household_id:
+                affected_households.add(beneficiary.household_id)
+
+        # 恢复原记录的 is_proxy
+        original_pay = db.get(SubsidyPayment, proxy_rel.payment_id)
+        if original_pay:
+            original_pay.is_proxy = 0
             # 获取代领人家庭户
-            if pay.farmer.household_id:
-                affected_households.add(pay.farmer.household_id)
+            proxy_farmer = db.get(FarmerProfile, proxy_rel.proxy_farmer_id)
+            if proxy_farmer and proxy_farmer.household_id:
+                affected_households.add(proxy_farmer.household_id)
 
     # 删除代领关系
     db.delete(proxy_rel)
