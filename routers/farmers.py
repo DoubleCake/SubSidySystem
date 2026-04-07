@@ -102,13 +102,7 @@ def list_farmers(
     return {"total": total, "page": page, "page_size": page_size,
             "items": [_to_list(r) for r in rows]}
 
-class MultiHeadPreviewRequest(BaseModel):
-    """预览多户主拆分请求"""
-    village_names: list[str]
-    excel_rows: list[FamilyRelationRow]  # Excel数据，用于判断哪些人在Excel中被标记为户主
-
-
-@router.get("/households-with-multi-head")
+# ── 多户主家庭查询（预览需结合Excel数据）────
 def list_multi_head_households(
     village_names: str = Query(None, description="村庄名，逗号分隔"),
     db: Session = Depends(get_db)
@@ -160,86 +154,6 @@ def list_multi_head_households(
                 "heads": heads,
                 "all_members": members_list,
             })
-
-    return {"households": result}
-
-
-@router.post("/households-with-multi-head-preview")
-def preview_multi_head_households(
-    req: MultiHeadPreviewRequest,
-    db: Session = Depends(get_db)
-):
-    """
-    预览多户主拆分（结合Excel数据判断）
-
-    只有当Excel数据中同一家庭户有2个及以上被标记为"户主"时，才会被列入拆分预览。
-    """
-    village_names = req.village_names
-    excel_rows = req.excel_rows
-
-    # 1. 获取指定村庄的数据库家庭户
-    village_ids = [v.id for v in db.query(Village).filter(Village.village_name.in_(village_names)).all()] if village_names else []
-    if not village_ids:
-        return {"households": []}
-
-    households = db.query(FamilyHousehold).filter(FamilyHousehold.village_id.in_(village_ids)).all()
-    hh_ids = [h.id for h in households]
-
-    # 2. 获取所有成员
-    members = db.query(FarmerProfile).filter(FarmerProfile.household_id.in_(hh_ids)).all()
-    hh_members: dict[int, list] = {}
-    for m in members:
-        if m.household_id not in hh_members:
-            hh_members[m.household_id] = []
-        hh_members[m.household_id].append({
-            "id": m.id,
-            "real_name": m.real_name,
-            "relation": m.relation,
-            "id_card": m.id_card,
-            "id_card_masked": mask_id_card(m.id_card) if m.id_card else None,
-        })
-
-    # 3. 构建身份证号 → household_id 映射（仅针对Excel中的数据）
-    id_card_to_hh_id: dict[str, int] = {}
-    for m in members:
-        if m.id_card:
-            id_card_to_hh_id[m.id_card.upper()] = m.household_id
-
-    # 4. 统计每个家庭户在Excel中被标记为"户主"的人数
-    excel_head_count_per_hh: dict[int, list] = {}  # household_id -> [{id, real_name, id_card}]
-    for row in excel_rows:
-        if not row.id_card:
-            continue
-        id_card_upper = row.id_card.strip().upper()
-        hh_id = id_card_to_hh_id.get(id_card_upper)
-        if hh_id is None:
-            continue  # Excel中的身份证号不在数据库中
-
-        # 检查Excel中这行是否是"户主"
-        if row.relation and row.relation.strip() in ("户主", "head"):
-            if hh_id not in excel_head_count_per_hh:
-                excel_head_count_per_hh[hh_id] = []
-            # 找到该成员的详细信息
-            member_info = next((m for m in hh_members.get(hh_id, []) if m["id_card"] and m["id_card"].upper() == id_card_upper), None)
-            if member_info:
-                excel_head_count_per_hh[hh_id].append(member_info)
-
-    # 5. 返回Excel中有2个及以上户主的家庭
-    result = []
-    for hh in households:
-        excel_heads = excel_head_count_per_hh.get(hh.id, [])
-        if len(excel_heads) < 2:
-            continue  # Excel中不是多户主，跳过
-
-        members_list = hh_members.get(hh.id, [])
-        result.append({
-            "household_id": hh.id,
-            "household_name": hh.household_name,
-            "village_name": hh.village.village_name if hh.village else "",
-            "head_count": len(excel_heads),
-            "heads": excel_heads,
-            "all_members": members_list,
-        })
 
     return {"households": result}
 
@@ -542,6 +456,92 @@ class ImportFamilyRelationsRequest(BaseModel):
     rows: list[FamilyRelationRow]
     # 可选：仅对这些村庄执行多户主拆分（为空则不拆分）
     split_villages: Optional[list[str]] = None
+
+
+class MultiHeadPreviewRequest(BaseModel):
+    """预览多户主拆分请求"""
+    village_names: list[str]
+    excel_rows: list[FamilyRelationRow]  # Excel数据，用于判断哪些人在Excel中被标记为户主
+
+
+@router.post("/households-with-multi-head-preview")
+def preview_multi_head_households(
+    req: MultiHeadPreviewRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    预览多户主拆分（结合Excel数据判断）
+
+    只有当Excel数据中同一家庭户有2个及以上被标记为"户主"时，才会被列入拆分预览。
+    """
+    village_names = req.village_names
+    excel_rows = req.excel_rows
+
+    # 1. 获取指定村庄的数据库家庭户
+    village_ids = [v.id for v in db.query(Village).filter(Village.village_name.in_(village_names)).all()] if village_names else []
+    if not village_ids:
+        return {"households": []}
+
+    households = db.query(FamilyHousehold).filter(FamilyHousehold.village_id.in_(village_ids)).all()
+    hh_ids = [h.id for h in households]
+
+    # 2. 获取所有成员
+    members = db.query(FarmerProfile).filter(FarmerProfile.household_id.in_(hh_ids)).all()
+    hh_members: dict[int, list] = {}
+    for m in members:
+        if m.household_id not in hh_members:
+            hh_members[m.household_id] = []
+        hh_members[m.household_id].append({
+            "id": m.id,
+            "real_name": m.real_name,
+            "relation": m.relation,
+            "id_card": m.id_card,
+            "id_card_masked": mask_id_card(m.id_card) if m.id_card else None,
+        })
+
+    # 3. 构建身份证号 → household_id 映射（仅针对Excel中的数据）
+    id_card_to_hh_id: dict[str, int] = {}
+    for m in members:
+        if m.id_card:
+            id_card_to_hh_id[m.id_card.upper()] = m.household_id
+
+    # 4. 统计每个家庭户在Excel中被标记为"户主"的人数
+    excel_head_count_per_hh: dict[int, list] = {}  # household_id -> [{id, real_name, id_card}]
+    for row in excel_rows:
+        if not row.id_card:
+            continue
+        id_card_upper = row.id_card.strip().upper()
+        hh_id = id_card_to_hh_id.get(id_card_upper)
+        if hh_id is None:
+            continue  # Excel中的身份证号不在数据库中
+
+        # 检查Excel中这行是否是"户主"
+        if row.relation and row.relation.strip() in ("户主", "head"):
+            if hh_id not in excel_head_count_per_hh:
+                excel_head_count_per_hh[hh_id] = []
+            # 找到该成员的详细信息
+            member_info = next((m for m in hh_members.get(hh_id, []) if m["id_card"] and m["id_card"].upper() == id_card_upper), None)
+            if member_info:
+                excel_head_count_per_hh[hh_id].append(member_info)
+
+    # 5. 返回Excel中有2个及以上户主的家庭
+    result = []
+    for hh in households:
+        excel_heads = excel_head_count_per_hh.get(hh.id, [])
+        if len(excel_heads) < 2:
+            continue  # Excel中不是多户主，跳过
+
+        members_list = hh_members.get(hh.id, [])
+        result.append({
+            "household_id": hh.id,
+            "household_name": hh.household_name,
+            "village_name": hh.village.village_name if hh.village else "",
+            "head_count": len(excel_heads),
+            "heads": excel_heads,
+            "all_members": members_list,
+        })
+
+    return {"households": result}
 
 
 # 关系映射：Excel值 → farmer_profile.relation 值
