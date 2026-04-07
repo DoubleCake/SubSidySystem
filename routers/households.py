@@ -1111,7 +1111,7 @@ def get_household(
                     if r.farmer_id == pr.beneficiary_farmer_id:
                         # 记录挂在受益人名下，显示"被代领"
                         proxy_map[key] = {
-                            "type": "被代领",
+                            "type": "受益",
                             "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
                             "proxy_farmer_id": pr.proxy_farmer_id,
                             "remark": pr.remark,
@@ -1134,7 +1134,7 @@ def get_household(
                     key = ("payment", r.record_id)
                     if r.farmer_id == pr.beneficiary_farmer_id:
                         proxy_map[key] = {
-                            "type": "被代领",
+                            "type": "受益",
                             "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
                             "proxy_farmer_id": pr.proxy_farmer_id,
                             "remark": pr.remark,
@@ -2131,7 +2131,7 @@ def _snapshot_household(db: Session, household_id: int) -> dict:
                     orig_row = next(r for r in rows if r.app_id == pr.application_id)
                     if orig_row.farmer_id == pr.beneficiary_farmer_id:
                         proxy_map[pr.application_id] = {
-                            "type": "被代领",
+                            "type": "受益",
                             "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
                             "remark": pr.remark,
                         }
