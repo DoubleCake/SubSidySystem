@@ -864,9 +864,44 @@ def precheck_applications(
     from sqlalchemy import or_
     from routers.precheck import validate_id_card, parse_gender_from_id
 
+    # 获取补贴类型信息（season等）
+    subsidy_type = db.query(SubsidyType).filter(SubsidyType.id == subsidy_typeId).first()
+    season = subsidy_type.season if subsidy_type else None
+    compare_year = year or (subsidy_type.subsidy_year if subsidy_type else None)
+
     # 1. 加载数据库基础数据
     all_village_names: set[str] = {v.village_name for v in db.query(Village).all()}
     village_name_to_id: dict[str, int] = {v.village_name: v.id for v in db.query(Village).all()}
+
+    # 加载数据库中本年度、本季、本补贴类型的家庭户申请记录（含备注）
+    db_hh_existing_apps: dict[int, list[dict]] = {}  # household_id → [申请记录列表]
+    if season and compare_year:
+        existing_apps = db.query(
+            FarmerProfile.household_id,
+            FarmerProfile.real_name,
+            FarmerProfile.id_card,
+            SubsidyApplication.remark,
+            SubsidyType.subsidy_name,
+            SubsidyType.season
+        ).join(
+            FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id
+        ).join(
+            SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id
+        ).filter(
+            SubsidyApplication.apply_year == compare_year,
+            SubsidyType.season == season,
+        ).all()
+
+        for app in existing_apps:
+            if app.household_id not in db_hh_existing_apps:
+                db_hh_existing_apps[app.household_id] = []
+            db_hh_existing_apps[app.household_id].append({
+                "real_name": app.real_name,
+                "id_card": app.id_card,
+                "remark": app.remark,
+                "subsidy_name": app.subsidy_name,
+                "season": app.season
+            })
 
     # 错误库（用于错误库命中检查）
     error_lib: dict[tuple[str, str], dict] = {}
@@ -946,6 +981,7 @@ def precheck_applications(
                 "db_contract_area": db_contract_area,
                 "farmer_id": f.id,
                 "household_id": f.household_id,
+                "remark": a.remark,  # 补贴申请记录的备注
             })
 
     # 3. 执行预检逻辑
@@ -1120,6 +1156,9 @@ def precheck_applications(
                 "id_card": id_card,
                 "name": name,
                 "row": row_no,
+                "village": village,
+                "group": group,
+                "remark": row.get("remark"),  # Excel行备注
             })
 
         # 与数据库比对
@@ -1172,14 +1211,21 @@ def precheck_applications(
     # 同一家庭多成员申请（同一household有多条申请记录）
     for household_id, members in seen_household_members.items():
         if len(members) > 1:
+            # 获取该家庭户在数据库中的已有申请记录（含备注）
+            db_existing = db_hh_existing_apps.get(household_id, [])
             for m in members:
                 household_duplicates.append({
                     "row": m["row"],
                     "name": m["name"],
                     "id_card": m["id_card"],
+                    "village": m.get("village", ""),
+                    "group": m.get("group", ""),
                     "household_id": household_id,
-                    "error": f"同一家庭户（ID:{household_id}）有{len(members)}人同时申请",
+                    "total_count": len(members),
                     "other_members": [mem["name"] for mem in members if mem["id_card"] != m["id_card"]],
+                    "excel_remark": m.get("remark"),  # Excel行备注
+                    "db_existing_apps": db_existing,  # 数据库中已有申请记录（含备注）
+                    "error": f"同一家庭户有{len(members)}人同时申请",
                 })
 
     error_rows = (

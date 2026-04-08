@@ -31,7 +31,7 @@ export type PrecheckErrorType =
   | 'area_missing'
   | 'age_anomaly'
   | 'deceased_farmers'
-  // | 'household_duplicates' // 同一家庭多成员申请已移除
+  | 'household_duplicates' // 同一家庭多成员申请
   | 'new_farmers'
   | 'removed_farmers'
   | 'changed_farmers'
@@ -170,7 +170,31 @@ export const PRECHECK_TABLE_CONFIGS: Record<PrecheckErrorType, TableConfig> = {
     ],
   },
 
-  // 同一家庭多成员申请（已移除）
+  // 同一家庭多成员申请
+  household_duplicates: {
+    field: 'household_duplicates',
+    title: (count) => `⚠️ 同一家庭多成员申请（${count}条）— 同一家庭户有多人同时申请补贴`,
+    headers: ['行号', '姓名', '身份证号', '所在村', '所在组', '家庭户ID', '申请人数', '其他成员', 'Excel备注', '数据库已有申请记录备注'],
+    rowMapper: (r) => {
+      // 格式化数据库已有申请记录备注
+      const dbRemarks = r.db_existing_apps?.map((app: any) => {
+        let text = `${app.real_name || ''}(${app.subsidy_name || ''})`
+        if (app.remark) {
+          text += `: ${app.remark}`
+        }
+        return text
+      }).join('；') || ''
+
+      return [
+        r.row, r.name, r.id_card, r.village || '-', r.group || '-',
+        r.household_id,
+        <span key="tc" className="text-orange-600 font-semibold">{r.total_count}人</span>,
+        <span key="om" className="text-xs text-stone-600">{r.other_members?.join('、') || '-'}</span>,
+        <span key="er" className="text-xs text-stone-500">{r.excel_remark || '-'}</span>,
+        <span key="dr" className="text-xs text-stone-500">{dbRemarks || '-'}</span>,
+      ]
+    },
+  },
 
   // 新增农户
   new_farmers: {
@@ -218,7 +242,7 @@ export const getPrecheckTableConfigs = (): TableConfig[] => [
   PRECHECK_TABLE_CONFIGS.area_missing,
   PRECHECK_TABLE_CONFIGS.age_anomaly,
   PRECHECK_TABLE_CONFIGS.deceased_farmers,
-  // PRECHECK_TABLE_CONFIGS.household_duplicates, // 同一家庭多成员申请已移除
+  PRECHECK_TABLE_CONFIGS.household_duplicates, // 同一家庭多成员申请
   PRECHECK_TABLE_CONFIGS.new_farmers,
   PRECHECK_TABLE_CONFIGS.removed_farmers,
   PRECHECK_TABLE_CONFIGS.changed_farmers,
