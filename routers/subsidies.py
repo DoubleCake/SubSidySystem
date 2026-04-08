@@ -2101,7 +2101,7 @@ def get_stats_by_village(
     """
     from sqlalchemy import text
 
-    # 主统计SQL - 按村统计，使用子查询排除重复的代领人记录
+    # 主统计SQL - 按申请记录快照村统计，使用子查询排除重复的代领人记录
     stats_sql = text("""
         WITH exclude_applications AS (
             SELECT DISTINCT sa.id
@@ -2119,7 +2119,7 @@ def get_stats_by_village(
                 )
         )
         SELECT
-            v.village_name,
+            COALESCE(sa.apply_village_name, '未知村') as village_name,
             COUNT(DISTINCT fp.id) as farmer_count,
             COUNT(DISTINCT sa.id) as record_count,
             ROUND(SUM(COALESCE(sa.apply_area, 0)), 2) as total_apply_area,
@@ -2128,17 +2128,15 @@ def get_stats_by_village(
             ROUND(SUM(COALESCE(sa.no_subsidy_area, 0)), 2) as total_no_subsidy_area,
             ROUND(SUM(COALESCE(sa.actual_amount, sa.apply_amount, 0)), 2) as total_amount
         FROM subsidy_application sa
-        JOIN farmer_profile fp ON sa.farmer_id = fp.id
-        JOIN family_household hh ON fp.household_id = hh.id
-        JOIN village v ON hh.village_id = v.id
+        LEFT JOIN farmer_profile fp ON sa.farmer_id = fp.id
         WHERE sa.subsidy_type_id = :subsidy_type_id
             AND sa.apply_year = :year
             AND sa.id NOT IN (SELECT id FROM exclude_applications)
-        GROUP BY v.village_name
-        ORDER BY v.village_name
+        GROUP BY COALESCE(sa.apply_village_name, '未知村')
+        ORDER BY COALESCE(sa.apply_village_name, '未知村')
     """)
 
-    # 发放表统计（如果有发放数据的话）
+    # 发放表统计（如果有发放数据的话）- 使用发放表的快照村组字段
     payment_stats_sql = text("""
         WITH exclude_payments AS (
             SELECT DISTINCT sp.id
@@ -2156,7 +2154,7 @@ def get_stats_by_village(
                 )
         )
         SELECT
-            v.village_name,
+            COALESCE(sp.payment_village_name, v.village_name, '未知村') as village_name,
             COUNT(DISTINCT fp.id) as farmer_count,
             COUNT(DISTINCT sp.id) as record_count,
             ROUND(SUM(COALESCE(sp.apply_area, 0)), 2) as total_apply_area,
@@ -2165,14 +2163,14 @@ def get_stats_by_village(
             ROUND(SUM(COALESCE(sp.no_subsidy_area, 0)), 2) as total_no_subsidy_area,
             ROUND(SUM(COALESCE(sp.amount, 0)), 2) as total_amount
         FROM subsidy_payment sp
-        JOIN farmer_profile fp ON sp.farmer_id = fp.id
-        JOIN family_household hh ON fp.household_id = hh.id
-        JOIN village v ON hh.village_id = v.id
+        LEFT JOIN farmer_profile fp ON sp.farmer_id = fp.id
+        LEFT JOIN family_household hh ON fp.household_id = hh.id
+        LEFT JOIN village v ON hh.village_id = v.id
         WHERE sp.subsidy_type_id = :subsidy_type_id
             AND sp.payment_year = :year
             AND sp.id NOT IN (SELECT id FROM exclude_payments)
-        GROUP BY v.village_name
-        ORDER BY v.village_name
+        GROUP BY COALESCE(sp.payment_village_name, v.village_name, '未知村')
+        ORDER BY COALESCE(sp.payment_village_name, v.village_name, '未知村')
     """)
 
     # 先查有没有发放数据
