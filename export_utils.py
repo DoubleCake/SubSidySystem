@@ -216,7 +216,21 @@ def export_precheck_report(result: Dict[str, Any]) -> BytesIO:
         })
     add_sheet_from_data(wb, "面积异常", headers, data)
 
-    # 8. 新增农户
+    # 8. 同一家庭多成员申请
+    headers = ["家庭ID", "所在村", "所在组", "成员人数", "成员列表"]
+    data = [
+        {
+            "家庭ID": r.get("household_id"),
+            "所在村": r.get("village"),
+            "所在组": r.get("group"),
+            "成员人数": r.get("member_count"),
+            "成员列表": "、".join(m.get("name", "") for m in (r.get("members") or [])),
+        }
+        for r in result.get("household_duplicates", [])
+    ]
+    add_sheet_from_data(wb, "同一家庭多成员申请", headers, data)
+
+    # 10. 新增农户
     headers = ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"]
     data = []
     for r in result.get("new_farmers", []):
@@ -230,7 +244,7 @@ def export_precheck_report(result: Dict[str, Any]) -> BytesIO:
         })
     add_sheet_from_data(wb, "新增农户", headers, data)
 
-    # 9. 减少农户
+    # 11. 减少农户
     headers = ["姓名", "身份证号", "所在村", "所在组", "说明"]
     data = [
         {"姓名": r.get("name"), "身份证号": r.get("id_card"),
@@ -240,7 +254,7 @@ def export_precheck_report(result: Dict[str, Any]) -> BytesIO:
     ]
     add_sheet_from_data(wb, "减少农户", headers, data)
 
-    # 10. 字段变更
+    # 12. 字段变更
     headers = ["行号", "姓名", "身份证号", "变更内容"]
     data = [
         {"行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
