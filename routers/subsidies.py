@@ -827,11 +827,15 @@ def search_applications(
     for a in apps:
         f  = db.get(FarmerProfile, a.farmer_id)
         st = db.get(SubsidyType, a.subsidy_type_id)
-        vname, gno = "", ""
-        if f and f.household:
-            if f.household.village:
-                vname = f.household.village.village_name
-            gno = format_group_no(f.household.group_no) if f.household.group_no else "一组"
+        # 使用申请记录的快照村组信息（申请时的村组），而不是农户当前的村组
+        vname = a.apply_village_name
+        gno = a.apply_group_display
+        # 如果快照信息不存在，回退到农户当前的村组信息
+        if not vname or not gno:
+            if f and f.household:
+                if f.household.village:
+                    vname = f.household.village.village_name
+                gno = format_group_no(f.household.group_no) if f.household.group_no else "一组"
         rows.append({
             "id":              a.id,
             "farmer_id":       a.farmer_id,
