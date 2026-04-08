@@ -525,7 +525,7 @@ export interface CheckResult {
     area_missing: number
     age_anomaly: number
     deceased_farmers: number
-    household_duplicates: number
+    household_duplicates: number  // 已移除，保留供兼容（始终为0）
     new_farmers: number
     removed_farmers: number
     changed_farmers: number
@@ -540,7 +540,7 @@ export interface CheckResult {
   area_missing: Array<{ row: number; name: string; id_card: string; village: string; group: string; contract_area: number; error: string }>
   age_anomaly: Array<{ row: number; name: string; id_card: string; village: string; group: string; age: number; birth_year: number; error: string }>
   deceased_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
-  household_duplicates: Array<{ household_id: number; village: string; group: string; member_count: number; members: Array<{ row: number; name: string; id_card: string; village: string; group: string }> }>
+  household_duplicates: never[]  // 同一家庭多成员申请已移除，始终为空数组
   new_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; village_group_id: number | null }>
   removed_farmers: Array<{ id_card: string; name: string; village: string; group: string; farmer_id: number; note: string }>
   changed_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; db_name: string; db_village: string; db_group: string; changes: string[]; farmer_id: number }>

@@ -42,7 +42,8 @@ interface CheckRow {
   remark?: string
 }
 
-type ActiveTab = 'error-library-hits' | 'format' | 'village' | 'duplicate' | 'gender' | 'area-anomalies' | 'household-duplicates' | 'new' | 'removed' | 'changed' | 'year'
+type ActiveTab = 'error-library-hits' | 'format' | 'village' | 'duplicate' | 'gender' | 'area-anomalies' | 'new' | 'removed' | 'changed' | 'year'
+// 'household-duplicates' 同一家庭多成员申请已移除
 type PageTab = 'check' | 'error-lib'
 
 // ─── 预检系统字段（传给 ExcelImportWithMapping）───
@@ -135,7 +136,7 @@ export default function PreCheckPage() {
         { id: 'duplicate', count: data.summary.duplicate_errors },
         { id: 'gender', count: data.summary.gender_mismatch },
         { id: 'area-anomalies', count: data.summary.area_anomalies },
-        { id: 'household-duplicates', count: data.summary.household_duplicates },
+        // { id: 'household-duplicates', ... } // 同一家庭多成员申请已移除
         { id: 'new', count: data.summary.new_farmers },
         { id: 'removed', count: data.summary.removed_farmers },
         { id: 'changed', count: data.summary.changed_farmers },
@@ -243,7 +244,7 @@ export default function PreCheckPage() {
       { id: 'duplicate' as ActiveTab, label: '重复身份证', count: r.summary.duplicate_errors, color: 'amber'  as const },
       { id: 'gender' as ActiveTab,    label: '性别不符',   count: r.summary.gender_mismatch,  color: 'amber'  as const },
       { id: 'area-anomalies' as ActiveTab, label: '面积异常', count: r.summary.area_anomalies, color: 'orange' as const },
-      { id: 'household-duplicates' as ActiveTab, label: '同一家庭多成员', count: r.summary.household_duplicates, color: 'orange' as const },
+      // { id: 'household-duplicates', ... } // 同一家庭多成员申请已移除
       { id: 'new' as ActiveTab, label: '新增农户', count: r.summary.new_farmers, color: 'green' as const },
       { id: 'removed' as ActiveTab,   label: '减少农户',   count: r.summary.removed_farmers,  color: 'blue'   as const },
       { id: 'changed' as ActiveTab,   label: '字段变更',   count: r.summary.changed_farmers,  color: 'purple' as const },
@@ -260,7 +261,7 @@ export default function PreCheckPage() {
       'duplicate': 'duplicate_errors',
       'gender': 'gender_mismatch',
       'area-anomalies': 'area_anomalies',
-      'household-duplicates': 'household_duplicates',
+      // 'household-duplicates': 同一家庭多成员申请已移除
       'new': 'new_farmers',
       'removed': 'removed_farmers',
       'changed': 'changed_farmers',

@@ -31,7 +31,7 @@ export type PrecheckErrorType =
   | 'area_missing'
   | 'age_anomaly'
   | 'deceased_farmers'
-  | 'household_duplicates'
+  // | 'household_duplicates' // 同一家庭多成员申请已移除
   | 'new_farmers'
   | 'removed_farmers'
   | 'changed_farmers'
@@ -170,18 +170,7 @@ export const PRECHECK_TABLE_CONFIGS: Record<PrecheckErrorType, TableConfig> = {
     ],
   },
 
-  // 同一家庭多成员申请
-  household_duplicates: {
-    field: 'household_duplicates',
-    title: (count) => `⚠️ 同一家庭多成员申请（${count}户）— 同一家庭户有多人同时申请`,
-    headers: ['所在村', '所在组', '成员人数', '成员列表（行号·姓名）'],
-    rowMapper: (r) => [
-      r.village || '-',
-      r.group || '-',
-      r.member_count,
-      r.members?.map((m: any) => `第${m.row}行·${m.name || '(无名)'}`).join('、') || '-',
-    ],
-  },
+  // 同一家庭多成员申请（已移除）
 
   // 新增农户
   new_farmers: {
@@ -229,7 +218,7 @@ export const getPrecheckTableConfigs = (): TableConfig[] => [
   PRECHECK_TABLE_CONFIGS.area_missing,
   PRECHECK_TABLE_CONFIGS.age_anomaly,
   PRECHECK_TABLE_CONFIGS.deceased_farmers,
-  PRECHECK_TABLE_CONFIGS.household_duplicates,
+  // PRECHECK_TABLE_CONFIGS.household_duplicates, // 同一家庭多成员申请已移除
   PRECHECK_TABLE_CONFIGS.new_farmers,
   PRECHECK_TABLE_CONFIGS.removed_farmers,
   PRECHECK_TABLE_CONFIGS.changed_farmers,
