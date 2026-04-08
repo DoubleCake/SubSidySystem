@@ -1169,13 +1169,7 @@ def precheck_applications(
             if name.strip() != db_f["real_name"].strip():
                 changes.append(f"姓名：数据库「{db_f['real_name']}」→ Excel「{name}」")
 
-            db_group_int = db_f["group_no"]
-            excel_group_int = parse_group_no_to_int(group) if group else 1
-            if village != db_f["village_name"] or db_group_int != excel_group_int:
-                db_group_display = format_group_no(db_group_int) if isinstance(db_group_int, int) else str(db_group_int)
-                changes.append(
-                    f"村组：数据库「{db_f['village_name']}{db_group_display}」→ Excel「{village}{group}」"
-                )
+            # 注：村组信息不进行比对，允许因嫁娶等原因导致户籍地址与领取地址不一致
 
             if changes:
                 changed_farmers.append({

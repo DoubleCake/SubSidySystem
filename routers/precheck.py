@@ -382,22 +382,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
             if name != db_f["real_name"]:
                 changes.append(f"姓名：数据库「{db_f['real_name']}」→ Excel「{name}」")
 
-            # 村组变更（组号需归一化后比较：4="四组"="4组"均视为同一组）
-            # 允许匹配个人村组 OR 家庭户村组，任一匹配即视为无变更
-            excel_group_int = parse_group_no_to_int(group)
-            hh_village = db_f.get("hh_village_name", db_f["village_name"])
-            hh_group   = db_f.get("hh_group_no", db_f["group_no"])
-            own_village = db_f.get("own_village_name")
-            own_group   = db_f.get("own_group_no")
-            hh_match  = (village == hh_village and hh_group == excel_group_int)
-            own_match = (own_village is not None and village == own_village and
-                         own_group is not None and own_group == excel_group_int)
-            if not (hh_match or own_match):
-                db_group_display = format_group_no(db_f["group_no"]) if isinstance(db_f["group_no"], int) else str(db_f["group_no"])
-                changes.append(
-                    f"村组：数据库「{db_f['village_name']}{db_group_display}」"
-                    f"→ Excel「{village}{group}」"
-                )
+            # 注：村组信息不进行比对，允许因嫁娶等原因导致户籍地址与领取地址不一致
 
             if changes:
                 changed_farmers.append({
