@@ -452,6 +452,15 @@ def list_applications(
 
     result = []
     for a in apps:
+        # 使用申请记录的快照村组信息（申请时的村组），而不是农户当前的村组
+        village_name = a.apply_village_name
+        group_no = a.apply_group_display
+        # 如果快照信息不存在，回退到农户当前的村组信息
+        if not village_name or not group_no:
+            hh = a.farmer.household if a.farmer else None
+            if hh and hh.village:
+                village_name = hh.village.village_name
+                group_no = format_group_no(hh.group_no) if hh.group_no else ""
         result.append({
             "id": a.id,
             "farmer_id": a.farmer_id,
@@ -467,6 +476,8 @@ def list_applications(
             "pay_status": a.pay_status,
             "pay_date": a.pay_date,
             "remark": a.remark,
+            "village_name": village_name,
+            "group_no": group_no,
         })
 
     return {"total": total, "page": page, "page_size": page_size, "items": result}
