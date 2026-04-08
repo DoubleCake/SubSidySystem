@@ -293,16 +293,16 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
         vid = village.id
 
         fp = db.query(FarmerProfile).filter(FarmerProfile.id_card == id_card).first()
-        if fp:
-            # 已存在的农户：检查村组是否与数据库一致，不一致则报错
-            if vid and fp.household_id:
-                hh = db.get(FamilyHousehold, fp.household_id)
-                if hh and (hh.village_id != vid or hh.group_no != gno_int):
-                    db_vname = hh.village.village_name if hh.village else "未知"
-                    db_gno = format_group_no(hh.group_no) if hh.group_no else ""
-                    errors.append(f"{real_name}（{id_card}）：数据库中所在村组为「{db_vname}{db_gno}」，导入数据为「{village_name}{format_group_no(gno_int)}」不一致，请先在农户管理中修改")
-                    return None
-            return fp
+        # if fp:
+        #     # 已存在的农户：检查村组是否与数据库一致，不一致则报错
+        #     if vid and fp.household_id:
+        #         hh = db.get(FamilyHousehold, fp.household_id)
+        #         if hh and (hh.village_id != vid or hh.group_no != gno_int):
+        #             db_vname = hh.village.village_name if hh.village else "未知"
+        #             db_gno = format_group_no(hh.group_no) if hh.group_no else ""
+        #             errors.append(f"{real_name}（{id_card}）：数据库中所在村组为「{db_vname}{db_gno}」，导入数据为「{village_name}{format_group_no(gno_int)}」不一致，请先在农户管理中修改")
+        #             return None
+        #     return fp
 
         if not vid:
             errors.append(f"{real_name}（{id_card}）：村组信息不完整，无法创建农户"); return None
