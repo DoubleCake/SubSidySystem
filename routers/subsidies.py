@@ -293,16 +293,9 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
         vid = village.id
 
         fp = db.query(FarmerProfile).filter(FarmerProfile.id_card == id_card).first()
-        # if fp:
-        #     # 已存在的农户：检查村组是否与数据库一致，不一致则报错
-        #     if vid and fp.household_id:
-        #         hh = db.get(FamilyHousehold, fp.household_id)
-        #         if hh and (hh.village_id != vid or hh.group_no != gno_int):
-        #             db_vname = hh.village.village_name if hh.village else "未知"
-        #             db_gno = format_group_no(hh.group_no) if hh.group_no else ""
-        #             errors.append(f"{real_name}（{id_card}）：数据库中所在村组为「{db_vname}{db_gno}」，导入数据为「{village_name}{format_group_no(gno_int)}」不一致，请先在农户管理中修改")
-        #             return None
-        #     return fp
+        if fp:
+            # 已存在的农户：不检查村组一致性，允许因嫁娶等原因导致户籍地址与领取地址不一致
+            return fp
 
         if not vid:
             errors.append(f"{real_name}（{id_card}）：村组信息不完整，无法创建农户"); return None
@@ -365,6 +358,11 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
                     sp.rollback()
                     skipped += 1
                     continue
+            # 从Excel数据中提取村组信息
+            excel_village_name = str(row.get("village_name", "")).strip()
+            excel_group_no_str = str(row.get("group_no", "")).strip()
+            excel_group_no_int = parse_group_no_to_int(excel_group_no_str) if excel_group_no_str else 1
+
             # 关键修复：pay_date 字符串转 Python date 对象
             clean_row = {k: v for k, v in row.items() if k not in ("bank_card_snapshot", "id_card", "real_name", "village_name", "group_no", "bank_card")}
             if clean_row.get("pay_date") and isinstance(clean_row["pay_date"], str):
@@ -380,25 +378,28 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
                     clean_row["apply_area"] = round(ca + ta, 2)
                 clean_row["contract_area"] = ca or None
                 clean_row["trust_area"] = ta or None
-            # 村组快照：优先使用农户个人村组，否则用家庭户村组
-            hh = farmer.household
-            village_id = farmer.own_village_id or (hh.village_id if hh else None)
-            group_no = farmer.own_group_no or (hh.group_no if hh else None)
-            village_name = None
-            group_display = None
+            # 村组快照：使用Excel里的数据，不使用数据库里的数据
+            # 查找或创建Excel中的村
+            village_id = None
+            if excel_village_name:
+                village = db.query(Village).filter(Village.village_name == excel_village_name).first()
+                if not village:
+                    village = Village(village_name=excel_village_name)
+                    db.add(village)
+                    db.flush()
+                village_id = village.id
 
-            if village_id:
-                village = db.get(Village, village_id)
-                village_name = village.village_name if village else None
-            if group_no:
-                group_display = format_group_no(group_no)
+            # 村组快照使用Excel数据
+            apply_village_name = excel_village_name or None
+            apply_group_no = excel_group_no_int
+            apply_group_display = format_group_no(excel_group_no_int)
 
             app = SubsidyApplication(
                 **clean_row,
                 apply_village_id=village_id,
-                apply_group_no=group_no,
-                apply_village_name=village_name,
-                apply_group_display=group_display,
+                apply_group_no=apply_group_no,
+                apply_village_name=apply_village_name,
+                apply_group_display=apply_group_display,
                 bank_card_snapshot=f"****{farmer.bank_card[-4:]}" if farmer and farmer.bank_card else None,
             )
             db.add(app)
