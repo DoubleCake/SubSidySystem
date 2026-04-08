@@ -141,6 +141,8 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
     # 只在指定了 season 且 compare_year 时加载
     season = (req.season or "").strip()
     db_hh_season_used: dict[int, float] = {}  # household_id → 当季已用面积
+    # 加载数据库中本年度、本季、本补贴类型的家庭户申请记录（含备注）
+    db_hh_existing_apps: dict[int, list[dict]] = {}  # household_id → [申请记录列表]
     if season in VALID_SEASONS and req.compare_year:
         rows_used = db.query(
             FarmerProfile.household_id,
@@ -155,6 +157,34 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         ).group_by(FarmerProfile.household_id).all()
         db_hh_season_used = {r.household_id: float(r.total_area or 0) for r in rows_used}
 
+        # 加载详细的申请记录（含备注）用于展示
+        existing_apps = db.query(
+            FarmerProfile.household_id,
+            FarmerProfile.real_name,
+            FarmerProfile.id_card,
+            SubsidyApplication.remark,
+            SubsidyType.subsidy_name,
+            SubsidyType.season
+        ).join(
+            FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id
+        ).join(
+            SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id
+        ).filter(
+            SubsidyApplication.apply_year == req.compare_year,
+            SubsidyType.season == season,
+        ).all()
+
+        for app in existing_apps:
+            if app.household_id not in db_hh_existing_apps:
+                db_hh_existing_apps[app.household_id] = []
+            db_hh_existing_apps[app.household_id].append({
+                "real_name": app.real_name,
+                "id_card": app.id_card,
+                "remark": app.remark,
+                "subsidy_name": app.subsidy_name,
+                "season": app.season
+            })
+
     # ── 2. 逐行检查 ──
     format_errors:       list[dict] = []   # 格式/类型错误
     village_errors:      list[dict] = []   # 村组不存在
@@ -167,10 +197,11 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
     area_missing:        list[dict] = []   # 承包面积缺失
     age_anomaly:         list[dict] = []   # 年龄异常
     deceased_farmers:    list[dict] = []   # 死亡农户
-    # household_duplicates: 同一家庭户多成员申请检测（已移除，逻辑见 subsidies.py）
+    household_duplicates: list[dict] = []  # 同一家庭户多成员申请检测
     ok_rows:             list[dict] = []   # 通过所有检查的行
 
     seen_id_cards: dict[str, int] = {}   # 记录 Excel 内已出现的身份证 → 行号
+    seen_household_members: dict[int, list[dict]] = {}  # household_id → 成员列表
 
     for row in req.rows:
         row_errors: list[str] = []
@@ -388,7 +419,40 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
                 "village_id": village_id,
             })
 
-    # ── 2.5 同一家庭户多人申请检测（已移除，逻辑见 subsidies.py）──
+        # 记录同一家庭户成员（用于检测）
+        household_id = db_household_ids.get(id_card)
+        if household_id:
+            if household_id not in seen_household_members:
+                seen_household_members[household_id] = []
+            seen_household_members[household_id].append({
+                "id_card": id_card,
+                "name": name,
+                "row": row_no,
+                "village": village,
+                "group": group,
+                "remark": row.remark,  # Excel中的备注
+            })
+
+    # ── 2.5 同一家庭户多人申请检测 ──
+    # 检测Excel内部同一家庭户多人申请
+    for household_id, members in seen_household_members.items():
+        if len(members) > 1:
+            # 获取该家庭户在数据库中的已有申请记录（含备注）
+            db_existing = db_hh_existing_apps.get(household_id, [])
+            for m in members:
+                household_duplicates.append({
+                    "row": m["row"],
+                    "name": m["name"],
+                    "id_card": m["id_card"],
+                    "village": m["village"],
+                    "group": m["group"],
+                    "household_id": household_id,
+                    "total_count": len(members),
+                    "other_members": [mem["name"] for mem in members if mem["id_card"] != m["id_card"]],
+                    "excel_remark": m["remark"],  # Excel行备注
+                    "db_existing_apps": db_existing,  # 数据库中已有申请记录（含备注）
+                    "error": f"同一家庭户有{len(members)}人同时申请",
+                })
 
     # ── 3. 数据库中存在但 Excel 中没有的：减少的农户 ──
     excel_id_cards = set(seen_id_cards.keys())
@@ -454,6 +518,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         len(format_errors) + len(village_errors) + len(duplicate_errors)
         + len(gender_mismatch) + len(error_library_hits) + len(area_anomalies)
         + len(area_missing) + len(age_anomaly) + len(deceased_farmers)
+        + len(household_duplicates)
     )
     summary = {
         "total_rows": total_rows,
@@ -468,7 +533,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         "area_missing": len(area_missing),
         "age_anomaly": len(age_anomaly),
         "deceased_farmers": len(deceased_farmers),
-        "household_duplicates": 0,  # 已移除，保留字段供前端兼容
+        "household_duplicates": len(household_duplicates),
         "new_farmers": len(new_farmers),
         "removed_farmers": len(removed_farmers),
         "changed_farmers": len(changed_farmers),
@@ -486,7 +551,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         "area_missing": area_missing,
         "age_anomaly": age_anomaly,
         "deceased_farmers": deceased_farmers,
-        "household_duplicates": [],  # 已移除，保留字段供前端兼容
+        "household_duplicates": household_duplicates,
         "new_farmers": new_farmers,
         "removed_farmers": removed_farmers,
         "changed_farmers": changed_farmers,

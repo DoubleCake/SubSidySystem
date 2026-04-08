@@ -89,7 +89,7 @@ def add_summary_sheet(wb: Workbook, summary: Dict[str, Any]):
         ["面积缺失", summary.get("area_missing", 0)],
         ["年龄异常", summary.get("age_anomaly", 0)],
         ["死亡农户", summary.get("deceased_farmers", 0)],
-        # ["家庭重复", ...] 同一家庭多成员申请检测已移除
+        ["同一家庭多成员申请", summary.get("household_duplicates", 0)],
         ["新增农户", summary.get("new_farmers", 0)],
         ["减少农户", summary.get("removed_farmers", 0)],
         ["字段变更", summary.get("changed_farmers", 0)],
@@ -216,7 +216,35 @@ def export_precheck_report(result: Dict[str, Any]) -> BytesIO:
         })
     add_sheet_from_data(wb, "面积异常", headers, data)
 
-    # 8. 同一家庭多成员申请（已移除）
+    # 8. 同一家庭多成员申请
+    headers = [
+        "行号", "姓名", "身份证号", "所在村", "所在组",
+        "家庭户ID", "申请人数", "其他成员", "Excel备注", "数据库已有申请记录备注"
+    ]
+    data = []
+    for r in result.get("household_duplicates", []):
+        # 格式化数据库已有申请记录备注
+        db_remarks = []
+        for app in r.get("db_existing_apps", []):
+            remark_text = f"{app.get('real_name', '')}({app.get('subsidy_name', '')})"
+            if app.get('remark'):
+                remark_text += f": {app['remark']}"
+            db_remarks.append(remark_text)
+        db_remark_str = "；".join(db_remarks) if db_remarks else ""
+
+        data.append({
+            "行号": r.get("row"),
+            "姓名": r.get("name"),
+            "身份证号": r.get("id_card"),
+            "所在村": r.get("village"),
+            "所在组": r.get("group"),
+            "家庭户ID": r.get("household_id"),
+            "申请人数": r.get("total_count"),
+            "其他成员": "、".join(r.get("other_members", [])) if r.get("other_members") else "",
+            "Excel备注": r.get("excel_remark", ""),
+            "数据库已有申请记录备注": db_remark_str,
+        })
+    add_sheet_from_data(wb, "同一家庭多成员申请", headers, data)
 
     # 10. 新增农户
     headers = ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"]
@@ -381,7 +409,22 @@ def _transform_sheet_data(sheet_name: str, raw_rows: List[Dict[str, Any]]) -> Li
             "所在村": r.get("village"), "所在组": r.get("group"),
             "说明": r.get("reason", r.get("note", "")),
         },
-        # "同一家庭多成员申请": 已移除
+        "同一家庭多成员申请": lambda r: {
+            "行号": r.get("row"),
+            "姓名": r.get("name"),
+            "身份证号": r.get("id_card"),
+            "所在村": r.get("village"),
+            "所在组": r.get("group"),
+            "家庭户ID": r.get("household_id"),
+            "申请人数": r.get("total_count"),
+            "其他成员": "、".join(r.get("other_members", [])) if r.get("other_members") else "",
+            "Excel备注": r.get("excel_remark", ""),
+            "数据库已有申请记录备注": "；".join([
+                f"{app.get('real_name', '')}({app.get('subsidy_name', '')})" +
+                (f": {app['remark']}" if app.get('remark') else "")
+                for app in r.get("db_existing_apps", [])
+            ]) if r.get("db_existing_apps") else "",
+        },
         "新增农户": lambda r: {
             "行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
             "所在村": r.get("village"), "所在组": r.get("group"),
@@ -412,7 +455,8 @@ def _get_all_villages(result: Dict[str, Any]) -> List[str]:
     village_fields = ["error_library_hits", "format_errors", "village_errors",
                       "duplicate_errors", "gender_mismatch", "area_anomalies",
                       "new_farmers", "removed_farmers", "changed_farmers",
-                      ]  # household_duplicates 已移除
+                      "household_duplicates"
+                      ]
 
     for field in village_fields:
         data = result.get(field, [])
@@ -458,7 +502,9 @@ def export_precheck_report_by_village(
                    ["行号", "姓名", "身份证号", "所在村", "所在组", "年龄", "出生年份", "说明"]),
         "死亡农户": (add_sheet_from_data, "deceased_farmers",
                    ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"]),
-        # "同一家庭多成员申请": 已移除
+        "同一家庭多成员申请": (add_sheet_from_data, "household_duplicates",
+                           ["行号", "姓名", "身份证号", "所在村", "所在组",
+                            "家庭户ID", "申请人数", "其他成员", "Excel备注", "数据库已有申请记录备注"]),
         "新增农户": (add_sheet_from_data, "new_farmers",
                     ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"]),
         "减少农户": (add_sheet_from_data, "removed_farmers",
@@ -576,7 +622,9 @@ def export_precheck_report_with_options(
              ["行号", "姓名", "身份证号", "所在村", "所在组", "年龄", "出生年份", "说明"]),
             ("死亡农户", "deceased_farmers",
              ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"]),
-            # ("同一家庭多成员申请", ...): 已移除
+            ("同一家庭多成员申请", "household_duplicates",
+             ["行号", "姓名", "身份证号", "所在村", "所在组",
+              "家庭户ID", "申请人数", "其他成员", "Excel备注", "数据库已有申请记录备注"]),
             ("新增农户", "new_farmers",
              ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"]),
             ("减少农户", "removed_farmers",
