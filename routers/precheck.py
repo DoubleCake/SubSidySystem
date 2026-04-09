@@ -143,6 +143,8 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
     db_hh_season_used: dict[int, float] = {}  # household_id → 当季已用面积
     # 加载数据库中本年度、本季、本补贴类型的家庭户申请记录（含备注）
     db_hh_existing_apps: dict[int, list[dict]] = {}  # household_id → [申请记录列表]
+    # 加载数据库中本年度已有申请记录的身份证（用于检测重复申请）
+    db_existing_app_id_cards: dict[str, list[dict]] = {}  # id_card → [申请记录列表]
     if season in VALID_SEASONS and req.compare_year:
         rows_used = db.query(
             FarmerProfile.household_id,
@@ -156,6 +158,34 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
             SubsidyType.season == season,
         ).group_by(FarmerProfile.household_id).all()
         db_hh_season_used = {r.household_id: float(r.total_area or 0) for r in rows_used}
+
+        # 加载本年度已有申请记录的身份证信息
+        existing_apps = db.query(
+            FarmerProfile.id_card,
+            FarmerProfile.real_name,
+            SubsidyApplication.remark,
+            SubsidyType.subsidy_name,
+            SubsidyApplication.pay_status
+        ).join(
+            FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id
+        ).join(
+            SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id
+        ).filter(
+            SubsidyApplication.apply_year == req.compare_year,
+            SubsidyType.season == season,
+        ).all()
+
+        for app in existing_apps:
+            if app.id_card:
+                if app.id_card not in db_existing_app_id_cards:
+                    db_existing_app_id_cards[app.id_card] = []
+                status_text = "预申请" if app.pay_status == 0 else "已发放"
+                db_existing_app_id_cards[app.id_card].append({
+                    "real_name": app.real_name,
+                    "subsidy_name": app.subsidy_name,
+                    "remark": app.remark,
+                    "status": status_text
+                })
 
         # 加载详细的申请记录（含备注）用于展示
         existing_apps = db.query(
@@ -190,6 +220,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
     village_errors:      list[dict] = []   # 村组不存在
     gender_mismatch:     list[dict] = []   # 性别与身份证不符
     duplicate_errors:    list[dict] = []   # Excel 内部重复身份证
+    db_duplicate_apps:   list[dict] = []   # 数据库中已有申请记录重复
     changed_farmers:     list[dict] = []   # 与数据库比对发现字段变化
     new_farmers:         list[dict] = []   # Excel 中有、数据库中没有
     error_library_hits:  list[dict] = []   # 错误库命中
@@ -307,7 +338,22 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
             continue
         seen_id_cards[id_card] = row_no
 
-        # ── 2.8 错误库交叉比对（身份证+姓名同时匹配）──
+        # ── 2.8 数据库已有申请记录重复 ──
+        if id_card in db_existing_app_id_cards:
+            existing_apps = db_existing_app_id_cards[id_card]
+            apps_summary = "；".join([
+                f"{app['real_name']}({app['subsidy_name']}-{app['status']})" +
+                (f":{app['remark']}" if app['remark'] else "")
+                for app in existing_apps
+            ])
+            db_duplicate_apps.append({
+                "row": row_no, "name": name, "id_card": id_card,
+                "village": village, "group": group,
+                "existing_apps": apps_summary,
+                "error": f"该人员本年度本季已有申请记录：{apps_summary}"
+            })
+
+        # ── 2.9 错误库交叉比对（身份证+姓名同时匹配）──
         if (id_card, name) in error_lib:
             lib_rec = error_lib[(id_card, name)]
             error_library_hits.append({
@@ -318,7 +364,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
                 "source": lib_rec.source,
             })
 
-        # ── 2.9 性别与身份证不符 ──
+        # ── 2.10 性别与身份证不符 ──
         if row.gender:
             gender_text = str(row.gender).strip()
             gender_from_id = parse_gender_from_id(id_card)
@@ -332,7 +378,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
                     "error": f"Excel中性别为「{gender_text}」，但身份证显示为「{'男' if gender_from_id == 1 else '女'}」"
                 })
 
-        # ── 2.10 面积异常检查 ──
+        # ── 2.11 面积异常检查 ──
         if contract_area_val is not None and id_card in db_land_areas:
             db_contracted   = db_land_areas[id_card]         # 数据库登记的承包地面积（基准）
             t_out           = trust_area_val      or 0       # 流转出（给出去，减少自有种植）
@@ -373,7 +419,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
                     "exceed_amount": anomaly_result["exceed_amount"],         # 超出量（如果有）
                 })
 
-        # ── 2.11 与数据库比对：字段变更 ──
+        # ── 2.12 与数据库比对：字段变更 ──
         if id_card in db_farmers:
             db_f = db_farmers[id_card]
             changes: list[str] = []
@@ -503,7 +549,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         len(format_errors) + len(village_errors) + len(duplicate_errors)
         + len(gender_mismatch) + len(error_library_hits) + len(area_anomalies)
         + len(area_missing) + len(age_anomaly) + len(deceased_farmers)
-        + len(household_duplicates)
+        + len(household_duplicates) + len(db_duplicate_apps)
     )
     summary = {
         "total_rows": total_rows,
@@ -512,6 +558,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         "format_errors": len(format_errors),
         "village_errors": len(village_errors),
         "duplicate_errors": len(duplicate_errors),
+        "db_duplicate_apps": len(db_duplicate_apps),
         "gender_mismatch": len(gender_mismatch),
         "error_library_hits": len(error_library_hits),
         "area_anomalies": len(area_anomalies),
@@ -530,6 +577,7 @@ def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
         "format_errors": format_errors,
         "village_errors": village_errors,
         "duplicate_errors": duplicate_errors,
+        "db_duplicate_apps": db_duplicate_apps,
         "gender_mismatch": gender_mismatch,
         "error_library_hits": error_library_hits,
         "area_anomalies": area_anomalies,

@@ -58,6 +58,8 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
     setActiveTab(tab)
     setPage(1)
     setSelectedIds([])
+    // 切换tab时清空面积统计，下次展开时会重新加载对应数据源
+    setAreaStats(null)
   }
 
   // 两个列表分别维护独立的搜索和筛选状态
@@ -581,7 +583,8 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
     if (!areaStatsExpanded) return
     setLoadingAreaStats(true)
     try {
-      const data = await api.getAreaStatsByVillage(subsidyType.id, subsidyType.subsidy_year)
+      const dataSource = activeTab === 'disbursement' ? 'payment' : 'application'
+      const data = await api.getAreaStatsByVillage(subsidyType.id, subsidyType.subsidy_year, dataSource)
       setAreaStats(data)
     } catch (error) {
       console.error('加载面积统计失败:', error)
@@ -589,7 +592,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
     } finally {
       setLoadingAreaStats(false)
     }
-  }, [subsidyType.id, subsidyType.subsidy_year, areaStatsExpanded, show])
+  }, [subsidyType.id, subsidyType.subsidy_year, areaStatsExpanded, activeTab, show])
 
   // 导出面积统计Excel
   const handleExportAreaStats = () => {

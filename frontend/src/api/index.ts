@@ -186,8 +186,16 @@ export interface AreaStatsResponse {
   data_source: 'payment' | 'application'
 }
 
-export const getAreaStatsByVillage = (subsidyTypeId: number, year: number) =>
-  req<AreaStatsResponse>(`/api/subsidies/applications/stats-by-village?subsidy_type_id=${subsidyTypeId}&year=${year}`)
+export const getAreaStatsByVillage = (subsidyTypeId: number, year: number, dataSource?: 'payment' | 'application') => {
+  const params = new URLSearchParams({
+    subsidy_type_id: String(subsidyTypeId),
+    year: String(year)
+  })
+  if (dataSource) {
+    params.append('data_source', dataSource)
+  }
+  return req<AreaStatsResponse>(`/api/subsidies/applications/stats-by-village?${params.toString()}`)
+}
 
 // ── AI ──
 export const aiAnalyze = (data: { year: number; village_name?: string; question: string }) =>

@@ -519,13 +519,14 @@ export interface CheckResult {
     format_errors: number
     village_errors: number
     duplicate_errors: number
+    db_duplicate_apps: number
     gender_mismatch: number
     error_library_hits: number
     area_anomalies: number
     area_missing: number
     age_anomaly: number
     deceased_farmers: number
-    household_duplicates: number  // 已移除，保留供兼容（始终为0）
+    household_duplicates: number
     new_farmers: number
     removed_farmers: number
     changed_farmers: number
@@ -534,13 +535,14 @@ export interface CheckResult {
   format_errors: Array<{ row: number; name: string; id_card: string; village: string; group: string; errors: string[]; error_count: number }>
   village_errors: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
   duplicate_errors: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
+  db_duplicate_apps: Array<{ row: number; name: string; id_card: string; village: string; group: string; existing_apps: string; error: string }>
   gender_mismatch: Array<{ row: number; name: string; id_card: string; village: string; group: string; excel_gender: string; id_card_gender: string; error: string }>
   error_library_hits: Array<{ row: number; name: string; id_card: string; village: string; group: string; error_type: string; error_reason: string; source: string }>
   area_anomalies: Array<{ row: number; name: string; id_card: string; village: string; group: string; anomaly_type: string; anomaly_details: string; contract_area: number; trust_out_area: number; trust_in_area: number; no_subsidy_area: number; actual_subsidy_area: number; self_occupy: number; hh_used: number; hh_total: number; db_contract_area: number; exceed_amount: number }>
   area_missing: Array<{ row: number; name: string; id_card: string; village: string; group: string; contract_area: number; error: string }>
   age_anomaly: Array<{ row: number; name: string; id_card: string; village: string; group: string; age: number; birth_year: number; error: string }>
   deceased_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
-  household_duplicates: never[]  // 同一家庭多成员申请已移除，始终为空数组
+  household_duplicates: Array<{ row: number; name: string; id_card: string; village: string; group: string; household_id: string; total_count: number; other_members: string[]; excel_remark: string; db_existing_apps: Array<{ real_name: string; subsidy_name: string; remark: string }> }>
   new_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; village_group_id: number | null }>
   removed_farmers: Array<{ id_card: string; name: string; village: string; group: string; farmer_id: number; note: string }>
   changed_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; db_name: string; db_village: string; db_group: string; changes: string[]; farmer_id: number }>

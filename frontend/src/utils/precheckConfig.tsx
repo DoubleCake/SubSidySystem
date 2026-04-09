@@ -26,6 +26,7 @@ export type PrecheckErrorType =
   | 'format_errors'
   | 'village_errors'
   | 'duplicate_errors'
+  | 'db_duplicate_apps'
   | 'gender_mismatch'
   | 'area_anomalies'
   | 'area_missing'
@@ -96,6 +97,18 @@ export const PRECHECK_TABLE_CONFIGS: Record<PrecheckErrorType, TableConfig> = {
     headers: ['行号', '姓名', '身份证号', '所在村', '所在组', '说明'],
     rowMapper: (r) => [
       r.row, r.name, r.id_card, r.village || '-', r.group || '-',
+      <span key="e" className="text-amber-600 text-xs">{r.error}</span>,
+    ],
+  },
+
+  // 数据库已有申请记录重复
+  db_duplicate_apps: {
+    field: 'db_duplicate_apps',
+    title: (count) => `⚠️ 数据库已有申请记录（${count}条）— 该人员本年度本季已有申请`,
+    headers: ['行号', '姓名', '身份证号', '所在村', '所在组', '已有申请记录', '说明'],
+    rowMapper: (r) => [
+      r.row, r.name, r.id_card, r.village || '-', r.group || '-',
+      <span key="ea" className="text-xs text-stone-600">{r.existing_apps}</span>,
       <span key="e" className="text-amber-600 text-xs">{r.error}</span>,
     ],
   },
@@ -237,6 +250,7 @@ export const getPrecheckTableConfigs = (): TableConfig[] => [
   PRECHECK_TABLE_CONFIGS.format_errors,
   PRECHECK_TABLE_CONFIGS.village_errors,
   PRECHECK_TABLE_CONFIGS.duplicate_errors,
+  PRECHECK_TABLE_CONFIGS.db_duplicate_apps,
   PRECHECK_TABLE_CONFIGS.gender_mismatch,
   PRECHECK_TABLE_CONFIGS.area_anomalies,
   PRECHECK_TABLE_CONFIGS.area_missing,

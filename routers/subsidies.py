@@ -334,30 +334,23 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
                 continue
             row = dict(row)
             row["farmer_id"] = farmer.id
-            # 申报(pay_status=0)和发放(pay_status>0)分别独立检查重复
+            # 检查完全相同的记录是否已存在（防止重复导入同一个Excel）
             row_pay_status = row.get("pay_status", 0)
-            if row_pay_status == 0:
-                exists = db.query(SubsidyApplication).filter(
-                    SubsidyApplication.farmer_id == farmer.id,
-                    SubsidyApplication.subsidy_type_id == row["subsidy_type_id"],
-                    SubsidyApplication.apply_year == row["apply_year"],
-                    SubsidyApplication.pay_status == 0,
-                ).first()
-                if exists:
-                    sp.rollback()
-                    skipped += 1
-                    continue
-            else:
-                exists = db.query(SubsidyApplication).filter(
-                    SubsidyApplication.farmer_id == farmer.id,
-                    SubsidyApplication.subsidy_type_id == row["subsidy_type_id"],
-                    SubsidyApplication.apply_year == row["apply_year"],
-                    SubsidyApplication.pay_status > 0,
-                ).first()
-                if exists:
-                    sp.rollback()
-                    skipped += 1
-                    continue
+            exists = db.query(SubsidyApplication).filter(
+                SubsidyApplication.farmer_id == farmer.id,
+                SubsidyApplication.subsidy_type_id == row["subsidy_type_id"],
+                SubsidyApplication.apply_year == row["apply_year"],
+                SubsidyApplication.pay_status == row_pay_status,
+                SubsidyApplication.apply_area == (float(row.get("apply_area")) if row.get("apply_area") is not None else None),
+                SubsidyApplication.contract_area == (float(row.get("contract_area")) if row.get("contract_area") is not None else None),
+                SubsidyApplication.trust_area == (float(row.get("trust_area")) if row.get("trust_area") is not None else None),
+                SubsidyApplication.no_subsidy_area == (float(row.get("no_subsidy_area")) if row.get("no_subsidy_area") is not None else None),
+                SubsidyApplication.remark == row.get("remark"),
+            ).first()
+            if exists:
+                sp.rollback()
+                skipped += 1
+                continue
             # 从Excel数据中提取村组信息
             excel_village_name = str(row.get("village_name", "")).strip()
             excel_group_no_str = str(row.get("group_no", "")).strip()
@@ -515,28 +508,8 @@ def list_application_villages(
 
 @router.post("/applications")
 def create_application(data: ApplicationCreate, db: Session = Depends(get_db)):
-    # 唯一性检查：申报(pay_status=0)和发放(pay_status>0)分别独立检查
-    # 即同一农户同一年度同一补贴类型可以同时有申报记录和发放记录
-    if data.pay_status == 0:
-        # 申报记录：只检查是否已有申报记录
-        exists = db.query(SubsidyApplication).filter(
-            SubsidyApplication.farmer_id == data.farmer_id,
-            SubsidyApplication.subsidy_type_id == data.subsidy_type_id,
-            SubsidyApplication.apply_year == data.apply_year,
-            SubsidyApplication.pay_status == 0,
-        ).first()
-        if exists:
-            raise HTTPException(status_code=400, detail="该农户本年度该补贴已存在申报记录")
-    else:
-        # 发放记录：只检查是否已有发放记录（pay_status>0）
-        exists = db.query(SubsidyApplication).filter(
-            SubsidyApplication.farmer_id == data.farmer_id,
-            SubsidyApplication.subsidy_type_id == data.subsidy_type_id,
-            SubsidyApplication.apply_year == data.apply_year,
-            SubsidyApplication.pay_status > 0,
-        ).first()
-        if exists:
-            raise HTTPException(status_code=400, detail="该农户本年度该补贴已存在发放记录")
+    # 创建时不检查重复，允许同一农户多条记录，重复检测只在precheck时进行
+    # 只在完全一模一样的记录时才提示，但不阻止创建
 
     # 快照银行卡
     farmer = db.get(FarmerProfile, data.farmer_id)
@@ -891,6 +864,7 @@ def precheck_applications(
 
     # 加载数据库中本年度、本季、本补贴类型的家庭户申请记录（含备注）
     db_hh_existing_apps: dict[int, list[dict]] = {}  # household_id → [申请记录列表]
+    db_existing_app_id_cards: dict[str, list[dict]] = {}  # id_card → [申请记录列表]
     if season and compare_year:
         existing_apps = db.query(
             FarmerProfile.household_id,
@@ -898,7 +872,8 @@ def precheck_applications(
             FarmerProfile.id_card,
             SubsidyApplication.remark,
             SubsidyType.subsidy_name,
-            SubsidyType.season
+            SubsidyType.season,
+            SubsidyApplication.pay_status
         ).join(
             FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id
         ).join(
@@ -918,6 +893,17 @@ def precheck_applications(
                 "subsidy_name": app.subsidy_name,
                 "season": app.season
             })
+            # 同时按身份证索引，用于检测重复申请
+            if app.id_card:
+                if app.id_card not in db_existing_app_id_cards:
+                    db_existing_app_id_cards[app.id_card] = []
+                status_text = "预申请" if app.pay_status == 0 else "已发放"
+                db_existing_app_id_cards[app.id_card].append({
+                    "real_name": app.real_name,
+                    "subsidy_name": app.subsidy_name,
+                    "remark": app.remark,
+                    "status": status_text
+                })
 
     # 错误库（用于错误库命中检查）
     error_lib: dict[tuple[str, str], dict] = {}
@@ -1004,6 +990,7 @@ def precheck_applications(
     format_errors: list[dict] = []
     village_errors: list[dict] = []
     duplicate_errors: list[dict] = []
+    db_duplicate_apps: list[dict] = []
     error_library_hits: list[dict] = []
     gender_mismatch: list[dict] = []
     area_anomalies: list[dict] = []
@@ -1067,6 +1054,21 @@ def precheck_applications(
             })
             continue
         seen_id_cards[id_card] = row_no
+
+        # 数据库已有申请记录重复
+        if id_card in db_existing_app_id_cards:
+            existing_apps = db_existing_app_id_cards[id_card]
+            apps_summary = "；".join([
+                f"{app['real_name']}({app['subsidy_name']}-{app['status']})" +
+                (f":{app['remark']}" if app['remark'] else "")
+                for app in existing_apps
+            ])
+            db_duplicate_apps.append({
+                "row": row_no, "name": name, "id_card": id_card,
+                "village": village, "group": group,
+                "existing_apps": apps_summary,
+                "error": f"该人员本年度本季已有申请记录：{apps_summary}"
+            })
 
         # 错误库交叉比对（身份证+姓名同时匹配）
         if (id_card.strip().upper(), name.strip()) in error_lib:
@@ -1241,7 +1243,8 @@ def precheck_applications(
     error_rows = (
         len(format_errors) + len(village_errors) + len(duplicate_errors)
         + len(gender_mismatch) + len(error_library_hits) + len(area_anomalies)
-        + len(area_missing) + len(age_anomaly) + len(deceased_farmers) + len(household_duplicates)
+        + len(area_missing) + len(age_anomaly) + len(deceased_farmers)
+        + len(household_duplicates) + len(db_duplicate_apps)
     )
     summary = {
         "total_rows": len(rows_data),
@@ -1250,6 +1253,7 @@ def precheck_applications(
         "format_errors": len(format_errors),
         "village_errors": len(village_errors),
         "duplicate_errors": len(duplicate_errors),
+        "db_duplicate_apps": len(db_duplicate_apps),
         "gender_mismatch": len(gender_mismatch),
         "error_library_hits": len(error_library_hits),
         "area_anomalies": len(area_anomalies),
@@ -1268,6 +1272,7 @@ def precheck_applications(
         "format_errors": format_errors,
         "village_errors": village_errors,
         "duplicate_errors": duplicate_errors,
+        "db_duplicate_apps": db_duplicate_apps,
         "gender_mismatch": gender_mismatch,
         "error_library_hits": error_library_hits,
         "area_anomalies": area_anomalies,
@@ -2093,6 +2098,7 @@ def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
 def get_stats_by_village(
     subsidy_type_id: int = Query(...),
     year: int = Query(...),
+    data_source: Optional[str] = Query(None, description="数据源: 'payment' 或 'application'，不指定则自动选择"),
     db: Session = Depends(get_db)
 ):
     """
@@ -2136,7 +2142,7 @@ def get_stats_by_village(
         ORDER BY COALESCE(sa.apply_village_name, '未知村')
     """)
 
-    # 发放表统计（如果有发放数据的话）- 使用发放表的快照村组字段
+    # 发放表统计 - 使用发放表的快照村组字段
     payment_stats_sql = text("""
         WITH exclude_payments AS (
             SELECT DISTINCT sp.id
@@ -2154,7 +2160,7 @@ def get_stats_by_village(
                 )
         )
         SELECT
-            COALESCE(sp.payment_village_name, v.village_name, '未知村') as village_name,
+            COALESCE(sp.payment_village_name, '未知村') as village_name,
             COUNT(DISTINCT fp.id) as farmer_count,
             COUNT(DISTINCT sp.id) as record_count,
             ROUND(SUM(COALESCE(sp.apply_area, 0)), 2) as total_apply_area,
@@ -2164,22 +2170,26 @@ def get_stats_by_village(
             ROUND(SUM(COALESCE(sp.amount, 0)), 2) as total_amount
         FROM subsidy_payment sp
         LEFT JOIN farmer_profile fp ON sp.farmer_id = fp.id
-        LEFT JOIN family_household hh ON fp.household_id = hh.id
-        LEFT JOIN village v ON hh.village_id = v.id
         WHERE sp.subsidy_type_id = :subsidy_type_id
             AND sp.payment_year = :year
             AND sp.id NOT IN (SELECT id FROM exclude_payments)
-        GROUP BY COALESCE(sp.payment_village_name, v.village_name, '未知村')
-        ORDER BY COALESCE(sp.payment_village_name, v.village_name, '未知村')
+        GROUP BY COALESCE(sp.payment_village_name, '未知村')
+        ORDER BY COALESCE(sp.payment_village_name, '未知村')
     """)
 
-    # 先查有没有发放数据
-    payment_count = db.query(func.count(SubsidyPayment.id)).filter(
-        SubsidyPayment.subsidy_type_id == subsidy_type_id,
-        SubsidyPayment.payment_year == year
-    ).scalar()
+    # 根据参数决定数据源
+    if data_source == 'payment':
+        use_payment = True
+    elif data_source == 'application':
+        use_payment = False
+    else:
+        # 自动选择：先查有没有发放数据
+        payment_count = db.query(func.count(SubsidyPayment.id)).filter(
+            SubsidyPayment.subsidy_type_id == subsidy_type_id,
+            SubsidyPayment.payment_year == year
+        ).scalar()
+        use_payment = payment_count > 0
 
-    use_payment = payment_count > 0
     sql = payment_stats_sql if use_payment else stats_sql
 
     params = {
