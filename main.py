@@ -193,15 +193,20 @@ def migrate_db():
             print(f"  历史数据回填跳过（可能已填充）: {e}")
             conn.rollback()
 
-    # 回填 village_group 表：从 family_household 中提取各村现有组
+    # 回填 village_group 表：从 family_household + subsidy_payment 提取各村现有组
     try:
-        backfill = text("""
+        conn.execute(text("""
             INSERT OR IGNORE INTO village_group (village_id, group_no)
             SELECT DISTINCT village_id, format_group_no(group_no)
             FROM family_household
             WHERE village_id IS NOT NULL AND group_no IS NOT NULL
-        """)
-        conn.execute(backfill)
+        """))
+        conn.execute(text("""
+            INSERT OR IGNORE INTO village_group (village_id, group_no)
+            SELECT DISTINCT payment_village_id, format_group_no(payment_group_no)
+            FROM subsidy_payment
+            WHERE payment_village_id IS NOT NULL AND payment_group_no IS NOT NULL
+        """))
         conn.commit()
         print("  village_group 回填完成 [OK]")
     except Exception as e:

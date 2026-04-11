@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Modal from '../components/Modal'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
@@ -77,12 +77,46 @@ export default function SettingsPage() {
   const [quickAddVillage, setQuickAddVillage] = useState<string | null>(null)
   const [quickGroupNo, setQuickGroupNo] = useState('')
 
+  // 耕地信息
+  const [landInfoMap, setLandInfoMap] = useState<Record<number, VillageLandInfo>>({})
+  const [editingLandId, setEditingLandId] = useState<number | null>(null)
+  const [landEditForm, setLandEditForm] = useState<Partial<VillageLandInfo>>({})
+  const [savingLand, setSavingLand] = useState<number | null>(null)
+
   const reload = useCallback(async () => {
     setLoading(true)
     try { setGroups(await loadGroups()) } finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { reload() }, [reload])
+  const reloadLand = useCallback(async () => {
+    try {
+      const res = await req<VillageLandInfo[]>('/api/agri-tasks/village-land-info')
+      const map: Record<number, VillageLandInfo> = {}
+      res.forEach(r => { map[r.village_id] = r })
+      setLandInfoMap(map)
+    } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => { reload(); reloadLand() }, [reload, reloadLand])
+
+  const openLandEdit = (vid: number) => {
+    const info = landInfoMap[vid] || { village_id: vid }
+    setLandEditForm({ ...info })
+    setEditingLandId(vid)
+  }
+
+  const saveLand = async (vid: number) => {
+    setSavingLand(vid)
+    try {
+      await req(`/api/agri-tasks/village-land-info/${vid}`, {
+        method: 'PUT', body: JSON.stringify(landEditForm),
+      })
+      show('✓ 耕地信息已保存')
+      setEditingLandId(null)
+      reloadLand()
+    } catch (e: unknown) { show((e as Error).message, 'err') }
+    finally { setSavingLand(null) }
+  }
 
   const villageMap = groupByVillage(groups)
   const villages = [...villageMap.keys()].sort()
@@ -232,6 +266,79 @@ export default function SettingsPage() {
                       </div>
                     ))}
                   </div>
+
+                  {/* 耕地信息 */}
+                  {(() => {
+                    const vid = glist[0]?.village_id
+                    if (!vid) return null
+                    const li = landInfoMap[vid]
+                    const isEditing = editingLandId === vid
+                    return (
+                      <div className="border-t border-stone-100 px-5 py-2.5 bg-stone-50/50">
+                        {isEditing ? (
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {([
+                              ['paddy_area',    '水田面积(亩)'],
+                              ['dry_land_area', '旱地面积(亩)'],
+                              ['arable_area',   '可耕种面积(亩)'],
+                            ] as const).map(([field, label]) => (
+                              <div key={field}>
+                                <div className="text-xs text-stone-400 mb-0.5">{label}</div>
+                                <input type="number" min="0" step="0.01"
+                                  value={(landEditForm[field] as number | undefined) ?? ''}
+                                  onChange={e => setLandEditForm(f => ({ ...f, [field]: e.target.value === '' ? null : Number(e.target.value) }))}
+                                  className="w-full border border-stone-200 rounded px-2 py-1 text-xs font-mono" />
+                              </div>
+                            ))}
+                            {([
+                              ['irrigation_level', '灌溉条件', IRRIGATION_OPTS],
+                              ['terrain_type',     '地形',     TERRAIN_OPTS],
+                              ['soil_quality',     '土壤质量', SOIL_OPTS],
+                            ] as const).map(([field, label, opts]) => (
+                              <div key={field}>
+                                <div className="text-xs text-stone-400 mb-0.5">{label}</div>
+                                <select value={(landEditForm[field] as string | undefined) ?? ''}
+                                  onChange={e => setLandEditForm(f => ({ ...f, [field]: e.target.value || null }))}
+                                  className="w-full border border-stone-200 rounded px-2 py-1 text-xs bg-white">
+                                  <option value="">-</option>
+                                  {opts.map((o: string) => <option key={o}>{o}</option>)}
+                                </select>
+                              </div>
+                            ))}
+                            <div className="col-span-2 sm:col-span-4 flex gap-2 mt-1">
+                              <button onClick={() => saveLand(vid)} disabled={savingLand === vid}
+                                className="text-xs bg-emerald-600 text-white px-3 py-1 rounded hover:bg-emerald-700 disabled:opacity-50">
+                                {savingLand === vid ? '保存中...' : '保存'}
+                              </button>
+                              <button onClick={() => setEditingLandId(null)}
+                                className="text-xs text-stone-400 border border-stone-200 px-2 py-1 rounded hover:bg-stone-100">
+                                取消
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <span className="text-xs text-stone-400">耕地：</span>
+                            {li?.paddy_area != null
+                              ? <span className="text-xs text-stone-600">水田 <b className="font-mono">{fmt(li.paddy_area)}</b> 亩</span>
+                              : <span className="text-xs text-stone-300">水田 -</span>}
+                            {li?.dry_land_area != null
+                              ? <span className="text-xs text-stone-600">旱地 <b className="font-mono">{fmt(li.dry_land_area)}</b> 亩</span>
+                              : <span className="text-xs text-stone-300">旱地 -</span>}
+                            {li?.arable_area != null
+                              ? <span className="text-xs text-stone-600">可耕 <b className="font-mono">{fmt(li.arable_area)}</b> 亩</span>
+                              : <span className="text-xs text-stone-300">可耕 -</span>}
+                            {li?.irrigation_level && <span className="text-xs text-stone-400">灌溉:{li.irrigation_level}</span>}
+                            {li?.terrain_type && <span className="text-xs text-stone-400">{li.terrain_type}</span>}
+                            <button onClick={() => openLandEdit(vid)}
+                              className="ml-auto text-xs text-blue-500 hover:underline">
+                              {li?.paddy_area != null || li?.arable_area != null ? '编辑耕地信息' : '录入耕地信息'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </div>
               )
             })}
@@ -346,6 +453,8 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
   const [editing, setEditing] = useState<number | null>(null)
   const [editForms, setEditForms] = useState<{ [vid: number]: Partial<VillageLandInfo> }>({})
   const [saving, setSaving] = useState<number | null>(null)
+  const [importing, setImporting] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -378,14 +487,105 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
     setEditForms(prev => ({ ...prev, [vid]: { ...prev[vid], [field]: value } }))
   }
 
+  // 下载导入模板
+  const downloadTemplate = async () => {
+    const XLSX = await import('xlsx')
+    const headers = ['村名', '水田面积', '旱地面积', '可耕种面积', '灌溉条件', '地形', '土壤质量']
+    const examples = infos.length > 0
+      ? infos.map(i => [i.village_name, i.paddy_area ?? '', i.dry_land_area ?? '', i.arable_area ?? '', i.irrigation_level ?? '', i.terrain_type ?? '', i.soil_quality ?? ''])
+      : [['示例村', 1200, 300, 1500, '完善', '平坝', '良']]
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...examples])
+    ws['!cols'] = headers.map(() => ({ wch: 14 }))
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '耕地信息')
+    XLSX.writeFile(wb, '耕地信息导入模板.xlsx')
+  }
+
+  // Excel 导入处理
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+
+    const COL_MAP: Record<string, string> = {
+      '村名': 'village_name', '水田面积': 'paddy_area', '旱地面积': 'dry_land_area',
+      '可耕种面积': 'arable_area', '灌溉条件': 'irrigation_level', '地形': 'terrain_type', '土壤质量': 'soil_quality',
+    }
+    const IRRIGATION_VALID = new Set(IRRIGATION_OPTS)
+    const TERRAIN_VALID    = new Set(TERRAIN_OPTS)
+    const SOIL_VALID       = new Set(SOIL_OPTS)
+
+    setImporting(true)
+    try {
+      const XLSX = await import('xlsx')
+      const buf  = await file.arrayBuffer()
+      const wb   = XLSX.read(buf, { type: 'array' })
+      const ws   = wb.Sheets[wb.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' })
+
+      // 建立村名→village_id 映射
+      const nameToId = new Map<string, number>(infos.map(i => [i.village_name, i.village_id]))
+
+      let ok = 0, skipped = 0
+      const errors: string[] = []
+
+      for (const row of rows) {
+        // 列名标准化
+        const r: Record<string, unknown> = {}
+        Object.entries(row).forEach(([k, v]) => {
+          const mapped = COL_MAP[k.trim()]
+          if (mapped) r[mapped] = v
+        })
+
+        const vname = String(r['village_name'] || '').trim()
+        if (!vname) { skipped++; continue }
+
+        const vid = nameToId.get(vname)
+        if (!vid) { errors.push(`「${vname}」未找到`); skipped++; continue }
+
+        const payload: Record<string, unknown> = {}
+        for (const numF of ['paddy_area', 'dry_land_area', 'arable_area']) {
+          const v = r[numF]
+          payload[numF] = (v === '' || v == null) ? null : Number(v)
+        }
+        if (r['irrigation_level'] !== '') payload['irrigation_level'] = IRRIGATION_VALID.has(String(r['irrigation_level'])) ? r['irrigation_level'] : null
+        if (r['terrain_type']     !== '') payload['terrain_type']     = TERRAIN_VALID.has(String(r['terrain_type']))     ? r['terrain_type']     : null
+        if (r['soil_quality']     !== '') payload['soil_quality']     = SOIL_VALID.has(String(r['soil_quality']))       ? r['soil_quality']     : null
+
+        try {
+          await req(`/api/agri-tasks/village-land-info/${vid}`, { method: 'PUT', body: JSON.stringify(payload) })
+          ok++
+        } catch (e: unknown) { errors.push(`「${vname}」: ${(e as Error).message}`); skipped++ }
+      }
+
+      await load()
+      const msg = `✓ 导入完成：更新 ${ok} 个村${skipped > 0 ? `，跳过 ${skipped} 个` : ''}${errors.length > 0 ? `\n${errors.slice(0, 3).join('；')}` : ''}`
+      show(msg, ok > 0 ? 'ok' : 'err')
+    } catch (e: unknown) { show('解析失败：' + (e as Error).message, 'err') }
+    finally { setImporting(false) }
+  }
+
   if (loading) return <div className="text-center py-12 text-stone-400">加载中...</div>
 
   return (
     <div>
-      <p className="text-sm text-stone-500 mb-4">
-        维护各村土地基础数据，用于农业任务分解时按水田/旱地/可耕种面积分配。
-        <span className="text-stone-400">承包地汇总从在册家庭户自动计算，无需手动录入。</span>
-      </p>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-stone-500">
+          维护各村土地基础数据，用于农业任务分解时按水田/旱地/可耕种面积分配。
+          <span className="text-stone-400 ml-1">承包地汇总从在册家庭户自动计算。</span>
+        </p>
+        <div className="flex gap-2 shrink-0 ml-4">
+          <button onClick={downloadTemplate}
+            className="text-xs px-3 py-1.5 border border-stone-200 rounded-lg text-stone-600 hover:bg-stone-50">
+            下载模板
+          </button>
+          <button onClick={() => fileRef.current?.click()} disabled={importing}
+            className="text-xs px-3 py-1.5 bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50">
+            {importing ? '导入中...' : '批量导入 Excel'}
+          </button>
+          <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImport} />
+        </div>
+      </div>
       <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-stone-50 border-b border-stone-200">

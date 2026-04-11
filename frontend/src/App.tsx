@@ -19,22 +19,22 @@ import { useState } from 'react'
 import { QUOTES, COLOR_THEMES } from './utils/quotes'
 
 const mainNav = [
-  { to: '/',            label: '首页',     icon: '📊', end: true },
-  { to: '/farmers',     label: '户籍管理', icon: '👤' },
-  { to: '/projects',    label: '补贴项目', icon: '💰' },
-  { to: '/agri-tasks',  label: '任务分解', icon: '🌱' },
-  { to: '/precheck',    label: '数据预检', icon: '🔍' },
-  { to: '/links',       label: '补贴查询', icon: '🔗' },
-  { to: '/ai',          label: 'AI 分析',  icon: '🤖' },
+  { to: '/',                        label: '首页',     icon: '📊', end: true },
+  { to: '/farmers',                 label: '户籍管理', icon: '👤' },
+  { to: '/projects',                label: '补贴项目', icon: '💰' },
+  { to: '/agri-tasks',              label: '任务分解', icon: '🌱' },
+  { to: '/settings/village-groups', label: '村组管理', icon: '🏘️' },
+  { to: '/precheck',                label: '数据预检', icon: '🔍' },
+  { to: '/links',                   label: '补贴查询', icon: '🔗' },
 ]
 
 const settingNav = [
-  { to: '/settings/village-groups', label: '村组管理',   icon: '🏘️' },
-  { to: '/settings/backup',          label: '备份迁移',   icon: '💾' },
-  { to: '/settings/excel-templates',  label: 'Excel模板',  icon: '📋' },
-  { to: '/settings/land-trust',      label: '土地流转',   icon: '🌾' },
-  { to: '/settings/household-import', label: '户籍批量导入', icon: '📥' },
-  { to: '/settings/family-relation-import', label: '家庭关系导入', icon: '👪' },
+  { to: '/ai',                                   label: 'AI 分析',    icon: '🤖' },
+  { to: '/settings/backup',                      label: '备份迁移',   icon: '💾' },
+  { to: '/settings/excel-templates',             label: 'Excel模板',  icon: '📋' },
+  { to: '/settings/land-trust',                  label: '土地流转',   icon: '🌾' },
+  { to: '/settings/household-import',            label: '户籍批量导入', icon: '📥' },
+  { to: '/settings/family-relation-import',      label: '家庭关系导入', icon: '👪' },
 ]
 
 function Layout() {
@@ -44,7 +44,8 @@ function Layout() {
   const navigate    = useNavigate()
   const location    = useLocation()
 
-  const isSettings = location.pathname.startsWith('/settings')
+  const isSettings = location.pathname.startsWith('/settings') &&
+                     location.pathname !== '/settings/village-groups'
 
   // 随机选择一条语录和颜色主题（页面加载时确定，保持不变）
   const { quote, colorTheme } = useMemo(() => {
