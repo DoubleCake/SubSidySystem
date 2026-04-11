@@ -517,6 +517,85 @@ class HouseholdEvent(Base):
                               backref="events")
 
 
+class VillageGroup(Base):
+    """村组定义表 —— 记录各村下辖的组，独立于家庭户存在"""
+    __tablename__ = "village_group"
+
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    village_id = Column(Integer, ForeignKey("village.id"), nullable=False)
+    group_no   = Column(String(20), nullable=False, comment="组名，如：一组、二组")
+
+    __table_args__ = (
+        UniqueConstraint("village_id", "group_no", name="uq_village_group"),
+        Index("ix_village_group_village", "village_id"),
+    )
+
+    village = relationship("Village", backref="groups")
+
+
+class VillageLandInfo(Base):
+    """村级土地基础信息扩展表"""
+    __tablename__ = "village_land_info"
+
+    id              = Column(Integer, primary_key=True, autoincrement=True)
+    village_id      = Column(Integer, ForeignKey("village.id"), nullable=False, unique=True)
+    survey_year     = Column(SmallInteger, nullable=True, comment="调查年度")
+    paddy_area      = Column(DECIMAL(10, 2), nullable=True, comment="水田面积(亩)")
+    dry_land_area   = Column(DECIMAL(10, 2), nullable=True, comment="旱地面积(亩)")
+    arable_area     = Column(DECIMAL(10, 2), nullable=True, comment="实际可耕种面积(亩)")
+    irrigation_level = Column(String(20), nullable=True, comment="灌溉条件: 完善/一般/无")
+    terrain_type    = Column(String(20), nullable=True, comment="地形类型: 平坝/丘陵/山地")
+    soil_quality    = Column(String(20), nullable=True, comment="土壤质量: 优/良/一般/差")
+    remark          = Column(Text, nullable=True)
+    updated_at      = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    village = relationship("Village", backref="land_info")
+
+
+class AgriTask(Base):
+    """农业任务表"""
+    __tablename__ = "agri_task"
+
+    id           = Column(Integer, primary_key=True, autoincrement=True)
+    task_name    = Column(String(100), nullable=False, comment="任务名称")
+    crop_type    = Column(String(30), nullable=False, comment="作物类型: 水稻/玉米/大豆/油菜/小麦/其他")
+    total_area   = Column(DECIMAL(10, 2), nullable=False, comment="总任务面积(亩)")
+    task_year    = Column(SmallInteger, nullable=False, comment="年度")
+    season       = Column(String(20), nullable=True, comment="季节: 大春/小春")
+    alloc_method = Column(String(30), nullable=False, comment="分配方式: CONTRACT_AREA/PADDY_AREA/DRY_AREA/ARABLE_AREA/HISTORY_AREA")
+    status       = Column(String(20), nullable=False, default="DRAFT",
+                          comment="DRAFT草稿/ISSUED已下达/DONE完成")
+    description  = Column(Text, nullable=True)
+    operator     = Column(String(50), nullable=True)
+    created_at   = Column(DateTime, default=func.now())
+    updated_at   = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    allocations = relationship("AgriTaskAllocation", back_populates="task", cascade="all, delete-orphan")
+
+
+class AgriTaskAllocation(Base):
+    """农业任务分解明细（按村）"""
+    __tablename__ = "agri_task_allocation"
+
+    id           = Column(Integer, primary_key=True, autoincrement=True)
+    task_id      = Column(Integer, ForeignKey("agri_task.id"), nullable=False)
+    village_id   = Column(Integer, ForeignKey("village.id"), nullable=False)
+    village_name = Column(String(50), nullable=False, comment="村名快照")
+    alloc_area   = Column(DECIMAL(10, 2), nullable=False, comment="分配面积(亩)")
+    alloc_ratio  = Column(DECIMAL(8, 6), nullable=True, comment="分配比例(0-1)")
+    basis_area   = Column(DECIMAL(10, 2), nullable=True, comment="计算依据面积(亩)")
+    actual_area  = Column(DECIMAL(10, 2), nullable=True, comment="实际完成面积(亩)")
+    remark       = Column(Text, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("task_id", "village_id", name="uq_agritask_village"),
+        Index("ix_agri_task_alloc_task", "task_id"),
+    )
+
+    task    = relationship("AgriTask", back_populates="allocations")
+    village = relationship("Village")
+
+
 class ErrorLibrary(Base):
     """错误库 —— 存储已验证为错误的人员信息"""
     __tablename__ = "error_library"

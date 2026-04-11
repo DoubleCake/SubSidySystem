@@ -13,6 +13,7 @@ import LandTrustPage from './pages/LandTrustPage'
 import HouseholdImportPage from './pages/HouseholdImportPage'
 import FamilyRelationImportPage from './pages/FamilyRelationImportPage'
 import ProxyManagePage from './pages/ProxyManagePage'
+import AgriTaskPage from './pages/AgriTaskPage'
 import { healthCheck } from './api'
 import { useState } from 'react'
 import { QUOTES, COLOR_THEMES } from './utils/quotes'
@@ -21,6 +22,7 @@ const mainNav = [
   { to: '/',            label: '首页',     icon: '📊', end: true },
   { to: '/farmers',     label: '户籍管理', icon: '👤' },
   { to: '/projects',    label: '补贴项目', icon: '💰' },
+  { to: '/agri-tasks',  label: '任务分解', icon: '🌱' },
   { to: '/precheck',    label: '数据预检', icon: '🔍' },
   { to: '/links',       label: '补贴查询', icon: '🔗' },
   { to: '/ai',          label: 'AI 分析',  icon: '🤖' },
@@ -144,6 +146,7 @@ function Layout() {
             <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
             <Route path="/farmers"   element={<FarmersPage />} />
             <Route path="/projects"  element={<SubsidyProjectsPage />} />
+            <Route path="/agri-tasks" element={<AgriTaskPage />} />
             <Route path="/precheck"  element={<PreCheckPage />} />
             <Route path="/links"     element={<ExternalLinksPage />} />
             <Route path="/ai"        element={<AIPage />} />

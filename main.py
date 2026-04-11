@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import engine
 from models import Base
-from routers import farmers, subsidies, ai_analyze, settings, precheck, households, external_links, backup, eligibility, excel_templates, land, error_library, household_import
+from routers import farmers, subsidies, ai_analyze, settings, precheck, households, external_links, backup, eligibility, excel_templates, land, error_library, household_import, agri_tasks
 
 Base.metadata.create_all(bind=engine)
 
@@ -37,6 +37,7 @@ app.include_router(excel_templates.router)
 app.include_router(land.router)
 app.include_router(error_library.router)
 app.include_router(household_import.router)
+app.include_router(agri_tasks.router)
 
 @app.get("/api/health")
 def health():
@@ -117,6 +118,7 @@ def migrate_db():
         "ALTER TABLE subsidy_application ADD COLUMN is_proxy SMALLINT DEFAULT 0",
         "ALTER TABLE subsidy_payment ADD COLUMN is_proxy SMALLINT DEFAULT 0",
         "ALTER TABLE subsidy_proxy ADD COLUMN subsidy_type_id INTEGER REFERENCES subsidy_type(id)",
+        # 农业任务分解相关表（新表由 Base.metadata.create_all 创建）
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -190,6 +192,21 @@ def migrate_db():
         except Exception as e:
             print(f"  历史数据回填跳过（可能已填充）: {e}")
             conn.rollback()
+
+    # 回填 village_group 表：从 family_household 中提取各村现有组
+    try:
+        backfill = text("""
+            INSERT OR IGNORE INTO village_group (village_id, group_no)
+            SELECT DISTINCT village_id, format_group_no(group_no)
+            FROM family_household
+            WHERE village_id IS NOT NULL AND group_no IS NOT NULL
+        """)
+        conn.execute(backfill)
+        conn.commit()
+        print("  village_group 回填完成 [OK]")
+    except Exception as e:
+        print(f"  village_group 回填跳过: {e}")
+        conn.rollback()
 
     print("  数据库迁移完成 [OK]")
 
