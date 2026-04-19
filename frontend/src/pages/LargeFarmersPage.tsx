@@ -535,6 +535,16 @@ export default function LargeFarmersPage() {
                         </div>
                       </div>
                       {t.parcel_desc && <div className="text-xs text-stone-400 mb-1">地块：{t.parcel_desc}</div>}
+                      {/* 合同期限显示 */}
+                      {t.start_date && t.end_date && (
+                        <div className="text-xs text-amber-600 mb-1">
+                          📄 {t.start_date} ~ {t.end_date}
+                          （共{Math.ceil((new Date(t.end_date).getTime() - new Date(t.start_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000))}年）
+                        </div>
+                      )}
+                      {t.start_date && !t.end_date && (
+                        <div className="text-xs text-stone-400 mb-1">📄 {t.start_date} 起</div>
+                      )}
                       {/* 地块归属村组显示 */}
                       {t.parcel_village_name && (
                         <div className="text-xs text-blue-600 mb-1">
@@ -543,7 +553,7 @@ export default function LargeFarmersPage() {
                         </div>
                       )}
                       {/* 片区标识显示 */}
-                      <div className="flex gap-1 mb-1">
+                      <div className="flex gap-1 mb-1 flex-wrap">
                         {t.is_high_standard === 1 && <Tag label="高标准农田" color="green" />}
                         {t.is_demonstration === 1 && <Tag label="示范片区" color="purple" />}
                         {t.zone_name && <span className="text-xs text-stone-400">{t.zone_name}</span>}
