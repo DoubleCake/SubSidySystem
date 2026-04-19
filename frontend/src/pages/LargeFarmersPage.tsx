@@ -517,7 +517,7 @@ export default function LargeFarmersPage() {
                         </div>
                         <div className="text-right">
                           <div className="text-sm font-mono font-bold text-emerald-700">{t.area}亩</div>
-                          <Tag label={t.trust_type_label} size="sm" color="blue" />
+                          <Tag label={t.trust_type_label} color="blue" />
                         </div>
                       </div>
                       {t.parcel_desc && <div className="text-xs text-stone-400 mb-1">地块：{t.parcel_desc}</div>}
@@ -530,12 +530,12 @@ export default function LargeFarmersPage() {
                       )}
                       {/* 片区标识显示 */}
                       <div className="flex gap-1 mb-1">
-                        {t.is_high_standard === 1 && <Tag label="高标准农田" size="sm" color="green" />}
-                        {t.is_demonstration === 1 && <Tag label="示范片区" size="sm" color="purple" />}
+                        {t.is_high_standard === 1 && <Tag label="高标准农田" color="green" />}
+                        {t.is_demonstration === 1 && <Tag label="示范片区" color="purple" />}
                         {t.zone_name && <span className="text-xs text-stone-400">{t.zone_name}</span>}
                       </div>
                       <div className="flex items-center justify-between">
-                        <Tag label={t.reliability_label} size="sm" color={
+                        <Tag label={t.reliability_label} color={
                           t.data_reliability === 'CERTIFIED' ? 'green' :
                           t.data_reliability === 'VILLAGE_CONFIRM' ? 'blue' :
                           t.data_reliability === 'SELF_REPORT' ? 'amber' : 'red'
