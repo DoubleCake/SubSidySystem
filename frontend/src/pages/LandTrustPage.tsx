@@ -1,11 +1,12 @@
 /**
  * 土地流转信息维护页
  * 管理家庭户之间的代耕代种/流转/出租关系（一年一签）
- * 
+ *
  * 所有字段设计为可选，基础信息不完善也能录入
  * 数据可信度分级，未核实的数据有明确标注
  */
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Modal from '../components/Modal'
 import Tag from '../components/Tag'
 import { useToast } from '../hooks/useToast'
@@ -89,6 +90,7 @@ const emptyForm = () => ({
 
 export default function LandTrustPage() {
   const { toast, show } = useToast()
+  const navigate = useNavigate()
   const [yearFilter, setYearFilter] = useState(thisYear)
   const [typeFilter, setTypeFilter] = useState('')
   const [list, setList]   = useState<Trust[]>([])
@@ -222,6 +224,17 @@ export default function LandTrustPage() {
     <div className="grid grid-cols-[1fr_340px] gap-4">
       {/* ── 左列：流转台账 ── */}
       <div>
+        {/* 一级Tab切换：土地与大户 */}
+        <div className="flex items-center gap-1 mb-4 border-b border-stone-200">
+          <button onClick={() => {}}
+            className="px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-emerald-700">
+            土地流转
+          </button>
+          <button onClick={() => navigate('/settings/large-farmers')}
+            className="px-4 py-2 text-sm text-stone-500 hover:text-stone-700 border-b-2 border-transparent hover:border-stone-300">
+            大户管理
+          </button>
+        </div>
         {/* 工具栏 */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
           <select value={yearFilter} onChange={e => { setYearFilter(Number(e.target.value)); setPage(1) }}

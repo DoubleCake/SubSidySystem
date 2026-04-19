@@ -3,6 +3,7 @@
  * 管理规模经营主体信息，以及与普通农户的代耕代种关联
  */
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Modal from '../components/Modal'
 import Tag from '../components/Tag'
 import { useToast } from '../hooks/useToast'
@@ -155,6 +156,7 @@ const emptyTrustForm = () => ({
 
 export default function LargeFarmersPage() {
   const { toast, show } = useToast()
+  const navigate = useNavigate()
 
   // 列表筛选
   const [villageFilter, setVillageFilter] = useState<number | ''>('')
@@ -378,6 +380,18 @@ export default function LargeFarmersPage() {
     <div className="grid grid-cols-[1fr_440px] gap-4">
       {/* ── 左列：大户列表 ── */}
       <div>
+        {/* 一级Tab切换：土地与大户 */}
+        <div className="flex items-center gap-1 mb-4 border-b border-stone-200">
+          <button onClick={() => navigate('/land')}
+            className="px-4 py-2 text-sm text-stone-500 hover:text-stone-700 border-b-2 border-transparent hover:border-stone-300">
+            土地流转
+          </button>
+          <button onClick={() => {}}
+            className="px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-emerald-700">
+            大户管理
+          </button>
+        </div>
+
         {/* 工具栏 */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
           <select value={villageFilter} onChange={e => { setVillageFilter(e.target.value ? Number(e.target.value) : ''); setPage(1) }}

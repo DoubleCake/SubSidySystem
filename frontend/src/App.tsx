@@ -20,23 +20,26 @@ import { useState } from 'react'
 import { QUOTES, COLOR_THEMES } from './utils/quotes'
 
 const mainNav = [
-  { to: '/',                        label: '首页',     icon: '📊', end: true },
-  { to: '/farmers',                 label: '户籍管理', icon: '👤' },
-  { to: '/projects',                label: '补贴项目', icon: '💰' },
-  { to: '/agri-tasks',              label: '任务分解', icon: '🌱' },
-  { to: '/settings/village-groups', label: '村组管理', icon: '🏘️' },
-  { to: '/precheck',                label: '数据预检', icon: '🔍' },
-  { to: '/links',                   label: '补贴查询', icon: '🔗' },
+  { to: '/',                        label: '首页',       icon: '📊', end: true },
+  { to: '/farmers',                 label: '户籍管理',   icon: '👤' },
+  { to: '/projects',                label: '补贴管理',   icon: '💰' },
+  { to: '/agri-tasks',              label: '任务分解',   icon: '🌱' },
+  { to: '/land',                    label: '土地与大户', icon: '🌾' },
 ]
 
-const settingNav = [
-  { to: '/ai',                                   label: 'AI 分析',    icon: '🤖' },
-  { to: '/settings/large-farmers',               label: '大户管理',   icon: '👨‍🌾' },
-  { to: '/settings/backup',                      label: '备份迁移',   icon: '💾' },
-  { to: '/settings/excel-templates',             label: 'Excel模板',  icon: '📋' },
-  { to: '/settings/land-trust',                  label: '土地流转',   icon: '🌾' },
-  { to: '/settings/household-import',            label: '户籍批量导入', icon: '📥' },
-  { to: '/settings/family-relation-import',      label: '家庭关系导入', icon: '👪' },
+// 系统设置下拉菜单分组
+const settingNavBasic = [  // 基础配置
+  { to: '/settings/village-groups', label: '村组管理',   icon: '🏘️' },
+]
+
+const settingNavData = [  // 数据工具
+  { to: '/precheck',                label: '数据预检',   icon: '🔍' },
+  { to: '/ai',                     label: 'AI 分析',    icon: '🤖' },
+  { to: '/settings/excel-templates', label: 'Excel模板', icon: '📋' },
+]
+
+const settingNavSystem = [  // 系统
+  { to: '/settings/backup',         label: '备份迁移',   icon: '💾' },
 ]
 
 function Layout() {
@@ -46,8 +49,7 @@ function Layout() {
   const navigate    = useNavigate()
   const location    = useLocation()
 
-  const isSettings = location.pathname.startsWith('/settings') &&
-                     location.pathname !== '/settings/village-groups'
+  const isSettings = location.pathname.startsWith('/settings')
 
   // 随机选择一条语录和颜色主题（页面加载时确定，保持不变）
   const { quote, colorTheme } = useMemo(() => {
@@ -102,17 +104,49 @@ function Layout() {
                 <span style={{ display:'inline-block', transition:'transform .15s', transform: settingsOpen ? 'rotate(180deg)' : 'none' }}>▾</span>
               </button>
               {settingsOpen && (
-                <div className="absolute right-0 top-full mt-1.5 bg-white rounded-xl shadow-xl border border-stone-200 overflow-hidden w-48 z-50">
-                  <div className="px-3 py-2 text-xs text-stone-400 border-b border-stone-100 bg-stone-50">基础配置</div>
-                  {settingNav.map(({ to, label, icon }) => (
-                    <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
-                      className={({ isActive }) =>
-                        `flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-stone-50 transition-colors
-                        ${isActive ? 'text-emerald-700 font-semibold bg-emerald-50' : 'text-stone-700'}`
-                      }>
-                      <span>{icon}</span><span>{label}</span>
-                    </NavLink>
-                  ))}
+                <div className="absolute right-0 top-full mt-1.5 bg-white rounded-xl shadow-xl border border-stone-200 overflow-hidden w-52 z-50">
+                  {settingNavBasic.length > 0 && (
+                    <>
+                      <div className="px-3 py-2 text-xs text-stone-400 border-b border-stone-100 bg-stone-50">基础配置</div>
+                      {settingNavBasic.map(({ to, label, icon }) => (
+                        <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
+                          className={({ isActive }) =>
+                            `flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-stone-50 transition-colors
+                            ${isActive ? 'text-emerald-700 font-semibold bg-emerald-50' : 'text-stone-700'}`
+                          }>
+                          <span>{icon}</span><span>{label}</span>
+                        </NavLink>
+                      ))}
+                    </>
+                  )}
+                  {settingNavData.length > 0 && (
+                    <>
+                      <div className="px-3 py-2 text-xs text-stone-400 border-b border-stone-100 bg-stone-50">数据工具</div>
+                      {settingNavData.map(({ to, label, icon }) => (
+                        <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
+                          className={({ isActive }) =>
+                            `flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-stone-50 transition-colors
+                            ${isActive ? 'text-emerald-700 font-semibold bg-emerald-50' : 'text-stone-700'}`
+                          }>
+                          <span>{icon}</span><span>{label}</span>
+                        </NavLink>
+                      ))}
+                    </>
+                  )}
+                  {settingNavSystem.length > 0 && (
+                    <>
+                      <div className="px-3 py-2 text-xs text-stone-400 border-b border-stone-100 bg-stone-50">系统</div>
+                      {settingNavSystem.map(({ to, label, icon }) => (
+                        <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
+                          className={({ isActive }) =>
+                            `flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-stone-50 transition-colors
+                            ${isActive ? 'text-emerald-700 font-semibold bg-emerald-50' : 'text-stone-700'}`
+                          }>
+                          <span>{icon}</span><span>{label}</span>
+                        </NavLink>
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -129,7 +163,7 @@ function Layout() {
           <div className="bg-emerald-900/50 border-t border-emerald-700/50">
             <div className="max-w-screen-xl mx-auto px-5 flex items-center gap-1" style={{ height: 36 }}>
               <span className="text-xs text-emerald-400 mr-2">系统设置 /</span>
-              {settingNav.map(({ to, label, icon }) => (
+              {[...settingNavBasic, ...settingNavData, ...settingNavSystem].map(({ to, label, icon }) => (
                 <NavLink key={to} to={to}
                   className={({ isActive }) =>
                     `px-3 py-1 text-xs rounded transition-colors
@@ -150,8 +184,8 @@ function Layout() {
             <Route path="/farmers"   element={<FarmersPage />} />
             <Route path="/projects"  element={<SubsidyProjectsPage />} />
             <Route path="/agri-tasks" element={<AgriTaskPage />} />
+            <Route path="/land"      element={<LandTrustPage />} />
             <Route path="/precheck"  element={<PreCheckPage />} />
-            <Route path="/links"     element={<ExternalLinksPage />} />
             <Route path="/ai"        element={<AIPage />} />
             <Route path="/settings/village-groups" element={<SettingsPage />} />
             <Route path="/settings/backup" element={<BackupPage />} />
