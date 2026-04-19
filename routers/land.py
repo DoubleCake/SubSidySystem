@@ -33,6 +33,13 @@ RELIABILITY_LABEL = {
     "SUSPECTED":       "存疑",
 }
 
+OPERATOR_TYPE_LABEL = {
+    "FAMILY_FARM": "家庭农场",
+    "COOPERATIVE": "合作社",
+    "LARGE_PLANTER": "种植大户",
+    "OTHER": "其他",
+}
+
 
 # ══════════════════════════════════════
 #  流转台账 CRUD
@@ -396,3 +403,174 @@ def search_household(q: str = Query("", min_length=0), db: Session = Depends(get
         {**dict(r._mapping), "village_full_name": f"{r.village_name or ''}{format_group_no(r.group_no)}"}
         for r in rows
     ]
+
+
+# ══════════════════════════════════════
+#  全量流转记录汇总（包含大户）
+# ══════════════════════════════════════
+
+@router.get("/all-trusts")
+def list_all_trusts(
+    year:         Optional[int] = Query(None, description="流转年度"),
+    trust_type:   Optional[str] = Query(None),
+    source_type:  Optional[str] = Query(None, description="来源类型：normal普通大户 large_farmer"),
+    page:         int = Query(1, ge=1),
+    page_size:    int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    """
+    查询所有流转记录，包含普通流转和大户流转。
+    source_type: normal=普通家庭户流转, large_farmer=大户流转, 不传=全部
+    """
+    all_items = []
+    total = 0
+
+    # 1. 查询普通家庭户流转
+    if source_type is None or source_type == "normal":
+        normal_where = "lt.is_active = 1"
+        params: dict = {}
+
+        if year:
+            normal_where += " AND lt.trust_year=:yr"
+            params["yr"] = year
+        if trust_type:
+            normal_where += " AND lt.trust_type=:tt"
+            params["tt"] = trust_type
+
+        normal_count_sql = f"SELECT COUNT(*) FROM land_trust lt WHERE {normal_where}"
+        normal_total = db.execute(text(normal_count_sql), params).scalar() or 0
+
+        normal_sql = f"""
+            SELECT lt.*,
+                   oh.household_name AS owner_name,
+                   oh.household_code AS owner_code,
+                   op.household_name AS operator_name,
+                   op.household_code AS operator_code,
+                   'normal' AS source_type,
+                   '' AS large_farmer_name,
+                   '' AS large_farmer_type
+            FROM land_trust lt
+            LEFT JOIN family_household oh ON oh.id = lt.owner_household_id
+            LEFT JOIN family_household op ON op.id = lt.operator_household_id
+            WHERE {normal_where}
+            ORDER BY lt.trust_year DESC, lt.id DESC
+        """
+        normal_rows = db.execute(text(normal_sql), params).fetchall()
+
+        for r in normal_rows:
+            d = dict(r._mapping)
+            d["trust_type_label"] = TRUST_TYPE_LABEL.get(d.get("trust_type",""), d.get("trust_type",""))
+            d["reliability_label"] = RELIABILITY_LABEL.get(d.get("data_reliability",""), "")
+            for f in ("area", "annual_fee"):
+                if d.get(f) is not None:
+                    d[f] = float(d[f])
+            all_items.append(d)
+        total += normal_total
+
+    # 2. 查询大户流转
+    if source_type is None or source_type == "large_farmer":
+        large_where = "lft.is_active = 1"
+        params: dict = {}
+
+        if year:
+            large_where += " AND lft.trust_year=:yr"
+            params["yr"] = year
+        if trust_type:
+            large_where += " AND lft.trust_type=:tt"
+            params["tt"] = trust_type
+
+        large_count_sql = f"SELECT COUNT(*) FROM large_farmer_trust lft WHERE {large_where}"
+        large_total = db.execute(text(large_count_sql), params).scalar() or 0
+
+        large_sql = f"""
+            SELECT lft.*,
+                   oh.household_name AS owner_name,
+                   oh.household_code AS owner_code,
+                   lf.operator_name AS large_farmer_name,
+                   lf.operator_type AS large_farmer_type,
+                   'large_farmer' AS source_type,
+                   '' AS operator_name,
+                   '' AS operator_code
+            FROM large_farmer_trust lft
+            LEFT JOIN family_household oh ON oh.id = lft.owner_household_id
+            LEFT JOIN large_farmer lf ON lf.id = lft.large_farmer_id
+            WHERE {large_where}
+            ORDER BY lft.trust_year DESC, lft.id DESC
+        """
+        large_rows = db.execute(text(large_sql), params).fetchall()
+
+        for r in large_rows:
+            d = dict(r._mapping)
+            d["trust_type_label"] = TRUST_TYPE_LABEL.get(d.get("trust_type",""), d.get("trust_type",""))
+            d["reliability_label"] = RELIABILITY_LABEL.get(d.get("data_reliability",""), "")
+            d["large_farmer_type_label"] = OPERATOR_TYPE_LABEL.get(d.get("large_farmer_type",""), d.get("large_farmer_type",""))
+            for f in ("area", "annual_fee", "total_fee"):
+                if d.get(f) is not None:
+                    d[f] = float(d[f])
+            all_items.append(d)
+        total += large_total
+
+    # 按年度和ID排序后分页
+    all_items.sort(key=lambda x: (-x.get("trust_year", 0), -x.get("id", 0)))
+    paginated_items = all_items[(page-1)*page_size:page*page_size]
+
+    return {
+        "total": total,
+        "items": paginated_items,
+    }
+
+
+@router.get("/trust-summary-with-large")
+def trust_summary_with_large(
+    year: int = Query(..., description="流转年度"),
+    db: Session = Depends(get_db),
+):
+    """
+    按年度汇总所有流转记录，包含普通流转和大户流转
+    """
+    # 普通流转汇总
+    normal_rows = db.execute(text("""
+        SELECT
+            lt.trust_type,
+            COUNT(*) AS cnt,
+            COALESCE(SUM(lt.area), 0) AS total_area
+        FROM land_trust lt
+        WHERE lt.trust_year = :yr AND lt.is_active = 1
+        GROUP BY lt.trust_type
+    """), {"yr": year}).fetchall()
+
+    # 大户流转汇总
+    large_rows = db.execute(text("""
+        SELECT
+            lft.trust_type,
+            COUNT(*) AS cnt,
+            COALESCE(SUM(lft.area), 0) AS total_area
+        FROM large_farmer_trust lft
+        WHERE lft.trust_year = :yr AND lft.is_active = 1
+        GROUP BY lft.trust_type
+    """), {"yr": year}).fetchall()
+
+    # 合并汇总
+    summary_map = {}
+    for r in normal_rows:
+        t = r.trust_type
+        if t not in summary_map:
+            summary_map[t] = {"trust_type": t, "label": TRUST_TYPE_LABEL.get(t, t), "normal_count": 0, "normal_area": 0, "large_count": 0, "large_area": 0, "total_count": 0, "total_area": 0}
+        summary_map[t]["normal_count"] = r.cnt
+        summary_map[t]["normal_area"] = float(r.total_area or 0)
+        summary_map[t]["total_count"] += r.cnt
+        summary_map[t]["total_area"] += float(r.total_area or 0)
+
+    for r in large_rows:
+        t = r.trust_type
+        if t not in summary_map:
+            summary_map[t] = {"trust_type": t, "label": TRUST_TYPE_LABEL.get(t, t), "normal_count": 0, "normal_area": 0, "large_count": 0, "large_area": 0, "total_count": 0, "total_area": 0}
+        summary_map[t]["large_count"] = r.cnt
+        summary_map[t]["large_area"] = float(r.total_area or 0)
+        summary_map[t]["total_count"] += r.cnt
+        summary_map[t]["total_area"] += float(r.total_area or 0)
+
+    return {
+        "year": year,
+        "summary": list(summary_map.values()),
+    }

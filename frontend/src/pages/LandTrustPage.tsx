@@ -25,6 +25,15 @@ interface Trust {
   affect_subsidy_calc: number
   note: string | null; operator: string | null
   is_active: number
+  // 扩展字段：大户流转
+  source_type?: 'normal' | 'large_farmer'
+  large_farmer_name?: string
+  large_farmer_type?: string
+  large_farmer_type_label?: string
+  parcel_village_name?: string
+  parcel_group_no?: number
+  is_high_standard?: number
+  is_demonstration?: number
 }
 
 interface HHOption { id: number; household_code: string; household_name: string; head_name: string; village_full_name: string; land_area: number | null }
@@ -86,6 +95,8 @@ export default function LandTrustPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage]   = useState(1)
   const [loading, setLoading] = useState(false)
+  // 流转来源类型：all=全部 normal=普通流转 large_farmer=大户流转
+  const [sourceType, setSourceType] = useState<'all' | 'normal' | 'large_farmer'>('all')
 
   // 详情/面积汇总
   const [summaryHH, setSummaryHH]   = useState<HHOption | null>(null)
@@ -108,12 +119,15 @@ export default function LandTrustPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const p = new URLSearchParams({ page: String(page), page_size: '20', year: String(yearFilter) })
+      const p = new URLSearchParams({ page: String(page), page_size: '20' })
+      if (yearFilter) p.set('year', String(yearFilter))
       if (typeFilter) p.set('trust_type', typeFilter)
-      const r = await req<{ total: number; items: Trust[] }>(`/api/land/trusts?${p}`)
+      if (sourceType !== 'all') p.set('source_type', sourceType)
+
+      const r = await req<{ total: number; items: Trust[] }>(`/api/land/all-trusts?${p}`)
       setList(r.items); setTotal(r.total)
     } finally { setLoading(false) }
-  }, [page, yearFilter, typeFilter])
+  }, [page, yearFilter, typeFilter, sourceType])
 
   useEffect(() => { load() }, [load])
 
@@ -219,51 +233,82 @@ export default function LandTrustPage() {
             <option value="">所有类型</option>
             {TRUST_TYPE_OPTS.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
           </select>
+          {/* 来源类型切换 */}
+          <div className="flex border border-stone-200 rounded-lg overflow-hidden">
+            <button onClick={() => { setSourceType('all'); setPage(1) }}
+              className={`px-3 py-2 text-xs ${sourceType === 'all' ? 'bg-emerald-700 text-white' : 'bg-white text-stone-600 hover:bg-stone-50'}`}>
+              全部
+            </button>
+            <button onClick={() => { setSourceType('normal'); setPage(1) }}
+              className={`px-3 py-2 text-xs ${sourceType === 'normal' ? 'bg-emerald-700 text-white' : 'bg-white text-stone-600 hover:bg-stone-50'}`}>
+              普通流转
+            </button>
+            <button onClick={() => { setSourceType('large_farmer'); setPage(1) }}
+              className={`px-3 py-2 text-xs ${sourceType === 'large_farmer' ? 'bg-emerald-700 text-white' : 'bg-white text-stone-600 hover:bg-stone-50'}`}>
+              大户流转
+            </button>
+          </div>
           <span className="text-xs text-stone-400">共 {total} 条</span>
-          <button onClick={openAdd}
-            className="ml-auto px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
-            ＋ 新增流转记录
-          </button>
+          {sourceType === 'normal' && (
+            <button onClick={openAdd}
+              className="ml-auto px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
+              ＋ 新增流转记录
+            </button>
+          )}
         </div>
 
         {/* 说明栏 */}
         <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-4 text-xs text-blue-700 space-y-0.5">
           <p>流转记录是<strong>一年一签</strong>，每年需要更新。面积信息影响补贴超领预警的计算。</p>
           <p>所有字段均可选填，信息不完善时可只填流出方、年度和类型。</p>
+          <p>可通过右上角切换查看<strong>普通流转</strong>或<strong>大户流转</strong>记录。</p>
         </div>
 
         {/* 列表 */}
         <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full border-collapse">
             <thead><tr className="bg-stone-50 border-b-2 border-stone-200">
-              {['流出方（承包人）','流入方（耕种人）','类型','面积','可信度','补贴计算','操作'].map(h => (
+              {['流出方（承包人）','流入方（耕种人）','类型','面积','来源','可信度','补贴计算','操作'].map(h => (
                 <th key={h} className="px-3 py-2.5 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>
               ))}
             </tr></thead>
             <tbody>
-              {loading && <tr><td colSpan={7} className="text-center py-10 text-stone-300">加载中…</td></tr>}
+              {loading && <tr><td colSpan={8} className="text-center py-10 text-stone-300">加载中…</td></tr>}
               {!loading && list.length === 0 && (
-                <tr><td colSpan={7} className="text-center py-10 text-stone-300 text-sm">
-                  {yearFilter}年暂无流转记录，点击「＋ 新增流转记录」添加
+                <tr><td colSpan={8} className="text-center py-10 text-stone-300 text-sm">
+                  {yearFilter}年暂无流转记录
                 </td></tr>
               )}
               {list.map(t => (
-                <tr key={t.id} className="border-b border-stone-50 hover:bg-stone-50">
+                <tr key={`${t.source_type || 'normal'}-${t.id}`} className="border-b border-stone-50 hover:bg-stone-50">
                   <td className="px-3 py-2.5">
                     <div className="text-sm font-semibold">{t.owner_name}</div>
                     <div className="text-xs text-stone-400 font-mono">{t.owner_code}</div>
                   </td>
                   <td className="px-3 py-2.5">
-                    {t.operator_name
-                      ? <><div className="text-sm">{t.operator_name}</div>
+                    {t.source_type === 'large_farmer' ? (
+                      <div className="text-sm">
+                        <div className="font-semibold text-emerald-700">{t.large_farmer_name}</div>
+                        <div className="text-xs text-stone-400">{t.large_farmer_type_label || t.large_farmer_type}</div>
+                      </div>
+                    ) : t.operator_name ? (
+                      <><div className="text-sm">{t.operator_name}</div>
                           <div className="text-xs text-stone-400 font-mono">{t.operator_code}</div></>
-                      : <span className="text-xs text-stone-300">— 无接收方</span>
-                    }
+                    ) : (
+                      <span className="text-xs text-stone-300">— 无接收方</span>
+                    )}
                   </td>
                   <td className="px-3 py-2.5"><Tag label={t.trust_type_label} color={TRUST_COLOR[t.trust_type] || 'gray'} /></td>
                   <td className="px-3 py-2.5 text-sm font-mono">
                     {t.area !== null ? `${t.area}亩` : <span className="text-stone-300">未填</span>}
                     {t.parcel_desc && <div className="text-xs text-stone-400 truncate max-w-20" title={t.parcel_desc}>{t.parcel_desc}</div>}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    {t.source_type === 'large_farmer' ? (
+                      <Tag label="大户" color="amber" />
+                    ) : (
+                      <Tag label="普通" color="blue" />
+                    )}
                   </td>
                   <td className="px-3 py-2.5"><Tag label={t.reliability_label} color={
                     t.data_reliability === 'CERTIFIED' ? 'green' :
@@ -276,10 +321,15 @@ export default function LandTrustPage() {
                       : <span className="text-xs text-stone-400">仅记录</span>}
                   </td>
                   <td className="px-3 py-2.5">
-                    <div className="flex gap-1">
-                      <button onClick={() => openEdit(t)} className="text-xs border border-stone-200 text-stone-500 px-2 py-1 rounded hover:border-stone-300">编辑</button>
-                      <button onClick={() => del(t.id)} className="text-xs border border-red-100 text-red-400 px-2 py-1 rounded hover:bg-red-50">删</button>
-                    </div>
+                    {t.source_type !== 'large_farmer' && (
+                      <div className="flex gap-1">
+                        <button onClick={() => openEdit(t)} className="text-xs border border-stone-200 text-stone-500 px-2 py-1 rounded hover:border-stone-300">编辑</button>
+                        <button onClick={() => del(t.id)} className="text-xs border border-red-100 text-red-400 px-2 py-1 rounded hover:bg-red-50">删</button>
+                      </div>
+                    )}
+                    {t.source_type === 'large_farmer' && (
+                      <span className="text-xs text-stone-400">—</span>
+                    )}
                   </td>
                 </tr>
               ))}
