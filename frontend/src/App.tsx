@@ -14,6 +14,7 @@ import HouseholdImportPage from './pages/HouseholdImportPage'
 import FamilyRelationImportPage from './pages/FamilyRelationImportPage'
 import ProxyManagePage from './pages/ProxyManagePage'
 import AgriTaskPage from './pages/AgriTaskPage'
+import LargeFarmersPage from './pages/LargeFarmersPage'
 import { healthCheck } from './api'
 import { useState } from 'react'
 import { QUOTES, COLOR_THEMES } from './utils/quotes'
@@ -30,6 +31,7 @@ const mainNav = [
 
 const settingNav = [
   { to: '/ai',                                   label: 'AI 分析',    icon: '🤖' },
+  { to: '/settings/large-farmers',               label: '大户管理',   icon: '👨‍🌾' },
   { to: '/settings/backup',                      label: '备份迁移',   icon: '💾' },
   { to: '/settings/excel-templates',             label: 'Excel模板',  icon: '📋' },
   { to: '/settings/land-trust',                  label: '土地流转',   icon: '🌾' },
@@ -157,6 +159,7 @@ function Layout() {
             <Route path="/settings/land-trust" element={<LandTrustPage />} />
             <Route path="/settings/household-import" element={<HouseholdImportPage />} />
             <Route path="/settings/family-relation-import" element={<FamilyRelationImportPage />} />
+            <Route path="/settings/large-farmers" element={<LargeFarmersPage />} />
             <Route path="/proxy/application/:applicationId" element={<ProxyManagePage />} />
             {/* 404 fallback */}
             <Route path="*" element={

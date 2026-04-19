@@ -613,3 +613,127 @@ class ErrorLibrary(Base):
     subsidy_type_id = Column(Integer, nullable=True, comment="关联补贴类型（可空）")
     remark          = Column(Text, nullable=True, comment="备注")
     created_at      = Column(DateTime, default=func.now())
+
+
+class LargeFarmer(Base):
+    """
+    种植大户/家庭农场/合作社信息表
+    记录规模经营主体的基本信息，用于管理与普通农户的代耕代种关联
+    """
+    __tablename__ = "large_farmer"
+
+    id                  = Column(Integer, primary_key=True, autoincrement=True)
+
+    # 基本信息
+    operator_name       = Column(String(100), nullable=False, comment="经营者姓名/主体名称")
+    operator_type       = Column(String(20), nullable=False, default="FAMILY_FARM",
+                                  comment="FAMILY_FARM家庭农场/COOPERATIVE合作社/LARGE_PLANTER种植大户/OTHER其他")
+    id_card             = Column(String(18), nullable=True, comment="负责人身份证号")
+    phone               = Column(String(20), nullable=True, comment="联系电话")
+    bank_card           = Column(String(25), nullable=True, comment="银行卡号")
+    bank_name           = Column(String(100), nullable=True, comment="开户行")
+
+    # 所属村组
+    village_id          = Column(Integer, ForeignKey("village.id"), nullable=False, comment="所属村")
+    group_no            = Column(SmallInteger, nullable=True, comment="所属组")
+    address             = Column(String(200), nullable=True, comment="经营地址")
+
+    # 规模信息
+    total_managed_area  = Column(DECIMAL(10, 2), nullable=True, comment="总经营面积(亩)")
+    own_contract_area   = Column(DECIMAL(10, 2), nullable=True, comment="自有承包面积(亩)")
+    trust_in_area       = Column(DECIMAL(10, 2), nullable=True, comment="流入面积(亩)")
+
+    # 经营信息
+    main_crops          = Column(String(200), nullable=True, comment="主要种植作物")
+    registration_no     = Column(String(50), nullable=True, comment="工商注册号/统一社会信用代码")
+    registration_date   = Column(Date, nullable=True, comment="注册日期")
+
+    # 状态
+    status              = Column(SmallInteger, nullable=False, default=1, comment="1正常 2注销")
+    is_verified         = Column(SmallInteger, nullable=False, default=0, comment="0未审核 1已审核")
+    verified_by         = Column(String(50), nullable=True, comment="审核人")
+    verified_date       = Column(Date, nullable=True, comment="审核日期")
+
+    remark              = Column(Text, nullable=True, comment="备注")
+    operator            = Column(String(50), nullable=True, comment="录入人")
+    created_at          = Column(DateTime, default=func.now())
+    updated_at          = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # 索引
+    __table_args__ = (
+        Index('ix_large_farmer_village_id', 'village_id'),
+        Index('ix_large_farmer_status', 'status'),
+        Index('ix_large_farmer_id_card', 'id_card'),
+    )
+
+    # 关联
+    village = relationship("Village")
+    trust_relations = relationship("LargeFarmerTrust", back_populates="large_farmer")
+
+
+class LargeFarmerTrust(Base):
+    """
+    大户与普通农户的代耕代种关联表
+    记录大户从普通农户流入土地的详细信息
+    """
+    __tablename__ = "large_farmer_trust"
+
+    id                   = Column(Integer, primary_key=True, autoincrement=True)
+
+    # 关联大户
+    large_farmer_id      = Column(Integer, ForeignKey("large_farmer.id"), nullable=False,
+                                   comment="大户ID")
+
+    # 流出方（普通农户）
+    owner_household_id   = Column(Integer, ForeignKey("family_household.id"), nullable=False,
+                                   comment="流出方家庭户ID")
+
+    # 关联土地流转台账（可选，与land_trust表对应）
+    land_trust_id        = Column(Integer, ForeignKey("land_trust.id"), nullable=True,
+                                   comment="关联的土地流转记录ID")
+
+    # 流转信息
+    trust_year           = Column(SmallInteger, nullable=False, comment="流转年度")
+    area                 = Column(DECIMAL(10, 2), nullable=False, comment="流转面积(亩)")
+    trust_type           = Column(String(20), nullable=False, default="ENTRUST",
+                                   comment="ENTRUST代耕代种/RENT出租/TRANSFER流转")
+
+    # 地块信息
+    parcel_desc          = Column(String(200), nullable=True, comment="地块描述")
+    parcel_location      = Column(String(200), nullable=True, comment="地块位置")
+
+    # 合同信息
+    contract_no          = Column(String(50), nullable=True, comment="合同编号")
+    start_date           = Column(Date, nullable=True, comment="流转开始日期")
+    end_date             = Column(Date, nullable=True, comment="流转结束日期")
+
+    # 租金信息
+    annual_fee           = Column(DECIMAL(10, 2), nullable=True, comment="年租金(元/亩)")
+    total_fee            = Column(DECIMAL(10, 2), nullable=True, comment="总租金")
+    payment_method       = Column(String(20), nullable=True,
+                                   comment="支付方式：CASH现金/GRAIN粮食折算/FREE无偿/OTHER其他")
+
+    # 数据状态
+    data_reliability     = Column(String(20), nullable=False, default="VILLAGE_CONFIRM",
+                                   comment="CERTIFIED有合同/VILLAGE_CONFIRM村委确认/SELF_REPORT自报/SUSPECTED存疑")
+    is_active            = Column(SmallInteger, nullable=False, default=1, comment="1有效 0无效")
+    affect_subsidy_calc  = Column(SmallInteger, nullable=False, default=1,
+                                   comment="1=纳入补贴面积计算/0=仅作记录不影响计算")
+
+    note                 = Column(Text, nullable=True, comment="备注")
+    operator             = Column(String(50), nullable=True, comment="录入人")
+    created_at           = Column(DateTime, default=func.now())
+    updated_at           = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # 索引
+    __table_args__ = (
+        Index('ix_large_farmer_trust_lf_id', 'large_farmer_id'),
+        Index('ix_large_farmer_trust_owner_id', 'owner_household_id'),
+        Index('ix_large_farmer_trust_year', 'trust_year'),
+        Index('ix_large_farmer_trust_land_trust', 'land_trust_id'),
+    )
+
+    # 关联
+    large_farmer = relationship("LargeFarmer", back_populates="trust_relations")
+    owner_household = relationship("FamilyHousehold", foreign_keys=[owner_household_id])
+    land_trust = relationship("LandTrust")
