@@ -23,6 +23,32 @@ OPERATOR_TYPE_LABEL = {
     "OTHER": "其他",
 }
 
+FARMER_GRADE_LABEL = {
+    "PROVINCIAL": "省级",
+    "MUNICIPAL": "市级",
+    "COUNTY": "县级",
+    "ORDINARY": "普通",
+}
+
+SOIL_GRADE_LABEL = {
+    "EXCELLENT": "优等",
+    "GOOD": "良",
+    "MEDIUM": "中",
+    "POOR": "差",
+}
+
+PAYMENT_STATUS_LABEL = {
+    "UNPAID": "未支付",
+    "PARTIAL": "部分支付",
+    "PAID": "已支付",
+}
+
+ZONE_TYPE_LABEL = {
+    "HIGH_STANDARD": "高标准农田",
+    "DEMONSTRATION": "示范片区",
+    "ORDINARY": "普通片区",
+}
+
 TRUST_TYPE_LABEL = {
     "ENTRUST": "代耕代种",
     "RENT": "出租",
@@ -485,4 +511,325 @@ def get_large_farmer_area_summary(
         "total_managed_area": total_managed,
         "trust_count": len(trust_rows),
         "trust_details": [_large_farmer_trust_out(r) for r in trust_rows],
+    }
+
+
+# ══════════════════════════════════════
+#  地块管理 API
+# ══════════════════════════════════════
+
+@router.get("/{farmer_id}/parcels")
+def list_large_farmer_parcels(
+    farmer_id: int,
+    village_id: Optional[int] = Query(None, description="所属村ID"),
+    is_high_standard: Optional[int] = Query(None, description="是否高标准农田"),
+    is_demonstration: Optional[int] = Query(None, description="是否示范片区"),
+    db: Session = Depends(get_db),
+):
+    """获取大户的地块列表"""
+    # 验证大户存在
+    if not db.get(LargeFarmer, farmer_id):
+        raise HTTPException(404, "大户信息不存在")
+
+    base_where = "lfp.large_farmer_id = :farmer_id AND lfp.is_active = 1"
+    params = {"farmer_id": farmer_id}
+
+    if village_id:
+        base_where += " AND lfp.village_id = :village_id"
+        params["village_id"] = village_id
+    if is_high_standard is not None:
+        base_where += " AND lfp.is_high_standard = :is_high_standard"
+        params["is_high_standard"] = is_high_standard
+    if is_demonstration is not None:
+        base_where += " AND lfp.is_demonstration = :is_demonstration"
+        params["is_demonstration"] = is_demonstration
+
+    sql = f"""
+        SELECT lfp.*,
+               v.village_name,
+               lf.operator_name
+        FROM large_farmer_parcel lfp
+        LEFT JOIN village v ON v.id = lfp.village_id
+        LEFT JOIN large_farmer lf ON lf.id = lfp.large_farmer_id
+        WHERE {base_where}
+        ORDER BY lfp.id DESC
+    """
+    rows = db.execute(text(sql), params).fetchall()
+
+    return {
+        "items": [_parcel_out(r) for r in rows],
+    }
+
+
+@router.post("/{farmer_id}/parcels")
+def create_large_farmer_parcel(farmer_id: int, data: dict, db: Session = Depends(get_db)):
+    """添加大户地块"""
+    # 验证大户存在
+    if not db.get(LargeFarmer, farmer_id):
+        raise HTTPException(404, "大户信息不存在")
+
+    village_id = data.get("village_id")
+    if not village_id:
+        raise HTTPException(400, "请指定地块所属村")
+    if not db.get(Village, village_id):
+        raise HTTPException(404, "地块所属村不存在")
+
+    area = data.get("area")
+    if not area:
+        raise HTTPException(400, "请填写地块面积")
+
+    # 日期处理
+    start_date = data.get("start_date")
+    if isinstance(start_date, str) and start_date:
+        try:
+            start_date = date_type.fromisoformat(start_date)
+        except:
+            start_date = None
+
+    end_date = data.get("end_date")
+    if isinstance(end_date, str) and end_date:
+        try:
+            end_date = date_type.fromisoformat(end_date)
+        except:
+            end_date = None
+
+    from models import LargeFarmerParcel
+    parcel = LargeFarmerParcel(
+        large_farmer_id=farmer_id,
+        trust_id=data.get("trust_id"),
+        parcel_name=data.get("parcel_name"),
+        area=Decimal(str(area)),
+        village_id=village_id,
+        group_no=data.get("group_no"),
+        parcel_location=data.get("parcel_location"),
+        boundary_east=data.get("boundary_east"),
+        boundary_west=data.get("boundary_west"),
+        boundary_south=data.get("boundary_south"),
+        boundary_north=data.get("boundary_north"),
+        is_high_standard=data.get("is_high_standard", 0),
+        is_demonstration=data.get("is_demonstration", 0),
+        zone_name=data.get("zone_name"),
+        zone_type=data.get("zone_type"),
+        soil_grade=data.get("soil_grade"),
+        soil_type=data.get("soil_type"),
+        irrigation_level=data.get("irrigation_level"),
+        map_coordinates=data.get("map_coordinates"),
+        map_geojson=data.get("map_geojson"),
+        map_center_lng=Decimal(str(data["map_center_lng"])) if data.get("map_center_lng") else None,
+        map_center_lat=Decimal(str(data["map_center_lat"])) if data.get("map_center_lat") else None,
+        map_zoom=data.get("map_zoom"),
+        current_crop=data.get("current_crop"),
+        planting_season=data.get("planting_season"),
+        planting_year=data.get("planting_year"),
+        is_active=data.get("is_active", 1),
+        remark=data.get("remark"),
+        operator=data.get("operator"),
+    )
+    db.add(parcel)
+    db.commit()
+    db.refresh(parcel)
+    return {"id": parcel.id, "message": "创建成功"}
+
+
+@router.put("/parcels/{parcel_id}")
+def update_large_farmer_parcel(parcel_id: int, data: dict, db: Session = Depends(get_db)):
+    """更新大户地块"""
+    from models import LargeFarmerParcel
+    parcel = db.get(LargeFarmerParcel, parcel_id)
+    if not parcel:
+        raise HTTPException(404, "地块不存在")
+
+    updatable = [
+        "trust_id", "parcel_name", "area", "village_id", "group_no", "parcel_location",
+        "boundary_east", "boundary_west", "boundary_south", "boundary_north",
+        "is_high_standard", "is_demonstration", "zone_name", "zone_type",
+        "soil_grade", "soil_type", "irrigation_level",
+        "map_coordinates", "map_geojson", "map_center_lng", "map_center_lat", "map_zoom",
+        "current_crop", "planting_season", "planting_year",
+        "is_active", "remark", "operator"
+    ]
+
+    for k in updatable:
+        if k not in data:
+            continue
+        v = data[k]
+        if k in ("area", "map_center_lng", "map_center_lat") and v is not None:
+            v = Decimal(str(v))
+        setattr(parcel, k, v)
+
+    db.commit()
+    return {"message": "更新成功"}
+
+
+@router.delete("/parcels/{parcel_id}")
+def delete_large_farmer_parcel(parcel_id: int, db: Session = Depends(get_db)):
+    """删除大户地块（软删除）"""
+    from models import LargeFarmerParcel
+    parcel = db.get(LargeFarmerParcel, parcel_id)
+    if not parcel:
+        raise HTTPException(404, "地块不存在")
+    parcel.is_active = 0
+    db.commit()
+    return {"message": "已删除"}
+
+
+def _parcel_out(row) -> dict:
+    d = dict(row._mapping)
+    d["soil_grade_label"] = SOIL_GRADE_LABEL.get(d.get("soil_grade", ""), d.get("soil_grade", ""))
+    for f in ("area", "map_center_lng", "map_center_lat"):
+        if d.get(f) is not None:
+            d[f] = float(d[f])
+    return d
+
+
+# ══════════════════════════════════════
+#  合同到期提醒 API
+# ══════════════════════════════════════
+
+@router.get("/contract-reminders")
+def get_contract_reminders(
+    days_before: int = Query(30, description="提前天数"),
+    db: Session = Depends(get_db),
+):
+    """获取合同到期提醒列表"""
+    from datetime import timedelta
+
+    today = date_type.today()
+    future_date = today + timedelta(days=days_before)
+
+    sql = """
+        SELECT lft.*,
+               lf.operator_name,
+               oh.household_name AS owner_household_name,
+               v.village_name
+        FROM large_farmer_trust lft
+        LEFT JOIN large_farmer lf ON lf.id = lft.large_farmer_id
+        LEFT JOIN family_household oh ON oh.id = lft.owner_household_id
+        LEFT JOIN village v ON v.id = lft.parcel_village_id
+        WHERE lft.is_active = 1
+          AND lft.end_date IS NOT NULL
+          AND lft.end_date BETWEEN :today AND :future_date
+        ORDER BY lft.end_date ASC
+    """
+    rows = db.execute(text(sql), {"today": today, "future_date": future_date}).fetchall()
+
+    expired_sql = """
+        SELECT lft.*,
+               lf.operator_name,
+               oh.household_name AS owner_household_name,
+               v.village_name
+        FROM large_farmer_trust lft
+        LEFT JOIN large_farmer lf ON lf.id = lft.large_farmer_id
+        LEFT JOIN family_household oh ON oh.id = lft.owner_household_id
+        LEFT JOIN village v ON v.id = lft.parcel_village_id
+        WHERE lft.is_active = 1
+          AND lft.end_date IS NOT NULL
+          AND lft.end_date < :today
+        ORDER BY lft.end_date DESC
+    """
+    expired_rows = db.execute(text(expired_sql), {"today": today}).fetchall()
+
+    return {
+        "expiring": [_large_farmer_trust_out(r) for r in rows],
+        "expired": [_large_farmer_trust_out(r) for r in expired_rows],
+        "today": today.isoformat(),
+        "future_date": future_date.isoformat(),
+    }
+
+
+# ══════════════════════════════════════
+#  统计分析 API
+# ══════════════════════════════════════
+
+@router.get("/summary/by-grade")
+def summary_by_grade(db: Session = Depends(get_db)):
+    """按大户等级统计"""
+    rows = db.execute(text("""
+        SELECT
+            farmer_grade,
+            COUNT(*) AS count,
+            COALESCE(SUM(total_managed_area), 0) AS total_area
+        FROM large_farmer
+        WHERE status = 1
+        GROUP BY farmer_grade
+        ORDER BY farmer_grade
+    """)).fetchall()
+
+    return {
+        "items": [
+            {
+                "grade": r.farmer_grade,
+                "grade_label": FARMER_GRADE_LABEL.get(r.farmer_grade, r.farmer_grade or "未评级"),
+                "count": r.count,
+                "total_area": float(r.total_area or 0),
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.get("/summary/by-zone")
+def summary_by_zone(year: int = Query(..., description="统计年度"), db: Session = Depends(get_db)):
+    """按片区类型统计代耕代种面积"""
+    rows = db.execute(text("""
+        SELECT
+            is_high_standard,
+            is_demonstration,
+            COUNT(*) AS count,
+            COALESCE(SUM(area), 0) AS total_area
+        FROM large_farmer_trust
+        WHERE is_active = 1
+          AND trust_year = :year
+        GROUP BY is_high_standard, is_demonstration
+    """), {"year": year}).fetchall()
+
+    return {
+        "year": year,
+        "items": [
+            {
+                "is_high_standard": bool(r.is_high_standard),
+                "is_demonstration": bool(r.is_demonstration),
+                "zone_type": "高标准+示范" if r.is_high_standard and r.is_demonstration
+                          else "高标准农田" if r.is_high_standard
+                          else "示范片区" if r.is_demonstration
+                          else "普通片区",
+                "count": r.count,
+                "total_area": float(r.total_area or 0),
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.get("/summary/by-parcel-village")
+def summary_by_parcel_village(year: int = Query(..., description="统计年度"), db: Session = Depends(get_db)):
+    """按地块所属村统计代耕代种面积（跨村统计）"""
+    rows = db.execute(text("""
+        SELECT
+            lft.parcel_village_id,
+            v.village_name,
+            COUNT(*) AS trust_count,
+            COALESCE(SUM(lft.area), 0) AS total_area,
+            COUNT(DISTINCT lft.large_farmer_id) AS large_farmer_count
+        FROM large_farmer_trust lft
+        LEFT JOIN village v ON v.id = lft.parcel_village_id
+        WHERE lft.is_active = 1
+          AND lft.trust_year = :year
+          AND lft.parcel_village_id IS NOT NULL
+        GROUP BY lft.parcel_village_id, v.village_name
+        ORDER BY total_area DESC
+    """), {"year": year}).fetchall()
+
+    return {
+        "year": year,
+        "items": [
+            {
+                "village_id": r.parcel_village_id,
+                "village_name": r.village_name,
+                "trust_count": r.trust_count,
+                "total_area": float(r.total_area or 0),
+                "large_farmer_count": r.large_farmer_count,
+            }
+            for r in rows
+        ],
     }

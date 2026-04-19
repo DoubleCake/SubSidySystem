@@ -648,6 +648,11 @@ class LargeFarmer(Base):
     registration_no     = Column(String(50), nullable=True, comment="工商注册号/统一社会信用代码")
     registration_date   = Column(Date, nullable=True, comment="注册日期")
 
+    # 大户评级
+    farmer_grade        = Column(String(20), nullable=True,
+                                  comment="PROVINCIAL省级/MUNICIPAL市级/COUNTY县级/ORDINARY普通")
+    credit_score        = Column(SmallInteger, nullable=True, comment="信用评分(0-100)")
+
     # 状态
     status              = Column(SmallInteger, nullable=False, default=1, comment="1正常 2注销")
     is_verified         = Column(SmallInteger, nullable=False, default=0, comment="0未审核 1已审核")
@@ -664,11 +669,90 @@ class LargeFarmer(Base):
         Index('ix_large_farmer_village_id', 'village_id'),
         Index('ix_large_farmer_status', 'status'),
         Index('ix_large_farmer_id_card', 'id_card'),
+        Index('ix_large_farmer_grade', 'farmer_grade'),
     )
 
     # 关联
     village = relationship("Village")
     trust_relations = relationship("LargeFarmerTrust", back_populates="large_farmer")
+    parcels = relationship("LargeFarmerParcel", back_populates="large_farmer")
+
+
+class LargeFarmerParcel(Base):
+    """
+    大户地块明细表
+    记录大户经营的具体地块信息，包括位置、面积、片区标识等
+    """
+    __tablename__ = "large_farmer_parcel"
+
+    id                  = Column(Integer, primary_key=True, autoincrement=True)
+
+    # 所属大户
+    large_farmer_id     = Column(Integer, ForeignKey("large_farmer.id"), nullable=False,
+                                   comment="大户ID")
+
+    # 关联的代耕代种记录（可选）
+    trust_id            = Column(Integer, ForeignKey("large_farmer_trust.id"), nullable=True,
+                                   comment="关联的代耕代种记录ID")
+
+    # 地块基本信息
+    parcel_name         = Column(String(100), nullable=True, comment="地块名称")
+    area                = Column(DECIMAL(10, 2), nullable=False, comment="地块面积(亩)")
+
+    # 地块位置（归属村组）
+    village_id          = Column(Integer, ForeignKey("village.id"), nullable=False, comment="地块所属村")
+    group_no            = Column(SmallInteger, nullable=True, comment="地块所属组")
+    parcel_location     = Column(String(200), nullable=True, comment="地块位置描述")
+
+    # 地块四至
+    boundary_east       = Column(String(100), nullable=True, comment="东至")
+    boundary_west       = Column(String(100), nullable=True, comment="西至")
+    boundary_south      = Column(String(100), nullable=True, comment="南至")
+    boundary_north      = Column(String(100), nullable=True, comment="北至")
+
+    # 片区标识
+    is_high_standard    = Column(SmallInteger, nullable=False, default=0, comment="是否高标准农田")
+    is_demonstration    = Column(SmallInteger, nullable=False, default=0, comment="是否示范片区")
+    zone_name           = Column(String(100), nullable=True, comment="片区名称")
+    zone_type           = Column(String(50), nullable=True, comment="片区类型")
+
+    # 地力等级
+    soil_grade          = Column(String(20), nullable=True,
+                                  comment="EXCELLENT优等/GOOD良/MEDIUM中/POOR差")
+    soil_type           = Column(String(50), nullable=True, comment="土壤类型")
+    irrigation_level    = Column(String(20), nullable=True, comment="灌溉条件：完善/一般/无")
+
+    # 地图信息
+    map_coordinates     = Column(Text, nullable=True, comment="地图坐标点（JSON数组：[[lng,lat],...]）")
+    map_geojson         = Column(Text, nullable=True, comment="GeoJSON格式的地块边界")
+    map_center_lng      = Column(DECIMAL(12, 8), nullable=True, comment="地图中心经度")
+    map_center_lat      = Column(DECIMAL(12, 8), nullable=True, comment="地图中心纬度")
+    map_zoom            = Column(SmallInteger, nullable=True, comment="地图缩放级别")
+
+    # 种植信息
+    current_crop        = Column(String(50), nullable=True, comment="当前作物")
+    planting_season     = Column(String(20), nullable=True, comment="种植季节：大春/小春")
+    planting_year       = Column(SmallInteger, nullable=True, comment="种植年度")
+
+    # 状态
+    is_active           = Column(SmallInteger, nullable=False, default=1, comment="1有效 0无效")
+    remark              = Column(Text, nullable=True, comment="备注")
+    operator            = Column(String(50), nullable=True, comment="录入人")
+    created_at          = Column(DateTime, default=func.now())
+    updated_at          = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # 索引
+    __table_args__ = (
+        Index('ix_large_farmer_parcel_lf_id', 'large_farmer_id'),
+        Index('ix_large_farmer_parcel_village_id', 'village_id'),
+        Index('ix_large_farmer_parcel_high_std', 'is_high_standard'),
+        Index('ix_large_farmer_parcel_demo', 'is_demonstration'),
+        Index('ix_large_farmer_parcel_trust_id', 'trust_id'),
+    )
+
+    # 关联
+    large_farmer = relationship("LargeFarmer", back_populates="parcels")
+    village = relationship("Village", foreign_keys=[village_id])
 
 
 class LargeFarmerTrust(Base):
@@ -698,20 +782,36 @@ class LargeFarmerTrust(Base):
     trust_type           = Column(String(20), nullable=False, default="ENTRUST",
                                    comment="ENTRUST代耕代种/RENT出租/TRANSFER流转")
 
+    # 地块归属村组
+    parcel_village_id    = Column(Integer, ForeignKey("village.id"), nullable=True,
+                                   comment="地块所属村（可与大户所属村不同）")
+    parcel_group_no      = Column(SmallInteger, nullable=True, comment="地块所属组")
+
     # 地块信息
     parcel_desc          = Column(String(200), nullable=True, comment="地块描述")
     parcel_location      = Column(String(200), nullable=True, comment="地块位置")
+
+    # 片区标识
+    is_high_standard     = Column(SmallInteger, nullable=False, default=0, comment="是否高标准农田")
+    is_demonstration     = Column(SmallInteger, nullable=False, default=0, comment="是否示范片区")
+    zone_name            = Column(String(100), nullable=True, comment="片区名称")
 
     # 合同信息
     contract_no          = Column(String(50), nullable=True, comment="合同编号")
     start_date           = Column(Date, nullable=True, comment="流转开始日期")
     end_date             = Column(Date, nullable=True, comment="流转结束日期")
 
+    # 合同到期提醒
+    reminder_sent        = Column(SmallInteger, nullable=False, default=0, comment="是否已发送到期提醒")
+    reminder_days        = Column(SmallInteger, nullable=True, comment="提前提醒天数")
+
     # 租金信息
     annual_fee           = Column(DECIMAL(10, 2), nullable=True, comment="年租金(元/亩)")
     total_fee            = Column(DECIMAL(10, 2), nullable=True, comment="总租金")
     payment_method       = Column(String(20), nullable=True,
                                    comment="支付方式：CASH现金/GRAIN粮食折算/FREE无偿/OTHER其他")
+    payment_status       = Column(String(20), nullable=True,
+                                   comment="支付状态：UNPAID未支付/PARTIAL部分支付/PAID已支付")
 
     # 数据状态
     data_reliability     = Column(String(20), nullable=False, default="VILLAGE_CONFIRM",
@@ -731,9 +831,34 @@ class LargeFarmerTrust(Base):
         Index('ix_large_farmer_trust_owner_id', 'owner_household_id'),
         Index('ix_large_farmer_trust_year', 'trust_year'),
         Index('ix_large_farmer_trust_land_trust', 'land_trust_id'),
+        Index('ix_large_farmer_trust_end_date', 'end_date'),
+        Index('ix_large_farmer_trust_parcel_village', 'parcel_village_id'),
     )
 
     # 关联
     large_farmer = relationship("LargeFarmer", back_populates="trust_relations")
     owner_household = relationship("FamilyHousehold", foreign_keys=[owner_household_id])
     land_trust = relationship("LandTrust")
+    parcel_village = relationship("Village", foreign_keys=[parcel_village_id])
+
+
+class LargeFarmerContractReminder(Base):
+    """
+    大户合同到期提醒记录表
+    """
+    __tablename__ = "large_farmer_contract_reminder"
+
+    id                  = Column(Integer, primary_key=True, autoincrement=True)
+    trust_id            = Column(Integer, ForeignKey("large_farmer_trust.id"), nullable=False,
+                                  comment="代耕代种记录ID")
+    large_farmer_id     = Column(Integer, ForeignKey("large_farmer.id"), nullable=False,
+                                  comment="大户ID")
+    reminder_type       = Column(String(20), nullable=False,
+                                  comment="EXPIRING即将到期/EXPIRED已到期")
+    reminder_date       = Column(Date, nullable=False, comment="提醒日期")
+    contract_end_date   = Column(Date, nullable=False, comment="合同到期日期")
+    days_before         = Column(SmallInteger, nullable=True, comment="提前天数")
+    is_sent             = Column(SmallInteger, nullable=False, default=0, comment="是否已发送")
+    sent_at             = Column(DateTime, nullable=True, comment="发送时间")
+    note                = Column(Text, nullable=True, comment="备注")
+    created_at          = Column(DateTime, default=func.now())
