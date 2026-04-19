@@ -119,7 +119,67 @@ def migrate_db():
         "ALTER TABLE subsidy_application ADD COLUMN is_proxy SMALLINT DEFAULT 0",
         "ALTER TABLE subsidy_payment ADD COLUMN is_proxy SMALLINT DEFAULT 0",
         "ALTER TABLE subsidy_proxy ADD COLUMN subsidy_type_id INTEGER REFERENCES subsidy_type(id)",
-        # 农业任务分解相关表（新表由 Base.metadata.create_all 创建）
+        # 大户管理相关字段迁移
+        "ALTER TABLE large_farmer ADD COLUMN farmer_grade VARCHAR(20)",
+        "ALTER TABLE large_farmer ADD COLUMN credit_score SMALLINT",
+        # large_farmer_trust 新增字段
+        "ALTER TABLE large_farmer_trust ADD COLUMN parcel_village_id INTEGER REFERENCES village(id)",
+        "ALTER TABLE large_farmer_trust ADD COLUMN parcel_group_no SMALLINT",
+        "ALTER TABLE large_farmer_trust ADD COLUMN is_high_standard SMALLINT DEFAULT 0",
+        "ALTER TABLE large_farmer_trust ADD COLUMN is_demonstration SMALLINT DEFAULT 0",
+        "ALTER TABLE large_farmer_trust ADD COLUMN zone_name VARCHAR(100)",
+        "ALTER TABLE large_farmer_trust ADD COLUMN reminder_sent SMALLINT DEFAULT 0",
+        "ALTER TABLE large_farmer_trust ADD COLUMN reminder_days SMALLINT",
+        "ALTER TABLE large_farmer_trust ADD COLUMN payment_status VARCHAR(20)",
+        # 创建大户地块表
+        """CREATE TABLE IF NOT EXISTS large_farmer_parcel (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            large_farmer_id INTEGER NOT NULL REFERENCES large_farmer(id),
+            trust_id INTEGER REFERENCES large_farmer_trust(id),
+            parcel_name VARCHAR(100),
+            area DECIMAL(10,2) NOT NULL,
+            village_id INTEGER NOT NULL REFERENCES village(id),
+            group_no SMALLINT,
+            parcel_location VARCHAR(200),
+            boundary_east VARCHAR(100),
+            boundary_west VARCHAR(100),
+            boundary_south VARCHAR(100),
+            boundary_north VARCHAR(100),
+            is_high_standard SMALLINT DEFAULT 0,
+            is_demonstration SMALLINT DEFAULT 0,
+            zone_name VARCHAR(100),
+            zone_type VARCHAR(50),
+            soil_grade VARCHAR(20),
+            soil_type VARCHAR(50),
+            irrigation_level VARCHAR(20),
+            map_coordinates TEXT,
+            map_geojson TEXT,
+            map_center_lng DECIMAL(12,8),
+            map_center_lat DECIMAL(12,8),
+            map_zoom SMALLINT,
+            current_crop VARCHAR(50),
+            planting_season VARCHAR(20),
+            planting_year SMALLINT,
+            is_active SMALLINT DEFAULT 1,
+            remark TEXT,
+            operator VARCHAR(50),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )""",
+        # 创建合同到期提醒表
+        """CREATE TABLE IF NOT EXISTS large_farmer_contract_reminder (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            trust_id INTEGER NOT NULL REFERENCES large_farmer_trust(id),
+            large_farmer_id INTEGER NOT NULL REFERENCES large_farmer(id),
+            reminder_type VARCHAR(20) NOT NULL,
+            reminder_date DATE NOT NULL,
+            contract_end_date DATE NOT NULL,
+            days_before SMALLINT,
+            is_sent SMALLINT DEFAULT 0,
+            sent_at DATETIME,
+            note TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )""",
     ]
     with engine.connect() as conn:
         for sql in migrations:
