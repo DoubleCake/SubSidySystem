@@ -258,9 +258,11 @@ def list_large_farmer_trusts(
     sql = f"""
         SELECT lft.*,
                oh.household_name AS owner_household_name,
-               oh.household_code AS owner_household_code
+               oh.household_code AS owner_household_code,
+               pv.village_name AS parcel_village_name
         FROM large_farmer_trust lft
         LEFT JOIN family_household oh ON oh.id = lft.owner_household_id
+        LEFT JOIN village pv ON pv.id = lft.parcel_village_id
         WHERE {base_where}
         ORDER BY lft.trust_year DESC, lft.id DESC
     """
@@ -320,8 +322,16 @@ def create_large_farmer_trust(farmer_id: int, data: dict, db: Session = Depends(
         trust_year=int(trust_year),
         area=Decimal(str(area)),
         trust_type=data.get("trust_type", "ENTRUST"),
+        # 地块归属村组
+        parcel_village_id=data.get("parcel_village_id"),
+        parcel_group_no=int(data["parcel_group_no"]) if data.get("parcel_group_no") else None,
         parcel_desc=data.get("parcel_desc"),
         parcel_location=data.get("parcel_location"),
+        # 片区标识
+        is_high_standard=int(data.get("is_high_standard", 0)),
+        is_demonstration=int(data.get("is_demonstration", 0)),
+        zone_name=data.get("zone_name"),
+        # 合同和租金信息
         contract_no=data.get("contract_no"),
         start_date=start_date,
         end_date=end_date,
@@ -353,7 +363,13 @@ def update_large_farmer_trust(farmer_id: int, trust_id: int, data: dict, db: Ses
 
     updatable = [
         "owner_household_id", "land_trust_id", "trust_year", "area", "trust_type",
-        "parcel_desc", "parcel_location", "contract_no", "start_date", "end_date",
+        # 地块归属村组
+        "parcel_village_id", "parcel_group_no",
+        "parcel_desc", "parcel_location",
+        # 片区标识
+        "is_high_standard", "is_demonstration", "zone_name",
+        # 合同和租金信息
+        "contract_no", "start_date", "end_date",
         "annual_fee", "total_fee", "payment_method", "data_reliability", "is_active",
         "affect_subsidy_calc", "note", "operator"
     ]
@@ -485,10 +501,12 @@ def get_large_farmer_area_summary(
         SELECT lft.*,
                oh.household_name AS owner_household_name,
                oh.household_code AS owner_household_code,
-               v.village_name AS owner_village_name
+               v.village_name AS owner_village_name,
+               pv.village_name AS parcel_village_name
         FROM large_farmer_trust lft
         LEFT JOIN family_household oh ON oh.id = lft.owner_household_id
         LEFT JOIN village v ON v.id = oh.village_id
+        LEFT JOIN village pv ON pv.id = lft.parcel_village_id
         WHERE lft.large_farmer_id = :farmer_id
           AND lft.trust_year = :year
           AND lft.is_active = 1

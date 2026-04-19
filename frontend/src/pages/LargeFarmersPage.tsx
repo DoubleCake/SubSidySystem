@@ -65,6 +65,14 @@ interface LargeFarmerTrust {
   operator: string | null
   created_at: string
   updated_at: string
+  // 扩展字段 - 地块归属村组
+  parcel_village_id: number | null
+  parcel_village_name: string | null
+  parcel_group_no: number | null
+  // 扩展字段 - 片区标识
+  is_high_standard: number
+  is_demonstration: number
+  zone_name: string | null
 }
 
 interface VillageOption { id: number; village_name: string }
@@ -136,6 +144,13 @@ const emptyTrustForm = () => ({
   data_reliability: 'VILLAGE_CONFIRM' as const,
   affect_subsidy_calc: 1,
   note: '',
+  // 扩展字段 - 地块归属村组
+  parcel_village_id: null as number | null,
+  parcel_group_no: '',
+  // 扩展字段 - 片区标识
+  is_high_standard: 0,
+  is_demonstration: 0,
+  zone_name: '',
 })
 
 export default function LargeFarmersPage() {
@@ -294,6 +309,13 @@ export default function LargeFarmersPage() {
       data_reliability: t.data_reliability as any,
       affect_subsidy_calc: t.affect_subsidy_calc,
       note: t.note || '',
+      // 扩展字段 - 地块归属村组
+      parcel_village_id: t.parcel_village_id,
+      parcel_group_no: t.parcel_group_no ? String(t.parcel_group_no) : '',
+      // 扩展字段 - 片区标识
+      is_high_standard: t.is_high_standard || 0,
+      is_demonstration: t.is_demonstration || 0,
+      zone_name: t.zone_name || '',
     })
     setOwnerSearch(t.owner_household_name)
     setTrustEditOpen(true)
@@ -316,6 +338,13 @@ export default function LargeFarmersPage() {
       parcel_location: trustForm.parcel_location || null,
       contract_no: trustForm.contract_no || null,
       note: trustForm.note || null,
+      // 地块归属村组
+      parcel_village_id: trustForm.parcel_village_id || null,
+      parcel_group_no: trustForm.parcel_group_no ? Number(trustForm.parcel_group_no) : null,
+      // 片区标识
+      is_high_standard: trustForm.is_high_standard || 0,
+      is_demonstration: trustForm.is_demonstration || 0,
+      zone_name: trustForm.zone_name || null,
     }
     try {
       if (trustEditTarget) {
@@ -492,6 +521,19 @@ export default function LargeFarmersPage() {
                         </div>
                       </div>
                       {t.parcel_desc && <div className="text-xs text-stone-400 mb-1">地块：{t.parcel_desc}</div>}
+                      {/* 地块归属村组显示 */}
+                      {t.parcel_village_name && (
+                        <div className="text-xs text-blue-600 mb-1">
+                          地块归属：{t.parcel_village_name}
+                          {t.parcel_group_no && ` ${t.parcel_group_no}组`}
+                        </div>
+                      )}
+                      {/* 片区标识显示 */}
+                      <div className="flex gap-1 mb-1">
+                        {t.is_high_standard === 1 && <Tag label="高标准农田" size="sm" color="green" />}
+                        {t.is_demonstration === 1 && <Tag label="示范片区" size="sm" color="purple" />}
+                        {t.zone_name && <span className="text-xs text-stone-400">{t.zone_name}</span>}
+                      </div>
                       <div className="flex items-center justify-between">
                         <Tag label={t.reliability_label} size="sm" color={
                           t.data_reliability === 'CERTIFIED' ? 'green' :
@@ -658,6 +700,27 @@ export default function LargeFarmersPage() {
             </div>
           </div>
 
+          {/* 地块归属村组 */}
+          <div className="bg-stone-50 border border-stone-200 rounded-xl p-4">
+            <h4 className="text-sm font-semibold text-stone-700 mb-3">📍 地块归属村组</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-stone-400 mb-1">地块所属村</label>
+                <select value={trustForm.parcel_village_id || ''} onChange={e => sft('parcel_village_id', e.target.value ? Number(e.target.value) : null)}
+                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+                  <option value="">（同大户所属村）</option>
+                  {villages.map(v => <option key={v.id} value={v.id}>{v.village_name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-stone-400 mb-1">地块所属组</label>
+                <input value={trustForm.parcel_group_no} onChange={e => sft('parcel_group_no', e.target.value)}
+                  placeholder="如：1"
+                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-stone-400 mb-1">地块描述</label>
@@ -669,6 +732,31 @@ export default function LargeFarmersPage() {
               <label className="block text-xs text-stone-400 mb-1">地块位置</label>
               <input value={trustForm.parcel_location} onChange={e => sft('parcel_location', e.target.value)}
                 placeholder="如：村东头"
+                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+            </div>
+          </div>
+
+          {/* 片区标识 */}
+          <div className="bg-stone-50 border border-stone-200 rounded-xl p-4">
+            <h4 className="text-sm font-semibold text-stone-700 mb-3">🏷️ 片区标识</h4>
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={trustForm.is_high_standard === 1}
+                  onChange={e => sft('is_high_standard', e.target.checked ? 1 : 0)}
+                  className="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500" />
+                <span className="text-sm">高标准农田</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={trustForm.is_demonstration === 1}
+                  onChange={e => sft('is_demonstration', e.target.checked ? 1 : 0)}
+                  className="rounded border-stone-300 text-purple-600 focus:ring-purple-500" />
+                <span className="text-sm">示范片区</span>
+              </label>
+            </div>
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">片区名称</label>
+              <input value={trustForm.zone_name} onChange={e => sft('zone_name', e.target.value)}
+                placeholder="如：核心种植区"
                 className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
             </div>
           </div>
