@@ -91,8 +91,10 @@ class FarmerProfile(Base):
     # 关联
     household    = relationship("FamilyHousehold", back_populates="members",
                                 foreign_keys=[household_id])
-    applications = relationship("SubsidyApplication", back_populates="farmer")
-    payments     = relationship("SubsidyPayment", back_populates="farmer")
+    applications = relationship("SubsidyApplication", back_populates="farmer",
+                                foreign_keys="SubsidyApplication.farmer_id")
+    payments     = relationship("SubsidyPayment", back_populates="farmer",
+                                foreign_keys="SubsidyPayment.farmer_id")
 
 
 class SubsidyType(Base):
@@ -161,7 +163,8 @@ class SubsidyApplication(Base):
     )
 
     # 关联
-    farmer       = relationship("FarmerProfile", back_populates="applications")
+    farmer       = relationship("FarmerProfile", back_populates="applications",
+                                foreign_keys=[farmer_id])
     subsidy_type = relationship("SubsidyType", back_populates="applications")
     proxy_relations = relationship("SubsidyProxy", back_populates="application")
 
@@ -205,7 +208,8 @@ class SubsidyPayment(Base):
     )
 
     # 关联
-    farmer       = relationship("FarmerProfile", back_populates="payments")
+    farmer       = relationship("FarmerProfile", back_populates="payments",
+                                foreign_keys=[farmer_id])
     subsidy_type = relationship("SubsidyType", back_populates="payments")
     proxy_relations = relationship("SubsidyProxy", back_populates="payment")
 
