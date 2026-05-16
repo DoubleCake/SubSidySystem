@@ -395,6 +395,7 @@ def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
 
             app = SubsidyApplication(
                 **clean_row,
+                beneficiary_id=farmer.id,
                 apply_village_id=village_id,
                 apply_group_no=group_no,
                 apply_village_name=village_name,
@@ -552,6 +553,7 @@ def create_application(data: ApplicationCreate, db: Session = Depends(get_db)):
 
     app = SubsidyApplication(
         **data_dict,
+        beneficiary_id=farmer.id,
         apply_village_id=village_id,
         apply_group_no=group_no,
         apply_village_name=village_name,
@@ -1616,6 +1618,7 @@ def create_payment(data: PaymentCreate, db: Session = Depends(get_db)):
 
     payment = SubsidyPayment(
         farmer_id=data.farmer_id,
+        beneficiary_id=data.farmer_id,
         subsidy_type_id=data.subsidy_type_id,
         payment_year=data.payment_year,
         amount=data.amount,
