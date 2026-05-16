@@ -14,5 +14,14 @@ export default defineConfig({
   build: {
     outDir: '../static',
     emptyOutDir: false,
-  }
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom', 'zustand'],
+          xlsx: ['xlsx'],
+          recharts: ['recharts'],
+        },
+      },
+    },
+  },
 })

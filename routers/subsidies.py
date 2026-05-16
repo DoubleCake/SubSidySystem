@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
@@ -13,185 +13,15 @@ from schemas import (
     SubsidyProxyCreate, SubsidyProxyOut,
 )
 from utils import parse_group_no_to_int, format_group_no, validate_id_card, parse_gender_from_id, check_area_anomaly
+from core.exceptions import NotFound, BadRequest
+from services.subsidy_service import (
+    recalc_household_cache, batch_import_applications, batch_import_payments,
+    create_application as svc_create_application,
+    update_application as svc_update_application,
+    get_year_compare, get_village_snapshot_simple, create_proxy_relation,
+)
 
 router = APIRouter(prefix="/api/subsidies", tags=["补贴管理"])
-
-
-# ─────────────────────────────────────
-#  批量操作后更新面积缓存
-# ─────────────────────────────────────
-
-def _recalc_household_cache_after_import(db: Session, household_ids: list[int]) -> None:
-    """补贴申报或发放导入后，重新计算相关家庭户的面积缓存
-    代领逻辑：本户成员作为代领人的不计入面积；本户成员作为受益人的要计入面积
-    """
-    from sqlalchemy import text
-    SEASON_ORDER = ["大春", "小春", "全年单补", "临时"]
-
-    for household_id in household_ids:
-        hh = db.query(FamilyHousehold).filter(FamilyHousehold.id == household_id).first()
-        if not hh:
-            continue
-
-        member_ids = [m.id for m in db.query(FarmerProfile.id)
-                      .filter(FarmerProfile.household_id == household_id).all()]
-        if not member_ids:
-            db.query(HouseholdAreaUsageCache).filter(
-                HouseholdAreaUsageCache.household_id == household_id
-            ).delete()
-            continue
-
-        # 获取本户所有成员作为代领人的代领关系（不计入面积）
-        proxy_as_proxy = {}  # { ('app'|'pay', id): True }
-        proxy_query = db.query(SubsidyProxy).filter(
-            SubsidyProxy.proxy_farmer_id.in_(member_ids)
-        ).all()
-        for pr in proxy_query:
-            if pr.application_id:
-                proxy_as_proxy[('app', pr.application_id)] = True
-            if pr.payment_id:
-                proxy_as_proxy[('pay', pr.payment_id)] = True
-
-        # 获取本户所有成员作为受益人的代领关系（需要计入面积）
-        proxy_as_beneficiary_app = {}  # { (year, season): [area] }
-        proxy_as_beneficiary_pay = {}  # { (year, season): [area] }
-
-        beneficiary_proxy_query = db.query(SubsidyProxy).filter(
-            SubsidyProxy.beneficiary_farmer_id.in_(member_ids)
-        ).all()
-
-        for pr in beneficiary_proxy_query:
-            # 查找对应的申请记录
-            if pr.application_id:
-                app = db.get(SubsidyApplication, pr.application_id)
-                if app and app.apply_area:
-                    st = db.get(SubsidyType, app.subsidy_type_id)
-                    if st and st.calc_mode == "per_mu" and st.count_toward_area == 1:
-                        season = st.season or "全年单补"
-                        key = (app.apply_year, season)
-                        if key not in proxy_as_beneficiary_app:
-                            proxy_as_beneficiary_app[key] = []
-                        proxy_as_beneficiary_app[key].append(float(app.apply_area))
-
-            # 查找对应的发放记录
-            if pr.payment_id:
-                pay = db.get(SubsidyPayment, pr.payment_id)
-                if pay and pay.apply_area:
-                    st = db.get(SubsidyType, pay.subsidy_type_id)
-                    if st and st.calc_mode == "per_mu" and st.count_toward_area == 1:
-                        season = st.season or "全年单补"
-                        key = (pay.payment_year, season)
-                        if key not in proxy_as_beneficiary_pay:
-                            proxy_as_beneficiary_pay[key] = []
-                        proxy_as_beneficiary_pay[key].append(float(pay.apply_area))
-
-        # 从申报表计算（排除本户成员作为代领人的记录）
-        app_query = (
-            db.query(
-                SubsidyType.season,
-                SubsidyApplication.apply_year,
-                SubsidyApplication.apply_area,
-                SubsidyApplication.id,
-            )
-            .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
-            .filter(
-                SubsidyApplication.farmer_id.in_(member_ids),
-                SubsidyType.calc_mode == "per_mu",
-                SubsidyType.count_toward_area == 1,
-                SubsidyApplication.apply_area.isnot(None),
-                SubsidyApplication.pay_status.in_([0, 1, 2]),
-            )
-            .all()
-        )
-        app_data: dict[tuple, float] = {}
-        all_years = set()
-        for r in app_query:
-            # 跳过本户成员作为代领人的记录
-            if ('app', r.id) in proxy_as_proxy:
-                continue
-            season = r.season or "全年单补"
-            year = r.apply_year
-            all_years.add(year)
-            key = (year, season)
-            if key not in app_data:
-                app_data[key] = 0.0
-            app_data[key] += float(r.apply_area or 0)
-
-        # 加上本户成员作为受益人的申请记录面积
-        for key, areas in proxy_as_beneficiary_app.items():
-            year, season = key
-            all_years.add(year)
-            if key not in app_data:
-                app_data[key] = 0.0
-            app_data[key] += sum(areas)
-
-        # 从发放表计算（排除本户成员作为代领人的记录）
-        pay_query = (
-            db.query(
-                SubsidyType.season,
-                SubsidyPayment.payment_year,
-                SubsidyPayment.apply_area,
-                SubsidyPayment.id,
-            )
-            .join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
-            .filter(
-                SubsidyPayment.farmer_id.in_(member_ids),
-                SubsidyType.calc_mode == "per_mu",
-                SubsidyType.count_toward_area == 1,
-                SubsidyPayment.apply_area.isnot(None),
-            )
-            .all()
-        )
-        pay_data: dict[tuple, float] = {}
-        for r in pay_query:
-            # 跳过本户成员作为代领人的记录
-            if ('pay', r.id) in proxy_as_proxy:
-                continue
-            season = r.season or "全年单补"
-            year = r.payment_year
-            all_years.add(year)
-            key = (year, season)
-            if key not in pay_data:
-                pay_data[key] = 0.0
-            pay_data[key] += float(r.apply_area or 0)
-
-        # 加上本户成员作为受益人的发放记录面积
-        for key, areas in proxy_as_beneficiary_pay.items():
-            year, season = key
-            all_years.add(year)
-            if key not in pay_data:
-                pay_data[key] = 0.0
-            pay_data[key] += sum(areas)
-
-        # 更新缓存
-        for year in all_years:
-            for season in SEASON_ORDER:
-                apply_area = app_data.get((year, season), 0.0)
-                payment_area = pay_data.get((year, season), 0.0)
-                used_area = payment_area if payment_area > 0 else apply_area
-
-                existing = db.query(HouseholdAreaUsageCache).filter(
-                    HouseholdAreaUsageCache.household_id == household_id,
-                    HouseholdAreaUsageCache.year == year,
-                    HouseholdAreaUsageCache.season == season,
-                ).first()
-
-                if existing:
-                    existing.apply_area = apply_area
-                    existing.payment_area = payment_area
-                    existing.used_area = used_area
-                else:
-                    new_cache = HouseholdAreaUsageCache(
-                        household_id=household_id,
-                        year=year,
-                        season=season,
-                        apply_area=apply_area,
-                        payment_area=payment_area,
-                        used_area=used_area,
-                    )
-                    db.add(new_cache)
-
-    db.commit()
 
 
 # ════════════════════════════════
@@ -239,7 +69,7 @@ def create_subsidy_type(data: SubsidyTypeCreate, db: Session = Depends(get_db)):
 def update_subsidy_type(type_id: int, data: dict, db: Session = Depends(get_db)):
     st = db.get(SubsidyType, type_id)
     if not st:
-        raise HTTPException(status_code=404, detail="补贴类型不存在")
+        raise NotFound("补贴类型不存在")
     for k, v in data.items():
         if hasattr(st, k):
             setattr(st, k, v)
@@ -250,163 +80,24 @@ def update_subsidy_type(type_id: int, data: dict, db: Session = Depends(get_db))
 @router.delete("/types/{type_id}")
 def delete_subsidy_type(type_id: int, db: Session = Depends(get_db)):
     """删除补贴项目（会级联删除相关的补贴申请记录）"""
-    from sqlalchemy import text
-    
-    # 检查项目是否存在
-    st = db.get(SubsidyType, type_id)
-    if not st:
-        raise HTTPException(status_code=404, detail="补贴项目不存在")
-    
-    # 删除相关的补贴申请记录
-    db.execute(text("DELETE FROM subsidy_application WHERE subsidy_type_id = :type_id"), {"type_id": type_id})
-    
-    # 删除补贴项目
-    db.execute(text("DELETE FROM subsidy_type WHERE id = :type_id"), {"type_id": type_id})
-    
-    db.commit()
+    from services.subsidy_service import delete_type
+    delete_type(db, type_id)
     return {"message": "删除成功"}
 
 
 # 批量导入申请记录
 @router.post("/applications/batch-import")
-def batch_import_applications(payload: dict, db: Session = Depends(get_db)):
-    from datetime import date as date_type
-    from utils import parse_id_card, gen_household_code
+def api_batch_import_applications(
+    payload: dict, db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = None,
+):
+    """
+    批量导入补贴申请记录。
+    大数据量场景：后台自动触发面积缓存重算，不阻塞接口响应。
+    """
     rows = payload.get("rows", [])
-    created, skipped, errors = 0, 0, []
-    new_farmers_created = 0
-    affected_households = set()  # 追踪受影响的家庭户
-
-    def get_or_create_farmer(id_card: str, real_name: str, village_name: str = "", group_no: str = "") -> FarmerProfile | None:
-        """按身份证查找农户，不存在则自动创建（含家庭户）；已存在则检查村组一致性"""
-        nonlocal new_farmers_created
-        from models import FamilyHousehold, Village
-
-        # 解析村组：直接查找或创建 Village，group_no 转为整数
-        if not village_name:
-            errors.append(f"{real_name}（{id_card}）：缺少村名"); return None
-        gno_int = parse_group_no_to_int(group_no) if group_no else 1
-        village = db.query(Village).filter(Village.village_name == village_name).first()
-        if not village:
-            village = Village(village_name=village_name)
-            db.add(village); db.flush()
-        vid = village.id
-
-        fp = db.query(FarmerProfile).filter(FarmerProfile.id_card == id_card).first()
-        if fp:
-            # 已存在的农户：不检查村组一致性，允许因嫁娶等原因导致户籍地址与领取地址不一致
-            return fp
-
-        if not vid:
-            errors.append(f"{real_name}（{id_card}）：村组信息不完整，无法创建农户"); return None
-
-        parsed = parse_id_card(id_card) or {}
-        fp = FarmerProfile(
-            household_id=0, real_name=real_name, gender=parsed.get("gender") or 1,
-            id_card=id_card, relation="本人", farmer_status=1,
-        )
-        db.add(fp); db.flush()
-        hh = FamilyHousehold(
-            household_code=gen_household_code(fp.id),
-            household_name=f"{real_name}户", head_farmer_id=fp.id,
-            village_id=vid, group_no=gno_int, status=1,
-        )
-        db.add(hh); db.flush()
-        fp.household_id = hh.id
-        new_farmers_created += 1
-        return fp
-
-    for row in rows:
-        sp = db.begin_nested()  # savepoint：每行独立隔离，一行失败不影响其他行
-        try:
-            # 支持两种模式：传 farmer_id 或 传 id_card+real_name
-            farmer = None
-            if row.get("farmer_id"):
-                farmer = db.get(FarmerProfile, row["farmer_id"])
-            elif row.get("id_card") and row.get("real_name"):
-                farmer = get_or_create_farmer(
-                    str(row["id_card"]).strip(), str(row["real_name"]).strip(),
-                    str(row.get("village_name", "")).strip(), str(row.get("group_no", "")).strip()
-                )
-            if not farmer:
-                sp.rollback()
-                errors.append(f"{row.get('real_name','?')}：找不到农户且无法创建（缺少身份证或姓名）")
-                continue
-            row = dict(row)
-            row["farmer_id"] = farmer.id
-            # 检查完全相同的记录是否已存在（防止重复导入同一个Excel）
-            row_pay_status = row.get("pay_status", 0)
-            exists = db.query(SubsidyApplication).filter(
-                SubsidyApplication.farmer_id == farmer.id,
-                SubsidyApplication.subsidy_type_id == row["subsidy_type_id"],
-                SubsidyApplication.apply_year == row["apply_year"],
-                SubsidyApplication.pay_status == row_pay_status,
-                SubsidyApplication.apply_area == (float(row.get("apply_area")) if row.get("apply_area") is not None else None),
-                SubsidyApplication.contract_area == (float(row.get("contract_area")) if row.get("contract_area") is not None else None),
-                SubsidyApplication.trust_area == (float(row.get("trust_area")) if row.get("trust_area") is not None else None),
-                SubsidyApplication.no_subsidy_area == (float(row.get("no_subsidy_area")) if row.get("no_subsidy_area") is not None else None),
-                SubsidyApplication.remark == row.get("remark"),
-            ).first()
-            if exists:
-                sp.rollback()
-                skipped += 1
-                continue
-            # 从Excel数据中提取村组信息
-            excel_village_name = str(row.get("village_name", "")).strip()
-            excel_group_no_str = str(row.get("group_no", "")).strip()
-            excel_group_no_int = parse_group_no_to_int(excel_group_no_str) if excel_group_no_str else 1
-
-            # 关键修复：pay_date 字符串转 Python date 对象
-            clean_row = {k: v for k, v in row.items() if k not in ("bank_card_snapshot", "id_card", "real_name", "village_name", "group_no", "bank_card")}
-            if clean_row.get("pay_date") and isinstance(clean_row["pay_date"], str):
-                try:
-                    clean_row["pay_date"] = date_type.fromisoformat(clean_row["pay_date"])
-                except ValueError:
-                    clean_row["pay_date"] = None
-            # 面积处理：apply_area 优先；若未提供，用 contract_area + trust_area 自动求和
-            ca = float(clean_row.get("contract_area") or 0)
-            ta = float(clean_row.get("trust_area") or 0)
-            if ca or ta:
-                if not clean_row.get("apply_area"):
-                    clean_row["apply_area"] = round(ca + ta, 2)
-                clean_row["contract_area"] = ca or None
-                clean_row["trust_area"] = ta or None
-            # 村组快照：使用Excel里的数据，不使用数据库里的数据
-            # 查找或创建Excel中的村
-            village_id = None
-            if excel_village_name:
-                village = db.query(Village).filter(Village.village_name == excel_village_name).first()
-                if not village:
-                    village = Village(village_name=excel_village_name)
-                    db.add(village)
-                    db.flush()
-                village_id = village.id
-
-            # 村组快照使用Excel数据
-            apply_village_name = excel_village_name or None
-            apply_group_no = excel_group_no_int
-            apply_group_display = format_group_no(excel_group_no_int)
-
-            app = SubsidyApplication(
-                **clean_row,
-                apply_village_id=village_id,
-                apply_group_no=apply_group_no,
-                apply_village_name=apply_village_name,
-                apply_group_display=apply_group_display,
-                bank_card_snapshot=f"****{farmer.bank_card[-4:]}" if farmer and farmer.bank_card else None,
-            )
-            db.add(app)
-            sp.commit()
-            affected_households.add(farmer.household_id)
-            created += 1
-        except Exception as e:
-            sp.rollback()
-            errors.append(str(e))
-    db.commit()
-    # 更新相关家庭户的面积缓存
-    if affected_households:
-        _recalc_household_cache_after_import(db, list(affected_households))
-    return {"created": created, "skipped": skipped, "errors": errors, "new_farmers": new_farmers_created}
+    result = batch_import_applications(db, rows)
+    return result
 
 
 # ════════════════════════════════
@@ -508,69 +199,13 @@ def list_application_villages(
 
 @router.post("/applications")
 def create_application(data: ApplicationCreate, db: Session = Depends(get_db)):
-    # 创建时不检查重复，允许同一农户多条记录，重复检测只在precheck时进行
-    # 只在完全一模一样的记录时才提示，但不阻止创建
-
-    # 快照银行卡
-    farmer = db.get(FarmerProfile, data.farmer_id)
-    if not farmer:
-        raise HTTPException(status_code=404, detail="农户不存在")
-
-    data_dict = data.model_dump()
-    if data_dict.get("pay_date") and isinstance(data_dict["pay_date"], str):
-        from datetime import date as date_type
-        try: data_dict["pay_date"] = date_type.fromisoformat(data_dict["pay_date"])
-        except ValueError: data_dict["pay_date"] = None
-
-    # 村组快照：优先使用农户个人村组，否则用家庭户村组
-    hh = farmer.household
-    village_id = farmer.own_village_id or (hh.village_id if hh else None)
-    group_no = farmer.own_group_no or (hh.group_no if hh else None)
-    village_name = None
-    group_display = None
-
-    if village_id:
-        village = db.get(Village, village_id)
-        village_name = village.village_name if village else None
-    if group_no:
-        group_display = format_group_no(group_no)
-
-    app = SubsidyApplication(
-        **data_dict,
-        apply_village_id=village_id,
-        apply_group_no=group_no,
-        apply_village_name=village_name,
-        apply_group_display=group_display,
-        bank_card_snapshot=f"****{farmer.bank_card[-4:]}" if farmer.bank_card else None,
-    )
-    db.add(app)
-    db.commit()
-    db.refresh(app)
-
-    # 触发面积缓存更新
-    if farmer.household_id:
-        _recalc_household_cache_after_import(db, [farmer.household_id])
-
+    app = svc_create_application(db, data.model_dump())
     return {"id": app.id, "message": "创建成功"}
 
 
 @router.put("/applications/{app_id}")
 def update_application(app_id: int, data: ApplicationUpdate, db: Session = Depends(get_db)):
-    app = db.get(SubsidyApplication, app_id)
-    if not app:
-        raise HTTPException(status_code=404, detail="记录不存在")
-    upd = data.model_dump(exclude_unset=True)
-    area_changed = "apply_area" in upd or "pay_status" in upd
-    for k, v in upd.items():
-        setattr(app, k, v)
-    db.commit()
-
-    # 面积或状态变动时更新缓存
-    if area_changed:
-        farmer = db.get(FarmerProfile, app.farmer_id)
-        if farmer and farmer.household_id:
-            _recalc_household_cache_after_import(db, [farmer.household_id])
-
+    svc_update_application(db, app_id, data.model_dump(exclude_unset=True))
     return {"message": "更新成功"}
 
 
@@ -583,73 +218,7 @@ def year_compare(
     year: int = Query(..., description="当前年度"),
     db: Session = Depends(get_db),
 ):
-    from sqlalchemy import text
-    last_year = year - 1
-
-    # 一条 SQL 同时算两年的汇总，完全在数据库完成
-    sql_summary = text("""
-        SELECT apply_year,
-               ROUND(SUM(COALESCE(actual_amount, 0)), 2) AS total_amount,
-               COUNT(DISTINCT farmer_id)                 AS farmer_count,
-               COUNT(*)                                  AS application_count
-        FROM subsidy_application
-        WHERE apply_year IN (:y, :ly)
-        GROUP BY apply_year
-    """)
-    rows = {r.apply_year: r for r in db.execute(sql_summary, {"y": year, "ly": last_year})}
-    cur_r  = rows.get(year)
-    prev_r = rows.get(last_year)
-
-    cur  = {"year": year,      "total_amount": float(cur_r.total_amount  if cur_r  else 0),
-            "farmer_count": int(cur_r.farmer_count  if cur_r  else 0),
-            "application_count": int(cur_r.application_count  if cur_r  else 0)}
-    prev = {"year": last_year, "total_amount": float(prev_r.total_amount if prev_r else 0),
-            "farmer_count": int(prev_r.farmer_count if prev_r else 0),
-            "application_count": int(prev_r.application_count if prev_r else 0)}
-
-    # 新增/退出 也用 SQL 算，只取最多 50 条避免返回太多
-    sql_diff = text("""
-        SELECT fp.id, fp.real_name, fp.farmer_status,
-               COALESCE(v.village_name, '') AS village_name, COALESCE(hh.group_no, 1) AS group_no
-        FROM farmer_profile fp
-        LEFT JOIN family_household hh ON fp.household_id = hh.id
-        LEFT JOIN village v ON hh.village_id = v.id
-        WHERE fp.id IN (
-            SELECT DISTINCT farmer_id FROM subsidy_application WHERE apply_year = :y
-        ) AND fp.id NOT IN (
-            SELECT DISTINCT farmer_id FROM subsidy_application WHERE apply_year = :ly
-        )
-        LIMIT 50
-    """)
-    sql_exit = text("""
-        SELECT fp.id, fp.real_name, fp.farmer_status,
-               COALESCE(v.village_name, '') AS village_name, COALESCE(hh.group_no, 1) AS group_no
-        FROM farmer_profile fp
-        LEFT JOIN family_household hh ON fp.household_id = hh.id
-        LEFT JOIN village v ON hh.village_id = v.id
-        WHERE fp.id IN (
-            SELECT DISTINCT farmer_id FROM subsidy_application WHERE apply_year = :ly
-        ) AND fp.id NOT IN (
-            SELECT DISTINCT farmer_id FROM subsidy_application WHERE apply_year = :y
-        )
-        LIMIT 50
-    """)
-    def _fmt_village(r):
-        vn = r.village_name or ''
-        gn = format_group_no(r.group_no) if r.group_no else '一组'
-        return f"{vn}{gn}"
-    new_f  = [{"id":r.id,"name":r.real_name,"village":_fmt_village(r),"status":r.farmer_status}
-              for r in db.execute(sql_diff, {"y":year,"ly":last_year})]
-    exit_f = [{"id":r.id,"name":r.real_name,"village":_fmt_village(r),"status":r.farmer_status}
-              for r in db.execute(sql_exit, {"y":year,"ly":last_year})]
-
-    amount_diff = cur["total_amount"] - prev["total_amount"]
-    pct = round(amount_diff / prev["total_amount"] * 100, 1) if prev["total_amount"] else None
-    return {
-        "current_year": cur, "last_year": prev,
-        "new_farmers": new_f, "exit_farmers": exit_f,
-        "amount_diff": round(amount_diff, 2), "amount_diff_pct": pct,
-    }
+    return get_year_compare(db, year)
 
 # ════════════════════════════════
 #  按村汇总
@@ -1293,7 +862,7 @@ def delete_application(app_id: int, db: Session = Depends(get_db)):
     from sqlalchemy import text
     app = db.execute(text("SELECT id FROM subsidy_application WHERE id=:id"), {"id": app_id}).fetchone()
     if not app:
-        raise HTTPException(status_code=404, detail="记录不存在")
+        raise NotFound("记录不存在")
     db.execute(text("DELETE FROM subsidy_application WHERE id=:id"), {"id": app_id})
     db.commit()
     return {"message": "删除成功"}
@@ -1305,7 +874,7 @@ def batch_delete_applications(payload: dict, db: Session = Depends(get_db)):
     from sqlalchemy import text
     ids = payload.get("ids", [])
     if not ids or not isinstance(ids, list):
-        raise HTTPException(status_code=400, detail="缺少 ids 列表")
+        raise BadRequest("缺少 ids 列表")
     ids_str = ','.join(str(int(i)) for i in ids)
     result = db.execute(text(f"DELETE FROM subsidy_application WHERE id IN ({ids_str})"))
     db.commit()
@@ -1349,11 +918,11 @@ def batch_pay_applications(payload: dict, db: Session = Depends(get_db)):
         db.commit()
         hh_ids = [r[0] for r in affected]
         if hh_ids:
-            _recalc_household_cache_after_import(db, hh_ids)
+            recalc_household_cache(db, hh_ids)
         return {"updated": result.rowcount}
 
     if not type_id:
-        raise HTTPException(status_code=400, detail="缺少 subsidy_type_id 或 application_ids")
+        raise BadRequest("缺少 subsidy_type_id 或 application_ids")
     # 按 subsidy_type_id 批量更新，先查出受影响家庭户
     affected = db.execute(text("""
         SELECT DISTINCT fp.household_id
@@ -1369,7 +938,7 @@ def batch_pay_applications(payload: dict, db: Session = Depends(get_db)):
     db.commit()
     hh_ids = [r[0] for r in affected]
     if hh_ids:
-        _recalc_household_cache_after_import(db, hh_ids)
+        recalc_household_cache(db, hh_ids)
     return {"updated": result.rowcount}
 
 
@@ -1648,32 +1217,19 @@ def create_payment(data: PaymentCreate, db: Session = Depends(get_db)):
     """新增发放记录"""
     from models import SubsidyPayment
 
-    # 唯一性检查
     exists = db.query(SubsidyPayment).filter(
         SubsidyPayment.farmer_id == data.farmer_id,
         SubsidyPayment.subsidy_type_id == data.subsidy_type_id,
         SubsidyPayment.payment_year == data.payment_year,
     ).first()
     if exists:
-        raise HTTPException(status_code=400, detail="该农户该年度该补贴已存在发放记录")
+        raise BadRequest("该农户该年度该补贴已存在发放记录")
 
     farmer = db.get(FarmerProfile, data.farmer_id)
     if not farmer:
-        raise HTTPException(status_code=404, detail="农户不存在")
+        raise NotFound("农户不存在")
 
-    # 村组快照：优先使用农户个人村组，否则用家庭户村组
-    hh = farmer.household
-    village_id = farmer.own_village_id or (hh.village_id if hh else None)
-    group_no = farmer.own_group_no or (hh.group_no if hh else None)
-    village_name = None
-    group_display = None
-
-    if village_id:
-        village = db.get(Village, village_id)
-        village_name = village.village_name if village else None
-    if group_no:
-        from utils import format_group_no
-        group_display = format_group_no(group_no)
+    snapshot = get_village_snapshot_simple(db, farmer)
 
     payment = SubsidyPayment(
         farmer_id=data.farmer_id,
@@ -1681,10 +1237,10 @@ def create_payment(data: PaymentCreate, db: Session = Depends(get_db)):
         payment_year=data.payment_year,
         amount=data.amount,
         payment_date=data.payment_date,
-        payment_village_id=village_id,
-        payment_group_no=group_no,
-        payment_village_name=village_name,
-        payment_group_display=group_display,
+        payment_village_id=snapshot["village_id"],
+        payment_group_no=snapshot["group_no"],
+        payment_village_name=snapshot["village_name"],
+        payment_group_display=snapshot["group_display"],
         apply_area=data.apply_area,
         contract_area=data.contract_area,
         trust_area=data.trust_area,
@@ -1697,7 +1253,6 @@ def create_payment(data: PaymentCreate, db: Session = Depends(get_db)):
     )
     db.add(payment)
 
-    # 同步对应申报记录的 pay_status → 已发放
     app = db.query(SubsidyApplication).filter(
         SubsidyApplication.farmer_id == data.farmer_id,
         SubsidyApplication.subsidy_type_id == data.subsidy_type_id,
@@ -1709,9 +1264,8 @@ def create_payment(data: PaymentCreate, db: Session = Depends(get_db)):
 
     db.commit()
 
-    # 重算面积缓存
     if farmer.household_id:
-        _recalc_household_cache_after_import(db, [farmer.household_id])
+        recalc_household_cache(db, [farmer.household_id])
 
     return {"id": payment.id, "message": "发放记录创建成功"}
 
@@ -1721,7 +1275,7 @@ def update_payment(payment_id: int, data: dict, db: Session = Depends(get_db)):
     """更新发放记录"""
     payment = db.get(SubsidyPayment, payment_id)
     if not payment:
-        raise HTTPException(status_code=404, detail="发放记录不存在")
+        raise NotFound("发放记录不存在")
 
     # 更新字段
     update_fields = ["amount", "payment_date", "apply_area", "contract_area",
@@ -1740,7 +1294,7 @@ def delete_payment(payment_id: int, db: Session = Depends(get_db)):
     """删除发放记录"""
     payment = db.get(SubsidyPayment, payment_id)
     if not payment:
-        raise HTTPException(status_code=404, detail="发放记录不存在")
+        raise NotFound("发放记录不存在")
 
     farmer = db.get(FarmerProfile, payment.farmer_id)
     household_id = farmer.household_id if farmer else None
@@ -1760,111 +1314,16 @@ def delete_payment(payment_id: int, db: Session = Depends(get_db)):
 
     # 重算面积缓存
     if household_id:
-        _recalc_household_cache_after_import(db, [household_id])
+        recalc_household_cache(db, [household_id])
 
     return {"message": "删除成功"}
 
 
 @router.post("/payments/batch-import")
-def batch_import_payments(payload: dict, db: Session = Depends(get_db)):
+def api_batch_import_payments(payload: dict, db: Session = Depends(get_db)):
     """批量导入发放记录"""
     rows = payload.get("rows", [])
-    created, skipped, errors = 0, 0, []
-    affected_households = set()  # 追踪受影响的家庭户
-
-    for row in rows:
-        try:
-            farmer_id = row.get("farmer_id")
-            subsidy_type_id = row.get("subsidy_type_id")
-            payment_year = row.get("payment_year")
-            id_card = row.get("id_card", "").strip()
-            real_name = row.get("real_name", "").strip()
-
-            if not subsidy_type_id or not payment_year:
-                errors.append(f"{real_name or id_card or '?'}：缺少必要字段")
-                continue
-
-            # 如果 farmer_id 为 0 或空，尝试用 id_card 查找农户
-            farmer = None
-            if not farmer_id and id_card:
-                farmer = db.query(FarmerProfile).filter(FarmerProfile.id_card == id_card).first()
-                if farmer:
-                    farmer_id = farmer.id
-                else:
-                    errors.append(f"{real_name}（{id_card}）：农户不存在，请先在农户管理中添加")
-                    continue
-            elif farmer_id:
-                farmer = db.get(FarmerProfile, farmer_id)
-            if not farmer_id or not farmer:
-                errors.append(f"{real_name or '?'}：缺少农户ID或身份证号")
-                continue
-
-            # 追踪受影响的家庭户
-            if farmer.household_id:
-                affected_households.add(farmer.household_id)
-
-            # 唯一性检查
-            exists = db.query(SubsidyPayment).filter(
-                SubsidyPayment.farmer_id == farmer_id,
-                SubsidyPayment.subsidy_type_id == subsidy_type_id,
-                SubsidyPayment.payment_year == payment_year,
-            ).first()
-            if exists:
-                skipped += 1
-                continue
-
-            # 村组快照：优先使用农户个人村组，否则用家庭户村组
-            hh = farmer.household
-            village_id = farmer.own_village_id or (hh.village_id if hh else None)
-            group_no = farmer.own_group_no or (hh.group_no if hh else None)
-            village_name = None
-            group_display = None
-
-            if village_id:
-                village = db.get(Village, village_id)
-                village_name = village.village_name if village else None
-            if group_no:
-                from utils import format_group_no
-                group_display = format_group_no(group_no)
-
-            payment = SubsidyPayment(
-                farmer_id=farmer_id,
-                subsidy_type_id=subsidy_type_id,
-                payment_year=payment_year,
-                amount=row.get("amount"),
-                payment_date=row.get("payment_date"),
-                payment_village_id=village_id,
-                payment_group_no=group_no,
-                payment_village_name=village_name,
-                payment_group_display=group_display,
-                apply_area=row.get("apply_area"),
-                contract_area=row.get("contract_area"),
-                trust_area=row.get("trust_area"),
-                no_subsidy_area=row.get("no_subsidy_area"),
-                bank_card=row.get("bank_card"),
-                bank_name=row.get("bank_name"),
-                remark=row.get("remark"),
-                proxy_remark=row.get("proxy_remark"),
-            )
-            db.add(payment)
-            # 同步对应申报记录的 pay_status → 已发放
-            app = db.query(SubsidyApplication).filter(
-                SubsidyApplication.farmer_id == farmer_id,
-                SubsidyApplication.subsidy_type_id == subsidy_type_id,
-                SubsidyApplication.apply_year == payment_year,
-                SubsidyApplication.pay_status.in_([0, 1]),
-            ).first()
-            if app:
-                app.pay_status = 2
-            created += 1
-        except Exception as e:
-            errors.append(str(e))
-
-    db.commit()
-    # 更新相关家庭户的面积缓存
-    if affected_households:
-        _recalc_household_cache_after_import(db, list(affected_households))
-    return {"created": created, "skipped": skipped, "errors": errors}
+    return batch_import_payments(db, rows)
 
 
 @router.post("/payments/sync-pay-status")
@@ -1975,123 +1434,8 @@ def list_proxies(
 @router.post("/proxies")
 def create_proxy(data: SubsidyProxyCreate, db: Session = Depends(get_db)):
     """创建代领关系"""
-    from models import SubsidyProxy, SubsidyApplication, SubsidyPayment, FarmerProfile
-
-    # 验证农户存在
-    beneficiary = db.get(FarmerProfile, data.beneficiary_farmer_id)
-    if not beneficiary:
-        raise HTTPException(status_code=404, detail="受益人不存在")
-    proxy = db.get(FarmerProfile, data.proxy_farmer_id)
-    if not proxy:
-        raise HTTPException(status_code=404, detail="代领人不存在")
-
-    # 检查重复：同一受益人 + 同一补贴项目类型已存在代领关系
-    if data.subsidy_type_id:
-        existing = db.query(SubsidyProxy).filter(
-            SubsidyProxy.beneficiary_farmer_id == data.beneficiary_farmer_id,
-            SubsidyProxy.subsidy_type_id == data.subsidy_type_id,
-        ).first()
-        if existing:
-            raise HTTPException(status_code=400, detail="该受益人已有此项目的代领关系，请勿重复创建")
-
-    # 验证关联的补贴记录存在
-    subsidy_type_id = data.subsidy_type_id
-    if data.application_id:
-        app = db.get(SubsidyApplication, data.application_id)
-        if not app:
-            raise HTTPException(status_code=404, detail="补贴申请记录不存在")
-        # 更新申请记录的 is_proxy 标记
-        app.is_proxy = 1
-        # 同步补贴项目类型
-        if not subsidy_type_id:
-            subsidy_type_id = app.subsidy_type_id
-    elif data.payment_id:
-        pay = db.get(SubsidyPayment, data.payment_id)
-        if not pay:
-            raise HTTPException(status_code=404, detail="补贴发放记录不存在")
-        # 同步补贴项目类型
-        if not subsidy_type_id:
-            subsidy_type_id = pay.subsidy_type_id
-        # 注意：先不设置 is_proxy，等 proxy_rel 创建后再更新
-    else:
-        # 当没有指定具体记录时，自动查找代领人的发放记录并复制给受益人
-        if subsidy_type_id:
-            # 自动查找代领人在该补贴项目下的发放记录
-            # 查找最近一年的发放记录
-            pay_to_copy = db.query(SubsidyPayment).filter(
-                SubsidyPayment.farmer_id == data.proxy_farmer_id,
-                SubsidyPayment.subsidy_type_id == subsidy_type_id,
-            ).order_by(SubsidyPayment.payment_year.desc()).first()
-
-            if pay_to_copy:
-                # 找到发放记录，标记稍后复制
-                data._pay_to_copy = pay_to_copy
-
-            # 同时标记已有的申请记录
-            apps_to_update = db.query(SubsidyApplication).filter(
-                SubsidyApplication.farmer_id == data.proxy_farmer_id,
-                SubsidyApplication.subsidy_type_id == subsidy_type_id,
-                SubsidyApplication.is_proxy == 0,
-            ).all()
-            for app in apps_to_update:
-                app.is_proxy = 1
-
-    # 创建代领关系
-    proxy_rel = SubsidyProxy(
-        **data.model_dump(exclude={'subsidy_type_id'}),
-        subsidy_type_id=subsidy_type_id,
-    )
-    db.add(proxy_rel)
-    db.flush()  # 获取 proxy_rel.id
-
-    # 复制发放记录给受益人
-    pay_source = None
-    if data.payment_id:
-        pay_source = db.get(SubsidyPayment, data.payment_id)
-    elif hasattr(data, '_pay_to_copy') and data._pay_to_copy:
-        pay_source = data._pay_to_copy
-
-    if pay_source:
-        # 创建复制记录，farmer_id 改为受益人
-        pay_copy = SubsidyPayment(
-            farmer_id=data.beneficiary_farmer_id,
-            subsidy_type_id=pay_source.subsidy_type_id,
-            payment_year=pay_source.payment_year,
-            amount=pay_source.amount,
-            payment_date=pay_source.payment_date,
-            payment_village_id=pay_source.payment_village_id,
-            payment_group_no=pay_source.payment_group_no,
-            payment_village_name=pay_source.payment_village_name,
-            payment_group_display=pay_source.payment_group_display,
-            apply_area=pay_source.apply_area,
-            contract_area=pay_source.contract_area,
-            trust_area=pay_source.trust_area,
-            no_subsidy_area=pay_source.no_subsidy_area,
-            bank_card=pay_source.bank_card,
-            bank_name=pay_source.bank_name,
-            operator_id=pay_source.operator_id,
-            remark=pay_source.remark,
-            proxy_remark=data.remark or pay_source.proxy_remark,
-            pay_status=pay_source.pay_status,
-            is_proxy=proxy_rel.id,  # 指向代领关系
-        )
-        db.add(pay_copy)
-        # 更新原记录的 is_proxy（标记为这是代领方的记录）
-        pay_source.is_proxy = proxy_rel.id
-
-    db.commit()
-    db.refresh(proxy_rel)
-
-    # 触发面积缓存更新
-    affected_households = set()
-    if beneficiary.household_id:
-        affected_households.add(beneficiary.household_id)
-    if proxy.household_id:
-        affected_households.add(proxy.household_id)
-    if affected_households:
-        _recalc_household_cache_after_import(db, list(affected_households))
-
-    return {"id": proxy_rel.id, "message": "代领关系创建成功"}
+    result = create_proxy_relation(db, data.model_dump())
+    return result
 
 
 @router.get("/applications/stats-by-village")
@@ -2250,50 +1594,40 @@ def delete_proxy(proxy_id: int, db: Session = Depends(get_db)):
 
     proxy_rel = db.get(SubsidyProxy, proxy_id)
     if not proxy_rel:
-        raise HTTPException(status_code=404, detail="代领关系不存在")
+        raise NotFound("代领关系不存在")
 
-    # 清除相关补贴记录的 is_proxy 标记
     affected_households = set()
 
-    # 处理 application_id 的情况
     if proxy_rel.application_id:
         app = db.get(SubsidyApplication, proxy_rel.application_id)
         if app:
             app.is_proxy = 0
-            # 获取受益人家庭户
             beneficiary = db.get(FarmerProfile, proxy_rel.beneficiary_farmer_id)
             if beneficiary and beneficiary.household_id:
                 affected_households.add(beneficiary.household_id)
 
-    # 处理 payment_id 的情况：删除为受益人生成的复制记录，恢复原记录的 is_proxy
     if proxy_rel.payment_id:
-        # 查找并删除受益人的复制记录（is_proxy = proxy_id 且 farmer_id = beneficiary_farmer_id）
         copied_pays = db.query(SubsidyPayment).filter(
             SubsidyPayment.is_proxy == proxy_id,
             SubsidyPayment.farmer_id == proxy_rel.beneficiary_farmer_id,
         ).all()
         for cp in copied_pays:
             db.delete(cp)
-            # 获取受益人家庭户
             beneficiary = db.get(FarmerProfile, cp.farmer_id)
             if beneficiary and beneficiary.household_id:
                 affected_households.add(beneficiary.household_id)
 
-        # 恢复原记录的 is_proxy
         original_pay = db.get(SubsidyPayment, proxy_rel.payment_id)
         if original_pay:
             original_pay.is_proxy = 0
-            # 获取代领人家庭户
             proxy_farmer = db.get(FarmerProfile, proxy_rel.proxy_farmer_id)
             if proxy_farmer and proxy_farmer.household_id:
                 affected_households.add(proxy_farmer.household_id)
 
-    # 删除代领关系
     db.delete(proxy_rel)
     db.commit()
 
-    # 触发面积缓存更新
     if affected_households:
-        _recalc_household_cache_after_import(db, list(affected_households))
+        recalc_household_cache(db, list(affected_households))
 
     return {"message": "代领关系删除成功"}

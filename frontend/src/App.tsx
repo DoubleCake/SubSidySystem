@@ -15,6 +15,7 @@ import FamilyRelationImportPage from './pages/FamilyRelationImportPage'
 import ProxyManagePage from './pages/ProxyManagePage'
 import AgriTaskPage from './pages/AgriTaskPage'
 import LargeFarmersPage from './pages/LargeFarmersPage'
+import WorkflowDocPage from './pages/WorkflowDocPage'
 import { healthCheck } from './api'
 import { useState } from 'react'
 import { QUOTES, COLOR_THEMES } from './utils/quotes'
@@ -23,9 +24,13 @@ import Icon from './components/Icon'
 const mainNav = [
   { to: '/',                        label: '首页',       icon: 'dashboard' as const, end: true },
   { to: '/farmers',                 label: '户籍管理',   icon: 'farmers' as const },
-  { to: '/projects',                label: '补贴管理',   icon: 'subsidies' as const },
-  { to: '/agri-tasks',              label: '任务分解',   icon: 'tasks' as const },
+  { to: '/projects',                label: '补贴项目',   icon: 'subsidies' as const },
   { to: '/land',                    label: '土地与大户', icon: 'land' as const },
+  { to: '/agri-tasks',              label: '任务分解',   icon: 'tasks' as const },
+  { to: '/settings/village-groups', label: '村组管理',   icon: 'village' as const },
+  { to: '/precheck',                label: '数据预检',   icon: 'search' as const },
+  { to: '/links',                   label: '补贴查询',   icon: 'link' as const },
+  { to: '/workflow',                label: '操作流程',   icon: 'menu' as const },
 ]
 
 // 系统设置下拉菜单分组
@@ -213,6 +218,7 @@ function Layout() {
             <Route path="/settings/family-relation-import" element={<FamilyRelationImportPage />} />
             <Route path="/settings/large-farmers" element={<LargeFarmersPage />} />
             <Route path="/proxy/application/:applicationId" element={<ProxyManagePage />} />
+            <Route path="/workflow" element={<WorkflowDocPage />} />
             {/* 404 fallback */}
             <Route path="*" element={
               <div className="text-center py-24 text-text-muted">
