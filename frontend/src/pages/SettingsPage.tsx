@@ -179,13 +179,13 @@ export default function SettingsPage() {
     <div>
       {/* Tab 切换 */}
       <div className="flex items-center gap-4 mb-5">
-        <h1 className="text-xl font-bold text-stone-800">村组管理</h1>
-        <div className="flex gap-1 bg-stone-100 p-1 rounded-lg text-sm">
+        <h1 className="text-xl font-bold text-text-primary">村组管理</h1>
+        <div className="flex gap-1 bg-warm/30 p-1 rounded-btn text-sm">
           {([['groups', '村组结构'], ['land', '土地基础信息']] as const).map(([t, label]) => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-1.5 rounded-md transition-colors ${tab === t
-                ? 'bg-white shadow text-emerald-700 font-medium'
-                : 'text-stone-500 hover:text-stone-700'}`}>
+                ? 'bg-white shadow text-primary font-medium'
+                : 'text-text-muted hover:text-text-primary'}`}>
               {label}
             </button>
           ))}
@@ -196,56 +196,56 @@ export default function SettingsPage() {
         <>
           {/* 统计栏 */}
           <div className="grid grid-cols-3 gap-3 mb-5">
-            <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
-              <div className="text-2xl font-bold font-mono text-emerald-700">{villages.length}</div>
-              <div className="text-xs text-stone-400 mt-1">村庄总数</div>
+            <div className="bg-white border border-border rounded-card p-4 shadow-card">
+              <div className="text-2xl font-bold font-mono text-primary">{villages.length}</div>
+              <div className="text-xs text-text-muted mt-1">村庄总数</div>
             </div>
-            <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+            <div className="bg-white border border-border rounded-card p-4 shadow-card">
               <div className="text-2xl font-bold font-mono text-blue-600">{groups.length}</div>
-              <div className="text-xs text-stone-400 mt-1">村组总数</div>
+              <div className="text-xs text-text-muted mt-1">村组总数</div>
             </div>
-            <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+            <div className="bg-white border border-border rounded-card p-4 shadow-card">
               <div className="text-2xl font-bold font-mono text-amber-600">
                 {groups.reduce((s, g) => s + g.household_count, 0)}
               </div>
-              <div className="text-xs text-stone-400 mt-1">关联农户数</div>
+              <div className="text-xs text-text-muted mt-1">关联农户数</div>
             </div>
           </div>
 
           {/* 工具栏 */}
           <div className="flex justify-between items-center mb-4">
-            <p className="text-sm text-stone-400">点击村名右侧「＋组」可快速添加该村新组</p>
+            <p className="text-sm text-text-muted">点击村名右侧「＋组」可快速添加该村新组</p>
             <button onClick={() => { setAddMode('single'); setAddOpen(true) }}
-              className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
+              className="px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
               ＋ 新增村 / 组
             </button>
           </div>
 
           {/* 村组卡片列表 */}
-          {loading && <div className="text-center py-16 text-stone-300">加载中…</div>}
+          {loading && <div className="text-center py-16 text-text-muted/50">加载中…</div>}
           <div className="space-y-3">
             {villages.map(vname => {
               const glist = villageMap.get(vname) ?? []
               return (
-                <div key={vname} className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-                  <div className="flex items-center justify-between px-5 py-3 bg-stone-50 border-b border-stone-100">
+                <div key={vname} className="bg-white border border-border rounded-card overflow-hidden shadow-card">
+                  <div className="flex items-center justify-between px-5 py-3 bg-warm/30 border-b border-border/50">
                     <div className="flex items-center gap-3">
-                      <span className="font-bold text-stone-800">{vname}</span>
-                      <span className="text-xs text-stone-400 font-mono">{glist.length} 个组</span>
-                      <span className="text-xs text-stone-300">·</span>
-                      <span className="text-xs text-stone-400">{glist.reduce((s, g) => s + g.household_count, 0)} 户</span>
+                      <span className="font-bold text-text-primary">{vname}</span>
+                      <span className="text-xs text-text-muted font-mono">{glist.length} 个组</span>
+                      <span className="text-xs text-text-muted/50">·</span>
+                      <span className="text-xs text-text-muted">{glist.reduce((s, g) => s + g.household_count, 0)} 户</span>
                     </div>
                     {quickAddVillage === vname ? (
                       <div className="flex items-center gap-2">
                         <input autoFocus value={quickGroupNo} onChange={e => setQuickGroupNo(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') submitQuickAdd(vname); if (e.key === 'Escape') setQuickAddVillage(null) }}
-                          placeholder="组号，如：一组" className="border border-emerald-300 rounded-lg px-3 py-1 text-sm w-32 outline-none" />
-                        <button onClick={() => submitQuickAdd(vname)} className="px-3 py-1 text-xs bg-emerald-700 text-white rounded-lg">确认</button>
-                        <button onClick={() => setQuickAddVillage(null)} className="px-3 py-1 text-xs border border-stone-200 rounded-lg text-stone-400">取消</button>
+                          placeholder="组号，如：一组" className="border border-primary/30 rounded-btn px-3 py-1 text-sm w-32 outline-none" />
+                        <button onClick={() => submitQuickAdd(vname)} className="px-3 py-1 text-xs bg-primary text-white rounded-btn">确认</button>
+                        <button onClick={() => setQuickAddVillage(null)} className="px-3 py-1 text-xs border border-border rounded-btn text-text-muted">取消</button>
                       </div>
                     ) : (
                       <button onClick={() => { setQuickAddVillage(vname); setQuickGroupNo('') }}
-                        className="text-xs text-emerald-700 border border-emerald-200 px-3 py-1 rounded-lg hover:bg-emerald-50">
+                        className="text-xs text-primary border border-primary/20 px-3 py-1 rounded-btn hover:bg-primary/5">
                         ＋ 加组
                       </button>
                     )}
@@ -253,13 +253,13 @@ export default function SettingsPage() {
                   <div className="flex flex-wrap gap-2 px-5 py-3">
                     {glist.sort((a, b) => a.group_no.localeCompare(b.group_no, 'zh')).map(g => (
                       <div key={g.id}
-                        className="flex items-center gap-2 bg-stone-50 border border-stone-200 rounded-lg px-3 py-1.5 group hover:border-stone-300 transition-colors">
-                        <span className="text-sm text-stone-700">{g.group_no}</span>
-                        {g.household_count > 0 && <span className="text-xs text-stone-400 font-mono">{g.household_count}户</span>}
+                        className="flex items-center gap-2 bg-warm/30 border border-border rounded-btn px-3 py-1.5 group hover:border-border transition-colors">
+                        <span className="text-sm text-text-primary">{g.group_no}</span>
+                        {g.household_count > 0 && <span className="text-xs text-text-muted font-mono">{g.household_count}户</span>}
                         <div className="hidden group-hover:flex items-center gap-1 ml-1">
                           <button onClick={() => openEdit(g)} className="text-xs text-blue-500 hover:text-blue-700 px-1">改</button>
                           <button onClick={() => handleDelete(g)}
-                            className={`text-xs px-1 ${g.household_count > 0 ? 'text-stone-300 cursor-not-allowed' : 'text-red-400 hover:text-red-600'}`}>
+                            className={`text-xs px-1 ${g.household_count > 0 ? 'text-text-muted/50 cursor-not-allowed' : 'text-red-400 hover:text-red-600'}`}>
                             删
                           </button>
                         </div>
@@ -274,7 +274,7 @@ export default function SettingsPage() {
                     const li = landInfoMap[vid]
                     const isEditing = editingLandId === vid
                     return (
-                      <div className="border-t border-stone-100 px-5 py-2.5 bg-stone-50/50">
+                      <div className="border-t border-border/50 px-5 py-2.5 bg-warm/10">
                         {isEditing ? (
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             {([
@@ -283,11 +283,11 @@ export default function SettingsPage() {
                               ['arable_area',   '可耕种面积(亩)'],
                             ] as const).map(([field, label]) => (
                               <div key={field}>
-                                <div className="text-xs text-stone-400 mb-0.5">{label}</div>
+                                <div className="text-xs text-text-muted mb-0.5">{label}</div>
                                 <input type="number" min="0" step="0.01"
                                   value={(landEditForm[field] as number | undefined) ?? ''}
                                   onChange={e => setLandEditForm(f => ({ ...f, [field]: e.target.value === '' ? null : Number(e.target.value) }))}
-                                  className="w-full border border-stone-200 rounded px-2 py-1 text-xs font-mono" />
+                                  className="w-full border border-border rounded px-2 py-1 text-xs font-mono" />
                               </div>
                             ))}
                             {([
@@ -296,10 +296,10 @@ export default function SettingsPage() {
                               ['soil_quality',     '土壤质量', SOIL_OPTS],
                             ] as const).map(([field, label, opts]) => (
                               <div key={field}>
-                                <div className="text-xs text-stone-400 mb-0.5">{label}</div>
+                                <div className="text-xs text-text-muted mb-0.5">{label}</div>
                                 <select value={(landEditForm[field] as string | undefined) ?? ''}
                                   onChange={e => setLandEditForm(f => ({ ...f, [field]: e.target.value || null }))}
-                                  className="w-full border border-stone-200 rounded px-2 py-1 text-xs bg-white">
+                                  className="w-full border border-border rounded px-2 py-1 text-xs bg-white">
                                   <option value="">-</option>
                                   {opts.map((o: string) => <option key={o}>{o}</option>)}
                                 </select>
@@ -307,29 +307,29 @@ export default function SettingsPage() {
                             ))}
                             <div className="col-span-2 sm:col-span-4 flex gap-2 mt-1">
                               <button onClick={() => saveLand(vid)} disabled={savingLand === vid}
-                                className="text-xs bg-emerald-600 text-white px-3 py-1 rounded hover:bg-emerald-700 disabled:opacity-50">
+                                className="text-xs bg-primary/90 text-white px-3 py-1 rounded hover:bg-primary disabled:opacity-50">
                                 {savingLand === vid ? '保存中...' : '保存'}
                               </button>
                               <button onClick={() => setEditingLandId(null)}
-                                className="text-xs text-stone-400 border border-stone-200 px-2 py-1 rounded hover:bg-stone-100">
+                                className="text-xs text-text-muted border border-border px-2 py-1 rounded hover:bg-warm/30">
                                 取消
                               </button>
                             </div>
                           </div>
                         ) : (
                           <div className="flex items-center gap-4 flex-wrap">
-                            <span className="text-xs text-stone-400">耕地：</span>
+                            <span className="text-xs text-text-muted">耕地：</span>
                             {li?.paddy_area != null
-                              ? <span className="text-xs text-stone-600">水田 <b className="font-mono">{fmt(li.paddy_area)}</b> 亩</span>
-                              : <span className="text-xs text-stone-300">水田 -</span>}
+                              ? <span className="text-xs text-text-primary">水田 <b className="font-mono">{fmt(li.paddy_area)}</b> 亩</span>
+                              : <span className="text-xs text-text-muted/50">水田 -</span>}
                             {li?.dry_land_area != null
-                              ? <span className="text-xs text-stone-600">旱地 <b className="font-mono">{fmt(li.dry_land_area)}</b> 亩</span>
-                              : <span className="text-xs text-stone-300">旱地 -</span>}
+                              ? <span className="text-xs text-text-primary">旱地 <b className="font-mono">{fmt(li.dry_land_area)}</b> 亩</span>
+                              : <span className="text-xs text-text-muted/50">旱地 -</span>}
                             {li?.arable_area != null
-                              ? <span className="text-xs text-stone-600">可耕 <b className="font-mono">{fmt(li.arable_area)}</b> 亩</span>
-                              : <span className="text-xs text-stone-300">可耕 -</span>}
-                            {li?.irrigation_level && <span className="text-xs text-stone-400">灌溉:{li.irrigation_level}</span>}
-                            {li?.terrain_type && <span className="text-xs text-stone-400">{li.terrain_type}</span>}
+                              ? <span className="text-xs text-text-primary">可耕 <b className="font-mono">{fmt(li.arable_area)}</b> 亩</span>
+                              : <span className="text-xs text-text-muted/50">可耕 -</span>}
+                            {li?.irrigation_level && <span className="text-xs text-text-muted">灌溉:{li.irrigation_level}</span>}
+                            {li?.terrain_type && <span className="text-xs text-text-muted">{li.terrain_type}</span>}
                             <button onClick={() => openLandEdit(vid)}
                               className="ml-auto text-xs text-blue-500 hover:underline">
                               {li?.paddy_area != null || li?.arable_area != null ? '编辑耕地信息' : '录入耕地信息'}
@@ -343,7 +343,7 @@ export default function SettingsPage() {
               )
             })}
             {!loading && villages.length === 0 && (
-              <div className="text-center py-16 text-stone-300 bg-white border border-stone-200 rounded-xl">
+              <div className="text-center py-16 text-text-muted/50 bg-white border border-border rounded-card">
                 <div className="text-4xl mb-3">🏘️</div>
                 <p className="text-sm">暂无村组信息，点击右上角新增</p>
               </div>
@@ -357,8 +357,8 @@ export default function SettingsPage() {
             <div className="flex gap-2 mb-5">
               {[{ id: 'single', label: '新增单个组' }, { id: 'batch', label: '批量新增（一村多组）' }].map(m => (
                 <button key={m.id} onClick={() => setAddMode(m.id as 'single' | 'batch')}
-                  className={`flex-1 py-2 text-sm rounded-lg border transition-colors
-                    ${addMode === m.id ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white border-stone-200 text-stone-500 hover:border-stone-300'}`}>
+                  className={`flex-1 py-2 text-sm rounded-btn border transition-colors
+                    ${addMode === m.id ? 'bg-primary text-white border-emerald-700' : 'bg-white border-border text-text-muted hover:border-border'}`}>
                   {m.label}
                 </button>
               ))}
@@ -366,22 +366,22 @@ export default function SettingsPage() {
             {addMode === 'single' ? (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-stone-400 mb-1">村名 *</label>
+                  <label className="block text-xs text-text-muted mb-1">村名 *</label>
                   <input value={addVillageName} onChange={e => setAddVillageName(e.target.value)}
                     list="existing-villages" placeholder="如：红星村"
-                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
                   <datalist id="existing-villages">{villages.map(v => <option key={v} value={v} />)}</datalist>
-                  <p className="text-xs text-stone-300 mt-1">可输入已有村名，也可新建</p>
+                  <p className="text-xs text-text-muted/50 mt-1">可输入已有村名，也可新建</p>
                 </div>
                 <div>
-                  <label className="block text-xs text-stone-400 mb-1">组号 *</label>
+                  <label className="block text-xs text-text-muted mb-1">组号 *</label>
                   <input value={addGroupNo} onChange={e => setAddGroupNo(e.target.value)}
                     placeholder="如：一组、2组、第三组"
                     onKeyDown={e => e.key === 'Enter' && submitSingle()}
-                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
                 </div>
                 {addVillageName && addGroupNo && (
-                  <div className="col-span-2 bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-2.5 text-sm text-emerald-700">
+                  <div className="col-span-2 bg-primary/5 border border-primary/10 rounded-btn px-4 py-2.5 text-sm text-primary">
                     将创建：<strong>{addVillageName}{addGroupNo}</strong>
                   </div>
                 )}
@@ -389,20 +389,20 @@ export default function SettingsPage() {
             ) : (
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs text-stone-400 mb-1">村名 *</label>
+                  <label className="block text-xs text-text-muted mb-1">村名 *</label>
                   <input value={batchVillage} onChange={e => setBatchVillage(e.target.value)}
                     list="existing-villages2" placeholder="如：红星村"
-                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
                   <datalist id="existing-villages2">{villages.map(v => <option key={v} value={v} />)}</datalist>
                 </div>
                 <div>
-                  <label className="block text-xs text-stone-400 mb-1">组号列表 *（逗号或换行分隔）</label>
+                  <label className="block text-xs text-text-muted mb-1">组号列表 *（逗号或换行分隔）</label>
                   <textarea rows={5} value={batchGroups} onChange={e => setBatchGroups(e.target.value)}
                     placeholder={'一组\n二组\n三组\n四组\n五组'}
-                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none font-mono" />
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none font-mono" />
                 </div>
                 {batchVillage && batchGroups && (
-                  <div className="bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-2.5 text-sm text-emerald-700">
+                  <div className="bg-primary/5 border border-primary/10 rounded-btn px-4 py-2.5 text-sm text-primary">
                     将为「{batchVillage}」创建{' '}
                     <strong>{batchGroups.split(/[,，\n]/).map(s => s.trim()).filter(Boolean).length}</strong> 个组
                   </div>
@@ -416,17 +416,17 @@ export default function SettingsPage() {
             onClose={() => setEditTarget(null)} onConfirm={submitEdit}>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-stone-400 mb-1">村名</label>
+                <label className="block text-xs text-text-muted mb-1">村名</label>
                 <input value={editVillage} onChange={e => setEditVillage(e.target.value)}
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
               </div>
               <div>
-                <label className="block text-xs text-stone-400 mb-1">组号</label>
+                <label className="block text-xs text-text-muted mb-1">组号</label>
                 <input value={editGroup} onChange={e => setEditGroup(e.target.value)}
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
               </div>
               {editTarget && (editVillage !== editTarget.village_name || editGroup !== editTarget.group_no) && (
-                <div className="col-span-2 bg-amber-50 border border-amber-100 rounded-lg px-4 py-2.5 text-sm text-amber-700">
+                <div className="col-span-2 bg-amber-50 border border-amber-100 rounded-btn px-4 py-2.5 text-sm text-amber-700">
                   ⚠️ 修改后：<strong>{editVillage}{editGroup}</strong>
                   {editTarget.household_count > 0 && `，关联的 ${editTarget.household_count} 户农户会自动更新显示`}
                 </div>
@@ -565,33 +565,33 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
     finally { setImporting(false) }
   }
 
-  if (loading) return <div className="text-center py-12 text-stone-400">加载中...</div>
+  if (loading) return <div className="text-center py-12 text-text-muted">加载中...</div>
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-stone-500">
+        <p className="text-sm text-text-muted">
           维护各村土地基础数据，用于农业任务分解时按水田/旱地/可耕种面积分配。
-          <span className="text-stone-400 ml-1">承包地汇总从在册家庭户自动计算。</span>
+          <span className="text-text-muted ml-1">承包地汇总从在册家庭户自动计算。</span>
         </p>
         <div className="flex gap-2 shrink-0 ml-4">
           <button onClick={downloadTemplate}
-            className="text-xs px-3 py-1.5 border border-stone-200 rounded-lg text-stone-600 hover:bg-stone-50">
+            className="text-xs px-3 py-1.5 border border-border rounded-btn text-text-primary hover:bg-warm/30">
             下载模板
           </button>
           <button onClick={() => fileRef.current?.click()} disabled={importing}
-            className="text-xs px-3 py-1.5 bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50">
+            className="text-xs px-3 py-1.5 bg-primary text-white rounded-btn hover:bg-primary/90 disabled:opacity-50">
             {importing ? '导入中...' : '批量导入 Excel'}
           </button>
           <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImport} />
         </div>
       </div>
-      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
+      <div className="bg-white rounded-card border border-border overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-stone-50 border-b border-stone-200">
+          <thead className="bg-warm/30 border-b border-border">
             <tr>
               {['村名', '承包地汇总(亩)', '水田面积(亩)', '旱地面积(亩)', '可耕种面积(亩)', '灌溉条件', '地形', '土壤质量', '操作'].map(h => (
-                <th key={h} className="px-3 py-3 text-left text-xs font-medium text-stone-500 whitespace-nowrap">{h}</th>
+                <th key={h} className="px-3 py-3 text-left text-xs font-medium text-text-muted whitespace-nowrap">{h}</th>
               ))}
             </tr>
           </thead>
@@ -600,9 +600,9 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
               const isEdit = editing === info.village_id
               const f = editForms[info.village_id] || {}
               return (
-                <tr key={info.village_id} className="border-b border-stone-100 hover:bg-stone-50">
-                  <td className="px-3 py-3 font-medium text-stone-800 whitespace-nowrap">{info.village_name}</td>
-                  <td className="px-3 py-3 font-mono text-stone-400 text-xs">{fmt(info.contract_area_total)}</td>
+                <tr key={info.village_id} className="border-b border-border/50 hover:bg-warm/30">
+                  <td className="px-3 py-3 font-medium text-text-primary whitespace-nowrap">{info.village_name}</td>
+                  <td className="px-3 py-3 font-mono text-text-muted text-xs">{fmt(info.contract_area_total)}</td>
 
                   {(['paddy_area', 'dry_land_area', 'arable_area'] as const).map(field => (
                     <td key={field} className="px-3 py-2">
@@ -610,9 +610,9 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
                         <input type="number" min="0" step="0.01"
                           value={f[field] ?? ''}
                           onChange={e => setField(info.village_id, field, e.target.value === '' ? null : Number(e.target.value))}
-                          className="w-24 border border-stone-200 rounded px-2 py-1 text-xs font-mono" />
+                          className="w-24 border border-border rounded px-2 py-1 text-xs font-mono" />
                       ) : (
-                        <span className={`font-mono ${info[field] != null ? 'text-stone-700' : 'text-stone-300'}`}>
+                        <span className={`font-mono ${info[field] != null ? 'text-text-primary' : 'text-text-muted/50'}`}>
                           {fmt(info[field])}
                         </span>
                       )}
@@ -628,12 +628,12 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
                       {isEdit ? (
                         <select value={(f[field] as string) ?? ''}
                           onChange={e => setField(info.village_id, field, e.target.value || null)}
-                          className="border border-stone-200 rounded px-2 py-1 text-xs bg-white">
+                          className="border border-border rounded px-2 py-1 text-xs bg-white">
                           <option value="">-</option>
                           {opts.map((o: string) => <option key={o}>{o}</option>)}
                         </select>
                       ) : (
-                        <span className={`text-xs ${info[field] ? 'text-stone-600' : 'text-stone-300'}`}>
+                        <span className={`text-xs ${info[field] ? 'text-text-primary' : 'text-text-muted/50'}`}>
                           {info[field] || '-'}
                         </span>
                       )}
@@ -644,13 +644,13 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
                     {isEdit ? (
                       <div className="flex gap-1">
                         <button onClick={() => handleSave(info.village_id)} disabled={saving === info.village_id}
-                          className="text-xs bg-emerald-600 text-white px-3 py-1 rounded hover:bg-emerald-700 disabled:opacity-50">
+                          className="text-xs bg-primary/90 text-white px-3 py-1 rounded hover:bg-primary disabled:opacity-50">
                           {saving === info.village_id ? '...' : '保存'}
                         </button>
                         <button onClick={() => {
                           setEditing(null)
                           setEditForms(prev => ({ ...prev, [info.village_id]: { ...info } }))
-                        }} className="text-xs text-stone-400 border border-stone-200 px-2 py-1 rounded hover:bg-stone-50">
+                        }} className="text-xs text-text-muted border border-border px-2 py-1 rounded hover:bg-warm/30">
                           取消
                         </button>
                       </div>
@@ -663,7 +663,7 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
               )
             })}
             {infos.length === 0 && (
-              <tr><td colSpan={9} className="text-center py-10 text-stone-300">暂无村庄数据，请先在「村组结构」Tab 创建村</td></tr>
+              <tr><td colSpan={9} className="text-center py-10 text-text-muted/50">暂无村庄数据，请先在「村组结构」Tab 创建村</td></tr>
             )}
           </tbody>
         </table>

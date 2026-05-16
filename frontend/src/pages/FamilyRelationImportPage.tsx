@@ -157,7 +157,7 @@ export default function FamilyRelationImportPage() {
     <div className="p-6 max-w-5xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">家庭关系导入</h1>
 
-      <div className="bg-white rounded-lg shadow p-6 space-y-6">
+      <div className="bg-white rounded-btn shadow p-6 space-y-6">
         {/* 文件上传 */}
         <div>
           <label className="block text-sm font-medium mb-2">上传Excel文件</label>
@@ -287,8 +287,8 @@ export default function FamilyRelationImportPage() {
             <h3 className="font-medium">导入结果</h3>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-emerald-50 p-3 rounded">
-                <div className="text-2xl font-bold text-emerald-700">{result.stage1_updated}</div>
+              <div className="bg-primary/5 p-3 rounded">
+                <div className="text-2xl font-bold text-primary">{result.stage1_updated}</div>
                 <div className="text-sm text-gray-600">成功更新记录</div>
               </div>
               <div className="bg-amber-50 p-3 rounded">

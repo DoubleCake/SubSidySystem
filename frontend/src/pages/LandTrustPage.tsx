@@ -225,96 +225,96 @@ export default function LandTrustPage() {
       {/* ── 左列：流转台账 ── */}
       <div>
         {/* 一级Tab切换：土地与大户 */}
-        <div className="flex items-center gap-1 mb-4 border-b border-stone-200">
+        <div className="flex items-center gap-1 mb-4 border-b border-border">
           <button onClick={() => {}}
-            className="px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-emerald-700">
+            className="px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-primary">
             土地流转
           </button>
           <button onClick={() => navigate('/settings/large-farmers')}
-            className="px-4 py-2 text-sm text-stone-500 hover:text-stone-700 border-b-2 border-transparent hover:border-stone-300">
+            className="px-4 py-2 text-sm text-text-muted hover:text-text-primary border-b-2 border-transparent hover:border-border">
             大户管理
           </button>
         </div>
         {/* 工具栏 */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
           <select value={yearFilter} onChange={e => { setYearFilter(Number(e.target.value)); setPage(1) }}
-            className="border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+            className="border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
             {years.map(y => <option key={y} value={y}>{y}年</option>)}
           </select>
           <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }}
-            className="border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+            className="border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
             <option value="">所有类型</option>
             {TRUST_TYPE_OPTS.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
           </select>
           {/* 来源类型切换 */}
-          <div className="flex border border-stone-200 rounded-lg overflow-hidden">
+          <div className="flex border border-border rounded-btn overflow-hidden">
             <button onClick={() => { setSourceType('all'); setPage(1) }}
-              className={`px-3 py-2 text-xs ${sourceType === 'all' ? 'bg-emerald-700 text-white' : 'bg-white text-stone-600 hover:bg-stone-50'}`}>
+              className={`px-3 py-2 text-xs ${sourceType === 'all' ? 'bg-primary text-white' : 'bg-white text-text-primary hover:bg-warm/30'}`}>
               全部
             </button>
             <button onClick={() => { setSourceType('normal'); setPage(1) }}
-              className={`px-3 py-2 text-xs ${sourceType === 'normal' ? 'bg-emerald-700 text-white' : 'bg-white text-stone-600 hover:bg-stone-50'}`}>
+              className={`px-3 py-2 text-xs ${sourceType === 'normal' ? 'bg-primary text-white' : 'bg-white text-text-primary hover:bg-warm/30'}`}>
               普通流转
             </button>
             <button onClick={() => { setSourceType('large_farmer'); setPage(1) }}
-              className={`px-3 py-2 text-xs ${sourceType === 'large_farmer' ? 'bg-emerald-700 text-white' : 'bg-white text-stone-600 hover:bg-stone-50'}`}>
+              className={`px-3 py-2 text-xs ${sourceType === 'large_farmer' ? 'bg-primary text-white' : 'bg-white text-text-primary hover:bg-warm/30'}`}>
               大户流转
             </button>
           </div>
-          <span className="text-xs text-stone-400">共 {total} 条</span>
+          <span className="text-xs text-text-muted">共 {total} 条</span>
           {sourceType === 'normal' && (
             <button onClick={openAdd}
-              className="ml-auto px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
+              className="ml-auto px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
               ＋ 新增流转记录
             </button>
           )}
         </div>
 
         {/* 说明栏 */}
-        <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-4 text-xs text-blue-700 space-y-0.5">
+        <div className="bg-blue-50 border border-blue-100 rounded-card px-4 py-3 mb-4 text-xs text-blue-700 space-y-0.5">
           <p>流转记录是<strong>一年一签</strong>，每年需要更新。面积信息影响补贴超领预警的计算。</p>
           <p>所有字段均可选填，信息不完善时可只填流出方、年度和类型。</p>
           <p>可通过右上角切换查看<strong>普通流转</strong>或<strong>大户流转</strong>记录。</p>
         </div>
 
         {/* 列表 */}
-        <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-white border border-border rounded-card overflow-hidden shadow-card">
           <table className="w-full border-collapse">
-            <thead><tr className="bg-stone-50 border-b-2 border-stone-200">
+            <thead><tr className="bg-warm/30 border-b-2 border-border">
               {['流出方（承包人）','流入方（耕种人）','类型','面积','来源','可信度','补贴计算','操作'].map(h => (
-                <th key={h} className="px-3 py-2.5 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>
+                <th key={h} className="px-3 py-2.5 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
               ))}
             </tr></thead>
             <tbody>
-              {loading && <tr><td colSpan={8} className="text-center py-10 text-stone-300">加载中…</td></tr>}
+              {loading && <tr><td colSpan={8} className="text-center py-10 text-text-muted/50">加载中…</td></tr>}
               {!loading && list.length === 0 && (
-                <tr><td colSpan={8} className="text-center py-10 text-stone-300 text-sm">
+                <tr><td colSpan={8} className="text-center py-10 text-text-muted/50 text-sm">
                   {yearFilter}年暂无流转记录
                 </td></tr>
               )}
               {list.map(t => (
-                <tr key={`${t.source_type || 'normal'}-${t.id}`} className="border-b border-stone-50 hover:bg-stone-50">
+                <tr key={`${t.source_type || 'normal'}-${t.id}`} className="border-b border-border/50 hover:bg-warm/30">
                   <td className="px-3 py-2.5">
                     <div className="text-sm font-semibold">{t.owner_name}</div>
-                    <div className="text-xs text-stone-400 font-mono">{t.owner_code}</div>
+                    <div className="text-xs text-text-muted font-mono">{t.owner_code}</div>
                   </td>
                   <td className="px-3 py-2.5">
                     {t.source_type === 'large_farmer' ? (
                       <div className="text-sm">
-                        <div className="font-semibold text-emerald-700">{t.large_farmer_name}</div>
-                        <div className="text-xs text-stone-400">{t.large_farmer_type_label || t.large_farmer_type}</div>
+                        <div className="font-semibold text-primary">{t.large_farmer_name}</div>
+                        <div className="text-xs text-text-muted">{t.large_farmer_type_label || t.large_farmer_type}</div>
                       </div>
                     ) : t.operator_name ? (
                       <><div className="text-sm">{t.operator_name}</div>
-                          <div className="text-xs text-stone-400 font-mono">{t.operator_code}</div></>
+                          <div className="text-xs text-text-muted font-mono">{t.operator_code}</div></>
                     ) : (
-                      <span className="text-xs text-stone-300">— 无接收方</span>
+                      <span className="text-xs text-text-muted/50">— 无接收方</span>
                     )}
                   </td>
                   <td className="px-3 py-2.5"><Tag label={t.trust_type_label} color={TRUST_COLOR[t.trust_type] || 'gray'} /></td>
                   <td className="px-3 py-2.5 text-sm font-mono">
-                    {t.area !== null ? `${t.area}亩` : <span className="text-stone-300">未填</span>}
-                    {t.parcel_desc && <div className="text-xs text-stone-400 truncate max-w-20" title={t.parcel_desc}>{t.parcel_desc}</div>}
+                    {t.area !== null ? `${t.area}亩` : <span className="text-text-muted/50">未填</span>}
+                    {t.parcel_desc && <div className="text-xs text-text-muted truncate max-w-20" title={t.parcel_desc}>{t.parcel_desc}</div>}
                   </td>
                   <td className="px-3 py-2.5">
                     {t.source_type === 'large_farmer' ? (
@@ -330,30 +330,30 @@ export default function LandTrustPage() {
                   } /></td>
                   <td className="px-3 py-2.5">
                     {t.affect_subsidy_calc
-                      ? <span className="text-xs text-emerald-700">✓ 纳入计算</span>
-                      : <span className="text-xs text-stone-400">仅记录</span>}
+                      ? <span className="text-xs text-primary">✓ 纳入计算</span>
+                      : <span className="text-xs text-text-muted">仅记录</span>}
                   </td>
                   <td className="px-3 py-2.5">
                     {t.source_type !== 'large_farmer' && (
                       <div className="flex gap-1">
-                        <button onClick={() => openEdit(t)} className="text-xs border border-stone-200 text-stone-500 px-2 py-1 rounded hover:border-stone-300">编辑</button>
+                        <button onClick={() => openEdit(t)} className="text-xs border border-border text-text-muted px-2 py-1 rounded hover:border-border">编辑</button>
                         <button onClick={() => del(t.id)} className="text-xs border border-red-100 text-red-400 px-2 py-1 rounded hover:bg-red-50">删</button>
                       </div>
                     )}
                     {t.source_type === 'large_farmer' && (
-                      <span className="text-xs text-stone-400">—</span>
+                      <span className="text-xs text-text-muted">—</span>
                     )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div className="px-4 py-2 border-t border-stone-100 bg-stone-50/50 flex justify-between text-xs text-stone-400">
+          <div className="px-4 py-2 border-t border-border/50 bg-warm/10 flex justify-between text-xs text-text-muted">
             <span>共{total}条</span>
             <div className="flex gap-1">
-              <button disabled={page<=1} onClick={() => setPage(p=>p-1)} className="px-2.5 py-1 border border-stone-200 rounded disabled:opacity-40">‹</button>
+              <button disabled={page<=1} onClick={() => setPage(p=>p-1)} className="px-2.5 py-1 border border-border rounded disabled:opacity-40">‹</button>
               <span className="px-2">{page}/{Math.max(1,Math.ceil(total/20))}</span>
-              <button disabled={page*20>=total} onClick={() => setPage(p=>p+1)} className="px-2.5 py-1 border border-stone-200 rounded disabled:opacity-40">›</button>
+              <button disabled={page*20>=total} onClick={() => setPage(p=>p+1)} className="px-2.5 py-1 border border-border rounded disabled:opacity-40">›</button>
             </div>
           </div>
         </div>
@@ -361,82 +361,82 @@ export default function LandTrustPage() {
 
       {/* ── 右列：面积汇总查询 ── */}
       <div>
-        <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm sticky top-4">
-          <h3 className="font-semibold text-stone-700 mb-3 text-sm">📐 家庭户面积汇总</h3>
-          <p className="text-xs text-stone-400 mb-2">搜索家庭户，查看承包+流转后的实际可耕种面积</p>
+        <div className="bg-white border border-border rounded-card p-4 shadow-card sticky top-4">
+          <h3 className="font-semibold text-text-primary mb-3 text-sm">📐 家庭户面积汇总</h3>
+          <p className="text-xs text-text-muted mb-2">搜索家庭户，查看承包+流转后的实际可耕种面积</p>
 
           {/* 家庭户搜索 */}
           <div className="relative mb-3">
             <input value={hhSearch} onChange={e => setHhSearch(e.target.value)}
               placeholder="输入户名、户主姓名搜索…"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             {hhOpts.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-stone-200 rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-10 max-h-48 overflow-y-auto">
                 {hhOpts.map(h => (
                   <button key={h.id} onClick={() => { loadSummary(h); setHhSearch(''); setHhOpts([]) }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-stone-50 border-b border-stone-50 last:border-0">
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0">
                     <span className="font-semibold">{h.household_name}</span>
-                    <span className="text-stone-400 text-xs ml-2">{h.head_name}</span>
-                    <span className="text-stone-300 text-xs ml-2">{h.village_full_name}</span>
+                    <span className="text-text-muted text-xs ml-2">{h.head_name}</span>
+                    <span className="text-text-muted/50 text-xs ml-2">{h.village_full_name}</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          {summaryLoading && <div className="py-8 text-center text-stone-300 text-sm">计算中…</div>}
+          {summaryLoading && <div className="py-8 text-center text-text-muted/50 text-sm">计算中…</div>}
 
           {summary && summaryHH && (
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <span className="font-semibold text-stone-800">{summaryHH.household_name}</span>
-                <span className="text-xs text-stone-400">{yearFilter}年</span>
+                <span className="font-semibold text-text-primary">{summaryHH.household_name}</span>
+                <span className="text-xs text-text-muted">{yearFilter}年</span>
                 {summary.is_overdrawn && <Tag label="超领预警" color="red" />}
               </div>
 
               {/* 面积分解卡片 */}
               <div className="space-y-2 mb-3">
-                <div className="flex justify-between items-center py-2 border-b border-stone-100">
-                  <span className="text-xs text-stone-500">承包面积（权属）</span>
-                  <span className="text-sm font-mono font-bold text-stone-800">
-                    {summary.contracted_area > 0 ? `${summary.contracted_area}亩` : <span className="text-stone-300">未设置</span>}
+                <div className="flex justify-between items-center py-2 border-b border-border/50">
+                  <span className="text-xs text-text-muted">承包面积（权属）</span>
+                  <span className="text-sm font-mono font-bold text-text-primary">
+                    {summary.contracted_area > 0 ? `${summary.contracted_area}亩` : <span className="text-text-muted/50">未设置</span>}
                   </span>
                 </div>
                 {(summary.trust_out_area > 0 || summary.trust_in_area > 0) && (
                   <>
                     {summary.trust_out_area > 0 && (
-                      <div className="flex justify-between items-center py-1.5 border-b border-stone-100">
-                        <span className="text-xs text-stone-400 pl-2">— 流出/代出</span>
+                      <div className="flex justify-between items-center py-1.5 border-b border-border/50">
+                        <span className="text-xs text-text-muted pl-2">— 流出/代出</span>
                         <span className="text-sm font-mono text-red-500">-{summary.trust_out_area}亩</span>
                       </div>
                     )}
                     {summary.trust_in_area > 0 && (
-                      <div className="flex justify-between items-center py-1.5 border-b border-stone-100">
-                        <span className="text-xs text-stone-400 pl-2">+ 流入/代耕</span>
-                        <span className="text-sm font-mono text-emerald-600">+{summary.trust_in_area}亩</span>
+                      <div className="flex justify-between items-center py-1.5 border-b border-border/50">
+                        <span className="text-xs text-text-muted pl-2">+ 流入/代耕</span>
+                        <span className="text-sm font-mono text-primary">+{summary.trust_in_area}亩</span>
                       </div>
                     )}
                   </>
                 )}
-                <div className={`flex justify-between items-center py-2 rounded-lg px-2 ${summary.is_overdrawn ? 'bg-red-50' : 'bg-emerald-50'}`}>
-                  <span className="text-xs font-semibold text-stone-600">可耕种面积（超领基准）</span>
-                  <span className={`text-sm font-mono font-bold ${summary.is_overdrawn ? 'text-red-700' : 'text-emerald-700'}`}>
+                <div className={`flex justify-between items-center py-2 rounded-btn px-2 ${summary.is_overdrawn ? 'bg-red-50' : 'bg-primary/5'}`}>
+                  <span className="text-xs font-semibold text-text-primary">可耕种面积（超领基准）</span>
+                  <span className={`text-sm font-mono font-bold ${summary.is_overdrawn ? 'text-red-700' : 'text-primary'}`}>
                     {summary.cultivable_area}亩
                   </span>
                 </div>
-                <div className="flex justify-between items-center py-2 border-t border-stone-100">
-                  <span className="text-xs text-stone-500">已申报补贴面积</span>
+                <div className="flex justify-between items-center py-2 border-t border-border/50">
+                  <span className="text-xs text-text-muted">已申报补贴面积</span>
                   <span className={`text-sm font-mono font-bold ${summary.applied_area > summary.cultivable_area && summary.cultivable_area > 0 ? 'text-red-600' : 'text-amber-600'}`}>
                     {summary.applied_area}亩
                   </span>
                 </div>
                 {summary.is_overdrawn && (
-                  <div className="bg-red-100 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
+                  <div className="bg-red-100 border border-red-200 rounded-btn px-3 py-2 text-xs text-red-700">
                     ⚠️ 超领 {summary.overdraw_amount}亩，需核查处理
                   </div>
                 )}
                 {!summary.is_overdrawn && summary.applied_area > 0 && (
-                  <div className="text-xs text-stone-400 text-right">
+                  <div className="text-xs text-text-muted text-right">
                     剩余可申报：{Math.max(0, summary.cultivable_area - summary.applied_area).toFixed(2)}亩
                   </div>
                 )}
@@ -445,13 +445,13 @@ export default function LandTrustPage() {
               {/* 补贴明细 */}
               {summary.subsidy_breakdown.length > 0 && (
                 <div>
-                  <p className="text-xs text-stone-400 font-semibold mb-1.5">当年补贴占用明细</p>
+                  <p className="text-xs text-text-muted font-semibold mb-1.5">当年补贴占用明细</p>
                   <div className="space-y-1">
                     {summary.subsidy_breakdown.map((b, i) => (
                       <div key={i} className="flex justify-between text-xs">
-                        <span className="text-stone-600 truncate flex-1">{b.subsidy_name}</span>
+                        <span className="text-text-primary truncate flex-1">{b.subsidy_name}</span>
                         <span className="font-mono text-amber-600 ml-2">{b.applied_area}亩</span>
-                        <span className="font-mono text-emerald-700 ml-2">{fmt(b.actual_amount)}</span>
+                        <span className="font-mono text-primary ml-2">{fmt(b.actual_amount)}</span>
                       </div>
                     ))}
                   </div>
@@ -459,7 +459,7 @@ export default function LandTrustPage() {
               )}
 
               {!summary.has_trust_data && summary.contracted_area > 0 && (
-                <p className="text-xs text-stone-300 mt-2 border-t border-stone-100 pt-2">
+                <p className="text-xs text-text-muted/50 mt-2 border-t border-border/50 pt-2">
                   暂无{yearFilter}年流转记录，超领判断仅基于承包面积
                 </p>
               )}
@@ -467,7 +467,7 @@ export default function LandTrustPage() {
           )}
 
           {!summary && !summaryLoading && (
-            <div className="py-6 text-center text-stone-300 text-xs">
+            <div className="py-6 text-center text-text-muted/50 text-xs">
               搜索并选择家庭户查看面积汇总
             </div>
           )}
@@ -481,15 +481,15 @@ export default function LandTrustPage() {
 
           {/* 类型选择 */}
           <div>
-            <label className="block text-xs text-stone-400 mb-2">流转类型 *</label>
+            <label className="block text-xs text-text-muted mb-2">流转类型 *</label>
             <div className="grid grid-cols-5 gap-1.5">
               {TRUST_TYPE_OPTS.map(o => (
                 <div key={o.val} onClick={() => sf('trust_type', o.val)}
-                  className={`border-2 rounded-xl p-2 cursor-pointer transition-colors text-center
-                    ${form.trust_type === o.val ? 'border-emerald-500 bg-emerald-50' : 'border-stone-200 hover:border-stone-300'}`}>
+                  className={`border-2 rounded-card p-2 cursor-pointer transition-colors text-center
+                    ${form.trust_type === o.val ? 'border-primary bg-primary/5' : 'border-border hover:border-border'}`}>
                   <div className="text-lg mb-0.5">{o.icon}</div>
                   <div className="text-xs font-semibold">{o.label}</div>
-                  <div className="text-xs text-stone-400 leading-tight mt-0.5 hidden xl:block">{o.desc}</div>
+                  <div className="text-xs text-text-muted leading-tight mt-0.5 hidden xl:block">{o.desc}</div>
                 </div>
               ))}
             </div>
@@ -497,47 +497,47 @@ export default function LandTrustPage() {
 
           {/* 流出方 */}
           <div>
-            <label className="block text-xs text-stone-400 mb-1">流出方（承包人）*</label>
+            <label className="block text-xs text-text-muted mb-1">流出方（承包人）*</label>
             <div className="relative">
               <input value={ownerSearch}
                 onChange={e => { setOwnerSearch(e.target.value); sf('owner_household_id', null) }}
                 placeholder="输入户名或户主姓名搜索"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
               {ownerOpts.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-stone-200 rounded-xl shadow-lg z-20 max-h-40 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
                   {ownerOpts.map(h => (
                     <button key={h.id} onClick={() => { sf('owner_household_id', h.id); setOwnerSearch(h.household_name); setOwnerOpts([]) }}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-stone-50 border-b border-stone-50 last:border-0">
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0">
                       <span className="font-semibold">{h.household_name}</span>
-                      <span className="text-stone-400 text-xs ml-2">{h.head_name}</span>
-                      {h.land_area && <span className="text-emerald-700 text-xs ml-2">{h.land_area}亩</span>}
+                      <span className="text-text-muted text-xs ml-2">{h.head_name}</span>
+                      {h.land_area && <span className="text-primary text-xs ml-2">{h.land_area}亩</span>}
                     </button>
                   ))}
                 </div>
               )}
             </div>
-            {form.owner_household_id && <p className="text-xs text-emerald-700 mt-0.5">✓ 已选择</p>}
+            {form.owner_household_id && <p className="text-xs text-primary mt-0.5">✓ 已选择</p>}
           </div>
 
           {/* 流入方（撂荒时可为空）*/}
           {form.trust_type !== 'IDLE' && form.trust_type !== 'COLLECTIVE' && (
             <div>
-              <label className="block text-xs text-stone-400 mb-1">
+              <label className="block text-xs text-text-muted mb-1">
                 流入方（实际耕种人）
-                <span className="text-stone-300 ml-1">— 不填则视为无明确接收方</span>
+                <span className="text-text-muted/50 ml-1">— 不填则视为无明确接收方</span>
               </label>
               <div className="relative">
                 <input value={operSearch}
                   onChange={e => { setOperSearch(e.target.value); sf('operator_household_id', null) }}
                   placeholder="输入户名或户主姓名搜索（可不填）"
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
                 {operOpts.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-stone-200 rounded-xl shadow-lg z-20 max-h-40 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
                     {operOpts.map(h => (
                       <button key={h.id} onClick={() => { sf('operator_household_id', h.id); setOperSearch(h.household_name); setOperOpts([]) }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-stone-50 border-b border-stone-50 last:border-0">
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0">
                         <span className="font-semibold">{h.household_name}</span>
-                        <span className="text-stone-400 text-xs ml-2">{h.head_name}</span>
+                        <span className="text-text-muted text-xs ml-2">{h.head_name}</span>
                       </button>
                     ))}
                   </div>
@@ -549,46 +549,46 @@ export default function LandTrustPage() {
           {/* 年度 + 面积 + 地块描述 */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">流转年度 *</label>
+              <label className="block text-xs text-text-muted mb-1">流转年度 *</label>
               <select value={form.trust_year} onChange={e => sf('trust_year', Number(e.target.value))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
                 {years.map(y => <option key={y} value={y}>{y}年</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">面积（亩）<span className="text-stone-300">可不填</span></label>
+              <label className="block text-xs text-text-muted mb-1">面积（亩）<span className="text-text-muted/50">可不填</span></label>
               <input type="number" step="0.01" value={form.area} onChange={e => sf('area', e.target.value)}
                 placeholder="如：3.5"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">年租金（元/亩）<span className="text-stone-300">可不填</span></label>
+              <label className="block text-xs text-text-muted mb-1">年租金（元/亩）<span className="text-text-muted/50">可不填</span></label>
               <input type="number" step="0.01" value={form.annual_fee} onChange={e => sf('annual_fee', e.target.value)}
                 placeholder="无偿/不清楚可不填"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs text-stone-400 mb-1">地块描述 <span className="text-stone-300">可不填（没有精确地块时用文字描述）</span></label>
+            <label className="block text-xs text-text-muted mb-1">地块描述 <span className="text-text-muted/50">可不填（没有精确地块时用文字描述）</span></label>
             <input value={form.parcel_desc} onChange={e => sf('parcel_desc', e.target.value)}
               placeholder="如：东山坡靠路边那块、大门前三亩地"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
           </div>
 
           {/* 数据可信度 + 是否纳入计算 */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">数据可信度</label>
+              <label className="block text-xs text-text-muted mb-1">数据可信度</label>
               <select value={form.data_reliability} onChange={e => sf('data_reliability', e.target.value)}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
                 {RELIABILITY_OPTS.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">补贴面积计算</label>
+              <label className="block text-xs text-text-muted mb-1">补贴面积计算</label>
               <select value={form.affect_subsidy_calc} onChange={e => sf('affect_subsidy_calc', Number(e.target.value))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
                 <option value={1}>纳入计算（影响超领预警）</option>
                 <option value={0}>仅作记录（不影响计算）</option>
               </select>
@@ -596,13 +596,13 @@ export default function LandTrustPage() {
           </div>
 
           <div>
-            <label className="block text-xs text-stone-400 mb-1">备注</label>
+            <label className="block text-xs text-text-muted mb-1">备注</label>
             <textarea rows={2} value={form.note} onChange={e => sf('note', e.target.value)}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
           </div>
 
           {form.trust_type === 'IDLE' && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-xs text-amber-700">
+            <div className="bg-amber-50 border border-amber-200 rounded-card px-3 py-2.5 text-xs text-amber-700">
               ⚠️ 撂荒记录不计入流出面积（地还在，只是没种），但会在补贴资格规则中触发「要求土地未撂荒」检查。
             </div>
           )}

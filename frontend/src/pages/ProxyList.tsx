@@ -128,20 +128,20 @@ export default function ProxyList({ subsidyType, show }: ProxyListProps) {
   }
 
   return (
-    <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
+    <div className="bg-white border border-border rounded-card overflow-hidden">
       {/* 搜索栏 */}
-      <div className="px-4 py-3 border-b border-stone-200 bg-stone-50/50 flex items-center gap-3 flex-wrap">
-        <span className="text-xs text-stone-400">搜索：</span>
+      <div className="px-4 py-3 border-b border-border bg-warm/10 flex items-center gap-3 flex-wrap">
+        <span className="text-xs text-text-muted">搜索：</span>
         <div className="flex items-center gap-1 min-w-[200px] max-w-[300px]">
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="被代领人/代领人姓名"
-            className="flex-1 border border-stone-200 rounded-lg px-2 py-1.5 text-xs outline-none" />
-          <button onClick={() => setPage(1)} className="px-2 py-1 text-xs bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">搜索</button>
+            className="flex-1 border border-border rounded-btn px-2 py-1.5 text-xs outline-none" />
+          <button onClick={() => setPage(1)} className="px-2 py-1 text-xs bg-primary text-white rounded-btn hover:bg-primary/90">搜索</button>
         </div>
-        <span className="text-xs text-stone-400">共 {total} 条</span>
+        <span className="text-xs text-text-muted">共 {total} 条</span>
         {selectedIds.size > 0 && (
           <button onClick={batchDelete}
-            className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-500">
+            className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-btn hover:bg-red-500">
             批量删除 ({selectedIds.size})
           </button>
         )}
@@ -149,32 +149,32 @@ export default function ProxyList({ subsidyType, show }: ProxyListProps) {
 
       <table className="w-full border-collapse min-w-[800px]">
         <thead>
-          <tr className="bg-stone-50 border-b-2 border-stone-200">
-            <th className="px-3 py-2.5 text-left text-xs text-stone-400 font-semibold whitespace-nowrap w-10">
+          <tr className="bg-warm/30 border-b-2 border-border">
+            <th className="px-3 py-2.5 text-left text-xs text-text-muted font-semibold whitespace-nowrap w-10">
               <input type="checkbox" checked={selectAll && proxies.length > 0} onChange={toggleSelectAll} className="rounded" />
             </th>
             {['被代领人', '被代领人身份证', '代领人', '代领人身份证', '关系类型', '备注', '创建时间', '操作'].map(h => (
-              <th key={h} className="px-3 py-2.5 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>
+              <th key={h} className="px-3 py-2.5 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {loading && <tr><td colSpan={9} className="text-center py-10 text-stone-300">加载中…</td></tr>}
+          {loading && <tr><td colSpan={9} className="text-center py-10 text-text-muted/50">加载中…</td></tr>}
           {!loading && proxies.length === 0 && (
-            <tr><td colSpan={9} className="text-center py-10 text-stone-300 text-sm">暂无代领关系记录</td></tr>
+            <tr><td colSpan={9} className="text-center py-10 text-text-muted/50 text-sm">暂无代领关系记录</td></tr>
           )}
           {!loading && proxies.map(p => (
-            <tr key={p.id} className={`border-b border-stone-50 hover:bg-stone-50 ${selectedIds.has(p.id) ? 'bg-amber-50' : ''}`}>
+            <tr key={p.id} className={`border-b border-border/50 hover:bg-warm/30 ${selectedIds.has(p.id) ? 'bg-amber-50' : ''}`}>
               <td className="px-3 py-2.5">
                 <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)} className="rounded" />
               </td>
-              <td className="px-3 py-2.5 text-sm font-semibold text-stone-700">{p.beneficiary_farmer_name || '—'}</td>
-              <td className="px-3 py-2.5 text-xs font-mono text-stone-400">{p.beneficiary_id_card || '—'}</td>
-              <td className="px-3 py-2.5 text-sm text-stone-600">{p.proxy_farmer_name || '—'}</td>
-              <td className="px-3 py-2.5 text-xs font-mono text-stone-400">{p.proxy_id_card || '—'}</td>
+              <td className="px-3 py-2.5 text-sm font-semibold text-text-primary">{p.beneficiary_farmer_name || '—'}</td>
+              <td className="px-3 py-2.5 text-xs font-mono text-text-muted">{p.beneficiary_id_card || '—'}</td>
+              <td className="px-3 py-2.5 text-sm text-text-primary">{p.proxy_farmer_name || '—'}</td>
+              <td className="px-3 py-2.5 text-xs font-mono text-text-muted">{p.proxy_id_card || '—'}</td>
               <td className="px-3 py-2.5"><Tag label={p.proxy_type || '代领'} color="amber" /></td>
-              <td className="px-3 py-2.5 text-xs text-stone-400 max-w-[150px] truncate" title={p.remark || ''}>{p.remark || '—'}</td>
-              <td className="px-3 py-2.5 text-xs font-mono text-stone-400">{p.created_at?.split('T')[0] || '—'}</td>
+              <td className="px-3 py-2.5 text-xs text-text-muted max-w-[150px] truncate" title={p.remark || ''}>{p.remark || '—'}</td>
+              <td className="px-3 py-2.5 text-xs font-mono text-text-muted">{p.created_at?.split('T')[0] || '—'}</td>
               <td className="px-3 py-2.5">
                 <button onClick={() => setDeleteId(p.id)}
                   className="text-xs text-red-400 border border-red-100 px-2 py-1 rounded hover:bg-red-50">
@@ -187,20 +187,20 @@ export default function ProxyList({ subsidyType, show }: ProxyListProps) {
       </table>
 
       {/* 分页 */}
-      <div className="px-4 py-2 border-t border-stone-100 bg-stone-50/50 flex justify-end text-xs text-stone-400">
+      <div className="px-4 py-2 border-t border-border/50 bg-warm/10 flex justify-end text-xs text-text-muted">
         <div className="flex gap-1">
           <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-            className="px-2.5 py-1 border border-stone-200 rounded disabled:opacity-40">‹</button>
+            className="px-2.5 py-1 border border-border rounded disabled:opacity-40">‹</button>
           <span className="px-2 py-1">第{page}/{Math.max(1, Math.ceil(total / 20))}页</span>
           <button disabled={page * 20 >= total} onClick={() => setPage(p => p + 1)}
-            className="px-2.5 py-1 border border-stone-200 rounded disabled:opacity-40">›</button>
+            className="px-2.5 py-1 border border-border rounded disabled:opacity-40">›</button>
         </div>
       </div>
 
       {/* 删除确认 */}
       <Modal open={deleteId !== null} title="确认删除" onClose={() => setDeleteId(null)}
         onConfirm={() => deleteId && deleteProxy(deleteId)} confirmText="确认删除">
-        <p className="text-sm text-stone-600">删除后无法恢复，确认要删除这条代领关系吗？</p>
+        <p className="text-sm text-text-primary">删除后无法恢复，确认要删除这条代领关系吗？</p>
       </Modal>
     </div>
   )

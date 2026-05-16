@@ -72,54 +72,54 @@ export default function SubsidyTypesPage() {
         <div className="flex gap-1">
           {years.slice(0, 4).map(y => (
             <button key={y} onClick={() => setYearFilter(y)}
-              className={`px-3 py-1.5 text-sm rounded-lg border transition-colors
-                ${yearFilter === y ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'}`}>
+              className={`px-3 py-1.5 text-sm rounded-btn border transition-colors
+                ${yearFilter === y ? 'bg-primary text-white border-emerald-700' : 'bg-white border-border text-text-primary hover:border-border'}`}>
               {y}年
             </button>
           ))}
         </div>
-        <button onClick={openAdd} className="ml-auto px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">＋ 新增补贴类型</button>
+        <button onClick={openAdd} className="ml-auto px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">＋ 新增补贴类型</button>
       </div>
 
       {/* 说明卡片 */}
-      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-4 text-sm text-blue-700">
+      <div className="bg-blue-50 border border-blue-100 rounded-card p-4 mb-4 text-sm text-blue-700">
         <strong>补贴计算模式说明：</strong>
         <span className="ml-2">「固定金额」— 每户/每人发固定金额，录入申请时直接填写金额；</span>
         <span className="ml-2">「按亩计算」— 系统根据「每亩金额 × 土地面积」自动计算应发金额。</span>
       </div>
 
       <div className="grid gap-3">
-        {types.length === 0 && <div className="text-center py-10 text-stone-300 text-sm bg-white border border-stone-200 rounded-xl">暂无补贴类型，点击右上角新增</div>}
+        {types.length === 0 && <div className="text-center py-10 text-text-muted/50 text-sm bg-white border border-border rounded-card">暂无补贴类型，点击右上角新增</div>}
         {types.map(t => (
-          <div key={t.id} className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm hover:border-stone-300 transition-colors">
+          <div key={t.id} className="bg-white border border-border rounded-card p-5 shadow-card hover:border-border transition-colors">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <span className="font-bold text-stone-800 text-base">{t.subsidy_name}</span>
+                  <span className="font-bold text-text-primary text-base">{t.subsidy_name}</span>
                   <Tag label={t.subsidy_year + '年'} color="gray" />
                   <Tag label={calcModeLabel(t.calc_mode)} color={calcModeColor(t.calc_mode)} />
                   <Tag label={SUBSIDY_PAY_STATUS[t.pay_status]?.label ?? '—'} color={SUBSIDY_PAY_STATUS[t.pay_status]?.color as 'green'} />
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-1 text-sm">
                   <div className="flex gap-2">
-                    <span className="text-stone-400">标准金额</span>
-                    <span className="font-mono font-bold text-emerald-700">
+                    <span className="text-text-muted">标准金额</span>
+                    <span className="font-mono font-bold text-primary">
                       {t.standard_amount ? `¥${Number(t.standard_amount).toFixed(2)}` : '—'}
-                      {t.standard_unit && <span className="text-xs text-stone-400 ml-1">{t.standard_unit}</span>}
+                      {t.standard_unit && <span className="text-xs text-text-muted ml-1">{t.standard_unit}</span>}
                     </span>
                   </div>
                   <div className="flex gap-2">
-                    <span className="text-stone-400">资金来源</span>
+                    <span className="text-text-muted">资金来源</span>
                     <span>{t.fund_source || '—'}</span>
                   </div>
                   <div className="flex gap-2">
-                    <span className="text-stone-400">截止日期</span>
+                    <span className="text-text-muted">截止日期</span>
                     <span className="font-mono text-xs">{t.apply_deadline || '—'}</span>
                   </div>
                 </div>
-                {t.description && <p className="text-xs text-stone-400 mt-2">{t.description}</p>}
+                {t.description && <p className="text-xs text-text-muted mt-2">{t.description}</p>}
               </div>
-              <button onClick={() => openEdit(t)} className="text-xs text-stone-400 border border-stone-200 px-3 py-1.5 rounded-lg hover:text-emerald-700 hover:border-emerald-200 shrink-0">编辑</button>
+              <button onClick={() => openEdit(t)} className="text-xs text-text-muted border border-border px-3 py-1.5 rounded-btn hover:text-primary hover:border-primary/20 shrink-0">编辑</button>
             </div>
           </div>
         ))}
@@ -130,18 +130,18 @@ export default function SubsidyTypesPage() {
         <div className="space-y-4">
           {/* 计算模式选择 */}
           <div>
-            <label className="block text-xs text-stone-400 mb-2">计算模式 *</label>
+            <label className="block text-xs text-text-muted mb-2">计算模式 *</label>
             <div className="grid grid-cols-2 gap-3">
               {[
                 { val: 'fixed', title: '固定金额', desc: '每户 / 每人发放固定金额', icon: '💰' },
                 { val: 'per_mu', title: '按亩计算', desc: '系统自动计算：每亩金额 × 面积', icon: '🌾' },
               ].map(opt => (
                 <div key={opt.val} onClick={() => setForm(f => ({ ...f, calc_mode: opt.val as 'fixed' | 'per_mu' }))}
-                  className={`border-2 rounded-xl p-3 cursor-pointer transition-colors
-                    ${form.calc_mode === opt.val ? 'border-emerald-500 bg-emerald-50' : 'border-stone-200 hover:border-stone-300'}`}>
+                  className={`border-2 rounded-card p-3 cursor-pointer transition-colors
+                    ${form.calc_mode === opt.val ? 'border-primary bg-primary/5' : 'border-border hover:border-border'}`}>
                   <div className="text-xl mb-1">{opt.icon}</div>
-                  <div className="font-semibold text-sm text-stone-800">{opt.title}</div>
-                  <div className="text-xs text-stone-400 mt-0.5">{opt.desc}</div>
+                  <div className="font-semibold text-sm text-text-primary">{opt.title}</div>
+                  <div className="text-xs text-text-muted mt-0.5">{opt.desc}</div>
                 </div>
               ))}
             </div>
@@ -149,53 +149,53 @@ export default function SubsidyTypesPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">补贴名称 *</label>
+              <label className="block text-xs text-text-muted mb-1">补贴名称 *</label>
               <input value={form.subsidy_name ?? ''} onChange={e => setForm(f => ({ ...f, subsidy_name: e.target.value }))}
                 placeholder="如：粮食直补、农机购置补贴"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">补贴年度 *</label>
+              <label className="block text-xs text-text-muted mb-1">补贴年度 *</label>
               <select value={form.subsidy_year ?? 2024} onChange={e => setForm(f => ({ ...f, subsidy_year: Number(e.target.value) }))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">
                 {years.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">
+              <label className="block text-xs text-text-muted mb-1">
                 {form.calc_mode === 'per_mu' ? '每亩金额 (元)' : '标准金额 (元)'}
               </label>
               <input type="number" step="0.01" value={form.standard_amount ?? ''} onChange={e => setForm(f => ({ ...f, standard_amount: Number(e.target.value) || undefined }))}
                 placeholder={form.calc_mode === 'per_mu' ? '每亩多少元' : '每户/人多少元'}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             {form.calc_mode === 'fixed' && (
               <div>
-                <label className="block text-xs text-stone-400 mb-1">发放单位</label>
+                <label className="block text-xs text-text-muted mb-1">发放单位</label>
                 <select value={form.standard_unit ?? '元/户'} onChange={e => setForm(f => ({ ...f, standard_unit: e.target.value }))}
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">
                   {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
               </div>
             )}
             <div>
-              <label className="block text-xs text-stone-400 mb-1">资金来源</label>
+              <label className="block text-xs text-text-muted mb-1">资金来源</label>
               <select value={form.fund_source ?? ''} onChange={e => setForm(f => ({ ...f, fund_source: e.target.value || undefined }))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">
                 <option value="">不限</option>
                 {FUND_SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">申请截止日期</label>
+              <label className="block text-xs text-text-muted mb-1">申请截止日期</label>
               <input type="date" value={form.apply_deadline ?? ''} onChange={e => setForm(f => ({ ...f, apply_deadline: e.target.value || undefined }))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div className="col-span-2">
-              <label className="block text-xs text-stone-400 mb-1">补贴说明 / 政策依据</label>
+              <label className="block text-xs text-text-muted mb-1">补贴说明 / 政策依据</label>
               <textarea rows={2} value={form.description ?? ''} onChange={e => setForm(f => ({ ...f, description: e.target.value || undefined }))}
                 placeholder="可填写政策文件编号或补贴说明"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
             </div>
           </div>
         </div>

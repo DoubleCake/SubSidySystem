@@ -381,13 +381,13 @@ export default function LargeFarmersPage() {
       {/* ── 左列：大户列表 ── */}
       <div>
         {/* 一级Tab切换：土地与大户 */}
-        <div className="flex items-center gap-1 mb-4 border-b border-stone-200">
+        <div className="flex items-center gap-1 mb-4 border-b border-border">
           <button onClick={() => navigate('/land')}
-            className="px-4 py-2 text-sm text-stone-500 hover:text-stone-700 border-b-2 border-transparent hover:border-stone-300">
+            className="px-4 py-2 text-sm text-text-muted hover:text-text-primary border-b-2 border-transparent hover:border-border">
             土地流转
           </button>
           <button onClick={() => {}}
-            className="px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-emerald-700">
+            className="px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-primary">
             大户管理
           </button>
         </div>
@@ -395,57 +395,57 @@ export default function LargeFarmersPage() {
         {/* 工具栏 */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
           <select value={villageFilter} onChange={e => { setVillageFilter(e.target.value ? Number(e.target.value) : ''); setPage(1) }}
-            className="border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+            className="border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
             <option value="">所有村</option>
             {villages.map(v => <option key={v.id} value={v.id}>{v.village_name}</option>)}
           </select>
           <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }}
-            className="border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+            className="border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
             <option value="">所有类型</option>
             {OPERATOR_TYPE_OPTS.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
           </select>
           <input value={keywordFilter} onChange={e => { setKeywordFilter(e.target.value); setPage(1) }}
             placeholder="搜索名称、电话、身份证…"
-            className="border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none flex-1 min-w-[160px]" />
-          <span className="text-xs text-stone-400">共 {total} 条</span>
+            className="border border-border rounded-btn px-3 py-2 text-sm outline-none flex-1 min-w-[160px]" />
+          <span className="text-xs text-text-muted">共 {total} 条</span>
           <button onClick={openAddFarmer}
-            className="ml-auto px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
+            className="ml-auto px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
             ＋ 新增大户
           </button>
         </div>
 
         {/* 说明栏 */}
-        <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-4 text-xs text-blue-700">
+        <div className="bg-blue-50 border border-blue-100 rounded-card px-4 py-3 mb-4 text-xs text-blue-700">
           <p>管理种植大户、家庭农场、合作社等规模经营主体信息。点击右侧「代耕代种」标签可管理与普通农户的关联关系。</p>
         </div>
 
         {/* 列表 */}
-        <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-white border border-border rounded-card overflow-hidden shadow-card">
           <table className="w-full border-collapse">
-            <thead><tr className="bg-stone-50 border-b-2 border-stone-200">
+            <thead><tr className="bg-warm/30 border-b-2 border-border">
               {['经营者名称','类型','所属村','经营面积','状态','操作'].map(h => (
-                <th key={h} className="px-3 py-2.5 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>
+                <th key={h} className="px-3 py-2.5 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
               ))}
             </tr></thead>
             <tbody>
-              {loading && <tr><td colSpan={6} className="text-center py-10 text-stone-300">加载中…</td></tr>}
+              {loading && <tr><td colSpan={6} className="text-center py-10 text-text-muted/50">加载中…</td></tr>}
               {!loading && list.length === 0 && (
-                <tr><td colSpan={6} className="text-center py-10 text-stone-300 text-sm">
+                <tr><td colSpan={6} className="text-center py-10 text-text-muted/50 text-sm">
                   暂无大户信息，点击「＋ 新增大户」添加
                 </td></tr>
               )}
               {list.map(f => (
-                <tr key={f.id} className={`border-b border-stone-50 hover:bg-stone-50 cursor-pointer ${selectedFarmer?.id === f.id ? 'bg-emerald-50' : ''}`}
+                <tr key={f.id} className={`border-b border-border/50 hover:bg-warm/30 cursor-pointer ${selectedFarmer?.id === f.id ? 'bg-primary/5' : ''}`}
                   onClick={() => loadFarmerDetail(f)}>
                   <td className="px-3 py-2.5">
                     <div className="text-sm font-semibold">{f.operator_name}</div>
-                    {f.phone && <div className="text-xs text-stone-400">{f.phone}</div>}
+                    {f.phone && <div className="text-xs text-text-muted">{f.phone}</div>}
                   </td>
                   <td className="px-3 py-2.5"><Tag label={f.operator_type_label} color={OPERATOR_COLOR[f.operator_type] || 'gray'} /></td>
                   <td className="px-3 py-2.5 text-sm">{f.village_name}</td>
                   <td className="px-3 py-2.5 text-sm font-mono">
-                    {f.total_managed_area ? `${f.total_managed_area}亩` : <span className="text-stone-300">未填</span>}
-                    {f.total_trust_in_area ? <div className="text-xs text-emerald-600">+{f.total_trust_in_area}亩流入</div> : null}
+                    {f.total_managed_area ? `${f.total_managed_area}亩` : <span className="text-text-muted/50">未填</span>}
+                    {f.total_trust_in_area ? <div className="text-xs text-primary">+{f.total_trust_in_area}亩流入</div> : null}
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-1">
@@ -455,7 +455,7 @@ export default function LargeFarmersPage() {
                   </td>
                   <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                     <div className="flex gap-1">
-                      <button onClick={() => openEditFarmer(f)} className="text-xs border border-stone-200 text-stone-500 px-2 py-1 rounded hover:border-stone-300">编辑</button>
+                      <button onClick={() => openEditFarmer(f)} className="text-xs border border-border text-text-muted px-2 py-1 rounded hover:border-border">编辑</button>
                       <button onClick={() => deleteFarmer(f.id)} className="text-xs border border-red-100 text-red-400 px-2 py-1 rounded hover:bg-red-50">删</button>
                     </div>
                   </td>
@@ -463,12 +463,12 @@ export default function LargeFarmersPage() {
               ))}
             </tbody>
           </table>
-          <div className="px-4 py-2 border-t border-stone-100 bg-stone-50/50 flex justify-between text-xs text-stone-400">
+          <div className="px-4 py-2 border-t border-border/50 bg-warm/10 flex justify-between text-xs text-text-muted">
             <span>共{total}条</span>
             <div className="flex gap-1">
-              <button disabled={page<=1} onClick={() => setPage(p=>p-1)} className="px-2.5 py-1 border border-stone-200 rounded disabled:opacity-40">‹</button>
+              <button disabled={page<=1} onClick={() => setPage(p=>p-1)} className="px-2.5 py-1 border border-border rounded disabled:opacity-40">‹</button>
               <span className="px-2">{page}/{Math.max(1,Math.ceil(total/20))}</span>
-              <button disabled={page*20>=total} onClick={() => setPage(p=>p+1)} className="px-2.5 py-1 border border-stone-200 rounded disabled:opacity-40">›</button>
+              <button disabled={page*20>=total} onClick={() => setPage(p=>p+1)} className="px-2.5 py-1 border border-border rounded disabled:opacity-40">›</button>
             </div>
           </div>
         </div>
@@ -477,45 +477,45 @@ export default function LargeFarmersPage() {
       {/* ── 右列：大户详情 & 代耕代种列表 ── */}
       <div>
         {!selectedFarmer ? (
-          <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-sm sticky top-4 text-center text-stone-400 text-sm">
+          <div className="bg-white border border-border rounded-card p-6 shadow-card sticky top-4 text-center text-text-muted text-sm">
             点击左侧大户查看详情和代耕代种关联
           </div>
         ) : (
           <div className="space-y-4">
             {/* 大户基本信息卡片 */}
-            <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+            <div className="bg-white border border-border rounded-card p-4 shadow-card">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-stone-800">{selectedFarmer.operator_name}</h3>
+                <h3 className="font-semibold text-text-primary">{selectedFarmer.operator_name}</h3>
                 <Tag label={selectedFarmer.operator_type_label} color={OPERATOR_COLOR[selectedFarmer.operator_type] || 'gray'} />
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div><span className="text-stone-400">所属村：</span>{selectedFarmer.village_name}</div>
-                {selectedFarmer.phone && <div><span className="text-stone-400">电话：</span>{selectedFarmer.phone}</div>}
-                <div><span className="text-stone-400">自有承包：</span><span className="font-mono">{ownArea}亩</span></div>
-                <div><span className="text-stone-400">流入面积：</span><span className="font-mono text-emerald-600">+{totalTrustArea}亩</span></div>
-                <div className="col-span-2"><span className="text-stone-400">总计经营：</span><span className="font-mono font-bold text-stone-800">{totalManaged}亩</span></div>
+                <div><span className="text-text-muted">所属村：</span>{selectedFarmer.village_name}</div>
+                {selectedFarmer.phone && <div><span className="text-text-muted">电话：</span>{selectedFarmer.phone}</div>}
+                <div><span className="text-text-muted">自有承包：</span><span className="font-mono">{ownArea}亩</span></div>
+                <div><span className="text-text-muted">流入面积：</span><span className="font-mono text-primary">+{totalTrustArea}亩</span></div>
+                <div className="col-span-2"><span className="text-text-muted">总计经营：</span><span className="font-mono font-bold text-text-primary">{totalManaged}亩</span></div>
               </div>
             </div>
 
             {/* 代耕代种列表 */}
-            <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+            <div className="bg-white border border-border rounded-card p-4 shadow-card">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-stone-700 text-sm">代耕代种关联</h3>
+                  <h3 className="font-semibold text-text-primary text-sm">代耕代种关联</h3>
                   <select value={trustYear} onChange={e => setTrustYear(Number(e.target.value))}
-                    className="border border-stone-200 rounded px-2 py-1 text-xs bg-white outline-none">
+                    className="border border-border rounded px-2 py-1 text-xs bg-white outline-none">
                     {years.map(y => <option key={y} value={y}>{y}年</option>)}
                   </select>
                 </div>
-                <button onClick={openAddTrust} className="text-xs px-2 py-1 bg-emerald-700 text-white rounded hover:bg-emerald-600">
+                <button onClick={openAddTrust} className="text-xs px-2 py-1 bg-primary text-white rounded hover:bg-primary/90">
                   ＋ 添加关联
                 </button>
               </div>
 
-              {detailLoading && <div className="py-4 text-center text-stone-300 text-sm">加载中…</div>}
+              {detailLoading && <div className="py-4 text-center text-text-muted/50 text-sm">加载中…</div>}
 
               {!detailLoading && trustList.length === 0 && (
-                <div className="py-4 text-center text-stone-300 text-sm">
+                <div className="py-4 text-center text-text-muted/50 text-sm">
                   {trustYear}年暂无代耕代种关联
                 </div>
               )}
@@ -523,18 +523,18 @@ export default function LargeFarmersPage() {
               {!detailLoading && trustList.length > 0 && (
                 <div className="space-y-2 max-h-[400px] overflow-y-auto">
                   {trustList.map(t => (
-                    <div key={t.id} className="border border-stone-100 rounded-lg p-3">
+                    <div key={t.id} className="border border-border/50 rounded-btn p-3">
                       <div className="flex justify-between items-start mb-1">
                         <div>
                           <div className="text-sm font-semibold">{t.owner_household_name}</div>
-                          <div className="text-xs text-stone-400 font-mono">{t.owner_household_code}</div>
+                          <div className="text-xs text-text-muted font-mono">{t.owner_household_code}</div>
                         </div>
                         <div className="text-right">
-                          <div className="text-sm font-mono font-bold text-emerald-700">{t.area}亩</div>
+                          <div className="text-sm font-mono font-bold text-primary">{t.area}亩</div>
                           <Tag label={t.trust_type_label} color="blue" />
                         </div>
                       </div>
-                      {t.parcel_desc && <div className="text-xs text-stone-400 mb-1">地块：{t.parcel_desc}</div>}
+                      {t.parcel_desc && <div className="text-xs text-text-muted mb-1">地块：{t.parcel_desc}</div>}
                       {/* 合同期限显示 */}
                       {t.start_date && t.end_date && (
                         <div className="text-xs text-amber-600 mb-1">
@@ -543,7 +543,7 @@ export default function LargeFarmersPage() {
                         </div>
                       )}
                       {t.start_date && !t.end_date && (
-                        <div className="text-xs text-stone-400 mb-1">📄 {t.start_date} 起</div>
+                        <div className="text-xs text-text-muted mb-1">📄 {t.start_date} 起</div>
                       )}
                       {/* 地块归属村组显示 */}
                       {t.parcel_village_name && (
@@ -556,7 +556,7 @@ export default function LargeFarmersPage() {
                       <div className="flex gap-1 mb-1 flex-wrap">
                         {t.is_high_standard === 1 && <Tag label="高标准农田" color="green" />}
                         {t.is_demonstration === 1 && <Tag label="示范片区" color="purple" />}
-                        {t.zone_name && <span className="text-xs text-stone-400">{t.zone_name}</span>}
+                        {t.zone_name && <span className="text-xs text-text-muted">{t.zone_name}</span>}
                       </div>
                       <div className="flex items-center justify-between">
                         <Tag label={t.reliability_label} color={
@@ -565,7 +565,7 @@ export default function LargeFarmersPage() {
                           t.data_reliability === 'SELF_REPORT' ? 'amber' : 'red'
                         } />
                         <div className="flex gap-1">
-                          <button onClick={() => openEditTrust(t)} className="text-xs text-stone-400 hover:text-stone-600">编辑</button>
+                          <button onClick={() => openEditTrust(t)} className="text-xs text-text-muted hover:text-text-primary">编辑</button>
                           <button onClick={() => deleteTrust(t.id)} className="text-xs text-red-400 hover:text-red-600">删除</button>
                         </div>
                       </div>
@@ -575,10 +575,10 @@ export default function LargeFarmersPage() {
               )}
 
               {!detailLoading && trustList.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-stone-100">
+                <div className="mt-3 pt-3 border-t border-border/50">
                   <div className="flex justify-between text-xs">
-                    <span className="text-stone-400">当年流入总面积</span>
-                    <span className="font-mono font-bold text-emerald-700">{totalTrustArea}亩</span>
+                    <span className="text-text-muted">当年流入总面积</span>
+                    <span className="font-mono font-bold text-primary">{totalTrustArea}亩</span>
                   </div>
                 </div>
               )}
@@ -593,12 +593,12 @@ export default function LargeFarmersPage() {
         <div className="space-y-4">
           {/* 类型选择 */}
           <div>
-            <label className="block text-xs text-stone-400 mb-2">主体类型</label>
+            <label className="block text-xs text-text-muted mb-2">主体类型</label>
             <div className="grid grid-cols-4 gap-1.5">
               {OPERATOR_TYPE_OPTS.map(o => (
                 <div key={o.val} onClick={() => sff('operator_type', o.val)}
-                  className={`border-2 rounded-xl p-2 cursor-pointer transition-colors text-center
-                    ${farmerForm.operator_type === o.val ? 'border-emerald-500 bg-emerald-50' : 'border-stone-200 hover:border-stone-300'}`}>
+                  className={`border-2 rounded-card p-2 cursor-pointer transition-colors text-center
+                    ${farmerForm.operator_type === o.val ? 'border-primary bg-primary/5' : 'border-border hover:border-border'}`}>
                   <div className="text-lg mb-0.5">{o.icon}</div>
                   <div className="text-xs font-semibold">{o.label}</div>
                 </div>
@@ -608,68 +608,68 @@ export default function LargeFarmersPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
-              <label className="block text-xs text-stone-400 mb-1">经营者/主体名称 *</label>
+              <label className="block text-xs text-text-muted mb-1">经营者/主体名称 *</label>
               <input value={farmerForm.operator_name} onChange={e => sff('operator_name', e.target.value)}
                 placeholder="请填写"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">身份证号</label>
+              <label className="block text-xs text-text-muted mb-1">身份证号</label>
               <input value={farmerForm.id_card} onChange={e => sff('id_card', e.target.value)}
                 placeholder="负责人身份证"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">联系电话</label>
+              <label className="block text-xs text-text-muted mb-1">联系电话</label>
               <input value={farmerForm.phone} onChange={e => sff('phone', e.target.value)}
                 placeholder="联系电话"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">所属村 *</label>
+              <label className="block text-xs text-text-muted mb-1">所属村 *</label>
               <select value={farmerForm.village_id || ''} onChange={e => sff('village_id', e.target.value ? Number(e.target.value) : null)}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
                 <option value="">请选择</option>
                 {villages.map(v => <option key={v.id} value={v.id}>{v.village_name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">组号</label>
+              <label className="block text-xs text-text-muted mb-1">组号</label>
               <input value={farmerForm.group_no} onChange={e => sff('group_no', e.target.value)}
                 placeholder="如：1"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">自有承包面积（亩）</label>
+              <label className="block text-xs text-text-muted mb-1">自有承包面积（亩）</label>
               <input type="number" step="0.01" value={farmerForm.own_contract_area} onChange={e => sff('own_contract_area', e.target.value)}
                 placeholder="如：10.5"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">总经营面积（亩）</label>
+              <label className="block text-xs text-text-muted mb-1">总经营面积（亩）</label>
               <input type="number" step="0.01" value={farmerForm.total_managed_area} onChange={e => sff('total_managed_area', e.target.value)}
                 placeholder="可通过代耕代种自动计算"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs text-stone-400 mb-1">主要种植作物</label>
+            <label className="block text-xs text-text-muted mb-1">主要种植作物</label>
             <input value={farmerForm.main_crops} onChange={e => sff('main_crops', e.target.value)}
               placeholder="如：水稻、小麦、玉米"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
           </div>
 
           <div>
-            <label className="block text-xs text-stone-400 mb-1">备注</label>
+            <label className="block text-xs text-text-muted mb-1">备注</label>
             <textarea rows={2} value={farmerForm.remark} onChange={e => sff('remark', e.target.value)}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
           </div>
         </div>
       </Modal>
@@ -679,95 +679,95 @@ export default function LargeFarmersPage() {
         onClose={() => setTrustEditOpen(false)} onConfirm={submitTrust} width={560}>
         <div className="space-y-4">
           <div>
-            <label className="block text-xs text-stone-400 mb-1">流出方（承包人家庭户）*</label>
+            <label className="block text-xs text-text-muted mb-1">流出方（承包人家庭户）*</label>
             <div className="relative">
               <input value={ownerSearch}
                 onChange={e => { setOwnerSearch(e.target.value); sft('owner_household_id', null) }}
                 placeholder="输入户名或户主姓名搜索"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
               {ownerOpts.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-stone-200 rounded-xl shadow-lg z-20 max-h-40 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
                   {ownerOpts.map(h => (
                     <button key={h.id} onClick={() => { sft('owner_household_id', h.id); setOwnerSearch(h.household_name); setOwnerOpts([]) }}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-stone-50 border-b border-stone-50 last:border-0">
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0">
                       <span className="font-semibold">{h.household_name}</span>
-                      <span className="text-stone-400 text-xs ml-2">{h.head_name}</span>
-                      {h.contract_area && <span className="text-emerald-700 text-xs ml-2">{h.contract_area}亩</span>}
+                      <span className="text-text-muted text-xs ml-2">{h.head_name}</span>
+                      {h.contract_area && <span className="text-primary text-xs ml-2">{h.contract_area}亩</span>}
                     </button>
                   ))}
                 </div>
               )}
             </div>
-            {trustForm.owner_household_id && <p className="text-xs text-emerald-700 mt-0.5">✓ 已选择</p>}
+            {trustForm.owner_household_id && <p className="text-xs text-primary mt-0.5">✓ 已选择</p>}
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">流转年度 *</label>
+              <label className="block text-xs text-text-muted mb-1">流转年度 *</label>
               <select value={trustForm.trust_year} onChange={e => sft('trust_year', Number(e.target.value))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
                 {years.map(y => <option key={y} value={y}>{y}年</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">面积（亩）*</label>
+              <label className="block text-xs text-text-muted mb-1">面积（亩）*</label>
               <input type="number" step="0.01" value={trustForm.area} onChange={e => sft('area', e.target.value)}
                 placeholder="如：5.0"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">流转类型</label>
+              <label className="block text-xs text-text-muted mb-1">流转类型</label>
               <select value={trustForm.trust_type} onChange={e => sft('trust_type', e.target.value)}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
                 {TRUST_TYPE_OPTS.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
               </select>
             </div>
           </div>
 
           {/* 地块归属村组 */}
-          <div className="bg-stone-50 border border-stone-200 rounded-xl p-4">
-            <h4 className="text-sm font-semibold text-stone-700 mb-3">📍 地块归属村组</h4>
+          <div className="bg-warm/30 border border-border rounded-card p-4">
+            <h4 className="text-sm font-semibold text-text-primary mb-3">📍 地块归属村组</h4>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-stone-400 mb-1">地块所属村</label>
+                <label className="block text-xs text-text-muted mb-1">地块所属村</label>
                 <select value={trustForm.parcel_village_id || ''} onChange={e => sft('parcel_village_id', e.target.value ? Number(e.target.value) : null)}
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
                   <option value="">（同大户所属村）</option>
                   {villages.map(v => <option key={v.id} value={v.id}>{v.village_name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-stone-400 mb-1">地块所属组</label>
+                <label className="block text-xs text-text-muted mb-1">地块所属组</label>
                 <input value={trustForm.parcel_group_no} onChange={e => sft('parcel_group_no', e.target.value)}
                   placeholder="如：1"
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">地块描述</label>
+              <label className="block text-xs text-text-muted mb-1">地块描述</label>
               <input value={trustForm.parcel_desc} onChange={e => sft('parcel_desc', e.target.value)}
                 placeholder="如：东山坡地"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">地块位置</label>
+              <label className="block text-xs text-text-muted mb-1">地块位置</label>
               <input value={trustForm.parcel_location} onChange={e => sft('parcel_location', e.target.value)}
                 placeholder="如：村东头"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
           </div>
 
           {/* 片区标识 */}
-          <div className="bg-stone-50 border border-stone-200 rounded-xl p-4">
-            <h4 className="text-sm font-semibold text-stone-700 mb-3">🏷️ 片区标识</h4>
+          <div className="bg-warm/30 border border-border rounded-card p-4">
+            <h4 className="text-sm font-semibold text-text-primary mb-3">🏷️ 片区标识</h4>
             <div className="grid grid-cols-3 gap-3 mb-3">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={trustForm.is_high_standard === 1}
                   onChange={e => sft('is_high_standard', e.target.checked ? 1 : 0)}
-                  className="rounded border-stone-300 text-emerald-600 focus:ring-emerald-500" />
+                  className="rounded border-stone-300 text-primary focus:ring-emerald-500" />
                 <span className="text-sm">高标准农田</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
@@ -778,40 +778,40 @@ export default function LargeFarmersPage() {
               </label>
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">片区名称</label>
+              <label className="block text-xs text-text-muted mb-1">片区名称</label>
               <input value={trustForm.zone_name} onChange={e => sft('zone_name', e.target.value)}
                 placeholder="如：核心种植区"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">年租金（元/亩）</label>
+              <label className="block text-xs text-text-muted mb-1">年租金（元/亩）</label>
               <input type="number" step="0.01" value={trustForm.annual_fee} onChange={e => sft('annual_fee', e.target.value)}
                 placeholder="无偿可不填"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">总租金（元）</label>
+              <label className="block text-xs text-text-muted mb-1">总租金（元）</label>
               <input type="number" step="0.01" value={trustForm.total_fee} onChange={e => sft('total_fee', e.target.value)}
                 placeholder="可不填"
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">数据可信度</label>
+              <label className="block text-xs text-text-muted mb-1">数据可信度</label>
               <select value={trustForm.data_reliability} onChange={e => sft('data_reliability', e.target.value)}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
                 {RELIABILITY_OPTS.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">补贴面积计算</label>
+              <label className="block text-xs text-text-muted mb-1">补贴面积计算</label>
               <select value={trustForm.affect_subsidy_calc} onChange={e => sft('affect_subsidy_calc', Number(e.target.value))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
                 <option value={1}>纳入计算</option>
                 <option value={0}>仅作记录</option>
               </select>
@@ -819,9 +819,9 @@ export default function LargeFarmersPage() {
           </div>
 
           <div>
-            <label className="block text-xs text-stone-400 mb-1">备注</label>
+            <label className="block text-xs text-text-muted mb-1">备注</label>
             <textarea rows={2} value={trustForm.note} onChange={e => sft('note', e.target.value)}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
           </div>
         </div>
       </Modal>

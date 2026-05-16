@@ -280,8 +280,8 @@ export default function PreCheckPage() {
           { id: 'error-lib' as PageTab, label: '历史错误库', icon: '📋' },
         ] as const).map(t => (
           <button key={t.id} onClick={() => setPageTab(t.id)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors
-              ${pageTab === t.id ? 'bg-emerald-700 text-white shadow' : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'}`}>
+            className={`px-4 py-2 rounded-btn text-sm font-medium transition-colors
+              ${pageTab === t.id ? 'bg-primary text-white shadow' : 'bg-white text-text-primary border border-border hover:bg-warm/30'}`}>
             {t.icon} {t.label}
           </button>
         ))}
@@ -295,56 +295,56 @@ export default function PreCheckPage() {
       {/* ── 上传区 ── */}
       {step !== 'result' && (
         <div className="grid grid-cols-[1fr_280px] gap-5">
-          <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-sm">
+          <div className="bg-white border border-border rounded-card p-6 shadow-card">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-stone-700">上传待检查 Excel 文件</h3>
+              <h3 className="font-bold text-text-primary">上传待检查 Excel 文件</h3>
             </div>
 
             {rawRows.length > 0 ? (
-              <div className="border-2 border-emerald-300 bg-emerald-50/40 rounded-xl p-12 text-center">
+              <div className="border-2 border-primary/30 bg-primary/5/40 rounded-card p-12 text-center">
                 <div className="text-4xl mb-3">✅</div>
-                <p className="text-stone-700 font-semibold">已导入 {rawRows.length} 行数据</p>
-                <p className="text-stone-400 text-sm mt-1">正在执行预检查…</p>
+                <p className="text-text-primary font-semibold">已导入 {rawRows.length} 行数据</p>
+                <p className="text-text-muted text-sm mt-1">正在执行预检查…</p>
               </div>
             ) : (
               <button
                 onClick={() => setImportOpen(true)}
-                className="w-full border-2 border-dashed border-stone-200 rounded-xl p-12 text-center hover:border-emerald-400 hover:bg-emerald-50 transition-colors cursor-pointer">
+                className="w-full border-2 border-dashed border-border rounded-card p-12 text-center hover:border-emerald-400 hover:bg-primary/5 transition-colors cursor-pointer">
                 <div className="text-4xl mb-3">📊</div>
-                <p className="text-stone-500 text-sm">点击选择 Excel 文件上传</p>
-                <p className="text-stone-300 text-xs mt-1">支持 .xlsx / .xls，可配置列映射</p>
+                <p className="text-text-muted text-sm">点击选择 Excel 文件上传</p>
+                <p className="text-text-muted/50 text-xs mt-1">支持 .xlsx / .xls，可配置列映射</p>
               </button>
             )}
           </div>
 
           {/* 右侧设置 */}
           <div className="space-y-4">
-            <div className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm">
-              <h4 className="font-semibold text-stone-700 text-sm mb-3">检查选项</h4>
+            <div className="bg-white border border-border rounded-card p-5 shadow-card">
+              <h4 className="font-semibold text-text-primary text-sm mb-3">检查选项</h4>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs text-stone-400 mb-1">补贴分类 <span className="text-red-400">*</span></label>
+                  <label className="block text-xs text-text-muted mb-1">补贴分类 <span className="text-red-400">*</span></label>
                   <select value={season} onChange={e => setSeason(e.target.value)}
-                    className={`w-full border rounded-lg px-3 py-2 text-sm bg-white outline-none ${!season ? 'border-amber-300' : 'border-stone-200'}`}>
+                    className={`w-full border rounded-btn px-3 py-2 text-sm bg-white outline-none ${!season ? 'border-amber-300' : 'border-border'}`}>
                     <option value="">— 请选择 —</option>
                     {['大春', '小春', '全年单补', '临时'].map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
-                  <p className="text-xs text-stone-300 mt-1">用于户级累计面积超限检测</p>
+                  <p className="text-xs text-text-muted/50 mt-1">用于户级累计面积超限检测</p>
                 </div>
                 <div>
-                  <label className="block text-xs text-stone-400 mb-1">与哪年的补贴数据对比（可选）</label>
+                  <label className="block text-xs text-text-muted mb-1">与哪年的补贴数据对比（可选）</label>
                   <select value={compareYear} onChange={e => setCompareYear(e.target.value ? Number(e.target.value) : '')}
-                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
                     <option value="">不对比历史年度</option>
                     {years.map(y => <option key={y} value={y}>{y}年</option>)}
                   </select>
-                  <p className="text-xs text-stone-300 mt-1">选择后会对比该年度已有补贴记录，找出新增/减少；同时启用户级累计超限检测</p>
+                  <p className="text-xs text-text-muted/50 mt-1">选择后会对比该年度已有补贴记录，找出新增/减少；同时启用户级累计超限检测</p>
                 </div>
               </div>
             </div>
 
             {/* 说明 */}
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-700 space-y-1.5">
+            <div className="bg-blue-50 border border-blue-100 rounded-card p-4 text-xs text-blue-700 space-y-1.5">
               <p className="font-semibold mb-2">检查项目：</p>
               <p>✓ 姓名：长度、字符合法性</p>
               <p>✓ 身份证：18位格式、出生日期、校验码</p>
@@ -365,20 +365,20 @@ export default function PreCheckPage() {
         <div>
           {/* 汇总栏 */}
           <div className="grid grid-cols-4 gap-3 mb-5">
-            <div className={`rounded-xl p-4 border shadow-sm ${result.summary.error_rows === 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-              <div className={`text-3xl font-bold font-mono ${result.summary.error_rows === 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+            <div className={`rounded-card p-4 border shadow-card ${result.summary.error_rows === 0 ? 'bg-primary/5 border-primary/20' : 'bg-red-50 border-red-200'}`}>
+              <div className={`text-3xl font-bold font-mono ${result.summary.error_rows === 0 ? 'text-primary' : 'text-red-600'}`}>
                 {result.summary.pass_rate}%
               </div>
-              <div className="text-xs text-stone-500 mt-1">通过率（{result.summary.ok_rows}/{result.summary.total_rows} 行）</div>
+              <div className="text-xs text-text-muted mt-1">通过率（{result.summary.ok_rows}/{result.summary.total_rows} 行）</div>
             </div>
             {[
               { label: '格式/村组错误', val: result.summary.format_errors + result.summary.village_errors + result.summary.duplicate_errors, color: 'text-red-600' },
               { label: '错误库命中', val: result.summary.error_library_hits, color: 'text-amber-600' },
-              { label: '新增农户', val: result.summary.new_farmers, color: 'text-emerald-700' },
+              { label: '新增农户', val: result.summary.new_farmers, color: 'text-primary' },
             ].map(s => (
-              <div key={s.label} className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+              <div key={s.label} className="bg-white border border-border rounded-card p-4 shadow-card">
                 <div className={`text-2xl font-bold font-mono ${s.color}`}>{s.val}</div>
-                <div className="text-xs text-stone-400 mt-1">{s.label}</div>
+                <div className="text-xs text-text-muted mt-1">{s.label}</div>
               </div>
             ))}
           </div>
@@ -386,18 +386,18 @@ export default function PreCheckPage() {
           {/* 操作栏 */}
           <div className="flex gap-2 mb-4">
             <button onClick={reset}
-              className="px-3 py-2 text-sm border border-stone-200 rounded-lg bg-white text-stone-600 hover:bg-stone-50">
+              className="px-3 py-2 text-sm border border-border rounded-btn bg-white text-text-primary hover:bg-warm/30">
               ← 重新上传
             </button>
             <button onClick={() => exportPrecheckReport(result)}
-              className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
+              className="px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
               ↓ 导出完整报告 Excel
             </button>
             <button onClick={() => setExportModalOpen(true)}
-              className="px-3 py-2 text-sm bg-blue-700 text-white rounded-lg hover:bg-blue-600">
+              className="px-3 py-2 text-sm bg-blue-700 text-white rounded-btn hover:bg-blue-600">
               ⚙️ 导出选项
             </button>
-            <div className="ml-auto text-xs text-stone-400 flex items-center">
+            <div className="ml-auto text-xs text-text-muted flex items-center">
               {result.summary.total_rows} 行
             </div>
           </div>
@@ -406,8 +406,8 @@ export default function PreCheckPage() {
           <div className="flex flex-wrap gap-1.5 mb-4">
             {getTabs(result).map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
-                  ${activeTab === t.id ? 'bg-stone-800 text-white border-stone-800' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'}`}>
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-btn text-xs font-medium border transition-colors
+                  ${activeTab === t.id ? 'bg-stone-800 text-white border-stone-800' : 'bg-white border-border text-text-primary hover:border-border'}`}>
                 {t.label}
                 {t.count > 0 && (
                   <span className={`px-1.5 py-0.5 rounded text-xs font-mono
@@ -420,7 +420,7 @@ export default function PreCheckPage() {
           </div>
 
           {/* Tab 内容 */}
-          <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+          <div className="bg-white border border-border rounded-card overflow-hidden shadow-card">
             {/* 使用共享配置渲染预检表格 */}
             {(() => {
               if (activeTab === 'year') return null // 年度对比特殊处理，稍后渲染
@@ -431,7 +431,7 @@ export default function PreCheckPage() {
               const data = result[config.field] as any[]
               if (!data || data.length === 0) {
                 return (
-                  <div className="p-8 text-center text-stone-400">
+                  <div className="p-8 text-center text-text-muted">
                     <div className="text-2xl mb-2">📋</div>
                     <p className="text-sm">暂无{config.headers[0]?.replace('行号', '')}数据</p>
                   </div>
@@ -459,31 +459,31 @@ export default function PreCheckPage() {
                 <div className="p-5">
                   <div className="flex gap-4 mb-5">
                     {[
-                      { label: `${yc.year}年有补贴记录`, val: yc.db_count, color: 'text-stone-700' },
-                      { label: '本次 Excel 行数', val: yc.excel_count, color: 'text-stone-700' },
-                      { label: '新增受益农户', val: yc.new_count, color: 'text-emerald-700' },
+                      { label: `${yc.year}年有补贴记录`, val: yc.db_count, color: 'text-text-primary' },
+                      { label: '本次 Excel 行数', val: yc.excel_count, color: 'text-text-primary' },
+                      { label: '新增受益农户', val: yc.new_count, color: 'text-primary' },
                       { label: '减少受益农户', val: yc.removed_count, color: 'text-blue-600' },
                     ].map(s => (
-                      <div key={s.label} className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex-1">
+                      <div key={s.label} className="bg-warm/30 border border-border rounded-card p-4 flex-1">
                         <div className={`text-2xl font-bold font-mono ${s.color}`}>{s.val}</div>
-                        <div className="text-xs text-stone-400 mt-1">{s.label}</div>
+                        <div className="text-xs text-text-muted mt-1">{s.label}</div>
                       </div>
                     ))}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm font-semibold text-emerald-700 mb-2">新增受益（{yc.new_count}人）</p>
-                      <div className="border border-stone-100 rounded-lg overflow-auto max-h-64">
+                      <p className="text-sm font-semibold text-primary mb-2">新增受益（{yc.new_count}人）</p>
+                      <div className="border border-border/50 rounded-btn overflow-auto max-h-64">
                         <table className="w-full text-xs">
-                          <thead className="bg-stone-50"><tr>
-                            <th className="px-3 py-2 text-left text-stone-400">姓名</th>
-                            <th className="px-3 py-2 text-left text-stone-400 font-mono">身份证号</th>
+                          <thead className="bg-warm/30"><tr>
+                            <th className="px-3 py-2 text-left text-text-muted">姓名</th>
+                            <th className="px-3 py-2 text-left text-text-muted font-mono">身份证号</th>
                           </tr></thead>
                           <tbody>
                             {yc.new_farmers.slice(0, 100).map((r, i) => (
-                              <tr key={i} className="border-t border-stone-50">
+                              <tr key={i} className="border-t border-border/50">
                                 <td className="px-3 py-1.5">{String(r.name)}</td>
-                                <td className="px-3 py-1.5 font-mono text-stone-400">{r.id_card}</td>
+                                <td className="px-3 py-1.5 font-mono text-text-muted">{r.id_card}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -492,19 +492,19 @@ export default function PreCheckPage() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-blue-700 mb-2">减少受益（{yc.removed_count}人）</p>
-                      <div className="border border-stone-100 rounded-lg overflow-auto max-h-64">
+                      <div className="border border-border/50 rounded-btn overflow-auto max-h-64">
                         <table className="w-full text-xs">
-                          <thead className="bg-stone-50"><tr>
-                            <th className="px-3 py-2 text-left text-stone-400">姓名</th>
-                            <th className="px-3 py-2 text-left text-stone-400 font-mono">身份证号</th>
-                            <th className="px-3 py-2 text-left text-stone-400">所在村</th>
+                          <thead className="bg-warm/30"><tr>
+                            <th className="px-3 py-2 text-left text-text-muted">姓名</th>
+                            <th className="px-3 py-2 text-left text-text-muted font-mono">身份证号</th>
+                            <th className="px-3 py-2 text-left text-text-muted">所在村</th>
                           </tr></thead>
                           <tbody>
                             {yc.removed_farmers.slice(0, 100).map((r, i) => (
-                              <tr key={i} className="border-t border-stone-50">
+                              <tr key={i} className="border-t border-border/50">
                                 <td className="px-3 py-1.5">{r.name}</td>
-                                <td className="px-3 py-1.5 font-mono text-stone-400">{r.id_card}</td>
-                                <td className="px-3 py-1.5 text-stone-400">{r.village}</td>
+                                <td className="px-3 py-1.5 font-mono text-text-muted">{r.id_card}</td>
+                                <td className="px-3 py-1.5 text-text-muted">{r.village}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -567,14 +567,14 @@ export default function PreCheckPage() {
       {/* 导出选项对话框 */}
       {exportModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-card shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* 标题栏 */}
-            <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-stone-800">导出选项</h3>
-                <p className="text-xs text-stone-400 mt-1">选择导出方式和包含的sheet</p>
+                <h3 className="font-bold text-text-primary">导出选项</h3>
+                <p className="text-xs text-text-muted mt-1">选择导出方式和包含的sheet</p>
               </div>
-              <button onClick={() => setExportModalOpen(false)} className="text-stone-400 hover:text-stone-600">
+              <button onClick={() => setExportModalOpen(false)} className="text-text-muted hover:text-text-primary">
                 ✕
               </button>
             </div>
@@ -584,7 +584,7 @@ export default function PreCheckPage() {
               {/* 分村导出选项 */}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-stone-700">分村导出</h4>
+                  <h4 className="font-semibold text-text-primary">分村导出</h4>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
@@ -595,17 +595,17 @@ export default function PreCheckPage() {
                     <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                   </label>
                 </div>
-                <p className="text-sm text-stone-500 mb-3">
+                <p className="text-sm text-text-muted mb-3">
                   {splitByVillage
                     ? `将按村生成独立的Excel文件（共${villages.length}个村），并打包为ZIP下载`
                     : '所有数据将合并到一个Excel文件中'}
                 </p>
                 {splitByVillage && villages.length > 0 && (
-                  <div className="bg-stone-50 border border-stone-200 rounded-lg p-3">
-                    <p className="text-xs text-stone-500 mb-2">涉及的村：</p>
+                  <div className="bg-warm/30 border border-border rounded-btn p-3">
+                    <p className="text-xs text-text-muted mb-2">涉及的村：</p>
                     <div className="flex flex-wrap gap-1.5">
                       {villages.map(village => (
-                        <span key={village} className="px-2 py-1 bg-white border border-stone-200 rounded text-xs">
+                        <span key={village} className="px-2 py-1 bg-white border border-border rounded text-xs">
                           {village}
                         </span>
                       ))}
@@ -617,7 +617,7 @@ export default function PreCheckPage() {
               {/* Sheet选择 */}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-stone-700">选择包含的sheet</h4>
+                  <h4 className="font-semibold text-text-primary">选择包含的sheet</h4>
                   <button
                     onClick={toggleAllSheets}
                     className="text-xs text-blue-600 hover:text-blue-800"
@@ -625,7 +625,7 @@ export default function PreCheckPage() {
                     {selectedSheets.length === PRECHECK_SHEET_OPTIONS.length ? '取消全选' : '全选'}
                   </button>
                 </div>
-                <p className="text-sm text-stone-500 mb-3">勾选需要导出的sheet，未勾选的sheet将不会包含在导出文件中</p>
+                <p className="text-sm text-text-muted mb-3">勾选需要导出的sheet，未勾选的sheet将不会包含在导出文件中</p>
                 <div className="grid grid-cols-2 gap-2">
                   {PRECHECK_SHEET_OPTIONS.map(opt => {
                     const data = result?.[opt.key as keyof CheckResult] as any[] | undefined
@@ -636,10 +636,10 @@ export default function PreCheckPage() {
                     return (
                       <label
                         key={opt.key}
-                        className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                        className={`flex items-center p-3 border rounded-btn cursor-pointer transition-colors ${
                           isSelected
                             ? 'bg-blue-50 border-blue-300'
-                            : 'bg-white border-stone-200 hover:bg-stone-50'
+                            : 'bg-white border-border hover:bg-warm/30'
                         } ${!hasData ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         <input
@@ -650,9 +650,9 @@ export default function PreCheckPage() {
                           className="mr-3 h-4 w-4 text-blue-600 rounded"
                         />
                         <div className="flex-1">
-                          <div className="font-medium text-sm text-stone-700">{opt.label}</div>
+                          <div className="font-medium text-sm text-text-primary">{opt.label}</div>
                           {opt.hasCount && (
-                            <div className="text-xs text-stone-400 mt-1">
+                            <div className="text-xs text-text-muted mt-1">
                               {count > 0 ? `${count}条数据` : '无数据'}
                             </div>
                           )}
@@ -664,7 +664,7 @@ export default function PreCheckPage() {
               </div>
 
               {/* 导出说明 */}
-              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 text-xs text-blue-700">
+              <div className="bg-blue-50 border border-blue-100 rounded-btn p-4 text-xs text-blue-700">
                 <p className="font-semibold mb-1">导出说明：</p>
                 <ul className="list-disc pl-4 space-y-1">
                   <li>汇总sheet始终包含，即使未勾选</li>
@@ -676,17 +676,17 @@ export default function PreCheckPage() {
             </div>
 
             {/* 底部按钮 */}
-            <div className="px-6 py-4 border-t border-stone-200 flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-border flex justify-end gap-3">
               <button
                 onClick={() => setExportModalOpen(false)}
-                className="px-4 py-2 text-sm border border-stone-200 rounded-lg bg-white text-stone-600 hover:bg-stone-50"
+                className="px-4 py-2 text-sm border border-border rounded-btn bg-white text-text-primary hover:bg-warm/30"
               >
                 取消
               </button>
               <button
                 onClick={handleExportWithOptions}
                 disabled={isExporting || selectedSheets.length === 0}
-                className="px-4 py-2 text-sm bg-blue-700 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 text-sm bg-blue-700 text-white rounded-btn hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isExporting ? (
                   <>

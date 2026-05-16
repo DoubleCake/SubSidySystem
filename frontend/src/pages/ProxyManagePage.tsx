@@ -128,28 +128,28 @@ export default function ProxyManagePage() {
         <div className="flex items-center gap-3">
           <button
             onClick={handleBack}
-            className="px-3 py-1.5 text-sm border border-stone-300 rounded-lg hover:bg-stone-50 text-stone-600"
+            className="px-3 py-1.5 text-sm border border-stone-300 rounded-btn hover:bg-warm/30 text-text-primary"
           >
             ← 返回
           </button>
-          <h1 className="text-lg font-bold text-stone-800">代领关系管理</h1>
+          <h1 className="text-lg font-bold text-text-primary">代领关系管理</h1>
         </div>
       </div>
 
       {/* 加载状态 */}
       {loading && (
-        <div className="text-center py-16 text-stone-400">
+        <div className="text-center py-16 text-text-muted">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600 mx-auto mb-3"></div>
           加载中...
         </div>
       )}
 
       {!loading && (
-        <div className="bg-white rounded-xl shadow-sm border border-stone-200 p-6">
+        <div className="bg-white rounded-card shadow-card border border-border p-6">
           <div className="max-w-2xl mx-auto space-y-4">
             {/* 受益人信息 */}
             {beneficiaryInfo && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-btn p-4">
                 <div className="text-xs text-amber-600 mb-1">受益人</div>
                 <div className="font-semibold text-amber-800 text-lg">{beneficiaryInfo.name}</div>
               </div>
@@ -157,7 +157,7 @@ export default function ProxyManagePage() {
 
             {/* 没有受益人信息时的提示 */}
             {!beneficiaryInfo && !hasExistingProxy && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="bg-red-50 border border-red-200 rounded-btn p-4">
                 <div className="text-red-700">
                   无法获取受益人信息，请从补贴项目列表页面进入本页面。
                 </div>
@@ -166,19 +166,19 @@ export default function ProxyManagePage() {
 
             {/* 现有代领关系 */}
             {hasExistingProxy && (
-              <div className="border border-stone-200 rounded-lg overflow-hidden">
-                <div className="bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-500 border-b border-stone-200">
+              <div className="border border-border rounded-btn overflow-hidden">
+                <div className="bg-warm/30 px-4 py-3 text-sm font-semibold text-text-muted border-b border-border">
                   当前代领关系
                 </div>
                 <div className="divide-y divide-stone-100">
                   {proxies.map(proxy => (
                     <div key={proxy.id} className="px-4 py-3 flex items-center justify-between">
                       <div>
-                        <div className="font-medium text-stone-700">
+                        <div className="font-medium text-text-primary">
                           {getProxyFarmerName(proxy)}
                         </div>
                         {proxy.remark && (
-                          <div className="text-xs text-stone-400 mt-1">{proxy.remark}</div>
+                          <div className="text-xs text-text-muted mt-1">{proxy.remark}</div>
                         )}
                       </div>
                       <button
@@ -197,22 +197,22 @@ export default function ProxyManagePage() {
             {!hasExistingProxy && beneficiaryInfo && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs text-stone-400 mb-1">搜索代领人</label>
+                  <label className="block text-xs text-text-muted mb-1">搜索代领人</label>
                   <input
                     type="text"
                     value={searchKeyword}
                     onChange={(e) => setSearchKeyword(e.target.value)}
                     placeholder="输入姓名或身份证搜索"
-                    className="w-full border border-stone-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-emerald-400"
+                    className="w-full border border-border rounded-btn px-4 py-2.5 text-sm outline-none focus:border-primary"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs text-stone-400 mb-1">选择代领人</label>
+                  <label className="block text-xs text-text-muted mb-1">选择代领人</label>
                   <select
                     value={selectedProxyFarmerId}
                     onChange={(e) => setSelectedProxyFarmerId(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full border border-stone-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-emerald-400"
+                    className="w-full border border-border rounded-btn px-4 py-2.5 text-sm outline-none focus:border-primary"
                   >
                     <option value="">— 请选择代领人 —</option>
                     {filteredFarmers.map(farmer => (
@@ -224,27 +224,27 @@ export default function ProxyManagePage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs text-stone-400 mb-1">代领备注（可选）</label>
+                  <label className="block text-xs text-text-muted mb-1">代领备注（可选）</label>
                   <input
                     type="text"
                     value={proxyRemark}
                     onChange={(e) => setProxyRemark(e.target.value)}
                     placeholder="填写代领原因等说明"
-                    className="w-full border border-stone-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-emerald-400"
+                    className="w-full border border-border rounded-btn px-4 py-2.5 text-sm outline-none focus:border-primary"
                   />
                 </div>
 
                 <div className="flex gap-3 pt-2">
                   <button
                     onClick={handleBack}
-                    className="flex-1 px-4 py-2.5 border border-stone-300 text-stone-700 rounded-lg hover:bg-stone-50"
+                    className="flex-1 px-4 py-2.5 border border-stone-300 text-text-primary rounded-btn hover:bg-warm/30"
                   >
                     取消
                   </button>
                   <button
                     onClick={handleCreateProxy}
                     disabled={!selectedProxyFarmerId}
-                    className="flex-1 px-4 py-2.5 bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-2.5 bg-primary text-white rounded-btn hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     设置代领
                   </button>
@@ -252,7 +252,7 @@ export default function ProxyManagePage() {
               </div>
             )}
 
-            <div className="text-xs text-stone-400 pt-3 border-t border-stone-100">
+            <div className="text-xs text-text-muted pt-3 border-t border-border/50">
               提示：代领关系仅对当前这一条记录有效，每次代领都需要重新设置。
             </div>
           </div>

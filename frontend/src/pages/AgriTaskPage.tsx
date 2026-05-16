@@ -81,9 +81,9 @@ const pct = (v: number | null | undefined) =>
   v == null ? '-' : `${Number(v).toFixed(1)}%`
 
 const STATUS_COLOR: Record<string, string> = {
-  DRAFT:  'bg-stone-100 text-stone-500',
+  DRAFT:  'bg-warm/30 text-text-muted',
   ISSUED: 'bg-blue-100 text-blue-700',
-  DONE:   'bg-emerald-100 text-emerald-700',
+  DONE:   'bg-emerald-100 text-primary',
 }
 
 const emptyForm = () => ({
@@ -216,52 +216,52 @@ export default function AgriTaskPage() {
   return (
     <div>
       <Toast {...toast} />
-      <h1 className="text-xl font-bold text-stone-800 mb-4">农业任务分解</h1>
+      <h1 className="text-xl font-bold text-text-primary mb-4">农业任务分解</h1>
 
       {/* 筛选栏 */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <select value={filterYear} onChange={e => { setFilterYear(Number(e.target.value)); setPage(1) }}
-          className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm bg-white">
+          className="border border-border rounded-btn px-3 py-1.5 text-sm bg-white">
           {years.map(y => <option key={y} value={y}>{y}年</option>)}
         </select>
         <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1) }}
-          className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm bg-white">
+          className="border border-border rounded-btn px-3 py-1.5 text-sm bg-white">
           <option value="">全部状态</option>
           {(meta?.statuses || []).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
         <button onClick={() => setShowCreate(true)}
-          className="ml-auto bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-1.5 rounded-lg">
+          className="ml-auto bg-primary/90 hover:bg-primary text-white text-sm px-4 py-1.5 rounded-btn">
           + 新建任务
         </button>
       </div>
 
       {/* 任务列表 */}
-      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
+      <div className="bg-white rounded-card border border-border overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-stone-50 border-b border-stone-200">
+          <thead className="bg-warm/30 border-b border-border">
             <tr>
               {['任务名称', '作物', '年度/季节', '总面积(亩)', '分配方式', '状态', '操作'].map(h => (
-                <th key={h} className="px-4 py-3 text-left font-medium text-stone-500 text-xs">{h}</th>
+                <th key={h} className="px-4 py-3 text-left font-medium text-text-muted text-xs">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={7} className="text-center py-8 text-stone-400">加载中...</td></tr>}
+            {loading && <tr><td colSpan={7} className="text-center py-8 text-text-muted">加载中...</td></tr>}
             {!loading && tasks.length === 0 && (
-              <tr><td colSpan={7} className="text-center py-12 text-stone-300">
+              <tr><td colSpan={7} className="text-center py-12 text-text-muted/50">
                 <div className="text-3xl mb-2">🌾</div>
                 <div className="text-sm">暂无任务，点击「新建任务」开始</div>
               </td></tr>
             )}
             {tasks.map(t => (
-              <tr key={t.id} className="border-b border-stone-100 hover:bg-stone-50 transition-colors">
-                <td className="px-4 py-3 font-medium text-stone-800">{t.task_name}</td>
-                <td className="px-4 py-3 text-stone-600">{t.crop_type}</td>
-                <td className="px-4 py-3 text-stone-600">{t.task_year}{t.season ? `·${t.season}` : ''}</td>
-                <td className="px-4 py-3 font-mono text-stone-700">{fmt(t.total_area)}</td>
-                <td className="px-4 py-3 text-stone-500 text-xs">{t.alloc_method_label}</td>
+              <tr key={t.id} className="border-b border-border/50 hover:bg-warm/30 transition-colors">
+                <td className="px-4 py-3 font-medium text-text-primary">{t.task_name}</td>
+                <td className="px-4 py-3 text-text-primary">{t.crop_type}</td>
+                <td className="px-4 py-3 text-text-primary">{t.task_year}{t.season ? `·${t.season}` : ''}</td>
+                <td className="px-4 py-3 font-mono text-text-primary">{fmt(t.total_area)}</td>
+                <td className="px-4 py-3 text-text-muted text-xs">{t.alloc_method_label}</td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLOR[t.status] || 'bg-stone-100 text-stone-500'}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLOR[t.status] || 'bg-warm/30 text-text-muted'}`}>
                     {t.status_label}
                   </span>
                 </td>
@@ -270,12 +270,12 @@ export default function AgriTaskPage() {
                     <button onClick={() => loadDetail(t.id)} className="text-blue-600 hover:underline">详情</button>
                     {t.status === 'DRAFT' && <>
                       <button onClick={() => handlePreview(t.id)} disabled={previewing} className="text-amber-600 hover:underline">预览</button>
-                      <button onClick={() => handleIssue(t.id)} className="text-emerald-600 hover:underline">下达</button>
+                      <button onClick={() => handleIssue(t.id)} className="text-primary hover:underline">下达</button>
                       <button onClick={() => handleDelete(t.id)} className="text-red-400 hover:underline">删除</button>
                     </>}
                     {t.status === 'ISSUED' && <>
-                      <button onClick={() => handleDone(t.id)} className="text-emerald-600 hover:underline">完成</button>
-                      <button onClick={() => handleRevoke(t.id)} className="text-stone-400 hover:underline">撤回</button>
+                      <button onClick={() => handleDone(t.id)} className="text-primary hover:underline">完成</button>
+                      <button onClick={() => handleRevoke(t.id)} className="text-text-muted hover:underline">撤回</button>
                     </>}
                   </div>
                 </td>
@@ -290,7 +290,7 @@ export default function AgriTaskPage() {
         <div className="flex justify-center gap-2 mt-4">
           {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
             <button key={p} onClick={() => setPage(p)}
-              className={`w-8 h-8 text-sm rounded ${p === page ? 'bg-emerald-600 text-white' : 'bg-white border border-stone-200 text-stone-600 hover:border-emerald-300'}`}>
+              className={`w-8 h-8 text-sm rounded ${p === page ? 'bg-primary/90 text-white' : 'bg-white border border-border text-text-primary hover:border-primary/30'}`}>
               {p}
             </button>
           ))}
@@ -302,54 +302,54 @@ export default function AgriTaskPage() {
         onConfirm={handleCreate} confirmText={saving ? '保存中...' : '保存为草稿'}>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <label className="block text-xs text-stone-400 mb-1">任务名称 *</label>
+            <label className="block text-xs text-text-muted mb-1">任务名称 *</label>
             <input value={form.task_name} onChange={e => setForm(f => ({ ...f, task_name: e.target.value }))}
               placeholder="如：2026年水稻种植任务"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
           </div>
           <div>
-            <label className="block text-xs text-stone-400 mb-1">作物类型 *</label>
+            <label className="block text-xs text-text-muted mb-1">作物类型 *</label>
             <select value={form.crop_type} onChange={e => setForm(f => ({ ...f, crop_type: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white">
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white">
               {(meta?.crop_types || []).map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs text-stone-400 mb-1">总面积（亩）*</label>
+            <label className="block text-xs text-text-muted mb-1">总面积（亩）*</label>
             <input type="number" min="0" step="0.01" value={form.total_area}
               onChange={e => setForm(f => ({ ...f, total_area: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
           </div>
           <div>
-            <label className="block text-xs text-stone-400 mb-1">年度 *</label>
+            <label className="block text-xs text-text-muted mb-1">年度 *</label>
             <select value={form.task_year} onChange={e => setForm(f => ({ ...f, task_year: Number(e.target.value) }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white">
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white">
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs text-stone-400 mb-1">季节</label>
+            <label className="block text-xs text-text-muted mb-1">季节</label>
             <select value={form.season} onChange={e => setForm(f => ({ ...f, season: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white">
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white">
               <option value="">不限</option>
               {SEASONS.map(s => <option key={s}>{s}</option>)}
             </select>
           </div>
           <div className="col-span-2">
-            <label className="block text-xs text-stone-400 mb-1">分配方式 *</label>
+            <label className="block text-xs text-text-muted mb-1">分配方式 *</label>
             <div className="grid grid-cols-2 gap-2">
               {(meta?.alloc_methods || []).map(m => (
-                <label key={m.value} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm transition-colors
-                  ${form.alloc_method === m.value ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-stone-200 hover:border-stone-300'}`}>
+                <label key={m.value} className={`flex items-center gap-2 px-3 py-2 rounded-btn border cursor-pointer text-sm transition-colors
+                  ${form.alloc_method === m.value ? 'border-emerald-400 bg-primary/5 text-primary' : 'border-border hover:border-border'}`}>
                   <input type="radio" name="alloc_method" value={m.value}
                     checked={form.alloc_method === m.value}
                     onChange={() => setForm(f => ({ ...f, alloc_method: m.value }))}
-                    className="accent-emerald-600" />
+                    className="accent-primary" />
                   {m.label}
                 </label>
               ))}
             </div>
-            <p className="text-xs text-stone-400 mt-1.5">
+            <p className="text-xs text-text-muted mt-1.5">
               {form.alloc_method === 'CONTRACT_AREA' && '依据：在册家庭户承包地面积汇总（自动统计）'}
               {form.alloc_method === 'PADDY_AREA'    && '依据：村组管理→土地基础信息 中的水田面积'}
               {form.alloc_method === 'DRY_AREA'      && '依据：村组管理→土地基础信息 中的旱地面积'}
@@ -358,9 +358,9 @@ export default function AgriTaskPage() {
             </p>
           </div>
           <div className="col-span-2">
-            <label className="block text-xs text-stone-400 mb-1">任务说明</label>
+            <label className="block text-xs text-text-muted mb-1">任务说明</label>
             <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              rows={2} className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none" />
+              rows={2} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
           </div>
         </div>
       </Modal>
@@ -369,34 +369,34 @@ export default function AgriTaskPage() {
       <Modal open={showPreview} onClose={() => setShowPreview(false)} title="分配方案预览">
         {preview && (
           <div>
-            <div className="flex flex-wrap gap-4 mb-4 text-sm bg-stone-50 rounded-lg p-3">
-              <span>分配方式：<b className="text-stone-800">{preview.alloc_method_label}</b></span>
-              <span>总面积：<b className="text-stone-800">{fmt(preview.total_area)} 亩</b></span>
-              <span>依据总量：<b className="text-stone-800">{fmt(preview.total_basis_area)} 亩</b></span>
-              <span>参与村数：<b className="text-stone-800">{preview.allocations.length} 个</b></span>
+            <div className="flex flex-wrap gap-4 mb-4 text-sm bg-warm/30 rounded-btn p-3">
+              <span>分配方式：<b className="text-text-primary">{preview.alloc_method_label}</b></span>
+              <span>总面积：<b className="text-text-primary">{fmt(preview.total_area)} 亩</b></span>
+              <span>依据总量：<b className="text-text-primary">{fmt(preview.total_basis_area)} 亩</b></span>
+              <span>参与村数：<b className="text-text-primary">{preview.allocations.length} 个</b></span>
             </div>
-            <div className="overflow-auto max-h-72 border border-stone-200 rounded-lg">
+            <div className="overflow-auto max-h-72 border border-border rounded-btn">
               <table className="w-full text-sm">
-                <thead className="bg-stone-50 sticky top-0">
+                <thead className="bg-warm/30 sticky top-0">
                   <tr>
                     {['村名', '依据面积(亩)', '分配比例', '分配面积(亩)'].map(h => (
-                      <th key={h} className="px-3 py-2 text-left text-xs text-stone-500 font-medium">{h}</th>
+                      <th key={h} className="px-3 py-2 text-left text-xs text-text-muted font-medium">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {preview.allocations.map(a => (
-                    <tr key={a.village_id} className="border-t border-stone-100">
+                    <tr key={a.village_id} className="border-t border-border/50">
                       <td className="px-3 py-2 font-medium">{a.village_name}</td>
-                      <td className="px-3 py-2 font-mono text-stone-600">{fmt(a.basis_area)}</td>
-                      <td className="px-3 py-2 text-stone-500">{pct(a.alloc_ratio * 100)}</td>
-                      <td className="px-3 py-2 font-mono text-emerald-700 font-semibold">{fmt(a.alloc_area)}</td>
+                      <td className="px-3 py-2 font-mono text-text-primary">{fmt(a.basis_area)}</td>
+                      <td className="px-3 py-2 text-text-muted">{pct(a.alloc_ratio * 100)}</td>
+                      <td className="px-3 py-2 font-mono text-primary font-semibold">{fmt(a.alloc_area)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-stone-400 mt-3">预览仅供参考，实际下达时重新计算。</p>
+            <p className="text-xs text-text-muted mt-3">预览仅供参考，实际下达时重新计算。</p>
           </div>
         )}
       </Modal>
@@ -415,43 +415,43 @@ export default function AgriTaskPage() {
                 ['状态', detail.status_label],
                 ['完成率', detail.completion_rate != null ? pct(detail.completion_rate) : '-'],
               ] as [string, string][]).map(([k, v]) => (
-                <div key={k} className="bg-stone-50 rounded-lg p-2">
-                  <div className="text-xs text-stone-400">{k}</div>
-                  <div className="font-medium text-stone-800 mt-0.5">{v}</div>
+                <div key={k} className="bg-warm/30 rounded-btn p-2">
+                  <div className="text-xs text-text-muted">{k}</div>
+                  <div className="font-medium text-text-primary mt-0.5">{v}</div>
                 </div>
               ))}
             </div>
 
             {detail.status === 'DRAFT' && (
-              <div className="text-sm text-amber-600 bg-amber-50 rounded-lg p-3 mb-3">
+              <div className="text-sm text-amber-600 bg-amber-50 rounded-btn p-3 mb-3">
                 任务尚未下达，暂无分配明细。可先「预览」查看方案，确认后「下达」保存。
               </div>
             )}
 
             {detail.allocations.length > 0 && (
-              <div className="overflow-auto max-h-56 border border-stone-200 rounded-lg mb-3">
+              <div className="overflow-auto max-h-56 border border-border rounded-btn mb-3">
                 <table className="w-full text-sm">
-                  <thead className="bg-stone-50 sticky top-0">
+                  <thead className="bg-warm/30 sticky top-0">
                     <tr>
                       {['村名', '依据面积', '分配比例', '分配面积', '实际完成', ''].map(h => (
-                        <th key={h} className="px-3 py-2 text-left text-xs text-stone-500 font-medium">{h}</th>
+                        <th key={h} className="px-3 py-2 text-left text-xs text-text-muted font-medium">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {detail.allocations.map(a => (
-                      <tr key={a.village_id} className="border-t border-stone-100">
+                      <tr key={a.village_id} className="border-t border-border/50">
                         <td className="px-3 py-2 font-medium">{a.village_name}</td>
-                        <td className="px-3 py-2 font-mono text-stone-500 text-xs">{fmt(a.basis_area)}</td>
-                        <td className="px-3 py-2 text-stone-400 text-xs">{pct((a.alloc_ratio || 0) * 100)}</td>
-                        <td className="px-3 py-2 font-mono text-emerald-700 font-semibold">{fmt(a.alloc_area)}</td>
+                        <td className="px-3 py-2 font-mono text-text-muted text-xs">{fmt(a.basis_area)}</td>
+                        <td className="px-3 py-2 text-text-muted text-xs">{pct((a.alloc_ratio || 0) * 100)}</td>
+                        <td className="px-3 py-2 font-mono text-primary font-semibold">{fmt(a.alloc_area)}</td>
                         <td className="px-3 py-2">
                           {detail.status !== 'DRAFT'
                             ? <input type="number" min="0" step="0.01"
                                 value={editActual[a.village_id] ?? ''}
                                 onChange={e => setEditActual(prev => ({ ...prev, [a.village_id]: e.target.value }))}
-                                className="w-20 border border-stone-200 rounded px-2 py-0.5 text-xs font-mono" />
-                            : <span className="text-stone-300">-</span>}
+                                className="w-20 border border-border rounded px-2 py-0.5 text-xs font-mono" />
+                            : <span className="text-text-muted/50">-</span>}
                         </td>
                         <td className="px-3 py-2">
                           {detail.status !== 'DRAFT' && (
@@ -462,10 +462,10 @@ export default function AgriTaskPage() {
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="bg-stone-50 border-t-2 border-stone-200">
+                  <tfoot className="bg-warm/30 border-t-2 border-border">
                     <tr>
-                      <td className="px-3 py-2 font-medium text-stone-600" colSpan={3}>合计</td>
-                      <td className="px-3 py-2 font-mono font-bold text-emerald-700">{fmt(detail.total_area)}</td>
+                      <td className="px-3 py-2 font-medium text-text-primary" colSpan={3}>合计</td>
+                      <td className="px-3 py-2 font-mono font-bold text-primary">{fmt(detail.total_area)}</td>
                       <td className="px-3 py-2 font-mono font-bold text-blue-700">
                         {detail.total_actual_area != null ? fmt(detail.total_actual_area) : '-'}
                       </td>
@@ -479,15 +479,15 @@ export default function AgriTaskPage() {
             <div className="flex justify-end gap-2">
               {detail.status === 'DRAFT' && <>
                 <button onClick={() => { setShowDetail(false); handlePreview(detail.id) }}
-                  className="px-3 py-1.5 text-sm text-amber-600 border border-amber-200 rounded-lg hover:bg-amber-50">预览分配</button>
+                  className="px-3 py-1.5 text-sm text-amber-600 border border-amber-200 rounded-btn hover:bg-amber-50">预览分配</button>
                 <button onClick={() => handleIssue(detail.id)}
-                  className="px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">下达任务</button>
+                  className="px-3 py-1.5 text-sm bg-primary/90 text-white rounded-btn hover:bg-primary">下达任务</button>
               </>}
               {detail.status === 'ISSUED' && <>
                 <button onClick={() => handleRevoke(detail.id)}
-                  className="px-3 py-1.5 text-sm text-stone-500 border border-stone-200 rounded-lg hover:bg-stone-50">撤回</button>
+                  className="px-3 py-1.5 text-sm text-text-muted border border-border rounded-btn hover:bg-warm/30">撤回</button>
                 <button onClick={() => handleDone(detail.id)}
-                  className="px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">标记完成</button>
+                  className="px-3 py-1.5 text-sm bg-primary/90 text-white rounded-btn hover:bg-primary">标记完成</button>
               </>}
             </div>
           </div>

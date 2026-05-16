@@ -18,28 +18,29 @@ import LargeFarmersPage from './pages/LargeFarmersPage'
 import { healthCheck } from './api'
 import { useState } from 'react'
 import { QUOTES, COLOR_THEMES } from './utils/quotes'
+import Icon from './components/Icon'
 
 const mainNav = [
-  { to: '/',                        label: '首页',       icon: '📊', end: true },
-  { to: '/farmers',                 label: '户籍管理',   icon: '👤' },
-  { to: '/projects',                label: '补贴管理',   icon: '💰' },
-  { to: '/agri-tasks',              label: '任务分解',   icon: '🌱' },
-  { to: '/land',                    label: '土地与大户', icon: '🌾' },
+  { to: '/',                        label: '首页',       icon: 'dashboard' as const, end: true },
+  { to: '/farmers',                 label: '户籍管理',   icon: 'farmers' as const },
+  { to: '/projects',                label: '补贴管理',   icon: 'subsidies' as const },
+  { to: '/agri-tasks',              label: '任务分解',   icon: 'tasks' as const },
+  { to: '/land',                    label: '土地与大户', icon: 'land' as const },
 ]
 
 // 系统设置下拉菜单分组
 const settingNavBasic = [  // 基础配置
-  { to: '/settings/village-groups', label: '村组管理',   icon: '🏘️' },
+  { to: '/settings/village-groups', label: '村组管理',   icon: 'village' as const },
 ]
 
 const settingNavData = [  // 数据工具
-  { to: '/precheck',                label: '数据预检',   icon: '🔍' },
-  { to: '/ai',                     label: 'AI 分析',    icon: '🤖' },
-  { to: '/settings/excel-templates', label: 'Excel模板', icon: '📋' },
+  { to: '/precheck',                label: '数据预检',   icon: 'search' as const },
+  { to: '/ai',                     label: 'AI 分析',    icon: 'ai' as const },
+  { to: '/settings/excel-templates', label: 'Excel模板', icon: 'export' as const },
 ]
 
 const settingNavSystem = [  // 系统
-  { to: '/settings/backup',         label: '备份迁移',   icon: '💾' },
+  { to: '/settings/backup',         label: '备份迁移',   icon: 'download' as const },
 ]
 
 function Layout() {
@@ -51,7 +52,7 @@ function Layout() {
 
   const isSettings = location.pathname.startsWith('/settings')
 
-  // 随机选择一条语录和颜色主题（页面加载时确定，保持不变）
+  // 随机选择一条语录和颜色主题
   const { quote, colorTheme } = useMemo(() => {
     const randomQuote = QUOTES[Math.floor(Math.random() * QUOTES.length)]
     const randomColor = COLOR_THEMES[Math.floor(Math.random() * COLOR_THEMES.length)]
@@ -72,24 +73,30 @@ function Layout() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-stone-100 flex flex-col" style={{ fontFamily: "'Noto Serif SC','SimSun',Georgia,serif" }}>
-      <header className="bg-emerald-800 text-white sticky top-0 z-40 shadow-lg">
-        <div className="max-w-screen-xl mx-auto px-5 flex items-center gap-4" style={{ height: 52 }}>
+    <div className="min-h-screen bg-bg-main flex flex-col">
+      {/* 顶部导航 - 白色背景 */}
+      <header className="bg-white text-text-primary sticky top-0 z-40 shadow-card border-b border-border">
+        <div className="max-w-screen-xl mx-auto px-6 flex items-center gap-6" style={{ height: 70 }}>
           {/* Logo */}
-          <div className="font-bold text-base tracking-wide whitespace-nowrap flex items-center gap-2 shrink-0 cursor-pointer"
+          <div className="shrink-0 cursor-pointer flex items-center"
             onClick={() => navigate('/')}>
-            <span>🌾</span><span>农户补贴管理系统</span>
+            <img src="/images/Logo.png" alt="Logo"
+              className="h-12 w-auto"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+            <span className="font-bold text-base tracking-wider text-primary ml-2.5"
+              style={{ display: 'none' }} /* 当 Logo 加载失败时的回退文字 */>农户补贴管理系统</span>
           </div>
 
           {/* 主导航 */}
-          <nav className="flex gap-0.5 flex-1">
+          <nav className="flex gap-1 flex-1">
             {mainNav.map(({ to, label, icon, end }) => (
               <NavLink key={to} to={to} end={end}
                 className={({ isActive }) =>
-                  `px-3.5 py-2 text-sm rounded transition-colors whitespace-nowrap flex items-center gap-1.5
-                  ${isActive ? 'bg-white/20 text-white font-semibold' : 'text-emerald-200 hover:text-white hover:bg-white/10'}`
+                  `px-3.5 py-2 text-sm rounded-btn transition-colors whitespace-nowrap flex items-center gap-2
+                  ${isActive ? 'bg-primary/10 text-primary font-semibold' : 'text-text-muted hover:text-primary hover:bg-primary/5'}`
                 }>
-                <span>{icon}</span><span>{label}</span>
+                <Icon name={icon} size={16} />
+                <span>{label}</span>
               </NavLink>
             ))}
           </nav>
@@ -98,51 +105,59 @@ function Layout() {
             {/* 设置下拉 */}
             <div className="relative" ref={settingsRef}>
               <button onClick={() => setSettingsOpen(o => !o)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded transition-colors
-                  ${isSettings ? 'bg-white/20 text-white font-semibold' : 'text-emerald-200 hover:text-white hover:bg-white/10'}`}>
-                <span>⚙️</span><span>系统设置</span>
-                <span style={{ display:'inline-block', transition:'transform .15s', transform: settingsOpen ? 'rotate(180deg)' : 'none' }}>▾</span>
+                className={`flex items-center gap-2 px-3 py-2 rounded-btn text-sm transition-colors
+                  ${isSettings ? 'bg-primary/10 text-primary font-semibold' : 'text-text-muted hover:text-primary hover:bg-primary/5'}`}>
+                <Icon name="settings" size={16} />
+                <span>系统设置</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  className="w-3.5 h-3.5 transition-transform duration-150"
+                  style={{ transform: settingsOpen ? 'rotate(180deg)' : 'none' }}>
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </button>
               {settingsOpen && (
-                <div className="absolute right-0 top-full mt-1.5 bg-white rounded-xl shadow-xl border border-stone-200 overflow-hidden w-52 z-50">
+                <div className="absolute right-0 top-full mt-2 bg-white rounded-card shadow-card border border-border overflow-hidden w-52 z-50">
                   {settingNavBasic.length > 0 && (
                     <>
-                      <div className="px-3 py-2 text-xs text-stone-400 border-b border-stone-100 bg-stone-50">基础配置</div>
+                      <div className="px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30">基础配置</div>
                       {settingNavBasic.map(({ to, label, icon }) => (
                         <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
                           className={({ isActive }) =>
-                            `flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-stone-50 transition-colors
-                            ${isActive ? 'text-emerald-700 font-semibold bg-emerald-50' : 'text-stone-700'}`
+                            `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
+                            ${isActive ? 'text-primary font-semibold bg-primary/5' : 'text-text-primary hover:bg-warm/30'}`
                           }>
-                          <span>{icon}</span><span>{label}</span>
+                          <Icon name={icon} size={16} className="text-text-muted" />
+                          <span>{label}</span>
                         </NavLink>
                       ))}
                     </>
                   )}
                   {settingNavData.length > 0 && (
                     <>
-                      <div className="px-3 py-2 text-xs text-stone-400 border-b border-stone-100 bg-stone-50">数据工具</div>
+                      <div className="px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30">数据工具</div>
                       {settingNavData.map(({ to, label, icon }) => (
                         <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
                           className={({ isActive }) =>
-                            `flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-stone-50 transition-colors
-                            ${isActive ? 'text-emerald-700 font-semibold bg-emerald-50' : 'text-stone-700'}`
+                            `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
+                            ${isActive ? 'text-primary font-semibold bg-primary/5' : 'text-text-primary hover:bg-warm/30'}`
                           }>
-                          <span>{icon}</span><span>{label}</span>
+                          <Icon name={icon} size={16} className="text-text-muted" />
+                          <span>{label}</span>
                         </NavLink>
                       ))}
                     </>
                   )}
                   {settingNavSystem.length > 0 && (
                     <>
-                      <div className="px-3 py-2 text-xs text-stone-400 border-b border-stone-100 bg-stone-50">系统</div>
+                      <div className="px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30">系统</div>
                       {settingNavSystem.map(({ to, label, icon }) => (
                         <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
                           className={({ isActive }) =>
-                            `flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-stone-50 transition-colors
-                            ${isActive ? 'text-emerald-700 font-semibold bg-emerald-50' : 'text-stone-700'}`
+                            `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
+                            ${isActive ? 'text-primary font-semibold bg-primary/5' : 'text-text-primary hover:bg-warm/30'}`
                           }>
-                          <span>{icon}</span><span>{label}</span>
+                          <Icon name={icon} size={16} className="text-text-muted" />
+                          <span>{label}</span>
                         </NavLink>
                       ))}
                     </>
@@ -151,25 +166,28 @@ function Layout() {
               )}
             </div>
             {/* 连接状态 */}
-            <div className={`text-xs font-mono whitespace-nowrap
-              ${online === true ? 'text-emerald-300' : online === false ? 'text-red-300' : 'text-emerald-500'}`}>
-              {online === null ? '○ 连接中' : online ? '● 已连接' : '● 离线'}
+            <div className={`text-meta font-mono whitespace-nowrap flex items-center gap-1.5
+              ${online === true ? 'text-text-muted' : online === false ? 'text-danger' : 'text-text-muted'}`}>
+              <span className={`inline-block w-2 h-2 rounded-full
+                ${online === null ? 'bg-text-muted' : online ? 'bg-success' : 'bg-danger'}`} />
+              {online === null ? '连接中' : online ? '已连接' : '离线'}
             </div>
           </div>
         </div>
 
         {/* 设置子标签栏 */}
         {isSettings && (
-          <div className="bg-emerald-900/50 border-t border-emerald-700/50">
-            <div className="max-w-screen-xl mx-auto px-5 flex items-center gap-1" style={{ height: 36 }}>
-              <span className="text-xs text-emerald-400 mr-2">系统设置 /</span>
+          <div className="bg-warm/50 border-t border-border">
+            <div className="max-w-screen-xl mx-auto px-6 flex items-center gap-1" style={{ height: 36 }}>
+              <span className="text-meta text-text-muted mr-2 shrink-0">系统设置 /</span>
               {[...settingNavBasic, ...settingNavData, ...settingNavSystem].map(({ to, label, icon }) => (
                 <NavLink key={to} to={to}
                   className={({ isActive }) =>
-                    `px-3 py-1 text-xs rounded transition-colors
-                    ${isActive ? 'bg-white/15 text-white font-medium' : 'text-emerald-400 hover:text-white hover:bg-white/10'}`
+                    `px-3 py-1 text-meta rounded-btn transition-colors flex items-center gap-1.5
+                    ${isActive ? 'bg-primary/10 text-primary font-medium' : 'text-text-muted hover:text-primary hover:bg-primary/5'}`
                   }>
-                  {icon} {label}
+                  <Icon name={icon} size={12} />
+                  {label}
                 </NavLink>
               ))}
             </div>
@@ -178,7 +196,7 @@ function Layout() {
       </header>
 
       <main className="flex-1">
-        <div className="max-w-screen-xl mx-auto px-5 py-5 pb-8">
+        <div className="max-w-screen-xl mx-auto px-6 py-6 pb-10">
           <Routes>
             <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
             <Route path="/farmers"   element={<FarmersPage />} />
@@ -197,20 +215,22 @@ function Layout() {
             <Route path="/proxy/application/:applicationId" element={<ProxyManagePage />} />
             {/* 404 fallback */}
             <Route path="*" element={
-              <div className="text-center py-24 text-stone-300">
-                <div className="text-5xl mb-3">🌾</div>
-                <p className="text-sm">页面不存在，<button className="text-emerald-600 hover:underline" onClick={() => navigate('/')}>返回首页</button></p>
+              <div className="text-center py-24 text-text-muted">
+                <div className="mb-4 flex justify-center">
+                  <Icon name="question" size={48} className="text-border" />
+                </div>
+                <p className="text-body">页面不存在，<button className="text-primary hover:underline font-medium" onClick={() => navigate('/')}>返回首页</button></p>
               </div>
             } />
           </Routes>
         </div>
       </main>
 
-      {/* 底部语录展示 */}
+      {/* 底部 - 暖金色背景 */}
       <footer>
-        <div className={`w-full py-6 ${colorTheme.bg} ${colorTheme.text}`}>
-          <div className="max-w-screen-xl mx-auto px-5 text-center">
-            <div className="text-lg font-medium italic">
+        <div className={`w-full py-5 ${colorTheme.bg} ${colorTheme.text}`}>
+          <div className="max-w-screen-xl mx-auto px-6 text-center">
+            <div className="text-sm italic opacity-80">
               " {quote} "
             </div>
           </div>

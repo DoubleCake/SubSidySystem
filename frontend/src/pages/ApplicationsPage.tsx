@@ -159,64 +159,64 @@ export default function ApplicationsPage() {
         <div className="flex gap-1">
           {[2024, 2023, 2022].map(y => (
             <button key={y} onClick={() => setYearFilter(y)}
-              className={`px-3 py-1.5 text-sm rounded-lg border transition-colors
-                ${yearFilter === y ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'}`}>
+              className={`px-3 py-1.5 text-sm rounded-btn border transition-colors
+                ${yearFilter === y ? 'bg-primary text-white border-emerald-700' : 'bg-white border-border text-text-primary hover:border-border'}`}>
               {y}年
             </button>
           ))}
         </div>
         <select value={villageFilter} onChange={e => setVillageFilter(e.target.value)}
-          className="border border-stone-200 rounded-lg px-2 py-1.5 text-sm bg-white outline-none">
+          className="border border-border rounded-btn px-2 py-1.5 text-sm bg-white outline-none">
           <option value="">全部村庄</option>
           {villages.map(v => <option key={v} value={v}>{v}</option>)}
         </select>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="border border-stone-200 rounded-lg px-2 py-1.5 text-sm bg-white outline-none">
+          className="border border-border rounded-btn px-2 py-1.5 text-sm bg-white outline-none">
           <option value="">全部状态</option>
           <option value="0">待审核</option><option value="1">审核通过</option>
           <option value="2">已发放</option><option value="3">驳回</option>
         </select>
         <div className="ml-auto flex gap-2">
-          <button onClick={() => setImportOpen(true)} className="px-3 py-1.5 text-sm border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50">↑ Excel导入</button>
+          <button onClick={() => setImportOpen(true)} className="px-3 py-1.5 text-sm border border-primary/20 text-primary rounded-btn hover:bg-primary/5">↑ Excel导入</button>
           <button onClick={() => { setAddOpen(true); setIdInput(''); setFarmerHint(''); setFarmerId(null); setForm({ pay_status: 0 }) }}
-            className="px-3 py-1.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">＋ 新增记录</button>
+            className="px-3 py-1.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">＋ 新增记录</button>
         </div>
       </div>
 
-      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-white border border-border rounded-card overflow-hidden shadow-card">
         <table className="w-full border-collapse">
-          <thead><tr className="bg-stone-50 border-b-2 border-stone-200">
+          <thead><tr className="bg-warm/30 border-b-2 border-border">
             {['农户姓名', '所在位置', '补贴类型', '计算方式', '申请金额', '实发金额', '面积(亩)', '状态', '打款日期', '操作'].map(h => (
-              <th key={h} className="px-3.5 py-2.5 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>
+              <th key={h} className="px-3.5 py-2.5 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
             ))}
           </tr></thead>
           <tbody>
-            {loading && <tr><td colSpan={10} className="text-center py-10 text-stone-400 text-sm">加载中…</td></tr>}
+            {loading && <tr><td colSpan={10} className="text-center py-10 text-text-muted text-sm">加载中…</td></tr>}
             {!loading && apps.map(a => (
-              <tr key={a.id} className="border-b border-stone-50 hover:bg-stone-50 transition-colors">
+              <tr key={a.id} className="border-b border-border/50 hover:bg-warm/30 transition-colors">
                 <td className="px-3.5 py-2.5 text-sm font-semibold">{a.farmer_name}</td>
-                <td className="px-3.5 py-2.5 text-xs text-stone-400">{(a as { village?: string }).village || '—'}</td>
+                <td className="px-3.5 py-2.5 text-xs text-text-muted">{(a as { village?: string }).village || '—'}</td>
                 <td className="px-3.5 py-2.5 text-sm">{a.subsidy_name}</td>
                 <td className="px-3.5 py-2.5">
                   <Tag label={(a as { calc_mode?: string }).calc_mode === 'per_mu' ? '按亩' : '固定'} color={(a as { calc_mode?: string }).calc_mode === 'per_mu' ? 'blue' : 'purple'} />
                 </td>
-                <td className="px-3.5 py-2.5 text-sm font-mono text-stone-500">{fmt(a.apply_amount)}</td>
+                <td className="px-3.5 py-2.5 text-sm font-mono text-text-muted">{fmt(a.apply_amount)}</td>
                 <td className="px-3.5 py-2.5 text-sm font-mono font-bold" style={{ color: a.actual_amount ? '#15803d' : '#d97706' }}>
                   {a.actual_amount ? fmt(a.actual_amount) : '待发放'}
                 </td>
                 <td className="px-3.5 py-2.5 text-sm">{a.apply_area ?? '—'}</td>
                 <td className="px-3.5 py-2.5"><Tag label={PAY_STATUS[a.pay_status]?.label} color={PAY_STATUS[a.pay_status]?.color as 'green'} /></td>
-                <td className="px-3.5 py-2.5 text-xs font-mono text-stone-400">{a.pay_date ?? '—'}</td>
+                <td className="px-3.5 py-2.5 text-xs font-mono text-text-muted">{a.pay_date ?? '—'}</td>
                 <td className="px-3.5 py-2.5">
-                  <button onClick={() => openEdit(a)} className="text-xs text-stone-400 border border-stone-200 px-2.5 py-1 rounded-lg hover:text-emerald-700 hover:border-emerald-200">编辑</button>
+                  <button onClick={() => openEdit(a)} className="text-xs text-text-muted border border-border px-2.5 py-1 rounded-btn hover:text-primary hover:border-primary/20">编辑</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        <div className="px-4 py-2 text-xs text-stone-400 border-t border-stone-100 bg-stone-50/50 flex justify-between">
+        <div className="px-4 py-2 text-xs text-text-muted border-t border-border/50 bg-warm/10 flex justify-between">
           <span>共 {total} 条记录</span>
-          <span className="font-mono font-bold text-emerald-700">实发合计 ¥{totalAmt.toFixed(2)}</span>
+          <span className="font-mono font-bold text-primary">实发合计 ¥{totalAmt.toFixed(2)}</span>
         </div>
       </div>
 
@@ -224,16 +224,16 @@ export default function ApplicationsPage() {
       <Modal open={addOpen} title="新增补贴申请记录" onClose={() => setAddOpen(false)} onConfirm={submitApp}>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs text-stone-400 mb-1">农户身份证号 *</label>
+            <label className="block text-xs text-text-muted mb-1">农户身份证号 *</label>
             <input value={idInput} onChange={e => setIdInput(e.target.value)} placeholder="输入身份证号自动查找农户"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             {farmerHint && <p className="text-xs mt-1" style={{ color: farmerId ? '#15803d' : '#dc2626' }}>{farmerHint}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-stone-400 mb-1">补贴类型 *</label>
+              <label className="block text-xs text-text-muted mb-1">补贴类型 *</label>
               <select value={form.subsidy_type_id ?? ''} onChange={e => setForm(f => ({ ...f, subsidy_type_id: Number(e.target.value) }))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">
                 <option value="">请选择</option>
                 {subsidyTypes.map(t => <option key={t.id} value={t.id}>{t.subsidy_name}（{t.subsidy_year}）</option>)}
               </select>
@@ -246,41 +246,41 @@ export default function ApplicationsPage() {
               )}
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">申请年度</label>
+              <label className="block text-xs text-text-muted mb-1">申请年度</label>
               <select value={form.apply_year ?? yearFilter} onChange={e => setForm(f => ({ ...f, apply_year: Number(e.target.value) }))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">
                 {years.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
             {selectedType?.calc_mode === 'per_mu' && (
               <div>
-                <label className="block text-xs text-stone-400 mb-1">申请面积(亩) — 填后自动计算金额</label>
+                <label className="block text-xs text-text-muted mb-1">申请面积(亩) — 填后自动计算金额</label>
                 <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))}
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
               </div>
             )}
             <div>
-              <label className="block text-xs text-stone-400 mb-1">申请金额(元)</label>
+              <label className="block text-xs text-text-muted mb-1">申请金额(元)</label>
               <input type="number" step="0.01" value={form.apply_amount ?? ''} onChange={e => setForm(f => ({ ...f, apply_amount: Number(e.target.value) || undefined }))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">实发金额(元)</label>
+              <label className="block text-xs text-text-muted mb-1">实发金额(元)</label>
               <input type="number" step="0.01" value={form.actual_amount ?? ''} onChange={e => setForm(f => ({ ...f, actual_amount: Number(e.target.value) || undefined }))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">发放状态</label>
+              <label className="block text-xs text-text-muted mb-1">发放状态</label>
               <select value={form.pay_status ?? 0} onChange={e => setForm(f => ({ ...f, pay_status: Number(e.target.value) }))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">
                 <option value={0}>待审核</option><option value={1}>审核通过</option>
                 <option value={2}>已发放</option><option value={3}>驳回</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">打款日期</label>
+              <label className="block text-xs text-text-muted mb-1">打款日期</label>
               <input type="date" value={form.pay_date ?? ''} onChange={e => setForm(f => ({ ...f, pay_date: e.target.value || undefined }))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
           </div>
         </div>
@@ -291,27 +291,27 @@ export default function ApplicationsPage() {
         onClose={() => setEditTarget(null)} onConfirm={submitEdit}>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-stone-400 mb-1">实发金额(元)</label>
+            <label className="block text-xs text-text-muted mb-1">实发金额(元)</label>
             <input type="number" step="0.01" value={form.actual_amount ?? ''} onChange={e => setForm(f => ({ ...f, actual_amount: Number(e.target.value) || undefined }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
           </div>
           <div>
-            <label className="block text-xs text-stone-400 mb-1">发放状态</label>
+            <label className="block text-xs text-text-muted mb-1">发放状态</label>
             <select value={form.pay_status ?? 0} onChange={e => setForm(f => ({ ...f, pay_status: Number(e.target.value) }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">
               <option value={0}>待审核</option><option value={1}>审核通过</option>
               <option value={2}>已发放</option><option value={3}>驳回</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-stone-400 mb-1">打款日期</label>
+            <label className="block text-xs text-text-muted mb-1">打款日期</label>
             <input type="date" value={form.pay_date ?? ''} onChange={e => setForm(f => ({ ...f, pay_date: e.target.value || undefined }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
           </div>
           <div>
-            <label className="block text-xs text-stone-400 mb-1">备注</label>
+            <label className="block text-xs text-text-muted mb-1">备注</label>
             <input value={form.remark ?? ''} onChange={e => setForm(f => ({ ...f, remark: e.target.value || undefined }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
           </div>
         </div>
       </Modal>

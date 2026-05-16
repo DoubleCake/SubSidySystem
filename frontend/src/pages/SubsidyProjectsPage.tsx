@@ -130,56 +130,56 @@ export default function SubsidyProjectsPage() {
     <div>
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <select value={yearFilter} onChange={e => handleYearChange(Number(e.target.value))}
-          className="border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+          className="border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
           {years.map(y => <option key={y} value={y}>{y}年</option>)}
         </select>
-        <span className="text-xs text-stone-400">共 {types.length} 个项目</span>
-        <button onClick={openAdd} className="ml-auto px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">＋ 新增项目</button>
+        <span className="text-xs text-text-muted">共 {types.length} 个项目</span>
+        <button onClick={openAdd} className="ml-auto px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">＋ 新增项目</button>
       </div>
 
-      <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-4 text-xs text-blue-700">
+      <div className="bg-blue-50 border border-blue-100 rounded-card px-4 py-3 mb-4 text-xs text-blue-700">
         先在此维护补贴项目，再点「查看人员」进入补贴发放记录。
       </div>
 
-      {loading && <div className="text-center py-12 text-stone-300">加载中…</div>}
+      {loading && <div className="text-center py-12 text-text-muted/50">加载中…</div>}
 
       <div className="grid gap-3">
         {!loading && types.length === 0 && (
-          <div className="text-center py-12 bg-white border border-stone-200 rounded-xl text-stone-300 text-sm">
+          <div className="text-center py-12 bg-white border border-border rounded-card text-text-muted/50 text-sm">
             暂无 {yearFilter} 年度补贴项目
           </div>
         )}
         {types.map(t => (
-          <div key={t.id} className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm hover:border-stone-300 transition-colors">
+          <div key={t.id} className="bg-white border border-border rounded-card p-5 shadow-card hover:border-border transition-colors">
             <div className="flex items-start gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <span className="font-bold text-stone-800 text-base">{t.subsidy_name}</span>
+                  <span className="font-bold text-text-primary text-base">{t.subsidy_name}</span>
                   <Tag label={`${t.subsidy_year}年`} color="gray" />
                   <Tag label={t.calc_mode === 'per_mu' ? '按亩计算' : '固定金额'} color={t.calc_mode === 'per_mu' ? 'blue' : 'purple'} />
-                  {t.fund_source && <span className="text-xs text-stone-300">{t.fund_source}</span>}
+                  {t.fund_source && <span className="text-xs text-text-muted/50">{t.fund_source}</span>}
                 </div>
                 <div className="flex gap-6 text-sm mb-3 flex-wrap">
                   {t.standard_amount && (
-                    <div><span className="text-stone-400">标准</span>
-                      <span className="font-mono font-bold text-emerald-700 ml-1">¥{Number(t.standard_amount).toFixed(2)}</span>
-                      <span className="text-xs text-stone-300 ml-0.5">{t.standard_unit}</span>
+                    <div><span className="text-text-muted">标准</span>
+                      <span className="font-mono font-bold text-primary ml-1">¥{Number(t.standard_amount).toFixed(2)}</span>
+                      <span className="text-xs text-text-muted/50 ml-0.5">{t.standard_unit}</span>
                     </div>
                   )}
-                  <div><span className="text-stone-400">受益</span><span className="font-bold text-blue-600 ml-1">{t.beneficiary_count}人</span></div>
-                  <div><span className="text-stone-400">记录</span><span className="text-stone-600 ml-1">{t.app_count}条</span></div>
+                  <div><span className="text-text-muted">受益</span><span className="font-bold text-blue-600 ml-1">{t.beneficiary_count}人</span></div>
+                  <div><span className="text-text-muted">记录</span><span className="text-text-primary ml-1">{t.app_count}条</span></div>
                 </div>
-                {t.apply_deadline && <p className="text-xs text-stone-300 mt-1.5">截止：{t.apply_deadline}</p>}
+                {t.apply_deadline && <p className="text-xs text-text-muted/50 mt-1.5">截止：{t.apply_deadline}</p>}
               </div>
 
               {/* 操作区 */}
               <div className="flex flex-col gap-2 shrink-0">
                 <button onClick={() => { setActiveType(t); updateUrlType(t.id) }}
-                  className="px-3 py-1.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600 whitespace-nowrap">
+                  className="px-3 py-1.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 whitespace-nowrap">
                   查看人员 →
                 </button>
                 <button onClick={() => openEdit(t)}
-                  className="px-3 py-1.5 text-xs border border-stone-200 text-stone-500 rounded-lg hover:border-stone-300 text-center">
+                  className="px-3 py-1.5 text-xs border border-border text-text-muted rounded-btn hover:border-border text-center">
                   编辑项目
                 </button>
                 <button onClick={() => {
@@ -187,7 +187,7 @@ export default function SubsidyProjectsPage() {
                     deleteProject(t.id)
                   }
                 }}
-                  className="px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-center">
+                  className="px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-btn hover:bg-red-50 text-center">
                   删除项目
                 </button>
               </div>

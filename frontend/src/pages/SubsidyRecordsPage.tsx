@@ -618,39 +618,39 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
     <div>
       {/* 面包屑 */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <button onClick={onBack} className="text-sm text-emerald-700 hover:underline">← 返回项目列表</button>
-        <span className="text-stone-300">|</span>
-        <span className="font-bold text-stone-800">{subsidyType.subsidy_name}</span>
+        <button onClick={onBack} className="text-sm text-primary hover:underline">← 返回项目列表</button>
+        <span className="text-text-muted/50">|</span>
+        <span className="font-bold text-text-primary">{subsidyType.subsidy_name}</span>
         <Tag label={`${subsidyType.subsidy_year}年`} color="gray" />
         <Tag label={subsidyType.calc_mode === 'per_mu' ? '按亩计算' : '固定金额'} color={subsidyType.calc_mode === 'per_mu' ? 'blue' : 'purple'} />
         {subsidyType.standard_amount && (
-          <span className="text-xs text-stone-400">标准：¥{Number(subsidyType.standard_amount).toFixed(2)}{subsidyType.standard_unit}</span>
+          <span className="text-xs text-text-muted">标准：¥{Number(subsidyType.standard_amount).toFixed(2)}{subsidyType.standard_unit}</span>
         )}
       </div>
 
       {/* 数据概览 - 可折叠下拉框 */}
-      <div className="mb-4 bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="mb-4 bg-white border border-border rounded-card shadow-card overflow-hidden">
         <button
           onClick={() => setStatsExpanded(!statsExpanded)}
-          className="w-full flex items-center justify-between px-4 py-3 hover:bg-stone-50 transition-colors"
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-warm/30 transition-colors"
         >
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-stone-700">📊 数据概览</span>
+            <span className="text-sm font-semibold text-text-primary">📊 数据概览</span>
             {statsExpanded && (
-              <span className="text-xs text-stone-400">发放总额 ¥{stats.totalAmount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })} · {stats.totalFarmers}人 · 总面积 {stats.totalArea}亩 · {stats.villageDistribution.length}个村</span>
+              <span className="text-xs text-text-muted">发放总额 ¥{stats.totalAmount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })} · {stats.totalFarmers}人 · 总面积 {stats.totalArea}亩 · {stats.villageDistribution.length}个村</span>
             )}
           </div>
-          <span className="text-stone-400 text-sm">{statsExpanded ? '▲ 收起' : '▼ 展开'}</span>
+          <span className="text-text-muted text-sm">{statsExpanded ? '▲ 收起' : '▼ 展开'}</span>
         </button>
 
         {statsExpanded && (
-          <div className="px-4 pb-4 border-t border-stone-100">
+          <div className="px-4 pb-4 border-t border-border/50">
             <div className="flex items-center justify-end gap-2 pt-3 mb-4">
               {subsidyType.category && (
                 <select
                   value={selectedCompareType ?? ''}
                   onChange={e => setSelectedCompareType(e.target.value ? Number(e.target.value) : null)}
-                  className="px-2 py-1 text-xs border border-stone-200 rounded bg-white"
+                  className="px-2 py-1 text-xs border border-border rounded bg-white"
                 >
                   <option value="">不对比</option>
                   {comparableTypes.map(t => (
@@ -658,21 +658,21 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
                   ))}
                 </select>
               )}
-              <span className="text-xs text-stone-400">全镇数据统计</span>
+              <span className="text-xs text-text-muted">全镇数据统计</span>
             </div>
 
             <div className="grid grid-cols-3 gap-4 mb-4">
-              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
-                <div className="text-sm text-emerald-600 mb-2">发放总额</div>
-                <div className="text-2xl font-bold font-mono text-emerald-700">¥{stats.totalAmount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
-                <div className="text-sm text-emerald-600 mt-2">{stats.totalFarmers}人</div>
+              <div className="bg-primary/5 border border-primary/10 rounded-card p-4">
+                <div className="text-sm text-primary mb-2">发放总额</div>
+                <div className="text-2xl font-bold font-mono text-primary">¥{stats.totalAmount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
+                <div className="text-sm text-primary mt-2">{stats.totalFarmers}人</div>
               </div>
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+              <div className="bg-blue-50 border border-blue-100 rounded-card p-4">
                 <div className="text-sm text-blue-600 mb-2">涉及村庄</div>
                 <div className="text-2xl font-bold text-blue-700">{stats.villageDistribution.length}</div>
                 <div className="text-sm text-blue-600 mt-2">个村</div>
               </div>
-              <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
+              <div className="bg-purple-50 border border-purple-100 rounded-card p-4">
                 <div className="text-sm text-purple-600 mb-2">总面积</div>
                 <div className="text-2xl font-bold font-mono text-purple-700">{stats.totalArea.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}亩</div>
                 <div className="text-sm text-purple-600 mt-2">补贴面积合计</div>
@@ -683,15 +683,15 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
       </div>
 
       {/* 面积统计 - 可折叠下拉框 */}
-      <div className="mb-4 bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="mb-4 bg-white border border-border rounded-card shadow-card overflow-hidden">
         <button
           onClick={() => setAreaStatsExpanded(!areaStatsExpanded)}
-          className="w-full flex items-center justify-between px-4 py-3 hover:bg-stone-50 transition-colors"
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-warm/30 transition-colors"
         >
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-stone-700">📐 面积统计</span>
+            <span className="text-sm font-semibold text-text-primary">📐 面积统计</span>
             {areaStatsExpanded && areaStats && (
-              <span className="text-xs text-stone-400">
+              <span className="text-xs text-text-muted">
                 合计：{areaStats.total.total_apply_area}亩 / {areaStats.by_village.length}个村
               </span>
             )}
@@ -703,19 +703,19 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
                   e.stopPropagation()
                   handleExportAreaStats()
                 }}
-                className="px-3 py-1 text-xs bg-emerald-700 text-white rounded-lg hover:bg-emerald-600"
+                className="px-3 py-1 text-xs bg-primary text-white rounded-btn hover:bg-primary/90"
               >
                 ↓ 导出Excel
               </button>
             )}
-            <span className="text-stone-400 text-sm">{areaStatsExpanded ? '▲ 收起' : '▼ 展开'}</span>
+            <span className="text-text-muted text-sm">{areaStatsExpanded ? '▲ 收起' : '▼ 展开'}</span>
           </div>
         </button>
 
         {areaStatsExpanded && (
-          <div className="px-4 pb-4 border-t border-stone-100">
+          <div className="px-4 pb-4 border-t border-border/50">
             {loadingAreaStats ? (
-              <div className="py-8 text-center text-stone-400">
+              <div className="py-8 text-center text-text-muted">
                 <span className="animate-spin inline-block w-4 h-4 border-2 border-stone-300 border-t-emerald-500 rounded-full mr-2" />
                 加载中...
               </div>
@@ -723,60 +723,60 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
               <div className="overflow-x-auto mt-4">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-stone-50 border-b border-stone-200">
-                      <th className="px-3 py-2 text-left font-medium text-stone-600">村名</th>
-                      <th className="px-3 py-2 text-right font-medium text-stone-600">农户数</th>
-                      <th className="px-3 py-2 text-right font-medium text-stone-600">记录数</th>
-                      <th className="px-3 py-2 text-right font-medium text-stone-600">实际补贴面积(亩)</th>
-                      <th className="px-3 py-2 text-right font-medium text-stone-600">承包地面积(亩)</th>
-                      <th className="px-3 py-2 text-right font-medium text-stone-600">代耕代种面积(亩)</th>
-                      <th className="px-3 py-2 text-right font-medium text-stone-600">不予补贴面积(亩)</th>
-                      <th className="px-3 py-2 text-right font-medium text-stone-600">补贴金额(元)</th>
+                    <tr className="bg-warm/30 border-b border-border">
+                      <th className="px-3 py-2 text-left font-medium text-text-primary">村名</th>
+                      <th className="px-3 py-2 text-right font-medium text-text-primary">农户数</th>
+                      <th className="px-3 py-2 text-right font-medium text-text-primary">记录数</th>
+                      <th className="px-3 py-2 text-right font-medium text-text-primary">实际补贴面积(亩)</th>
+                      <th className="px-3 py-2 text-right font-medium text-text-primary">承包地面积(亩)</th>
+                      <th className="px-3 py-2 text-right font-medium text-text-primary">代耕代种面积(亩)</th>
+                      <th className="px-3 py-2 text-right font-medium text-text-primary">不予补贴面积(亩)</th>
+                      <th className="px-3 py-2 text-right font-medium text-text-primary">补贴金额(元)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100">
                     {areaStats.by_village.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-stone-50">
-                        <td className="px-3 py-2 text-stone-700">{row.village}</td>
-                        <td className="px-3 py-2 text-right text-stone-600">{row.farmer_count}</td>
-                        <td className="px-3 py-2 text-right text-stone-600">{row.record_count}</td>
-                        <td className="px-3 py-2 text-right font-mono text-stone-700">{row.total_apply_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right font-mono text-stone-600">{row.total_contract_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right font-mono text-stone-600">{row.total_trust_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right font-mono text-stone-600">{row.total_no_subsidy_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right font-mono text-emerald-700">¥{row.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <tr key={idx} className="hover:bg-warm/30">
+                        <td className="px-3 py-2 text-text-primary">{row.village}</td>
+                        <td className="px-3 py-2 text-right text-text-primary">{row.farmer_count}</td>
+                        <td className="px-3 py-2 text-right text-text-primary">{row.record_count}</td>
+                        <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_apply_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_contract_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_trust_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_no_subsidy_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right font-mono text-primary">¥{row.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
                       </tr>
                     ))}
-                    <tr className="bg-stone-100 font-semibold">
-                      <td className="px-3 py-2 text-stone-800">{areaStats.total.village}</td>
-                      <td className="px-3 py-2 text-right text-stone-800">{areaStats.total.farmer_count}</td>
-                      <td className="px-3 py-2 text-right text-stone-800">{areaStats.total.record_count}</td>
-                      <td className="px-3 py-2 text-right font-mono text-stone-800">{areaStats.total.total_apply_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                      <td className="px-3 py-2 text-right font-mono text-stone-800">{areaStats.total.total_contract_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                      <td className="px-3 py-2 text-right font-mono text-stone-800">{areaStats.total.total_trust_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                      <td className="px-3 py-2 text-right font-mono text-stone-800">{areaStats.total.total_no_subsidy_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                      <td className="px-3 py-2 text-right font-mono text-emerald-800">¥{areaStats.total.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                    <tr className="bg-warm/30 font-semibold">
+                      <td className="px-3 py-2 text-text-primary">{areaStats.total.village}</td>
+                      <td className="px-3 py-2 text-right text-text-primary">{areaStats.total.farmer_count}</td>
+                      <td className="px-3 py-2 text-right text-text-primary">{areaStats.total.record_count}</td>
+                      <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_apply_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_contract_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_trust_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_no_subsidy_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-3 py-2 text-right font-mono text-primary">¥{areaStats.total.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
                     </tr>
                   </tbody>
                 </table>
-                <div className="mt-2 text-xs text-stone-400">
+                <div className="mt-2 text-xs text-text-muted">
                   数据来源：{areaStats.data_source === 'payment' ? '发放记录' : '预申请记录'}
                   {areaStats.by_village.length > 0 && ' · 代领记录已去重，仅统计受益人'}
                 </div>
               </div>
             ) : (
-              <div className="py-8 text-center text-stone-400">暂无数据</div>
+              <div className="py-8 text-center text-text-muted">暂无数据</div>
             )}
           </div>
         )}
       </div>
 
       {/* Tab切换 */}
-      <div className="flex items-center gap-2 mb-4 border-b border-stone-200">
+      <div className="flex items-center gap-2 mb-4 border-b border-border">
         <button
           onClick={() => switchTab('preApply')}
           className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'preApply' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-stone-500 hover:text-stone-700'
+            activeTab === 'preApply' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text-primary'
           }`}
         >
           📋 预申请列表
@@ -784,7 +784,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
         <button
           onClick={() => switchTab('disbursement')}
           className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'disbursement' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-stone-500 hover:text-stone-700'
+            activeTab === 'disbursement' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text-primary'
           }`}
         >
           💰 发放信息列表
@@ -792,7 +792,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
         <button
           onClick={() => switchTab('proxy')}
           className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'proxy' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-stone-500 hover:text-stone-700'
+            activeTab === 'proxy' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text-primary'
           }`}
         >
           👥 代领关系
@@ -802,7 +802,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
             <button
               onClick={runPreCheck}
               disabled={preCheckLoading || apps.length === 0}
-              className={`px-3 py-1.5 text-sm rounded-lg flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 text-sm rounded-btn flex items-center gap-1.5 ${
                 preCheckLoading ? 'bg-blue-100 border border-blue-200 text-blue-600' : 'bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100'
               }`}
             >
@@ -814,27 +814,27 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
           {activeTab === 'proxy' && (
             <>
               <button onClick={() => setProxyImportOpen(true)}
-                className="px-3 py-1.5 text-sm border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 flex items-center gap-1.5">
+                className="px-3 py-1.5 text-sm border border-blue-200 text-blue-700 rounded-btn hover:bg-blue-50 flex items-center gap-1.5">
                 ↑ Excel导入
               </button>
               <button onClick={() => setProxyAddOpen(true)}
-                className="px-3 py-1.5 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
+                className="px-3 py-1.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
                 ＋ 新增代领
               </button>
             </>
           )}
           {activeTab !== 'proxy' && (
             <>
-              <span className="text-xs text-stone-400">共 {total} 条</span>
+              <span className="text-xs text-text-muted">共 {total} 条</span>
               <div className="flex gap-2 items-center">
                 {selectedIds.length > 0 && (
                   <button onClick={batchDelete}
-                    className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-1.5">
+                    className="px-3 py-2 text-sm bg-red-600 text-white rounded-btn hover:bg-red-700 flex items-center gap-1.5">
                     🗑️ 删除选中 ({selectedIds.length})
                   </button>
                 )}
                 <button onClick={() => setAddOpen(true)}
-                  className="px-3 py-2 text-sm bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">
+                  className="px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
                   ＋ 新增一条
                 </button>
               </div>
@@ -940,36 +940,36 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
 
       {/* 预检结果展示 */}
       {preCheckResults && activeTab === 'preApply' && (
-        <div className="mb-4 bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-4 py-3 border-b border-stone-100 bg-stone-50 flex justify-between items-center">
-            <span className="font-semibold text-stone-700 text-sm">🔍 数据预检结果</span>
+        <div className="mb-4 bg-white border border-border rounded-card overflow-hidden shadow-card">
+          <div className="px-4 py-3 border-b border-border/50 bg-warm/30 flex justify-between items-center">
+            <span className="font-semibold text-text-primary text-sm">🔍 数据预检结果</span>
             <div className="flex gap-2 items-center">
               <button onClick={() => { setSelectedSheets(getDefaultSelectedSheets(preCheckResults)); setExportModalOpen(true) }}
-                className="px-3 py-1.5 text-xs bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">↓ 导出报告 Excel</button>
-              <button onClick={() => setPreCheckResults(null)} className="text-xs text-stone-400 hover:text-stone-600">✕ 关闭</button>
+                className="px-3 py-1.5 text-xs bg-primary text-white rounded-btn hover:bg-primary/90">↓ 导出报告 Excel</button>
+              <button onClick={() => setPreCheckResults(null)} className="text-xs text-text-muted hover:text-text-primary">✕ 关闭</button>
             </div>
           </div>
           <div className="p-4 space-y-4">
             <div className="grid grid-cols-5 gap-3">
-              <div className={`rounded-xl p-3 text-center ${(preCheckResults.summary?.ok_rows || 0) > 0 ? 'bg-emerald-50 border border-emerald-100' : 'bg-stone-50 border border-stone-100'}`}>
-                <div className="text-lg font-bold text-emerald-700">{preCheckResults.summary?.ok_rows || 0}</div>
-                <div className="text-xs text-stone-500">通过</div>
+              <div className={`rounded-card p-3 text-center ${(preCheckResults.summary?.ok_rows || 0) > 0 ? 'bg-primary/5 border border-primary/10' : 'bg-warm/30 border border-border/50'}`}>
+                <div className="text-lg font-bold text-primary">{preCheckResults.summary?.ok_rows || 0}</div>
+                <div className="text-xs text-text-muted">通过</div>
               </div>
-              <div className={`rounded-xl p-3 text-center ${(preCheckResults.summary?.error_rows || 0) > 0 ? 'bg-red-50 border border-red-100' : 'bg-stone-50 border border-stone-100'}`}>
+              <div className={`rounded-card p-3 text-center ${(preCheckResults.summary?.error_rows || 0) > 0 ? 'bg-red-50 border border-red-100' : 'bg-warm/30 border border-border/50'}`}>
                 <div className="text-lg font-bold text-red-600">{preCheckResults.summary?.error_rows || 0}</div>
-                <div className="text-xs text-stone-500">错误</div>
+                <div className="text-xs text-text-muted">错误</div>
               </div>
-              <div className={`rounded-xl p-3 text-center ${(preCheckResults.summary?.area_anomalies || 0) > 0 ? 'bg-orange-50 border border-orange-100' : 'bg-stone-50 border border-stone-100'}`}>
+              <div className={`rounded-card p-3 text-center ${(preCheckResults.summary?.area_anomalies || 0) > 0 ? 'bg-orange-50 border border-orange-100' : 'bg-warm/30 border border-border/50'}`}>
                 <div className="text-lg font-bold text-orange-600">{preCheckResults.summary?.area_anomalies || 0}</div>
-                <div className="text-xs text-stone-500">面积异常</div>
+                <div className="text-xs text-text-muted">面积异常</div>
               </div>
-              <div className={`rounded-xl p-3 text-center ${(preCheckResults.summary?.error_library_hits || 0) > 0 ? 'bg-red-100 border border-red-200' : 'bg-stone-50 border border-stone-100'}`}>
+              <div className={`rounded-card p-3 text-center ${(preCheckResults.summary?.error_library_hits || 0) > 0 ? 'bg-red-100 border border-red-200' : 'bg-warm/30 border border-border/50'}`}>
                 <div className="text-lg font-bold text-red-700">{preCheckResults.summary?.error_library_hits || 0}</div>
-                <div className="text-xs text-stone-500">错误库命中</div>
+                <div className="text-xs text-text-muted">错误库命中</div>
               </div>
-              <div className={`rounded-xl p-3 text-center ${(preCheckResults.changed_farmers?.length || 0) > 0 ? 'bg-blue-50 border border-blue-100' : 'bg-stone-50 border border-stone-100'}`}>
+              <div className={`rounded-card p-3 text-center ${(preCheckResults.changed_farmers?.length || 0) > 0 ? 'bg-blue-50 border border-blue-100' : 'bg-warm/30 border border-border/50'}`}>
                 <div className="text-lg font-bold text-blue-600">{preCheckResults.changed_farmers?.length || 0}</div>
-                <div className="text-xs text-stone-500">字段变更</div>
+                <div className="text-xs text-text-muted">字段变更</div>
               </div>
             </div>
 
@@ -992,29 +992,29 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
       {/* 导出选项对话框 */}
       {exportModalOpen && preCheckResults && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between">
+          <div className="bg-white rounded-card shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-stone-800">导出选项</h3>
-                <p className="text-xs text-stone-400 mt-1">选择导出方式和包含的sheet</p>
+                <h3 className="font-bold text-text-primary">导出选项</h3>
+                <p className="text-xs text-text-muted mt-1">选择导出方式和包含的sheet</p>
               </div>
-              <button onClick={() => setExportModalOpen(false)} className="text-stone-400 hover:text-stone-600">✕</button>
+              <button onClick={() => setExportModalOpen(false)} className="text-text-muted hover:text-text-primary">✕</button>
             </div>
             <div className="p-6 overflow-y-auto flex-1">
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-stone-700">分村导出</h4>
+                  <h4 className="font-semibold text-text-primary">分村导出</h4>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" checked={splitByVillage} onChange={(e) => setSplitByVillage(e.target.checked)} className="sr-only peer" />
                     <div className="w-11 h-6 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-stone-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                   </label>
                 </div>
                 {splitByVillage && getVillagesFromResult(preCheckResults).length > 0 && (
-                  <div className="bg-stone-50 border border-stone-200 rounded-lg p-3">
-                    <p className="text-xs text-stone-500 mb-2">涉及的村：</p>
+                  <div className="bg-warm/30 border border-border rounded-btn p-3">
+                    <p className="text-xs text-text-muted mb-2">涉及的村：</p>
                     <div className="flex flex-wrap gap-1.5">
                       {getVillagesFromResult(preCheckResults).map(village => (
-                        <span key={village} className="px-2 py-1 bg-white border border-stone-200 rounded text-xs">{village}</span>
+                        <span key={village} className="px-2 py-1 bg-white border border-border rounded text-xs">{village}</span>
                       ))}
                     </div>
                   </div>
@@ -1022,7 +1022,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
               </div>
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-stone-700">选择包含的sheet</h4>
+                  <h4 className="font-semibold text-text-primary">选择包含的sheet</h4>
                   <button onClick={toggleAllSheets} className="text-xs text-blue-600 hover:text-blue-800">
                     {selectedSheets.length === PRECHECK_SHEET_OPTIONS.length ? '取消全选' : '全选'}
                   </button>
@@ -1034,11 +1034,11 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
                     const isSelected = selectedSheets.includes(opt.key)
                     const hasData = count > 0 || opt.key === 'summary'
                     return (
-                      <label key={opt.key} className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 border-blue-300' : 'bg-white border-stone-200 hover:bg-stone-50'} ${!hasData ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      <label key={opt.key} className={`flex items-center p-3 border rounded-btn cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 border-blue-300' : 'bg-white border-border hover:bg-warm/30'} ${!hasData ? 'opacity-50 cursor-not-allowed' : ''}`}>
                         <input type="checkbox" checked={isSelected} onChange={() => hasData && toggleSheet(opt.key)} disabled={!hasData} className="mr-3 h-4 w-4 text-blue-600 rounded" />
                         <div className="flex-1">
-                          <div className="font-medium text-sm text-stone-700">{opt.label}</div>
-                          {opt.hasCount && <div className="text-xs text-stone-400 mt-1">{count > 0 ? `${count}条数据` : '无数据'}</div>}
+                          <div className="font-medium text-sm text-text-primary">{opt.label}</div>
+                          {opt.hasCount && <div className="text-xs text-text-muted mt-1">{count > 0 ? `${count}条数据` : '无数据'}</div>}
                         </div>
                       </label>
                     )
@@ -1046,10 +1046,10 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
                 </div>
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-stone-200 flex justify-end gap-3">
-              <button onClick={() => setExportModalOpen(false)} className="px-4 py-2 text-sm border border-stone-200 rounded-lg bg-white text-stone-600 hover:bg-stone-50">取消</button>
+            <div className="px-6 py-4 border-t border-border flex justify-end gap-3">
+              <button onClick={() => setExportModalOpen(false)} className="px-4 py-2 text-sm border border-border rounded-btn bg-white text-text-primary hover:bg-warm/30">取消</button>
               <button onClick={handleExportWithOptions} disabled={isExporting || selectedSheets.length === 0}
-                className="px-4 py-2 text-sm bg-blue-700 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                className="px-4 py-2 text-sm bg-blue-700 text-white rounded-btn hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                 {isExporting ? (<><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>导出中...</>) : '导出'}
               </button>
             </div>
@@ -1061,25 +1061,25 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
       <Modal open={proxyAddOpen} title="新增代领关系" onClose={() => setProxyAddOpen(false)}
         onConfirm={handleProxyAdd} width={480}>
         <div className="space-y-4">
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+          <div className="bg-amber-50 border border-amber-200 rounded-btn p-3 text-xs text-amber-700">
             请输入被代领人和代领人的身份证信息，系统将自动匹配农户信息。
           </div>
           <div>
-            <label className="block text-xs text-stone-400 mb-1">被代领人身份证 *</label>
+            <label className="block text-xs text-text-muted mb-1">被代领人身份证 *</label>
             <input value={proxyForm.beneficiary_id_card} onChange={e => setProxyForm(f => ({ ...f, beneficiary_id_card: e.target.value }))}
               placeholder="请输入被代领人身份证号"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 font-mono" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" />
           </div>
           <div>
-            <label className="block text-xs text-stone-400 mb-1">代领人身份证 *</label>
+            <label className="block text-xs text-text-muted mb-1">代领人身份证 *</label>
             <input value={proxyForm.proxy_id_card} onChange={e => setProxyForm(f => ({ ...f, proxy_id_card: e.target.value }))}
               placeholder="请输入代领人身份证号"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 font-mono" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" />
           </div>
           <div>
-            <label className="block text-xs text-stone-400 mb-1">代领类型</label>
+            <label className="block text-xs text-text-muted mb-1">代领类型</label>
             <select value={proxyForm.proxy_type} onChange={e => setProxyForm(f => ({ ...f, proxy_type: e.target.value }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">
               <option value="代领">代领</option>
               <option value="监护人">监护人</option>
               <option value="委托">委托</option>
@@ -1087,10 +1087,10 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
             </select>
           </div>
           <div>
-            <label className="block text-xs text-stone-400 mb-1">备注</label>
+            <label className="block text-xs text-text-muted mb-1">备注</label>
             <textarea rows={2} value={proxyForm.remark} onChange={e => setProxyForm(f => ({ ...f, remark: e.target.value }))}
               placeholder="可选"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400 resize-none" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
           </div>
         </div>
       </Modal>

@@ -108,7 +108,7 @@ export const PRECHECK_TABLE_CONFIGS: Record<PrecheckErrorType, TableConfig> = {
     headers: ['行号', '姓名', '身份证号', '所在村', '所在组', '已有申请记录', '说明'],
     rowMapper: (r) => [
       r.row, r.name, r.id_card, r.village || '-', r.group || '-',
-      <span key="ea" className="text-xs text-stone-600">{r.existing_apps}</span>,
+      <span key="ea" className="text-xs text-text-primary">{r.existing_apps}</span>,
       <span key="e" className="text-amber-600 text-xs">{r.error}</span>,
     ],
   },
@@ -133,15 +133,15 @@ export const PRECHECK_TABLE_CONFIGS: Record<PrecheckErrorType, TableConfig> = {
     rowMapper: (r) => [
       r.row, r.name, r.id_card, r.village, r.group,
       <span key="et" className={`text-xs font-semibold ${r.anomaly_type?.includes('面积超限') ? 'text-orange-600' : r.anomaly_type?.includes('承包面积不一致') ? 'text-purple-600' : 'text-red-600'}`}>{r.anomaly_type}</span>,
-      <span key="ed" className="text-xs text-stone-600">{r.anomaly_details}</span>,
-      <span key="c"  className="text-stone-600">{r.contract_area} 亩</span>,
+      <span key="ed" className="text-xs text-text-primary">{r.anomaly_details}</span>,
+      <span key="c"  className="text-text-primary">{r.contract_area} 亩</span>,
       <span key="db" className="text-blue-600">{r.db_contract_area} 亩</span>,
-      <span key="to" className="text-stone-400">{r.trust_out_area} 亩</span>,
-      <span key="ti" className="text-stone-400">{r.trust_in_area} 亩</span>,
-      <span key="n"  className="text-stone-400">{r.no_subsidy_area} 亩</span>,
-      <span key="as" className="text-emerald-700">{r.actual_subsidy_area} 亩</span>,
+      <span key="to" className="text-text-muted">{r.trust_out_area} 亩</span>,
+      <span key="ti" className="text-text-muted">{r.trust_in_area} 亩</span>,
+      <span key="n"  className="text-text-muted">{r.no_subsidy_area} 亩</span>,
+      <span key="as" className="text-primary">{r.actual_subsidy_area} 亩</span>,
       <span key="so" className="text-orange-600">{r.self_occupy} 亩</span>,
-      <span key="hu" className="text-stone-400">{r.hh_used} 亩</span>,
+      <span key="hu" className="text-text-muted">{r.hh_used} 亩</span>,
       <span key="ht" className="text-orange-600 font-semibold">{r.hh_total} 亩</span>,
       r.exceed_amount > 0 ? <span key="ex" className="text-red-600 font-semibold">+{r.exceed_amount} 亩</span> : '-',
     ],
@@ -202,9 +202,9 @@ export const PRECHECK_TABLE_CONFIGS: Record<PrecheckErrorType, TableConfig> = {
         r.row, r.name, r.id_card, r.village || '-', r.group || '-',
         r.household_id,
         <span key="tc" className="text-orange-600 font-semibold">{r.total_count}人</span>,
-        <span key="om" className="text-xs text-stone-600">{r.other_members?.join('、') || '-'}</span>,
-        <span key="er" className="text-xs text-stone-500">{r.excel_remark || '-'}</span>,
-        <span key="dr" className="text-xs text-stone-500">{dbRemarks || '-'}</span>,
+        <span key="om" className="text-xs text-text-primary">{r.other_members?.join('、') || '-'}</span>,
+        <span key="er" className="text-xs text-text-muted">{r.excel_remark || '-'}</span>,
+        <span key="dr" className="text-xs text-text-muted">{dbRemarks || '-'}</span>,
       ]
     },
   },
@@ -232,7 +232,7 @@ export const PRECHECK_TABLE_CONFIGS: Record<PrecheckErrorType, TableConfig> = {
     headers: ['行号', '姓名', '身份证号', '所在村', '所在组', '变更内容'],
     rowMapper: (r) => [
       r.row, r.name, r.id_card, r.village, r.group,
-      <div key="c" className="text-xs text-stone-600">
+      <div key="c" className="text-xs text-text-primary">
         {r.changes.map((c: string, i: number) => (
           <div key={i} className="flex items-center">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mr-2" />

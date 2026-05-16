@@ -417,54 +417,54 @@ export default function PreApplyList({
   return (
     <>
       {/* 表格区域 */}
-      <div className="bg-white border border-stone-200 rounded-xl overflow-x-auto shadow-sm">
+      <div className="bg-white border border-border rounded-card overflow-x-auto shadow-card">
         {/* 筛选栏 */}
-        <div className="px-4 py-3 border-b border-stone-200 bg-stone-50/50 flex flex-wrap items-center gap-3">
-          <span className="text-xs text-stone-400">筛选：</span>
+        <div className="px-4 py-3 border-b border-border bg-warm/10 flex flex-wrap items-center gap-3">
+          <span className="text-xs text-text-muted">筛选：</span>
           <select value={filters.village} onChange={e => handleFilterChange('village', e.target.value)}
-            className="border border-stone-200 rounded-lg px-2 py-1.5 text-xs bg-white outline-none">
+            className="border border-border rounded-btn px-2 py-1.5 text-xs bg-white outline-none">
             <option value="">全部村庄</option>
             {loadingVillages ? <option disabled>加载中...</option> : villages.map(v => <option key={v} value={v}>{v}</option>)}
           </select>
           <select value={filters.payStatus} onChange={e => handleFilterChange('payStatus', e.target.value)}
-            className="border border-stone-200 rounded-lg px-2 py-1.5 text-xs bg-white outline-none">
+            className="border border-border rounded-btn px-2 py-1.5 text-xs bg-white outline-none">
             <option value="">全部状态</option>
             <option value="0">待发放</option>
             <option value="1">发放中</option>
             <option value="2">已完成</option>
           </select>
           <div className="flex items-center gap-1 text-xs">
-            <span className="text-stone-400">金额:</span>
+            <span className="text-text-muted">金额:</span>
             <input type="number" value={filters.minAmount} onChange={e => handleFilterChange('minAmount', e.target.value)}
-              placeholder="最低" className="w-16 border border-stone-200 rounded px-1.5 py-1 text-xs outline-none" />
-            <span className="text-stone-300">-</span>
+              placeholder="最低" className="w-16 border border-border rounded px-1.5 py-1 text-xs outline-none" />
+            <span className="text-text-muted/50">-</span>
             <input type="number" value={filters.maxAmount} onChange={e => handleFilterChange('maxAmount', e.target.value)}
-              placeholder="最高" className="w-16 border border-stone-200 rounded px-1.5 py-1 text-xs outline-none" />
+              placeholder="最高" className="w-16 border border-border rounded px-1.5 py-1 text-xs outline-none" />
           </div>
           <div className="flex items-center gap-1 text-xs">
-            <span className="text-stone-400">日期:</span>
+            <span className="text-text-muted">日期:</span>
             <input type="date" value={filters.dateFrom} onChange={e => handleFilterChange('dateFrom', e.target.value)}
-              className="border border-stone-200 rounded px-1.5 py-1 text-xs outline-none" />
-            <span className="text-stone-300">-</span>
+              className="border border-border rounded px-1.5 py-1 text-xs outline-none" />
+            <span className="text-text-muted/50">-</span>
             <input type="date" value={filters.dateTo} onChange={e => handleFilterChange('dateTo', e.target.value)}
-              className="border border-stone-200 rounded px-1.5 py-1 text-xs outline-none" />
+              className="border border-border rounded px-1.5 py-1 text-xs outline-none" />
           </div>
           <div className="flex items-center gap-1 flex-1 min-w-[200px] max-w-[300px]">
             <input type="text" value={search} onChange={e => handleSearchChange(e.target.value)}
-              placeholder="姓名/身份证" className="flex-1 border border-stone-200 rounded-lg px-2 py-1.5 text-xs outline-none" />
-            <button onClick={() => setPage(1)} className="px-2 py-1 text-xs bg-emerald-700 text-white rounded-lg hover:bg-emerald-600">搜索</button>
+              placeholder="姓名/身份证" className="flex-1 border border-border rounded-btn px-2 py-1.5 text-xs outline-none" />
+            <button onClick={() => setPage(1)} className="px-2 py-1 text-xs bg-primary text-white rounded-btn hover:bg-primary/90">搜索</button>
           </div>
-          <button onClick={clearFilters} className="text-xs text-stone-400 hover:text-stone-600 border border-stone-200 px-2 py-1 rounded"
+          <button onClick={clearFilters} className="text-xs text-text-muted hover:text-text-primary border border-border px-2 py-1 rounded"
             disabled={Object.values(filters).every(v => !v) && !search}>清除</button>
         </div>
 
         <table className="w-full border-collapse min-w-[950px]">
           <thead>
-            <tr className="bg-stone-50 border-b-2 border-stone-200">
-              <th className="px-2 py-2 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">
+            <tr className="bg-warm/30 border-b-2 border-border">
+              <th className="px-2 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap">
                 <button onClick={toggleSelectAll}
                   className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                    apps.length > 0 && selectedIds.length === apps.length ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-stone-300 hover:border-emerald-400'
+                    apps.length > 0 && selectedIds.length === apps.length ? 'bg-primary/90 border-emerald-600 text-white' : 'border-stone-300 hover:border-emerald-400'
                   }`}>
                   {apps.length > 0 && selectedIds.length === apps.length && (
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
@@ -474,21 +474,21 @@ export default function PreApplyList({
                 </button>
               </th>
               {['姓名', '身份证', '手机号', '所在村', '所在组', '实际补贴面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额', '状态', '打款日期', '备注', '代领备注', '操作'].map(h => (
-                <th key={h} className="px-2 py-2 text-left text-xs text-stone-400 font-semibold whitespace-nowrap">{h}</th>
+                <th key={h} className="px-2 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={16} className="text-center py-10 text-stone-300">加载中…</td></tr>}
+            {loading && <tr><td colSpan={16} className="text-center py-10 text-text-muted/50">加载中…</td></tr>}
             {!loading && (!apps || apps.length === 0) && (
-              <tr><td colSpan={16} className="text-center py-10 text-stone-300 text-sm">暂无记录，通过「Excel 导入」或「＋ 新增一条」添加</td></tr>
+              <tr><td colSpan={16} className="text-center py-10 text-text-muted/50 text-sm">暂无记录，通过「Excel 导入」或「＋ 新增一条」添加</td></tr>
             )}
             {!loading && apps && apps.map(a => (
-              <tr key={a.id} className={`border-b border-stone-50 hover:bg-stone-50 ${a.pay_status === 0 ? 'bg-amber-50/30' : ''}`}>
+              <tr key={a.id} className={`border-b border-border/50 hover:bg-warm/30 ${a.pay_status === 0 ? 'bg-amber-50/30' : ''}`}>
                 <td className="px-2 py-2 text-center">
                   <button onClick={() => toggleSelect(a.id)}
                     className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                      selectedIds.includes(a.id) ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-stone-300 hover:border-emerald-400'
+                      selectedIds.includes(a.id) ? 'bg-primary/90 border-emerald-600 text-white' : 'border-stone-300 hover:border-emerald-400'
                     }`}>
                     {selectedIds.includes(a.id) && (
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
@@ -503,29 +503,29 @@ export default function PreApplyList({
                     {a.is_proxy === 1 && <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">代领</span>}
                   </div>
                 </td>
-                <td className="px-2 py-2 text-xs font-mono text-stone-400 whitespace-nowrap">{a.id_card_masked || '—'}</td>
-                <td className="px-2 py-2 text-xs font-mono text-stone-400 whitespace-nowrap">{a.phone || '—'}</td>
-                <td className="px-2 py-2 text-xs text-stone-400 whitespace-nowrap">{a.village || '—'}</td>
-                <td className="px-2 py-2 text-xs text-stone-400 whitespace-nowrap">{a.group_no || '—'}</td>
-                <td className="px-2 py-2 text-xs font-mono font-bold text-stone-700">{a.apply_area ? `${a.apply_area}` : '—'}</td>
-                <td className="px-2 py-2 text-xs font-mono text-stone-500">{a.contract_area || '—'}</td>
-                <td className="px-2 py-2 text-xs font-mono text-stone-500">{a.trust_area || '—'}</td>
+                <td className="px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap">{a.id_card_masked || '—'}</td>
+                <td className="px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap">{a.phone || '—'}</td>
+                <td className="px-2 py-2 text-xs text-text-muted whitespace-nowrap">{a.village || '—'}</td>
+                <td className="px-2 py-2 text-xs text-text-muted whitespace-nowrap">{a.group_no || '—'}</td>
+                <td className="px-2 py-2 text-xs font-mono font-bold text-text-primary">{a.apply_area ? `${a.apply_area}` : '—'}</td>
+                <td className="px-2 py-2 text-xs font-mono text-text-muted">{a.contract_area || '—'}</td>
+                <td className="px-2 py-2 text-xs font-mono text-text-muted">{a.trust_area || '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono text-red-400">{a.no_subsidy_area || '—'}</td>
-                <td className="px-2 py-2 text-xs font-mono text-stone-500">{a.apply_amount ? `¥${fmt(a.apply_amount)}` : '—'}</td>
-                <td className="px-2 py-2 text-sm font-mono font-bold text-emerald-700 whitespace-nowrap">
+                <td className="px-2 py-2 text-xs font-mono text-text-muted">{a.apply_amount ? `¥${fmt(a.apply_amount)}` : '—'}</td>
+                <td className="px-2 py-2 text-sm font-mono font-bold text-primary whitespace-nowrap">
                   {a.actual_amount
                     ? <span title={a.apply_amount && a.apply_amount !== a.actual_amount ? `申请：${fmt(a.apply_amount)}` : ''}>{fmt(a.actual_amount)}</span>
                     : <span className="text-amber-500 font-normal text-xs">待发放</span>}
                 </td>
                 <td className="px-2 py-2"><Tag label={PAY_STATUS[a.pay_status]?.label || '—'} color={PAY_STATUS[a.pay_status]?.color as 'green'} /></td>
-                <td className="px-2 py-2 text-xs font-mono text-stone-400 whitespace-nowrap">{a.pay_date ?? '—'}</td>
-                <td className="px-2 py-2 text-xs text-stone-400 max-w-[120px] truncate" title={a.remark || ''}>{a.remark || '—'}</td>
-                <td className="px-2 py-2 text-xs text-stone-500 max-w-[120px] truncate" title={a.proxy_remark || ''}>{a.proxy_remark || '—'}</td>
+                <td className="px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap">{a.pay_date ?? '—'}</td>
+                <td className="px-2 py-2 text-xs text-text-muted max-w-[120px] truncate" title={a.remark || ''}>{a.remark || '—'}</td>
+                <td className="px-2 py-2 text-xs text-text-muted max-w-[120px] truncate" title={a.proxy_remark || ''}>{a.proxy_remark || '—'}</td>
                 <td className="px-2 py-2">
                   <div className="flex gap-1">
-                    <button onClick={() => openEdit(a)} className="text-xs text-stone-400 border border-stone-200 px-2 py-1 rounded hover:text-emerald-700 hover:border-emerald-200">编辑</button>
+                    <button onClick={() => openEdit(a)} className="text-xs text-text-muted border border-border px-2 py-1 rounded hover:text-primary hover:border-primary/20">编辑</button>
                     <button onClick={() => navigate(`/proxy/application/${a.id}`, { state: { beneficiaryFarmerId: a.farmer_id, beneficiaryFarmerName: a.farmer_name } })}
-                      className={`text-xs px-2 py-1 rounded border ${a.is_proxy === 1 ? 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100' : 'text-stone-400 border-stone-200 hover:text-stone-600 hover:border-stone-300'}`}>
+                      className={`text-xs px-2 py-1 rounded border ${a.is_proxy === 1 ? 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100' : 'text-text-muted border-border hover:text-text-primary hover:border-border'}`}>
                       {a.is_proxy === 1 ? '代领中' : '代领'}
                     </button>
                     <button onClick={() => setDeleteId(a.id)} className="text-xs text-red-400 border border-red-100 px-2 py-1 rounded hover:bg-red-50">删</button>
@@ -535,13 +535,13 @@ export default function PreApplyList({
             ))}
           </tbody>
         </table>
-        <div className="px-4 py-2 border-t border-stone-100 bg-stone-50/50 flex justify-between text-xs text-stone-400">
+        <div className="px-4 py-2 border-t border-border/50 bg-warm/10 flex justify-between text-xs text-text-muted">
           <span>共{total}条</span>
-          <span className="font-mono font-bold text-emerald-700">实发合计 ¥{totalAmt.toFixed(2)}</span>
+          <span className="font-mono font-bold text-primary">实发合计 ¥{totalAmt.toFixed(2)}</span>
           <div className="flex gap-1">
-            <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="px-2.5 py-1 border border-stone-200 rounded disabled:opacity-40">‹</button>
+            <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="px-2.5 py-1 border border-border rounded disabled:opacity-40">‹</button>
             <span className="px-2 py-1">第{page}/{Math.max(1, Math.ceil(total / 20))}页</span>
-            <button disabled={page * 20 >= total} onClick={() => setPage(p => p + 1)} className="px-2.5 py-1 border border-stone-200 rounded disabled:opacity-40">›</button>
+            <button disabled={page * 20 >= total} onClick={() => setPage(p => p + 1)} className="px-2.5 py-1 border border-border rounded disabled:opacity-40">›</button>
           </div>
         </div>
       </div>
@@ -550,56 +550,56 @@ export default function PreApplyList({
       <Modal open={addOpen} title={`新增 · ${subsidyType.subsidy_name}`} onClose={() => setAddOpen(false)} onConfirm={submitAdd}>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs text-stone-400 mb-1">农户身份证号 *</label>
+            <label className="block text-xs text-text-muted mb-1">农户身份证号 *</label>
             <input value={idInput} onChange={e => setIdInput(e.target.value)} placeholder="输入身份证号自动查找农户"
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             {farmerHint && <p className="text-xs mt-1" style={{ color: farmerId ? '#15803d' : '#dc2626' }}>{farmerHint}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             {subsidyType.calc_mode === 'per_mu' && (
               <>
                 <div>
-                  <label className="block text-xs text-stone-400 mb-1">承包地面积(亩)</label>
+                  <label className="block text-xs text-text-muted mb-1">承包地面积(亩)</label>
                   <input type="number" step="0.01" value={form.contract_area ?? ''} onChange={e => {
                     const ca = Number(e.target.value) || undefined
                     setForm(f => ({ ...f, contract_area: ca, apply_area: (ca || 0) + (f.trust_area || 0) || undefined }))
                   }}
-                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
                 </div>
                 <div>
-                  <label className="block text-xs text-stone-400 mb-1">代耕代种面积(亩)</label>
+                  <label className="block text-xs text-text-muted mb-1">代耕代种面积(亩)</label>
                   <input type="number" step="0.01" value={form.trust_area ?? ''} onChange={e => {
                     const ta = Number(e.target.value) || undefined
                     setForm(f => ({ ...f, trust_area: ta, apply_area: (f.contract_area || 0) + (ta || 0) || undefined }))
                   }}
-                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs text-stone-400 mb-1">实际补贴面积(亩) <span className="text-stone-300">— 可手动填写</span></label>
+                  <label className="block text-xs text-text-muted mb-1">实际补贴面积(亩) <span className="text-text-muted/50">— 可手动填写</span></label>
                   <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))}
-                    className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
                 </div>
               </>
             )}
             <div>
-              <label className="block text-xs text-stone-400 mb-1">不予补贴面积(亩)</label>
+              <label className="block text-xs text-text-muted mb-1">不予补贴面积(亩)</label>
               <input type="number" step="0.01" value={form.no_subsidy_area ?? ''} onChange={e => setForm(f => ({ ...f, no_subsidy_area: Number(e.target.value) || undefined }))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">实发金额(元)</label>
+              <label className="block text-xs text-text-muted mb-1">实发金额(元)</label>
               <input type="number" step="0.01" value={form.actual_amount ?? ''} onChange={e => setForm(f => ({ ...f, actual_amount: Number(e.target.value) || undefined }))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">打款日期</label>
+              <label className="block text-xs text-text-muted mb-1">打款日期</label>
               <input type="date" value={form.pay_date ?? ''} onChange={e => setForm(f => ({ ...f, pay_date: e.target.value || undefined }))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
-              <label className="block text-xs text-stone-400 mb-1">备注</label>
+              <label className="block text-xs text-text-muted mb-1">备注</label>
               <input value={form.remark ?? ''} onChange={e => setForm(f => ({ ...f, remark: e.target.value || undefined }))}
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
           </div>
         </div>
@@ -611,57 +611,57 @@ export default function PreApplyList({
           {subsidyType.calc_mode === 'per_mu' && (
             <>
               <div>
-                <label className="block text-xs text-stone-400 mb-1">承包地面积(亩)</label>
+                <label className="block text-xs text-text-muted mb-1">承包地面积(亩)</label>
                 <input type="number" step="0.01" value={form.contract_area ?? ''} onChange={e => {
                   const ca = Number(e.target.value) || undefined
                   setForm(f => ({ ...f, contract_area: ca, apply_area: (ca || 0) + (f.trust_area || 0) || undefined }))
                 }}
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
               </div>
               <div>
-                <label className="block text-xs text-stone-400 mb-1">代耕代种面积(亩)</label>
+                <label className="block text-xs text-text-muted mb-1">代耕代种面积(亩)</label>
                 <input type="number" step="0.01" value={form.trust_area ?? ''} onChange={e => {
                   const ta = Number(e.target.value) || undefined
                   setForm(f => ({ ...f, trust_area: ta, apply_area: (f.contract_area || 0) + (ta || 0) || undefined }))
                 }}
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs text-stone-400 mb-1">实际补贴面积(亩) <span className="text-stone-300">— 可手动填写</span></label>
+                <label className="block text-xs text-text-muted mb-1">实际补贴面积(亩) <span className="text-text-muted/50">— 可手动填写</span></label>
                 <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))}
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
               </div>
             </>
           )}
           <div>
-            <label className="block text-xs text-stone-400 mb-1">不予补贴面积(亩)</label>
+            <label className="block text-xs text-text-muted mb-1">不予补贴面积(亩)</label>
             <input type="number" step="0.01" value={form.no_subsidy_area ?? ''} onChange={e => setForm(f => ({ ...f, no_subsidy_area: Number(e.target.value) || undefined }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
           </div>
-          <div><label className="block text-xs text-stone-400 mb-1">实发金额(元)</label>
+          <div><label className="block text-xs text-text-muted mb-1">实发金额(元)</label>
             <input type="number" step="0.01" value={form.actual_amount ?? ''} onChange={e => setForm(f => ({ ...f, actual_amount: Number(e.target.value) || undefined }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
-          <div><label className="block text-xs text-stone-400 mb-1">发放状态</label>
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+          <div><label className="block text-xs text-text-muted mb-1">发放状态</label>
             <select value={form.pay_status ?? 0} onChange={e => setForm(f => ({ ...f, pay_status: Number(e.target.value) }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white outline-none">
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
               <option value={0}>待发放</option><option value={1}>部分发放</option><option value={2}>已发放</option>
             </select></div>
-          <div><label className="block text-xs text-stone-400 mb-1">打款日期</label>
+          <div><label className="block text-xs text-text-muted mb-1">打款日期</label>
             <input type="date" value={form.pay_date ?? ''} onChange={e => setForm(f => ({ ...f, pay_date: e.target.value || undefined }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
-          <div className="col-span-2"><label className="block text-xs text-stone-400 mb-1">备注</label>
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+          <div className="col-span-2"><label className="block text-xs text-text-muted mb-1">备注</label>
             <input value={form.remark ?? ''} onChange={e => setForm(f => ({ ...f, remark: e.target.value || undefined }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
-          <div className="col-span-2"><label className="block text-xs text-stone-400 mb-1">代领备注</label>
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+          <div className="col-span-2"><label className="block text-xs text-text-muted mb-1">代领备注</label>
             <input value={form.proxy_remark ?? ''} onChange={e => setForm(f => ({ ...f, proxy_remark: e.target.value || undefined }))}
-              className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-400" /></div>
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
         </div>
       </Modal>
 
       {/* 删除确认 */}
       <Modal open={deleteId !== null} title="确认删除" onClose={() => setDeleteId(null)}
         onConfirm={() => deleteApp(deleteId!)} confirmText="确认删除">
-        <p className="text-sm text-stone-600">删除后无法恢复，确认要删除这条补贴记录吗？</p>
+        <p className="text-sm text-text-primary">删除后无法恢复，确认要删除这条补贴记录吗？</p>
       </Modal>
 
       {/* Excel导入 */}

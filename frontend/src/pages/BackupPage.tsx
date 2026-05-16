@@ -31,7 +31,7 @@ const TABLE_LABELS: Record<string, { label: string; icon: string; color: string 
   farmer_profile:      { label: '农户档案',   icon: '👤', color: 'text-blue-600'   },
   family_household:    { label: '家庭户',     icon: '🏠', color: 'text-purple-600' },
   village_group:       { label: '村组配置',   icon: '🏘️', color: 'text-amber-600'  },
-  subsidy_type:        { label: '补贴项目',   icon: '💰', color: 'text-emerald-700'},
+  subsidy_type:        { label: '补贴项目',   icon: '💰', color: 'text-primary'},
   subsidy_application: { label: '补贴申请记录', icon: '📋', color: 'text-rose-600'   },
 }
 
@@ -117,29 +117,29 @@ export default function BackupPage() {
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
-  if (loading) return <div className="text-center py-20 text-stone-300">加载中…</div>
+  if (loading) return <div className="text-center py-20 text-text-muted/50">加载中…</div>
 
   return (
     <div className="max-w-4xl">
       {/* 数据库概况 */}
-      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm mb-5">
-        <div className="px-5 py-3 bg-stone-50 border-b border-stone-100">
-          <span className="font-semibold text-stone-700 text-sm">📊 当前数据库状态</span>
-          {info && <span className="ml-3 text-xs text-stone-400 font-mono">{info.db_path}</span>}
+      <div className="bg-white border border-border rounded-card overflow-hidden shadow-card mb-5">
+        <div className="px-5 py-3 bg-warm/30 border-b border-border/50">
+          <span className="font-semibold text-text-primary text-sm">📊 当前数据库状态</span>
+          {info && <span className="ml-3 text-xs text-text-muted font-mono">{info.db_path}</span>}
         </div>
         <div className="p-5">
           <div className="grid grid-cols-3 gap-3 mb-5">
-            <div className="bg-stone-50 rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold font-mono text-stone-700">{info?.db_size_mb} MB</div>
-              <div className="text-xs text-stone-400 mt-1">数据库大小</div>
+            <div className="bg-warm/30 rounded-card p-4 text-center">
+              <div className="text-2xl font-bold font-mono text-text-primary">{info?.db_size_mb} MB</div>
+              <div className="text-xs text-text-muted mt-1">数据库大小</div>
             </div>
-            <div className="bg-emerald-50 rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold font-mono text-emerald-700">{info?.total_records.toLocaleString()}</div>
-              <div className="text-xs text-stone-400 mt-1">总记录数</div>
+            <div className="bg-primary/5 rounded-card p-4 text-center">
+              <div className="text-2xl font-bold font-mono text-primary">{info?.total_records.toLocaleString()}</div>
+              <div className="text-xs text-text-muted mt-1">总记录数</div>
             </div>
-            <div className="bg-blue-50 rounded-xl p-4 text-center">
+            <div className="bg-blue-50 rounded-card p-4 text-center">
               <div className="text-2xl font-bold font-mono text-blue-600">{info?.backups.length ?? 0}</div>
-              <div className="text-xs text-stone-400 mt-1">本地备份数</div>
+              <div className="text-xs text-text-muted mt-1">本地备份数</div>
             </div>
           </div>
 
@@ -147,10 +147,10 @@ export default function BackupPage() {
             {info && Object.entries(info.record_counts).map(([key, count]) => {
               const cfg = TABLE_LABELS[key]
               return (
-                <div key={key} className="border border-stone-200 rounded-xl p-3 text-center">
+                <div key={key} className="border border-border rounded-card p-3 text-center">
                   <div className="text-lg mb-1">{cfg?.icon}</div>
                   <div className={`text-lg font-bold font-mono ${cfg?.color}`}>{count.toLocaleString()}</div>
-                  <div className="text-xs text-stone-400 mt-0.5">{cfg?.label}</div>
+                  <div className="text-xs text-text-muted mt-0.5">{cfg?.label}</div>
                 </div>
               )
             })}
@@ -160,20 +160,20 @@ export default function BackupPage() {
 
       <div className="grid grid-cols-2 gap-5 mb-5">
         {/* 导出备份 */}
-        <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-3 bg-emerald-50 border-b border-emerald-100">
-            <span className="font-semibold text-emerald-800 text-sm">⬇️ 导出 / 备份</span>
+        <div className="bg-white border border-border rounded-card overflow-hidden shadow-card">
+          <div className="px-5 py-3 bg-primary/5 border-b border-primary/10">
+            <span className="font-semibold text-primary text-sm">⬇️ 导出 / 备份</span>
           </div>
           <div className="p-5 space-y-3">
             {/* 下载 .db */}
-            <div className="border border-stone-200 rounded-xl p-4">
+            <div className="border border-border rounded-card p-4">
               <div className="flex items-start gap-3">
                 <span className="text-2xl">🗄️</span>
                 <div className="flex-1">
-                  <div className="font-semibold text-sm text-stone-800 mb-1">下载数据库文件 (.db)</div>
-                  <p className="text-xs text-stone-400 mb-3">完整迁移首选。换电脑时把这个文件复制过去，直接放到新机器的项目目录即可，数据 100% 保留。</p>
+                  <div className="font-semibold text-sm text-text-primary mb-1">下载数据库文件 (.db)</div>
+                  <p className="text-xs text-text-muted mb-3">完整迁移首选。换电脑时把这个文件复制过去，直接放到新机器的项目目录即可，数据 100% 保留。</p>
                   <button onClick={downloadDb}
-                    className="w-full py-2 bg-emerald-700 text-white text-sm rounded-lg hover:bg-emerald-600">
+                    className="w-full py-2 bg-primary text-white text-sm rounded-btn hover:bg-primary/90">
                     ⬇️ 下载 subsidy.db
                   </button>
                 </div>
@@ -181,14 +181,14 @@ export default function BackupPage() {
             </div>
 
             {/* 导出 Excel */}
-            <div className="border border-stone-200 rounded-xl p-4">
+            <div className="border border-border rounded-card p-4">
               <div className="flex items-start gap-3">
                 <span className="text-2xl">📊</span>
                 <div className="flex-1">
-                  <div className="font-semibold text-sm text-stone-800 mb-1">导出全量 Excel</div>
-                  <p className="text-xs text-stone-400 mb-3">包含5个Sheet：农户档案、家庭户、补贴记录、补贴项目、村组配置。适合归档上报，或在无法安装系统时查阅数据。</p>
+                  <div className="font-semibold text-sm text-text-primary mb-1">导出全量 Excel</div>
+                  <p className="text-xs text-text-muted mb-3">包含5个Sheet：农户档案、家庭户、补贴记录、补贴项目、村组配置。适合归档上报，或在无法安装系统时查阅数据。</p>
                   <button onClick={exportExcel} disabled={exporting}
-                    className="w-full py-2 border border-emerald-200 text-emerald-700 text-sm rounded-lg hover:bg-emerald-50 disabled:opacity-60">
+                    className="w-full py-2 border border-primary/20 text-primary text-sm rounded-btn hover:bg-primary/5 disabled:opacity-60">
                     {exporting ? '生成中…' : '📊 导出 Excel（5 Sheet）'}
                   </button>
                 </div>
@@ -196,14 +196,14 @@ export default function BackupPage() {
             </div>
 
             {/* 创建本地备份 */}
-            <div className="border border-stone-200 rounded-xl p-4">
+            <div className="border border-border rounded-card p-4">
               <div className="flex items-start gap-3">
                 <span className="text-2xl">📁</span>
                 <div className="flex-1">
-                  <div className="font-semibold text-sm text-stone-800 mb-1">创建本地备份</div>
-                  <p className="text-xs text-stone-400 mb-3">在服务器的 backups/ 目录创建带时间戳的副本，方便日常增量备份，不占用下载流量。</p>
+                  <div className="font-semibold text-sm text-text-primary mb-1">创建本地备份</div>
+                  <p className="text-xs text-text-muted mb-3">在服务器的 backups/ 目录创建带时间戳的副本，方便日常增量备份，不占用下载流量。</p>
                   <button onClick={createLocalBackup} disabled={localBacking}
-                    className="w-full py-2 border border-stone-200 text-stone-600 text-sm rounded-lg hover:bg-stone-50 disabled:opacity-60">
+                    className="w-full py-2 border border-border text-text-primary text-sm rounded-btn hover:bg-warm/30 disabled:opacity-60">
                     {localBacking ? '备份中…' : '📁 创建本地备份'}
                   </button>
                 </div>
@@ -213,12 +213,12 @@ export default function BackupPage() {
         </div>
 
         {/* 恢复数据库 */}
-        <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-white border border-border rounded-card overflow-hidden shadow-card">
           <div className="px-5 py-3 bg-amber-50 border-b border-amber-100">
             <span className="font-semibold text-amber-800 text-sm">⬆️ 恢复数据库</span>
           </div>
           <div className="p-5">
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+            <div className="bg-red-50 border border-red-200 rounded-card p-4 mb-4">
               <p className="text-xs text-red-700 font-semibold mb-1">⚠️ 注意事项</p>
               <ul className="text-xs text-red-600 space-y-1 list-disc ml-3">
                 <li>恢复会<strong>完全替换</strong>当前数据库，操作不可撤销</li>
@@ -230,12 +230,12 @@ export default function BackupPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs text-stone-400 mb-1">选择数据库文件 (.db)</label>
+                <label className="block text-xs text-text-muted mb-1">选择数据库文件 (.db)</label>
                 <input type="file" accept=".db"
                   onChange={e => setRestoreFile(e.target.files?.[0] || null)}
-                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm" />
                 {restoreFile && (
-                  <p className="text-xs text-emerald-700 mt-1">
+                  <p className="text-xs text-primary mt-1">
                     ✓ 已选择：{restoreFile.name}（{(restoreFile.size / 1024).toFixed(1)} KB）
                   </p>
                 )}
@@ -244,11 +244,11 @@ export default function BackupPage() {
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={confirmRestore} onChange={e => setConfirmRestore(e.target.checked)}
                   className="w-4 h-4" />
-                <span className="text-xs text-stone-600">我已了解风险，确认执行数据库恢复操作</span>
+                <span className="text-xs text-text-primary">我已了解风险，确认执行数据库恢复操作</span>
               </label>
 
               <button onClick={handleRestore} disabled={restoring || !restoreFile || !confirmRestore}
-                className="w-full py-2.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                className="w-full py-2.5 bg-red-600 text-white text-sm rounded-btn hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed">
                 {restoring ? '恢复中，请勿关闭…' : '🔄 执行数据库恢复'}
               </button>
             </div>
@@ -257,32 +257,32 @@ export default function BackupPage() {
       </div>
 
       {/* 本地备份列表 */}
-      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-        <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 flex justify-between items-center">
-          <span className="font-semibold text-stone-700 text-sm">📁 本地备份记录</span>
-          <span className="text-xs text-stone-400">{info?.backup_dir}</span>
+      <div className="bg-white border border-border rounded-card overflow-hidden shadow-card">
+        <div className="px-5 py-3 bg-warm/30 border-b border-border/50 flex justify-between items-center">
+          <span className="font-semibold text-text-primary text-sm">📁 本地备份记录</span>
+          <span className="text-xs text-text-muted">{info?.backup_dir}</span>
         </div>
         {!info?.backups.length
-          ? <div className="py-10 text-center text-stone-300 text-sm">暂无本地备份，点击「创建本地备份」生成第一个</div>
+          ? <div className="py-10 text-center text-text-muted/50 text-sm">暂无本地备份，点击「创建本地备份」生成第一个</div>
           : <table className="w-full border-collapse">
-              <thead><tr className="border-b border-stone-100">
+              <thead><tr className="border-b border-border/50">
                 {['文件名', '大小', '创建时间', '操作'].map(h => (
-                  <th key={h} className="px-4 py-2.5 text-left text-xs text-stone-400 font-semibold">{h}</th>
+                  <th key={h} className="px-4 py-2.5 text-left text-xs text-text-muted font-semibold">{h}</th>
                 ))}
               </tr></thead>
               <tbody>
                 {info.backups.map(b => (
-                  <tr key={b.filename} className="border-b border-stone-50 hover:bg-stone-50">
-                    <td className="px-4 py-2.5 text-sm font-mono text-stone-600">{b.filename}</td>
-                    <td className="px-4 py-2.5 text-sm text-stone-500">{b.size_kb} KB</td>
-                    <td className="px-4 py-2.5 text-sm text-stone-500">{b.created}</td>
+                  <tr key={b.filename} className="border-b border-border/50 hover:bg-warm/30">
+                    <td className="px-4 py-2.5 text-sm font-mono text-text-primary">{b.filename}</td>
+                    <td className="px-4 py-2.5 text-sm text-text-muted">{b.size_kb} KB</td>
+                    <td className="px-4 py-2.5 text-sm text-text-muted">{b.created}</td>
                     <td className="px-4 py-2.5 flex gap-2">
                       <a href={`/api/backup/backups/${b.filename}`} download={b.filename}
-                        className="text-xs text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-lg hover:bg-emerald-50">
+                        className="text-xs text-primary border border-primary/20 px-2.5 py-1 rounded-btn hover:bg-primary/5">
                         下载
                       </a>
                       <button onClick={() => deleteBackup(b.filename)}
-                        className="text-xs text-red-400 border border-red-200 px-2.5 py-1 rounded-lg hover:bg-red-50">
+                        className="text-xs text-red-400 border border-red-200 px-2.5 py-1 rounded-btn hover:bg-red-50">
                         删除
                       </button>
                     </td>
@@ -294,7 +294,7 @@ export default function BackupPage() {
       </div>
 
       {/* 迁移指南 */}
-      <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mt-5">
+      <div className="bg-blue-50 border border-blue-100 rounded-card p-5 mt-5">
         <h3 className="font-semibold text-blue-800 text-sm mb-3">📖 换电脑迁移指南</h3>
         <div className="grid grid-cols-2 gap-4 text-xs text-blue-700">
           <div>
