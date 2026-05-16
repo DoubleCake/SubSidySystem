@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import engine
 from models import Base
 from routers import farmers, subsidies, ai_analyze, settings, precheck, households, external_links, backup, eligibility, excel_templates, land, error_library, household_import, agri_tasks
+from core.exceptions import AppException, NotFound, BadRequest, Conflict, ValidationError, Forbidden
+from core.response import error_response
 
 Base.metadata.create_all(bind=engine)
 
@@ -23,6 +25,34 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Content-Disposition"],
 )
+
+# ── 全局异常处理器 ──
+# 业务异常：统一返回 JSON 格式，消除各路由中的重复 try/except
+@app.exception_handler(AppException)
+def app_exception_handler(request, exc: AppException):
+    return error_response(exc.code, exc.message, exc.detail)
+
+
+# HTTPException 保持原有行为但包装为统一格式
+from fastapi.exceptions import HTTPException
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+
+@app.exception_handler(StarletteHTTPException)
+def http_exception_handler(request, exc):
+    return error_response(exc.status_code, exc.detail or "HTTP 错误")
+
+
+@app.exception_handler(ValidationError)
+def validation_exception_handler(request, exc: ValidationError):
+    return error_response(422, exc.message, exc.detail)
+
+
+@app.exception_handler(Exception)
+def generic_exception_handler(request, exc: Exception):
+    """兜底异常处理器，避免敏感信息泄漏"""
+    return error_response(500, "服务器内部错误")
+
 
 app.include_router(farmers.router)
 app.include_router(subsidies.router)

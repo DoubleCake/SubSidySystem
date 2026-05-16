@@ -14,6 +14,7 @@ import HouseholdImportPage from './pages/HouseholdImportPage'
 import FamilyRelationImportPage from './pages/FamilyRelationImportPage'
 import ProxyManagePage from './pages/ProxyManagePage'
 import AgriTaskPage from './pages/AgriTaskPage'
+import WorkflowDocPage from './pages/WorkflowDocPage'
 import { healthCheck } from './api'
 import { useState } from 'react'
 import { QUOTES, COLOR_THEMES } from './utils/quotes'
@@ -26,6 +27,7 @@ const mainNav = [
   { to: '/settings/village-groups', label: '村组管理', icon: '🏘️' },
   { to: '/precheck',                label: '数据预检', icon: '🔍' },
   { to: '/links',                   label: '补贴查询', icon: '🔗' },
+  { to: '/workflow',                label: '操作流程', icon: '📖' },
 ]
 
 const settingNav = [
@@ -158,6 +160,7 @@ function Layout() {
             <Route path="/settings/household-import" element={<HouseholdImportPage />} />
             <Route path="/settings/family-relation-import" element={<FamilyRelationImportPage />} />
             <Route path="/proxy/application/:applicationId" element={<ProxyManagePage />} />
+            <Route path="/workflow" element={<WorkflowDocPage />} />
             {/* 404 fallback */}
             <Route path="*" element={
               <div className="text-center py-24 text-stone-300">
