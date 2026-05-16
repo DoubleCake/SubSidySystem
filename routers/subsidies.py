@@ -1233,6 +1233,7 @@ def create_payment(data: PaymentCreate, db: Session = Depends(get_db)):
 
     payment = SubsidyPayment(
         farmer_id=data.farmer_id,
+        beneficiary_id=data.farmer_id,
         subsidy_type_id=data.subsidy_type_id,
         payment_year=data.payment_year,
         amount=data.amount,
@@ -1451,23 +1452,8 @@ def get_stats_by_village(
     """
     from sqlalchemy import text
 
-    # 主统计SQL - 按申请记录快照村统计，使用子查询排除重复的代领人记录
+    # 主统计SQL - 按申请记录快照村统计，使用 beneficiary_id 关联受益人
     stats_sql = text("""
-        WITH exclude_applications AS (
-            SELECT DISTINCT sa.id
-            FROM subsidy_application sa
-            JOIN subsidy_proxy pr ON sa.farmer_id = pr.proxy_farmer_id
-                AND sa.subsidy_type_id = pr.subsidy_type_id
-            WHERE sa.subsidy_type_id = :subsidy_type_id
-                AND sa.apply_year = :year
-                AND sa.is_proxy > 0
-                AND EXISTS (
-                    SELECT 1 FROM subsidy_application sa2
-                    WHERE sa2.farmer_id = pr.beneficiary_farmer_id
-                        AND sa2.subsidy_type_id = pr.subsidy_type_id
-                        AND sa2.apply_year = :year
-                )
-        )
         SELECT
             COALESCE(sa.apply_village_name, '未知村') as village_name,
             COUNT(DISTINCT fp.id) as farmer_count,
@@ -1478,31 +1464,15 @@ def get_stats_by_village(
             ROUND(SUM(COALESCE(sa.no_subsidy_area, 0)), 2) as total_no_subsidy_area,
             ROUND(SUM(COALESCE(sa.actual_amount, sa.apply_amount, 0)), 2) as total_amount
         FROM subsidy_application sa
-        LEFT JOIN farmer_profile fp ON sa.farmer_id = fp.id
+        LEFT JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
         WHERE sa.subsidy_type_id = :subsidy_type_id
             AND sa.apply_year = :year
-            AND sa.id NOT IN (SELECT id FROM exclude_applications)
         GROUP BY COALESCE(sa.apply_village_name, '未知村')
         ORDER BY COALESCE(sa.apply_village_name, '未知村')
     """)
 
-    # 发放表统计 - 使用发放表的快照村组字段
+    # 发放表统计 - 使用发放表的快照村组字段，使用 beneficiary_id 关联受益人
     payment_stats_sql = text("""
-        WITH exclude_payments AS (
-            SELECT DISTINCT sp.id
-            FROM subsidy_payment sp
-            JOIN subsidy_proxy pr ON sp.farmer_id = pr.proxy_farmer_id
-                AND sp.subsidy_type_id = pr.subsidy_type_id
-            WHERE sp.subsidy_type_id = :subsidy_type_id
-                AND sp.payment_year = :year
-                AND sp.is_proxy > 0
-                AND EXISTS (
-                    SELECT 1 FROM subsidy_payment sp2
-                    WHERE sp2.farmer_id = pr.beneficiary_farmer_id
-                        AND sp2.subsidy_type_id = pr.subsidy_type_id
-                        AND sp2.payment_year = :year
-                )
-        )
         SELECT
             COALESCE(sp.payment_village_name, '未知村') as village_name,
             COUNT(DISTINCT fp.id) as farmer_count,
@@ -1513,10 +1483,9 @@ def get_stats_by_village(
             ROUND(SUM(COALESCE(sp.no_subsidy_area, 0)), 2) as total_no_subsidy_area,
             ROUND(SUM(COALESCE(sp.amount, 0)), 2) as total_amount
         FROM subsidy_payment sp
-        LEFT JOIN farmer_profile fp ON sp.farmer_id = fp.id
+        LEFT JOIN farmer_profile fp ON sp.beneficiary_id = fp.id
         WHERE sp.subsidy_type_id = :subsidy_type_id
             AND sp.payment_year = :year
-            AND sp.id NOT IN (SELECT id FROM exclude_payments)
         GROUP BY COALESCE(sp.payment_village_name, '未知村')
         ORDER BY COALESCE(sp.payment_village_name, '未知村')
     """)
@@ -1589,7 +1558,7 @@ def get_stats_by_village(
 
 @router.delete("/proxies/{proxy_id}")
 def delete_proxy(proxy_id: int, db: Session = Depends(get_db)):
-    """删除代领关系"""
+    """删除代领关系（恢复 beneficiary_id 为 farmer_id）"""
     from models import SubsidyProxy, SubsidyApplication, SubsidyPayment
 
     proxy_rel = db.get(SubsidyProxy, proxy_id)
@@ -1598,31 +1567,54 @@ def delete_proxy(proxy_id: int, db: Session = Depends(get_db)):
 
     affected_households = set()
 
+    # 处理 application_id 的情况
     if proxy_rel.application_id:
         app = db.get(SubsidyApplication, proxy_rel.application_id)
         if app:
+            app.beneficiary_id = app.farmer_id
             app.is_proxy = 0
             beneficiary = db.get(FarmerProfile, proxy_rel.beneficiary_farmer_id)
-            if beneficiary and beneficiary.household_id:
-                affected_households.add(beneficiary.household_id)
-
-    if proxy_rel.payment_id:
-        copied_pays = db.query(SubsidyPayment).filter(
-            SubsidyPayment.is_proxy == proxy_id,
-            SubsidyPayment.farmer_id == proxy_rel.beneficiary_farmer_id,
-        ).all()
-        for cp in copied_pays:
-            db.delete(cp)
-            beneficiary = db.get(FarmerProfile, cp.farmer_id)
-            if beneficiary and beneficiary.household_id:
-                affected_households.add(beneficiary.household_id)
-
-        original_pay = db.get(SubsidyPayment, proxy_rel.payment_id)
-        if original_pay:
-            original_pay.is_proxy = 0
             proxy_farmer = db.get(FarmerProfile, proxy_rel.proxy_farmer_id)
+            if beneficiary and beneficiary.household_id:
+                affected_households.add(beneficiary.household_id)
             if proxy_farmer and proxy_farmer.household_id:
                 affected_households.add(proxy_farmer.household_id)
+
+    # 处理 payment_id 的情况
+    if proxy_rel.payment_id:
+        original_pay = db.get(SubsidyPayment, proxy_rel.payment_id)
+        if original_pay:
+            original_pay.beneficiary_id = original_pay.farmer_id
+            original_pay.is_proxy = 0
+
+    # 没有指定具体记录时，恢复该代领关系影响的所有记录
+    subsidy_type_id = proxy_rel.subsidy_type_id
+    if subsidy_type_id:
+        apps_to_restore = db.query(SubsidyApplication).filter(
+            SubsidyApplication.farmer_id == proxy_rel.proxy_farmer_id,
+            SubsidyApplication.subsidy_type_id == subsidy_type_id,
+            SubsidyApplication.beneficiary_id == proxy_rel.beneficiary_farmer_id,
+        ).all()
+        for app in apps_to_restore:
+            app.beneficiary_id = app.farmer_id
+            app.is_proxy = 0
+
+        pays_to_restore = db.query(SubsidyPayment).filter(
+            SubsidyPayment.farmer_id == proxy_rel.proxy_farmer_id,
+            SubsidyPayment.subsidy_type_id == subsidy_type_id,
+            SubsidyPayment.beneficiary_id == proxy_rel.beneficiary_farmer_id,
+        ).all()
+        for pay in pays_to_restore:
+            pay.beneficiary_id = pay.farmer_id
+            pay.is_proxy = 0
+
+    # 获取相关家庭户
+    beneficiary = db.get(FarmerProfile, proxy_rel.beneficiary_farmer_id)
+    proxy_farmer = db.get(FarmerProfile, proxy_rel.proxy_farmer_id)
+    if beneficiary and beneficiary.household_id:
+        affected_households.add(beneficiary.household_id)
+    if proxy_farmer and proxy_farmer.household_id:
+        affected_households.add(proxy_farmer.household_id)
 
     db.delete(proxy_rel)
     db.commit()

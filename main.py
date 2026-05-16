@@ -149,6 +149,8 @@ def migrate_db():
         "ALTER TABLE subsidy_application ADD COLUMN is_proxy SMALLINT DEFAULT 0",
         "ALTER TABLE subsidy_payment ADD COLUMN is_proxy SMALLINT DEFAULT 0",
         "ALTER TABLE subsidy_proxy ADD COLUMN subsidy_type_id INTEGER REFERENCES subsidy_type(id)",
+        "ALTER TABLE subsidy_application ADD COLUMN beneficiary_id INTEGER REFERENCES farmer_profile(id)",
+        "ALTER TABLE subsidy_payment ADD COLUMN beneficiary_id INTEGER REFERENCES farmer_profile(id)",
         # 大户管理相关字段迁移
         "ALTER TABLE large_farmer ADD COLUMN farmer_grade VARCHAR(20)",
         "ALTER TABLE large_farmer ADD COLUMN credit_score SMALLINT",
@@ -284,27 +286,95 @@ def migrate_db():
             print(f"  历史数据回填跳过（可能已填充）: {e}")
             conn.rollback()
 
-    # 回填 village_group 表：从 family_household + subsidy_payment 提取各村现有组
-    try:
-        conn.execute(text("""
-            INSERT OR IGNORE INTO village_group (village_id, group_no)
-            SELECT DISTINCT village_id, format_group_no(group_no)
-            FROM family_household
-            WHERE village_id IS NOT NULL AND group_no IS NOT NULL
-        """))
-        conn.execute(text("""
-            INSERT OR IGNORE INTO village_group (village_id, group_no)
-            SELECT DISTINCT payment_village_id, format_group_no(payment_group_no)
-            FROM subsidy_payment
-            WHERE payment_village_id IS NOT NULL AND payment_group_no IS NOT NULL
-        """))
-        conn.commit()
-        print("  village_group 回填完成 [OK]")
-    except Exception as e:
-        print(f"  village_group 回填跳过: {e}")
-        conn.rollback()
+        # 数据迁移：回填 beneficiary_id 字段
+        try:
+            fill_beneficiary_app_normal = text("""
+                UPDATE subsidy_application
+                SET beneficiary_id = farmer_id
+                WHERE is_proxy = 0 AND beneficiary_id IS NULL
+            """)
+            conn.execute(fill_beneficiary_app_normal)
 
-    print("  数据库迁移完成 [OK]")
+            fill_beneficiary_app_proxy = text("""
+                UPDATE subsidy_application
+                SET beneficiary_id = (
+                    SELECT beneficiary_farmer_id
+                    FROM subsidy_proxy
+                    WHERE subsidy_proxy.application_id = subsidy_application.id
+                )
+                WHERE is_proxy > 0
+                  AND beneficiary_id IS NULL
+                  AND EXISTS (
+                      SELECT 1 FROM subsidy_proxy
+                      WHERE subsidy_proxy.application_id = subsidy_application.id
+                  )
+            """)
+            conn.execute(fill_beneficiary_app_proxy)
+
+            fill_beneficiary_app_remaining = text("""
+                UPDATE subsidy_application
+                SET beneficiary_id = farmer_id
+                WHERE beneficiary_id IS NULL
+            """)
+            conn.execute(fill_beneficiary_app_remaining)
+
+            fill_beneficiary_pay_normal = text("""
+                UPDATE subsidy_payment
+                SET beneficiary_id = farmer_id
+                WHERE is_proxy = 0 AND beneficiary_id IS NULL
+            """)
+            conn.execute(fill_beneficiary_pay_normal)
+
+            fill_beneficiary_pay_proxy = text("""
+                UPDATE subsidy_payment
+                SET beneficiary_id = (
+                    SELECT beneficiary_farmer_id
+                    FROM subsidy_proxy
+                    WHERE subsidy_proxy.payment_id = subsidy_payment.id
+                )
+                WHERE is_proxy > 0
+                  AND beneficiary_id IS NULL
+                  AND EXISTS (
+                      SELECT 1 FROM subsidy_proxy
+                      WHERE subsidy_proxy.payment_id = subsidy_payment.id
+                  )
+            """)
+            conn.execute(fill_beneficiary_pay_proxy)
+
+            fill_beneficiary_pay_remaining = text("""
+                UPDATE subsidy_payment
+                SET beneficiary_id = farmer_id
+                WHERE beneficiary_id IS NULL
+            """)
+            conn.execute(fill_beneficiary_pay_remaining)
+
+            conn.commit()
+            print("  beneficiary_id 数据回填完成 [OK]")
+        except Exception as e:
+            print(f"  beneficiary_id 数据回填跳过（可能已填充）: {e}")
+            conn.rollback()
+
+        # 回填 village_group 表
+        try:
+            conn.execute(text("""
+                INSERT OR IGNORE INTO village_group (village_id, group_no)
+                SELECT DISTINCT village_id, format_group_no(group_no)
+                FROM family_household
+                WHERE village_id IS NOT NULL AND group_no IS NOT NULL
+            """))
+            conn.execute(text("""
+                INSERT OR IGNORE INTO village_group (village_id, group_no)
+                SELECT DISTINCT payment_village_id, format_group_no(payment_group_no)
+                FROM subsidy_payment
+                WHERE payment_village_id IS NOT NULL AND payment_group_no IS NOT NULL
+            """))
+            conn.commit()
+            print("  village_group 回填完成 [OK]")
+        except Exception as e:
+            print(f"  village_group 回填跳过: {e}")
+            conn.rollback()
+
+        print("  数据库迁移完成 [OK]")
 
 
 migrate_db()
@@ -335,6 +405,11 @@ def create_indexes():
         "CREATE INDEX IF NOT EXISTS idx_sp_year          ON subsidy_payment(payment_year)",
         # 补贴类型
         "CREATE INDEX IF NOT EXISTS idx_st_year         ON subsidy_type(subsidy_year)",
+        # beneficiary_id 索引（用于按受益人统计）
+        "CREATE INDEX IF NOT EXISTS idx_sa_beneficiary  ON subsidy_application(beneficiary_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sp_beneficiary  ON subsidy_payment(beneficiary_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sa_year_beneficiary ON subsidy_application(apply_year, beneficiary_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sp_year_beneficiary ON subsidy_payment(payment_year, beneficiary_id)",
     ]
     with engine.connect() as conn:
         for sql in indexes:

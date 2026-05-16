@@ -309,14 +309,15 @@ def get_contract_area_at_year(household_id: int, db: Session, year: int) -> floa
 # ════════════════════════════════════════════════════════
 
 def recalc_household_area_cache(household_id: int, db: Session) -> None:
-    """重新计算指定家庭户的面积占用缓存"""
+    """重新计算指定家庭户的面积占用缓存（通过 beneficiary_id 关联）"""
     hh = db.query(FamilyHousehold).filter(FamilyHousehold.id == household_id).first()
     if not hh:
         return
 
-    member_ids = [m.id for m in db.query(FarmerProfile.id)
-                  .filter(FarmerProfile.household_id == household_id).all()]
-    if not member_ids:
+    has_members = db.query(FarmerProfile.id).filter(
+        FarmerProfile.household_id == household_id
+    ).first() is not None
+    if not has_members:
         db.query(HouseholdAreaUsageCache).filter(
             HouseholdAreaUsageCache.household_id == household_id
         ).delete()
@@ -329,9 +330,10 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
             SubsidyApplication.apply_year,
             func.sum(SubsidyApplication.apply_area).label("total_area"),
         )
+        .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.beneficiary_id)
         .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
         .filter(
-            SubsidyApplication.farmer_id.in_(member_ids),
+            FarmerProfile.household_id == household_id,
             SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyApplication.apply_area.isnot(None),
@@ -354,9 +356,10 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
             SubsidyPayment.payment_year,
             func.sum(SubsidyPayment.apply_area).label("total_area"),
         )
+        .join(FarmerProfile, FarmerProfile.id == SubsidyPayment.beneficiary_id)
         .join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
         .filter(
-            SubsidyPayment.farmer_id.in_(member_ids),
+            FarmerProfile.household_id == household_id,
             SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyPayment.apply_area.isnot(None),
@@ -398,24 +401,17 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
 
 
 def recalc_all_household_caches(db: Session) -> int:
-    """重新计算所有家庭户的面积缓存，返回处理的数量"""
-    member_query = db.query(
-        FarmerProfile.household_id, FarmerProfile.id
-    ).filter(FarmerProfile.household_id.isnot(None)).all()
+    """重新计算所有家庭户的面积缓存（通过 beneficiary_id 关联），返回处理的数量"""
+    all_household_ids = [
+        row[0] for row in db.query(FarmerProfile.household_id)
+        .filter(FarmerProfile.household_id.isnot(None))
+        .distinct().all()
+    ]
 
-    household_members: dict[int, list[int]] = {}
-    for hid, mid in member_query:
-        if hid not in household_members:
-            household_members[hid] = []
-        household_members[hid].append(mid)
-
-    all_household_ids = list(household_members.keys())
     if not all_household_ids:
         db.query(HouseholdAreaUsageCache).delete()
         db.commit()
         return 0
-
-    all_member_ids = [mid for mids in household_members.values() for mid in mids]
 
     app_data: dict[tuple[int, int, str], float] = {}
     app_query = (
@@ -425,10 +421,10 @@ def recalc_all_household_caches(db: Session) -> int:
             SubsidyType.season,
             func.sum(SubsidyApplication.apply_area).label("total_area"),
         )
-        .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id)
+        .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.beneficiary_id)
         .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
         .filter(
-            SubsidyApplication.farmer_id.in_(all_member_ids),
+            FarmerProfile.household_id.isnot(None),
             SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyApplication.apply_area.isnot(None),
@@ -449,10 +445,10 @@ def recalc_all_household_caches(db: Session) -> int:
             SubsidyType.season,
             func.sum(SubsidyPayment.apply_area).label("total_area"),
         )
-        .join(FarmerProfile, FarmerProfile.id == SubsidyPayment.farmer_id)
+        .join(FarmerProfile, FarmerProfile.id == SubsidyPayment.beneficiary_id)
         .join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
         .filter(
-            SubsidyPayment.farmer_id.in_(all_member_ids),
+            FarmerProfile.household_id.isnot(None),
             SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyPayment.apply_area.isnot(None),
@@ -493,7 +489,7 @@ def recalc_all_household_caches(db: Session) -> int:
     to_delete = [
         cache for cache in existing_cache_map.values()
         if (cache.household_id, cache.year, cache.season) not in used_keys
-        and cache.household_id in household_members
+        and cache.household_id in all_household_ids
     ]
 
     for cache in to_delete:
@@ -949,8 +945,7 @@ def get_household(db: Session, household_id: int, year: Optional[int] = None) ->
     ]
 
     area_info = calc_household_area_usage(household_id, db, year)
-    member_ids = [m.id for m in members]
-    app_summary = _get_household_app_summary(db, household_id, member_ids)
+    app_summary = _get_household_app_summary(db, household_id)
 
     return {
         "id": hh.id,
@@ -974,37 +969,10 @@ def get_household(db: Session, household_id: int, year: Optional[int] = None) ->
 
 
 def _get_household_app_summary(
-    db: Session, household_id: int, member_ids: list[int],
+    db: Session, household_id: int,
 ) -> list:
-    """获取家庭户的补贴申请和发放记录摘要"""
+    """获取家庭户的补贴申请和发放记录摘要（通过 beneficiary_id 关联）"""
     app_summary = []
-    if not member_ids:
-        return app_summary
-
-    all_proxy_relations = (
-        db.query(SubsidyProxy)
-        .filter(
-            or_(
-                SubsidyProxy.beneficiary_farmer_id.in_(member_ids),
-                SubsidyProxy.proxy_farmer_id.in_(member_ids),
-            )
-        ).all()
-    )
-
-    proxy_app_ids = set()
-    proxy_pay_ids = set()
-    for pr in all_proxy_relations:
-        if pr.application_id:
-            proxy_app_ids.add(pr.application_id)
-        if pr.payment_id:
-            proxy_pay_ids.add(pr.payment_id)
-
-    all_involved_farmer_ids = set(member_ids)
-    for pr in all_proxy_relations:
-        all_involved_farmer_ids.add(pr.beneficiary_farmer_id)
-        all_involved_farmer_ids.add(pr.proxy_farmer_id)
-
-    proxy_ids = [pr.id for pr in all_proxy_relations]
 
     app_rows = (
         db.query(
@@ -1020,24 +988,15 @@ def _get_household_app_summary(
             SubsidyApplication.apply_village_name,
             SubsidyApplication.apply_group_display,
             SubsidyApplication.is_proxy,
+            SubsidyApplication.beneficiary_id,
             SubsidyApplication.id.label("record_id"),
         )
-        .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id)
+        .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.beneficiary_id)
         .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
-        .filter(
-            or_(
-                SubsidyApplication.farmer_id.in_(member_ids),
-                SubsidyApplication.is_proxy.in_(proxy_ids) if proxy_ids else False,
-            )
-        )
+        .filter(FarmerProfile.household_id == household_id)
         .order_by(SubsidyApplication.apply_year.desc())
         .all()
     )
-
-    app_rows = [
-        r for r in app_rows
-        if r.is_proxy == 0 or r.is_proxy is None or r.farmer_id in set(member_ids)
-    ]
 
     pay_rows = (
         db.query(
@@ -1053,61 +1012,49 @@ def _get_household_app_summary(
             SubsidyPayment.payment_village_name.label("apply_village_name"),
             SubsidyPayment.payment_group_display.label("apply_group_display"),
             SubsidyPayment.is_proxy,
+            SubsidyPayment.beneficiary_id,
             SubsidyPayment.id.label("record_id"),
         )
-        .join(FarmerProfile, FarmerProfile.id == SubsidyPayment.farmer_id)
+        .join(FarmerProfile, FarmerProfile.id == SubsidyPayment.beneficiary_id)
         .join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
-        .filter(
-            or_(
-                SubsidyPayment.farmer_id.in_(member_ids),
-                SubsidyPayment.is_proxy.in_(proxy_ids) if proxy_ids else False,
-            )
-        )
+        .filter(FarmerProfile.household_id == household_id)
         .order_by(SubsidyPayment.payment_year.desc())
         .all()
     )
 
-    pay_rows = [
-        r for r in pay_rows
-        if r.is_proxy == 0 or r.is_proxy is None or r.farmer_id in set(member_ids)
-    ]
-
     all_rows = [("application", r) for r in app_rows] + [("payment", r) for r in pay_rows]
 
-    proxy_by_id = {pr.id: pr for pr in all_proxy_relations}
+    # Collect all involved farmer IDs for name lookup
+    all_involved_ids = set()
+    for record_type, r in all_rows:
+        all_involved_ids.add(r.farmer_id)
+        if r.beneficiary_id:
+            all_involved_ids.add(r.beneficiary_id)
     farmer_names = {}
-    if all_involved_farmer_ids:
-        farmer_names = {f.id: f.real_name for f in db.query(FarmerProfile).filter(FarmerProfile.id.in_(all_involved_farmer_ids)).all()}
+    if all_involved_ids:
+        farmer_names = {f.id: f.real_name for f in db.query(FarmerProfile).filter(FarmerProfile.id.in_(all_involved_ids)).all()}
 
+    # Build proxy info: if is_proxy == 1 and farmer_id != beneficiary_id
     proxy_map = {}
     for record_type, r in all_rows:
-        if r.is_proxy and r.is_proxy > 0:
-            pr = proxy_by_id.get(r.is_proxy)
-            if pr:
-                key = (record_type, r.record_id)
-                if r.farmer_id == pr.beneficiary_farmer_id:
-                    proxy_map[key] = {
-                        "type": "受益",
-                        "beneficiary_name": farmer_names.get(pr.beneficiary_farmer_id, "未知"),
-                        "beneficiary_farmer_id": pr.beneficiary_farmer_id,
-                        "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
-                        "proxy_farmer_id": pr.proxy_farmer_id,
-                        "remark": pr.remark,
-                    }
-                elif r.farmer_id == pr.proxy_farmer_id:
-                    proxy_map[key] = {
-                        "type": "代领",
-                        "beneficiary_name": farmer_names.get(pr.beneficiary_farmer_id, "未知"),
-                        "beneficiary_farmer_id": pr.beneficiary_farmer_id,
-                        "proxy_name": farmer_names.get(pr.proxy_farmer_id, "未知"),
-                        "proxy_farmer_id": pr.proxy_farmer_id,
-                        "remark": pr.remark,
-                    }
+        is_proxy = getattr(r, 'is_proxy', 0) or 0
+        if is_proxy == 1 and r.beneficiary_id and r.beneficiary_id != r.farmer_id:
+            key = (record_type, r.record_id)
+            proxy_map[key] = {
+                "type": "受益",
+                "beneficiary_name": farmer_names.get(r.beneficiary_id, "未知"),
+                "beneficiary_farmer_id": r.beneficiary_id,
+                "proxy_name": farmer_names.get(r.farmer_id, "未知"),
+                "proxy_farmer_id": r.farmer_id,
+                "remark": "",
+            }
 
     unique_map = {}
     for record_type, r in all_rows:
         key = (record_type, r.record_id)
-        unique_key = (r.farmer_id, r.subsidy_name, r.apply_year)
+        # 使用 beneficiary_id 去重，避免代领记录重复
+        bid = r.beneficiary_id or r.farmer_id
+        unique_key = (bid, r.subsidy_name, r.apply_year)
         if unique_key not in unique_map or record_type == "payment":
             unique_map[unique_key] = (record_type, r, key)
 
@@ -2702,15 +2649,16 @@ def get_snapshot_by_event(db: Session, household_id: int, event_id: int) -> dict
 # ════════════════════════════════════════════════════════
 
 def get_area_by_year(db: Session, household_id: int) -> dict:
-    """获取该家庭户历年面积占用情况"""
+    """获取该家庭户历年面积占用情况（通过 beneficiary_id 关联）"""
     hh = db.get(FamilyHousehold, household_id)
     if not hh:
         raise NotFound("家庭户不存在")
 
     contracted = float(hh.contract_area or 0)
-    member_ids = [f.id for f in db.query(FarmerProfile.id)
-                                     .filter(FarmerProfile.household_id == household_id).all()]
-    if not member_ids:
+    has_members = db.query(FarmerProfile.id).filter(
+        FarmerProfile.household_id == household_id
+    ).first() is not None
+    if not has_members:
         return {"contracted_area": contracted, "years": []}
 
     rows = (
@@ -2722,9 +2670,10 @@ def get_area_by_year(db: Session, household_id: int) -> dict:
             func.sum(SubsidyApplication.actual_amount).label("total_amount"),
             func.count(SubsidyApplication.id).label("app_count"),
         )
+        .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.beneficiary_id)
         .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
         .filter(
-            SubsidyApplication.farmer_id.in_(member_ids),
+            FarmerProfile.household_id == household_id,
             SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyApplication.apply_area.isnot(None),
@@ -2794,18 +2743,11 @@ def recalc_unconfirmed_contract_area(db: Session) -> dict:
 
     for hh in unconfirmed_households:
         sql_2025 = _text("""
-            WITH proxy_payments AS (
-                SELECT DISTINCT sp.id
-                FROM subsidy_payment sp
-                JOIN subsidy_proxy spr ON sp.is_proxy = spr.id
-                WHERE sp.farmer_id = spr.proxy_farmer_id
-            )
             SELECT ROUND(SUM(COALESCE(sp.contract_area, 0)), 2) as total_contract_area
             FROM subsidy_payment sp
-            JOIN farmer_profile fp ON sp.farmer_id = fp.id
+            JOIN farmer_profile fp ON sp.beneficiary_id = fp.id
             WHERE fp.household_id = :household_id
                 AND sp.payment_year = 2025
-                AND sp.id NOT IN (SELECT id FROM proxy_payments)
         """)
         result_2025 = db.execute(sql_2025, {"household_id": hh.id}).fetchone()
         area_2025 = float(result_2025[0]) if result_2025 and result_2025[0] else 0.0
@@ -2816,18 +2758,11 @@ def recalc_unconfirmed_contract_area(db: Session) -> dict:
             results.append({"household_id": hh.id, "household_name": hh.household_name, "year_used": 2025, "contract_area": area_2025})
         else:
             sql_2024 = _text("""
-                WITH proxy_payments AS (
-                    SELECT DISTINCT sp.id
-                    FROM subsidy_payment sp
-                    JOIN subsidy_proxy spr ON sp.is_proxy = spr.id
-                    WHERE sp.farmer_id = spr.proxy_farmer_id
-                )
                 SELECT ROUND(SUM(COALESCE(sp.contract_area, 0)), 2) as total_contract_area
                 FROM subsidy_payment sp
-                JOIN farmer_profile fp ON sp.farmer_id = fp.id
+                JOIN farmer_profile fp ON sp.beneficiary_id = fp.id
                 WHERE fp.household_id = :household_id
                     AND sp.payment_year = 2024
-                    AND sp.id NOT IN (SELECT id FROM proxy_payments)
             """)
             result_2024 = db.execute(sql_2024, {"household_id": hh.id}).fetchone()
             area_2024 = float(result_2024[0]) if result_2024 and result_2024[0] else 0.0
