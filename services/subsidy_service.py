@@ -355,25 +355,12 @@ def _auto_create_farmer(
 
 
 def _exists_duplicate_application(db: Session, farmer: FarmerProfile, row: dict) -> bool:
-    """检查数据库中是否已有完全相同的申请记录"""
+    """检查数据库中是否已有相同农户+补贴类型+年度+状态的申请记录"""
     exists = db.query(SubsidyApplication).filter(
         SubsidyApplication.farmer_id == farmer.id,
         SubsidyApplication.subsidy_type_id == row["subsidy_type_id"],
         SubsidyApplication.apply_year == row["apply_year"],
         SubsidyApplication.pay_status == row.get("pay_status", 0),
-        SubsidyApplication.apply_area == (
-            float(row.get("apply_area")) if row.get("apply_area") is not None else None
-        ),
-        SubsidyApplication.contract_area == (
-            float(row.get("contract_area")) if row.get("contract_area") is not None else None
-        ),
-        SubsidyApplication.trust_area == (
-            float(row.get("trust_area")) if row.get("trust_area") is not None else None
-        ),
-        SubsidyApplication.no_subsidy_area == (
-            float(row.get("no_subsidy_area")) if row.get("no_subsidy_area") is not None else None
-        ),
-        SubsidyApplication.remark == row.get("remark"),
     ).first()
     return exists is not None
 

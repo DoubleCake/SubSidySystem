@@ -255,6 +255,75 @@ export default function ExcelImportWithMapping({
     }
   }
 
+  // ── 导出导入异常数据为 Excel ──
+  const handleExportErrors = useCallback(() => {
+    if (!result || result.errors.length === 0 || rows.length === 0) return
+
+    const rowIndexRegex = /^第(\d+)行/
+    const errorsByRow = new Map<number, string[]>()
+    const unparsableErrors: string[] = []
+
+    for (const err of result.errors) {
+      const match = err.match(rowIndexRegex)
+      if (match) {
+        const excelRowNum = parseInt(match[1], 10)
+        const rowIndex = excelRowNum - 2 // 第3行 → rows[1]
+        if (rowIndex >= 0 && rowIndex < rows.length) {
+          const existing = errorsByRow.get(rowIndex) || []
+          existing.push(err)
+          errorsByRow.set(rowIndex, existing)
+        } else {
+          unparsableErrors.push(err)
+        }
+      } else {
+        unparsableErrors.push(err)
+      }
+    }
+
+    const wb = XLSX.utils.book_new()
+    const originalColumns = rows.length > 0 ? Object.keys(rows[0] as object) : []
+
+    // Sheet 1: 有行号映射的错误行
+    if (errorsByRow.size > 0) {
+      const sortedRowIndices = Array.from(errorsByRow.keys()).sort((a, b) => a - b)
+      const exportData: Record<string, unknown>[] = []
+
+      for (const rowIndex of sortedRowIndices) {
+        const row = rows[rowIndex] as Record<string, unknown> | undefined
+        if (!row) continue
+        const exportRow: Record<string, unknown> = {}
+        for (const col of originalColumns) {
+          exportRow[col] = row[col] ?? ''
+        }
+        const errorMessages = errorsByRow.get(rowIndex)!
+        const cleanErrors = errorMessages.map(e =>
+          e.replace(/^第\d+行(\s*\S+)?[:：]?\s*/, '')
+        )
+        exportRow['错误原因'] = cleanErrors.join('; ')
+        exportData.push(exportRow)
+      }
+
+      const ws = XLSX.utils.json_to_sheet(exportData, { header: [...originalColumns, '错误原因'] })
+      ws['!cols'] = [
+        ...originalColumns.map(() => ({ wch: 18 })),
+        { wch: 50 }
+      ]
+      XLSX.utils.book_append_sheet(wb, ws, '异常数据')
+    }
+
+    // Sheet 2: 无行号的后端错误
+    if (unparsableErrors.length > 0) {
+      const errorData = unparsableErrors.map(err => ({ '错误信息': err }))
+      const ws2 = XLSX.utils.json_to_sheet(errorData)
+      ws2['!cols'] = [{ wch: 60 }]
+      XLSX.utils.book_append_sheet(wb, ws2, '其他错误')
+    }
+
+    const dateStr = new Date().toISOString().slice(0, 10)
+    const fileName = `${title}_导入异常数据_${dateStr}.xlsx`
+    XLSX.writeFile(wb, fileName)
+  }, [result, rows, title])
+
   const handleSaveTemplate = async () => {
     if (!onSaveTemplate) {
       alert('保存模板功能未配置')
@@ -408,7 +477,7 @@ export default function ExcelImportWithMapping({
                 💾 保存为模板
               </button>
               <button onClick={() => setStep('upload')}
-                className="text-xs border border-border text-text-muted px-3 py-1.5 rounded-btn hover:bg-warm/30">
+                className="text-xs border bg-danger-200 border-border text-white text-text-muted px-3 py-1.5 rounded-btn hover:bg-warm/30">
                 重新上传
               </button>
             </div>
@@ -654,6 +723,14 @@ export default function ExcelImportWithMapping({
               {result.errors.map((e, i) => (
                 <p key={i} className="text-xs text-red-600 mb-1">• {e}</p>
               ))}
+            </div>
+          )}
+          {result.errors.length > 0 && (
+            <div className="mb-4">
+              <button onClick={handleExportErrors}
+                className="px-4 py-2 bg-red-50 border border-red-200 text-red-700 rounded-btn text-sm hover:bg-red-100">
+                ↓ 导出异常数据
+              </button>
             </div>
           )}
           <button onClick={handleClose} className="px-6 py-2 bg-primary  rounded-btn text-sm hover:bg-primary/90">

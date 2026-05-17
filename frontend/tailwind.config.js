@@ -74,9 +74,9 @@ export default {
           900: '#7e5c1c',
         },
         // 辅助文字色
-        'text-muted': '#999999',
+        'text-muted': '#7A9A8A',
         // 基础文字色
-        'text-primary': '#1A1A1A',
+        'text-primary': '#1A4D3A',
         // 面板暖底（基于米杏色）
         warm: {
           50:  '#fdfcf9',

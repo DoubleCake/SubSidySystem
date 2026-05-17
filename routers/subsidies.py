@@ -904,11 +904,23 @@ def delete_application(app_id: int, db: Session = Depends(get_db)):
 @router.post("/applications/batch-delete")
 def batch_delete_applications(payload: dict, db: Session = Depends(get_db)):
     from sqlalchemy import text
-    ids = payload.get("ids", [])
-    if not ids or not isinstance(ids, list):
-        raise BadRequest("缺少 ids 列表")
-    ids_str = ','.join(str(int(i)) for i in ids)
-    result = db.execute(text(f"DELETE FROM subsidy_application WHERE id IN ({ids_str})"))
+    delete_all = payload.get("delete_all", False)
+
+    if delete_all:
+        subsidy_type_id = payload.get("subsidy_type_id")
+        if not subsidy_type_id:
+            raise BadRequest("delete_all 模式下需要 subsidy_type_id")
+        result = db.execute(
+            text("DELETE FROM subsidy_application WHERE subsidy_type_id = :sid"),
+            {"sid": subsidy_type_id},
+        )
+    else:
+        ids = payload.get("ids", [])
+        if not ids or not isinstance(ids, list):
+            raise BadRequest("缺少 ids 列表")
+        ids_str = ','.join(str(int(i)) for i in ids)
+        result = db.execute(text(f"DELETE FROM subsidy_application WHERE id IN ({ids_str})"))
+
     db.commit()
     return {"deleted": result.rowcount}
 

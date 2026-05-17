@@ -252,6 +252,32 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
     }
   }
 
+  // 删除全部记录
+  const deleteAll = async () => {
+    if (!apps || apps.length === 0) {
+      show('没有可删除的记录', 'err')
+      return
+    }
+    if (!confirm(`⚠️ 确定要删除全部 ${total} 条记录吗？此操作不可恢复。`)) {
+      return
+    }
+    try {
+      const response = await fetch('/api/subsidies/applications/batch-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delete_all: true, subsidy_type_id: subsidyType.id })
+      })
+      if (!response.ok) throw new Error('删除全部失败')
+      const result = await response.json()
+      show(`✓ 已删除全部 ${result.deleted} 条记录`)
+      setSelectedIds([])
+      load()
+    } catch (error) {
+      console.error('删除全部失败:', error)
+      show('删除全部失败: ' + (error as Error).message, 'err')
+    }
+  }
+
   // 代领新增
   const handleProxyAdd = async () => {
     if (!proxyForm.beneficiary_id_card.trim()) {
@@ -833,9 +859,13 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
                     🗑️ 删除选中 ({selectedIds.length})
                   </button>
                 )}
+                <button onClick={deleteAll}
+                  className="px-3 py-2 text-sm bg-red-600/80  rounded-btn hover:bg-red-700 flex items-center gap-1.5">
+                  🗑️ 删除全部
+                </button>
                 <button onClick={() => setAddOpen(true)}
                   className="px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
-                  ＋ 新增一条
+                  ＋ 批量导入
                 </button>
               </div>
             </>

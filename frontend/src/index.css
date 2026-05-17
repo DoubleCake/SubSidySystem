@@ -12,8 +12,8 @@
   --edit: #E6C288;
   --bg-main: #F8F5F0;
   --border: #E8E2D9;
-  --text-primary: #2E2E2E;
-  --text-muted: #999999;
+  --text-primary: #1A4D3A;
+  --text-muted: #7A9A8A;
 }
 
 * { box-sizing: border-box; }
@@ -37,8 +37,8 @@ body {
 
 /* 选中文本色 */
 ::selection {
-  background-color: rgba(26, 77, 58, 0.12);
-  color: #1A4D3A;
+  background-color: #1A4D3A;
+  color: #FFFFFF;
 }
 
 /* 输入框占位符色 */

@@ -154,7 +154,7 @@ export default function HouseholdImportPage() {
         </div>
         {step > 1 && (
           <button onClick={resetAll}
-            className="text-sm text-text-muted hover:text-text-primary border border-border rounded-btn px-3 py-1.5">
+            className="text-sm text-text-muted bg-danger-200 hover:text-text-primary border border-border rounded-btn px-3 py-1.5">
             重新上传
           </button>
         )}
