@@ -346,7 +346,7 @@ export default function ExcelImportWithMapping({
               <div className={`flex items-center gap-1.5 text-xs font-medium transition-colors
                 ${isCur ? 'text-primary' : isPast ? 'text-text-muted' : 'text-text-muted/50'}`}>
                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs transition-colors
-                  ${isCur ? 'bg-primary text-white' : isPast ? 'bg-emerald-100 text-primary' : 'bg-warm/30 text-text-muted/50'}`}>
+                  ${isCur ? 'bg-primary ' : isPast ? 'bg-emerald-100 text-primary' : 'bg-warm/30 text-text-muted/50'}`}>
                   {isPast ? '✓' : i + 1}
                 </div>
                 {s.label}
@@ -656,7 +656,7 @@ export default function ExcelImportWithMapping({
               ))}
             </div>
           )}
-          <button onClick={handleClose} className="px-6 py-2 bg-primary text-white rounded-btn text-sm hover:bg-primary/90">
+          <button onClick={handleClose} className="px-6 py-2 bg-primary  rounded-btn text-sm hover:bg-primary/90">
             完成
           </button>
         </div>

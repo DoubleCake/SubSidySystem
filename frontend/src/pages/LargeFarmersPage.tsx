@@ -409,7 +409,7 @@ export default function LargeFarmersPage() {
             className="border border-border rounded-btn px-3 py-2 text-sm outline-none flex-1 min-w-[160px]" />
           <span className="text-xs text-text-muted">共 {total} 条</span>
           <button onClick={openAddFarmer}
-            className="ml-auto px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
+            className="ml-auto px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
             ＋ 新增大户
           </button>
         </div>
@@ -507,7 +507,7 @@ export default function LargeFarmersPage() {
                     {years.map(y => <option key={y} value={y}>{y}年</option>)}
                   </select>
                 </div>
-                <button onClick={openAddTrust} className="text-xs px-2 py-1 bg-primary text-white rounded hover:bg-primary/90">
+                <button onClick={openAddTrust} className="text-xs px-2 py-1 bg-primary  rounded hover:bg-primary/90">
                   ＋ 添加关联
                 </button>
               </div>

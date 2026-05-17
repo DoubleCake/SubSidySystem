@@ -23,7 +23,7 @@ function FlowDiagram({ steps }: { steps: { label: string; desc: string }[] }) {
       {steps.map((s, i) => (
         <div key={i} className="flex items-start">
           <div className="flex flex-col items-center min-w-[100px]">
-            <div className={`w-10 h-10 ${stepColors[i % stepColors.length]} rounded-full flex items-center justify-center text-white text-sm font-bold shadow`}>
+            <div className={`w-10 h-10 ${stepColors[i % stepColors.length]} rounded-full flex items-center justify-center  text-sm font-bold shadow`}>
               {i + 1}
             </div>
             <div className="mt-1.5 text-xs font-semibold text-stone-700 text-center px-1 leading-tight">{s.label}</div>

@@ -134,7 +134,7 @@ export default function EligibilityRulePage({ subsidyTypeId, subsidyName }: Prop
           <p className="text-xs text-text-muted mt-0.5">「{subsidyName}」的发放资格条件，导入时自动校验</p>
         </div>
         <button onClick={() => openAdd()}
-          className="px-3 py-1.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
+          className="px-3 py-1.5 text-sm bg-primary  rounded-btn hover:bg-primary/90">
           ＋ 新增规则
         </button>
       </div>

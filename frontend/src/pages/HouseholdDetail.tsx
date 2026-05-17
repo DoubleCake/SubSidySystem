@@ -73,6 +73,8 @@ export function HouseholdDetailContent({
     contracted_area: detail.contracted_area || 0,
     trust_out_area: 0,
     trust_in_area: 0,
+    trust_in_arable_area: 0,
+    trust_in_cash_crop_area: 0,
     cultivable_area: detail.contracted_area || 0,
     used_area: 0,
     remaining_area: detail.contracted_area || 0,
@@ -84,7 +86,7 @@ export function HouseholdDetailContent({
     year_totals: {} as Record<string, Record<string, number>>
   }
   const areaUsage = historyDate !== null && snapshotData?.snapshot
-    ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_breakdown: {} as Record<string, any>, year_totals: {} as Record<string, Record<string, number>> }
+    ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, trust_in_arable_area: 0, trust_in_cash_crop_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_breakdown: {} as Record<string, any>, year_totals: {} as Record<string, Record<string, number>> }
     : (detail.area_usage || defaultAreaUsage)
 
   // 不同季节不跨季累加，取单季最大面积作为概览
@@ -95,17 +97,17 @@ export function HouseholdDetailContent({
   const effectiveUsedArea = areaYear > 0 && areaUsage.year_totals?.[String(areaYear)]
     ? calcSeasonMax(areaUsage.year_totals[String(areaYear)])
     : areaUsage.used_area
-  const effectiveRemainingArea = Math.max(0, areaUsage.contracted_area - effectiveUsedArea)
+  const effectiveRemainingArea = Math.max(0, (areaUsage.cultivable_area ?? areaUsage.contracted_area) - effectiveUsedArea)
   // 任一季节超面积即超领
   const effectiveIsOverdrawn = areaYear > 0 && areaUsage.year_totals?.[String(areaYear)]
-    ? Object.values(areaUsage.year_totals[String(areaYear)]).some(v => areaUsage.contracted_area > 0 && v > areaUsage.contracted_area)
+    ? Object.values(areaUsage.year_totals[String(areaYear)]).some(v => (areaUsage.cultivable_area ?? areaUsage.contracted_area) > 0 && v > (areaUsage.cultivable_area ?? areaUsage.contracted_area) + 0.001)
     : areaUsage.is_overdrawn
-  const effectiveOverdrawAmount = Math.max(0, effectiveUsedArea - areaUsage.contracted_area)
+  const effectiveOverdrawAmount = Math.max(0, effectiveUsedArea - (areaUsage.cultivable_area ?? areaUsage.contracted_area))
 
   return (
     <div className="flex-1 min-w-0 flex flex-col">
       {/* 顶部卡片 */}
-      <div className="bg-white border border-border rounded-card overflow-hidden shadow-card mb-3 shrink-0">
+      <div className="bg-main border border-border rounded-card overflow-hidden shadow-card mb-3 shrink-0">
         <div className="px-5 py-3.5 flex items-center gap-4 relative border-b border-emerald-100"
           style={{
             backgroundImage: 'url(/images/household.png)',
@@ -118,9 +120,9 @@ export function HouseholdDetailContent({
             <div className="flex items-center gap-4 mb-0.5 flex-wrap">
               <span className="text-base font-bold text-primary-50">{detail.household_name}</span>
               <span className="text-text-muted text-xs font-mono">{detail.household_code}</span>
-              {detail.is_manually_confirmed === 1 && <span className="text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded">✓ 已确认</span>}
-              {effectiveIsOverdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">⚠️ 超领</span>}
-              {historyDate !== null && <span className="text-xs bg-amber-500/80 text-white px-1.5 py-0.5 rounded">⏳ 快照</span>}
+              {detail.is_manually_confirmed === 1 && <span className="text-xs bg-blue-500  px-1.5 py-0.5 rounded">✓ 已确认</span>}
+              {effectiveIsOverdrawn && <span className="text-xs bg-red-500  px-1.5 py-0.5 rounded">⚠️ 超领</span>}
+              {historyDate !== null && <span className="text-xs bg-amber-500/80  px-1.5 py-0.5 rounded">⏳ 快照</span>}
             </div>
             <div className="text-text-muted text-xs">📍 {detail.village_full_name}
               {detail.address && <span className="ml-1 text-text-muted">{detail.address}</span>}
@@ -137,24 +139,24 @@ export function HouseholdDetailContent({
           {historyDateIsNull && (
             <div className="flex flex-col gap-1.5 shrink-0">
               <button onClick={onOpenEdit}
-                className="text-xs bg-[#DAA550] text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">✏️ 编辑</button>
+                className="text-xs bg-[#DAA550]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">✏️ 编辑</button>
               {detail.is_manually_confirmed === 1 ? (
                 <button onClick={onOpenCancelConfirm}
                   className="text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-1.5 rounded-btn font-medium transition-colors">↩️ 取消确认</button>
               ) : (
                 <button onClick={onOpenManualConfirm}
-                  className="text-xs bg-[#2E7A60] text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">✓ 人工确认</button>
+                  className="text-xs bg-[#2E7A60]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">✓ 人工确认</button>
               )}
               {canSplit && (
                 <button onClick={onOpenSplit}
                   className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1.5 rounded-btn font-medium transition-colors">🔀 分户</button>
               )}
               <button onClick={() => onRefreshCache(detail.id)} disabled={refreshingCache}
-                className="text-xs bg-[#4FA080] text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                className="text-xs bg-[#4FA080]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 {refreshingCache ? '⏳' : '🔄'} 刷新缓存
               </button>
               <button onClick={onDelete}
-                className="text-xs bg-[#C04848] text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">🗑️ 删除</button>
+                className="text-xs bg-[#C04848]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">🗑️ 删除</button>
             </div>
           )}
         </div>
@@ -200,8 +202,14 @@ export function HouseholdDetailContent({
             <div className="flex items-center gap-2">
               <span className="text-2xl">📐</span>
               <div>
-                <div className="text-lg font-bold font-mono text-text-primary">{areaUsage.contracted_area} 亩</div>
-                <div className="text-xs text-text-muted">承包面积</div>
+                <div className="text-lg font-bold font-mono text-text-primary">{areaUsage.contracted_area} 亩
+                  {(areaUsage.trust_in_area ?? 0) > 0 && <span className="text-orange-500 text-sm ml-1">+{(areaUsage.trust_in_area ?? 0).toFixed(2)}亩</span>}
+                  {(areaUsage.trust_out_area ?? 0) > 0 && <span className="text-orange-400 text-sm ml-1">-{(areaUsage.trust_out_area ?? 0).toFixed(2)}亩</span>}
+                </div>
+                <div className="text-xs text-text-muted">{areaUsage.cultivable_area != null && areaUsage.cultivable_area !== areaUsage.contracted_area
+                  ? `可耕${areaUsage.cultivable_area.toFixed(2)}亩`
+                  : '承包面积'}
+                </div>
               </div>
             </div>
 
@@ -272,6 +280,30 @@ export function HouseholdDetailContent({
           </div>
         </div>
 
+        {/* 流转面积明细 */}
+        {areaUsage && ((areaUsage.trust_out_area ?? 0) > 0 || (areaUsage.trust_in_area ?? 0) > 0) && (
+          <div className="bg-main border-b border-border px-4 py-2">
+            <div className="flex items-center gap-4 text-xs flex-wrap">
+              <span className="text-text-muted font-medium">🔄 流转面积</span>
+              {(areaUsage.trust_out_area ?? 0) > 0 && (
+                <span className="text-orange-500">
+                  流出: <span className="font-mono font-bold">-{(areaUsage.trust_out_area ?? 0).toFixed(2)}亩</span>
+                </span>
+              )}
+              {(areaUsage.trust_in_area ?? 0) > 0 && (
+                <span className="text-orange-500">
+                  流入: <span className="font-mono font-bold">+{(areaUsage.trust_in_area ?? 0).toFixed(2)}亩</span>
+                </span>
+              )}
+              {areaUsage.cultivable_area != null && (
+                <span className="text-text-muted">
+                  可耕种: <span className="font-mono font-bold">{areaUsage.cultivable_area.toFixed(2)}亩</span>
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* 人工确认信息 */}
         {detail.is_manually_confirmed === 1 && (
           <div className="bg-blue-50 border-b border-blue-100 px-4 py-2.5">
@@ -292,7 +324,7 @@ export function HouseholdDetailContent({
 
         {/* 补贴面积使用情况 - 大春小春等直接展示 */}
         {areaUsage && areaUsage.season_breakdown && Object.keys(areaUsage.season_breakdown).length > 0 && (
-          <div className="bg-white border-b border-border px-4 py-3">
+          <div className="bg-main border-b border-border px-4 py-3">
             {/* 年份选择器 - 从 app_summary 获取年份 */}
             {(() => {
               const allYears = [...new Set(
@@ -305,7 +337,7 @@ export function HouseholdDetailContent({
                     <select
                       value={areaYear}
                       onChange={e => setAreaYear(Number(e.target.value))}
-                      className="border border-border rounded-btn px-2 py-1 text-xs outline-none focus:border-primary bg-white"
+                      className="border border-border rounded-btn px-2 py-1 text-xs outline-none focus:border-primary bg-main"
                     >
                       <option value={0}>全部年份</option>
                       {allYears.map(y => (
@@ -337,24 +369,26 @@ export function HouseholdDetailContent({
                   yearApplyArea = usage.apply_area || 0
                   yearPaymentArea = usage.payment_area || 0
                 }
-                const pct = areaUsage.contracted_area > 0 ? Math.round(yearUsedArea / areaUsage.contracted_area * 100) : 0
-                const paymentPct = areaUsage.contracted_area > 0 ? Math.round(yearPaymentArea / areaUsage.contracted_area * 100) : 0
-                const applyPct = areaUsage.contracted_area > 0 ? Math.round((yearApplyArea - yearPaymentArea) / areaUsage.contracted_area * 100) : 0
-                const isOverdrawn = yearUsedArea > areaUsage.contracted_area
+                const cultivable = areaUsage.cultivable_area ?? areaUsage.contracted_area
+                const pct = cultivable > 0 ? Math.round(yearUsedArea / cultivable * 100) : 0
+                const paymentPct = cultivable > 0 ? Math.round(yearPaymentArea / cultivable * 100) : 0
+                const applyPct = cultivable > 0 ? Math.round((yearApplyArea - yearPaymentArea) / cultivable * 100) : 0
+                const isOverdrawn = yearUsedArea > cultivable + 0.001
                 return (
                   <div key={season} className="border border-border rounded-btn overflow-hidden">
                     <div className={"flex items-center justify-between px-3 py-2 " + (isOverdrawn ? 'bg-red-50' : 'bg-warm/30')}>
                       <div className="flex items-center gap-2">
                         <span className={"text-sm font-bold " + (isOverdrawn ? 'text-red-600' : 'text-text-primary')}>{season}</span>
-                        {isOverdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">超 {(yearUsedArea - areaUsage.contracted_area).toFixed(2)} 亩</span>}
+                        {isOverdrawn && <span className="text-xs bg-red-500  px-1.5 py-0.5 rounded">超 {(yearUsedArea - cultivable).toFixed(2)} 亩</span>}
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={"text-sm font-mono font-bold " + (isOverdrawn ? 'text-red-500' : 'text-primary')}>{yearUsedArea.toFixed(2)} 亩</span>
-                        <span className="text-xs text-text-muted">/ {areaUsage.contracted_area} 亩</span>
+                        <span className="text-xs text-text-muted">/ {cultivable.toFixed(2)} 亩</span>
                         <span className="text-xs text-text-muted">({pct}%)</span>
+                        {(areaUsage.trust_in_area ?? 0) > 0 && <span className="text-orange-500 text-sm font-mono font-bold pl-2 border-l border-border/50"></span>}
                       </div>
                     </div>
-                    <div className="px-3 py-1.5 bg-white">
+                    <div className="px-3 py-1.5 bg-main">
                       <div className="bg-warm/30 rounded-full h-1.5 overflow-hidden flex">
                         {/* 已发布面积用绿色 */}
                         {yearPaymentArea > 0 && (
@@ -401,7 +435,7 @@ export function HouseholdDetailContent({
           ] as { id: typeof detailTab; label: string }[]).map(t => (
             <button key={t.id} onClick={() => setDetailTab(t.id)}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
-                ${detailTab === t.id ? 'border-emerald-600 text-primary bg-white' : 'border-transparent text-text-muted hover:text-text-primary'}`}>
+                ${detailTab === t.id ? 'border-emerald-600 text-primary bg-main' : 'border-transparent text-text-muted hover:text-text-primary'}`}>
               {t.label}
             </button>
           ))}
@@ -410,7 +444,7 @@ export function HouseholdDetailContent({
               {detailTab === 'members' && (
                 <>
                   <button onClick={onOpenMemberImport} className="text-xs border border-primary/20 text-primary px-2.5 py-1.5 rounded-btn hover:bg-primary/5 transition-colors">↑ 批量导入</button>
-                  <button onClick={onOpenMemberAdd} className="text-xs bg-primary text-white px-2.5 py-1.5 rounded-btn hover:bg-primary/90 transition-colors">＋ 成员</button>
+                  <button onClick={onOpenMemberAdd} className="text-xs bg-primary  px-2.5 py-1.5 rounded-btn hover:bg-primary/90 transition-colors">＋ 成员</button>
                   <button onClick={onOpenEvent} className="text-xs border border-border text-text-primary px-2.5 py-1.5 rounded-btn hover:bg-warm/30 transition-colors">＋ 补录</button>
                 </>
               )}
@@ -420,17 +454,17 @@ export function HouseholdDetailContent({
       </div>
 
       {/* Tab 内容 */}
-      <div className="flex-1 bg-white border border-border rounded-card overflow-hidden shadow-card">
+      <div className="flex-1 bg-main border border-border rounded-card overflow-hidden shadow-card">
         {/* 成员 */}
         {detailTab === 'members' && (
           <div className="p-4 grid gap-2">
             {displayMembers.length === 0 && <div className="text-center py-8 text-text-muted/50 text-sm">暂无成员记录</div>}
             {displayMembers.map(m => (
               <div key={m.id} className={`flex items-center gap-3 rounded-card px-4 py-3 border transition-all
-                ${m.is_head ? 'bg-primary/5 border-primary/20' : 'bg-white border-border hover:border-border hover:bg-warm/30'}
+                ${m.is_head ? 'bg-primary/5 border-primary/20' : 'bg-main border-border hover:border-border hover:bg-warm/30'}
                 ${m.farmer_status !== 1 ? 'opacity-60' : ''}`}>
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0
-                  ${m.is_head ? 'bg-primary/90 text-white' : 'bg-warm/30 text-text-muted'}`}>
+                  ${m.is_head ? 'bg-primary/90 ' : 'bg-warm/30 text-text-muted'}`}>
                   {m.real_name.slice(-1)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -502,7 +536,7 @@ export function HouseholdDetailContent({
                               {labelType}
                             </span>
                           </button>
-                          <div className="left-0 top-full mt-1 bg-stone-800 text-white text-xs px-2 py-1.5 rounded-btn shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                          <div className="left-0 top-full mt-1 bg-stone-800  text-xs px-2 py-1.5 rounded-btn shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                             {labelType === '受益'
                               ? <>受益人: {proxy.beneficiary_name} → 代领人: {proxy.proxy_name}</>
                               : <>代领人: {proxy.proxy_name} → 受益人: {proxy.beneficiary_name}</>}

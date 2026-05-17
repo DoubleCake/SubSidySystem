@@ -252,7 +252,7 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
         <div className="flex-1" />
         {selectedIds.length > 0 && (
           <button onClick={handleBatchDelete}
-            className="px-3 py-2 text-sm bg-red-600 text-white rounded-btn hover:bg-red-500">
+            className="px-3 py-2 text-sm bg-red-600  rounded-btn hover:bg-red-500">
             删除选中 ({selectedIds.length})
           </button>
         )}
@@ -261,7 +261,7 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
           Excel导入
         </button>
         <button onClick={openAdd}
-          className="px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
+          className="px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
           ＋ 新增
         </button>
       </div>
@@ -275,7 +275,7 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
                 <button onClick={toggleSelectAll}
                   className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
                     items.length > 0 && selectedIds.length === items.length
-                      ? 'bg-primary/90 border-primary/90 text-white' : 'border-stone-300 hover:border-emerald-400'
+                      ? 'bg-primary/90 border-primary/90 ' : 'border-stone-300 hover:border-emerald-400'
                   }`}>
                   {items.length > 0 && selectedIds.length === items.length && (
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
@@ -308,7 +308,7 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
                   <button onClick={() => toggleSelect(item.id)}
                     className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
                       selectedIds.includes(item.id)
-                        ? 'bg-primary/90 border-primary/90 text-white' : 'border-stone-300 hover:border-emerald-400'
+                        ? 'bg-primary/90 border-primary/90 ' : 'border-stone-300 hover:border-emerald-400'
                     }`}>
                     {selectedIds.includes(item.id) && (
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">

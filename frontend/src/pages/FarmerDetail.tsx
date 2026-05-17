@@ -253,8 +253,8 @@ export function FarmerHouseholdDetail({
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <span className="text-base font-bold text-text-primary">{hh.household_name}</span>
             <span className="text-text-muted text-xs font-mono">{hh.household_code}</span>
-            {areaUsage?.is_overdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">⚠️ 超领</span>}
-            {historyEventId !== null && <span className="text-xs bg-amber-500/80 text-white px-1.5 py-0.5 rounded">⏳ 快照</span>}
+            {areaUsage?.is_overdrawn && <span className="text-xs bg-red-500  px-1.5 py-0.5 rounded">⚠️ 超领</span>}
+            {historyEventId !== null && <span className="text-xs bg-amber-500/80  px-1.5 py-0.5 rounded">⏳ 快照</span>}
           </div>
           <div className="text-text-muted text-xs">📍 {hh.village_full_name}
             {hh.address && <span className="ml-1 text-text-muted">{hh.address}</span>}
@@ -313,7 +313,7 @@ export function FarmerHouseholdDetail({
                 <button onClick={() => {
                   onOpenMemberAdd()
                 }}
-                  className="text-xs bg-primary text-white px-2.5 py-1 rounded-btn hover:bg-primary/90 transition-colors">＋ 成员</button>
+                  className="text-xs bg-primary  px-2.5 py-1 rounded-btn hover:bg-primary/90 transition-colors">＋ 成员</button>
                 <button onClick={onOpenEvent} className="text-xs border border-border text-text-primary px-2.5 py-1 rounded-btn hover:bg-warm/30 transition-colors">＋ 补录</button>
               </>
             )}
@@ -332,7 +332,7 @@ export function FarmerHouseholdDetail({
                 ${m.is_head ? 'bg-primary/5 border-primary/20' : 'bg-white border-border hover:border-border hover:bg-warm/30'}
                 ${m.farmer_status !== 1 ? 'opacity-60' : ''}`}>
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0
-                  ${m.is_head ? 'bg-primary/90 text-white' : 'bg-warm/30 text-text-muted'}`}>
+                  ${m.is_head ? 'bg-primary/90 ' : 'bg-warm/30 text-text-muted'}`}>
                   {m.real_name.slice(-1)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -403,15 +403,21 @@ export interface HistorySidebarProps {
 export function HistorySidebar({ householdId, historyEventId, historyDates, expandedYears, onExitHistory, onToggleYear, onLoadSnapshotAt }: HistorySidebarProps) {
   const hhId = householdId
   return (
-    <div className="w-48 shrink-0">
-      <div className="bg-white border border-border rounded-card shadow-card">
+    <div className="w-48 shrink-0"
+      style={{
+        backgroundImage: 'linear-gradient(to bottom, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.55) 100%), url(/images/timecheckpoint.png)',
+        backgroundPosition: 'bottom center',
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: 'cover'
+      }}>
+      <div className="border border-border rounded-card shadow-card overflow-hidden bg-transparent">
         <div className="px-3 py-2 border-b border-border/50 bg-warm/30">
           <div className="text-xs font-semibold text-text-primary">历史记录</div>
         </div>
         <div className="py-2 px-2 space-y-1 max-h-[50vh] overflow-y-auto">
           <button onClick={onExitHistory}
             className={`w-full py-2.5 rounded-btn text-xs font-medium transition-all text-left px-3
-              ${historyEventId === null ? 'bg-primary/90 text-white shadow-card' : 'text-text-muted hover:bg-warm/30'}`}>
+              ${historyEventId === null ? 'bg-primary/90  shadow-card' : 'text-text-muted hover:bg-warm/30'}`}>
             当前
           </button>
           {(() => {

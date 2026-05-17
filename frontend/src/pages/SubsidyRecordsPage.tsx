@@ -703,7 +703,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
                   e.stopPropagation()
                   handleExportAreaStats()
                 }}
-                className="px-3 py-1 text-xs bg-primary text-white rounded-btn hover:bg-primary/90"
+                className="px-3 py-1 text-xs bg-primary  rounded-btn hover:bg-primary/90"
               >
                 ↓ 导出Excel
               </button>
@@ -818,7 +818,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
                 ↑ Excel导入
               </button>
               <button onClick={() => setProxyAddOpen(true)}
-                className="px-3 py-1.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
+                className="px-3 py-1.5 text-sm bg-primary  rounded-btn hover:bg-primary/90">
                 ＋ 新增代领
               </button>
             </>
@@ -829,12 +829,12 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
               <div className="flex gap-2 items-center">
                 {selectedIds.length > 0 && (
                   <button onClick={batchDelete}
-                    className="px-3 py-2 text-sm bg-red-600 text-white rounded-btn hover:bg-red-700 flex items-center gap-1.5">
+                    className="px-3 py-2 text-sm bg-red-600  rounded-btn hover:bg-red-700 flex items-center gap-1.5">
                     🗑️ 删除选中 ({selectedIds.length})
                   </button>
                 )}
                 <button onClick={() => setAddOpen(true)}
-                  className="px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
+                  className="px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
                   ＋ 新增一条
                 </button>
               </div>
@@ -945,7 +945,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
             <span className="font-semibold text-text-primary text-sm">🔍 数据预检结果</span>
             <div className="flex gap-2 items-center">
               <button onClick={() => { setSelectedSheets(getDefaultSelectedSheets(preCheckResults)); setExportModalOpen(true) }}
-                className="px-3 py-1.5 text-xs bg-primary text-white rounded-btn hover:bg-primary/90">↓ 导出报告 Excel</button>
+                className="px-3 py-1.5 text-xs bg-primary  rounded-btn hover:bg-primary/90">↓ 导出报告 Excel</button>
               <button onClick={() => setPreCheckResults(null)} className="text-xs text-text-muted hover:text-text-primary">✕ 关闭</button>
             </div>
           </div>
@@ -1049,7 +1049,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
             <div className="px-6 py-4 border-t border-border flex justify-end gap-3">
               <button onClick={() => setExportModalOpen(false)} className="px-4 py-2 text-sm border border-border rounded-btn bg-white text-text-primary hover:bg-warm/30">取消</button>
               <button onClick={handleExportWithOptions} disabled={isExporting || selectedSheets.length === 0}
-                className="px-4 py-2 text-sm bg-blue-700 text-white rounded-btn hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                className="px-4 py-2 text-sm bg-blue-700  rounded-btn hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                 {isExporting ? (<><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>导出中...</>) : '导出'}
               </button>
             </div>

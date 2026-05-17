@@ -12,6 +12,100 @@ from core.response import error_response
 
 Base.metadata.create_all(bind=engine)
 
+# ── 迁移：为旧数据库补充新增字段 ──
+from sqlalchemy import text as sa_text
+with engine.connect() as conn:
+    # 检查 check_config 列是否存在（SubsidyType 新增字段）
+    from sqlalchemy import inspect
+    inspector = inspect(engine)
+    cols = {c['name'] for c in inspector.get_columns('subsidy_type')}
+    if 'check_config' not in cols:
+        conn.execute(sa_text("ALTER TABLE subsidy_type ADD COLUMN check_config TEXT"))
+        conn.commit()
+
+    # 检查 retained_land 列是否存在（VillageGroup 新增字段）
+    vg_cols = {c['name'] for c in inspector.get_columns('village_group')}
+    if 'retained_land' not in vg_cols:
+        conn.execute(sa_text("ALTER TABLE village_group ADD COLUMN retained_land DECIMAL(10,2) DEFAULT 0.00"))
+        conn.commit()
+    if 'population' not in vg_cols:
+        conn.execute(sa_text("ALTER TABLE village_group ADD COLUMN population INTEGER DEFAULT NULL"))
+        conn.commit()
+
+    # 检查 owner_type 列是否存在（LandTrust 新增字段：支持村/村组作为流出/流入方）
+    lt_cols = {c['name'] for c in inspector.get_columns('land_trust')}
+    if 'owner_type' not in lt_cols:
+        conn.execute(sa_text("ALTER TABLE land_trust ADD COLUMN owner_type VARCHAR(20) NOT NULL DEFAULT 'household'"))
+        conn.execute(sa_text("ALTER TABLE land_trust ADD COLUMN owner_entity_id INTEGER DEFAULT NULL"))
+        conn.execute(sa_text("ALTER TABLE land_trust ADD COLUMN operator_type VARCHAR(20) NOT NULL DEFAULT 'household'"))
+        conn.execute(sa_text("ALTER TABLE land_trust ADD COLUMN operator_entity_id INTEGER DEFAULT NULL"))
+        conn.commit()
+
+    # SQLite 不支持 ALTER COLUMN DROP NOT NULL，需要用重建表方式移除 owner_household_id 的 NOT NULL 约束
+    ti = {r[1]: r for r in conn.execute(sa_text("PRAGMA table_info('land_trust')")).fetchall()}
+    if ti.get('owner_household_id') and ti['owner_household_id'][3] == 1:  # notnull == 1
+        conn.execute(sa_text("PRAGMA foreign_keys=OFF"))
+        conn.execute(sa_text("""
+            CREATE TABLE land_trust_v2 (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_type VARCHAR(20) NOT NULL DEFAULT 'household',
+                owner_household_id INTEGER REFERENCES family_household(id),
+                owner_entity_id INTEGER,
+                operator_type VARCHAR(20) NOT NULL DEFAULT 'household',
+                operator_household_id INTEGER REFERENCES family_household(id),
+                operator_entity_id INTEGER,
+                trust_type VARCHAR(20) NOT NULL DEFAULT 'ENTRUST',
+                area DECIMAL(10,2),
+                trust_year SMALLINT NOT NULL,
+                start_date DATE,
+                end_date DATE,
+                annual_fee DECIMAL(10,2),
+                payment_method VARCHAR(20),
+                fee_note TEXT,
+                parcel_desc VARCHAR(200),
+                data_reliability VARCHAR(20) NOT NULL DEFAULT 'VILLAGE_CONFIRM',
+                affect_subsidy_calc SMALLINT NOT NULL DEFAULT 1,
+                subsidy_arable SMALLINT NOT NULL DEFAULT 1,
+                subsidy_cash_crop SMALLINT NOT NULL DEFAULT 1,
+                verified_by VARCHAR(50),
+                verified_date DATE,
+                note TEXT,
+                operator VARCHAR(50),
+                is_active SMALLINT NOT NULL DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        conn.execute(sa_text("""
+            INSERT INTO land_trust_v2 (
+                id, owner_type, owner_household_id, owner_entity_id,
+                operator_type, operator_household_id, operator_entity_id,
+                trust_type, area, trust_year, start_date, end_date,
+                annual_fee, payment_method, fee_note, parcel_desc,
+                data_reliability, affect_subsidy_calc, subsidy_arable, subsidy_cash_crop,
+                verified_by, verified_date,
+                note, operator, is_active, created_at, updated_at
+            )
+            SELECT id, COALESCE(owner_type,'household'), owner_household_id, owner_entity_id,
+                   COALESCE(operator_type,'household'), operator_household_id, operator_entity_id,
+                   trust_type, area, trust_year, start_date, end_date,
+                   annual_fee, payment_method, fee_note, parcel_desc,
+                   data_reliability, affect_subsidy_calc, 1, 1,
+                   verified_by, verified_date,
+                   note, operator, is_active, created_at, updated_at
+            FROM land_trust
+        """))
+        conn.execute(sa_text("DROP TABLE land_trust"))
+        conn.execute(sa_text("ALTER TABLE land_trust_v2 RENAME TO land_trust"))
+        conn.commit()
+
+    # 检查 subsidy_arable 列是否存在（LandTrust 新增字段：补贴享受类型）
+    lt_cols2 = {c['name'] for c in inspector.get_columns('land_trust')}
+    if 'subsidy_arable' not in lt_cols2:
+        conn.execute(sa_text("ALTER TABLE land_trust ADD COLUMN subsidy_arable SMALLINT NOT NULL DEFAULT 1"))
+        conn.execute(sa_text("ALTER TABLE land_trust ADD COLUMN subsidy_cash_crop SMALLINT NOT NULL DEFAULT 1"))
+        conn.commit()
+
 app = FastAPI(
     title="农户补贴管理系统",
     description="内网本地部署版 · Python FastAPI + SQLite",

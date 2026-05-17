@@ -178,7 +178,7 @@ export function AIPage() {
             ⚠️ 发送前自动脱敏：身份证保留前6后4 · 手机保留前3后4 · 银行卡仅保留后4位
           </div>
           <button onClick={run} disabled={loading}
-            className="w-full py-2 bg-primary text-white rounded-btn text-sm hover:bg-primary/90 disabled:opacity-60 transition-colors">
+            className="w-full py-2 bg-primary  rounded-btn text-sm hover:bg-primary/90 disabled:opacity-60 transition-colors">
             {loading ? '分析中…' : '发送给 AI 分析'}
           </button>
         </div>

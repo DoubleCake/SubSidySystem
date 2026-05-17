@@ -997,7 +997,7 @@ export default function FarmersPage() {
           {leftTab === 'households' && !mergeMode && (
             <>
               <div className="flex gap-2 flex-wrap">
-                <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
+                <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-primary-500  rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
                   <Icon name="create" size={14} className="inline mr-1" />创建新家庭户
                 </button>
                 <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]); setHhPage(1) }}
@@ -1065,7 +1065,7 @@ export default function FarmersPage() {
             </span>
             <button onClick={handleMergeConfirm}
               disabled={mergeSelectedHouseholds.length < 2}
-              className="ml-auto px-4 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium">
+              className="ml-auto px-4 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium">
               确认合并
             </button>
           </div>
@@ -1084,14 +1084,14 @@ export default function FarmersPage() {
             </span>
             <button onClick={handleBatchConfirm}
               disabled={batchSelected.length === 0 || batchConfirmLoading}
-              className="ml-auto px-4 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2">
+              className="ml-auto px-4 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2">
               {batchConfirmLoading ? <><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>确认中...</> : '确认所选'}
             </button>
           </div>
         )}
         {leftTab === 'farmers' && (
           <>
-            <button onClick={() => setCreateFarmerOpen(true)} className="px-4 py-2.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
+            <button onClick={() => setCreateFarmerOpen(true)} className="px-4 py-2.5 text-sm bg-primary  rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
               <Icon name="create" size={14} className="inline mr-1" />新建农户
             </button>
             <div className="flex items-center gap-0 border border-border rounded-btn shadow-card overflow-hidden">
@@ -1111,7 +1111,7 @@ export default function FarmersPage() {
         )}
 
         {/* 列表 */}
-        <div className="flex-1 bg-white border border-border rounded-card overflow-hidden shadow-card flex flex-col min-h-0">
+        <div className="flex-1 bg-warm-100 border border-border rounded-card overflow-hidden shadow-card flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto">
             {/* 农户列表 */}
             {leftTab === 'farmers' && (

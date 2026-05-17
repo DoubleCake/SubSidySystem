@@ -64,10 +64,11 @@ class PreCheckRunner:
         result = runner.run(rows)
     """
 
-    def __init__(self, db: Session, season: str = None, compare_year: int = None):
+    def __init__(self, db: Session, season: str = None, compare_year: int = None, check_options: dict = None):
         self.db = db
         self.season = (season or "").strip()
         self.compare_year = compare_year
+        self.check_options = check_options or {}
 
         # 以下在 _load_reference_data 中初始化
         self.all_village_names: set[str] = set()
@@ -79,6 +80,11 @@ class PreCheckRunner:
         self.db_hh_season_used: dict[int, float] = {}
         self.db_hh_existing_apps: dict[int, list[dict]] = {}
         self.db_existing_app_id_cards: dict[str, list[dict]] = {}
+
+    def _should(self, check_name: str) -> bool:
+        """检查某个检查项是否启用"""
+        checks = self.check_options.get("checks", {})
+        return checks.get(check_name, True)
 
     def _load_villages(self):
         """加载村基础数据"""
@@ -203,12 +209,17 @@ class PreCheckRunner:
                 })
 
     def load_all(self):
-        """加载所有参考数据"""
-        self._load_villages()
-        self._load_farmers()
-        self._load_error_library()
-        self._load_land_areas()
-        self._load_season_data()
+        """加载所有参考数据（根据 check_options 按需加载）"""
+        if self._should("village"):
+            self._load_villages()
+        if self._should("db_compare"):
+            self._load_farmers()
+        if self._should("error_library"):
+            self._load_error_library()
+        if self._should("area_anomaly") or self._should("duplicate"):
+            self._load_land_areas()
+        if self._should("area_anomaly") and self.season in VALID_SEASONS:
+            self._load_season_data()
 
     # ── 单行校验 ──
 
@@ -284,8 +295,10 @@ class PreCheckRunner:
             if not id_ok:
                 row_errors.append(f"身份证错误：{id_err}")
 
-            # 村组检查
-            village_id = self._check_village(village, name, id_card, group, row_no, village_errors)
+            # 村组检查（可配置跳过）
+            village_id = None
+            if self._should("village"):
+                village_id = self._check_village(village, name, id_card, group, row_no, village_errors)
 
             # 手机号检查
             if row.phone:
@@ -313,8 +326,8 @@ class PreCheckRunner:
             if err:
                 row_errors.append(err)
 
-            # 面积逻辑校验
-            if contract_area_val is not None:
+            # 面积逻辑校验（流转出扣减，可配置跳过）
+            if contract_area_val is not None and self.check_options.get("check_trust_deduction", True):
                 deduct = (trust_area_val or 0) + (no_subsidy_area_val or 0)
                 if deduct > contract_area_val:
                     row_errors.append(
@@ -331,18 +344,19 @@ class PreCheckRunner:
                 })
                 continue
 
-            # Excel 内部重复
-            if id_card in seen_id_cards:
-                duplicate_errors.append({
-                    "row": row_no, "name": name, "id_card": id_card,
-                    "village": village, "group": group,
-                    "error": f"身份证号与第{seen_id_cards[id_card]}行重复",
-                })
-                continue
-            seen_id_cards[id_card] = row_no
+            # Excel 内部重复（可配置跳过）
+            if self._should("duplicate"):
+                if id_card in seen_id_cards:
+                    duplicate_errors.append({
+                        "row": row_no, "name": name, "id_card": id_card,
+                        "village": village, "group": group,
+                        "error": f"身份证号与第{seen_id_cards[id_card]}行重复",
+                    })
+                    continue
+                seen_id_cards[id_card] = row_no
 
             # 数据库已有申请重复
-            if id_card in self.db_existing_app_id_cards:
+            if self._should("duplicate") and id_card in self.db_existing_app_id_cards:
                 apps_summary = "；".join([
                     f"{a['real_name']}({a['subsidy_name']}-{a['status']})" +
                     (f":{a['remark']}" if a['remark'] else "")
@@ -355,8 +369,8 @@ class PreCheckRunner:
                     "error": f"该人员本年度本季已有申请记录：{apps_summary}",
                 })
 
-            # 错误库命中
-            if (id_card, name) in self.error_lib:
+            # 错误库命中（可配置跳过）
+            if self._should("error_library") and (id_card, name) in self.error_lib:
                 lib_rec = self.error_lib[(id_card, name)]
                 error_library_hits.append({
                     "row": row_no, "name": name, "id_card": id_card,
@@ -366,8 +380,8 @@ class PreCheckRunner:
                     "source": lib_rec.source,
                 })
 
-            # 性别检查
-            if row.gender:
+            # 性别检查（可配置跳过）
+            if self._should("gender") and row.gender:
                 gid = parse_gender_from_id(id_card)
                 gex = 1 if row.gender in ("男", "1", "male") else (2 if row.gender in ("女", "2", "female") else 0)
                 if gex != 0 and gid != 0 and gex != gid:
@@ -379,8 +393,8 @@ class PreCheckRunner:
                         "error": f"Excel中性别为「{row.gender}」，但身份证显示为「{'男' if gid == 1 else '女'}」",
                     })
 
-            # 面积异常
-            if contract_area_val is not None and id_card in self.db_land_areas:
+            # 面积异常（可配置跳过，area_mode=disabled 时也不检查）
+            if self._should("area_anomaly") and self.check_options.get("area_mode") != "disabled" and contract_area_val is not None and id_card in self.db_land_areas:
                 db_contracted = self.db_land_areas[id_card]
                 t_out = trust_area_val or 0
                 t_in = trust_in_area_val or 0
@@ -418,8 +432,8 @@ class PreCheckRunner:
                         "exceed_amount": anomaly["exceed_amount"],
                     })
 
-            # 数据库比对
-            farmer = self.db_farmers.get(id_card)
+            # 数据库比对（可配置跳过）
+            farmer = self.db_farmers.get(id_card) if self._should("db_compare") else None
             if farmer:
                 changes = []
                 if name != farmer["real_name"]:

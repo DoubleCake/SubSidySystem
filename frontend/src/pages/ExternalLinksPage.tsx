@@ -188,7 +188,7 @@ export default function ExternalLinksPage() {
       <div className="flex items-center gap-2 mb-4">
         {[{id:'sites',label:'🌐 外部网站'},{id:'search',label:'🔍 系统内查询'},{id:'records',label:'📝 查询记录'}].map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id as typeof tab)}
-            className={`px-4 py-2 text-sm rounded-btn border transition-colors ${tab===t.id?'bg-primary text-white border-emerald-700':'bg-white border-border text-text-primary hover:border-border'}`}>
+            className={`px-4 py-2 text-sm rounded-btn border transition-colors ${tab===t.id?'bg-primary  border-emerald-700':'bg-white border-border text-text-primary hover:border-border'}`}>
             {t.label}
           </button>
         ))}
@@ -196,7 +196,7 @@ export default function ExternalLinksPage() {
           <button onClick={()=>{ setEditSite(null); setSiteForm({site_type:'link',sort_order:0,is_active:1}); setSiteModal(true) }}
             className="text-xs border border-border text-text-muted px-3 py-1.5 rounded-btn hover:border-primary/30 hover:text-primary">⚙️ 管理网站</button>
           <button onClick={()=>setBatchOpen(true)}
-            className="text-sm bg-primary text-white px-4 py-2 rounded-btn hover:bg-primary/90">＋ 批量查询</button>
+            className="text-sm bg-primary  px-4 py-2 rounded-btn hover:bg-primary/90">＋ 批量查询</button>
         </div>
       </div>
 
@@ -277,7 +277,7 @@ export default function ExternalLinksPage() {
                 </select>
               </div>
               <button onClick={()=>{setSrchPage(1);doSearch()}}
-                className="px-4 py-2 bg-primary text-white text-sm rounded-btn hover:bg-primary/90">搜索</button>
+                className="px-4 py-2 bg-primary  text-sm rounded-btn hover:bg-primary/90">搜索</button>
               <button onClick={()=>{setSrch('');setSrchYear('');setSrchTypeId('');setSrchVillage('');setSrchResults([]);setSrchTotal(0)}}
                 className="px-3 py-2 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30">清除</button>
             </div>
@@ -457,7 +457,7 @@ export default function ExternalLinksPage() {
             <div className="flex justify-between items-center mb-3">
               <p className="text-sm text-text-muted">已配置 {sites.length} 个网站</p>
               <button onClick={()=>{ setSiteForm({name:'',url:'',site_type:'link',sort_order:sites.length+1,is_active:1}); setSiteFormMode(true) }}
-                className="text-sm bg-primary text-white px-3 py-1.5 rounded-btn hover:bg-primary/90">＋ 新增网站</button>
+                className="text-sm bg-primary  px-3 py-1.5 rounded-btn hover:bg-primary/90">＋ 新增网站</button>
             </div>
             <div className="space-y-2 max-h-80 overflow-y-auto">
               {sites.length===0&&<p className="text-center py-8 text-text-muted/50 text-sm">暂无网站，点击「＋新增网站」添加</p>}

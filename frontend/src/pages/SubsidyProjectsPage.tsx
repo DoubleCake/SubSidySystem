@@ -4,7 +4,7 @@
  * - 进入子页查看/管理人员记录
  * - 记录支持搜索、新增、Excel导入、编辑、删除
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import * as api from '../api'
 import type { SubsidyType, SubsidyTypeCreate } from '../types'
@@ -41,6 +41,7 @@ export default function SubsidyProjectsPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [editing, setEditing] = useState<SubsidyType | null>(null)
   const [form, setForm] = useState<Partial<SubsidyTypeCreate>>({ subsidy_year: thisYear, calc_mode: 'fixed' })
+  const pendingCheckConfig = useRef<object | null>(null)
 
   // 更新URL参数和状态
   const handleYearChange = (year: number) => {
@@ -106,8 +107,21 @@ export default function SubsidyProjectsPage() {
     const autoUnit = form.calc_mode === 'per_mu' ? '元/亩' : (form.standard_unit || '元/户')
     const payload = { ...form, standard_unit: autoUnit }
     try {
-      if (editing) { await api.updateSubsidyType(editing.id, payload); show('✓ 更新成功') }
-      else { await api.createSubsidyType(payload as SubsidyTypeCreate); show('✓ 创建成功') }
+      if (editing) {
+        await api.updateSubsidyType(editing.id, payload)
+        // SubsidyForms 内部已自动保存 check_config（编辑模式）
+        show('✓ 更新成功')
+      } else {
+        const res = await api.createSubsidyType(payload as SubsidyTypeCreate)
+        // 新建项目：将表单里的预检配置保存到新类型
+        if (pendingCheckConfig.current) {
+          await fetch(`/api/subsidies/types/${res.id}/check-config`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(pendingCheckConfig.current),
+          })
+        }
+        show('✓ 创建成功')
+      }
       setEditOpen(false); loadTypes()
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
@@ -135,7 +149,7 @@ export default function SubsidyProjectsPage() {
           {years.map(y => <option key={y} value={y}>{y}年</option>)}
         </select>
         <span className="text-xs text-text-muted">共 {types.length} 个项目</span>
-        <button onClick={openAdd} className="ml-auto px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">＋ 新增项目</button>
+        <button onClick={openAdd} className="">＋ 新增项目</button>
       </div>
 
       <div className="bg-blue-50 border border-blue-100 rounded-card px-4 py-3 mb-4 text-xs text-blue-700">
@@ -207,6 +221,7 @@ export default function SubsidyProjectsPage() {
         onSubmit={submitType}
         onClose={() => setEditOpen(false)}
         thisYear={thisYear}
+        onCheckConfigChange={cfg => { pendingCheckConfig.current = cfg }}
       />
 
       <Toast {...toast} />

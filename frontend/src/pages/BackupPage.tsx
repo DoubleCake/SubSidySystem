@@ -173,7 +173,7 @@ export default function BackupPage() {
                   <div className="font-semibold text-sm text-text-primary mb-1">下载数据库文件 (.db)</div>
                   <p className="text-xs text-text-muted mb-3">完整迁移首选。换电脑时把这个文件复制过去，直接放到新机器的项目目录即可，数据 100% 保留。</p>
                   <button onClick={downloadDb}
-                    className="w-full py-2 bg-primary text-white text-sm rounded-btn hover:bg-primary/90">
+                    className="w-full py-2 bg-primary  text-sm rounded-btn hover:bg-primary/90">
                     ⬇️ 下载 subsidy.db
                   </button>
                 </div>
@@ -248,7 +248,7 @@ export default function BackupPage() {
               </label>
 
               <button onClick={handleRestore} disabled={restoring || !restoreFile || !confirmRestore}
-                className="w-full py-2.5 bg-red-600 text-white text-sm rounded-btn hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                className="w-full py-2.5 bg-red-600  text-sm rounded-btn hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed">
                 {restoring ? '恢复中，请勿关闭…' : '🔄 执行数据库恢复'}
               </button>
             </div>

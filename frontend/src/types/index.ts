@@ -4,6 +4,13 @@ export interface VillageGroup {
   village_name: string
   group_no: number
   full_name: string
+  retained_land?: number
+  population?: number
+  farmer_land_total?: number
+  trust_out_total?: number
+  trust_in_total?: number
+  total_land?: number
+  household_count?: number
 }
 
 export interface FarmerOut {
@@ -386,6 +393,7 @@ export interface HHDetail {
   members: HHMember[]
   area_usage: {
     contracted_area: number; trust_out_area?: number; trust_in_area?: number
+    trust_in_arable_area?: number; trust_in_cash_crop_area?: number
     cultivable_area?: number; used_area: number; remaining_area: number
     is_overdrawn: boolean; overdraw_amount?: number; has_trust_data?: boolean
     season_breakdown?: Record<string, SeasonUsage>
@@ -548,4 +556,20 @@ export interface CheckResult {
   removed_farmers: Array<{ id_card: string; name: string; village: string; group: string; farmer_id: number; note: string }>
   changed_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; db_name: string; db_village: string; db_group: string; changes: string[]; farmer_id: number }>
   year_compare: Record<string, unknown>
+}
+
+// ── 预检配置 ──
+export interface CheckConfig {
+  checks: {
+    format: boolean
+    village: boolean
+    duplicate: boolean
+    gender: boolean
+    error_library: boolean
+    area_anomaly: boolean
+    db_compare: boolean
+    year_compare: boolean
+  }
+  area_mode: 'disabled' | 'standalone' | 'seasonal'
+  check_trust_deduction: boolean
 }

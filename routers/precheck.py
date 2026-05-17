@@ -18,6 +18,7 @@ from datetime import datetime
 from database import get_db
 from export_utils import export_precheck_report, export_precheck_report_with_options
 from services.precheck_service import PreCheckRunner
+import models
 
 router = APIRouter(prefix="/api/precheck", tags=["数据预检查"])
 
@@ -54,7 +55,8 @@ class PreCheckRequest(BaseModel):
     rows: list[PreCheckRow]
     season: Optional[str] = None         # 本次导入的补贴分类：大春|小春|全年单补|临时
     compare_year: Optional[int] = None   # 要与哪一年的补贴数据对比（可不传）
-    check_options: Optional[dict] = None # 保留字段，控制哪些项目需要检查
+    subsidy_type_id: Optional[int] = None # 补贴类型ID（用于加载该类型的预检配置）
+    check_options: Optional[dict] = None # 控制哪些检查项目启用
 
 
 
@@ -66,7 +68,19 @@ class PreCheckRequest(BaseModel):
 @router.post("/run")
 def run_precheck(req: PreCheckRequest, db: Session = Depends(get_db)):
     """执行完整预检查（业务逻辑由 PreCheckRunner 完成）"""
-    runner = PreCheckRunner(db, season=req.season, compare_year=req.compare_year)
+    # 如果传了 subsidy_type_id，从数据库加载该类型的 check_config 作为默认
+    from services.check_config import parse_check_config
+    config = {}
+    if req.subsidy_type_id:
+        st = db.query(models.SubsidyType).filter(
+            models.SubsidyType.id == req.subsidy_type_id
+        ).first()
+        if st and st.check_config:
+            config = parse_check_config(st.check_config)
+    # 请求中的 check_options 可以覆盖/补充数据库配置
+    if req.check_options:
+        config = {**config, **req.check_options}
+    runner = PreCheckRunner(db, season=req.season, compare_year=req.compare_year, check_options=config)
     return runner.run([r.model_dump() for r in req.rows])
 
 

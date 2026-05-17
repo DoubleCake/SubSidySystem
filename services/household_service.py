@@ -511,30 +511,52 @@ def calc_household_area_usage(
     year: Optional[int] = None,
 ) -> dict:
     """计算家庭户的面积使用情况（含流转和历年数据）"""
+    from datetime import date
     hh = db.query(FamilyHousehold).filter(FamilyHousehold.id == household_id).first()
     if not hh:
         return {}
 
     contracted = get_contract_area_at_year(household_id, db, year) if year else float(hh.contract_area or 0)
 
+    # 无指定年份时，用当前年份查流转
+    trust_year = year or date.today().year
+
     trust_out = 0.0
     trust_in = 0.0
-    if year:
-        out_r = db.execute(text("""
-            SELECT COALESCE(SUM(area),0) FROM land_trust
-            WHERE owner_household_id=:hid AND trust_year=:yr AND is_active=1
-              AND affect_subsidy_calc=1 AND trust_type!='IDLE'
-              AND operator_household_id IS NOT NULL
-        """), {"hid": household_id, "yr": year}).scalar()
-        trust_out = float(out_r or 0)
-        in_r = db.execute(text("""
-            SELECT COALESCE(SUM(area),0) FROM land_trust
-            WHERE operator_household_id=:hid AND trust_year=:yr AND is_active=1
-              AND affect_subsidy_calc=1
-        """), {"hid": household_id, "yr": year}).scalar()
-        trust_in = float(in_r or 0)
+    trust_in_arable = 0.0
+    trust_in_cash_crop = 0.0
 
-    cultivable = max(0.0, contracted - trust_out)
+    out_r = db.execute(text("""
+        SELECT COALESCE(SUM(area),0) FROM land_trust
+        WHERE owner_household_id=:hid AND trust_year=:yr AND is_active=1
+          AND affect_subsidy_calc=1 AND trust_type!='IDLE'
+          AND (operator_household_id IS NOT NULL
+               OR (operator_type IN ('village','village_group') AND operator_entity_id IS NOT NULL))
+    """), {"hid": household_id, "yr": trust_year}).scalar()
+    trust_out = float(out_r or 0)
+
+    in_r = db.execute(text("""
+        SELECT COALESCE(SUM(area),0) FROM land_trust
+        WHERE operator_household_id=:hid AND trust_year=:yr AND is_active=1
+          AND affect_subsidy_calc=1
+    """), {"hid": household_id, "yr": trust_year}).scalar()
+    trust_in = float(in_r or 0)
+
+    in_arable_r = db.execute(text("""
+        SELECT COALESCE(SUM(area),0) FROM land_trust
+        WHERE operator_household_id=:hid AND trust_year=:yr AND is_active=1
+          AND affect_subsidy_calc=1 AND subsidy_arable=1
+    """), {"hid": household_id, "yr": trust_year}).scalar()
+    trust_in_arable = float(in_arable_r or 0)
+
+    in_cash_r = db.execute(text("""
+        SELECT COALESCE(SUM(area),0) FROM land_trust
+        WHERE operator_household_id=:hid AND trust_year=:yr AND is_active=1
+          AND affect_subsidy_calc=1 AND subsidy_cash_crop=1
+    """), {"hid": household_id, "yr": trust_year}).scalar()
+    trust_in_cash_crop = float(in_cash_r or 0)
+
+    cultivable = round(max(0.0, contracted - trust_out + trust_in), 2)
 
     cache_records = db.query(HouseholdAreaUsageCache).filter(
         HouseholdAreaUsageCache.household_id == household_id
@@ -592,11 +614,13 @@ def calc_household_area_usage(
         "contracted_area": contracted,
         "trust_out_area": trust_out,
         "trust_in_area": trust_in,
+        "trust_in_arable_area": round(trust_in_arable, 2),
+        "trust_in_cash_crop_area": round(trust_in_cash_crop, 2),
         "cultivable_area": round(cultivable, 2),
         "used_area": total_used,
         "remaining_area": round(remaining, 2),
         "is_overdrawn": is_overdrawn_all,
-        "overdraw_amount": round(max(0, total_used - contracted), 2),
+        "overdraw_amount": round(max(0, total_used - cultivable), 2),
         "season_breakdown": season_breakdown,
         "year_totals": {
             str(y): {s: round(v, 2) for s, v in seasons.items()}
@@ -694,7 +718,7 @@ def list_households(
             year = db.query(func.max(SubsidyApplication.apply_year)).scalar() or 2024
         cache_summary = db.query(
             HouseholdAreaUsageCache.household_id,
-            func.sum(HouseholdAreaUsageCache.used_area).label("total_used")
+            func.max(HouseholdAreaUsageCache.used_area).label("max_used")
         ).filter(
             HouseholdAreaUsageCache.year == year
         ).group_by(HouseholdAreaUsageCache.household_id).subquery()
@@ -704,7 +728,7 @@ def list_households(
         ).filter(
             FamilyHousehold.contract_area.isnot(None),
             FamilyHousehold.contract_area > 0,
-            cache_summary.c.total_used > FamilyHousehold.contract_area
+            cache_summary.c.max_used > FamilyHousehold.contract_area + 0.001
         ).all()
         overdrawn_hh_ids = [hid for (hid,) in overdrawn_hh_ids]
 
@@ -826,7 +850,7 @@ def list_overdrawn_households(
         contracted = float(hh.contract_area or 0)
         trust_out = trust_out_map.get(hh.id, 0)
         trust_in = trust_in_map.get(hh.id, 0)
-        cultivable = max(0.0, contracted - trust_out)
+        cultivable = round(max(0.0, contracted - trust_out), 2)
 
         cache_list = cache_map.get(hh.id, [])
         year_totals: dict[int, dict[str, float]] = {}
@@ -843,7 +867,7 @@ def list_overdrawn_households(
         if display_year:
             for season in SEASON_ORDER:
                 used = round(year_totals[display_year].get(season, 0.0), 2)
-                season_od = cultivable > 0 and used > cultivable
+                season_od = cultivable > 0 and used > cultivable + 0.001
                 season_overdrawn_list.append(season_od)
                 overdraw_amt = round(max(0, used - cultivable), 2) if season_od else 0.0
                 season_breakdown[season] = {

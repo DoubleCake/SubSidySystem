@@ -1,6 +1,7 @@
 from sqlalchemy import (
     Column, Integer, String, SmallInteger, Date,
-    DateTime, Text, DECIMAL, Numeric, ForeignKey, UniqueConstraint, Index
+    DateTime, Text, DECIMAL, Numeric, ForeignKey,
+    UniqueConstraint, Index, CheckConstraint
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -46,10 +47,12 @@ class FamilyHousehold(Base):
     created_at      = Column(DateTime, default=func.now())
     updated_at      = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    # 索引
+    # 索引 + 约束
     __table_args__ = (
         Index('ix_family_household_village_id', 'village_id'),
         Index('ix_family_household_head_farmer', 'head_farmer_id'),
+        CheckConstraint("contract_area IS NULL OR contract_area >= 0", name="ck_hh_contract_area_non_negative"),
+        CheckConstraint("confirmed_area IS NULL OR confirmed_area >= 0", name="ck_hh_confirmed_area_non_negative"),
     )
 
     # 关联
@@ -117,6 +120,7 @@ class SubsidyType(Base):
     description        = Column(Text, nullable=True)
     count_toward_area  = Column(SmallInteger, nullable=False, default=1,
                                 comment="1=按亩补贴累计入家庭承包面积 0=不计入（固定金额补贴一般选0）")
+    check_config    = Column(Text, nullable=True, comment="预检配置（JSON）")
     created_at      = Column(DateTime, default=func.now())
 
     # 关联
@@ -413,13 +417,21 @@ class LandTrust(Base):
 
     id                   = Column(Integer, primary_key=True, autoincrement=True)
 
-    # ── 流出方（承包权人）──
-    owner_household_id   = Column(Integer, ForeignKey("family_household.id"), nullable=False,
-                                   comment="流出方：土地承包人家庭户")
+    # ── 流出方（承包权人/村/村组）──
+    owner_type           = Column(String(20), nullable=False, default='household',
+                                   comment="household=家庭户/village=村/village_group=村组")
+    owner_household_id   = Column(Integer, ForeignKey("family_household.id"), nullable=True,
+                                   comment="流出方：家庭户ID（当owner_type=household时）")
+    owner_entity_id      = Column(Integer, nullable=True,
+                                   comment="流出方实体ID（当owner_type=village时=村ID，village_group时=村组ID）")
 
-    # ── 流入方（经营权人，可为空表示撂荒/集体统一）──
-    operator_household_id = Column(Integer, ForeignKey("family_household.id"), nullable=True,
-                                    comment="流入方：实际耕种人家庭户，null=撂荒或集体")
+    # ── 流入方（经营权人/村/村组，可为空表示撂荒/集体统一）──
+    operator_type           = Column(String(20), nullable=False, default='household',
+                                     comment="household=家庭户/village=村/village_group=村组")
+    operator_household_id   = Column(Integer, ForeignKey("family_household.id"), nullable=True,
+                                     comment="流入方：家庭户ID（当operator_type=household时）")
+    operator_entity_id      = Column(Integer, nullable=True,
+                                     comment="流入方实体ID（当operator_type=village时=村ID，village_group时=村组ID）")
 
     # ── 流转类型 ──
     trust_type           = Column(String(20), nullable=False, default="ENTRUST",
@@ -447,6 +459,10 @@ class LandTrust(Base):
     # ── 补贴影响配置 ──
     affect_subsidy_calc  = Column(SmallInteger, nullable=False, default=1,
                                    comment="1=纳入补贴面积计算/0=仅作记录不影响计算")
+    subsidy_arable       = Column(SmallInteger, nullable=False, default=1,
+                                   comment="1=耕地地力补贴由流入方享受 0=否")
+    subsidy_cash_crop    = Column(SmallInteger, nullable=False, default=1,
+                                   comment="1=经济作物补贴由流入方享受 0=否")
 
     # ── 审核信息 ──
     verified_by          = Column(String(50), nullable=True)
@@ -527,13 +543,16 @@ class VillageGroup(Base):
     """村组定义表 —— 记录各村下辖的组，独立于家庭户存在"""
     __tablename__ = "village_group"
 
-    id         = Column(Integer, primary_key=True, autoincrement=True)
-    village_id = Column(Integer, ForeignKey("village.id"), nullable=False)
-    group_no   = Column(String(20), nullable=False, comment="组名，如：一组、二组")
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    village_id    = Column(Integer, ForeignKey("village.id"), nullable=False)
+    group_no      = Column(String(20), nullable=False, comment="组名，如：一组、二组")
+    retained_land = Column(DECIMAL(10, 2), nullable=False, default=0.00, comment="村留存土地（亩）")
+    population    = Column(Integer, nullable=True, comment="人口数")
 
     __table_args__ = (
         UniqueConstraint("village_id", "group_no", name="uq_village_group"),
         Index("ix_village_group_village", "village_id"),
+        CheckConstraint("retained_land >= 0", name="ck_vg_retained_land_non_negative"),
     )
 
     village = relationship("Village", backref="groups")

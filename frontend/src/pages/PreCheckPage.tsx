@@ -19,8 +19,8 @@ import {
   getVillagesFromResult,
   getDefaultSelectedSheets
 } from '../utils/exportPrecheckReport'
-import { getExcelTemplates } from '../api'
-import type { CheckResult, ExcelColumnTemplate } from '../types'
+import { getExcelTemplates, getCheckConfig, updateCheckConfig, getSubsidyTypes } from '../api'
+import type { CheckResult, ExcelColumnTemplate, CheckConfig, SubsidyType } from '../types'
 
 // ─── 类型定义 ───
 interface CheckRow {
@@ -78,6 +78,14 @@ export default function PreCheckPage() {
   const [result, setResult] = useState<CheckResult | null>(null)
   const [season, setSeason] = useState<string>('')
   const [compareYear, setCompareYear] = useState<number | ''>('')
+  const [subsidyTypes, setSubsidyTypes] = useState<SubsidyType[]>([])
+  const [selectedTypeId, setSelectedTypeId] = useState<number | ''>('')
+  const [checkConfig, setCheckConfig] = useState<CheckConfig>({
+    checks: { format: true, village: true, duplicate: true, gender: true, error_library: true, area_anomaly: true, db_compare: true, year_compare: false },
+    area_mode: 'seasonal',
+    check_trust_deduction: false,
+  })
+  const [savingConfig, setSavingConfig] = useState(false)
   const [activeTab, setActiveTab] = useState<ActiveTab>('format')
   const [pageTab, setPageTab] = useState<PageTab>('check')
 
@@ -93,10 +101,70 @@ export default function PreCheckPage() {
   const [templates, setTemplates] = useState<ExcelColumnTemplate[]>([])
   const pendingRows = useRef<CheckRow[] | null>(null)
 
-  // 加载预检模板
+  // 加载预检模板和补贴类型列表
   useEffect(() => {
     getExcelTemplates('PRECHECK').then(setTemplates).catch(() => {})
+    getSubsidyTypes(new Date().getFullYear()).then(setSubsidyTypes).catch(() => {})
   }, [])
+
+  // 选择补贴类型 → 加载 check_config + 自动填季节
+  const handleSelectType = async (typeId: number) => {
+    setSelectedTypeId(typeId)
+    const t = subsidyTypes.find(st => st.id === typeId)
+    if (t?.season) setSeason(t.season)
+    try {
+      const res = await getCheckConfig(typeId)
+      if (res.check_config) setCheckConfig(res.check_config)
+    } catch { /* 用默认值 */ }
+  }
+
+  // 切换面积检查模式
+  const handleAreaMode = (mode: CheckConfig['area_mode']) => {
+    setCheckConfig(prev => ({ ...prev, area_mode: mode }))
+  }
+
+  // 统一切换检查项（处理 checks.* 和 check_trust_deduction 两层）
+  const toggleCheckItem = (key: string) => {
+    if (key === 'check_trust_deduction') {
+      setCheckConfig(prev => ({ ...prev, check_trust_deduction: !prev.check_trust_deduction }))
+    } else {
+      setCheckConfig(prev => ({
+        ...prev,
+        checks: { ...prev.checks, [key as keyof CheckConfig['checks']]: !prev.checks[key as keyof CheckConfig['checks']] },
+      }))
+    }
+  }
+  const isCheckItemActive = (key: string): boolean => {
+    if (key === 'check_trust_deduction') return checkConfig.check_trust_deduction
+    return checkConfig.checks[key as keyof CheckConfig['checks']]
+  }
+
+  // 备选检查项列表
+  const PRECHECK_CHECK_ITEMS = [
+    { key: 'format', label: '格式检查' },
+    { key: 'village', label: '村组存在性' },
+    { key: 'duplicate', label: '身份证重复' },
+    { key: 'gender', label: '性别一致性' },
+    { key: 'error_library', label: '错误库命中' },
+    { key: 'area_anomaly', label: '面积异常' },
+    { key: 'check_trust_deduction', label: '流转出扣减' },
+    { key: 'db_compare', label: '数据库比对' },
+    { key: 'year_compare', label: '年度对比' },
+  ]
+
+  // 保存为类型默认配置
+  const handleSaveConfig = async () => {
+    if (!selectedTypeId) return show('请先选择补贴类型', 'err')
+    setSavingConfig(true)
+    try {
+      await updateCheckConfig(selectedTypeId as number, checkConfig)
+      show('✓ 默认配置已保存')
+    } catch (e: unknown) {
+      show('保存失败：' + (e as Error).message, 'err')
+    } finally {
+      setSavingConfig(false)
+    }
+  }
 
   // 当结果变化时，更新导出选项
   useEffect(() => {
@@ -121,6 +189,8 @@ export default function PreCheckPage() {
           rows,
           season: season || null,
           compare_year: compareYear || null,
+          subsidy_type_id: selectedTypeId || null,
+          check_options: checkConfig,
         })
       })
       if (!res.ok) { const e = await res.json(); throw new Error(e.detail) }
@@ -150,7 +220,7 @@ export default function PreCheckPage() {
       show((e as Error).message, 'err')
       setStep('upload')
     }
-  }, [season, compareYear, show])
+  }, [season, compareYear, selectedTypeId, checkConfig, show])
 
   // 导出带选项的报告
   const handleExportWithOptions = async () => {
@@ -281,7 +351,7 @@ export default function PreCheckPage() {
         ] as const).map(t => (
           <button key={t.id} onClick={() => setPageTab(t.id)}
             className={`px-4 py-2 rounded-btn text-sm font-medium transition-colors
-              ${pageTab === t.id ? 'bg-primary text-white shadow' : 'bg-white text-text-primary border border-border hover:bg-warm/30'}`}>
+              ${pageTab === t.id ? 'bg-primary-300 text-text-primary shadow' : 'bg-white text-text-primary border border-border hover:bg-warm/30'}`}>
             {t.icon} {t.label}
           </button>
         ))}
@@ -322,6 +392,22 @@ export default function PreCheckPage() {
             <div className="bg-white border border-border rounded-card p-5 shadow-card">
               <h4 className="font-semibold text-text-primary text-sm mb-3">检查选项</h4>
               <div className="space-y-3">
+                {/* 补贴类型选择 */}
+                <div>
+                  <label className="block text-xs text-text-muted mb-1">补贴类型</label>
+                  <select value={selectedTypeId} onChange={e => {
+                    const v = e.target.value
+                    if (v) handleSelectType(Number(v))
+                    else { setSelectedTypeId(''); setSeason('') }
+                  }}
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
+                    <option value="">— 通用（不关联类型） —</option>
+                    {subsidyTypes.map(t => (
+                      <option key={t.id} value={t.id}>{t.subsidy_name}（{t.season || '未分类'}）</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-text-muted/50 mt-1">选择后自动加载该类型的预检配置</p>
+                </div>
                 <div>
                   <label className="block text-xs text-text-muted mb-1">补贴分类 <span className="text-red-400">*</span></label>
                   <select value={season} onChange={e => setSeason(e.target.value)}
@@ -343,18 +429,77 @@ export default function PreCheckPage() {
               </div>
             </div>
 
-            {/* 说明 */}
-            <div className="bg-blue-50 border border-blue-100 rounded-card p-4 text-xs text-blue-700 space-y-1.5">
-              <p className="font-semibold mb-2">检查项目：</p>
-              <p>✓ 姓名：长度、字符合法性</p>
-              <p>✓ 身份证：18位格式、出生日期、校验码</p>
-              <p>✓ 性别：与身份证是否一致</p>
-              <p>✓ 村组：是否在数据库中存在</p>
-              <p>✓ 内部重复：同一身份证是否出现多次</p>
-              <p>✓ 错误库：与历史错误记录交叉比对</p>
-              <p>✓ 面积：土地面积是否超过承包面积</p>
-              <p>✓ 与数据库比对：新增/减少/变更</p>
-              {compareYear && <p>✓ 与 {compareYear} 年补贴数据对比</p>}
+            {/* 检查项目配置 */}
+            <div className="bg-white border border-border rounded-card p-5 shadow-card">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-text-primary text-sm">检查项目配置</h4>
+                {selectedTypeId && (
+                  <button onClick={handleSaveConfig} disabled={savingConfig}
+                    className="px-2.5 py-1 text-xs bg-primary/10 text-primary rounded-btn hover:bg-primary/20 disabled:opacity-50 transition-colors">
+                    {savingConfig ? '保存中…' : '💾 保存'}
+                  </button>
+                )}
+              </div>
+
+              {/* 已启用 */}
+              {PRECHECK_CHECK_ITEMS.filter(item => isCheckItemActive(item.key)).length > 0 && (
+                <div className="mb-3">
+                  <label className="block text-xs text-text-muted mb-1.5">已启用</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PRECHECK_CHECK_ITEMS.filter(item => isCheckItemActive(item.key)).map(item => (
+                      <span key={item.key}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary  shadow-sm">
+                        {item.label}
+                        <button type="button" onClick={() => toggleCheckItem(item.key)}
+                          className="ml-0.5 w-3.5 h-3.5 rounded-full hover:bg-white/20 flex items-center justify-center leading-none text-sm font-bold">
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 备选 */}
+              {PRECHECK_CHECK_ITEMS.filter(item => !isCheckItemActive(item.key)).length > 0 && (
+                <div className="mb-3">
+                  <label className="block text-xs text-text-muted mb-1.5">备选检查项</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PRECHECK_CHECK_ITEMS.filter(item => !isCheckItemActive(item.key)).map(item => (
+                      <span key={item.key}
+                        onClick={() => toggleCheckItem(item.key)}
+                        className="px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer select-none transition-all
+                          bg-white text-text-muted border border-border hover:border-primary/40 hover:text-text-primary">
+                        + {item.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <hr className="border-border/50" />
+
+              {/* 面积检查模式 */}
+              <div className="mt-3">
+                <label className="block text-xs text-text-muted mb-1.5">面积检查模式</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { val: 'disabled' as const, label: '不检查' },
+                    { val: 'standalone' as const, label: '单独计算' },
+                    { val: 'seasonal' as const, label: '按季节累计' },
+                  ].map(opt => (
+                    <span key={opt.val}
+                      onClick={() => handleAreaMode(opt.val)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer select-none transition-all
+                        ${checkConfig.area_mode === opt.val
+                          ? 'bg-blue-600  shadow-sm'
+                          : 'bg-white text-text-muted border border-border hover:border-blue-400'
+                        }`}>
+                      {checkConfig.area_mode === opt.val ? '◉ ' : '○ '}{opt.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -390,11 +535,11 @@ export default function PreCheckPage() {
               ← 重新上传
             </button>
             <button onClick={() => exportPrecheckReport(result)}
-              className="px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
+              className="px-3 py-2 text-sm bg-primary text-text-primary rounded-btn hover:bg-primary/90">
               ↓ 导出完整报告 Excel
             </button>
             <button onClick={() => setExportModalOpen(true)}
-              className="px-3 py-2 text-sm bg-blue-700 text-white rounded-btn hover:bg-blue-600">
+              className="px-3 py-2 text-sm bg-primary-200 text-text-primary rounded-btn hover:bg-blue-600">
               ⚙️ 导出选项
             </button>
             <div className="ml-auto text-xs text-text-muted flex items-center">
@@ -407,11 +552,11 @@ export default function PreCheckPage() {
             {getTabs(result).map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-btn text-xs font-medium border transition-colors
-                  ${activeTab === t.id ? 'bg-primary text-white border-primary' : 'bg-white border-border text-text-primary hover:border-border'}`}>
+                  ${activeTab === t.id ? 'bg-primary-400 text-text-primary border-primary' : 'bg-white border-border text-text-primary hover:border-border'}`}>
                 {t.label}
                 {t.count > 0 && (
                   <span className={`px-1.5 py-0.5 rounded text-xs font-mono
-                    ${activeTab === t.id ? 'bg-white/20 text-white' : `bg-${t.color}-100 text-${t.color}-700`}`}>
+                    ${activeTab === t.id ? 'bg-white/20 text-text-primary' : `bg-${t.color}-100 text-${t.color}-700`}`}>
                     {t.count}
                   </span>
                 )}
@@ -686,7 +831,7 @@ export default function PreCheckPage() {
               <button
                 onClick={handleExportWithOptions}
                 disabled={isExporting || selectedSheets.length === 0}
-                className="px-4 py-2 text-sm bg-blue-700 text-white rounded-btn hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 text-sm bg-blue-700 text-text-primary rounded-btn hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isExporting ? (
                   <>

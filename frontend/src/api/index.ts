@@ -6,7 +6,7 @@ import type {
   ErrorLibraryItem, ErrorLibraryCreate,
   HH, HHDetail, HHEvent, HistoryDateEvent, SnapshotAtResponse,
   HouseholdCreate, MemberCreate, MemberUpdate, MemberMoveRequest,
-  SubsidyProxyOut, SubsidyProxyCreate,
+  SubsidyProxyOut, SubsidyProxyCreate, CheckConfig,
 } from '../types'
 
 const BASE = ''
@@ -125,6 +125,12 @@ export const createSubsidyType = (data: SubsidyTypeCreate) =>
 
 export const updateSubsidyType = (id: number, data: Partial<SubsidyTypeCreate>) =>
   req('/api/subsidies/types/' + id, { method: 'PUT', body: JSON.stringify(data) })
+
+export const getCheckConfig = (typeId: number) =>
+  req<{ check_config: CheckConfig; raw: string | null }>('/api/subsidies/types/' + typeId + '/check-config')
+
+export const updateCheckConfig = (typeId: number, config: CheckConfig) =>
+  req('/api/subsidies/types/' + typeId + '/check-config', { method: 'PUT', body: JSON.stringify(config) })
 
 // ── 补贴申请 ──
 export const getApplications = (params: Record<string, string | number>) =>

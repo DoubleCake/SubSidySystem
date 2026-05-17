@@ -59,6 +59,13 @@ def list_comparable_types(
 @router.post("/types")
 def create_subsidy_type(data: SubsidyTypeCreate, db: Session = Depends(get_db)):
     st = SubsidyType(**data.model_dump())
+    # 自动生成默认预检配置
+    from services.check_config import generate_default_config
+    st.check_config = generate_default_config(
+        season=st.season or "全年单补",
+        category=st.category,
+        calc_mode=st.calc_mode,
+    )
     db.add(st)
     db.commit()
     db.refresh(st)
@@ -83,6 +90,31 @@ def delete_subsidy_type(type_id: int, db: Session = Depends(get_db)):
     from services.subsidy_service import delete_type
     delete_type(db, type_id)
     return {"message": "删除成功"}
+
+
+@router.get("/types/{type_id}/check-config")
+def get_check_config(type_id: int, db: Session = Depends(get_db)):
+    """获取补贴类型的预检配置"""
+    st = db.get(SubsidyType, type_id)
+    if not st:
+        raise NotFound("补贴类型不存在")
+    from services.check_config import parse_check_config
+    return {
+        "check_config": parse_check_config(st.check_config),
+        "raw": st.check_config,
+    }
+
+
+@router.put("/types/{type_id}/check-config")
+def update_check_config(type_id: int, data: dict, db: Session = Depends(get_db)):
+    """更新补贴类型的预检配置"""
+    st = db.get(SubsidyType, type_id)
+    if not st:
+        raise NotFound("补贴类型不存在")
+    import json
+    st.check_config = json.dumps(data, ensure_ascii=False)
+    db.commit()
+    return {"message": "配置已保存"}
 
 
 # 批量导入申请记录
@@ -420,7 +452,7 @@ def precheck_applications(
     - 支持分页批量处理大数据量
     """
     from sqlalchemy import or_
-    from routers.precheck import validate_id_card, parse_gender_from_id
+    from utils import validate_id_card, parse_gender_from_id
 
     # 获取补贴类型信息（season等）
     subsidy_type = db.query(SubsidyType).filter(SubsidyType.id == subsidy_typeId).first()

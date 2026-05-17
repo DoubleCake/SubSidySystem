@@ -218,6 +218,7 @@ function Layout() {
             <Route path="/projects"  element={<SubsidyProjectsPage />} />
             <Route path="/agri-tasks" element={<AgriTaskPage />} />
             <Route path="/land"      element={<LandTrustPage />} />
+            <Route path="/links"     element={<ExternalLinksPage />} />
             <Route path="/precheck"  element={<PreCheckPage />} />
             <Route path="/ai"        element={<AIPage />} />
             <Route path="/settings/village-groups" element={<SettingsPage />} />
