@@ -106,7 +106,13 @@ export function HouseholdDetailContent({
     <div className="flex-1 min-w-0 flex flex-col">
       {/* 顶部卡片 */}
       <div className="bg-white border border-border rounded-card overflow-hidden shadow-card mb-3 shrink-0">
-        <div className="px-5 py-3.5 flex items-center gap-4 relative bg-gradient-to-r from-emerald-50 to-emerald-100/70 border-b border-emerald-100">
+        <div className="px-5 py-3.5 flex items-center gap-4 relative border-b border-emerald-100"
+          style={{
+            backgroundImage: 'url(/images/household.png)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}>
           <div className="w-10 h-10 rounded-card bg-primary/10 flex items-center justify-center text-lg font-bold text-primary shrink-0">🏠</div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">

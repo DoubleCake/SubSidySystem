@@ -79,39 +79,50 @@ function Layout() {
 
   return (
     <div className="min-h-screen bg-bg-main flex flex-col">
-      {/* 顶部导航 - 白色背景 */}
-      <header className="bg-white text-text-primary sticky top-0 z-40 shadow-card border-b border-border">
-        <div className="max-w-screen-xl mx-auto px-6 flex items-center gap-6" style={{ height: 70 }}>
+      {/* 顶部图片横幅 */}
+      <header
+        style={{
+          backgroundImage: 'url(/images/head.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}>
+        <div className="max-w-screen-xl mx-auto px-6 flex items-center" style={{ height: 100 }}>
           {/* Logo */}
           <div className="shrink-0 cursor-pointer flex items-center"
             onClick={() => navigate('/')}>
             <img src="/images/Logo.png" alt="Logo"
-              className="h-12 w-auto"
+              className="h-14 w-auto"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
             <span className="font-bold text-base tracking-wider text-primary ml-2.5"
-              style={{ display: 'none' }} /* 当 Logo 加载失败时的回退文字 */>农户补贴管理系统</span>
+              style={{ display: 'none' }}>农户补贴管理系统</span>
           </div>
+        </div>
+      </header>
 
+      {/* 墨绿色导航栏 */}
+      <nav className="bg-primary-500 text-white sticky top-0 z-40 shadow-card">
+        <div className="max-w-screen-xl mx-auto px-6 flex items-center gap-6" style={{ height: 50 }}>
           {/* 主导航 */}
-          <nav className="flex gap-1 flex-1">
+          <div className="flex gap-1 flex-1">
             {mainNav.map(({ to, label, icon, end }) => (
               <NavLink key={to} to={to} end={end}
                 className={({ isActive }) =>
-                  `px-3.5 py-2 text-sm rounded-btn transition-colors whitespace-nowrap flex items-center gap-2
-                  ${isActive ? 'bg-primary/10 text-primary font-semibold' : 'text-text-muted hover:text-primary hover:bg-primary/5'}`
+                  `px-3.5 py-1.5 text-sm rounded-btn transition-colors whitespace-nowrap flex items-center gap-2
+                  ${isActive ? 'bg-white/15 text-white font-semibold' : 'text-white/80 hover:text-white hover:bg-white/10'}`
                 }>
                 <Icon name={icon} size={16} />
                 <span>{label}</span>
               </NavLink>
             ))}
-          </nav>
+          </div>
 
           <div className="flex items-center gap-3 shrink-0">
             {/* 设置下拉 */}
             <div className="relative" ref={settingsRef}>
               <button onClick={() => setSettingsOpen(o => !o)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-btn text-sm transition-colors
-                  ${isSettings ? 'bg-primary/10 text-primary font-semibold' : 'text-text-muted hover:text-primary hover:bg-primary/5'}`}>
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-btn text-sm transition-colors
+                  ${isSettings ? 'bg-white/15 text-white font-semibold' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
                 <Icon name="settings" size={16} />
                 <span>系统设置</span>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -172,9 +183,9 @@ function Layout() {
             </div>
             {/* 连接状态 */}
             <div className={`text-meta font-mono whitespace-nowrap flex items-center gap-1.5
-              ${online === true ? 'text-text-muted' : online === false ? 'text-danger' : 'text-text-muted'}`}>
+              ${online === null ? 'text-white/60' : online === false ? 'text-red-300' : 'text-white/80'}`}>
               <span className={`inline-block w-2 h-2 rounded-full
-                ${online === null ? 'bg-text-muted' : online ? 'bg-success' : 'bg-danger'}`} />
+                ${online === null ? 'bg-white/40' : online ? 'bg-green-300' : 'bg-red-300'}`} />
               {online === null ? '连接中' : online ? '已连接' : '离线'}
             </div>
           </div>
@@ -198,7 +209,7 @@ function Layout() {
             </div>
           </div>
         )}
-      </header>
+      </nav>
 
       <main className="flex-1">
         <div className="max-w-screen-xl mx-auto px-6 py-6 pb-10">
