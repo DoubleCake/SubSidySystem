@@ -36,6 +36,18 @@ export default function SubsidyForms({
   return (
     <Modal open={open} title={editing ? '编辑补贴项目' : '新增补贴项目'} onClose={onClose} onConfirm={submitType}>
       <div className="space-y-4">
+        <div><label className="block text-xs text-text-muted mb-1.5">补贴季节 <span className="text-text-muted/50">（同季面积累加判断是否超承包面积）</span></label>
+          <div className="flex gap-2">
+            {[['大春', '🌻'], ['小春', '🌾'], ['全年单补', '📅'], ['临时', '📌']].map(([s, icon]) => (
+              <div key={s} onClick={() => onFormChange({ ...form, season: s })}
+                className={`flex-1 border-2 rounded-btn p-2.5 cursor-pointer transition-colors text-center
+                  ${(form.season ?? '全年单补') === s ? 'border-primary bg-primary/5' : 'border-border hover:border-border'}`}>
+                <div className="text-base mb-0.5">{icon}</div>
+                <div className="text-xs font-medium">{s}</div>
+              </div>
+            ))}
+          </div>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           {[{ val: 'fixed', title: '固定金额', desc: '每户/每人发固定金额', icon: '💰' },
             { val: 'per_mu', title: '按亩计算', desc: '每亩金额 × 土地面积', icon: '🌾' }].map(opt => (

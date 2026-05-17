@@ -205,11 +205,11 @@ export default function ExternalLinksPage() {
         <>
           {openSite&&(
             <div className="mb-4 bg-white border border-border rounded-card overflow-hidden shadow-card">
-              <div className="flex items-center gap-3 px-4 py-2.5 bg-stone-800 text-white text-sm">
+              <div className="flex items-center gap-3 px-4 py-2.5 bg-warm/50 border-b border-border text-text-primary text-sm">
                 <span className="font-semibold">{openSite.name}</span>
                 <span className="text-text-muted text-xs font-mono truncate flex-1">{openSite.url}</span>
-                <a href={openSite.url} target="_blank" rel="noopener noreferrer" className="text-xs bg-white/20 hover:bg-white/30 px-2.5 py-1 rounded">↗ 新标签页</a>
-                <button onClick={()=>setOpenSite(null)} className="text-text-muted hover:text-white ml-2">✕</button>
+                <a href={openSite.url} target="_blank" rel="noopener noreferrer" className="text-xs bg-primary/10 hover:bg-primary/20 text-primary px-2.5 py-1 rounded">↗ 新标签页</a>
+                <button onClick={()=>setOpenSite(null)} className="text-text-muted hover:text-text-primary ml-2">✕</button>
               </div>
               <iframe src={openSite.url} className="w-full" style={{height:480}} title={openSite.name}
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups" />

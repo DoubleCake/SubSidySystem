@@ -407,7 +407,7 @@ export default function PreCheckPage() {
             {getTabs(result).map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-btn text-xs font-medium border transition-colors
-                  ${activeTab === t.id ? 'bg-stone-800 text-white border-stone-800' : 'bg-white border-border text-text-primary hover:border-border'}`}>
+                  ${activeTab === t.id ? 'bg-primary text-white border-primary' : 'bg-white border-border text-text-primary hover:border-border'}`}>
                 {t.label}
                 {t.count > 0 && (
                   <span className={`px-1.5 py-0.5 rounded text-xs font-mono

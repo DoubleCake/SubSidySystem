@@ -130,6 +130,7 @@ class FarmerDetail(FarmerOut):
 class SubsidyTypeCreate(BaseModel):
     subsidy_name: str
     subsidy_year: int
+    season: str = "全年单补"
     calc_mode: str = "fixed"
     standard_amount: Optional[Decimal] = None
     standard_unit: Optional[str] = None
@@ -144,6 +145,7 @@ class SubsidyTypeOut(BaseModel):
     id: int
     subsidy_name: str
     subsidy_year: int
+    season: Optional[str]
     standard_amount: Optional[Decimal]
     standard_unit: Optional[str]
     fund_source: Optional[str]

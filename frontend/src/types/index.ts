@@ -75,6 +75,7 @@ export interface SubsidyType {
 export interface SubsidyTypeCreate {
   subsidy_name: string
   subsidy_year: number
+  season?: string
   calc_mode: 'fixed' | 'per_mu'
   standard_amount?: number
   standard_unit?: string

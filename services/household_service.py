@@ -562,9 +562,15 @@ def calc_household_area_usage(
         display_year = None
 
     season_breakdown: dict[str, dict] = {}
-    total_used = round(sum(year_totals.get(display_year, {}).values()), 2) if display_year else 0.0
-    remaining = cultivable - total_used
-    is_overdrawn_all = cultivable > 0 and total_used > cultivable
+    # 不同季节不跨季累加，概览取单季最大值
+    season_vals = list(year_totals.get(display_year, {}).values()) if display_year else []
+    total_used = round(max(season_vals), 2) if season_vals else 0.0
+    remaining = max(0.0, cultivable - total_used)
+    # 任一季节超面积即视为超领
+    is_overdrawn_all = any(
+        cultivable > 0 and round(year_totals[display_year].get(s, 0.0), 2) > cultivable
+        for s in SEASON_ORDER
+    ) if display_year else False
 
     for season in SEASON_ORDER:
         used = round(year_totals.get(display_year, {}).get(season, 0.0) if display_year else 0.0, 2)
@@ -831,25 +837,27 @@ def list_overdrawn_households(
             year_totals[y][rec.season] = year_totals[y].get(rec.season, 0.0) + float(rec.used_area)
 
         display_year = year if year in year_totals else (max(year_totals.keys()) if year_totals else None)
-        total_used = round(sum(year_totals.get(display_year, {}).values()), 2) if display_year else 0.0
-        is_overdrawn = cultivable > 0 and total_used > cultivable
 
-        has_season_overdrawn = False
+        season_overdrawn_list: list[bool] = []
         season_breakdown: dict[str, dict] = {}
         if display_year:
             for season in SEASON_ORDER:
                 used = round(year_totals[display_year].get(season, 0.0), 2)
-                season_overdrawn = cultivable > 0 and used > cultivable
-                overdraw_amt = round(max(0, used - cultivable), 2) if season_overdrawn else 0.0
-                if season_overdrawn:
-                    has_season_overdrawn = True
+                season_od = cultivable > 0 and used > cultivable
+                season_overdrawn_list.append(season_od)
+                overdraw_amt = round(max(0, used - cultivable), 2) if season_od else 0.0
                 season_breakdown[season] = {
                     "used_area": used,
-                    "is_overdrawn": season_overdrawn,
+                    "is_overdrawn": season_od,
                     "overdraw_amount": overdraw_amt,
                 }
 
-        if is_overdrawn or has_season_overdrawn:
+        # 不同季节不跨季累加，任一季节超面积即超领
+        season_vals = list(year_totals.get(display_year, {}).values()) if display_year else []
+        total_used = round(max(season_vals), 2) if season_vals else 0.0
+        is_overdrawn = cultivable > 0 and any(season_overdrawn_list)
+
+        if is_overdrawn:
             head = head_map.get(hh.head_farmer_id) if hh.head_farmer_id else None
             overdrawn.append({
                 "household_id": hh.id,

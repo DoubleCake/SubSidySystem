@@ -82,12 +82,13 @@ export default function SubsidyProjectsPage() {
     }
   }, [types, location.search])
 
-  const openAdd = () => { setEditing(null); setForm({ subsidy_year: yearFilter, calc_mode: 'fixed' }); setEditOpen(true) }
+  const openAdd = () => { setEditing(null); setForm({ subsidy_year: yearFilter, calc_mode: 'fixed', season: '全年单补' }); setEditOpen(true) }
   const openEdit = (t: SubsidyType) => {
     setEditing(t)
     setForm({
       subsidy_name: t.subsidy_name,
       subsidy_year: t.subsidy_year,
+      season: t.season ?? undefined,
       calc_mode: t.calc_mode,
       standard_amount: t.standard_amount ? Number(t.standard_amount) : undefined,
       standard_unit: t.standard_unit ?? undefined,
@@ -157,6 +158,7 @@ export default function SubsidyProjectsPage() {
                   <span className="font-bold text-text-primary text-base">{t.subsidy_name}</span>
                   <Tag label={`${t.subsidy_year}年`} color="gray" />
                   <Tag label={t.calc_mode === 'per_mu' ? '按亩计算' : '固定金额'} color={t.calc_mode === 'per_mu' ? 'blue' : 'purple'} />
+                  {t.season && <Tag label={t.season} color={t.season === '大春' ? 'green' : t.season === '小春' ? 'blue' : t.season === '临时' ? 'amber' : 'gray'} />}
                   {t.fund_source && <span className="text-xs text-text-muted/50">{t.fund_source}</span>}
                 </div>
                 <div className="flex gap-6 text-sm mb-3 flex-wrap">
@@ -175,7 +177,7 @@ export default function SubsidyProjectsPage() {
               {/* 操作区 */}
               <div className="flex flex-col gap-2 shrink-0">
                 <button onClick={() => { setActiveType(t); updateUrlType(t.id) }}
-                  className="px-3 py-1.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 whitespace-nowrap">
+                  className="px-3 py-1.5 text-sm bg-primary/10 text-primary-700 rounded-btn hover:bg-primary/20 whitespace-nowrap font-medium">
                   查看人员 →
                 </button>
                 <button onClick={() => openEdit(t)}

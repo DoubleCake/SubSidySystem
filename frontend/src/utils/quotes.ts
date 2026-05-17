@@ -21,12 +21,12 @@ export const QUOTES = [
 
 // 颜色主题配置
 export const COLOR_THEMES = [
-  { bg: "bg-gradient-to-r from-rose-400 to-pink-500", text: "text-white" },
-  { bg: "bg-gradient-to-r from-amber-400 to-orange-500", text: "text-white" },
-  { bg: "bg-gradient-to-r from-emerald-400 to-teal-500", text: "text-white" },
-  { bg: "bg-gradient-to-r from-blue-400 to-indigo-500", text: "text-white" },
-  { bg: "bg-gradient-to-r from-purple-400 to-violet-500", text: "text-white" },
-  { bg: "bg-gradient-to-r from-cyan-400 to-sky-500", text: "text-white" },
-  { bg: "bg-gradient-to-r from-lime-400 to-green-500", text: "text-white" },
-  { bg: "bg-gradient-to-r from-fuchsia-400 to-pink-500", text: "text-white" },
+  { bg: "bg-gradient-to-r from-rose-50 to-pink-100", text: "text-stone-700" },
+  { bg: "bg-gradient-to-r from-amber-50 to-orange-100", text: "text-stone-700" },
+  { bg: "bg-gradient-to-r from-emerald-50 to-teal-100", text: "text-stone-700" },
+  { bg: "bg-gradient-to-r from-blue-50 to-indigo-100", text: "text-stone-700" },
+  { bg: "bg-gradient-to-r from-purple-50 to-violet-100", text: "text-stone-700" },
+  { bg: "bg-gradient-to-r from-cyan-50 to-sky-100", text: "text-stone-700" },
+  { bg: "bg-gradient-to-r from-lime-50 to-green-100", text: "text-stone-700" },
+  { bg: "bg-gradient-to-r from-fuchsia-50 to-pink-100", text: "text-stone-700" },
 ]

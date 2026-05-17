@@ -182,13 +182,13 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
             primary: false },
         ].map((s, idx) => (
           s.primary ? (
-            <div key={idx} className="bg-primary text-white rounded-card p-4 shadow-card">
+            <div key={idx} className="bg-white border border-primary/10 rounded-card p-4 shadow-card">
               <div className="flex items-center gap-2 mb-2">
-                <Icon name={s.icon as any} size={18} className="text-white/70" />
-                <span className="text-meta text-white/60">{s.label}</span>
+                <Icon name={s.icon as any} size={18} className="text-primary/60" />
+                <span className="text-meta text-text-muted">{s.label}</span>
               </div>
-              <div className="text-h2 font-bold font-mono">{s.val}</div>
-              <div className="text-meta text-white/50 mt-1">{s.sub}</div>
+              <div className="text-h2 font-bold font-mono text-primary">{s.val}</div>
+              <div className="text-meta text-text-muted mt-1">{s.sub}</div>
             </div>
           ) : (
             <div key={idx} className="bg-white border border-border rounded-card p-4 shadow-card">

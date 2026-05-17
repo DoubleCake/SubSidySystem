@@ -35,23 +35,23 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
 
   return (
     <div className="bg-white border border-border rounded-card overflow-hidden shadow-card mb-4">
-      <div className="bg-gradient-to-r from-emerald-700 to-emerald-600 px-6 py-5 flex items-center gap-5">
-        <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold text-white shrink-0">
+      <div className="bg-gradient-to-r from-emerald-50 to-emerald-100/70 border-b border-emerald-100 px-6 py-5 flex items-center gap-5">
+        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary shrink-0">
           {fd.real_name.slice(-1)}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-1 flex-wrap">
-            <span className="text-xl font-bold text-white">{fd.real_name}</span>
-            <span className="text-emerald-200 text-sm">{GENDER(fd.gender)}</span>
-            {age && <span className="text-emerald-200 text-sm">{age} 岁</span>}
-            <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded">{FARMER_STATUS[fd.farmer_status]?.label ?? '未知'}</span>
-            {fd.is_head ? <span className="text-xs bg-purple-500/80 text-white px-2 py-0.5 rounded">户主</span> : <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded">{fd.relation || '成员'}</span>}
+            <span className="text-xl font-bold text-text-primary">{fd.real_name}</span>
+            <span className="text-text-muted text-sm">{GENDER(fd.gender)}</span>
+            {age && <span className="text-text-muted text-sm">{age} 岁</span>}
+            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">{FARMER_STATUS[fd.farmer_status]?.label ?? '未知'}</span>
+            {fd.is_head ? <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">户主</span> : <span className="text-xs bg-warm/50 text-text-muted px-2 py-0.5 rounded">{fd.relation || '成员'}</span>}
           </div>
-          <div className="text-emerald-200 text-sm">📍 {fd.village_full_name}</div>
+          <div className="text-text-muted text-sm">📍 {fd.village_full_name}</div>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-2xl font-bold font-mono text-white">¥{totalAmt.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
-          <div className="text-emerald-200 text-xs mt-0.5">累计获得补贴</div>
+          <div className="text-2xl font-bold font-mono text-primary">¥{totalAmt.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
+          <div className="text-text-muted text-xs mt-0.5">累计获得补贴</div>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-0 divide-x divide-stone-100">
@@ -247,26 +247,26 @@ export function FarmerHouseholdDetail({
       )}
 
       {/* 顶部卡片 */}
-      <div className="bg-gradient-to-r from-emerald-800 to-emerald-700 px-5 py-3.5 flex items-center gap-4">
-        <div className="w-10 h-10 rounded-card bg-white/20 flex items-center justify-center text-lg font-bold text-white shrink-0">🏠</div>
+      <div className="bg-gradient-to-r from-emerald-50 to-emerald-100/70 border-b border-emerald-100 px-5 py-3.5 flex items-center gap-4">
+        <div className="w-10 h-10 rounded-card bg-primary/10 flex items-center justify-center text-lg font-bold text-primary shrink-0">🏠</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <span className="text-base font-bold text-white">{hh.household_name}</span>
-            <span className="text-emerald-300 text-xs font-mono">{hh.household_code}</span>
+            <span className="text-base font-bold text-text-primary">{hh.household_name}</span>
+            <span className="text-text-muted text-xs font-mono">{hh.household_code}</span>
             {areaUsage?.is_overdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">⚠️ 超领</span>}
             {historyEventId !== null && <span className="text-xs bg-amber-500/80 text-white px-1.5 py-0.5 rounded">⏳ 快照</span>}
           </div>
-          <div className="text-emerald-200 text-xs">📍 {hh.village_full_name}
-            {hh.address && <span className="ml-1 text-emerald-300">{hh.address}</span>}
+          <div className="text-text-muted text-xs">📍 {hh.village_full_name}
+            {hh.address && <span className="ml-1 text-text-muted">{hh.address}</span>}
           </div>
         </div>
         <div className="text-right shrink-0 mr-2">
-          <div className="text-lg font-bold font-mono text-white">
+          <div className="text-lg font-bold font-mono text-primary">
             {historyEventId !== null && snapshotData?.snapshot
               ? (snapshotData.snapshot.contract_area > 0 ? `${snapshotData.snapshot.contract_area}亩` : '未设置')
               : (hh.contracted_area > 0 ? `${hh.contracted_area}亩` : '未设置')}
           </div>
-          <div className="text-emerald-300 text-xs">承包面积</div>
+          <div className="text-text-muted text-xs">承包面积</div>
         </div>
       </div>
 

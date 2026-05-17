@@ -87,67 +87,68 @@ export function HouseholdDetailContent({
     ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_breakdown: {} as Record<string, any>, year_totals: {} as Record<string, Record<string, number>> }
     : (detail.area_usage || defaultAreaUsage)
 
-  // 按选定年份计算有效统计值（areaYear=0 表示"全部年份"，使用后端已算好的总值）
+  // 不同季节不跨季累加，取单季最大面积作为概览
+  const calcSeasonMax = (yt: Record<string, number> | undefined): number => {
+    if (!yt || Object.keys(yt).length === 0) return 0
+    return Math.max(...Object.values(yt).filter(v => v > 0), 0)
+  }
   const effectiveUsedArea = areaYear > 0 && areaUsage.year_totals?.[String(areaYear)]
-    ? Object.values(areaUsage.year_totals[String(areaYear)]).reduce((s, v) => s + v, 0)
+    ? calcSeasonMax(areaUsage.year_totals[String(areaYear)])
     : areaUsage.used_area
-  const effectiveRemainingArea = areaUsage.contracted_area - effectiveUsedArea
-  const effectiveIsOverdrawn = areaUsage.contracted_area > 0 && effectiveUsedArea > areaUsage.contracted_area
+  const effectiveRemainingArea = Math.max(0, areaUsage.contracted_area - effectiveUsedArea)
+  // 任一季节超面积即超领
+  const effectiveIsOverdrawn = areaYear > 0 && areaUsage.year_totals?.[String(areaYear)]
+    ? Object.values(areaUsage.year_totals[String(areaYear)]).some(v => areaUsage.contracted_area > 0 && v > areaUsage.contracted_area)
+    : areaUsage.is_overdrawn
   const effectiveOverdrawAmount = Math.max(0, effectiveUsedArea - areaUsage.contracted_area)
 
   return (
     <div className="flex-1 min-w-0 flex flex-col">
       {/* 顶部卡片 */}
       <div className="bg-white border border-border rounded-card overflow-hidden shadow-card mb-3 shrink-0">
-        <div className="px-5 py-3.5 flex items-center gap-4 relative"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(26,77,58,0.82), rgba(26,77,58,0.82)), url(/images/dashimg.png)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-          }}>
-          <div className="w-10 h-10 rounded-card bg-white/20 flex items-center justify-center text-lg font-bold text-white shrink-0">🏠</div>
+        <div className="px-5 py-3.5 flex items-center gap-4 relative bg-gradient-to-r from-emerald-50 to-emerald-100/70 border-b border-emerald-100">
+          <div className="w-10 h-10 rounded-card bg-primary/10 flex items-center justify-center text-lg font-bold text-primary shrink-0">🏠</div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-              <span className="text-base font-bold text-white">{detail.household_name}</span>
-              <span className="text-emerald-300 text-xs font-mono">{detail.household_code}</span>
+              <span className="text-base font-bold text-text-primary">{detail.household_name}</span>
+              <span className="text-text-muted text-xs font-mono">{detail.household_code}</span>
               {detail.is_manually_confirmed === 1 && <span className="text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded">✓ 已确认</span>}
               {effectiveIsOverdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">⚠️ 超领</span>}
               {historyDate !== null && <span className="text-xs bg-amber-500/80 text-white px-1.5 py-0.5 rounded">⏳ 快照</span>}
             </div>
-            <div className="text-emerald-200 text-xs">📍 {detail.village_full_name}
-              {detail.address && <span className="ml-1 text-emerald-300">{detail.address}</span>}
+            <div className="text-text-muted text-xs">📍 {detail.village_full_name}
+              {detail.address && <span className="ml-1 text-text-muted">{detail.address}</span>}
             </div>
           </div>
           <div className="text-right shrink-0 mr-2">
-            <div className="text-lg font-bold font-mono text-white">
+            <div className="text-lg font-bold font-mono text-primary">
               {historyDate !== null && snapshotData?.snapshot
                 ? (snapshotData.snapshot.contract_area > 0 ? `${snapshotData.snapshot.contract_area}亩` : '未设置')
                 : (detail.contracted_area > 0 ? `${detail.contracted_area}亩` : '未设置')}
             </div>
-            <div className="text-emerald-300 text-xs">承包面积</div>
+            <div className="text-text-muted text-xs">承包面积</div>
           </div>
           {historyDateIsNull && (
             <div className="flex flex-col gap-1.5 shrink-0">
               <button onClick={onOpenEdit}
-                className="text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-btn font-medium transition-colors">✏️ 编辑</button>
+                className="text-xs bg-warm/50 hover:bg-warm text-text-primary px-3 py-1.5 rounded-btn font-medium transition-colors">✏️ 编辑</button>
               {detail.is_manually_confirmed === 1 ? (
                 <button onClick={onOpenCancelConfirm}
-                  className="text-xs bg-amber-500/80 hover:bg-amber-500 text-white px-3 py-1.5 rounded-btn font-medium transition-colors">↩️ 取消确认</button>
+                  className="text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-1.5 rounded-btn font-medium transition-colors">↩️ 取消确认</button>
               ) : (
                 <button onClick={onOpenManualConfirm}
-                  className="text-xs bg-blue-500/80 hover:bg-blue-500 text-white px-3 py-1.5 rounded-btn font-medium transition-colors">✓ 人工确认</button>
+                  className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1.5 rounded-btn font-medium transition-colors">✓ 人工确认</button>
               )}
               {canSplit && (
                 <button onClick={onOpenSplit}
-                  className="text-xs bg-orange-500/80 hover:bg-orange-500 text-white px-3 py-1.5 rounded-btn font-medium transition-colors">🔀 分户</button>
+                  className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1.5 rounded-btn font-medium transition-colors">🔀 分户</button>
               )}
               <button onClick={() => onRefreshCache(detail.id)} disabled={refreshingCache}
-                className="text-xs bg-purple-500/80 hover:bg-purple-500 text-white px-3 py-1.5 rounded-btn font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                className="text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1.5 rounded-btn font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 {refreshingCache ? '⏳' : '🔄'} 刷新缓存
               </button>
               <button onClick={onDelete}
-                className="text-xs bg-red-500/80 hover:bg-red-500 text-white px-3 py-1.5 rounded-btn font-medium transition-colors">🗑️ 删除</button>
+                className="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-btn font-medium transition-colors">🗑️ 删除</button>
             </div>
           )}
         </div>
