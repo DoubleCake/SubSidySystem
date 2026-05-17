@@ -252,8 +252,8 @@ function Layout() {
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
           }}>
-          <div className="max-w-screen-xl mx-auto px-12 text-center">
-            <div className="text-sm opacity-80" >
+          <div className="max-w-screen-xl mx-auto px-16 text-center">
+            <div className="text-m opacity-80" >
               " {quote} "
             </div>
           </div>

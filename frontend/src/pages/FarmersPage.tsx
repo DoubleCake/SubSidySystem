@@ -384,7 +384,8 @@ export default function FarmersPage() {
 
   // ── 打开户详情 ──
   const openDetail = async (id: number, skipUrlUpdate = false) => {
-    const d = await api.getHouseholdDetail(id)
+    setAreaYear(detailYear)
+    const d = await api.getHouseholdDetail(id, detailYear)
     setDetail(d); setDetailTab('members'); setEvents([]); setSelectedFarmer(null); setSelectedFarmerHousehold(null)
     setHistoryEventId(null); setSnapshotData(null)
     // 打开详情时清除合并和批量确认状态
@@ -517,6 +518,15 @@ export default function FarmersPage() {
   useEffect(() => {
     if (detail || selectedFarmerHousehold) loadEvents()
   }, [detail?.id, selectedFarmerHousehold?.id, loadEvents])
+
+  // ── 年份切换时，重新获取该年度的流转数据和面积信息 ──
+  useEffect(() => {
+    if (!detail || historyEventId !== null) return
+    const currentId = detail.id
+    api.getHouseholdDetail(currentId, areaYear > 0 ? areaYear : undefined).then(d => {
+      if (d.id === currentId) setDetail(d)
+    })
+  }, [areaYear]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 切换左侧 Tab ──
   const handleTabChange = (tab: LeftTab) => {

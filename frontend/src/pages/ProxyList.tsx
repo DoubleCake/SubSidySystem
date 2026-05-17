@@ -136,12 +136,12 @@ export default function ProxyList({ subsidyType, show }: ProxyListProps) {
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="被代领人/代领人姓名"
             className="flex-1 border border-border rounded-btn px-2 py-1.5 text-xs outline-none" />
-          <button onClick={() => setPage(1)} className="px-2 py-1 text-xs bg-primary text-white rounded-btn hover:bg-primary/90">搜索</button>
+          <button onClick={() => setPage(1)} className="px-2 py-1 text-xs bg-primary  rounded-btn hover:bg-primary/90">搜索</button>
         </div>
         <span className="text-xs text-text-muted">共 {total} 条</span>
         {selectedIds.size > 0 && (
           <button onClick={batchDelete}
-            className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-btn hover:bg-red-500">
+            className="px-3 py-1.5 text-xs bg-red-600  rounded-btn hover:bg-red-500">
             批量删除 ({selectedIds.size})
           </button>
         )}
