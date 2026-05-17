@@ -18,7 +18,7 @@ import LargeFarmersPage from './pages/LargeFarmersPage'
 import WorkflowDocPage from './pages/WorkflowDocPage'
 import { healthCheck } from './api'
 import { useState } from 'react'
-import { QUOTES, COLOR_THEMES } from './utils/quotes'
+import { QUOTES } from './utils/quotes'
 import Icon from './components/Icon'
 
 const mainNav = [
@@ -58,10 +58,9 @@ function Layout() {
   const isSettings = location.pathname.startsWith('/settings')
 
   // 随机选择一条语录和颜色主题
-  const { quote, colorTheme } = useMemo(() => {
+  const { quote } = useMemo(() => {
     const randomQuote = QUOTES[Math.floor(Math.random() * QUOTES.length)]
-    const randomColor = COLOR_THEMES[Math.floor(Math.random() * COLOR_THEMES.length)]
-    return { quote: randomQuote, colorTheme: randomColor }
+    return { quote: randomQuote }
   }, [])
 
   useEffect(() => {
@@ -243,11 +242,17 @@ function Layout() {
         </div>
       </main>
 
-      {/* 底部 - 暖金色背景 */}
+      {/* 底部 */}
       <footer>
-        <div className={`w-full py-5 ${colorTheme.bg} ${colorTheme.text}`}>
-          <div className="max-w-screen-xl mx-auto px-6 text-center">
-            <div className="text-sm italic opacity-80">
+        <div className="w-full py-5 text-[#2A4B3C]"
+          style={{
+            backgroundImage: 'url(/images/foot.png)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}>
+          <div className="max-w-screen-xl mx-auto px-12 text-center">
+            <div className="text-sm opacity-80" >
               " {quote} "
             </div>
           </div>

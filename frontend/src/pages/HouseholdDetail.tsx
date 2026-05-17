@@ -115,8 +115,8 @@ export function HouseholdDetailContent({
           }}>
           <div className="w-10 h-10 rounded-card bg-primary/10 flex items-center justify-center text-lg font-bold text-primary shrink-0">🏠</div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-              <span className="text-base font-bold text-text-primary">{detail.household_name}</span>
+            <div className="flex items-center gap-4 mb-0.5 flex-wrap">
+              <span className="text-base font-bold text-primary-50">{detail.household_name}</span>
               <span className="text-text-muted text-xs font-mono">{detail.household_code}</span>
               {detail.is_manually_confirmed === 1 && <span className="text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded">✓ 已确认</span>}
               {effectiveIsOverdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">⚠️ 超领</span>}
@@ -127,7 +127,7 @@ export function HouseholdDetailContent({
             </div>
           </div>
           <div className="text-right shrink-0 mr-2">
-            <div className="text-lg font-bold font-mono text-primary">
+            <div className="text-lg font-bold font-mono text-primary-50">
               {historyDate !== null && snapshotData?.snapshot
                 ? (snapshotData.snapshot.contract_area > 0 ? `${snapshotData.snapshot.contract_area}亩` : '未设置')
                 : (detail.contracted_area > 0 ? `${detail.contracted_area}亩` : '未设置')}
@@ -137,24 +137,24 @@ export function HouseholdDetailContent({
           {historyDateIsNull && (
             <div className="flex flex-col gap-1.5 shrink-0">
               <button onClick={onOpenEdit}
-                className="text-xs bg-warm/50 hover:bg-warm text-text-primary px-3 py-1.5 rounded-btn font-medium transition-colors">✏️ 编辑</button>
+                className="text-xs bg-[#DAA550] text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">✏️ 编辑</button>
               {detail.is_manually_confirmed === 1 ? (
                 <button onClick={onOpenCancelConfirm}
                   className="text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-1.5 rounded-btn font-medium transition-colors">↩️ 取消确认</button>
               ) : (
                 <button onClick={onOpenManualConfirm}
-                  className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1.5 rounded-btn font-medium transition-colors">✓ 人工确认</button>
+                  className="text-xs bg-[#2E7A60] text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">✓ 人工确认</button>
               )}
               {canSplit && (
                 <button onClick={onOpenSplit}
                   className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1.5 rounded-btn font-medium transition-colors">🔀 分户</button>
               )}
               <button onClick={() => onRefreshCache(detail.id)} disabled={refreshingCache}
-                className="text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1.5 rounded-btn font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                className="text-xs bg-[#4FA080] text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 {refreshingCache ? '⏳' : '🔄'} 刷新缓存
               </button>
               <button onClick={onDelete}
-                className="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-btn font-medium transition-colors">🗑️ 删除</button>
+                className="text-xs bg-[#C04848] text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">🗑️ 删除</button>
             </div>
           )}
         </div>
@@ -183,7 +183,7 @@ export function HouseholdDetailContent({
         })()}
 
         {/* 人口和面积概览 */}
-        <div className="px-4 py-3 bg-gradient-to-b from-stone-50 to-white border-b border-border">
+        <div className="px-4 py-3 bg-gradient-to-b from-stone-50 to-white border-b border-border bg-primary-100">
           <div className="flex items-center gap-4">
             {/* 人口 */}
             <div className="flex items-center gap-2">

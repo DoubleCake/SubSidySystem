@@ -180,9 +180,16 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
             val: String(stats.length),
             sub: `${stats.filter(s => s.pay_status === 2).length} 项已完成`,
             primary: false },
-        ].map((s, idx) => (
-          s.primary ? (
-            <div key={idx} className="bg-white border border-primary/10 rounded-card p-4 shadow-card">
+        ].map((s, idx) => {
+          const bgNum = (idx % 4) + 1
+          const bgStyle = {
+            backgroundImage: `url(/images/chart_bg_0${bgNum}.png)`,
+            backgroundSize: 'cover' as const,
+            backgroundPosition: 'center' as const,
+            backgroundRepeat: 'no-repeat' as const,
+          }
+          return s.primary ? (
+            <div key={idx} className="rounded-card p-4 shadow-card" style={bgStyle}>
               <div className="flex items-center gap-2 mb-2">
                 <Icon name={s.icon as any} size={18} className="text-primary/60" />
                 <span className="text-meta text-text-muted">{s.label}</span>
@@ -191,7 +198,7 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
               <div className="text-meta text-text-muted mt-1">{s.sub}</div>
             </div>
           ) : (
-            <div key={idx} className="bg-white border border-border rounded-card p-4 shadow-card">
+            <div key={idx} className="bg-white border border-border rounded-card p-4 shadow-card" style={bgStyle}>
               <div className="flex items-center gap-2 mb-2">
                 <Icon name={s.icon as any} size={18}
                   className={idx === 2 ? 'text-blue-600' : idx === 3 ? 'text-purple-600' : s.positive !== false ? 'text-primary' : 'text-danger'} />
@@ -203,7 +210,7 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
               <div className="text-meta text-text-muted mt-1">{s.sub}</div>
             </div>
           )
-        ))}
+        })}
       </div>
 
       {/* 季节概览卡 */}

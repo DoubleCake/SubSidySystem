@@ -261,7 +261,7 @@ export function FarmerHouseholdDetail({
           </div>
         </div>
         <div className="text-right shrink-0 mr-2">
-          <div className="text-lg font-bold font-mono text-primary">
+          <div className="text-lg font-bold font-mono text-primary-100">
             {historyEventId !== null && snapshotData?.snapshot
               ? (snapshotData.snapshot.contract_area > 0 ? `${snapshotData.snapshot.contract_area}亩` : '未设置')
               : (hh.contracted_area > 0 ? `${hh.contracted_area}亩` : '未设置')}

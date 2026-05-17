@@ -997,11 +997,11 @@ export default function FarmersPage() {
           {leftTab === 'households' && !mergeMode && (
             <>
               <div className="flex gap-2 flex-wrap">
-                <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
+                <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
                   <Icon name="create" size={14} className="inline mr-1" />创建新家庭户
                 </button>
                 <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]); setHhPage(1) }}
-                  className="px-3 py-2 text-sm border border-orange-tag/30 text-[#B8860B] rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium bg-orange-tag/5">
+                  className="px-3 py-2 text-sm border border-orange-tag/30  bg-[#f7edd8] text-[#B8860B] rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium bg-orange-tag/5">
                   <Icon name="merge" size={14} className="inline mr-1" />合并家庭户
                 </button>
                 <button onClick={exportCurrentList} className="px-3 py-2 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30 shadow-card hover:shadow-card-hover transition-all font-medium">
@@ -1014,11 +1014,11 @@ export default function FarmersPage() {
                   <Icon name="upload" size={14} className="inline mr-1" />导入确权面积
                 </button>
                 <button onClick={() => { setBatchConfirmMode(true); setBatchSelected([]); setBatchSelectedHouseholds([]); setMergeMode(false); setMergeSelected([]); setMergeSelectedHouseholds([]) }}
-                  className="px-3 py-2 text-sm border border-primary/20 text-primary rounded-btn hover:bg-primary/5 shadow-card hover:shadow-card-hover transition-all font-medium bg-primary/[0.02]">
+                  className="px-3 py-2 text-sm border border-primary/20 text-primary bg-[#e3e7ec] rounded-btn hover:bg-primary/5 shadow-card hover:shadow-card-hover transition-all font-medium bg-primary/[0.02]">
                   <Icon name="confirm" size={14} className="inline mr-1" />批量确认
                 </button>
                 <button onClick={() => handleRefreshCache()} disabled={refreshingCache}
-                  className="px-3 py-2 text-sm border-2 border-danger/30 text-danger bg-danger/5 rounded-btn hover:bg-danger/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
+                  className="px-3 py-2 bg-[#edeaed]  hover:brightness-95 text-sm border-2 border-danger/30 text-danger bg-danger/5 rounded-btn hover:bg-danger/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-purple-700 ">
                   <Icon name="refresh" size={14} className="inline mr-1" />
                   {refreshingCache ? '刷新中…' : '刷新缓存'}
                 </button>
@@ -1028,7 +1028,7 @@ export default function FarmersPage() {
                   {recalculatingArea ? '计算中…' : '重算未确认户承包面积'}
                 </button>
               </div>
-              <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer bg-warm/30 px-3 py-2 rounded-btn border border-border shadow-card hover:bg-warm/50 transition-all">
+              <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer bg-warm/30  px-3 py-2 rounded-btn border border-border shadow-card hover:bg-warm/50 transition-all">
                 <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-primary rounded" />
                 <span className="font-medium">仅看超领</span>
               </label>
