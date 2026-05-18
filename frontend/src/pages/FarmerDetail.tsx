@@ -4,6 +4,7 @@
  * - FarmerHouseholdDetail: 农户所属家庭户详情卡片
  * - HistorySidebar: 历史记录侧边栏
  */
+import { useState, useEffect } from 'react'
 import Tag from '../components/Tag'
 import { EVENT_TYPE_CFG, GENDER, calcAge } from './FarmerConstants'
 import { FARMER_STATUS, PAY_STATUS, RESTRICTED_IDENTITY, fmt } from '../utils'
@@ -21,10 +22,43 @@ export interface FarmerDetailProps {
     pay_status: number; apply_village_name: string; apply_group_display: string; is_proxy: number
     proxy_info?: { type: string; proxy_name?: string; beneficiary_name?: string; proxy_farmer_id?: number; beneficiary_farmer_id?: number; remark?: string } | null
   }[]
+  groups?: VillageGroup[]
+  onUpdate?: () => void
+}
+
+// ── 通用编辑字段渲染 ──
+function EditField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-text-muted w-20 shrink-0">{label}</span>
+      {children}
+    </div>
+  )
 }
 
 // ── 农户详情卡片 ──
-export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: FarmerDetailProps) {
+export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, groups, onUpdate }: FarmerDetailProps) {
+  const [editMode, setEditMode] = useState(false)
+  const [editForm, setEditForm] = useState<Record<string, string>>({})
+  const [saving, setSaving] = useState(false)
+  const [confirmChange, setConfirmChange] = useState<{ field: string; oldVal: string; newVal: string; message: string } | null>(null)
+  // 编辑开始时初始化表单
+  useEffect(() => {
+    if (editMode && selectedFarmer) {
+      setEditForm({
+        real_name: selectedFarmer.real_name || '',
+        gender: String(selectedFarmer.gender),
+        id_card: selectedFarmer.id_card || selectedFarmer.id_card_masked || '',
+        phone: selectedFarmer.phone || selectedFarmer.phone_masked || '',
+        bank_card: selectedFarmer.bank_card || selectedFarmer.bank_card_masked || '',
+        bank_name: selectedFarmer.bank_name || '',
+        farmer_status: String(selectedFarmer.farmer_status),
+        restricted_identity: String(selectedFarmer.restricted_identity ?? 0),
+        remark: selectedFarmer.remark || '',
+      })
+    }
+  }, [editMode, selectedFarmer])
+
   if (!selectedFarmer) return null
   const fd = selectedFarmer
   const apps: any[] = showAppSummary && appSummary
@@ -33,8 +67,96 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
   const totalAmt = apps.reduce((s: number, a: any) => s + Number(a.actual_amount || 0), 0)
   const age = calcAge(fd.birth_date)
 
+  const startEdit = () => setEditMode(true)
+  const cancelEdit = () => setEditMode(false)
+
+  const handleSave = async () => {
+    if (!selectedFarmer) return
+    // 比对变更
+    const changes: Record<string, string> = {}
+    const orig = {
+      real_name: fd.real_name,
+      gender: String(fd.gender),
+      id_card: fd.id_card || fd.id_card_masked || '',
+      phone: fd.phone || '',
+      bank_card: fd.bank_card || '',
+      bank_name: fd.bank_name || '',
+      farmer_status: String(fd.farmer_status),
+      restricted_identity: String(fd.restricted_identity ?? 0),
+      remark: fd.remark || '',
+    }
+    for (const k of Object.keys(editForm)) {
+      if (editForm[k as keyof typeof editForm] !== orig[k as keyof typeof orig]) {
+        changes[k] = editForm[k as keyof typeof editForm]
+      }
+    }
+    if (Object.keys(changes).length === 0) { setEditMode(false); return }
+
+    // id_card 变更需确认
+    if (changes.id_card && changes.id_card !== orig.id_card) {
+      setConfirmChange({
+        field: 'id_card',
+        oldVal: orig.id_card,
+        newVal: changes.id_card,
+        message: '修改身份证号后，后续补贴导入将使用新身份证号匹配，不影响已有申请记录。确认修改？',
+      })
+      return
+    }
+
+    await doSave(changes)
+  }
+
+  const doSave = async (changes: Record<string, string>) => {
+    if (!selectedFarmer) return
+    setSaving(true)
+    try {
+      const { updateFarmer } = await import('../api')
+      const body: Record<string, unknown> = {}
+      if (changes.real_name) body.real_name = changes.real_name
+      if (changes.gender) body.gender = Number(changes.gender)
+      if (changes.id_card) body.id_card = changes.id_card
+      if (changes.phone) body.phone = changes.phone
+      if (changes.bank_card) body.bank_card = changes.bank_card
+      if (changes.bank_name) body.bank_name = changes.bank_name
+      if (changes.farmer_status) body.farmer_status = Number(changes.farmer_status)
+      if (changes.restricted_identity) body.restricted_identity = Number(changes.restricted_identity)
+      if (changes.remark !== undefined) body.remark = changes.remark
+      await updateFarmer(fd.id, body as any)
+      setEditMode(false)
+      onUpdate?.()
+    } catch (e: unknown) {
+      alert('保存失败：' + ((e as Error).message || '未知错误'))
+    } finally {
+      setSaving(false)
+      setConfirmChange(null)
+    }
+  }
+
+  const ef = (field: string) => editForm[field] ?? ''
+
+  // input class 复用
+  const ic = 'border border-border rounded-btn px-2.5 py-1.5 text-sm outline-none focus:border-primary bg-white flex-1 max-w-[220px]'
+  const sel = 'border border-border rounded-btn px-2.5 py-1.5 text-sm outline-none focus:border-primary bg-white flex-1 max-w-[220px]'
+
   return (
     <div className="bg-white border border-border rounded-card overflow-hidden shadow-card mb-4">
+      {confirmChange && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-card shadow-xl max-w-md w-full p-6">
+            <h3 className="font-bold text-text-primary mb-3">⚠️ 确认修改</h3>
+            <p className="text-sm text-text-muted mb-4">{confirmChange.message}</p>
+            <div className="bg-amber-50 border border-amber-200 rounded-btn px-3 py-2 mb-4 text-sm">
+              <span className="text-text-muted">{confirmChange.field}: </span>
+              <span className="line-through text-red-500 mr-2">{confirmChange.oldVal}</span>
+              <span className="text-primary font-semibold">{confirmChange.newVal}</span>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmChange(null)} className="px-4 py-2 text-sm border border-border rounded-btn bg-white text-text-primary hover:bg-warm/30">取消</button>
+              <button onClick={() => doSave({ [confirmChange.field]: confirmChange.newVal })} className="px-4 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">确认修改</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="bg-gradient-to-r from-emerald-50 to-emerald-100/70 border-b border-emerald-100 px-6 py-5 flex items-center gap-5">
         <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary shrink-0">
           {fd.real_name.slice(-1)}
@@ -49,46 +171,110 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
           </div>
           <div className="text-text-muted text-sm">📍 {fd.village_full_name}</div>
         </div>
-        <div className="text-right shrink-0">
-          <div className="text-2xl font-bold font-mono text-primary">¥{totalAmt.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
-          <div className="text-text-muted text-xs mt-0.5">累计获得补贴</div>
+        <div className="flex flex-col gap-2 shrink-0 items-end">
+          <div className="text-right">
+            <div className="text-2xl font-bold font-mono text-primary">¥{totalAmt.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
+            <div className="text-text-muted text-xs mt-0.5">累计获得补贴</div>
+          </div>
+          {!editMode ? (
+            <button onClick={startEdit} className="text-xs border border-primary/30 text-primary px-3 py-1 rounded-btn hover:bg-primary/5 transition-colors">✏️ 编辑</button>
+          ) : (
+            <div className="flex gap-1.5">
+              <button onClick={cancelEdit} className="text-xs border border-border text-text-muted px-3 py-1 rounded-btn hover:bg-warm/30 transition-colors">取消</button>
+              <button onClick={handleSave} disabled={saving} className="text-xs bg-primary text-white px-3 py-1 rounded-btn hover:bg-primary/90 transition-colors disabled:opacity-50">
+                {saving ? '保存中…' : '💾 保存'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-0 divide-x divide-stone-100">
         <div className="p-5">
           <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">个人信息</h3>
           <div className="space-y-3">
-            {[
-              ['姓名', fd.real_name],
-              ['性别', GENDER(fd.gender)],
-              ['年龄', age ? `${age} 岁` : '—'],
-              ['身份证号', <span key="id" className="font-mono text-amber-600 text-xs select-all">{fd.id_card || fd.id_card_masked}</span>],
-              ['手机号', <span key="ph" className="font-mono text-xs">{fd.phone || fd.phone_masked || '—'}</span>],
-              ['所在村组', fd.village_full_name],
-            ].map(([k, v], i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-xs text-text-muted w-20 shrink-0">{k}</span>
-                <span className="text-sm text-text-primary">{v as React.ReactNode}</span>
-              </div>
-            ))}
+            {editMode ? (
+              <>
+                <EditField label="姓名">
+                  <input value={ef('real_name')} onChange={e => setEditForm(f => ({ ...f, real_name: e.target.value }))} className={ic} />
+                </EditField>
+                <EditField label="性别">
+                  <select value={ef('gender')} onChange={e => setEditForm(f => ({ ...f, gender: e.target.value }))} className={sel}>
+                    <option value="1">男</option>
+                    <option value="2">女</option>
+                  </select>
+                </EditField>
+                <EditField label="身份证号">
+                  <input value={ef('id_card')} onChange={e => setEditForm(f => ({ ...f, id_card: e.target.value }))} className={`${ic} font-mono text-amber-600`} />
+                </EditField>
+                <EditField label="手机号">
+                  <input value={ef('phone')} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className={ic} />
+                </EditField>
+              </>
+            ) : (
+              <>
+                {[
+                  ['姓名', fd.real_name],
+                  ['性别', GENDER(fd.gender)],
+                  ['年龄', age ? `${age} 岁` : '—'],
+                  ['身份证号', <span key="id" className="font-mono text-amber-600 text-xs select-all">{fd.id_card || fd.id_card_masked}</span>],
+                  ['手机号', <span key="ph" className="font-mono text-xs">{fd.phone || fd.phone_masked || '—'}</span>],
+                  ['所在村组', fd.village_full_name],
+                ].map(([k, v], i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs text-text-muted w-20 shrink-0">{k}</span>
+                    <span className="text-sm text-text-primary">{v as React.ReactNode}</span>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         </div>
         <div className="p-5">
           <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">银行 & 其他</h3>
           <div className="space-y-3">
-            {[
-              ['银行卡号', <span key="bc" className="font-mono text-xs text-amber-600 select-all">{fd.bank_card || fd.bank_card_masked || '—'}</span>],
-              ['开户行', fd.bank_name || '—'],
-              ['农户状态', <Tag key="st" label={FARMER_STATUS[fd.farmer_status]?.label ?? '未知'} color={FARMER_STATUS[fd.farmer_status]?.color as 'green'} />],
-              ['受限身份', <Tag key="ri" label={RESTRICTED_IDENTITY[fd.restricted_identity ?? 0]?.label ?? '无限制'} color={(RESTRICTED_IDENTITY[fd.restricted_identity ?? 0]?.color ?? 'green') as 'green' | 'red'} />],
-              ['备注', fd.remark || '—'],
-              ['录入时间', fd.created_at ? fd.created_at.slice(0, 10) : '—'],
-            ].map(([k, v], i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-xs text-text-muted w-20 shrink-0">{k}</span>
-                <span className="text-sm text-text-primary">{v as React.ReactNode}</span>
-              </div>
-            ))}
+            {editMode ? (
+              <>
+                <EditField label="银行卡号">
+                  <input value={ef('bank_card')} onChange={e => setEditForm(f => ({ ...f, bank_card: e.target.value }))} className={`${ic} font-mono`} />
+                </EditField>
+                <EditField label="开户行">
+                  <input value={ef('bank_name')} onChange={e => setEditForm(f => ({ ...f, bank_name: e.target.value }))} className={ic} />
+                </EditField>
+                <EditField label="农户状态">
+                  <select value={ef('farmer_status')} onChange={e => setEditForm(f => ({ ...f, farmer_status: e.target.value }))} className={sel}>
+                    <option value="1">在册</option>
+                    <option value="2">注销</option>
+                    <option value="3">迁出</option>
+                    <option value="4">死亡</option>
+                  </select>
+                </EditField>
+                <EditField label="受限身份">
+                  <select value={ef('restricted_identity')} onChange={e => setEditForm(f => ({ ...f, restricted_identity: e.target.value }))} className={sel}>
+                    <option value="0">无限制</option>
+                    <option value="1">受限制</option>
+                  </select>
+                </EditField>
+                <EditField label="备注">
+                  <textarea value={ef('remark')} onChange={e => setEditForm(f => ({ ...f, remark: e.target.value }))} className={`${ic} min-h-[60px] resize-y`} />
+                </EditField>
+              </>
+            ) : (
+              <>
+                {[
+                  ['银行卡号', <span key="bc" className="font-mono text-xs text-amber-600 select-all">{fd.bank_card || fd.bank_card_masked || '—'}</span>],
+                  ['开户行', fd.bank_name || '—'],
+                  ['农户状态', <Tag key="st" label={FARMER_STATUS[fd.farmer_status]?.label ?? '未知'} color={FARMER_STATUS[fd.farmer_status]?.color as 'green'} />],
+                  ['受限身份', <Tag key="ri" label={RESTRICTED_IDENTITY[fd.restricted_identity ?? 0]?.label ?? '无限制'} color={(RESTRICTED_IDENTITY[fd.restricted_identity ?? 0]?.color ?? 'green') as 'green' | 'red'} />],
+                  ['备注', fd.remark || '—'],
+                  ['录入时间', fd.created_at ? fd.created_at.slice(0, 10) : '—'],
+                ].map(([k, v], i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs text-text-muted w-20 shrink-0">{k}</span>
+                    <span className="text-sm text-text-primary">{v as React.ReactNode}</span>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         </div>
       </div>

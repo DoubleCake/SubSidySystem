@@ -230,6 +230,16 @@ def update_farmer(db: Session, farmer_id: int, data: dict) -> dict:
     new_village_id = data.pop("village_id", None)
     new_group_no = data.pop("group_no", None)
 
+    # id_card 变更需校验唯一性
+    new_id_card = data.get("id_card")
+    if new_id_card and new_id_card != farmer.id_card:
+        existing = db.query(FarmerProfile).filter(
+            FarmerProfile.id_card == new_id_card,
+            FarmerProfile.id != farmer_id
+        ).first()
+        if existing:
+            raise BadRequest(f"身份证号 {new_id_card} 已被农户 {existing.real_name} 使用")
+
     hh_fields = {k: data.pop(k) for k in ("address", "contract_area") if k in data}
     for k, v in data.items():
         setattr(farmer, k, v)

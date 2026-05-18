@@ -1184,6 +1184,8 @@ export default function FarmersPage() {
               selectedFarmer={selectedFarmer}
               showAppSummary={true}
               appSummary={selectedFarmerHousehold?.app_summary}
+              groups={groups}
+              onUpdate={() => openFarmer(selectedFarmer!.id)}
             />
             {selectedFarmerHousehold && (
               <div className="flex gap-4 flex-1 min-h-0">

@@ -89,6 +89,8 @@ class FarmerCreate(BaseModel):
 
 class FarmerUpdate(BaseModel):
     real_name: Optional[str] = None
+    gender: Optional[int] = None
+    id_card: Optional[str] = None
     phone: Optional[str] = None
     bank_card: Optional[str] = None
     bank_name: Optional[str] = None
