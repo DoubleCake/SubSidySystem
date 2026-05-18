@@ -32,6 +32,7 @@ export type PrecheckErrorType =
   | 'area_missing'
   | 'age_anomaly'
   | 'deceased_farmers'
+  | 'restricted_farmers'
   | 'household_duplicates' // 同一家庭多成员申请
   | 'new_farmers'
   | 'removed_farmers'
@@ -183,6 +184,17 @@ export const PRECHECK_TABLE_CONFIGS: Record<PrecheckErrorType, TableConfig> = {
     ],
   },
 
+  // 受限身份
+  restricted_farmers: {
+    field: 'restricted_farmers',
+    title: (count) => `🚫 受限身份农户（${count}条）— 该农户标记为受限身份（公务员/事业人员等），不可享受补贴`,
+    headers: ['行号', '姓名', '身份证号', '所在村', '所在组', '说明'],
+    rowMapper: (r) => [
+      r.row, r.name, r.id_card, r.village, r.group,
+      <span key="e" className="text-red-600 text-xs">{r.error}</span>,
+    ],
+  },
+
   // 同一家庭多成员申请
   household_duplicates: {
     field: 'household_duplicates',
@@ -256,6 +268,7 @@ export const getPrecheckTableConfigs = (): TableConfig[] => [
   PRECHECK_TABLE_CONFIGS.area_missing,
   PRECHECK_TABLE_CONFIGS.age_anomaly,
   PRECHECK_TABLE_CONFIGS.deceased_farmers,
+  PRECHECK_TABLE_CONFIGS.restricted_farmers,
   PRECHECK_TABLE_CONFIGS.household_duplicates, // 同一家庭多成员申请
   PRECHECK_TABLE_CONFIGS.new_farmers,
   PRECHECK_TABLE_CONFIGS.removed_farmers,

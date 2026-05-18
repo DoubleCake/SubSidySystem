@@ -116,6 +116,7 @@ class PreCheckRunner:
                 "own_village_name": own_village,
                 "own_group_no": own_group,
                 "farmer_status": f.farmer_status,
+                "restricted_identity": getattr(f, 'restricted_identity', 0),
             }
 
         q = self.db.query(FarmerProfile).outerjoin(
@@ -268,6 +269,7 @@ class PreCheckRunner:
         area_missing: list[dict] = []
         age_anomaly: list[dict] = []
         deceased_farmers: list[dict] = []
+        restricted_farmers: list[dict] = []
         household_duplicates: list[dict] = []
         ok_rows: list[dict] = []
 
@@ -448,6 +450,13 @@ class PreCheckRunner:
                         "changes": changes,
                         "farmer_id": farmer["id"],
                     })
+                # 受限身份检查
+                if farmer.get("restricted_identity") == 1:
+                    restricted_farmers.append({
+                        "row": row_no, "name": name, "id_card": id_card,
+                        "village": village, "group": group,
+                        "error": "该农户为受限制身份，不可享受补贴",
+                    })
                 else:
                     ok_rows.append({"row": row_no, "name": name, "id_card": id_card})
             else:
@@ -501,6 +510,7 @@ class PreCheckRunner:
             len(format_errors) + len(village_errors) + len(duplicate_errors)
             + len(gender_mismatch) + len(error_library_hits) + len(area_anomalies)
             + len(area_missing) + len(age_anomaly) + len(deceased_farmers)
+            + len(restricted_farmers)
             + len(household_duplicates) + len(db_duplicate_apps)
         )
         total_rows = len(rows)
@@ -518,6 +528,7 @@ class PreCheckRunner:
             "area_missing": len(area_missing),
             "age_anomaly": len(age_anomaly),
             "deceased_farmers": len(deceased_farmers),
+            "restricted_farmers": len(restricted_farmers),
             "household_duplicates": len(household_duplicates),
             "new_farmers": len(new_farmers),
             "removed_farmers": len(removed_farmers),
@@ -537,6 +548,7 @@ class PreCheckRunner:
             "area_missing": area_missing,
             "age_anomaly": age_anomaly,
             "deceased_farmers": deceased_farmers,
+            "restricted_farmers": restricted_farmers,
             "household_duplicates": household_duplicates,
             "new_farmers": new_farmers,
             "removed_farmers": removed_farmers,

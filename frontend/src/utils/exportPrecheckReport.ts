@@ -17,6 +17,7 @@ export const PRECHECK_SHEET_OPTIONS = [
   { key: 'area_missing', label: '承包面积缺失', hasCount: true },
   { key: 'age_anomaly', label: '年龄异常', hasCount: true },
   { key: 'deceased_farmers', label: '死亡农户', hasCount: true },
+  { key: 'restricted_farmers', label: '受限身份农户', hasCount: true },
   { key: 'household_duplicates', label: '同一家庭多成员申请', hasCount: true },
   { key: 'new_farmers', label: '新增农户', hasCount: true },
   { key: 'removed_farmers', label: '减少农户', hasCount: true },
@@ -38,6 +39,7 @@ const SHEET_KEY_TO_NAME: Record<SheetKey, string> = {
   area_missing: '承包面积缺失',
   age_anomaly: '年龄异常',
   deceased_farmers: '死亡农户',
+  restricted_farmers: '受限身份农户',
   household_duplicates: '同一家庭多成员申请',
   new_farmers: '新增农户',
   removed_farmers: '减少农户',
@@ -57,6 +59,7 @@ const BACKEND_SUPPORTED_SHEETS = new Set([
   '承包面积缺失',
   '年龄异常',
   '死亡农户',
+  '受限身份农户',
   '同一家庭多成员申请',
   '新增农户',
   '减少农户',
@@ -206,6 +209,7 @@ export function getVillagesFromResult(result: CheckResult): string[] {
   collectFromArray(result.area_missing as any[])
   collectFromArray(result.age_anomaly as any[])
   collectFromArray(result.deceased_farmers as any[])
+  collectFromArray(result.restricted_farmers as any[])
   collectFromArray(result.household_duplicates as any[])
   collectFromArray(result.new_farmers as any[])
   collectFromArray(result.removed_farmers as any[])

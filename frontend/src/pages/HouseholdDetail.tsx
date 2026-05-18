@@ -3,7 +3,7 @@
  */
 import Tag from '../components/Tag'
 import { EVENT_TYPE_CFG } from './FarmerConstants'
-import { FARMER_STATUS, PAY_STATUS, fmt } from '../utils'
+import { FARMER_STATUS, PAY_STATUS, RESTRICTED_IDENTITY, fmt } from '../utils'
 import type { HHDetail, HistoryDateEvent, SnapshotAtResponse, HHEvent, HHMember, SnapshotMember } from '../types'
 
 // ── 家庭户详情组件 Props ──
@@ -473,6 +473,7 @@ export function HouseholdDetailContent({
                     {m.is_head === 1 && <Tag label="户主" color="green" />}
                     {m.relation && <Tag label={m.relation} color="gray" />}
                     {m.farmer_status !== 1 && <Tag label={FARMER_STATUS[m.farmer_status]?.label ?? '异常'} color="red" />}
+                    {m.restricted_identity === 1 && <Tag label={RESTRICTED_IDENTITY[1]?.label} color="red" />}
                   </div>
                   <div className="text-xs text-text-muted mt-0.5">
                     {m.gender === 1 ? '男' : '女'}

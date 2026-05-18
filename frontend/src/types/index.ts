@@ -25,6 +25,7 @@ export interface FarmerOut {
   is_head: number
   relation: string | null
   farmer_status: number
+  restricted_identity?: number
   village_full_name: string
   contract_area: string | null
   address: string | null
@@ -51,6 +52,7 @@ export interface FarmerCreate {
   contract_area?: number
   farmer_status: number
   remark?: string
+  restricted_identity?: number
 }
 
 export interface FarmerDetail {
@@ -61,6 +63,7 @@ export interface FarmerDetail {
   address: string | null; remark: string | null; created_at: string | null
   household_id: number; birth_date?: string
   id_card?: string; phone?: string; bank_card?: string
+  restricted_identity?: number
   applications?: { id: number; apply_year: number; subsidy_name: string; calc_mode: string; apply_amount: string | null; actual_amount: string | null; apply_area: string | null; pay_status: number; pay_date: string | null; remark: string | null }[]
 }
 
@@ -380,6 +383,7 @@ export interface HHMember {
   is_head: number; relation: string | null; farmer_status: number; phone_masked?: string | null
   own_village_id?: number | null; own_group_no?: number | null
   village_full_name?: string
+  restricted_identity?: number
 }
 
 export interface HHDetail {
@@ -431,6 +435,7 @@ export interface SnapshotMember {
   is_head: number
   relation: string | null
   farmer_status: number
+  restricted_identity?: number
   phone_masked?: string | null
   id_card?: string
   phone?: string
@@ -488,6 +493,7 @@ export interface MemberCreate {
   relation?: string
   is_head?: number
   farmer_status?: number
+  restricted_identity?: number
   remark?: string
 }
 
@@ -499,6 +505,7 @@ export interface MemberUpdate {
   relation?: string
   is_head?: number
   farmer_status?: number
+  restricted_identity?: number
   remark?: string
   event_date?: string
   village_id?: number
@@ -535,6 +542,7 @@ export interface CheckResult {
     area_missing: number
     age_anomaly: number
     deceased_farmers: number
+    restricted_farmers: number
     household_duplicates: number
     new_farmers: number
     removed_farmers: number
@@ -551,6 +559,7 @@ export interface CheckResult {
   area_missing: Array<{ row: number; name: string; id_card: string; village: string; group: string; contract_area: number; error: string }>
   age_anomaly: Array<{ row: number; name: string; id_card: string; village: string; group: string; age: number; birth_year: number; error: string }>
   deceased_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
+  restricted_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
   household_duplicates: Array<{ row: number; name: string; id_card: string; village: string; group: string; household_id: string; total_count: number; other_members: string[]; excel_remark: string; db_existing_apps: Array<{ real_name: string; subsidy_name: string; remark: string }> }>
   new_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; village_group_id: number | null }>
   removed_farmers: Array<{ id_card: string; name: string; village: string; group: string; farmer_id: number; note: string }>

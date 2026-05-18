@@ -224,7 +224,7 @@ export default function FarmersPage() {
   // ── 成员管理 ──
   const [memberAddOpen, setMemberAddOpen] = useState(false)
   const [memberEditTarget, setMemberEditTarget] = useState<HHMember | null>(null)
-  const [memberForm, setMemberForm] = useState({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: 0, group_no: 1, village_name: '', group_name: '' })
+  const [memberForm, setMemberForm] = useState({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', restricted_identity: '0', event_date: '', village_id: 0, group_no: 1, village_name: '', group_name: '' })
   const [memberImportOpen, setMemberImportOpen] = useState(false)
 
   // ── 分户向导 ──
@@ -672,6 +672,7 @@ export default function FarmersPage() {
           bank_card: memberForm.bank_card || undefined,
           bank_name: memberForm.bank_name || undefined,
           farmer_status: Number(memberForm.farmer_status),
+          restricted_identity: Number(memberForm.restricted_identity) || 0,
           event_date: memberForm.event_date || undefined,
           village_id: memberForm.village_id || undefined,
           group_no: memberForm.group_no || undefined,
@@ -688,6 +689,7 @@ export default function FarmersPage() {
           bank_card: memberForm.bank_card || undefined,
           bank_name: memberForm.bank_name || undefined,
           farmer_status: 1,
+          restricted_identity: Number(memberForm.restricted_identity) || 0,
         })
         show('✓ 成员已添加')
       }
@@ -720,6 +722,7 @@ export default function FarmersPage() {
       real_name: m.real_name, id_card: '', gender: String(m.gender),
       relation: m.relation || '成员', is_head: m.is_head === 1,
       phone: '', bank_card: '', bank_name: '', farmer_status: String(m.farmer_status),
+      restricted_identity: String((m as HHMember).restricted_identity ?? 0),
       event_date: '',
       village_id: effVid ?? 0,
       group_no: effGno ?? 1,
@@ -1211,7 +1214,7 @@ export default function FarmersPage() {
                     onOpenMemberAdd={() => {
                       const v = groups.find(g => g.village_id === detail?.village_id)
                       const g = groups.find(g => g.village_id === detail?.village_id && g.group_no === detail?.group_no)
-                      setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` })
+                      setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', restricted_identity: '0', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` })
                       setMemberAddOpen(true)
                     }}
                     onOpenMemberImport={() => setMemberImportOpen(true)}
@@ -1262,7 +1265,7 @@ export default function FarmersPage() {
                 onOpenMemberAdd={() => {
                   const v = groups.find(g => g.village_id === detail?.village_id)
                   const g = groups.find(g => g.village_id === detail?.village_id && g.group_no === detail?.group_no)
-                  setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` })
+                  setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', restricted_identity: '0', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` })
                   setMemberAddOpen(true)
                 }}
                 onOpenEvent={() => setEventOpen(true)}

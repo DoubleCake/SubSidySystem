@@ -262,6 +262,12 @@ def batch_import_applications(
 
             row["farmer_id"] = farmer.id
 
+            # 检查受限身份（公务员/事业人员等不可享受补贴）
+            if getattr(farmer, 'restricted_identity', 0) == 1:
+                sp.rollback()
+                errors.append(f"{farmer.real_name}（{farmer.id_card}）：该农户为受限制身份，不可享受补贴")
+                continue
+
             # 检查完全相同的记录
             if _exists_duplicate_application(db, farmer, row):
                 sp.rollback()

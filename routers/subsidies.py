@@ -524,7 +524,8 @@ def precheck_applications(
                 "village_name": f.household.village.village_name if f.household and f.household.village else "",
                 "group_no": f.household.group_no if f.household else 1,
                 "contract_area": f.household.contract_area if f.household and f.household.contract_area else 0,
-                "farmer_status": f.farmer_status,  # 1=在册, 0=离世
+                "farmer_status": f.farmer_status,
+                "restricted_identity": getattr(f, 'restricted_identity', 0),
                 "household_id": f.household_id,
             }
 
@@ -598,6 +599,7 @@ def precheck_applications(
     area_missing: list[dict] = []        # 承包面积缺失
     age_anomaly: list[dict] = []          # 年龄异常
     deceased_farmers: list[dict] = []     # 死亡农户
+    restricted_farmers: list[dict] = []   # 受限身份农户
     household_duplicates: list[dict] = [] # 同一家庭多成员申请
     changed_farmers: list[dict] = []
     new_farmers: list[dict] = []
@@ -759,11 +761,19 @@ def precheck_applications(
                 pass
 
         # 死亡农户检查
-        if id_card in db_farmers and db_farmers[id_card].get("farmer_status") == 0:
+        if id_card in db_farmers and db_farmers[id_card].get("farmer_status") == 4:
             deceased_farmers.append({
                 "row": row_no, "name": name, "id_card": id_card,
                 "village": village, "group": group,
                 "error": "该农户已标记为离世，不应出现在补贴名单中",
+            })
+
+        # 受限身份检查（公务员/事业人员等不可享受补贴）
+        if id_card in db_farmers and db_farmers[id_card].get("restricted_identity") == 1:
+            restricted_farmers.append({
+                "row": row_no, "name": name, "id_card": id_card,
+                "village": village, "group": group,
+                "error": "该农户为受限制身份，不可享受补贴",
             })
 
         # 同一家庭多成员申请检测
@@ -845,6 +855,7 @@ def precheck_applications(
         len(format_errors) + len(village_errors) + len(duplicate_errors)
         + len(gender_mismatch) + len(error_library_hits) + len(area_anomalies)
         + len(area_missing) + len(age_anomaly) + len(deceased_farmers)
+        + len(restricted_farmers)
         + len(household_duplicates) + len(db_duplicate_apps)
     )
     summary = {
@@ -861,6 +872,7 @@ def precheck_applications(
         "area_missing": len(area_missing),
         "age_anomaly": len(age_anomaly),
         "deceased_farmers": len(deceased_farmers),
+        "restricted_farmers": len(restricted_farmers),
         "household_duplicates": len(household_duplicates),
         "new_farmers": len(new_farmers),
         "removed_farmers": len(removed_farmers),
@@ -880,6 +892,7 @@ def precheck_applications(
         "area_missing": area_missing,
         "age_anomaly": age_anomaly,
         "deceased_farmers": deceased_farmers,
+        "restricted_farmers": restricted_farmers,
         "household_duplicates": household_duplicates,
         "new_farmers": new_farmers,
         "removed_farmers": removed_farmers,

@@ -56,6 +56,7 @@ export interface MemberFormProps {
     bank_card: string
     bank_name: string
     farmer_status: string
+    restricted_identity: string
     event_date: string
     village_id: number
     group_no: number
@@ -72,6 +73,7 @@ export interface MemberFormProps {
     bank_card: string
     bank_name: string
     farmer_status: string
+    restricted_identity: string
     event_date: string
     village_id: number
     group_no: number
@@ -315,6 +317,11 @@ export function MemberForm({ open, memberEditTarget, memberForm, setMemberForm, 
           <select value={memberForm.farmer_status} onChange={e => setMemberForm(f => ({ ...f, farmer_status: e.target.value }))}
             className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
             <option value="1">在册</option><option value="2">注销</option><option value="3">迁出</option><option value="4">死亡</option>
+          </select></div>
+        <div><label className="block text-xs text-text-muted mb-1">受限身份</label>
+          <select value={memberForm.restricted_identity ?? '0'} onChange={e => setMemberForm(f => ({ ...f, restricted_identity: e.target.value }))}
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
+            <option value="0">无限制</option><option value="1">受限制（公务员/事业人员）</option>
           </select></div>
         <div><label className="block text-xs text-text-muted mb-1">个人所在村
             <span className="ml-1 text-text-muted/50 font-normal">（出嫁/迁居等，与户不同时填）</span>

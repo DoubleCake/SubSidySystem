@@ -6,7 +6,7 @@
  */
 import Tag from '../components/Tag'
 import { EVENT_TYPE_CFG, GENDER, calcAge } from './FarmerConstants'
-import { FARMER_STATUS, PAY_STATUS, fmt } from '../utils'
+import { FARMER_STATUS, PAY_STATUS, RESTRICTED_IDENTITY, fmt } from '../utils'
 import type { FarmerDetail, HHDetail, HistoryDateEvent, SnapshotAtResponse, HHMember, SnapshotMember, VillageGroup } from '../types'
 
 // ── 农户详情卡片 Props ──
@@ -80,6 +80,7 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
               ['银行卡号', <span key="bc" className="font-mono text-xs text-amber-600 select-all">{fd.bank_card || fd.bank_card_masked || '—'}</span>],
               ['开户行', fd.bank_name || '—'],
               ['农户状态', <Tag key="st" label={FARMER_STATUS[fd.farmer_status]?.label ?? '未知'} color={FARMER_STATUS[fd.farmer_status]?.color as 'green'} />],
+              ['受限身份', <Tag key="ri" label={RESTRICTED_IDENTITY[fd.restricted_identity ?? 0]?.label ?? '无限制'} color={(RESTRICTED_IDENTITY[fd.restricted_identity ?? 0]?.color ?? 'green') as 'green' | 'red'} />],
               ['备注', fd.remark || '—'],
               ['录入时间', fd.created_at ? fd.created_at.slice(0, 10) : '—'],
             ].map(([k, v], i) => (
@@ -159,6 +160,7 @@ export interface FarmerHouseholdDetailProps {
     bank_card: string
     bank_name: string
     farmer_status: string
+    restricted_identity: string
     event_date: string
     village_id: number
     group_no: number
@@ -175,6 +177,7 @@ export interface FarmerHouseholdDetailProps {
     bank_card: string
     bank_name: string
     farmer_status: string
+    restricted_identity: string
     event_date: string
     village_id: number
     group_no: number
@@ -341,6 +344,7 @@ export function FarmerHouseholdDetail({
                     {m.is_head === 1 && <Tag label="户主" color="green" />}
                     {m.relation && <Tag label={m.relation} color="gray" />}
                     {m.farmer_status !== 1 && <Tag label={FARMER_STATUS[m.farmer_status]?.label ?? '异常'} color="red" />}
+                    {m.restricted_identity === 1 && <Tag label={RESTRICTED_IDENTITY[1]?.label} color="red" />}
                   </div>
                   <div className="text-xs text-text-muted mt-0.5">
                     {m.gender === 1 ? '男' : '女'}

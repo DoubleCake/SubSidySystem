@@ -257,6 +257,8 @@ def migrate_db():
         "ALTER TABLE large_farmer_trust ADD COLUMN reminder_sent SMALLINT DEFAULT 0",
         "ALTER TABLE large_farmer_trust ADD COLUMN reminder_days SMALLINT",
         "ALTER TABLE large_farmer_trust ADD COLUMN payment_status VARCHAR(20)",
+        # 农户受限身份标记
+        "ALTER TABLE farmer_profile ADD COLUMN restricted_identity SMALLINT DEFAULT 0",
         # 创建大户地块表
         """CREATE TABLE IF NOT EXISTS large_farmer_parcel (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

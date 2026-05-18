@@ -84,6 +84,7 @@ class FarmerCreate(BaseModel):
     address: Optional[str] = None
     contract_area: Optional[Decimal] = None
     farmer_status: int = 1
+    restricted_identity: int = 0
     remark: Optional[str] = None
 
 class FarmerUpdate(BaseModel):
@@ -96,6 +97,7 @@ class FarmerUpdate(BaseModel):
     address: Optional[str] = None
     contract_area: Optional[Decimal] = None
     farmer_status: Optional[int] = None
+    restricted_identity: Optional[int] = None
     remark: Optional[str] = None
 
 class FarmerOut(BaseModel):
@@ -110,6 +112,7 @@ class FarmerOut(BaseModel):
     is_head: int                     # 动态计算：household.head_farmer_id == id
     relation: Optional[str]
     farmer_status: int
+    restricted_identity: int
     village_full_name: str             # 冗余展示用
     contract_area: Optional[Decimal]
     address: Optional[str]
