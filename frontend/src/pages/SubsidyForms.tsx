@@ -181,11 +181,11 @@ export default function SubsidyForms({
           <div><label className="block text-xs text-text-muted mb-1">申请截止日期</label>
             <input type="date" value={form.apply_deadline ?? ''} onChange={e => onFormChange({ ...form, apply_deadline: e.target.value || undefined })}
               className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
-          <div><label className="block text-xs text-text-muted mb-1">计入承包面积</label>
+          <div><label className="block text-xs text-text-muted mb-1">是否计入当季补贴面积累计</label>
             <select value={form.count_toward_area ?? 1} onChange={e => onFormChange({ ...form, count_toward_area: Number(e.target.value) })}
               className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">
-              <option value={1}>是（按亩补贴累计入承包面积）</option>
-              <option value={0}>否（固定金额类不占用面积）</option>
+              <option value={1}>是</option>
+              <option value={0}>否（一般不考虑面积类补贴不需计入）</option>
             </select>
             <p className="text-xs text-text-muted/50 mt-1">影响家庭户超领预警的计算</p>
           </div>
