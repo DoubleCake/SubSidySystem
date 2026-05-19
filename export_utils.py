@@ -83,7 +83,6 @@ def add_summary_sheet(wb: Workbook, summary: Dict[str, Any]):
         ["格式错误", summary.get("format_errors", 0)],
         ["村组不存在", summary.get("village_errors", 0)],
         ["重复身份证", summary.get("duplicate_errors", 0)],
-        ["数据库已有申请记录", summary.get("db_duplicate_apps", 0)],
         ["性别不符", summary.get("gender_mismatch", 0)],
         ["错误库命中", summary.get("error_library_hits", 0)],
         ["面积异常", summary.get("area_anomalies", 0)],
@@ -177,16 +176,6 @@ def export_precheck_report(result: Dict[str, Any]) -> BytesIO:
         for r in result.get("duplicate_errors", [])
     ]
     add_sheet_from_data(wb, "重复身份证", headers, data)
-
-    # 5.5 数据库已有申请记录
-    headers = ["行号", "姓名", "身份证号", "所在村", "所在组", "已有申请记录", "错误信息"]
-    data = [
-        {"行号": r.get("row"), "姓名": r.get("name"), "身份证号": r.get("id_card"),
-         "所在村": r.get("village"), "所在组": r.get("group"),
-         "已有申请记录": r.get("existing_apps"), "错误信息": r.get("error")}
-        for r in result.get("db_duplicate_apps", [])
-    ]
-    add_sheet_from_data(wb, "数据库已有申请记录", headers, data)
 
     # 6. 性别不符
     headers = ["行号", "姓名", "身份证号", "Excel性别", "身份证性别"]
@@ -465,7 +454,7 @@ def _get_all_villages(result: Dict[str, Any]) -> List[str]:
 
     # 遍历所有可能包含村信息的字段
     village_fields = ["error_library_hits", "format_errors", "village_errors",
-                      "duplicate_errors", "db_duplicate_apps", "gender_mismatch", "area_anomalies",
+                      "duplicate_errors", "gender_mismatch", "area_anomalies",
                       "new_farmers", "removed_farmers", "changed_farmers",
                       "household_duplicates"
                       ]
@@ -501,8 +490,6 @@ def export_precheck_report_by_village(
                      ["行号", "姓名", "身份证号", "所在村", "所在组", "错误信息"]),
         "重复身份证": (add_sheet_from_data, "duplicate_errors",
                       ["行号", "姓名", "身份证号", "错误信息"]),
-        "数据库已有申请记录": (add_sheet_from_data, "db_duplicate_apps",
-                              ["行号", "姓名", "身份证号", "所在村", "所在组", "已有申请记录", "错误信息"]),
         "性别不符": (add_sheet_from_data, "gender_mismatch",
                    ["行号", "姓名", "身份证号", "Excel性别", "身份证性别"]),
         "面积异常": (add_sheet_from_data, "area_anomalies",

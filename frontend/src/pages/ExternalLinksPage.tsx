@@ -565,7 +565,7 @@ export default function ExternalLinksPage() {
       </Modal>
 
       {/* 收藏查询结果弹窗 */}
-      <Modal open={favorOpen} title="收藏查询记录" onClose={()=>setFavorOpen(false)} onConfirm={saveFavor} confirmText="确认收藏">
+      <Modal open={favorOpen} title="收藏查询记录" onClose={()=>setFavorOpen(false)} onConfirm={saveFavor} confirmText="确认收藏" bg-primary-200>
         <div className="space-y-3">
           <div className="bg-amber-50 border border-amber-100 rounded-btn px-3 py-2 text-xs text-amber-700">
             <strong>本次查询内容：</strong>

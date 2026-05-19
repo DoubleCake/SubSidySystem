@@ -17,12 +17,12 @@ from sqlalchemy.orm import Session
 
 from core.exceptions import NotFound, BadRequest
 from models import FarmerProfile, FamilyHousehold, Village
+from services.household_service import recalc_household_area_cache
 from utils import (
     mask_id_card, mask_phone, mask_bank_card,
     parse_id_card, gen_household_code,
     parse_group_no_to_int, format_group_no,
 )
-
 # ═══════════════════════════════════════════
 #  列表查询 —— SQL 模板
 # ═══════════════════════════════════════════
@@ -264,6 +264,8 @@ def update_farmer(db: Session, farmer_id: int, data: dict) -> dict:
             hh.status = 3
 
     db.commit()
+    if farmer.household_id:
+        recalc_household_area_cache(farmer.household_id, db)
     return {"message": "更新成功"}
 
 
@@ -376,6 +378,8 @@ def deactivate_farmer(db: Session, farmer_id: int, status: int = 2) -> dict:
     if hh:
         hh.status = status
     db.commit()
+    if farmer.household_id:
+        recalc_household_area_cache(farmer.household_id, db)
     return {"message": "状态已更新"}
 
 

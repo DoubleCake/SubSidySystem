@@ -64,7 +64,6 @@ def recalc_household_cache(db: Session, household_ids: list[int]) -> None:
             .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
             .filter(
                 FarmerProfile.household_id == household_id,
-                SubsidyType.calc_mode == "per_mu",
                 SubsidyType.count_toward_area == 1,
                 SubsidyApplication.apply_area.isnot(None),
                 SubsidyApplication.pay_status.in_([0, 1, 2]),
@@ -89,7 +88,6 @@ def recalc_household_cache(db: Session, household_ids: list[int]) -> None:
             .join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
             .filter(
                 FarmerProfile.household_id == household_id,
-                SubsidyType.calc_mode == "per_mu",
                 SubsidyType.count_toward_area == 1,
                 SubsidyPayment.apply_area.isnot(None),
             )

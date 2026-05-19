@@ -15,6 +15,7 @@ from decimal import Decimal
 
 from database import get_db
 from models import LandTrust, FamilyHousehold, Village, VillageGroup
+from services.subsidy_service import recalc_household_cache
 
 router = APIRouter(prefix="/api/land", tags=["土地信息"])
 
@@ -217,7 +218,19 @@ def create_trust(data: dict, db: Session = Depends(get_db)):
         operator              = data.get("operator"),
     )
     db.add(trust); db.commit(); db.refresh(trust)
+    _refresh_trust_households(db, trust)
     return {"id": trust.id, "message": "创建成功"}
+
+
+def _refresh_trust_households(db: Session, trust: LandTrust) -> None:
+    """流转记录变更后刷新关联家庭户的面积缓存"""
+    hh_ids = set()
+    if trust.owner_household_id:
+        hh_ids.add(trust.owner_household_id)
+    if trust.operator_household_id:
+        hh_ids.add(trust.operator_household_id)
+    if hh_ids:
+        recalc_household_cache(db, list(hh_ids))
 
 
 @router.put("/trusts/{trust_id}")
@@ -245,6 +258,7 @@ def update_trust(trust_id: int, data: dict, db: Session = Depends(get_db)):
         setattr(trust, k, v)
 
     db.commit()
+    _refresh_trust_households(db, trust)
     return {"message": "更新成功"}
 
 
@@ -253,6 +267,7 @@ def delete_trust(trust_id: int, db: Session = Depends(get_db)):
     trust = db.get(LandTrust, trust_id)
     if not trust: raise HTTPException(404, "记录不存在")
     trust.is_active = 0; db.commit()
+    _refresh_trust_households(db, trust)
     return {"message": "已删除"}
 
 
@@ -413,7 +428,6 @@ def get_area_summary(
               AND sa.apply_year = :yr
               AND sa.apply_area IS NOT NULL
               AND sa.pay_status != 3
-              AND st.calc_mode = 'per_mu'
               AND st.count_toward_area = 1
             GROUP BY st.id
         """), {"yr": year}).fetchall()

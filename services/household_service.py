@@ -334,7 +334,6 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
         .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
         .filter(
             FarmerProfile.household_id == household_id,
-            SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyApplication.apply_area.isnot(None),
             SubsidyApplication.pay_status.in_([0, 1, 2]),
@@ -360,7 +359,6 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
         .join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
         .filter(
             FarmerProfile.household_id == household_id,
-            SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyPayment.apply_area.isnot(None),
         )
@@ -425,7 +423,6 @@ def recalc_all_household_caches(db: Session) -> int:
         .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
         .filter(
             FarmerProfile.household_id.isnot(None),
-            SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyApplication.apply_area.isnot(None),
             SubsidyApplication.pay_status.in_([0, 1, 2]),
@@ -449,7 +446,6 @@ def recalc_all_household_caches(db: Session) -> int:
         .join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
         .filter(
             FarmerProfile.household_id.isnot(None),
-            SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyPayment.apply_area.isnot(None),
         )
@@ -1236,6 +1232,7 @@ def add_member(db: Session, household_id: int, data: dict) -> dict:
 
     db.commit()
     db.refresh(member)
+    recalc_household_area_cache(household_id, db)
     return {"message": "添加成功", "member": _member_out(member, db)}
 
 
@@ -1305,6 +1302,7 @@ def update_member(db: Session, household_id: int, farmer_id: int, data: dict) ->
                event_date=event_date_obj, date_accuracy=date_accuracy)
 
     db.commit()
+    recalc_household_area_cache(household_id, db)
     return {"message": "更新成功", "member": _member_out(member, db)}
 
 
@@ -1356,6 +1354,7 @@ def remove_member(
                event_date=today, date_accuracy="EXACT")
 
     db.commit()
+    recalc_household_area_cache(household_id, db)
     return {"message": msg}
 
 
@@ -1406,6 +1405,9 @@ def move_member(db: Session, farmer_id: int, target_household_id: int,
                event_date=today, date_accuracy="EXACT")
 
     db.commit()
+    recalc_household_area_cache(old_household_id, db)
+    if target_household_id != old_household_id:
+        recalc_household_area_cache(target_household_id, db)
     return {"message": f"已将「{farmer.real_name}」移入「{target_hh.household_name}」"}
 
 
@@ -2000,6 +2002,7 @@ def batch_import_members(db: Session, household_id: int, rows: list[dict],
 
     db.flush()
     db.commit()
+    recalc_household_area_cache(household_id, db)
     return {"created": created, "updated": updated, "errors": errors}
 
 
@@ -2706,7 +2709,6 @@ def get_area_by_year(db: Session, household_id: int) -> dict:
         .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
         .filter(
             FarmerProfile.household_id == household_id,
-            SubsidyType.calc_mode == "per_mu",
             SubsidyType.count_toward_area == 1,
             SubsidyApplication.apply_area.isnot(None),
             SubsidyApplication.pay_status.in_([0, 1, 2]),

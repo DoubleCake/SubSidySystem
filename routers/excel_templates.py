@@ -37,7 +37,7 @@ SYSTEM_FIELDS = {
         {"field": "id_card",       "label": "身份证号", "required": True,  "type": "id_card"},
         {"field": "real_name",     "label": "姓名",     "required": True,  "type": "string"},
         {"field": "actual_amount", "label": "发放金额", "required": False, "type": "decimal"},
-        {"field": "apply_area",    "label": "种植面积", "required": False, "type": "decimal"},
+        {"field": "apply_area",    "label": "实际补贴面积", "required": False, "type": "decimal"},
         {"field": "contract_area", "label": "承包地种植面积", "required": False, "type": "decimal"},
         {"field": "trust_area",    "label": "代耕代种面积", "required": False, "type": "decimal"},
         {"field": "no_subsidy_area","label": "不予补贴面积", "required": False, "type": "decimal"},
@@ -54,7 +54,7 @@ SYSTEM_FIELDS = {
         {"field": "group_no",     "label": "所在组",   "required": True,  "type": "string"},
         {"field": "gender",       "label": "性别",     "required": False, "type": "string"},
         {"field": "phone",        "label": "手机号",   "required": False, "type": "phone"},
-        {"field": "apply_area",    "label": "种植面积", "required": False, "type": "decimal"},
+        {"field": "apply_area",    "label": "实际补贴面积", "required": False, "type": "decimal"},
         {"field": "contract_area", "label": "承包地种植面积", "required": False, "type": "decimal"},
         {"field": "trust_area",    "label": "代耕代种面积", "required": False, "type": "decimal"}, #代耕代种一般不查
     ],
@@ -62,7 +62,7 @@ SYSTEM_FIELDS = {
 
 # 内置别名词典（每个系统字段的常见列名写法）
 BUILTIN_ALIASES = {
-    "real_name":     ["姓名", "姓名*", "户主姓名", "农户姓名", "名字", "姓 名", "户主名字", "申请人姓名"],
+    "real_name":     ["姓名", "姓名*", "户主姓名", "农户姓名", "名字", "姓 名", "户主名字", "申请人姓名","主体","农户"],
     "id_card":       ["身份证号", "身份证号*", "身份证", "证件号码", "居民身份证号", "身份证号码", "证件号", "ID号"],
     "phone":         ["手机号", "手机号*", "电话", "联系电话", "手机", "联系方式", "手机号码", "电话号码"],
     "bank_card":     ["银行卡号", "银行卡号*", "卡号", "账号", "银行账号", "打款账号", "收款账号", "银行卡"],
