@@ -83,6 +83,19 @@ def update_subsidy_type(type_id: int, data: dict, db: Session = Depends(get_db))
         if hasattr(st, k):
             setattr(st, k, v)
     db.commit()
+
+    # 刷新受此项目影响的所有家庭户面积缓存（如 count_toward_area 变更）
+    from sqlalchemy import text
+    affected = db.execute(text("""
+        SELECT DISTINCT fp.household_id
+        FROM subsidy_application sa
+        JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
+        WHERE sa.subsidy_type_id = :type_id AND fp.household_id IS NOT NULL
+    """), {"type_id": type_id}).fetchall()
+    hh_ids = [r[0] for r in affected if r[0]]
+    if hh_ids:
+        recalc_household_cache(db, hh_ids)
+
     return {"message": "更新成功"}
 
 
@@ -977,11 +990,15 @@ def precheck_applications(
 @router.delete("/applications/{app_id}")
 def delete_application(app_id: int, db: Session = Depends(get_db)):
     from sqlalchemy import text
-    app = db.execute(text("SELECT id FROM subsidy_application WHERE id=:id"), {"id": app_id}).fetchone()
+    app = db.execute(text("SELECT id, farmer_id FROM subsidy_application WHERE id=:id"), {"id": app_id}).fetchone()
     if not app:
         raise NotFound("记录不存在")
+    # 查出所属家庭户以便刷新缓存
+    farmer = db.execute(text("SELECT household_id FROM farmer_profile WHERE id=:fid"), {"fid": app.farmer_id}).fetchone() if app.farmer_id else None
     db.execute(text("DELETE FROM subsidy_application WHERE id=:id"), {"id": app_id})
     db.commit()
+    if farmer and farmer.household_id:
+        recalc_household_cache(db, [farmer.household_id])
     return {"message": "删除成功"}
 
 
@@ -990,11 +1007,20 @@ def delete_application(app_id: int, db: Session = Depends(get_db)):
 def batch_delete_applications(payload: dict, db: Session = Depends(get_db)):
     from sqlalchemy import text
     delete_all = payload.get("delete_all", False)
+    hh_ids: list[int] = []
 
     if delete_all:
         subsidy_type_id = payload.get("subsidy_type_id")
         if not subsidy_type_id:
             raise BadRequest("delete_all 模式下需要 subsidy_type_id")
+        # 先查出受影响的家庭户
+        affected = db.execute(text("""
+            SELECT DISTINCT fp.household_id
+            FROM subsidy_application sa
+            JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
+            WHERE sa.subsidy_type_id = :type_id AND fp.household_id IS NOT NULL
+        """), {"type_id": subsidy_type_id}).fetchall()
+        hh_ids = [r[0] for r in affected if r[0]]
         # 同时清理申请表和发放表中的数据
         result = db.execute(
             text("DELETE FROM subsidy_application WHERE subsidy_type_id = :sid"),
@@ -1009,9 +1035,19 @@ def batch_delete_applications(payload: dict, db: Session = Depends(get_db)):
         if not ids or not isinstance(ids, list):
             raise BadRequest("缺少 ids 列表")
         ids_str = ','.join(str(int(i)) for i in ids)
+        # 先查出受影响的家庭户
+        affected = db.execute(text(f"""
+            SELECT DISTINCT fp.household_id
+            FROM subsidy_application sa
+            JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
+            WHERE sa.id IN ({ids_str}) AND fp.household_id IS NOT NULL
+        """)).fetchall()
+        hh_ids = [r[0] for r in affected if r[0]]
         result = db.execute(text(f"DELETE FROM subsidy_application WHERE id IN ({ids_str})"))
 
     db.commit()
+    if hh_ids:
+        recalc_household_cache(db, hh_ids)
     return {"deleted": result.rowcount}
 
 

@@ -230,9 +230,19 @@ def delete_type(db: Session, type_id: int) -> None:
     st = db.get(SubsidyType, type_id)
     if not st:
         raise NotFound("补贴项目不存在")
+    # 先查出受影响的家庭户
+    affected = db.execute(text("""
+        SELECT DISTINCT fp.household_id
+        FROM subsidy_application sa
+        JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
+        WHERE sa.subsidy_type_id = :type_id AND fp.household_id IS NOT NULL
+    """), {"type_id": type_id}).fetchall()
+    hh_ids = [r[0] for r in affected if r[0]]
     db.execute(text("DELETE FROM subsidy_application WHERE subsidy_type_id = :id"), {"id": type_id})
     db.execute(text("DELETE FROM subsidy_type WHERE id = :id"), {"id": type_id})
     db.commit()
+    if hh_ids:
+        recalc_household_cache(db, hh_ids)
 
 
 # ═══════════════════════════════════════════
