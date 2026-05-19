@@ -195,7 +195,8 @@ def check_area_anomaly(
     actual_subsidy_area: float | None = None,
     season: str | None = None,
     hh_used: float = 0,
-    ignore_trust_in: bool = True
+    ignore_trust_in: bool = True,
+    farmland_protection_area: float | None = None,
 ) -> dict:
     """
     统一面积异常检查
@@ -211,6 +212,7 @@ def check_area_anomaly(
         season: 补贴季节
         hh_used: 户级已用面积
         ignore_trust_in: 是否忽略代耕代种进面积（超限检查时）
+        farmland_protection_area: 耕地地力保护补贴面积（大春/小春用作参考上限）
 
     Returns:
         dict with anomaly_type, anomaly_details, exceed_amount, self_occupy, hh_total
@@ -228,10 +230,25 @@ def check_area_anomaly(
             "exceed_amount": 0.0,
             "self_occupy": 0.0,
             "hh_total": 0.0,
+            "reference_area": 0.0,
+            "area_source": "",
         }
 
     excel_c = float(excel_contract_area)
     db_c = float(db_contract_area)
+
+    # 大春/小春优先使用耕地地力保护补贴面积作为参考上限
+    reference_area = db_c
+    area_source = "承包面积"
+    if season in ("大春", "小春") and farmland_protection_area is not None:
+        reference_area = farmland_protection_area
+        area_source = "耕地地力保护补贴面积"
+
+    # 耕地地力保护补贴面积为0时标记提示
+    if season in ("大春", "小春") and farmland_protection_area is not None and farmland_protection_area == 0:
+        if not anomaly_type:
+            anomaly_type = "耕地地力保护补贴面积缺失"
+        anomaly_details.append(f"该家庭户无耕地地力保护补贴记录")
 
     # 检查一：Excel承包面积与数据库承包面积不一致
     if abs(excel_c - db_c) > 0.001:
@@ -263,18 +280,19 @@ def check_area_anomaly(
 
     # 情况B：户级累计超限（需要season）
     VALID_SEASONS = {"大春", "小春", "全年单补", "临时"}
-    if season in VALID_SEASONS and db_c > 0:
+    if season in VALID_SEASONS and reference_area > 0:
         hh_total = round(hh_used + final_subsidy, 4)
-        if hh_total > db_c:
+        if hh_total > reference_area:
             if anomaly_type:
                 if "面积超限" not in anomaly_type:
                     anomaly_type = f"{anomaly_type}+面积超限"
             else:
                 anomaly_type = "面积超限"
-            hh_exceed = round(hh_total - db_c, 4)
+            hh_exceed = round(hh_total - reference_area, 4)
             exceed_amount = max(exceed_amount, hh_exceed)
-            if f"累计超限{hh_exceed}亩" not in anomaly_details:
-                anomaly_details.append(f"累计超限{hh_exceed}亩")
+            detail = f"累计超限{hh_exceed}亩（参考{area_source}:{reference_area}亩）"
+            if detail not in anomaly_details:
+                anomaly_details.append(detail)
 
     return {
         "anomaly_type": anomaly_type,
@@ -285,6 +303,8 @@ def check_area_anomaly(
         "final_subsidy": final_subsidy,
         "db_contract_area": db_c,
         "hh_used": hh_used,
+        "reference_area": reference_area,
+        "area_source": area_source,
     }
 
 

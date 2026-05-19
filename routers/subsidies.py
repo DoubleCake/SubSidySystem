@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi.responses import Response
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
@@ -506,6 +508,62 @@ def precheck_applications(
                     "status": status_text
                 })
 
+    # 加载家庭户当季已用面积（用于户级累计超限检查）
+    db_hh_season_used: dict[int, float] = {}
+    if season and compare_year:
+        rows_used = db.query(
+            FarmerProfile.household_id,
+            func.sum(SubsidyApplication.apply_area).label("total_area")
+        ).join(
+            FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id
+        ).join(
+            SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id
+        ).filter(
+            SubsidyApplication.apply_year == compare_year,
+            SubsidyType.season == season,
+        ).group_by(FarmerProfile.household_id).all()
+        db_hh_season_used = {r.household_id: float(r.total_area or 0) for r in rows_used}
+
+    # 加载家庭户耕地地力保护补贴面积（用作大春/小春参考上限）
+    db_hh_farmland_area: dict[int, float] = {}
+    _farmland_loaded = False
+    if season in ("大春", "小春") and compare_year:
+        st = db.query(SubsidyType).filter(
+            SubsidyType.category == '耕地保护',
+            SubsidyType.subsidy_year == compare_year,
+            SubsidyType.season == '全年单补',
+        ).first()
+        if st:
+            # 优先从 payment 表获取
+            pay_rows = db.query(
+                FarmerProfile.household_id,
+                func.sum(SubsidyPayment.apply_area).label("total_area")
+            ).join(
+                FarmerProfile, FarmerProfile.id == SubsidyPayment.farmer_id
+            ).filter(
+                SubsidyPayment.subsidy_type_id == st.id,
+                SubsidyPayment.payment_year == compare_year,
+            ).group_by(FarmerProfile.household_id).all()
+            hh_with_pay = set()
+            for r in pay_rows:
+                if r.household_id and r.total_area:
+                    db_hh_farmland_area[r.household_id] = float(r.total_area)
+                    hh_with_pay.add(r.household_id)
+            # 无 payment 的从 application 获取
+            app_rows = db.query(
+                FarmerProfile.household_id,
+                func.sum(SubsidyApplication.apply_area).label("total_area")
+            ).join(
+                FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id
+            ).filter(
+                SubsidyApplication.subsidy_type_id == st.id,
+                SubsidyApplication.apply_year == compare_year,
+            ).group_by(FarmerProfile.household_id).all()
+            for r in app_rows:
+                if r.household_id and r.total_area and r.household_id not in hh_with_pay:
+                    db_hh_farmland_area[r.household_id] = float(r.total_area)
+            _farmland_loaded = True
+
     # 错误库（用于错误库命中检查）
     error_lib: dict[tuple[str, str], dict] = {}
     for e in db.query(ErrorLibrary).all():
@@ -703,6 +761,19 @@ def precheck_applications(
         # db_contract_area_val 已经在上面从 row["db_contract_area"] 获取了，这里确保是 float
         db_contract_area_val = float(db_contract_area_val) if db_contract_area_val is not None else None
 
+        # 计算户级已用面积（本行数据已在 DB 中，需要排除自身避免重复计算）
+        hh_id = row.get("household_id")
+        current_area = excel_contract_area or 0
+        hh_used = 0.0
+        if hh_id and season and compare_year:
+            total = db_hh_season_used.get(hh_id, 0)
+            hh_used = max(0, total - current_area)
+
+        # 耕地地力保护补贴面积（大春/小春参考上限）
+        farmland_area = None
+        if hh_id and _farmland_loaded:
+            farmland_area = db_hh_farmland_area.get(hh_id, 0.0)
+
         # 调用统一的面积异常检查函数
         anomaly_result = check_area_anomaly(
             excel_contract_area=excel_contract_area,
@@ -712,9 +783,10 @@ def precheck_applications(
             excel_trust_in=0,
             excel_no_subsidy=0,
             actual_subsidy_area=excel_contract_area,
-            season=None,
-            hh_used=0,
-            ignore_trust_in=True
+            season=season,
+            hh_used=hh_used,
+            ignore_trust_in=True,
+            farmland_protection_area=farmland_area,
         )
 
         if anomaly_result["anomaly_type"]:
@@ -923,8 +995,13 @@ def batch_delete_applications(payload: dict, db: Session = Depends(get_db)):
         subsidy_type_id = payload.get("subsidy_type_id")
         if not subsidy_type_id:
             raise BadRequest("delete_all 模式下需要 subsidy_type_id")
+        # 同时清理申请表和发放表中的数据
         result = db.execute(
             text("DELETE FROM subsidy_application WHERE subsidy_type_id = :sid"),
+            {"sid": subsidy_type_id},
+        )
+        db.execute(
+            text("DELETE FROM subsidy_payment WHERE subsidy_type_id = :sid"),
             {"sid": subsidy_type_id},
         )
     else:
@@ -1680,3 +1757,46 @@ def delete_proxy(proxy_id: int, db: Session = Depends(get_db)):
         recalc_household_cache(db, list(affected_households))
 
     return {"message": "代领关系删除成功"}
+
+
+# ── 预检报告导出（从已删除的 precheck.py 迁移至此）──
+from urllib.parse import quote
+from datetime import datetime
+from export_utils import export_precheck_report, export_precheck_report_with_options
+
+class _ExportPrecheckReq(BaseModel):
+    result: dict
+    file_name: Optional[str] = "预检查报告"
+
+class _ExportPrecheckWithOptionsReq(BaseModel):
+    result: dict
+    file_name: Optional[str] = "预检查报告"
+    split_by_village: Optional[bool] = False
+    selected_sheets: Optional[list[str]] = None
+
+@router.post("/applications/precheck/export")
+def _export_precheck(req: _ExportPrecheckReq):
+    output = export_precheck_report(req.result)
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    file_name = f"{req.file_name}_{date_str}.xlsx"
+    encoded = quote(file_name)
+    return Response(
+        content=output.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={encoded}; filename*=UTF-8''{encoded}"},
+    )
+
+@router.post("/applications/precheck/export-with-options")
+def _export_precheck_with_options(req: _ExportPrecheckWithOptionsReq):
+    buffer, filename, media_type = export_precheck_report_with_options(
+        req.result,
+        split_by_village=req.split_by_village or False,
+        selected_sheets=req.selected_sheets,
+        file_name=req.file_name,
+    )
+    encoded = quote(filename)
+    return Response(
+        content=buffer.getvalue(),
+        media_type=media_type,
+        headers={"Content-Disposition": f"attachment; filename={encoded}; filename*=UTF-8''{encoded}"},
+    )

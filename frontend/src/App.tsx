@@ -5,7 +5,6 @@ import SubsidyProjectsPage from './pages/SubsidyProjectsPage'
 import DashboardPage from './pages/DashboardPage'
 import { AIPage } from './pages/SummaryAndAI'
 import SettingsPage from './pages/SettingsPage'
-import PreCheckPage from './pages/PreCheckPage'
 import ExternalLinksPage from './pages/ExternalLinksPage'
 import BackupPage from './pages/BackupPage'
 import ExcelTemplatePage from './pages/ExcelTemplatePage'
@@ -28,7 +27,6 @@ const mainNav = [
   { to: '/land',                    label: '土地与大户', icon: 'land' as const },
   { to: '/agri-tasks',              label: '任务分解',   icon: 'tasks' as const },
   { to: '/settings/village-groups', label: '村组管理',   icon: 'village' as const },
-  { to: '/precheck',                label: '数据预检',   icon: 'search' as const },
   { to: '/links',                   label: '补贴查询',   icon: 'link' as const },
   { to: '/workflow',                label: '操作流程',   icon: 'menu' as const },
 ]
@@ -39,7 +37,6 @@ const settingNavBasic = [  // 基础配置
 ]
 
 const settingNavData = [  // 数据工具
-  { to: '/precheck',                label: '数据预检',   icon: 'search' as const },
   { to: '/ai',                     label: 'AI 分析',    icon: 'ai' as const },
   { to: '/settings/excel-templates', label: 'Excel模板', icon: 'export' as const },
 ]
@@ -219,7 +216,6 @@ function Layout() {
             <Route path="/agri-tasks" element={<AgriTaskPage />} />
             <Route path="/land"      element={<LandTrustPage />} />
             <Route path="/links"     element={<ExternalLinksPage />} />
-            <Route path="/precheck"  element={<PreCheckPage />} />
             <Route path="/ai"        element={<AIPage />} />
             <Route path="/settings/village-groups" element={<SettingsPage />} />
             <Route path="/settings/backup" element={<BackupPage />} />

@@ -84,7 +84,7 @@ function mapSheetsToBackend(selectedSheets: SheetKey[]): string[] {
  */
 export async function exportPrecheckReport(result: CheckResult, fileName = '预检查报告') {
   try {
-    const response = await fetch('/api/precheck/export', {
+    const response = await fetch('/api/subsidies/applications/precheck/export', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -141,7 +141,7 @@ export async function exportPrecheckReportWithOptions(
     // 映射 sheet key 为后端支持的中文名称
     const backendSheets = mapSheetsToBackend(options.selectedSheets)
 
-    const response = await fetch('/api/precheck/export-with-options', {
+    const response = await fetch('/api/subsidies/applications/precheck/export-with-options', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
