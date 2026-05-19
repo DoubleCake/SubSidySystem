@@ -75,7 +75,7 @@ def create_subsidy_type(data: SubsidyTypeCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/types/{type_id}")
-def update_subsidy_type(type_id: int, data: dict, db: Session = Depends(get_db)):
+def update_subsidy_type(type_id: int, data: dict, db: Session = Depends(get_db), background_tasks: BackgroundTasks = None):
     st = db.get(SubsidyType, type_id)
     if not st:
         raise NotFound("补贴类型不存在")
@@ -84,7 +84,7 @@ def update_subsidy_type(type_id: int, data: dict, db: Session = Depends(get_db))
             setattr(st, k, v)
     db.commit()
 
-    # 刷新受此项目影响的所有家庭户面积缓存（如 count_toward_area 变更）
+    # 异步刷新受此项目影响的所有家庭户面积缓存（不影响保存响应速度）
     from sqlalchemy import text
     affected = db.execute(text("""
         SELECT DISTINCT fp.household_id
@@ -93,8 +93,8 @@ def update_subsidy_type(type_id: int, data: dict, db: Session = Depends(get_db))
         WHERE sa.subsidy_type_id = :type_id AND fp.household_id IS NOT NULL
     """), {"type_id": type_id}).fetchall()
     hh_ids = [r[0] for r in affected if r[0]]
-    if hh_ids:
-        recalc_household_cache(db, hh_ids)
+    if hh_ids and background_tasks:
+        background_tasks.add_task(recalc_household_cache, db, hh_ids)
 
     return {"message": "更新成功"}
 
