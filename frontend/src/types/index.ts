@@ -535,7 +535,6 @@ export interface CheckResult {
     format_errors: number
     village_errors: number
     duplicate_errors: number
-    db_duplicate_apps: number
     gender_mismatch: number
     error_library_hits: number
     area_anomalies: number
@@ -552,7 +551,6 @@ export interface CheckResult {
   format_errors: Array<{ row: number; name: string; id_card: string; village: string; group: string; errors: string[]; error_count: number }>
   village_errors: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
   duplicate_errors: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
-  db_duplicate_apps: Array<{ row: number; name: string; id_card: string; village: string; group: string; existing_apps: string; error: string }>
   gender_mismatch: Array<{ row: number; name: string; id_card: string; village: string; group: string; excel_gender: string; id_card_gender: string; error: string }>
   error_library_hits: Array<{ row: number; name: string; id_card: string; village: string; group: string; error_type: string; error_reason: string; source: string }>
   area_anomalies: Array<{ row: number; name: string; id_card: string; village: string; group: string; anomaly_type: string; anomaly_details: string; contract_area: number; trust_out_area: number; trust_in_area: number; no_subsidy_area: number; actual_subsidy_area: number; self_occupy: number; hh_used: number; hh_total: number; db_contract_area: number; exceed_amount: number }>
@@ -579,6 +577,6 @@ export interface CheckConfig {
     db_compare: boolean
     year_compare: boolean
   }
-  area_mode: 'disabled' | 'standalone' | 'seasonal'
+  area_mode: 'disabled' | 'seasonal' | 'standalone'
   check_trust_deduction: boolean
 }
