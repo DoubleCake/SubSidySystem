@@ -35,6 +35,62 @@ SEASON_ORDER = ["大春", "小春", "全年单补", "临时"]
 #  面积缓存
 # ═══════════════════════════════════════════
 
+def update_cache_incremental(
+    db: Session, household_id: int, year: int, season: str | None,
+    delta: float, count_toward: bool = True
+) -> None:
+    """增量更新家庭户面积缓存（单条 CRUD 用，O(1)完成，无需全量汇总）"""
+    if not household_id or delta == 0 or not count_toward:
+        return
+    season = season or "全年单补"
+    existing = db.query(HouseholdAreaUsageCache).filter(
+        HouseholdAreaUsageCache.household_id == household_id,
+        HouseholdAreaUsageCache.year == year,
+        HouseholdAreaUsageCache.season == season,
+    ).first()
+    if existing:
+        existing.apply_area = max(0, float(existing.apply_area or 0) + delta)
+        existing.used_area = float(existing.payment_area or 0) if float(existing.payment_area or 0) > 0 else float(existing.apply_area or 0)
+    else:
+        used = abs(delta) if delta > 0 else 0
+        db.add(HouseholdAreaUsageCache(
+            household_id=household_id, year=year, season=season,
+            apply_area=abs(delta) if delta > 0 else 0, payment_area=0, used_area=used,
+        ))
+    db.commit()
+
+
+def recalc_cache_for_type(db: Session, type_id: int, old_count_toward: int, new_count_toward: int) -> None:
+    """项目级定向缓存更新——只重算某项目涉及的家庭户，不改其他项目数据"""
+    if old_count_toward == new_count_toward:
+        return
+    direction = -1 if new_count_toward == 0 else 1  # 1→0 要扣减，0→1 要加上
+    rows = db.execute(text("""
+        SELECT fp.household_id, sa.apply_year,
+               COALESCE(st.season, '全年单补') AS season,
+               SUM(COALESCE(sa.apply_area, 0)) AS total_area
+        FROM subsidy_application sa
+        JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
+        JOIN subsidy_type st ON st.id = sa.subsidy_type_id
+        WHERE sa.subsidy_type_id = :tid AND fp.household_id IS NOT NULL
+          AND sa.pay_status IN (0, 1, 2) AND sa.apply_area IS NOT NULL
+        GROUP BY fp.household_id, sa.apply_year, st.season
+    """), {"tid": type_id}).fetchall()
+    for r in rows:
+        delta = float(r.total_area or 0) * direction
+        if delta == 0:
+            continue
+        existing = db.query(HouseholdAreaUsageCache).filter(
+            HouseholdAreaUsageCache.household_id == r.household_id,
+            HouseholdAreaUsageCache.year == r.apply_year,
+            HouseholdAreaUsageCache.season == r.season,
+        ).first()
+        if existing:
+            existing.apply_area = max(0, float(existing.apply_area or 0) + delta)
+            existing.used_area = float(existing.payment_area or 0) if float(existing.payment_area or 0) > 0 else float(existing.apply_area or 0)
+    db.commit()
+
+
 def recalc_household_cache(db: Session, household_ids: list[int]) -> None:
     """
     重新计算指定家庭户的面积缓存。
@@ -458,8 +514,14 @@ def create_application(db: Session, data: dict) -> SubsidyApplication:
     db.commit()
     db.refresh(app)
 
+    # 增量更新缓存（O(1)，无需全量汇总）
     if farmer.household_id:
-        recalc_household_cache(db, [farmer.household_id])
+        st = db.get(SubsidyType, data.get("subsidy_type_id"))
+        if st:
+            update_cache_incremental(
+                db, farmer.household_id, app.apply_year, st.season,
+                float(app.apply_area or 0), bool(st.count_toward_area)
+            )
     return app
 
 
@@ -471,7 +533,12 @@ def update_application(db: Session, app_id: int, data: dict) -> SubsidyApplicati
     app = db.get(SubsidyApplication, app_id)
     if not app:
         raise NotFound("记录不存在")
+
+    # 记录更新前的状态用于增量计算
+    old_area = float(app.apply_area or 0)
+    old_pay_status = app.pay_status
     area_changed = "apply_area" in data or "pay_status" in data
+
     for k, v in data.items():
         setattr(app, k, v)
     db.commit()
@@ -479,7 +546,22 @@ def update_application(db: Session, app_id: int, data: dict) -> SubsidyApplicati
     if area_changed:
         farmer = db.get(FarmerProfile, app.farmer_id)
         if farmer and farmer.household_id:
-            recalc_household_cache(db, [farmer.household_id])
+            st = db.get(SubsidyType, app.subsidy_type_id)
+            if st:
+                new_area = float(app.apply_area or 0)
+                # 支付状态变更处理：3=已驳回不计入缓存
+                was_counted = old_pay_status in (0, 1, 2) and old_area > 0
+                is_counted = app.pay_status in (0, 1, 2) and new_area > 0
+                if was_counted and not is_counted:
+                    delta = -old_area
+                elif not was_counted and is_counted:
+                    delta = new_area
+                else:
+                    delta = new_area - old_area
+                update_cache_incremental(
+                    db, farmer.household_id, app.apply_year, st.season,
+                    delta, bool(st.count_toward_area)
+                )
     return app
 
 

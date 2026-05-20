@@ -17,7 +17,8 @@ from schemas import (
 from utils import parse_group_no_to_int, format_group_no, validate_id_card, parse_gender_from_id, check_area_anomaly
 from core.exceptions import NotFound, BadRequest
 from services.subsidy_service import (
-    recalc_household_cache, batch_import_applications, batch_import_payments,
+    recalc_household_cache, recalc_cache_for_type, update_cache_incremental,
+    batch_import_applications, batch_import_payments,
     create_application as svc_create_application,
     update_application as svc_update_application,
     get_year_compare, get_village_snapshot_simple, create_proxy_relation,
@@ -79,22 +80,31 @@ def update_subsidy_type(type_id: int, data: dict, db: Session = Depends(get_db),
     st = db.get(SubsidyType, type_id)
     if not st:
         raise NotFound("补贴类型不存在")
+
+    # 检测 count_toward_area 变更（用于定向重算而非全量）
+    old_count_toward = st.count_toward_area
+    has_count_toward_change = "count_toward_area" in data and data["count_toward_area"] != old_count_toward
+
     for k, v in data.items():
         if hasattr(st, k):
             setattr(st, k, v)
     db.commit()
 
-    # 异步刷新受此项目影响的所有家庭户面积缓存（不影响保存响应速度）
-    from sqlalchemy import text
-    affected = db.execute(text("""
-        SELECT DISTINCT fp.household_id
-        FROM subsidy_application sa
-        JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
-        WHERE sa.subsidy_type_id = :type_id AND fp.household_id IS NOT NULL
-    """), {"type_id": type_id}).fetchall()
-    hh_ids = [r[0] for r in affected if r[0]]
-    if hh_ids and background_tasks:
-        background_tasks.add_task(recalc_household_cache, db, hh_ids)
+    if has_count_toward_change and background_tasks:
+        # 项目级定向缓存更新（O(n) 仅涉及本项目，不影响其他项目）
+        background_tasks.add_task(recalc_cache_for_type, db, type_id, old_count_toward or 0, st.count_toward_area or 0)
+    elif background_tasks:
+        # 非 count_toward 变更（如名称、金额等），后台增量重算
+        from sqlalchemy import text
+        affected = db.execute(text("""
+            SELECT DISTINCT fp.household_id
+            FROM subsidy_application sa
+            JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
+            WHERE sa.subsidy_type_id = :type_id AND fp.household_id IS NOT NULL
+        """), {"type_id": type_id}).fetchall()
+        hh_ids = [r[0] for r in affected if r[0]]
+        if hh_ids:
+            background_tasks.add_task(recalc_household_cache, db, hh_ids)
 
     return {"message": "更新成功"}
 
@@ -990,15 +1000,19 @@ def precheck_applications(
 @router.delete("/applications/{app_id}")
 def delete_application(app_id: int, db: Session = Depends(get_db)):
     from sqlalchemy import text
-    app = db.execute(text("SELECT id, farmer_id FROM subsidy_application WHERE id=:id"), {"id": app_id}).fetchone()
+    app = db.execute(text("SELECT id, farmer_id, subsidy_type_id, apply_year, apply_area FROM subsidy_application WHERE id=:id"), {"id": app_id}).fetchone()
     if not app:
         raise NotFound("记录不存在")
-    # 查出所属家庭户以便刷新缓存
     farmer = db.execute(text("SELECT household_id FROM farmer_profile WHERE id=:fid"), {"fid": app.farmer_id}).fetchone() if app.farmer_id else None
     db.execute(text("DELETE FROM subsidy_application WHERE id=:id"), {"id": app_id})
     db.commit()
     if farmer and farmer.household_id:
-        recalc_household_cache(db, [farmer.household_id])
+        st = db.get(SubsidyType, app.subsidy_type_id)
+        if st:
+            update_cache_incremental(
+                db, farmer.household_id, app.apply_year, st.season,
+                -float(app.apply_area or 0), bool(st.count_toward_area)
+            )
     return {"message": "删除成功"}
 
 
