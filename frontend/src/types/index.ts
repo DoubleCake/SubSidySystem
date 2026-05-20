@@ -359,7 +359,8 @@ export interface ErrorLibraryCreate {
 
 // ── 家庭户 ──
 export interface SeasonUsage {
-  used_area: number; remaining_area: number
+  used_area: number; apply_area?: number; payment_area?: number
+  reference_area?: number; remaining_area: number
   is_overdrawn: boolean; overdraw_amount: number
   subsidies: { subsidy_name: string; apply_year: number; used_area: number; total_amount: number; app_count: number }[]
 }
@@ -397,8 +398,10 @@ export interface HHDetail {
   members: HHMember[]
   area_usage: {
     contracted_area: number; trust_out_area?: number; trust_in_area?: number
-    trust_in_arable_area?: number; trust_in_cash_crop_area?: number
+    trust_out_arable_area?: number; trust_in_arable_area?: number; trust_in_cash_crop_area?: number
+    farmland_area?: number; no_subsidy_area?: number
     cultivable_area?: number; used_area: number; remaining_area: number
+    season_reference?: Record<string, number>
     is_overdrawn: boolean; overdraw_amount?: number; has_trust_data?: boolean
     season_breakdown?: Record<string, SeasonUsage>
     subsidy_breakdown: { subsidy_name: string; apply_area: number; calc_mode: string }[]

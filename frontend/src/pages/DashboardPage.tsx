@@ -43,15 +43,15 @@ const PS_CFG: Record<number, { label: string; cls: string; bar: string }> = {
 const SEASON_CFG: Record<string, { icon: string; color: string; bg: string; border: string; tag: string }> = {
   '大春':   { icon: '🌾', color: 'text-primary', bg: 'bg-primary/5',  border: 'border-primary/20', tag: '主粮季' },
   '小春':   { icon: '🌿', color: 'text-[#5B8C5A]',    bg: 'bg-green-50',     border: 'border-green-200',    tag: '冬作物' },
-  '全年单补': { icon: '📅', color: 'text-blue-700',   bg: 'bg-blue-50',     border: 'border-blue-200',    tag: '全年' },
+  '耕地地力保护': { icon: '📅', color: 'text-blue-700',   bg: 'bg-blue-50',     border: 'border-blue-200',    tag: '全年' },
   '临时':   { icon: '⚡', color: 'text-orange-tag',   bg: 'bg-amber-50',    border: 'border-amber-200',   tag: '临时专项' },
 }
 
 function groupBySeasonOrder(stats: StatsType[]) {
-  const order = ['大春', '小春', '全年单补', '临时']
+  const order = ['大春', '小春', '耕地地力保护', '临时']
   const groups: Record<string, StatsType[]> = {}
   for (const s of stats) {
-    const key = s.season || '全年单补'
+    const key = s.season || '耕地地力保护'
     if (!groups[key]) groups[key] = []
     groups[key].push(s)
   }

@@ -65,7 +65,7 @@ def create_subsidy_type(data: SubsidyTypeCreate, db: Session = Depends(get_db)):
     # 自动生成默认预检配置
     from services.check_config import generate_default_config
     st.check_config = generate_default_config(
-        season=st.season or "全年单补",
+        season=st.season or "耕地地力保护",
         category=st.category,
         calc_mode=st.calc_mode,
     )
@@ -346,7 +346,7 @@ def summary_by_season(year: int = Query(...), db: Session = Depends(get_db)):
     from sqlalchemy import text
     sql = text("""
         SELECT
-            COALESCE(st.season, '全年单补') AS season,
+            COALESCE(st.season, '耕地地力保护') AS season,
             COUNT(DISTINCT st.id)                         AS project_count,
             COUNT(DISTINCT sa.farmer_id)                  AS farmer_count,
             ROUND(SUM(COALESCE(sa.actual_amount, 0)), 2)  AS total_amount,
@@ -356,10 +356,10 @@ def summary_by_season(year: int = Query(...), db: Session = Depends(get_db)):
         LEFT JOIN subsidy_application sa
                ON sa.subsidy_type_id = st.id AND sa.apply_year = :year
         WHERE st.subsidy_year = :year
-        GROUP BY COALESCE(st.season, '全年单补')
+        GROUP BY COALESCE(st.season, '耕地地力保护')
     """)
     rows = {r.season: r for r in db.execute(sql, {"year": year})}
-    season_order = ["大春", "小春", "全年单补", "临时"]
+    season_order = ["大春", "小春", "耕地地力保护", "临时"]
     result = []
     for s in season_order:
         if s in rows:
@@ -555,7 +555,7 @@ def precheck_applications(
         st = db.query(SubsidyType).filter(
             SubsidyType.category == '耕地保护',
             SubsidyType.subsidy_year == compare_year,
-            SubsidyType.season == '全年单补',
+            SubsidyType.season == '耕地地力保护',
         ).first()
         if st:
             # 优先从 payment 表获取
@@ -588,30 +588,69 @@ def precheck_applications(
                     db_hh_farmland_area[r.household_id] = float(r.total_area)
             _farmland_loaded = True
 
-    # 加载家庭户流转出面积（从 land_trust 表汇总，用于扣减可耕种面积）
-    db_hh_trust_out: dict[int, float] = {}
-    # 加载家庭户代耕代种进面积（从 land_trust 表汇总，用于参考面积）
-    db_hh_trust_in: dict[int, float] = {}
+    # 加载家庭户流转出面积（仅 subsidy_arable=1，补贴资格随地转走）
+    db_hh_trust_out_arable: dict[int, float] = {}
+    # 加载家庭户代耕代种进面积（仅 subsidy_arable=1，补贴资格随地转入）
+    db_hh_trust_in_arable: dict[int, float] = {}
+    # 加载家庭户不予补贴面积（从耕地保护补贴记录汇总）
+    db_hh_no_subsidy: dict[int, float] = {}
     if season and compare_year:
         trust_out_rows = db.execute(text("""
             SELECT owner_household_id, COALESCE(SUM(area),0)
             FROM land_trust
             WHERE trust_year=:yr AND is_active=1
               AND affect_subsidy_calc=1 AND trust_type!='IDLE'
+              AND subsidy_arable=1
               AND (operator_household_id IS NOT NULL
                    OR (operator_type IN ('village','village_group') AND operator_entity_id IS NOT NULL))
             GROUP BY owner_household_id
         """), {"yr": compare_year}).all()
-        db_hh_trust_out = {r[0]: float(r[1] or 0) for r in trust_out_rows}
+        db_hh_trust_out_arable = {r[0]: float(r[1] or 0) for r in trust_out_rows}
 
         trust_in_rows = db.execute(text("""
             SELECT operator_household_id, COALESCE(SUM(area),0)
             FROM land_trust
             WHERE trust_year=:yr AND is_active=1
-              AND affect_subsidy_calc=1
+              AND affect_subsidy_calc=1 AND subsidy_arable=1
             GROUP BY operator_household_id
         """), {"yr": compare_year}).all()
-        db_hh_trust_in = {r[0]: float(r[1] or 0) for r in trust_in_rows}
+        db_hh_trust_in_arable = {r[0]: float(r[1] or 0) for r in trust_in_rows}
+
+    # 加载家庭户不予补贴面积（从耕地保护补贴 payment/application 汇总）
+    if _farmland_loaded:
+        st = db.query(SubsidyType).filter(
+            SubsidyType.category == '耕地保护',
+            SubsidyType.subsidy_year == compare_year,
+            SubsidyType.season == '耕地地力保护',
+        ).first()
+        if st:
+            no_rows = db.execute(text("""
+                SELECT fp.household_id, COALESCE(SUM(sp.no_subsidy_area), 0)
+                FROM subsidy_payment sp
+                JOIN farmer_profile fp ON sp.farmer_id = fp.id
+                WHERE sp.subsidy_type_id = :st_id AND sp.payment_year = :yr
+                GROUP BY fp.household_id
+            """), {"st_id": st.id, "yr": compare_year}).all()
+            for r in no_rows:
+                if r[0] and (r[1] or 0) > 0:
+                    db_hh_no_subsidy[r[0]] = float(r[1] or 0)
+            # fallback: application
+            app_no_rows = db.execute(text("""
+                SELECT fp.household_id, COALESCE(SUM(sa.no_subsidy_area), 0)
+                FROM subsidy_application sa
+                JOIN farmer_profile fp ON sa.farmer_id = fp.id
+                WHERE sa.subsidy_type_id = :st_id AND sa.apply_year = :yr
+                  AND fp.household_id NOT IN (SELECT household_id FROM (
+                    SELECT fp2.household_id, COALESCE(SUM(sp2.no_subsidy_area), 0) s
+                    FROM subsidy_payment sp2 JOIN farmer_profile fp2 ON sp2.farmer_id = fp2.id
+                    WHERE sp2.subsidy_type_id = :st_id2 AND sp2.payment_year = :yr2
+                    GROUP BY fp2.household_id
+                  ) WHERE s > 0)
+                GROUP BY fp.household_id
+            """), {"st_id": st.id, "yr": compare_year, "st_id2": st.id, "yr2": compare_year}).all()
+            for r in app_no_rows:
+                if r[0] and r[0] not in db_hh_no_subsidy and (r[1] or 0) > 0:
+                    db_hh_no_subsidy[r[0]] = float(r[1] or 0)
 
     # 错误库（用于错误库命中检查）
     error_lib: dict[tuple[str, str], dict] = {}
@@ -829,25 +868,26 @@ def precheck_applications(
         if hh_id and _farmland_loaded:
             farmland_area = db_hh_farmland_area.get(hh_id, 0.0)
 
-        # 流转出面积（从 land_trust 表汇总，扣减可耕种面积）
-        trust_out = db_hh_trust_out.get(hh_id, 0.0) if hh_id else 0.0
-        # 家庭户代耕代种进面积（从 land_trust 表汇总，用于参考面积）
-        household_trust_in = db_hh_trust_in.get(hh_id, 0.0) if hh_id else 0.0
+        # 流转出/代耕代种进面积（仅 subsidy_arable=1，补贴资格随地转移）
+        trust_out_arable = db_hh_trust_out_arable.get(hh_id, 0.0) if hh_id else 0.0
+        household_trust_in_arable = db_hh_trust_in_arable.get(hh_id, 0.0) if hh_id else 0.0
+        # 不予补贴面积（从耕地保护补贴记录汇总）
+        hh_no_subsidy = db_hh_no_subsidy.get(hh_id, 0.0) if hh_id else 0.0
 
         # 调用统一的面积异常检查函数
         anomaly_result = check_area_anomaly(
             excel_contract_area=excel_contract_area,
             db_contract_area=db_contract_area_val,
             apply_area=excel_apply_area,
-            excel_trust_out=trust_out,
+            trust_out_arable=trust_out_arable,
             excel_trust_in=excel_trust_area,
-            excel_no_subsidy=excel_no_subsidy,
+            no_subsidy_area=hh_no_subsidy,
             actual_subsidy_area=excel_apply_area,
             season=season,
             hh_used=hh_used,
             ignore_trust_in=False,
             farmland_protection_area=farmland_area,
-            household_trust_in=household_trust_in,
+            household_trust_in_arable=household_trust_in_arable,
         )
 
         if anomaly_result["anomaly_type"]:
@@ -857,9 +897,9 @@ def precheck_applications(
                 "anomaly_type": anomaly_result["anomaly_type"],
                 "anomaly_details": "；".join(anomaly_result["anomaly_details"]),
                 "contract_area": excel_contract_area,     # 填报承包地面积
-                "trust_out_area": trust_out,               # 流转出（家庭户汇总）
-                "trust_in_area": household_trust_in,       # 代耕代种进（家庭户汇总，用于参考面积）
-                "no_subsidy_area": excel_no_subsidy,       # 不补贴
+                "trust_out_area": trust_out_arable,        # 流转出（subsidy_arable=1）
+                "trust_in_area": household_trust_in_arable, # 代耕代种进（subsidy_arable=1）
+                "no_subsidy_area": hh_no_subsidy,          # 不补贴
                 "actual_subsidy_area": anomaly_result.get("final_subsidy", excel_apply_area),  # 实际补贴面积
                 "self_occupy": anomaly_result["self_occupy"],           # 自有承包地占用（不含代耕代种）
                 "hh_used": anomaly_result["hh_used"],                     # 户级当季已有申请面积

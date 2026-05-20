@@ -29,7 +29,7 @@ const CHECK_ITEMS: { key: CheckItemKey; label: string; desc: string }[] = [
 const AREA_MODES: { val: CheckConfig['area_mode']; label: string; desc: string }[] = [
   { val: 'disabled', label: '不检查', desc: '固定金额类' },
   { val: 'seasonal', label: '按季节累计', desc: '大春/小春类' },
-  { val: 'standalone', label: '单独计算', desc: '全年单补/临时' },
+  { val: 'standalone', label: '单独计算', desc: '耕地地力保护/临时' },
 ]
 
 interface SubsidyFormProps {
@@ -71,7 +71,7 @@ export default function SubsidyForms({
         .finally(() => setLoadingConfig(false))
     } else {
       // 新增：根据当前表单值生成默认
-      setCheckConfig(genDefaultConfig(form.season ?? '全年单补', form.category, form.calc_mode ?? 'fixed'))
+      setCheckConfig(genDefaultConfig(form.season ?? '耕地地力保护', form.category, form.calc_mode ?? 'fixed'))
     }
   }, [open, editing?.id])
 
@@ -83,7 +83,7 @@ export default function SubsidyForms({
   // 当 season / calc_mode 变化时更新默认配置（仅新建模式）
   useEffect(() => {
     if (editing || !open) return
-    setCheckConfig(genDefaultConfig(form.season ?? '全年单补', form.category, form.calc_mode ?? 'fixed'))
+    setCheckConfig(genDefaultConfig(form.season ?? '耕地地力保护', form.category, form.calc_mode ?? 'fixed'))
   }, [form.season, form.calc_mode, form.category])
 
   // 切换某个检查项的开关（处理两种层级：checks.xxx 和 check_trust_deduction）
@@ -121,12 +121,12 @@ export default function SubsidyForms({
         {/* ── 基础信息 ── */}
         <div><label className="block text-xs text-text-muted mb-1.5">补贴季节 <span className="text-text-muted/50">（同季面积累加判断是否超承包面积）</span></label>
           <div className="flex gap-2">
-            {[['大春', '🌻'], ['小春', '🌾'], ['全年单补', '📅'], ['临时', '📌']].map(([s, icon]) => (
+            {[['大春', '🌻'], ['小春', '🌾'], ['耕地地力保护', '📅'], ['临时', '📌']].map(([s, icon]) => (
               <div key={s} onClick={() => onFormChange({ ...form, season: s })}
                 className={`flex-1 border-2 rounded-btn p-2.5 cursor-pointer transition-colors text-center
-                  ${(form.season ?? '全年单补') === s ? 'border-primary bg-emerald-50' : 'border-border hover:border-border'}`}>
+                  ${(form.season ?? '耕地地力保护') === s ? 'border-primary bg-emerald-50' : 'border-border hover:border-border'}`}>
                 <div className="text-base mb-0.5">{icon}</div>
-                <div className={`text-xs font-medium ${(form.season ?? '全年单补') === s ? 'text-primary' : ''}`}>{s}</div>
+                <div className={`text-xs font-medium ${(form.season ?? '耕地地力保护') === s ? 'text-primary' : ''}`}>{s}</div>
               </div>
             ))}
           </div>
@@ -284,7 +284,7 @@ function genDefaultConfig(season: string, category?: string, calcMode?: string):
     config.checks.area_anomaly = false
     return config
   }
-  if (season === '全年单补') {
+  if (season === '耕地地力保护') {
     config.area_mode = 'standalone'
     if (category === '耕地保护') config.check_trust_deduction = true
   } else if (season === '大春' || season === '小春') {

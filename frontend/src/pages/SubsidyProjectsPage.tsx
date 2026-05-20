@@ -83,7 +83,7 @@ export default function SubsidyProjectsPage() {
     }
   }, [types, location.search])
 
-  const openAdd = () => { setEditing(null); setForm({ subsidy_year: yearFilter, calc_mode: 'fixed', season: '全年单补' }); setEditOpen(true) }
+  const openAdd = () => { setEditing(null); setForm({ subsidy_year: yearFilter, calc_mode: 'fixed', season: '耕地地力保护' }); setEditOpen(true) }
   const openEdit = (t: SubsidyType) => {
     setEditing(t)
     setForm({

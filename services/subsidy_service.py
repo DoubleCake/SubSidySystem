@@ -28,7 +28,7 @@ from utils import (
     parse_id_card, gen_household_code, check_area_anomaly,
 )
 
-SEASON_ORDER = ["大春", "小春", "全年单补", "临时"]
+SEASON_ORDER = ["大春", "小春", "耕地地力保护", "临时"]
 
 
 # ═══════════════════════════════════════════
@@ -42,7 +42,7 @@ def update_cache_incremental(
     """增量更新家庭户面积缓存（单条 CRUD 用，O(1)完成，无需全量汇总）"""
     if not household_id or delta == 0 or not count_toward:
         return
-    season = season or "全年单补"
+    season = season or "耕地地力保护"
     existing = db.query(HouseholdAreaUsageCache).filter(
         HouseholdAreaUsageCache.household_id == household_id,
         HouseholdAreaUsageCache.year == year,
@@ -67,7 +67,7 @@ def recalc_cache_for_type(db: Session, type_id: int, old_count_toward: int, new_
     direction = -1 if new_count_toward == 0 else 1  # 1→0 要扣减，0→1 要加上
     rows = db.execute(text("""
         SELECT fp.household_id, sa.apply_year,
-               COALESCE(st.season, '全年单补') AS season,
+               COALESCE(st.season, '耕地地力保护') AS season,
                SUM(COALESCE(sa.apply_area, 0)) AS total_area
         FROM subsidy_application sa
         JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
@@ -129,7 +129,7 @@ def recalc_household_cache(db: Session, household_ids: list[int]) -> None:
         app_data: dict[tuple, float] = {}
         all_years: set[int] = set()
         for r in app_query:
-            season = r.season or "全年单补"
+            season = r.season or "耕地地力保护"
             key = (r.apply_year, season)
             app_data[key] = app_data.get(key, 0.0) + float(r.total_area or 0)
             all_years.add(r.apply_year)
@@ -151,7 +151,7 @@ def recalc_household_cache(db: Session, household_ids: list[int]) -> None:
         ).all()
         pay_data: dict[tuple, float] = {}
         for r in pay_query:
-            season = r.season or "全年单补"
+            season = r.season or "耕地地力保护"
             key = (r.payment_year, season)
             pay_data[key] = pay_data.get(key, 0.0) + float(r.total_area or 0)
             all_years.add(r.payment_year)

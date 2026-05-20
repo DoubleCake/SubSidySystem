@@ -33,7 +33,7 @@ from utils import (
     gen_household_code, validate_id_card, check_name, check_phone,
 )
 
-SEASON_ORDER = ["大春", "小春", "全年单补", "临时"]
+SEASON_ORDER = ["大春", "小春", "耕地地力保护", "临时"]
 
 
 # ════════════════════════════════════════════════════════
@@ -344,7 +344,7 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
     app_data: dict[tuple, float] = {}
     all_years = set()
     for r in app_query:
-        season = r.season or "全年单补"
+        season = r.season or "耕地地力保护"
         year = r.apply_year
         all_years.add(year)
         app_data[(year, season)] = float(r.total_area or 0)
@@ -367,7 +367,7 @@ def recalc_household_area_cache(household_id: int, db: Session) -> None:
     )
     pay_data: dict[tuple, float] = {}
     for r in pay_query:
-        season = r.season or "全年单补"
+        season = r.season or "耕地地力保护"
         year = r.payment_year
         all_years.add(year)
         pay_data[(year, season)] = float(r.total_area or 0)
@@ -431,7 +431,7 @@ def recalc_all_household_caches(db: Session) -> int:
         .all()
     )
     for hid, year, season, area in app_query:
-        s = season or "全年单补"
+        s = season or "耕地地力保护"
         app_data[(hid, year, s)] = float(area or 0)
 
     pay_data: dict[tuple[int, int, str], float] = {}
@@ -453,7 +453,7 @@ def recalc_all_household_caches(db: Session) -> int:
         .all()
     )
     for hid, year, season, area in pay_query:
-        s = season or "全年单补"
+        s = season or "耕地地力保护"
         pay_data[(hid, year, s)] = float(area or 0)
 
     all_combinations = set(app_data.keys()).union(set(pay_data.keys()))
@@ -518,6 +518,7 @@ def calc_household_area_usage(
     trust_year = year or date.today().year
 
     trust_out = 0.0
+    trust_out_arable = 0.0
     trust_in = 0.0
     trust_in_arable = 0.0
     trust_in_cash_crop = 0.0
@@ -530,6 +531,16 @@ def calc_household_area_usage(
                OR (operator_type IN ('village','village_group') AND operator_entity_id IS NOT NULL))
     """), {"hid": household_id, "yr": trust_year}).scalar()
     trust_out = float(out_r or 0)
+
+    out_arable_r = db.execute(text("""
+        SELECT COALESCE(SUM(area),0) FROM land_trust
+        WHERE owner_household_id=:hid AND trust_year=:yr AND is_active=1
+          AND affect_subsidy_calc=1 AND trust_type!='IDLE'
+          AND subsidy_arable=1
+          AND (operator_household_id IS NOT NULL
+               OR (operator_type IN ('village','village_group') AND operator_entity_id IS NOT NULL))
+    """), {"hid": household_id, "yr": trust_year}).scalar()
+    trust_out_arable = float(out_arable_r or 0)
 
     in_r = db.execute(text("""
         SELECT COALESCE(SUM(area),0) FROM land_trust
@@ -552,6 +563,49 @@ def calc_household_area_usage(
     """), {"hid": household_id, "yr": trust_year}).scalar()
     trust_in_cash_crop = float(in_cash_r or 0)
 
+    # 加载耕地地力保护补贴面积和不予补贴面积（优先 payment，回退 application）
+    farmland_area = 0.0
+    no_subsidy_area = 0.0
+    farmland_st = db.query(SubsidyType).filter(
+        SubsidyType.category == '耕地保护',
+        SubsidyType.subsidy_year == trust_year,
+        SubsidyType.season == '耕地地力保护',
+    ).first()
+    if farmland_st:
+        pay_result = db.execute(text("""
+            SELECT COALESCE(SUM(sp.apply_area), 0), COALESCE(SUM(sp.no_subsidy_area), 0)
+            FROM subsidy_payment sp
+            JOIN farmer_profile fp ON sp.farmer_id = fp.id
+            WHERE sp.subsidy_type_id = :st_id
+              AND sp.payment_year = :yr
+              AND fp.household_id = :hid
+        """), {"st_id": farmland_st.id, "yr": trust_year, "hid": household_id}).first()
+        if pay_result and (pay_result[0] or 0) > 0:
+            farmland_area = float(pay_result[0] or 0)
+            no_subsidy_area = float(pay_result[1] or 0)
+        else:
+            app_result = db.execute(text("""
+                SELECT COALESCE(SUM(sa.apply_area), 0), COALESCE(SUM(sa.no_subsidy_area), 0)
+                FROM subsidy_application sa
+                JOIN farmer_profile fp ON sa.farmer_id = fp.id
+                WHERE sa.subsidy_type_id = :st_id
+                  AND sa.apply_year = :yr
+                  AND fp.household_id = :hid
+            """), {"st_id": farmland_st.id, "yr": trust_year, "hid": household_id}).first()
+            farmland_area = float(app_result[0] or 0)
+            no_subsidy_area = float(app_result[1] or 0)
+
+    # 每季节使用不同的参考上限
+    #   大春/小春: 耕地保护面积基准 = farmland_area - trust_out_arable + trust_in_arable
+    #   耕地地力保护/临时: 承包面积基准 = contracted - no_subsidy - trust_out_arable + trust_in_arable
+    farmland_base = farmland_area if farmland_area > 0 else contracted
+    contract_base = max(0.0, contracted - no_subsidy_area)
+    season_reference: dict[str, float] = {}
+    for s in SEASON_ORDER:
+        if s in ("大春", "小春"):
+            season_reference[s] = round(max(0.0, farmland_base - trust_out_arable + trust_in_arable), 2)
+        else:
+            season_reference[s] = round(max(0.0, contract_base - trust_out_arable + trust_in_arable), 2)
     cultivable = round(max(0.0, contracted - trust_out + trust_in), 2)
 
     cache_records = db.query(HouseholdAreaUsageCache).filter(
@@ -583,24 +637,25 @@ def calc_household_area_usage(
     # 不同季节不跨季累加，概览取单季最大值
     season_vals = list(year_totals.get(display_year, {}).values()) if display_year else []
     total_used = round(max(season_vals), 2) if season_vals else 0.0
-    remaining = max(0.0, cultivable - total_used)
-    # 任一季节超面积即视为超领
+    # 任一季节超该季参考上限即视为超领
     is_overdrawn_all = any(
-        cultivable > 0 and round(year_totals[display_year].get(s, 0.0), 2) > cultivable
+        season_reference.get(s, 0) > 0 and round(year_totals[display_year].get(s, 0.0), 2) > season_reference.get(s, 0)
         for s in SEASON_ORDER
     ) if display_year else False
 
     for season in SEASON_ORDER:
+        ref = season_reference.get(season, cultivable)
         used = round(year_totals.get(display_year, {}).get(season, 0.0) if display_year else 0.0, 2)
         apply_area = round(year_apply_totals.get(display_year, {}).get(season, 0.0) if display_year else 0.0, 2)
         payment_area = round(year_payment_totals.get(display_year, {}).get(season, 0.0) if display_year else 0.0, 2)
-        is_season_overdrawn = cultivable > 0 and used > cultivable
-        season_overdraw_amount = round(max(0, used - cultivable), 2) if is_season_overdrawn else 0.0
+        is_season_overdrawn = ref > 0 and used > ref
+        season_overdraw_amount = round(max(0, used - ref), 2) if is_season_overdrawn else 0.0
         season_breakdown[season] = {
             "used_area": used,
             "apply_area": apply_area,
             "payment_area": payment_area,
-            "remaining_area": max(0.0, cultivable - used),
+            "reference_area": ref,
+            "remaining_area": max(0.0, ref - used),
             "is_overdrawn": is_season_overdrawn,
             "overdraw_amount": season_overdraw_amount,
             "subsidies": [],
@@ -609,12 +664,16 @@ def calc_household_area_usage(
     return {
         "contracted_area": contracted,
         "trust_out_area": trust_out,
+        "trust_out_arable_area": round(trust_out_arable, 2),
         "trust_in_area": trust_in,
         "trust_in_arable_area": round(trust_in_arable, 2),
         "trust_in_cash_crop_area": round(trust_in_cash_crop, 2),
+        "farmland_area": round(farmland_area, 2),
+        "no_subsidy_area": round(no_subsidy_area, 2),
         "cultivable_area": round(cultivable, 2),
+        "season_reference": season_reference,
         "used_area": total_used,
-        "remaining_area": round(remaining, 2),
+        "remaining_area": round(max(0.0, cultivable - total_used), 2),
         "is_overdrawn": is_overdrawn_all,
         "overdraw_amount": round(max(0, total_used - cultivable), 2),
         "season_breakdown": season_breakdown,
@@ -2721,7 +2780,7 @@ def get_area_by_year(db: Session, household_id: int) -> dict:
     year_map: dict = {}
     for r in rows:
         y = r.apply_year
-        season = r.season or "全年单补"
+        season = r.season or "耕地地力保护"
         area = float(r.total_area or 0)
         if y not in year_map:
             year_map[y] = {

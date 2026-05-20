@@ -114,8 +114,8 @@ class SubsidyType(Base):
     standard_unit   = Column(String(20), nullable=True, comment="元/亩 元/人 元/户")
     fund_source     = Column(String(50), nullable=True, comment="中央/省级/县级")
     category        = Column(String(50), nullable=True, comment="补贴分类，用于同类项目对比，如：耕地保护、大豆、玉米等")
-    season          = Column(String(20), nullable=False, default="全年单补",
-                             comment="补贴季节/类型：大春|小春|全年单补|临时")
+    season          = Column(String(20), nullable=False, default="耕地地力保护",
+                             comment="补贴季节/类型：大春|小春|耕地地力保护|临时")
     apply_deadline  = Column(Date, nullable=True)
     pay_status      = Column(SmallInteger, nullable=False, default=0,
                              comment="0未发放 1部分发放 2已发放完毕")
@@ -263,7 +263,7 @@ class HouseholdAreaUsageCache(Base):
     id            = Column(Integer, primary_key=True, autoincrement=True)
     household_id  = Column(Integer, ForeignKey("family_household.id"), nullable=False)
     year          = Column(SmallInteger, nullable=False)
-    season        = Column(String(20), nullable=False)  # 大春/小春/全年单补/临时
+    season        = Column(String(20), nullable=False)  # 大春/小春/耕地地力保护/临时
     apply_area    = Column(Numeric(10, 2), default=0, comment="申报面积汇总")
     payment_area  = Column(Numeric(10, 2), default=0, comment="发放面积汇总")
     used_area     = Column(Numeric(10, 2), default=0, comment="最终使用面积(=payment_area if exists else apply_area)")

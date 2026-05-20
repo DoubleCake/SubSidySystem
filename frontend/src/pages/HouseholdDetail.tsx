@@ -82,11 +82,12 @@ export function HouseholdDetailContent({
     overdraw_amount: 0,
     has_trust_data: false,
     subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[],
+    season_reference: {} as Record<string, number>,
     season_breakdown: {} as Record<string, any>,
     year_totals: {} as Record<string, Record<string, number>>
   }
   const areaUsage = historyDate !== null && snapshotData?.snapshot
-    ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, trust_in_arable_area: 0, trust_in_cash_crop_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_breakdown: {} as Record<string, any>, year_totals: {} as Record<string, Record<string, number>> }
+    ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, trust_in_arable_area: 0, trust_in_cash_crop_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_reference: {} as Record<string, number>, season_breakdown: {} as Record<string, any>, year_totals: {} as Record<string, Record<string, number>> }
     : (detail.area_usage || defaultAreaUsage)
 
   // 不同季节不跨季累加，取单季最大面积作为概览
@@ -369,21 +370,21 @@ export function HouseholdDetailContent({
                   yearApplyArea = usage.apply_area || 0
                   yearPaymentArea = usage.payment_area || 0
                 }
-                const cultivable = areaUsage.cultivable_area ?? areaUsage.contracted_area
-                const pct = cultivable > 0 ? Math.round(yearUsedArea / cultivable * 100) : 0
-                const paymentPct = cultivable > 0 ? Math.round(yearPaymentArea / cultivable * 100) : 0
-                const applyPct = cultivable > 0 ? Math.round((yearApplyArea - yearPaymentArea) / cultivable * 100) : 0
-                const isOverdrawn = yearUsedArea > cultivable + 0.001
+                const seasonRef = usage.reference_area ?? (areaUsage.season_reference?.[season]) ?? areaUsage.cultivable_area ?? areaUsage.contracted_area
+                const pct = seasonRef > 0 ? Math.round(yearUsedArea / seasonRef * 100) : 0
+                const paymentPct = seasonRef > 0 ? Math.round(yearPaymentArea / seasonRef * 100) : 0
+                const applyPct = seasonRef > 0 ? Math.round((yearApplyArea - yearPaymentArea) / seasonRef * 100) : 0
+                const isOverdrawn = yearUsedArea > seasonRef + 0.001
                 return (
                   <div key={season} className="border border-border rounded-btn overflow-hidden">
                     <div className={"flex items-center justify-between px-3 py-2 " + (isOverdrawn ? 'bg-red-50' : 'bg-warm/30')}>
                       <div className="flex items-center gap-2">
                         <span className={"text-sm font-bold " + (isOverdrawn ? 'text-red-600' : 'text-text-primary')}>{season}</span>
-                        {isOverdrawn && <span className="text-xs bg-red-500  px-1.5 py-0.5 rounded">超 {(yearUsedArea - cultivable).toFixed(2)} 亩</span>}
+                        {isOverdrawn && <span className="text-xs bg-red-500  px-1.5 py-0.5 rounded">超 {(yearUsedArea - seasonRef).toFixed(2)} 亩</span>}
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={"text-sm font-mono font-bold " + (isOverdrawn ? 'text-red-500' : 'text-primary')}>{yearUsedArea.toFixed(2)} 亩</span>
-                        <span className="text-xs text-text-muted">/ {cultivable.toFixed(2)} 亩</span>
+                        <span className="text-xs text-text-muted">/ {seasonRef.toFixed(2)} 亩</span>
                         <span className="text-xs text-text-muted">({pct}%)</span>
                         {(areaUsage.trust_in_area ?? 0) > 0 && <span className="text-orange-500 text-sm font-mono font-bold pl-2 border-l border-border/50"></span>}
                       </div>
