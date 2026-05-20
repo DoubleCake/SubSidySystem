@@ -197,31 +197,32 @@ def check_area_anomaly(
     hh_used: float = 0,
     ignore_trust_in: bool = True,
     farmland_protection_area: float | None = None,
+    household_trust_in: float = 0,
 ) -> dict:
     """
     统一面积异常检查
 
     两种超限场景：
-    情况A — 单行超限：本行申报面积(self_occupy) > 个人承包面积(db_contract_area)
+    情况A — 单行超限：本行申报面积(self_occupy) > 有效承包面积(承包面积 - 流转出)
     情况B — 户级累计超限：全户当季累计申报面积(hh_used + 本行) > 参考上限(reference_area)
-              大春/小春 → (耕地地力保护补贴面积 or 承包面积) + 代耕代种进面积
-              全年单补/临时 → db_contract_area
+              大春/小春 → (耕地地力保护补贴面积 or 承包面积) - 流转出 + 家庭户代耕代种进
+              全年单补/临时 → 承包面积 - 流转出
 
-    参考上限已与家庭户详情页对齐（cultivable = 承包 - 转出 + 转入），
-    大春/小春时通过 farmland_protection_area + excel_trust_in 实现类似口径。
+    参考上限已与家庭户详情页对齐（cultivable = 承包 - 转出 + 转入）。
 
     Args:
         excel_contract_area: Excel填报的承包面积
         db_contract_area: 数据库中的承包面积
         apply_area: Excel填报的申请面积
-        excel_trust_out: 流转出面积
-        excel_trust_in: 代耕代种进面积
+        excel_trust_out: 流转出面积（从 land_trust 表汇总，减少可耕种能力）
+        excel_trust_in: 单条申请的代耕代种面积（仅用于 self_occupy 计算）
         excel_no_subsidy: 不补贴面积
         actual_subsidy_area: 实际补贴面积（最终参与计算的面积）
         season: 补贴季节（大春/小春/全年单补/临时，决定累计检查的参考上限）
         hh_used: 户级同季已用面积（排除本行自身后的值，用于情况B累计判断）
         ignore_trust_in: 是否忽略代耕代种进面积（超限检查时）
         farmland_protection_area: 耕地地力保护补贴面积（大春/小春时用作参考上限）
+        household_trust_in: 家庭户级别代耕代种进面积（从 land_trust 汇总，仅用于参考面积）
     """
     anomaly_type = None
     anomaly_details = []
@@ -229,8 +230,8 @@ def check_area_anomaly(
     self_occupy = 0.0
     hh_total = 0.0
 
-    # ── 兜底：缺少Excel承包面积或DB承包面积时，无法做任何面积比较，直接跳过 ──
-    if excel_contract_area is None or db_contract_area is None:
+    # ── 兜底：缺少DB承包面积时无法做任何面积比较，直接跳过 ──
+    if db_contract_area is None:
         return {
             "anomaly_type": None,
             "anomaly_details": [],
@@ -241,39 +242,47 @@ def check_area_anomaly(
             "area_source": "",
         }
 
-    excel_c = float(excel_contract_area)
     db_c = float(db_contract_area)
+    # excel_contract_area 缺失时仍可进行 Case A/B 超限检查（使用 apply_area），仅跳过承包面积一致性
+    excel_c = float(excel_contract_area) if excel_contract_area is not None else None
 
     # ── 确定户级累计的参考上限(reference_area) ──
-    # 参考上限选取规则（与家庭户详情页 cultivable = 承包 - 转出 + 转入 对齐）：
-    #   大春/小春 → 耕地地力保护补贴面积(优先)或承包面积(回退) + 代耕代种进面积
-    #   全年单补/临时 → 家庭户的DB承包面积(db_contract_area)
+    # 与家庭户详情页 cultivable = 承包 - 转出 + 转入 对齐：
+    #   大春/小春 → 耕地地力保护补贴面积(优先)或承包面积(回退) - 流转出 + 代耕代种进
+    #   全年单补/临时 → 家庭户的DB承包面积 - 流转出
     #
-    # 代耕代种进面积(excel_trust_in)由调用方传入，subsidies.py 从 land_trust 表汇总
-    # 含义：别人委托该户耕种的土地，应计入该户的可耕种能力
-    reference_area = db_c
+    # 流转出(excel_trust_out)由调用方从 land_trust 表汇总传入
+    # 代耕代种进(excel_trust_in)由调用方传入
+    effective_contract = max(0, db_c - excel_trust_out)
+    reference_area = effective_contract
     area_source = "承包面积"
 
+    if excel_trust_out > 0:
+        area_source += f"-流转出{excel_trust_out}亩"
+
     if season in ("大春", "小春"):
-        # 先确定基准面积（耕地补贴 or 承包）
-        base_area = db_c
-        base_source = "承包面积"
+        # 先确定基准面积（耕地补贴 or 承包），再减去流转出
+        base_area = effective_contract
+        base_source = area_source
         if farmland_protection_area is not None and farmland_protection_area > 0:
-            base_area = farmland_protection_area
+            base_area = max(0, farmland_protection_area - excel_trust_out)
             base_source = "耕地地力保护补贴面积"
+            if excel_trust_out > 0:
+                base_source += f"-流转出{excel_trust_out}亩"
         elif farmland_protection_area is not None and farmland_protection_area == 0:
             anomaly_details.append(f"该家庭户无耕地地力保护补贴记录，回退使用承包面积{db_c}亩作为参考")
         elif farmland_protection_area is None:
             anomaly_details.append(f"无耕地地力保护补贴数据，使用承包面积{db_c}亩作为参考")
 
-        # 参考上限 = 基准面积 + 代耕代种进面积
-        reference_area = base_area + excel_trust_in
+        # 参考上限 = 基准面积 + 家庭户代耕代种进面积（从 land_trust 汇总）
+        reference_area = base_area + household_trust_in
         area_source = base_source
-        if excel_trust_in > 0:
-            area_source += f"+代耕代种{excel_trust_in}亩"
+        if household_trust_in > 0:
+            area_source += f"+代耕代种{household_trust_in}亩"
     # ── 检查一：Excel填报承包面积 vs 数据库承包面积 ──
     #     差异>0.001亩即认为不一致，说明Excel或DB数据可能过时
-    if abs(excel_c - db_c) > 0.001:
+    #     仅在 excel_contract_area 有值时检查
+    if excel_c is not None and abs(excel_c - db_c) > 0.001:
         anomaly_type = "承包面积不一致"
         anomaly_details.append(f"Excel填报{excel_c}亩，数据库登记{db_c}亩")
 
@@ -290,7 +299,7 @@ def check_area_anomaly(
     elif apply_area is not None:
         final_subsidy = float(apply_area)
     else:
-        final_subsidy = round(excel_c - excel_trust_out - excel_no_subsidy, 4)
+        final_subsidy = round((excel_c or 0) - excel_trust_out - excel_no_subsidy, 4)
 
     # ── 第二步：计算"自有占用面积"(self_occupy) ──
     #     不考虑代耕代种进面积(ignore_trust_in=True)时 = final_subsidy
@@ -301,24 +310,23 @@ def check_area_anomaly(
         self_occupy = round(final_subsidy - excel_trust_in, 4)
 
     # ── 情况A：单行超限 ──
-    #     含义：这一条记录中，农户申报的面积超过了他个人名下的承包面积
-    #     判断：self_occupy > db_contract_area
-    #              ⚠️ 使用 db_contract_area（个人承包面积）而不是 reference_area
+    #     含义：这一条记录中，农户申报的面积超过了他个人名下的有效承包面积
+    #     判断：self_occupy > effective_contract（承包面积 - 流转出）
     #     影响：这种情况比较少见，通常是Excel填错了
-    if db_c > 0 and self_occupy > db_c:
+    if effective_contract > 0 and self_occupy > effective_contract:
         if anomaly_type:
             anomaly_type = f"{anomaly_type}+面积超限"
         else:
             anomaly_type = "面积超限"
-        exceed_amount = round(self_occupy - db_c, 4)
+        exceed_amount = round(self_occupy - effective_contract, 4)
         anomaly_details.append(f"单行超限{exceed_amount}亩")
 
     # ── 情况B：户级累计超限 ──
     #     含义：该农户所在家庭户，当季所有补贴的申报面积加总后超过了参考上限
     #     累计值 = hh_used（DB中该户当季其他记录面积）+ final_subsidy（本行面积）
     #     参考上限(reference_area)：
-    #       大春/小春 → 耕地地力保护补贴面积（从 payment 或 application 汇总）
-    #       全年单补/临时 → db_contract_area
+    #       大春/小春 → (耕地地力保护补贴面积 or 承包面积) - 流转出 + 代耕代种进
+    #       全年单补/临时 → 承包面积 - 流转出
     #     ⚠️ 关键区别：情况A是个人超限，情况B是家庭户累计超限
     #     ⚠️ 若 reference_area=0（耕地补贴面积为0或未加载），累计检查跳过
     VALID_SEASONS = {"大春", "小春", "全年单补", "临时"}

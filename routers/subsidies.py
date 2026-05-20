@@ -477,6 +477,7 @@ def precheck_applications(
     - 支持分页批量处理大数据量
     """
     from sqlalchemy import or_
+    from sqlalchemy import text
     from utils import validate_id_card, parse_gender_from_id
 
     # 获取补贴类型信息（season等）
@@ -587,6 +588,31 @@ def precheck_applications(
                     db_hh_farmland_area[r.household_id] = float(r.total_area)
             _farmland_loaded = True
 
+    # 加载家庭户流转出面积（从 land_trust 表汇总，用于扣减可耕种面积）
+    db_hh_trust_out: dict[int, float] = {}
+    # 加载家庭户代耕代种进面积（从 land_trust 表汇总，用于参考面积）
+    db_hh_trust_in: dict[int, float] = {}
+    if season and compare_year:
+        trust_out_rows = db.execute(text("""
+            SELECT owner_household_id, COALESCE(SUM(area),0)
+            FROM land_trust
+            WHERE trust_year=:yr AND is_active=1
+              AND affect_subsidy_calc=1 AND trust_type!='IDLE'
+              AND (operator_household_id IS NOT NULL
+                   OR (operator_type IN ('village','village_group') AND operator_entity_id IS NOT NULL))
+            GROUP BY owner_household_id
+        """), {"yr": compare_year}).all()
+        db_hh_trust_out = {r[0]: float(r[1] or 0) for r in trust_out_rows}
+
+        trust_in_rows = db.execute(text("""
+            SELECT operator_household_id, COALESCE(SUM(area),0)
+            FROM land_trust
+            WHERE trust_year=:yr AND is_active=1
+              AND affect_subsidy_calc=1
+            GROUP BY operator_household_id
+        """), {"yr": compare_year}).all()
+        db_hh_trust_in = {r[0]: float(r[1] or 0) for r in trust_in_rows}
+
     # 错误库（用于错误库命中检查）
     error_lib: dict[tuple[str, str], dict] = {}
     for e in db.query(ErrorLibrary).all():
@@ -663,6 +689,9 @@ def precheck_applications(
                 "village_name": vname,
                 "group_no": format_group_no(gno) if isinstance(gno, int) else str(gno),
                 "contract_area": a.contract_area,
+                "apply_area": a.apply_area,
+                "trust_area": a.trust_area,
+                "no_subsidy_area": a.no_subsidy_area,
                 "db_contract_area": db_contract_area,
                 "farmer_id": f.id,
                 "household_id": f.household_id,
@@ -781,12 +810,15 @@ def precheck_applications(
 
         # 面积异常检查：使用统一的 check_area_anomaly 函数
         excel_contract_area = float(land_area) if land_area is not None else None
-        # db_contract_area_val 已经在上面从 row["db_contract_area"] 获取了，这里确保是 float
+        excel_apply_area = float(row.get("apply_area")) if row.get("apply_area") is not None else None
+        excel_trust_area = float(row.get("trust_area") or 0)
+        excel_no_subsidy = float(row.get("no_subsidy_area") or 0)
         db_contract_area_val = float(db_contract_area_val) if db_contract_area_val is not None else None
 
         # 计算户级已用面积（本行数据已在 DB 中，需要排除自身避免重复计算）
         hh_id = row.get("household_id")
-        current_area = excel_contract_area or 0
+        # 使用 apply_area 保持与 db_hh_season_used 口径一致（都求和 apply_area）
+        current_area = excel_apply_area or 0
         hh_used = 0.0
         if hh_id and season and compare_year:
             total = db_hh_season_used.get(hh_id, 0)
@@ -797,19 +829,25 @@ def precheck_applications(
         if hh_id and _farmland_loaded:
             farmland_area = db_hh_farmland_area.get(hh_id, 0.0)
 
+        # 流转出面积（从 land_trust 表汇总，扣减可耕种面积）
+        trust_out = db_hh_trust_out.get(hh_id, 0.0) if hh_id else 0.0
+        # 家庭户代耕代种进面积（从 land_trust 表汇总，用于参考面积）
+        household_trust_in = db_hh_trust_in.get(hh_id, 0.0) if hh_id else 0.0
+
         # 调用统一的面积异常检查函数
         anomaly_result = check_area_anomaly(
             excel_contract_area=excel_contract_area,
             db_contract_area=db_contract_area_val,
-            apply_area=excel_contract_area,
-            excel_trust_out=0,
-            excel_trust_in=0,
-            excel_no_subsidy=0,
-            actual_subsidy_area=excel_contract_area,
+            apply_area=excel_apply_area,
+            excel_trust_out=trust_out,
+            excel_trust_in=excel_trust_area,
+            excel_no_subsidy=excel_no_subsidy,
+            actual_subsidy_area=excel_apply_area,
             season=season,
             hh_used=hh_used,
-            ignore_trust_in=True,
+            ignore_trust_in=False,
             farmland_protection_area=farmland_area,
+            household_trust_in=household_trust_in,
         )
 
         if anomaly_result["anomaly_type"]:
@@ -818,11 +856,11 @@ def precheck_applications(
                 "village": village, "group": group,
                 "anomaly_type": anomaly_result["anomaly_type"],
                 "anomaly_details": "；".join(anomaly_result["anomaly_details"]),
-                "contract_area": excel_contract_area,     # Excel填报承包地面积
-                "trust_out_area": 0.0,                     # 流转出
-                "trust_in_area": 0.0,                      # 代耕代种进
-                "no_subsidy_area": 0.0,                    # 不补贴
-                "actual_subsidy_area": anomaly_result.get("final_subsidy", excel_contract_area),  # 实际补贴面积
+                "contract_area": excel_contract_area,     # 填报承包地面积
+                "trust_out_area": trust_out,               # 流转出（家庭户汇总）
+                "trust_in_area": household_trust_in,       # 代耕代种进（家庭户汇总，用于参考面积）
+                "no_subsidy_area": excel_no_subsidy,       # 不补贴
+                "actual_subsidy_area": anomaly_result.get("final_subsidy", excel_apply_area),  # 实际补贴面积
                 "self_occupy": anomaly_result["self_occupy"],           # 自有承包地占用（不含代耕代种）
                 "hh_used": anomaly_result["hh_used"],                     # 户级当季已有申请面积
                 "hh_total": anomaly_result["hh_total"],                    # 户级累计（已有+本行）
