@@ -616,6 +616,28 @@ def precheck_applications(
         """), {"yr": compare_year}).all()
         db_hh_trust_in_arable = {r[0]: float(r[1] or 0) for r in trust_in_rows}
 
+        # cash_crop 口径：用于大春/小春（经济作物补贴）
+        trust_out_cash_rows = db.execute(text("""
+            SELECT owner_household_id, COALESCE(SUM(area),0)
+            FROM land_trust
+            WHERE trust_year=:yr AND is_active=1
+              AND affect_subsidy_calc=1 AND trust_type!='IDLE'
+              AND subsidy_cash_crop=1
+              AND (operator_household_id IS NOT NULL
+                   OR (operator_type IN ('village','village_group') AND operator_entity_id IS NOT NULL))
+            GROUP BY owner_household_id
+        """), {"yr": compare_year}).all()
+        db_hh_trust_out_cash_crop = {r[0]: float(r[1] or 0) for r in trust_out_cash_rows}
+
+        trust_in_cash_rows = db.execute(text("""
+            SELECT operator_household_id, COALESCE(SUM(area),0)
+            FROM land_trust
+            WHERE trust_year=:yr AND is_active=1
+              AND affect_subsidy_calc=1 AND subsidy_cash_crop=1
+            GROUP BY operator_household_id
+        """), {"yr": compare_year}).all()
+        db_hh_trust_in_cash_crop = {r[0]: float(r[1] or 0) for r in trust_in_cash_rows}
+
     # 加载家庭户不予补贴面积（从耕地保护补贴 payment/application 汇总）
     if _farmland_loaded:
         st = db.query(SubsidyType).filter(
@@ -876,9 +898,11 @@ def precheck_applications(
         if hh_id and _farmland_loaded:
             farmland_area = db_hh_farmland_area.get(hh_id, 0.0)
 
-        # 流转出/代耕代种进面积（仅 subsidy_arable=1，补贴资格随地转移）
+        # 流转出/代耕代种进面积（arable=耕地地力保护/临时用, cash_crop=大春/小春用）
         trust_out_arable = db_hh_trust_out_arable.get(hh_id, 0.0) if hh_id else 0.0
+        trust_out_cash_crop = db_hh_trust_out_cash_crop.get(hh_id, 0.0) if hh_id else 0.0
         household_trust_in_arable = db_hh_trust_in_arable.get(hh_id, 0.0) if hh_id else 0.0
+        household_trust_in_cash_crop = db_hh_trust_in_cash_crop.get(hh_id, 0.0) if hh_id else 0.0
         # 不予补贴面积（从耕地保护补贴记录汇总）
         hh_no_subsidy = db_hh_no_subsidy.get(hh_id, 0.0) if hh_id else 0.0
 
@@ -888,6 +912,7 @@ def precheck_applications(
             db_contract_area=db_contract_area_val,
             apply_area=excel_apply_area,
             trust_out_arable=trust_out_arable,
+            trust_out_cash_crop=trust_out_cash_crop,
             excel_trust_in=excel_trust_area,
             no_subsidy_area=hh_no_subsidy,
             actual_subsidy_area=excel_apply_area,
@@ -896,6 +921,7 @@ def precheck_applications(
             ignore_trust_in=False,
             farmland_protection_area=farmland_area,
             household_trust_in_arable=household_trust_in_arable,
+            household_trust_in_cash_crop=household_trust_in_cash_crop,
         )
 
         if anomaly_result["anomaly_type"]:
