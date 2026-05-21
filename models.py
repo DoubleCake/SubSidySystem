@@ -166,6 +166,7 @@ class SubsidyApplication(Base):
                          name="uq_farmer_subsidy_year"),
         Index('ix_subsidy_application_farmer_year', 'farmer_id', 'apply_year'),
         Index('ix_subsidy_application_subsidy_type', 'subsidy_type_id'),
+        Index('ix_subsidy_app_type_year', 'subsidy_type_id', 'apply_year'),
     )
 
     # 关联
@@ -474,6 +475,14 @@ class LandTrust(Base):
     is_active            = Column(SmallInteger, nullable=False, default=1)
     created_at           = Column(DateTime, default=func.now())
     updated_at           = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # ── 索引 ──
+    __table_args__ = (
+        Index('ix_land_trust_owner_year', 'owner_household_id', 'trust_year', 'is_active'),
+        Index('ix_land_trust_operator_year', 'operator_household_id', 'trust_year', 'is_active'),
+        Index('ix_land_trust_year_active', 'trust_year', 'is_active'),
+        Index('ix_land_trust_type_year', 'trust_type', 'trust_year', 'is_active'),
+    )
 
     # ── 关联 ──
     owner_household    = relationship("FamilyHousehold", foreign_keys=[owner_household_id],

@@ -306,14 +306,14 @@ def delete_type(db: Session, type_id: int) -> None:
 # ═══════════════════════════════════════════
 
 def batch_import_applications(
-    db: Session, rows: list[dict]
+    db: Session, rows: list[dict], defer_cache: bool = False
 ) -> dict:
     """
-    批量导入补贴申请记录。
-    返回 {created, skipped, errors, new_farmers, affected_households}
+    批量导入补贴申请记录（优化版：Village缓存 + 批量查重）。
+    defer_cache=True 时跳过缓存重算，返回 affected_households 由调用方统一处理。
     """
     if not rows:
-        return {"created": 0, "skipped": 0, "errors": [], "new_farmers": 0}
+        return {"created": 0, "skipped": 0, "errors": [], "new_farmers": 0, "affected_households": []}
 
     created, skipped = 0, 0
     errors: list[str] = []
@@ -415,7 +415,7 @@ def batch_import_applications(
             errors.append(f"第{row_no}行 {farmer.real_name}（{farmer.id_card}）：{e}")
 
     db.commit()
-    if affected_households:
+    if affected_households and not defer_cache:
         recalc_household_cache(db, list(affected_households))
 
     return {
@@ -423,6 +423,7 @@ def batch_import_applications(
         "skipped": skipped,
         "errors": errors,
         "new_farmers": new_farmers_created,
+        "affected_households": list(affected_households),
     }
 
 

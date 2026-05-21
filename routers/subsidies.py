@@ -150,11 +150,21 @@ def api_batch_import_applications(
 ):
     """
     批量导入补贴申请记录。
-    大数据量场景：后台自动触发面积缓存重算，不阻塞接口响应。
+    defer_cache=true 时跳过缓存重算，由前端汇总后调用 /recalc-cache 统一处理。
     """
     rows = payload.get("rows", [])
-    result = batch_import_applications(db, rows)
+    defer = payload.get("defer_cache", False)
+    result = batch_import_applications(db, rows, defer_cache=defer)
     return result
+
+
+@router.post("/applications/recalc-cache")
+def api_recalc_cache(payload: dict, db: Session = Depends(get_db)):
+    """批量重算家庭户面积缓存"""
+    household_ids = payload.get("household_ids", [])
+    if household_ids:
+        recalc_household_cache(db, list(set(household_ids)))
+    return {"ok": True, "count": len(set(household_ids))}
 
 
 # ════════════════════════════════
