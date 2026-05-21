@@ -243,7 +243,11 @@ export default function ExcelImportWithMapping({
         totalCreated += res.created || 0
         totalSkipped += res.skipped || 0
         totalUpdated += res.updated || 0
-        if (res.errors?.length) allErrors.push(...res.errors)
+        if (res.errors?.length) {
+          // 将批次内行号转换为原始 Excel 行号（i 为批次偏移量）
+          const adjusted = res.errors.map(e => e.replace(/^第(\d+)行/, (_, n) => `第${parseInt(n) + i}行`))
+          allErrors.push(...adjusted)
+        }
       } catch (e: unknown) {
         const err = e as Error
         allErrors.push(`第${batchNum}批导入失败: ${err.message}`)

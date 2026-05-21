@@ -129,6 +129,7 @@ export default function LandTrustPage() {
   const [editOpen, setEditOpen]   = useState(false)
   const [editTarget, setEditTarget] = useState<Trust | null>(null)
   const [form, setForm]           = useState(emptyForm())
+  const [idleImportOpen, setIdleImportOpen] = useState(false)
   const [ownerSearch, setOwnerSearch]   = useState('')
   const [ownerOpts, setOwnerOpts]       = useState<HHOption[]>([])
   const [operSearch, setOperSearch]     = useState('')
@@ -191,6 +192,23 @@ export default function LandTrustPage() {
       const r = await req<AreaSummary>(`/api/land/area-summary/${hh.id}?year=${yearFilter}`)
       setSummary(r)
     } finally { setSummaryLoading(false) }
+  }
+
+  // 批量导入撂荒地
+  const handleIdleImport = async (rows: Record<string, unknown>[], _mapping?: Record<string, string>) => {
+    const payload = rows.map(r => ({
+      owner_name: r.owner_name, owner_id_card: r.owner_id_card,
+      area: r.area, trust_year: r.trust_year,
+      subsidy_arable: r.subsidy_arable ?? 1,
+      note: r.note,
+    }))
+    const res = await req<{ created: number; skipped: number; errors: string[] }>('/api/land/trusts/batch-import-idle', {
+      method: 'POST', body: JSON.stringify({ rows: payload }),
+    })
+    if (res.errors?.length) {
+      return { created: res.created, skipped: res.skipped, errors: res.errors }
+    }
+    return { created: res.created, skipped: res.skipped, errors: [] }
   }
 
   const openAdd = () => {
@@ -324,10 +342,16 @@ export default function LandTrustPage() {
           </div>
           <span className="text-xs text-text-muted">共 {total} 条</span>
           {sourceType === 'normal' && (
-            <button onClick={openAdd}
-              className="ml-auto px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
-              ＋ 新增流转记录
-            </button>
+            <div className="ml-auto flex gap-2">
+              <button onClick={() => setIdleImportOpen(true)}
+                className="px-3 py-2 text-sm border border-border rounded-btn hover:bg-warm/30">
+                📥 批量导入撂荒地
+              </button>
+              <button onClick={openAdd}
+                className="px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
+                ＋ 新增流转记录
+              </button>
+            </div>
           )}
         </div>
 
@@ -825,6 +849,34 @@ export default function LandTrustPage() {
           )}
         </div>
       </Modal>
+
+      {/* 批量导入撂荒地 */}
+      <ExcelImportWithMapping
+        open={idleImportOpen}
+        onClose={() => setIdleImportOpen(false)}
+        title="批量导入撂荒地"
+        templateHeaders={['流出方姓名*', '流出方身份证*', '面积(亩)*', '撂荒年度*', '扣减耕地补贴', '备注']}
+        templateExample={[{ '流出方姓名*': '张三', '流出方身份证*': '510123196503154231', '面积(亩)*': '2.5', '撂荒年度*': new Date().getFullYear(), '扣减耕地补贴': '1', '备注': '' }]}
+        systemFields={IDLE_IMPORT_FIELDS}
+        templates={[]}
+        overwriteOption={false}
+        onDetectColumns={async (columns) => ({
+          columns: columns.map(col => ({
+            excel_column: col,
+            suggested_field: col.includes('姓名') ? 'owner_name'
+              : col.includes('身份证') ? 'owner_id_card'
+              : col.includes('面积') ? 'area'
+              : col.includes('年度') ? 'trust_year'
+              : col.includes('扣减') || col.includes('补贴') ? 'subsidy_arable'
+              : col.includes('备注') ? 'note' : null,
+            confidence: 0.9, alternatives: [],
+          })),
+          recommended_templates: [],
+        })}
+        onSaveTemplate={async () => ({ id: 0 })}
+        onImport={handleIdleImport}
+        onSuccess={() => { setIdleImportOpen(false); setPage(1); load() }}
+      />
 
       <Toast {...toast} />
     </div>

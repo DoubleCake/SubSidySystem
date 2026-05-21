@@ -14,7 +14,7 @@ from datetime import date as date_type, datetime
 from decimal import Decimal
 
 from database import get_db
-from models import LandTrust, FamilyHousehold, Village, VillageGroup
+from models import LandTrust, FamilyHousehold, Village, VillageGroup, FarmerProfile
 from services.subsidy_service import recalc_household_cache
 
 router = APIRouter(prefix="/api/land", tags=["土地信息"])
@@ -742,3 +742,74 @@ def trust_summary_with_large(
         "year": year,
         "summary": list(summary_map.values()),
     }
+
+
+@router.post("/trusts/batch-import-idle")
+def batch_import_idle(payload: dict, db: Session = Depends(get_db)):
+    """批量导入撂荒地记录（简化模板）"""
+    rows = payload.get("rows", [])
+    if not rows:
+        return {"created": 0, "skipped": 0, "errors": []}
+
+    created, skipped = 0, 0
+    errors: list[str] = []
+    affected_hh: set[int] = set()
+
+    for idx, row in enumerate(rows):
+        row_no = idx + 2
+        try:
+            # 解析流出方
+            hh_id = row.get("owner_household_id")
+            if not hh_id:
+                name = str(row.get("owner_name", "")).strip()
+                id_card = str(row.get("owner_id_card", "")).strip()
+                if id_card:
+                    f = db.query(FarmerProfile).filter(FarmerProfile.id_card == id_card).first()
+                    if f and f.household_id:
+                        hh_id = f.household_id
+                if not hh_id and name:
+                    hh = db.query(FamilyHousehold).filter(FamilyHousehold.household_name.like(f"%{name}%")).first()
+                    if hh:
+                        hh_id = hh.id
+                if not hh_id:
+                    errors.append(f"第{row_no}行 无法找到流出方: {name or id_card}")
+                    continue
+
+            area = float(row.get("area") or 0)
+            if area <= 0:
+                errors.append(f"第{row_no}行 面积无效")
+                continue
+
+            trust_year = int(row.get("trust_year") or 0)
+            if not trust_year:
+                errors.append(f"第{row_no}行 缺少年度")
+                continue
+
+            subsidy_arable = int(row.get("subsidy_arable", 1))
+
+            trust = LandTrust(
+                owner_type="household",
+                owner_household_id=hh_id,
+                operator_type="household",
+                operator_household_id=None,
+                trust_type="IDLE",
+                area=area,
+                trust_year=trust_year,
+                affect_subsidy_calc=1,
+                subsidy_arable=subsidy_arable,
+                subsidy_cash_crop=0,
+                data_reliability="VILLAGE_CONFIRM",
+                is_active=1,
+                note=str(row.get("note", "")).strip() or None,
+            )
+            db.add(trust)
+            affected_hh.add(hh_id)
+            created += 1
+        except Exception as e:
+            errors.append(f"第{row_no}行 {e}")
+
+    db.commit()
+    if affected_hh:
+        recalc_household_cache(db, list(affected_hh))
+
+    return {"created": created, "skipped": skipped, "errors": errors}

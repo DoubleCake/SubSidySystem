@@ -28,6 +28,20 @@ const PROXY_IMPORT_FIELDS = [
   { field: 'remark', label: '备注', required: false, type: 'string' },
 ]
 
+const PAYMENT_IMPORT_FIELDS = [
+  { field: 'id_card',         label: '身份证*', required: true,  type: 'id_card' },
+  { field: 'real_name',       label: '姓名*', required: true,  type: 'string' },
+  { field: 'apply_area',      label: '补贴面积(亩)', required: false, type: 'decimal' },
+  { field: 'contract_area',   label: '承包面积(亩)', required: false, type: 'decimal' },
+  { field: 'trust_area',      label: '代耕代种面积(亩)', required: false, type: 'decimal' },
+  { field: 'no_subsidy_area', label: '不予补贴面积(亩)', required: false, type: 'decimal' },
+  { field: 'amount',          label: '发放金额(元)', required: false, type: 'decimal' },
+  { field: 'payment_date',    label: '发放日期', required: false, type: 'string' },
+  { field: 'bank_card',       label: '银行卡号', required: false, type: 'string' },
+  { field: 'bank_name',       label: '开户行', required: false, type: 'string' },
+  { field: 'remark',          label: '备注', required: false, type: 'string' },
+]
+
 type StatsType = {
   id: number
   subsidy_name: string
@@ -114,6 +128,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
   // 代领表单相关状态
   const [proxyAddOpen, setProxyAddOpen] = useState(false)
   const [proxyImportOpen, setProxyImportOpen] = useState(false)
+  const [paymentImportOpen, setPaymentImportOpen] = useState(false)
   const [proxyRefreshKey, setProxyRefreshKey] = useState(0)
   const [proxyForm, setProxyForm] = useState<{
     beneficiary_id_card: string
@@ -402,6 +417,31 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
 
     show(`✓ 成功导入 ${successCount} 条代领关系${errors.length > 0 ? `，失败 ${errors.length} 条` : ''}`, errors.length > 0 ? 'err' : 'ok')
     return { created: successCount, skipped: proxies.length - successCount, errors }
+  }
+
+  // 发放记录 Excel 导入
+  const handlePaymentImport = async (rows: Record<string, unknown>[]) => {
+    const payload = rows.map(r => ({
+      id_card: r.id_card,
+      real_name: r.real_name,
+      subsidy_type_id: subsidyType.id,
+      payment_year: subsidyType.subsidy_year,
+      apply_area: r.apply_area,
+      contract_area: r.contract_area,
+      trust_area: r.trust_area,
+      no_subsidy_area: r.no_subsidy_area,
+      amount: r.amount,
+      payment_date: r.payment_date,
+      bank_card: r.bank_card,
+      bank_name: r.bank_name,
+      remark: r.remark,
+    }))
+    const res = await fetch('/api/subsidies/payments/batch-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows: payload }),
+    }).then(r => r.json())
+    return { created: res.created || 0, skipped: res.skipped || 0, errors: res.errors || [] }
   }
 
   // 获取村庄列表
@@ -864,6 +904,12 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
                   className="px-3 py-2 text-sm bg-red-600/80  rounded-btn hover:bg-red-700 flex items-center gap-1.5">
                   🗑️ 删除全部
                 </button>
+                {activeTab === 'disbursement' && (
+                  <button onClick={() => setPaymentImportOpen(true)}
+                    className="px-3 py-2 text-sm border border-blue-200 text-blue-700 rounded-btn hover:bg-blue-50 flex items-center gap-1.5">
+                    ↑ 导入发放记录
+                  </button>
+                )}
                 <button onClick={() => setAddOpen(true)}
                   className="px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
                   ＋ 批量导入
@@ -1150,6 +1196,37 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
         onSaveTemplate={async () => ({ id: 0 })}
         onImport={handleProxyImport}
         onSuccess={() => setProxyRefreshKey(prev => prev + 1)}
+      />
+
+      {/* 发放记录 Excel 导入 */}
+      <ExcelImportWithMapping open={paymentImportOpen} onClose={() => setPaymentImportOpen(false)}
+        title="发放记录 Excel 导入"
+        templateHeaders={['身份证*', '姓名*', '补贴面积(亩)', '承包面积(亩)', '代耕代种面积(亩)', '不予补贴面积(亩)', '发放金额(元)', '发放日期', '银行卡号', '开户行', '备注']}
+        templateExample={[{ '身份证*': '510123196503154231', '姓名*': '张三', '补贴面积(亩)': '3.5', '发放金额(元)': '420' }]}
+        systemFields={PAYMENT_IMPORT_FIELDS}
+        templates={[]}
+        overwriteOption={false}
+        onDetectColumns={async (columns) => ({
+          columns: columns.map(col => ({
+            excel_column: col,
+            suggested_field: col.includes('身份证') ? 'id_card'
+              : col.includes('姓名') ? 'real_name'
+              : col.includes('补贴面积') ? 'apply_area'
+              : col.includes('承包面积') ? 'contract_area'
+              : col.includes('代耕') ? 'trust_area'
+              : col.includes('不予') || col.includes('不补贴') ? 'no_subsidy_area'
+              : col.includes('金额') ? 'amount'
+              : col.includes('日期') ? 'payment_date'
+              : col.includes('银行卡') || col.includes('卡号') ? 'bank_card'
+              : col.includes('开户') || col.includes('银行') ? 'bank_name'
+              : col.includes('备注') ? 'remark' : null,
+            confidence: 0.9, alternatives: [],
+          })),
+          recommended_templates: [],
+        })}
+        onSaveTemplate={async () => ({ id: 0 })}
+        onImport={handlePaymentImport}
+        onSuccess={() => { setPaymentImportOpen(false); load() }}
       />
 
       {toast && <Toast msg={toast.msg} type={toast.type} />}
