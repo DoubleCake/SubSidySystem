@@ -489,9 +489,8 @@ def precheck_applications(
     all_village_names: set[str] = {v.village_name for v in db.query(Village).all()}
     village_name_to_id: dict[str, int] = {v.village_name: v.id for v in db.query(Village).all()}
 
-    # 加载数据库中本年度、本季、本补贴类型的家庭户申请记录（含备注）
+    # 加载数据库中本年度、本季的家庭户申请记录（用于同一家庭多成员检测）
     db_hh_existing_apps: dict[int, list[dict]] = {}  # household_id → [申请记录列表]
-    db_existing_app_id_cards: dict[str, list[dict]] = {}  # id_card → [申请记录列表]
     if season and compare_year:
         existing_apps = db.query(
             FarmerProfile.household_id,
@@ -500,7 +499,6 @@ def precheck_applications(
             SubsidyApplication.remark,
             SubsidyType.subsidy_name,
             SubsidyType.season,
-            SubsidyApplication.pay_status
         ).join(
             FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id
         ).join(
@@ -520,17 +518,6 @@ def precheck_applications(
                 "subsidy_name": app.subsidy_name,
                 "season": app.season
             })
-            # 同时按身份证索引，用于检测重复申请
-            if app.id_card:
-                if app.id_card not in db_existing_app_id_cards:
-                    db_existing_app_id_cards[app.id_card] = []
-                status_text = "预申请" if app.pay_status == 0 else "已发放"
-                db_existing_app_id_cards[app.id_card].append({
-                    "real_name": app.real_name,
-                    "subsidy_name": app.subsidy_name,
-                    "remark": app.remark,
-                    "status": status_text
-                })
 
     # 加载家庭户当季已用面积（用于户级累计超限检查）
     db_hh_season_used: dict[int, float] = {}
@@ -763,7 +750,6 @@ def precheck_applications(
     format_errors: list[dict] = []
     village_errors: list[dict] = []
     duplicate_errors: list[dict] = []
-    db_duplicate_apps: list[dict] = []
     error_library_hits: list[dict] = []
     gender_mismatch: list[dict] = []
     area_anomalies: list[dict] = []
@@ -833,22 +819,6 @@ def precheck_applications(
         seen_id_cards[id_card] = row_no
 
         row_has_warning = False  # 标记本行是否有任何异常（不入 ok_rows）
-
-        # 数据库已有申请记录重复
-        if id_card in db_existing_app_id_cards:
-            row_has_warning = True
-            existing_apps = db_existing_app_id_cards[id_card]
-            apps_summary = "；".join([
-                f"{app['real_name']}({app['subsidy_name']}-{app['status']})" +
-                (f":{app['remark']}" if app['remark'] else "")
-                for app in existing_apps
-            ])
-            db_duplicate_apps.append({
-                "row": row_no, "name": name, "id_card": id_card,
-                "village": village, "group": group,
-                "existing_apps": apps_summary,
-                "error": f"该人员本年度本季已有申请记录：{apps_summary}"
-            })
 
         # 错误库交叉比对（身份证+姓名同时匹配）
         if (id_card.strip().upper(), name.strip()) in error_lib:
@@ -1081,7 +1051,6 @@ def precheck_applications(
         "format_errors": len(format_errors),
         "village_errors": len(village_errors),
         "duplicate_errors": len(duplicate_errors),
-        "db_duplicate_apps": len(db_duplicate_apps),
         "gender_mismatch": len(gender_mismatch),
         "error_library_hits": len(error_library_hits),
         "area_anomalies": len(area_anomalies),
@@ -1101,7 +1070,6 @@ def precheck_applications(
         "format_errors": format_errors,
         "village_errors": village_errors,
         "duplicate_errors": duplicate_errors,
-        "db_duplicate_apps": db_duplicate_apps,
         "gender_mismatch": gender_mismatch,
         "error_library_hits": error_library_hits,
         "area_anomalies": area_anomalies,

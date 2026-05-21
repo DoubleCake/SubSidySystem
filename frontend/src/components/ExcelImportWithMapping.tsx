@@ -207,52 +207,55 @@ export default function ExcelImportWithMapping({
 
   const handleImportConfirm = async () => {
     setStep('importing')
-    setProgress(5)
+    setProgress(0)
     setProgressMsg(`准备导入 ${rows.length} 条记录…`)
 
-    // 模拟进度
-    let fake = 5
-    const ticker = setInterval(() => {
-      fake = Math.min(fake + (90 - fake) * 0.08, 88)
-      setProgress(Math.round(fake))
-      if (fake < 30) setProgressMsg(`正在校验数据…`)
-      else if (fake < 60) setProgressMsg(`正在写入数据库…`)
-      else setProgressMsg(`即将完成，请稍候…`)
-    }, 200)
-
-    try {
-      // 根据映射转换数据
-      const mapping: Record<string, string> = {}
-      const dataToImport = rows.map(row => {
-        const mappedRow: Record<string, unknown> = {}
-        columnMappings.forEach(cm => {
-          if (cm.system_field && row[cm.excel_column] !== undefined) {
-            mappedRow[cm.system_field] = row[cm.excel_column]
-          }
-        })
-        return mappedRow
-      })
-
-      columnMappings.forEach(m => {
-        if (m.system_field) {
-          mapping[m.excel_column] = m.system_field
+    // 根据映射转换数据
+    const mapping: Record<string, string> = {}
+    const dataToImport = rows.map(row => {
+      const mappedRow: Record<string, unknown> = {}
+      columnMappings.forEach(cm => {
+        if (cm.system_field && row[cm.excel_column] !== undefined) {
+          mappedRow[cm.system_field] = row[cm.excel_column]
         }
       })
+      return mappedRow
+    })
+    columnMappings.forEach(m => {
+      if (m.system_field) mapping[m.excel_column] = m.system_field
+    })
 
-      const res = await onImport(dataToImport, mapping, overwrite)
-      clearInterval(ticker)
-      setProgress(100)
-      setProgressMsg('导入完成！')
-      await new Promise(r => setTimeout(r, 400))
-      setResult(res)
-      setStep('result')
-      if (res.created > 0 || (res.updated ?? 0) > 0) onSuccess()
-    } catch (e: unknown) {
-      clearInterval(ticker)
-      const err = e as Error
-      setResult({ created: 0, updated: 0, skipped: 0, errors: [err.message] })
-      setStep('result')
+    // 分批导入，每批 200 行
+    const BATCH_SIZE = 200
+    const totalBatches = Math.ceil(dataToImport.length / BATCH_SIZE)
+    let totalCreated = 0, totalSkipped = 0, totalUpdated = 0
+    const allErrors: string[] = []
+
+    for (let i = 0; i < dataToImport.length; i += BATCH_SIZE) {
+      const batch = dataToImport.slice(i, i + BATCH_SIZE)
+      const batchNum = Math.floor(i / BATCH_SIZE) + 1
+      const pct = Math.round((i / dataToImport.length) * 90)
+      setProgress(pct)
+      setProgressMsg(`正在导入第 ${batchNum}/${totalBatches} 批（${i + 1}-${Math.min(i + BATCH_SIZE, dataToImport.length)}/${dataToImport.length}）…`)
+
+      try {
+        const res = await onImport(batch, mapping, overwrite)
+        totalCreated += res.created || 0
+        totalSkipped += res.skipped || 0
+        totalUpdated += res.updated || 0
+        if (res.errors?.length) allErrors.push(...res.errors)
+      } catch (e: unknown) {
+        const err = e as Error
+        allErrors.push(`第${batchNum}批导入失败: ${err.message}`)
+      }
     }
+
+    setProgress(100)
+    setProgressMsg('导入完成！')
+    await new Promise(r => setTimeout(r, 400))
+    setResult({ created: totalCreated, updated: totalUpdated, skipped: totalSkipped, errors: allErrors })
+    setStep('result')
+    if (totalCreated > 0 || totalUpdated > 0) onSuccess()
   }
 
   // ── 导出导入异常数据为 Excel ──
