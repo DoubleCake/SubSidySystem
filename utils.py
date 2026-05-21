@@ -200,6 +200,7 @@ def check_area_anomaly(
     farmland_protection_area: float | None = None,
     household_trust_in_arable: float = 0,
     household_trust_in_cash_crop: float = 0,
+    idle_arable: float = 0,
 ) -> dict:
     """
     统一面积异常检查
@@ -253,9 +254,7 @@ def check_area_anomaly(
 
     # ── 确定参考上限(reference_area) ──
     #   大春/小春: farmland_base - trust_out_cash_crop + household_trust_in_cash_crop
-    #          流转计入取决于 land_trust.subsidy_cash_crop（经济作物补贴是否由流入方享受）
-    #   耕地地力保护/临时: contract_base - trust_out_arable + household_trust_in_arable
-    #          流转计入取决于 land_trust.subsidy_arable（耕地补贴是否由流入方享受）
+    #   耕地地力保护/临时: contract_base - trust_out_arable - idle_arable + household_trust_in_arable
     farmland_base = farmland_protection_area if (farmland_protection_area is not None and farmland_protection_area > 0) else db_c
     contract_base = max(0, db_c - no_subsidy_area)
     if season in ("大春", "小春"):
@@ -267,6 +266,7 @@ def check_area_anomaly(
             anomaly_details.append(f"无耕地地力保护补贴数据，使用承包面积{db_c}亩作为参考")
         _tout = trust_out_cash_crop
         _tin = household_trust_in_cash_crop
+        _idle = 0.0
     else:
         base_area = contract_base
         base_source = "承包面积"
@@ -274,16 +274,18 @@ def check_area_anomaly(
             base_source += f"-不予补贴{no_subsidy_area}亩"
         _tout = trust_out_arable
         _tin = household_trust_in_arable
+        _idle = idle_arable
 
-    reference_area = max(0, base_area - _tout + _tin)
+    reference_area = max(0, base_area - _tout - _idle + _tin)
     area_source = base_source
     if _tout > 0:
         area_source += f"-流转出{_tout}亩"
+    if _idle > 0:
+        area_source += f"-撂荒{_idle}亩"
     if _tin > 0:
         area_source += f"+代耕代种{_tin}亩"
 
-    # Case A 的有效面积基准：同季节公式但不加 trust_in（逐行检查自有占用）
-    effective_contract = max(0, base_area - _tout)
+    effective_contract = max(0, base_area - _tout - _idle)
 
     # ── 检查一：Excel填报承包面积 vs 数据库承包面积 ──
     if excel_c is not None and abs(excel_c - db_c) > 0.001:

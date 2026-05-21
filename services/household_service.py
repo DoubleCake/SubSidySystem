@@ -520,6 +520,7 @@ def calc_household_area_usage(
     trust_out = 0.0
     trust_out_arable = 0.0
     trust_out_cash_crop = 0.0
+    idle_arable = 0.0
     trust_in = 0.0
     trust_in_arable = 0.0
     trust_in_cash_crop = 0.0
@@ -552,6 +553,15 @@ def calc_household_area_usage(
                OR (operator_type IN ('village','village_group') AND operator_entity_id IS NOT NULL))
     """), {"hid": household_id, "yr": trust_year}).scalar()
     trust_out_cash_crop = float(out_cash_r or 0)
+
+    # 撂荒地（仅 subsidy_arable=1 时扣减耕地地力保护补贴面积）
+    idle_r = db.execute(text("""
+        SELECT COALESCE(SUM(area),0) FROM land_trust
+        WHERE owner_household_id=:hid AND trust_year=:yr AND is_active=1
+          AND affect_subsidy_calc=1 AND trust_type='IDLE'
+          AND subsidy_arable=1
+    """), {"hid": household_id, "yr": trust_year}).scalar()
+    idle_arable = float(idle_r or 0)
 
     in_r = db.execute(text("""
         SELECT COALESCE(SUM(area),0) FROM land_trust
@@ -608,7 +618,7 @@ def calc_household_area_usage(
 
     # 每季节使用不同的参考上限
     #   大春/小春: 耕地保护面积基准 = farmland_area - trust_out_cash_crop + trust_in_cash_crop
-    #   耕地地力保护/临时: 承包面积基准 = contracted - no_subsidy - trust_out_arable + trust_in_arable
+    #   耕地地力保护/临时: 承包面积基准 = contracted - no_subsidy - trust_out_arable - idle_arable + trust_in_arable
     farmland_base = farmland_area if farmland_area > 0 else contracted
     contract_base = max(0.0, contracted - no_subsidy_area)
     season_reference: dict[str, float] = {}
@@ -616,7 +626,7 @@ def calc_household_area_usage(
         if s in ("大春", "小春"):
             season_reference[s] = round(max(0.0, farmland_base - trust_out_cash_crop + trust_in_cash_crop), 2)
         else:
-            season_reference[s] = round(max(0.0, contract_base - trust_out_arable + trust_in_arable), 2)
+            season_reference[s] = round(max(0.0, contract_base - trust_out_arable - idle_arable + trust_in_arable), 2)
     cultivable = round(max(0.0, contracted - trust_out + trust_in), 2)
 
     cache_records = db.query(HouseholdAreaUsageCache).filter(
@@ -677,6 +687,7 @@ def calc_household_area_usage(
         "trust_out_area": trust_out,
         "trust_out_arable_area": round(trust_out_arable, 2),
         "trust_out_cash_crop_area": round(trust_out_cash_crop, 2),
+        "idle_arable_area": round(idle_arable, 2),
         "trust_in_area": trust_in,
         "trust_in_arable_area": round(trust_in_arable, 2),
         "trust_in_cash_crop_area": round(trust_in_cash_crop, 2),

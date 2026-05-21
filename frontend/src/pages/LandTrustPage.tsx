@@ -8,10 +8,20 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Modal from '../components/Modal'
+import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
 import Tag from '../components/Tag'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import { fmt } from '../utils'
+
+const IDLE_IMPORT_FIELDS = [
+  { field: 'owner_name',     label: '流出方姓名*', required: true,  type: 'string' },
+  { field: 'owner_id_card',  label: '流出方身份证*', required: true,  type: 'string' },
+  { field: 'area',           label: '面积(亩)*', required: true,  type: 'decimal' },
+  { field: 'trust_year',     label: '撂荒年度*', required: true,  type: 'integer' },
+  { field: 'subsidy_arable', label: '扣减耕地补贴', required: false, type: 'integer' },
+  { field: 'note',           label: '备注', required: false, type: 'string' },
+]
 
 interface Trust {
   id: number
@@ -766,9 +776,11 @@ export default function LandTrustPage() {
             </div>
           </div>
 
-          {/* 补贴享受类型（流入方） */}
+          {/* 补贴享受类型 */}
           <div>
-            <label className="block text-xs text-text-muted mb-1.5">流入方补贴享受类型</label>
+            <label className="block text-xs text-text-muted mb-1.5">
+              {form.trust_type === 'IDLE' ? '撂荒地面积影响' : '流入方补贴享受类型'}
+            </label>
             <div className="flex gap-2">
               <button onClick={() => sf('subsidy_arable', form.subsidy_arable ? 0 : 1)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-btn transition-colors border
@@ -778,21 +790,25 @@ export default function LandTrustPage() {
                 <span className={`inline-block w-3 h-3 rounded-full border ${form.subsidy_arable ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-border'}`}>
                   {form.subsidy_arable && <span className="block w-1.5 h-1.5 mx-auto mt-0.5 rounded-full bg-white" />}
                 </span>
-                耕地地力补贴由流入方享受
+                {form.trust_type === 'IDLE' ? '扣减耕地地力保护补贴面积' : '耕地地力补贴由流入方享受'}
               </button>
-              <button onClick={() => sf('subsidy_cash_crop', form.subsidy_cash_crop ? 0 : 1)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-btn transition-colors border
-                  ${form.subsidy_cash_crop
-                    ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-                    : 'bg-white border-border text-text-muted'}`}>
-                <span className={`inline-block w-3 h-3 rounded-full border ${form.subsidy_cash_crop ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-border'}`}>
-                  {form.subsidy_cash_crop && <span className="block w-1.5 h-1.5 mx-auto mt-0.5 rounded-full bg-white" />}
-                </span>
-                经济作物补贴由流入方享受
-              </button>
+              {form.trust_type !== 'IDLE' && (
+                <button onClick={() => sf('subsidy_cash_crop', form.subsidy_cash_crop ? 0 : 1)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-btn transition-colors border
+                    ${form.subsidy_cash_crop
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                      : 'bg-white border-border text-text-muted'}`}>
+                  <span className={`inline-block w-3 h-3 rounded-full border ${form.subsidy_cash_crop ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-border'}`}>
+                    {form.subsidy_cash_crop && <span className="block w-1.5 h-1.5 mx-auto mt-0.5 rounded-full bg-white" />}
+                  </span>
+                  经济作物补贴由流入方享受
+                </button>
+              )}
             </div>
             <p className="text-xs text-text-muted/50 mt-1">
-              影响超领计算：耕地地力补贴面积计入单领面积，经济作物补贴面积计入大春小春季节面积
+              {form.trust_type === 'IDLE'
+                ? '撂荒面积将从流出方耕地地力保护补贴可申报面积中扣减'
+                : '影响超领计算：耕地地力补贴面积计入单领面积，经济作物补贴面积计入大春小春季节面积'}
             </p>
           </div>
 

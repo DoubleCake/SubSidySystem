@@ -625,6 +625,17 @@ def precheck_applications(
         """), {"yr": compare_year}).all()
         db_hh_trust_in_cash_crop = {r[0]: float(r[1] or 0) for r in trust_in_cash_rows}
 
+        # 撂荒地（仅 subsidy_arable=1 时扣减耕地地力保护补贴面积）
+        idle_rows = db.execute(text("""
+            SELECT owner_household_id, COALESCE(SUM(area),0)
+            FROM land_trust
+            WHERE trust_year=:yr AND is_active=1
+              AND affect_subsidy_calc=1 AND trust_type='IDLE'
+              AND subsidy_arable=1
+            GROUP BY owner_household_id
+        """), {"yr": compare_year}).all()
+        db_hh_idle_arable = {r[0]: float(r[1] or 0) for r in idle_rows}
+
     # 加载家庭户不予补贴面积（从耕地保护补贴 payment/application 汇总）
     if _farmland_loaded:
         st = db.query(SubsidyType).filter(
@@ -875,6 +886,8 @@ def precheck_applications(
         household_trust_in_cash_crop = db_hh_trust_in_cash_crop.get(hh_id, 0.0) if hh_id else 0.0
         # 不予补贴面积（从耕地保护补贴记录汇总）
         hh_no_subsidy = db_hh_no_subsidy.get(hh_id, 0.0) if hh_id else 0.0
+        # 撂荒地面积（仅 subsidy_arable=1）
+        hh_idle_arable = db_hh_idle_arable.get(hh_id, 0.0) if hh_id else 0.0
 
         # 调用统一的面积异常检查函数
         anomaly_result = check_area_anomaly(
@@ -892,6 +905,7 @@ def precheck_applications(
             farmland_protection_area=farmland_area,
             household_trust_in_arable=household_trust_in_arable,
             household_trust_in_cash_crop=household_trust_in_cash_crop,
+            idle_arable=hh_idle_arable,
         )
 
         if anomaly_result["anomaly_type"]:
