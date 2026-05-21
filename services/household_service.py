@@ -681,6 +681,14 @@ def calc_household_area_usage(
             str(y): {s: round(v, 2) for s, v in seasons.items()}
             for y, seasons in sorted(year_totals.items(), reverse=True)
         },
+        "year_apply_totals": {
+            str(y): {s: round(v, 2) for s, v in seasons.items()}
+            for y, seasons in sorted(year_apply_totals.items(), reverse=True)
+        },
+        "year_payment_totals": {
+            str(y): {s: round(v, 2) for s, v in seasons.items()}
+            for y, seasons in sorted(year_payment_totals.items(), reverse=True)
+        },
     }
 
 

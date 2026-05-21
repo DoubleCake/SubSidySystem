@@ -84,10 +84,12 @@ export function HouseholdDetailContent({
     subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[],
     season_reference: {} as Record<string, number>,
     season_breakdown: {} as Record<string, any>,
-    year_totals: {} as Record<string, Record<string, number>>
+    year_totals: {} as Record<string, Record<string, number>>,
+    year_apply_totals: {} as Record<string, Record<string, number>>,
+    year_payment_totals: {} as Record<string, Record<string, number>>
   }
   const areaUsage = historyDate !== null && snapshotData?.snapshot
-    ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, trust_in_arable_area: 0, trust_in_cash_crop_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_reference: {} as Record<string, number>, season_breakdown: {} as Record<string, any>, year_totals: {} as Record<string, Record<string, number>> }
+    ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, trust_in_arable_area: 0, trust_in_cash_crop_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_reference: {} as Record<string, number>, season_breakdown: {} as Record<string, any>, year_totals: {} as Record<string, Record<string, number>>, year_apply_totals: {} as Record<string, Record<string, number>>, year_payment_totals: {} as Record<string, Record<string, number>> }
     : (detail.area_usage || defaultAreaUsage)
 
   // 不同季节不跨季累加，取单季最大面积作为概览
@@ -366,9 +368,8 @@ export function HouseholdDetailContent({
                 } else {
                   // 指定年份：从 year_totals 中获取
                   yearUsedArea = areaUsage.year_totals?.[String(areaYear)]?.[season] || 0
-                  // 注意：这里我们需要从 season_breakdown 中获取 apply_area 和 payment_area
-                  yearApplyArea = usage.apply_area || 0
-                  yearPaymentArea = usage.payment_area || 0
+                  yearApplyArea = areaUsage.year_apply_totals?.[String(areaYear)]?.[season] || 0
+                  yearPaymentArea = areaUsage.year_payment_totals?.[String(areaYear)]?.[season] || 0
                 }
                 const seasonRef = usage.reference_area ?? (areaUsage.season_reference?.[season]) ?? areaUsage.cultivable_area ?? areaUsage.contracted_area
                 const pct = seasonRef > 0 ? Math.round(yearUsedArea / seasonRef * 100) : 0

@@ -32,6 +32,7 @@ type StatsType = {
   id: number
   subsidy_name: string
   subsidy_year: number
+  season: string | null
   calc_mode: 'fixed' | 'per_mu' | undefined
   standard_amount: string | null
   standard_unit: string | null
@@ -1003,7 +1004,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
               </div>
             </div>
 
-            {getPrecheckTableConfigs().map(config => {
+            {getPrecheckTableConfigs(subsidyType.season).map(config => {
               const data = preCheckResults[config.field] as any[]
               if (!data || data.length === 0) return null
               return (

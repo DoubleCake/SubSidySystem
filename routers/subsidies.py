@@ -754,6 +754,7 @@ def precheck_applications(
     new_farmers: list[dict] = []
     removed_farmers: list[dict] = []
     ok_rows: list[dict] = []
+    error_row_set: set[int] = set()  # 有问题的行号集合（去重用）
     seen_id_cards: dict[str, int] = {}
     seen_household_members: dict[int, list[dict]] = {}  # household_id -> [{id_card, row_no, name}]
 
@@ -795,6 +796,7 @@ def precheck_applications(
                 "errors": row_errors,
                 "error_count": len(row_errors),
             })
+            error_row_set.add(row_no)
             continue
 
         # Excel内部重复身份证
@@ -804,11 +806,15 @@ def precheck_applications(
                 "village": village, "group": group,
                 "error": f"身份证号与第{seen_id_cards[id_card]}行重复"
             })
+            error_row_set.add(row_no)
             continue
         seen_id_cards[id_card] = row_no
 
+        row_has_warning = False  # 标记本行是否有任何异常（不入 ok_rows）
+
         # 数据库已有申请记录重复
         if id_card in db_existing_app_id_cards:
+            row_has_warning = True
             existing_apps = db_existing_app_id_cards[id_card]
             apps_summary = "；".join([
                 f"{app['real_name']}({app['subsidy_name']}-{app['status']})" +
@@ -824,6 +830,7 @@ def precheck_applications(
 
         # 错误库交叉比对（身份证+姓名同时匹配）
         if (id_card.strip().upper(), name.strip()) in error_lib:
+            row_has_warning = True
             lib_rec = error_lib[(id_card.strip().upper(), name.strip())]
             error_library_hits.append({
                 "row": row_no, "name": name, "id_card": id_card,
@@ -839,6 +846,7 @@ def precheck_applications(
             gender_from_id = parse_gender_from_id(id_card)
             gender_from_excel = 1 if gender_text in ("男", "1", "male") else (2 if gender_text in ("女", "2", "female") else 0)
             if gender_from_excel != 0 and gender_from_id != 0 and gender_from_excel != gender_from_id:
+                row_has_warning = True
                 gender_mismatch.append({
                     "row": row_no, "name": name, "id_card": id_card,
                     "village": village, "group": group,
@@ -891,6 +899,7 @@ def precheck_applications(
         )
 
         if anomaly_result["anomaly_type"]:
+            row_has_warning = True
             area_anomalies.append({
                 "row": row_no, "name": name, "id_card": id_card,
                 "village": village, "group": group,
@@ -905,11 +914,14 @@ def precheck_applications(
                 "hh_used": anomaly_result["hh_used"],                     # 户级当季已有申请面积
                 "hh_total": anomaly_result["hh_total"],                    # 户级累计（已有+本行）
                 "db_contract_area": anomaly_result["db_contract_area"] if "db_contract_area" in anomaly_result else db_contract_area_val,  # 数据库承包地（基准）
+                "reference_area": anomaly_result["reference_area"],       # 参考上限（可申报面积）
+                "area_source": anomaly_result.get("area_source", ""),     # 参考面积来源说明
                 "exceed_amount": anomaly_result["exceed_amount"],         # 超出量（如果有）
             })
 
         # 承包面积缺失检查
         if land_area is not None and (db_contract_area_val is None or db_contract_area_val == 0):
+            row_has_warning = True
             area_missing.append({
                 "row": row_no, "name": name, "id_card": id_card,
                 "village": village, "group": group,
@@ -923,6 +935,7 @@ def precheck_applications(
                 birth_year = int(id_card[6:10])
                 age = 2026 - birth_year
                 if age < 16 or age > 100:
+                    row_has_warning = True
                     age_anomaly.append({
                         "row": row_no, "name": name, "id_card": id_card,
                         "village": village, "group": group,
@@ -943,6 +956,7 @@ def precheck_applications(
 
         # 受限身份检查（公务员/事业人员等不可享受补贴）
         if id_card in db_farmers and db_farmers[id_card].get("restricted_identity") == 1:
+            row_has_warning = True
             restricted_farmers.append({
                 "row": row_no, "name": name, "id_card": id_card,
                 "village": village, "group": group,
@@ -983,7 +997,7 @@ def precheck_applications(
                     "changes": changes,
                     "farmer_id": db_f["id"],
                 })
-            else:
+            elif not row_has_warning:
                 ok_rows.append({"row": row_no, "name": name, "id_card": id_card})
         else:
             # 数据库中没有，本次是新增
@@ -991,6 +1005,9 @@ def precheck_applications(
                 "row": row_no, "name": name, "id_card": id_card,
                 "village": village, "group": group,
             })
+
+        if row_has_warning:
+            error_row_set.add(row_no)
 
     # 数据库中存在但Excel中没有的：减少的农户
     excel_id_cards = set(seen_id_cards.keys())
@@ -1024,13 +1041,13 @@ def precheck_applications(
                     "error": f"同一家庭户有{len(members)}人同时申请",
                 })
 
-    error_rows = (
-        len(format_errors) + len(village_errors) + len(duplicate_errors)
-        + len(gender_mismatch) + len(error_library_hits) + len(area_anomalies)
-        + len(area_missing) + len(age_anomaly) + len(deceased_farmers)
-        + len(restricted_farmers)
-        + len(household_duplicates) + len(db_duplicate_apps)
-    )
+    # 从 ok_rows 中移除 household_duplicates 涉及的行，并记入错误集合
+    if household_duplicates:
+        hh_dup_rows = {hd["row"] for hd in household_duplicates}
+        ok_rows = [r for r in ok_rows if r["row"] not in hh_dup_rows]
+        error_row_set.update(hh_dup_rows)
+
+    error_rows = len(error_row_set)
     summary = {
         "total_rows": len(rows_data),
         "ok_rows": len(ok_rows),
