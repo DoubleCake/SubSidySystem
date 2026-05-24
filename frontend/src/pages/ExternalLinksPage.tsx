@@ -31,7 +31,7 @@ const TAGS_PRESET = ['年度核查','补贴核验','重复申领排查','死亡�
 
 export default function ExternalLinksPage() {
   const { toast, show } = useToast()
-  const [tab, setTab] = useState<'sites'|'search'|'records'>('sites')
+  const [tab, setTab] = useState<'sites'|'search'|'records'>('search')
 
   // ── 网站 ──
   const [sites, setSites] = useState<Site[]>([])
@@ -186,7 +186,7 @@ export default function ExternalLinksPage() {
     <div>
       {/* Tab */}
       <div className="flex items-center gap-2 mb-4">
-        {[{id:'sites',label:'🌐 外部网站'},{id:'search',label:'🔍 系统内查询'},{id:'records',label:'📝 查询记录'}].map(t=>(
+        {[{id:'search',label:'🔍 系统内查询'},{id:'records',label:'📝 查询记录'},{id:'sites',label:'🌐 外部网站'}].map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id as typeof tab)}
             className={`px-4 py-2 text-sm rounded-btn border transition-colors ${tab===t.id?'bg-primary  border-emerald-700':'bg-white border-border text-text-primary hover:border-border'}`}>
             {t.label}
