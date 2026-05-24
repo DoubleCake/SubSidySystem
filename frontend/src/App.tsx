@@ -17,7 +17,7 @@ import LargeFarmersPage from './pages/LargeFarmersPage'
 import ProjectProgressPage from './pages/ProjectProgressPage'
 import WorkflowDocPage from './pages/WorkflowDocPage'
 import UserManagementPage from './pages/UserManagementPage'
-import LoginPage, { getAuth, clearAuth } from './pages/LoginPage'
+import LoginPage, { getAuth, clearAuth, isAuthDisabled, setAuthDisabled } from './pages/LoginPage'
 import { healthCheck } from './api'
 import { useState } from 'react'
 import { QUOTES } from './utils/quotes'
@@ -55,15 +55,25 @@ const settingNavSystem = [  // 系统
 function Layout() {
   const auth = getAuth()
   const [online, setOnline]       = useState<boolean | null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
   const navigate    = useNavigate()
   const location    = useLocation()
 
-  // 鉴权：非登录页且未登录则跳转
+  // 启动时检测认证状态（与 LoginPage 共享模块变量）
   useEffect(() => {
-    if (!auth && location.pathname !== '/login') navigate('/login', { replace: true })
-  }, [auth, location.pathname, navigate])
+    fetch('/api/auth/status')
+      .then(r => r.json())
+      .then(data => { setAuthDisabled(!data.auth_enabled); setAuthChecked(true) })
+      .catch(() => setAuthChecked(true))
+  }, [])
+
+  // 鉴权：非登录页且未登录则跳转（认证关闭时跳过）
+  useEffect(() => {
+    if (!authChecked) return
+    if (!isAuthDisabled() && !auth && location.pathname !== '/login') navigate('/login', { replace: true })
+  }, [auth, location.pathname, navigate, authChecked])
 
   const isSettings = location.pathname.startsWith('/settings')
 

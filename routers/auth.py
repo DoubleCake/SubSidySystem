@@ -1,6 +1,8 @@
 """
 认证模块：JWT 登录 / 密码管理 / 用户管理
+支持 AUTH_DISABLED 环境变量开关，设为 1/true/yes 可跳过登录
 """
+import os
 import bcrypt
 import jwt
 from datetime import datetime, timedelta
@@ -18,6 +20,8 @@ router = APIRouter(prefix="/api/auth", tags=["认证"])
 JWT_SECRET = "subsidy-system-jwt-secret-change-in-production"
 JWT_ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 24
+
+AUTH_DISABLED = os.getenv("AUTH_DISABLED", "").lower() in ("1", "true", "yes")
 
 security = HTTPBearer(auto_error=False)
 
@@ -53,6 +57,17 @@ def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
+    # ── 认证关闭模式：返回虚拟管理员用户 ──
+    if AUTH_DISABLED:
+        dummy = User(
+            id=0,
+            username="local",
+            display_name="本地用户",
+            role="admin",
+            is_active=True,
+        )
+        return dummy
+
     if not credentials:
         raise HTTPException(status_code=401, detail="未登录")
     try:
@@ -75,6 +90,15 @@ def get_admin_user(current: User = Depends(get_current_user)) -> User:
     if current.role != "admin":
         raise HTTPException(status_code=403, detail="需要管理员权限")
     return current
+
+
+# ── 认证状态 ──
+@router.get("/status")
+def auth_status():
+    return {
+        "auth_enabled": not AUTH_DISABLED,
+        "message": "认证已关闭（本地模式）" if AUTH_DISABLED else "认证已开启",
+    }
 
 
 # ── 登录 ──
