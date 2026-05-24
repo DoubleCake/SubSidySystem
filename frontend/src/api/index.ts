@@ -8,14 +8,15 @@ import type {
   HouseholdCreate, MemberCreate, MemberUpdate, MemberMoveRequest,
   SubsidyProxyOut, SubsidyProxyCreate, CheckConfig,
 } from '../types'
+import { getAuth } from '../pages/LoginPage'
 
 const BASE = ''
 
 async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const r = await fetch(BASE + path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...opts,
-  })
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const auth = getAuth()
+  if (auth) headers['Authorization'] = `Bearer ${auth.token}`
+  const r = await fetch(BASE + path, { headers, ...opts })
   if (!r.ok) {
     const e = await r.json().catch(() => ({})) as { detail?: string }
     throw new Error(e.detail || `请求失败 ${r.status}`)

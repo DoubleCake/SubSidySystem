@@ -16,6 +16,8 @@ import AgriTaskPage from './pages/AgriTaskPage'
 import LargeFarmersPage from './pages/LargeFarmersPage'
 import ProjectProgressPage from './pages/ProjectProgressPage'
 import WorkflowDocPage from './pages/WorkflowDocPage'
+import UserManagementPage from './pages/UserManagementPage'
+import LoginPage, { getAuth, clearAuth } from './pages/LoginPage'
 import { healthCheck } from './api'
 import { useState } from 'react'
 import { QUOTES } from './utils/quotes'
@@ -46,15 +48,22 @@ const settingNavData = [  // 数据工具
 ]
 
 const settingNavSystem = [  // 系统
+  { to: '/settings/users',          label: '用户管理',   icon: 'person' as const },
   { to: '/settings/backup',         label: '备份迁移',   icon: 'download' as const },
 ]
 
 function Layout() {
+  const auth = getAuth()
   const [online, setOnline]       = useState<boolean | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
   const navigate    = useNavigate()
   const location    = useLocation()
+
+  // 鉴权：非登录页且未登录则跳转
+  useEffect(() => {
+    if (!auth && location.pathname !== '/login') navigate('/login', { replace: true })
+  }, [auth, location.pathname, navigate])
 
   const isSettings = location.pathname.startsWith('/settings')
 
@@ -118,6 +127,14 @@ function Layout() {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
+            {auth && (
+              <>
+                <span className="text-white/70 text-xs">{auth.display_name}</span>
+                <button onClick={() => { clearAuth(); navigate('/login') }}
+                  className="text-white/50 hover:text-white text-xs">退出</button>
+                <div className="w-px h-5 bg-white/20" />
+              </>
+            )}
             {/* 设置下拉 */}
             <div className="relative" ref={settingsRef}>
               <button onClick={() => setSettingsOpen(o => !o)}
@@ -229,6 +246,7 @@ function Layout() {
       <main className="flex-1">
         <div className="max-w-screen-xl mx-auto px-6 py-6 pb-10">
           <Routes>
+            <Route path="/login" element={<LoginPage />} />
             <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
             <Route path="/farmers"   element={<FarmersPage />} />
             <Route path="/projects"  element={<SubsidyProjectsPage />} />
@@ -244,6 +262,7 @@ function Layout() {
             <Route path="/settings/household-import" element={<HouseholdImportPage />} />
             <Route path="/settings/family-relation-import" element={<FamilyRelationImportPage />} />
             <Route path="/settings/large-farmers" element={<LargeFarmersPage />} />
+            <Route path="/settings/users" element={<UserManagementPage />} />
             <Route path="/proxy/application/:applicationId" element={<ProxyManagePage />} />
             <Route path="/workflow" element={<WorkflowDocPage />} />
             {/* 404 fallback */}

@@ -1,7 +1,7 @@
 from sqlalchemy import (
     Column, Integer, String, SmallInteger, Date,
     DateTime, Text, DECIMAL, Numeric, ForeignKey,
-    UniqueConstraint, Index, CheckConstraint
+    UniqueConstraint, Index, CheckConstraint, Boolean
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -933,3 +933,17 @@ class ProjectProgress(Base):
 
     subsidy_type = relationship("SubsidyType", backref="progress_records")
     village      = relationship("Village")
+
+
+class User(Base):
+    """系统用户表"""
+    __tablename__ = "user"
+
+    id           = Column(Integer, primary_key=True, autoincrement=True)
+    username     = Column(String(50), nullable=False, unique=True, comment="用户名")
+    password_hash= Column(String(128), nullable=False, comment="bcrypt 哈希")
+    display_name = Column(String(30), nullable=True, comment="显示名称")
+    role         = Column(String(20), nullable=False, default="operator", comment="admin/operator")
+    is_active    = Column(Boolean, nullable=False, default=True, comment="是否启用")
+    last_login   = Column(DateTime, nullable=True, comment="最后登录时间")
+    created_at   = Column(DateTime, default=func.now())
