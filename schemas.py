@@ -84,10 +84,13 @@ class FarmerCreate(BaseModel):
     address: Optional[str] = None
     contract_area: Optional[Decimal] = None
     farmer_status: int = 1
+    restricted_identity: int = 0
     remark: Optional[str] = None
 
 class FarmerUpdate(BaseModel):
     real_name: Optional[str] = None
+    gender: Optional[int] = None
+    id_card: Optional[str] = None
     phone: Optional[str] = None
     bank_card: Optional[str] = None
     bank_name: Optional[str] = None
@@ -96,6 +99,7 @@ class FarmerUpdate(BaseModel):
     address: Optional[str] = None
     contract_area: Optional[Decimal] = None
     farmer_status: Optional[int] = None
+    restricted_identity: Optional[int] = None
     remark: Optional[str] = None
 
 class FarmerOut(BaseModel):
@@ -110,6 +114,7 @@ class FarmerOut(BaseModel):
     is_head: int                     # 动态计算：household.head_farmer_id == id
     relation: Optional[str]
     farmer_status: int
+    restricted_identity: int
     village_full_name: str             # 冗余展示用
     contract_area: Optional[Decimal]
     address: Optional[str]
@@ -130,6 +135,7 @@ class FarmerDetail(FarmerOut):
 class SubsidyTypeCreate(BaseModel):
     subsidy_name: str
     subsidy_year: int
+    season: str = "耕地地力保护"
     calc_mode: str = "fixed"
     standard_amount: Optional[Decimal] = None
     standard_unit: Optional[str] = None
@@ -144,6 +150,7 @@ class SubsidyTypeOut(BaseModel):
     id: int
     subsidy_name: str
     subsidy_year: int
+    season: Optional[str]
     standard_amount: Optional[Decimal]
     standard_unit: Optional[str]
     fund_source: Optional[str]

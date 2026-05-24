@@ -14,7 +14,8 @@ from datetime import date as date_type, datetime
 from decimal import Decimal
 
 from database import get_db
-from models import LandTrust, FamilyHousehold
+from models import LandTrust, FamilyHousehold, Village, VillageGroup, FarmerProfile
+from services.subsidy_service import recalc_household_cache
 
 router = APIRouter(prefix="/api/land", tags=["土地信息"])
 
@@ -75,13 +76,23 @@ def list_trusts(
 
     sql = f"""
         SELECT lt.*,
-               oh.household_name AS owner_name,
-               oh.household_code AS owner_code,
-               op.household_name AS operator_name,
-               op.household_code AS operator_code
+               oh.household_name AS hh_owner_name,
+               oh.household_code AS hh_owner_code,
+               ov.village_name AS v_owner_name,
+               vg.village_name || vgg.group_no AS vg_owner_name,
+               op.household_name AS hh_operator_name,
+               op.household_code AS hh_operator_code,
+               opv.village_name AS v_operator_name,
+               opvg.village_name || opvgg.group_no AS vg_operator_name
         FROM land_trust lt
         LEFT JOIN family_household oh ON oh.id = lt.owner_household_id
+        LEFT JOIN village ov ON ov.id = lt.owner_entity_id
+        LEFT JOIN village_group vgg ON vgg.id = lt.owner_entity_id
+        LEFT JOIN village vg ON vg.id = vgg.village_id
         LEFT JOIN family_household op ON op.id = lt.operator_household_id
+        LEFT JOIN village opv ON opv.id = lt.operator_entity_id
+        LEFT JOIN village_group opvgg ON opvgg.id = lt.operator_entity_id
+        LEFT JOIN village opvg ON opvg.id = opvgg.village_id
         WHERE {base_where}
         ORDER BY lt.trust_year DESC, lt.id DESC
         LIMIT :lim OFFSET :off
@@ -101,11 +112,23 @@ def get_trust(trust_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "记录不存在")
     row = db.execute(text("""
         SELECT lt.*,
-               oh.household_name AS owner_name, oh.household_code AS owner_code,
-               op.household_name AS operator_name, op.household_code AS operator_code
+               oh.household_name AS hh_owner_name,
+               oh.household_code AS hh_owner_code,
+               ov.village_name AS v_owner_name,
+               vg.village_name || vgg.group_no AS vg_owner_name,
+               op.household_name AS hh_operator_name,
+               op.household_code AS hh_operator_code,
+               opv.village_name AS v_operator_name,
+               opvg.village_name || opvgg.group_no AS vg_operator_name
         FROM land_trust lt
         LEFT JOIN family_household oh ON oh.id = lt.owner_household_id
+        LEFT JOIN village ov ON ov.id = lt.owner_entity_id
+        LEFT JOIN village_group vgg ON vgg.id = lt.owner_entity_id
+        LEFT JOIN village vg ON vg.id = vgg.village_id
         LEFT JOIN family_household op ON op.id = lt.operator_household_id
+        LEFT JOIN village opv ON opv.id = lt.operator_entity_id
+        LEFT JOIN village_group opvgg ON opvgg.id = lt.operator_entity_id
+        LEFT JOIN village opvg ON opvg.id = opvgg.village_id
         WHERE lt.id = :id
     """), {"id": trust_id}).fetchone()
     return _trust_out(row)
@@ -113,21 +136,53 @@ def get_trust(trust_id: int, db: Session = Depends(get_db)):
 
 @router.post("/trusts")
 def create_trust(data: dict, db: Session = Depends(get_db)):
-    # 验证流出方必须存在
-    owner_id = data.get("owner_household_id")
-    if not owner_id:
-        raise HTTPException(400, "请指定流出方（承包人家庭户）")
-    if not db.get(FamilyHousehold, owner_id):
-        raise HTTPException(404, "流出方家庭户不存在")
+    owner_type = data.get("owner_type", "household")
+    operator_type = data.get("operator_type", "household")
+
+    # 验证流出方
+    if owner_type == "household":
+        owner_id = data.get("owner_household_id")
+        if not owner_id:
+            raise HTTPException(400, "家庭户流出方请指定家庭户")
+        if not db.get(FamilyHousehold, owner_id):
+            raise HTTPException(404, "流出方家庭户不存在")
+        owner_entity_id = None
+    elif owner_type == "village":
+        owner_entity_id = data.get("owner_entity_id")
+        if not owner_entity_id:
+            raise HTTPException(400, "请指定流出方村")
+        if not db.get(Village, owner_entity_id):
+            raise HTTPException(404, "流出方村不存在")
+        owner_id = None
+    elif owner_type == "village_group":
+        owner_entity_id = data.get("owner_entity_id")
+        if not owner_entity_id:
+            raise HTTPException(400, "请指定流出方村组")
+        if not db.get(VillageGroup, owner_entity_id):
+            raise HTTPException(404, "流出方村组不存在")
+        owner_id = None
+    else:
+        raise HTTPException(400, f"不支持的流出方类型: {owner_type}")
 
     year = data.get("trust_year")
     if not year:
         raise HTTPException(400, "请指定流转年度")
 
-    # operator 可以为空（撂荒/集体时）
-    op_id = data.get("operator_household_id")
-    if op_id and not db.get(FamilyHousehold, op_id):
-        raise HTTPException(404, "流入方家庭户不存在")
+    # 验证流入方
+    op_id = None
+    op_entity_id = None
+    if operator_type == "household":
+        op_id = data.get("operator_household_id")
+        if op_id and not db.get(FamilyHousehold, op_id):
+            raise HTTPException(404, "流入方家庭户不存在")
+    elif operator_type == "village":
+        op_entity_id = data.get("operator_entity_id")
+        if op_entity_id and not db.get(Village, op_entity_id):
+            raise HTTPException(404, "流入方村不存在")
+    elif operator_type == "village_group":
+        op_entity_id = data.get("operator_entity_id")
+        if op_entity_id and not db.get(VillageGroup, op_entity_id):
+            raise HTTPException(404, "流入方村组不存在")
 
     # 日期处理
     start = data.get("start_date")
@@ -140,11 +195,16 @@ def create_trust(data: dict, db: Session = Depends(get_db)):
         except: end = None
 
     trust = LandTrust(
+        owner_type            = owner_type,
         owner_household_id    = owner_id,
+        owner_entity_id       = owner_entity_id,
+        operator_type         = operator_type,
         operator_household_id = op_id,
+        operator_entity_id    = op_entity_id,
         trust_type            = data.get("trust_type", "ENTRUST"),
         area                  = Decimal(str(data["area"])) if data.get("area") else None,
         trust_year            = int(year),
+        trust_end_year        = data.get("trust_end_year") or None,
         start_date            = start,
         end_date              = end,
         annual_fee            = Decimal(str(data["annual_fee"])) if data.get("annual_fee") else None,
@@ -153,11 +213,25 @@ def create_trust(data: dict, db: Session = Depends(get_db)):
         parcel_desc           = data.get("parcel_desc"),
         data_reliability      = data.get("data_reliability", "VILLAGE_CONFIRM"),
         affect_subsidy_calc   = int(data.get("affect_subsidy_calc", 1)),
+        subsidy_arable        = int(data.get("subsidy_arable", 1)),
+        subsidy_cash_crop     = int(data.get("subsidy_cash_crop", 1)),
         note                  = data.get("note"),
         operator              = data.get("operator"),
     )
     db.add(trust); db.commit(); db.refresh(trust)
+    _refresh_trust_households(db, trust)
     return {"id": trust.id, "message": "创建成功"}
+
+
+def _refresh_trust_households(db: Session, trust: LandTrust) -> None:
+    """流转记录变更后刷新关联家庭户的面积缓存"""
+    hh_ids = set()
+    if trust.owner_household_id:
+        hh_ids.add(trust.owner_household_id)
+    if trust.operator_household_id:
+        hh_ids.add(trust.operator_household_id)
+    if hh_ids:
+        recalc_household_cache(db, list(hh_ids))
 
 
 @router.put("/trusts/{trust_id}")
@@ -166,10 +240,12 @@ def update_trust(trust_id: int, data: dict, db: Session = Depends(get_db)):
     if not trust or not trust.is_active:
         raise HTTPException(404, "记录不存在")
 
-    updatable = ["trust_type", "area", "trust_year", "start_date", "end_date",
+    updatable = ["trust_type", "area", "trust_year", "trust_end_year", "start_date", "end_date",
                  "annual_fee", "payment_method", "fee_note", "parcel_desc",
-                 "data_reliability", "affect_subsidy_calc", "note",
-                 "owner_household_id", "operator_household_id",
+                 "data_reliability", "affect_subsidy_calc",
+                 "subsidy_arable", "subsidy_cash_crop", "note",
+                 "owner_type", "owner_household_id", "owner_entity_id",
+                 "operator_type", "operator_household_id", "operator_entity_id",
                  "verified_by", "verified_date"]
 
     for k in updatable:
@@ -183,6 +259,7 @@ def update_trust(trust_id: int, data: dict, db: Session = Depends(get_db)):
         setattr(trust, k, v)
 
     db.commit()
+    _refresh_trust_households(db, trust)
     return {"message": "更新成功"}
 
 
@@ -191,11 +268,41 @@ def delete_trust(trust_id: int, db: Session = Depends(get_db)):
     trust = db.get(LandTrust, trust_id)
     if not trust: raise HTTPException(404, "记录不存在")
     trust.is_active = 0; db.commit()
+    _refresh_trust_households(db, trust)
     return {"message": "已删除"}
 
 
 def _trust_out(row) -> dict:
     d = dict(row._mapping)
+    # 根据 owner_type 解析流出方显示名称
+    ot = d.get("owner_type", "household")
+    if ot == "village":
+        d["owner_name"] = d.pop("v_owner_name", "") or ""
+        d["owner_code"] = ""
+    elif ot == "village_group":
+        d["owner_name"] = d.pop("vg_owner_name", "") or ""
+        d["owner_code"] = ""
+    else:
+        d["owner_name"] = d.pop("hh_owner_name", "") or ""
+        d["owner_code"] = d.pop("hh_owner_code", "") or ""
+
+    # 根据 operator_type 解析流入方显示名称
+    opt = d.get("operator_type", "household")
+    if opt == "village":
+        d["operator_name"] = d.pop("v_operator_name", "") or ""
+        d["operator_code"] = ""
+    elif opt == "village_group":
+        d["operator_name"] = d.pop("vg_operator_name", "") or ""
+        d["operator_code"] = ""
+    else:
+        d["operator_name"] = d.pop("hh_operator_name", "") or ""
+        d["operator_code"] = d.pop("hh_operator_code", "") or ""
+
+    # 清理残留的原始列
+    for k in ("hh_owner_name", "hh_owner_code", "v_owner_name", "vg_owner_name",
+              "hh_operator_name", "hh_operator_code", "v_operator_name", "vg_operator_name"):
+        d.pop(k, None)
+
     d["trust_type_label"]    = TRUST_TYPE_LABEL.get(d.get("trust_type",""), d.get("trust_type",""))
     d["reliability_label"]   = RELIABILITY_LABEL.get(d.get("data_reliability",""), "")
     # 数值字段转 float
@@ -231,7 +338,7 @@ def get_area_summary(
 
     contracted = float(hh.contract_area or 0)
 
-    # ── 流出面积（该户是 owner，把地给别人种）──
+    # ── 流出面积（该户是 owner，把地给别人种，接收方可以是家庭户/村/村组）──
     out_rows = db.execute(text("""
         SELECT COALESCE(SUM(area), 0) AS total_out,
                COUNT(*) AS cnt,
@@ -241,8 +348,9 @@ def get_area_summary(
           AND trust_year = :yr
           AND is_active = 1
           AND affect_subsidy_calc = 1
-          AND trust_type != 'IDLE'       -- 撂荒不算流出（地还是自己的，只是没种）
-          AND operator_household_id IS NOT NULL  -- 有明确接收方才算流出
+          AND trust_type != 'IDLE'
+          AND (operator_household_id IS NOT NULL
+               OR (operator_type IN ('village', 'village_group') AND operator_entity_id IS NOT NULL))
     """), {"hid": household_id, "yr": year}).fetchone()
     total_out = float(out_rows.total_out or 0)
 
@@ -253,12 +361,37 @@ def get_area_summary(
                GROUP_CONCAT(oh.household_name) AS from_names
         FROM land_trust lt
         LEFT JOIN family_household oh ON oh.id = lt.owner_household_id
-        WHERE lt.operator_household_id = :hid
+        WHERE lt.operator_type = 'household'
+          AND lt.operator_household_id = :hid
           AND lt.trust_year = :yr
           AND lt.is_active = 1
           AND lt.affect_subsidy_calc = 1
     """), {"hid": household_id, "yr": year}).fetchone()
     total_in = float(in_rows.total_in or 0)
+
+    # ── 流入面积细分：耕地地力补贴享受（计入单领面积）──
+    in_arable = db.execute(text("""
+        SELECT COALESCE(SUM(area), 0) AS arable_area
+        FROM land_trust
+        WHERE operator_type = 'household'
+          AND operator_household_id = :hid
+          AND trust_year = :yr
+          AND is_active = 1
+          AND affect_subsidy_calc = 1
+          AND subsidy_arable = 1
+    """), {"hid": household_id, "yr": year}).scalar() or 0
+
+    # ── 流入面积细分：经济作物补贴享受（计入大春小春）──
+    in_cash_crop = db.execute(text("""
+        SELECT COALESCE(SUM(area), 0) AS cash_crop_area
+        FROM land_trust
+        WHERE operator_type = 'household'
+          AND operator_household_id = :hid
+          AND trust_year = :yr
+          AND is_active = 1
+          AND affect_subsidy_calc = 1
+          AND subsidy_cash_crop = 1
+    """), {"hid": household_id, "yr": year}).scalar() or 0
 
     # ── 撂荒面积（流出但没有接收方，或显式标记 IDLE）──
     idle_rows = db.execute(text("""
@@ -267,7 +400,9 @@ def get_area_summary(
         WHERE owner_household_id = :hid
           AND trust_year = :yr
           AND is_active = 1
-          AND (trust_type = 'IDLE' OR operator_household_id IS NULL)
+          AND (trust_type = 'IDLE'
+               OR (operator_type = 'household' AND operator_household_id IS NULL
+                   AND operator_entity_id IS NULL))
     """), {"hid": household_id, "yr": year}).fetchone()
     total_idle = float(idle_rows.total_idle or 0)
 
@@ -294,7 +429,6 @@ def get_area_summary(
               AND sa.apply_year = :yr
               AND sa.apply_area IS NOT NULL
               AND sa.pay_status != 3
-              AND st.calc_mode = 'per_mu'
               AND st.count_toward_area = 1
             GROUP BY st.id
         """), {"yr": year}).fetchall()
@@ -316,6 +450,7 @@ def get_area_summary(
     trust_detail = db.execute(text("""
         SELECT lt.id, lt.trust_type, lt.area, lt.data_reliability,
                lt.parcel_desc, lt.annual_fee, lt.payment_method,
+               lt.subsidy_arable, lt.subsidy_cash_crop,
                oh.household_name AS owner_name,
                op.household_name AS operator_name
         FROM land_trust lt
@@ -332,7 +467,9 @@ def get_area_summary(
         # 面积三件套
         "contracted_area": contracted,          # 承包面积（权属）
         "trust_out_area":  round(total_out, 2), # 流出面积
-        "trust_in_area":   round(total_in, 2),  # 流入面积
+        "trust_in_area":      round(total_in, 2),      # 流入面积
+        "trust_in_arable_area":     round(float(in_arable or 0), 2),      # 流入面积（耕地地力补贴）
+        "trust_in_cash_crop_area":  round(float(in_cash_crop or 0), 2),   # 流入面积（经济作物补贴）
         "idle_area":       round(total_idle, 2), # 撂荒面积
         "cultivable_area": round(cultivable, 2), # 实际可耕种面积（用于超领判断）
         # 补贴申报
@@ -383,6 +520,34 @@ def trust_summary_by_year(year: int = Query(...), db: Session = Depends(get_db))
 #  家庭户搜索（用于选择流入/流出方）
 # ══════════════════════════════════════
 
+@router.get("/search-village")
+def search_village(q: str = Query("", min_length=0), db: Session = Depends(get_db)):
+    """搜索村，用于流转记录的流出/流入方选择"""
+    rows = db.execute(text("""
+        SELECT id, village_name
+        FROM village
+        WHERE village_name LIKE :q
+        ORDER BY village_name
+        LIMIT 20
+    """), {"q": f"%{q}%"}).fetchall()
+    return [dict(r._mapping) for r in rows]
+
+
+@router.get("/search-village-group")
+def search_village_group(q: str = Query("", min_length=0), db: Session = Depends(get_db)):
+    """搜索村组，用于流转记录的流出/流入方选择"""
+    rows = db.execute(text("""
+        SELECT vg.id, v.village_name, vg.group_no,
+               v.village_name || vg.group_no AS full_name
+        FROM village_group vg
+        JOIN village v ON v.id = vg.village_id
+        WHERE v.village_name || vg.group_no LIKE :q
+        ORDER BY v.village_name, vg.group_no
+        LIMIT 20
+    """), {"q": f"%{q}%"}).fetchall()
+    return [dict(r._mapping) for r in rows]
+
+
 @router.get("/search-household")
 def search_household(q: str = Query("", min_length=0), db: Session = Depends(get_db)):
     """快速搜索家庭户，用于流转记录的流入/流出方选择"""
@@ -413,58 +578,68 @@ def search_household(q: str = Query("", min_length=0), db: Session = Depends(get
 def list_all_trusts(
     year:         Optional[int] = Query(None, description="流转年度"),
     trust_type:   Optional[str] = Query(None),
-    source_type:  Optional[str] = Query(None, description="来源类型：normal普通大户 large_farmer"),
+    source_type:  Optional[str] = Query(None, description="来源类型"),
+    search:       Optional[str] = Query(None, description="搜索户名或村名"),
     page:         int = Query(1, ge=1),
     page_size:    int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
     """
-    查询所有流转记录，包含普通流转和大户流转。
-    source_type: normal=普通家庭户流转, large_farmer=大户流转, 不传=全部
+    查询所有流转记录。
+    search: 在流出方/流入方名称中模糊搜索
+    source_type: 已废弃，保留兼容
     """
     all_items = []
     total = 0
 
-    # 1. 查询普通家庭户流转
+    # 查询家庭户流转
     if source_type is None or source_type == "normal":
         normal_where = "lt.is_active = 1"
         params: dict = {}
 
         if year:
-            normal_where += " AND lt.trust_year=:yr"
+            normal_where += " AND (lt.trust_year = :yr OR (lt.trust_year <= :yr AND lt.trust_end_year IS NOT NULL AND lt.trust_end_year >= :yr))"
             params["yr"] = year
         if trust_type:
             normal_where += " AND lt.trust_type=:tt"
             params["tt"] = trust_type
+        # 搜索：在流出方和流入方名称中模糊匹配
+        if search:
+            normal_where += " AND (oh.household_name LIKE :s OR oh.household_code LIKE :s OR op.household_name LIKE :s OR op.household_code LIKE :s OR ov.village_name LIKE :s)"
+            params["s"] = f"%{search.strip()}%"
 
         normal_count_sql = f"SELECT COUNT(*) FROM land_trust lt WHERE {normal_where}"
         normal_total = db.execute(text(normal_count_sql), params).scalar() or 0
 
         normal_sql = f"""
             SELECT lt.*,
-                   oh.household_name AS owner_name,
-                   oh.household_code AS owner_code,
-                   op.household_name AS operator_name,
-                   op.household_code AS operator_code,
+                   oh.household_name AS hh_owner_name,
+                   oh.household_code AS hh_owner_code,
+                   ov.village_name AS v_owner_name,
+                   vg.village_name || vgg.group_no AS vg_owner_name,
+                   op.household_name AS hh_operator_name,
+                   op.household_code AS hh_operator_code,
+                   opv.village_name AS v_operator_name,
+                   opvg.village_name || opvgg.group_no AS vg_operator_name,
                    'normal' AS source_type,
                    '' AS large_farmer_name,
                    '' AS large_farmer_type
             FROM land_trust lt
             LEFT JOIN family_household oh ON oh.id = lt.owner_household_id
+            LEFT JOIN village ov ON ov.id = lt.owner_entity_id
+            LEFT JOIN village_group vgg ON vgg.id = lt.owner_entity_id
+            LEFT JOIN village vg ON vg.id = vgg.village_id
             LEFT JOIN family_household op ON op.id = lt.operator_household_id
+            LEFT JOIN village opv ON opv.id = lt.operator_entity_id
+            LEFT JOIN village_group opvgg ON opvgg.id = lt.operator_entity_id
+            LEFT JOIN village opvg ON opvg.id = opvgg.village_id
             WHERE {normal_where}
             ORDER BY lt.trust_year DESC, lt.id DESC
         """
         normal_rows = db.execute(text(normal_sql), params).fetchall()
 
         for r in normal_rows:
-            d = dict(r._mapping)
-            d["trust_type_label"] = TRUST_TYPE_LABEL.get(d.get("trust_type",""), d.get("trust_type",""))
-            d["reliability_label"] = RELIABILITY_LABEL.get(d.get("data_reliability",""), "")
-            for f in ("area", "annual_fee"):
-                if d.get(f) is not None:
-                    d[f] = float(d[f])
-            all_items.append(d)
+            all_items.append(_trust_out(r))
         total += normal_total
 
     # 2. 查询大户流转
@@ -574,3 +749,127 @@ def trust_summary_with_large(
         "year": year,
         "summary": list(summary_map.values()),
     }
+
+
+@router.post("/trusts/batch-renew")
+def batch_renew_trusts(payload: dict, db: Session = Depends(get_db)):
+    """批量续约流转记录，每条续到下一年"""
+    ids = payload.get("ids", [])
+    if not ids:
+        return {"created": 0}
+
+    created = 0
+    for trust_id in ids:
+        src = db.get(LandTrust, trust_id)
+        if not src or not src.is_active:
+            continue
+        new_year = src.trust_year + 1
+        # 检查目标年度是否已存在相同记录
+        exists = db.query(LandTrust).filter(
+            LandTrust.owner_household_id == src.owner_household_id,
+            LandTrust.operator_household_id == src.operator_household_id,
+            LandTrust.trust_type == src.trust_type,
+            LandTrust.trust_year == new_year,
+            LandTrust.is_active == 1,
+        ).first()
+        if exists:
+            continue
+        new_trust = LandTrust(
+            owner_type=src.owner_type, owner_household_id=src.owner_household_id,
+            owner_entity_id=src.owner_entity_id,
+            operator_type=src.operator_type, operator_household_id=src.operator_household_id,
+            operator_entity_id=src.operator_entity_id,
+            trust_type=src.trust_type, area=src.area,
+            trust_year=new_year, trust_end_year=None,
+            start_date=None, end_date=None,
+            annual_fee=src.annual_fee, payment_method=src.payment_method,
+            fee_note=src.fee_note, parcel_desc=src.parcel_desc,
+            data_reliability=src.data_reliability,
+            affect_subsidy_calc=src.affect_subsidy_calc,
+            subsidy_arable=src.subsidy_arable, subsidy_cash_crop=src.subsidy_cash_crop,
+            note=src.note, is_active=1,
+        )
+        db.add(new_trust)
+        created += 1
+
+    db.commit()
+    return {"created": created}
+
+
+@router.post("/trusts/batch-import-idle")
+def batch_import_idle(payload: dict, db: Session = Depends(get_db)):
+    """批量导入撂荒地记录（简化模板）"""
+    rows = payload.get("rows", [])
+    if not rows:
+        return {"created": 0, "skipped": 0, "errors": []}
+
+    created, skipped = 0, 0
+    errors: list[str] = []
+    affected_hh: set[int] = set()
+
+    for idx, row in enumerate(rows):
+        row_no = idx + 2
+        try:
+            # 解析流出方（查不到时自动创建）
+            hh_id = row.get("owner_household_id")
+            if not hh_id:
+                name = str(row.get("owner_name", "")).strip()
+                id_card = str(row.get("owner_id_card", "")).strip()
+                if id_card:
+                    f = db.query(FarmerProfile).filter(FarmerProfile.id_card == id_card).first()
+                    if f and f.household_id:
+                        hh_id = f.household_id
+                if not hh_id and name:
+                    hh = db.query(FamilyHousehold).filter(FamilyHousehold.household_name.like(f"%{name}%")).first()
+                    if hh:
+                        hh_id = hh.id
+                # 仍未找到且身份证有效，自动创建
+                if not hh_id and id_card and name:
+                    from services.household_service import quick_create_household
+                    try:
+                        r = quick_create_household(db, name, id_card)
+                        hh_id = r["household_id"]
+                    except Exception:
+                        pass
+                if not hh_id:
+                    errors.append(f"第{row_no}行 无法找到流出方: {name or id_card}")
+                    continue
+
+            area = float(row.get("area") or 0)
+            if area <= 0:
+                errors.append(f"第{row_no}行 面积无效")
+                continue
+
+            trust_year = int(row.get("trust_year") or 0)
+            if not trust_year:
+                errors.append(f"第{row_no}行 缺少年度")
+                continue
+
+            subsidy_arable = int(row.get("subsidy_arable", 1))
+
+            trust = LandTrust(
+                owner_type="household",
+                owner_household_id=hh_id,
+                operator_type="household",
+                operator_household_id=None,
+                trust_type="IDLE",
+                area=area,
+                trust_year=trust_year,
+                affect_subsidy_calc=1,
+                subsidy_arable=subsidy_arable,
+                subsidy_cash_crop=0,
+                data_reliability="VILLAGE_CONFIRM",
+                is_active=1,
+                note=str(row.get("note", "")).strip() or None,
+            )
+            db.add(trust)
+            affected_hh.add(hh_id)
+            created += 1
+        except Exception as e:
+            errors.append(f"第{row_no}行 {e}")
+
+    db.commit()
+    if affected_hh:
+        recalc_household_cache(db, list(affected_hh))
+
+    return {"created": created, "skipped": skipped, "errors": errors}

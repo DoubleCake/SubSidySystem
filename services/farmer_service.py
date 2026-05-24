@@ -17,12 +17,12 @@ from sqlalchemy.orm import Session
 
 from core.exceptions import NotFound, BadRequest
 from models import FarmerProfile, FamilyHousehold, Village
+from services.household_service import recalc_household_area_cache
 from utils import (
     mask_id_card, mask_phone, mask_bank_card,
     parse_id_card, gen_household_code,
     parse_group_no_to_int, format_group_no,
 )
-
 # ═══════════════════════════════════════════
 #  列表查询 —— SQL 模板
 # ═══════════════════════════════════════════
@@ -230,6 +230,16 @@ def update_farmer(db: Session, farmer_id: int, data: dict) -> dict:
     new_village_id = data.pop("village_id", None)
     new_group_no = data.pop("group_no", None)
 
+    # id_card 变更需校验唯一性
+    new_id_card = data.get("id_card")
+    if new_id_card and new_id_card != farmer.id_card:
+        existing = db.query(FarmerProfile).filter(
+            FarmerProfile.id_card == new_id_card,
+            FarmerProfile.id != farmer_id
+        ).first()
+        if existing:
+            raise BadRequest(f"身份证号 {new_id_card} 已被农户 {existing.real_name} 使用")
+
     hh_fields = {k: data.pop(k) for k in ("address", "contract_area") if k in data}
     for k, v in data.items():
         setattr(farmer, k, v)
@@ -254,6 +264,8 @@ def update_farmer(db: Session, farmer_id: int, data: dict) -> dict:
             hh.status = 3
 
     db.commit()
+    if farmer.household_id:
+        recalc_household_area_cache(farmer.household_id, db)
     return {"message": "更新成功"}
 
 
@@ -366,6 +378,8 @@ def deactivate_farmer(db: Session, farmer_id: int, status: int = 2) -> dict:
     if hh:
         hh.status = status
     db.commit()
+    if farmer.household_id:
+        recalc_household_area_cache(farmer.household_id, db)
     return {"message": "状态已更新"}
 
 

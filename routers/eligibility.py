@@ -197,9 +197,9 @@ def check_eligibility(payload: dict, db: Session = Depends(get_db)):
         # 面积超领检查（按季节分组）
         if apply_area and apply_area > 0 and hh and hh.contract_area:
             contracted = float(hh.contract_area)
-            season = st.season if st else "全年单补"
+            season = st.season if st else "耕地地力保护"
 
-            if season == "全年单补":
+            if season == "耕地地力保护":
                 # 单独计算，不累加其他补贴
                 if float(apply_area) > contracted:
                     issues.append(f"【超领】申请面积 {apply_area} 亩超出承包面积 {contracted:.2f} 亩")
@@ -221,7 +221,7 @@ def check_eligibility(payload: dict, db: Session = Depends(get_db)):
                     issues.append(f"【{season}超领】本季已用 {float(used_season):.2f} 亩 + 本次 {float(apply_area):.2f} 亩 = {total_after:.2f} 亩，超出承包面积 {contracted:.2f} 亩")
 
             elif season == "临时":
-                # 双重检查：季节组 + 全年单补单独检查
+                # 双重检查：季节组 + 耕地地力保护单独检查
                 used_season = db.execute(text("""
                     SELECT COALESCE(SUM(sa.apply_area), 0)
                     FROM subsidy_application sa
@@ -304,7 +304,7 @@ def get_rule_templates():
         },
         {
             "name": "耕地地力保护补贴",
-            "desc": "全年单补类型，单独计算面积，不与季节组累加",
+            "desc": "耕地地力保护类型，单独计算面积，不与季节组累加",
             "preset": {"rule_name": "耕地保护检查", "require_not_idle": 0}
         },
     ]

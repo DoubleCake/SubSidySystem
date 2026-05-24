@@ -26,12 +26,12 @@ export type PrecheckErrorType =
   | 'format_errors'
   | 'village_errors'
   | 'duplicate_errors'
-  | 'db_duplicate_apps'
   | 'gender_mismatch'
   | 'area_anomalies'
   | 'area_missing'
   | 'age_anomaly'
   | 'deceased_farmers'
+  | 'restricted_farmers'
   | 'household_duplicates' // 同一家庭多成员申请
   | 'new_farmers'
   | 'removed_farmers'
@@ -97,18 +97,6 @@ export const PRECHECK_TABLE_CONFIGS: Record<PrecheckErrorType, TableConfig> = {
     headers: ['行号', '姓名', '身份证号', '所在村', '所在组', '说明'],
     rowMapper: (r) => [
       r.row, r.name, r.id_card, r.village || '-', r.group || '-',
-      <span key="e" className="text-amber-600 text-xs">{r.error}</span>,
-    ],
-  },
-
-  // 数据库已有申请记录重复
-  db_duplicate_apps: {
-    field: 'db_duplicate_apps',
-    title: (count) => `⚠️ 数据库已有申请记录（${count}条）— 该人员本年度本季已有申请`,
-    headers: ['行号', '姓名', '身份证号', '所在村', '所在组', '已有申请记录', '说明'],
-    rowMapper: (r) => [
-      r.row, r.name, r.id_card, r.village || '-', r.group || '-',
-      <span key="ea" className="text-xs text-text-primary">{r.existing_apps}</span>,
       <span key="e" className="text-amber-600 text-xs">{r.error}</span>,
     ],
   },
@@ -183,6 +171,17 @@ export const PRECHECK_TABLE_CONFIGS: Record<PrecheckErrorType, TableConfig> = {
     ],
   },
 
+  // 受限身份
+  restricted_farmers: {
+    field: 'restricted_farmers',
+    title: (count) => `🚫 受限身份农户（${count}条）— 该农户标记为受限身份（公务员/事业人员等），不可享受补贴`,
+    headers: ['行号', '姓名', '身份证号', '所在村', '所在组', '说明'],
+    rowMapper: (r) => [
+      r.row, r.name, r.id_card, r.village, r.group,
+      <span key="e" className="text-red-600 text-xs">{r.error}</span>,
+    ],
+  },
+
   // 同一家庭多成员申请
   household_duplicates: {
     field: 'household_duplicates',
@@ -245,22 +244,39 @@ export const PRECHECK_TABLE_CONFIGS: Record<PrecheckErrorType, TableConfig> = {
 }
 
 // 获取所有错误类型的表格配置（按优先级排序）
-export const getPrecheckTableConfigs = (): TableConfig[] => [
-  PRECHECK_TABLE_CONFIGS.error_library_hits,
-  PRECHECK_TABLE_CONFIGS.format_errors,
-  PRECHECK_TABLE_CONFIGS.village_errors,
-  PRECHECK_TABLE_CONFIGS.duplicate_errors,
-  PRECHECK_TABLE_CONFIGS.db_duplicate_apps,
-  PRECHECK_TABLE_CONFIGS.gender_mismatch,
-  PRECHECK_TABLE_CONFIGS.area_anomalies,
-  PRECHECK_TABLE_CONFIGS.area_missing,
-  PRECHECK_TABLE_CONFIGS.age_anomaly,
-  PRECHECK_TABLE_CONFIGS.deceased_farmers,
-  PRECHECK_TABLE_CONFIGS.household_duplicates, // 同一家庭多成员申请
-  PRECHECK_TABLE_CONFIGS.new_farmers,
-  PRECHECK_TABLE_CONFIGS.removed_farmers,
-  PRECHECK_TABLE_CONFIGS.changed_farmers,
-]
+export const getPrecheckTableConfigs = (season?: string | null): TableConfig[] => {
+  const isSpringSeason = season === '大春' || season === '小春'
+  // 大春/小春的面积异常列简化为 Case B 所需的三列
+  const areaAnomalyConfig: TableConfig = isSpringSeason ? {
+    field: 'area_anomalies',
+    title: (count) => `⚠️ 面积异常（${count}条）— 请逐条核实`,
+    headers: ['行号', '姓名', '身份证号', '所在村', '所在组', '异常详情', '超额(亩)', '本补贴申报面积(亩)', '可申报面积(亩)'],
+    rowMapper: (r) => [
+      r.row, r.name, r.id_card, r.village, r.group,
+      <span key="ed" className="text-xs text-text-primary">{r.anomaly_details}</span>,
+      <span key="ex" className="text-red-600 font-semibold">+{r.exceed_amount}</span>,
+      <span key="as" className="text-primary font-mono">{r.actual_subsidy_area}</span>,
+      <span key="ref" className="text-blue-600 font-mono">{r.reference_area}<span className="text-xs text-text-muted ml-1">({r.area_source})</span></span>,
+    ],
+  } : PRECHECK_TABLE_CONFIGS.area_anomalies
+
+  return [
+    PRECHECK_TABLE_CONFIGS.error_library_hits,
+    PRECHECK_TABLE_CONFIGS.format_errors,
+    PRECHECK_TABLE_CONFIGS.village_errors,
+    PRECHECK_TABLE_CONFIGS.duplicate_errors,
+    PRECHECK_TABLE_CONFIGS.gender_mismatch,
+    areaAnomalyConfig,
+    PRECHECK_TABLE_CONFIGS.area_missing,
+    PRECHECK_TABLE_CONFIGS.age_anomaly,
+    PRECHECK_TABLE_CONFIGS.deceased_farmers,
+    PRECHECK_TABLE_CONFIGS.restricted_farmers,
+    PRECHECK_TABLE_CONFIGS.household_duplicates,
+    PRECHECK_TABLE_CONFIGS.new_farmers,
+    PRECHECK_TABLE_CONFIGS.removed_farmers,
+    PRECHECK_TABLE_CONFIGS.changed_farmers,
+  ]
+}
 
 // 检查结果中是否有错误
 export const hasPrecheckErrors = (result: CheckResult): boolean => {

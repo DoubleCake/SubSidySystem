@@ -6,16 +6,17 @@ import type {
   ErrorLibraryItem, ErrorLibraryCreate,
   HH, HHDetail, HHEvent, HistoryDateEvent, SnapshotAtResponse,
   HouseholdCreate, MemberCreate, MemberUpdate, MemberMoveRequest,
-  SubsidyProxyOut, SubsidyProxyCreate,
+  SubsidyProxyOut, SubsidyProxyCreate, CheckConfig,
 } from '../types'
+import { getAuth } from '../pages/LoginPage'
 
 const BASE = ''
 
 async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const r = await fetch(BASE + path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...opts,
-  })
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const auth = getAuth()
+  if (auth) headers['Authorization'] = `Bearer ${auth.token}`
+  const r = await fetch(BASE + path, { headers, ...opts })
   if (!r.ok) {
     const e = await r.json().catch(() => ({})) as { detail?: string }
     throw new Error(e.detail || `请求失败 ${r.status}`)
@@ -125,6 +126,12 @@ export const createSubsidyType = (data: SubsidyTypeCreate) =>
 
 export const updateSubsidyType = (id: number, data: Partial<SubsidyTypeCreate>) =>
   req('/api/subsidies/types/' + id, { method: 'PUT', body: JSON.stringify(data) })
+
+export const getCheckConfig = (typeId: number) =>
+  req<{ check_config: CheckConfig; raw: string | null }>('/api/subsidies/types/' + typeId + '/check-config')
+
+export const updateCheckConfig = (typeId: number, config: CheckConfig) =>
+  req('/api/subsidies/types/' + typeId + '/check-config', { method: 'PUT', body: JSON.stringify(config) })
 
 // ── 补贴申请 ──
 export const getApplications = (params: Record<string, string | number>) =>

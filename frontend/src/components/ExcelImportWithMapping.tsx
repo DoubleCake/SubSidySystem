@@ -207,53 +207,129 @@ export default function ExcelImportWithMapping({
 
   const handleImportConfirm = async () => {
     setStep('importing')
-    setProgress(5)
+    setProgress(0)
     setProgressMsg(`准备导入 ${rows.length} 条记录…`)
 
-    // 模拟进度
-    let fake = 5
-    const ticker = setInterval(() => {
-      fake = Math.min(fake + (90 - fake) * 0.08, 88)
-      setProgress(Math.round(fake))
-      if (fake < 30) setProgressMsg(`正在校验数据…`)
-      else if (fake < 60) setProgressMsg(`正在写入数据库…`)
-      else setProgressMsg(`即将完成，请稍候…`)
-    }, 200)
-
-    try {
-      // 根据映射转换数据
-      const mapping: Record<string, string> = {}
-      const dataToImport = rows.map(row => {
-        const mappedRow: Record<string, unknown> = {}
-        columnMappings.forEach(cm => {
-          if (cm.system_field && row[cm.excel_column] !== undefined) {
-            mappedRow[cm.system_field] = row[cm.excel_column]
-          }
-        })
-        return mappedRow
-      })
-
-      columnMappings.forEach(m => {
-        if (m.system_field) {
-          mapping[m.excel_column] = m.system_field
+    // 根据映射转换数据
+    const mapping: Record<string, string> = {}
+    const dataToImport = rows.map(row => {
+      const mappedRow: Record<string, unknown> = {}
+      columnMappings.forEach(cm => {
+        if (cm.system_field && row[cm.excel_column] !== undefined) {
+          mappedRow[cm.system_field] = row[cm.excel_column]
         }
       })
+      return mappedRow
+    })
+    columnMappings.forEach(m => {
+      if (m.system_field) mapping[m.excel_column] = m.system_field
+    })
 
-      const res = await onImport(dataToImport, mapping, overwrite)
-      clearInterval(ticker)
-      setProgress(100)
-      setProgressMsg('导入完成！')
-      await new Promise(r => setTimeout(r, 400))
-      setResult(res)
-      setStep('result')
-      if (res.created > 0 || (res.updated ?? 0) > 0) onSuccess()
-    } catch (e: unknown) {
-      clearInterval(ticker)
-      const err = e as Error
-      setResult({ created: 0, updated: 0, skipped: 0, errors: [err.message] })
-      setStep('result')
+    // 分批导入，每批 200 行
+    const BATCH_SIZE = 200
+    const totalBatches = Math.ceil(dataToImport.length / BATCH_SIZE)
+    let totalCreated = 0, totalSkipped = 0, totalUpdated = 0
+    const allErrors: string[] = []
+
+    for (let i = 0; i < dataToImport.length; i += BATCH_SIZE) {
+      const batch = dataToImport.slice(i, i + BATCH_SIZE)
+      const batchNum = Math.floor(i / BATCH_SIZE) + 1
+      const pct = Math.round((i / dataToImport.length) * 90)
+      setProgress(pct)
+      setProgressMsg(`正在导入第 ${batchNum}/${totalBatches} 批（${i + 1}-${Math.min(i + BATCH_SIZE, dataToImport.length)}/${dataToImport.length}）…`)
+
+      try {
+        const res = await onImport(batch, mapping, overwrite)
+        totalCreated += res.created || 0
+        totalSkipped += res.skipped || 0
+        totalUpdated += res.updated || 0
+        if (res.errors?.length) {
+          // 将批次内行号转换为原始 Excel 行号（i 为批次偏移量）
+          const adjusted = res.errors.map(e => e.replace(/^第(\d+)行/, (_, n) => `第${parseInt(n) + i}行`))
+          allErrors.push(...adjusted)
+        }
+      } catch (e: unknown) {
+        const err = e as Error
+        allErrors.push(`第${batchNum}批导入失败: ${err.message}`)
+      }
     }
+
+    setProgress(100)
+    setProgressMsg('导入完成！')
+    await new Promise(r => setTimeout(r, 400))
+    setResult({ created: totalCreated, updated: totalUpdated, skipped: totalSkipped, errors: allErrors })
+    setStep('result')
+    if (totalCreated > 0 || totalUpdated > 0) onSuccess()
   }
+
+  // ── 导出导入异常数据为 Excel ──
+  const handleExportErrors = useCallback(() => {
+    if (!result || result.errors.length === 0 || rows.length === 0) return
+
+    const rowIndexRegex = /^第(\d+)行/
+    const errorsByRow = new Map<number, string[]>()
+    const unparsableErrors: string[] = []
+
+    for (const err of result.errors) {
+      const match = err.match(rowIndexRegex)
+      if (match) {
+        const excelRowNum = parseInt(match[1], 10)
+        const rowIndex = excelRowNum - 2 // 第3行 → rows[1]
+        if (rowIndex >= 0 && rowIndex < rows.length) {
+          const existing = errorsByRow.get(rowIndex) || []
+          existing.push(err)
+          errorsByRow.set(rowIndex, existing)
+        } else {
+          unparsableErrors.push(err)
+        }
+      } else {
+        unparsableErrors.push(err)
+      }
+    }
+
+    const wb = XLSX.utils.book_new()
+    const originalColumns = rows.length > 0 ? Object.keys(rows[0] as object) : []
+
+    // Sheet 1: 有行号映射的错误行
+    if (errorsByRow.size > 0) {
+      const sortedRowIndices = Array.from(errorsByRow.keys()).sort((a, b) => a - b)
+      const exportData: Record<string, unknown>[] = []
+
+      for (const rowIndex of sortedRowIndices) {
+        const row = rows[rowIndex] as Record<string, unknown> | undefined
+        if (!row) continue
+        const exportRow: Record<string, unknown> = {}
+        for (const col of originalColumns) {
+          exportRow[col] = row[col] ?? ''
+        }
+        const errorMessages = errorsByRow.get(rowIndex)!
+        const cleanErrors = errorMessages.map(e =>
+          e.replace(/^第\d+行(\s*\S+)?[:：]?\s*/, '')
+        )
+        exportRow['错误原因'] = cleanErrors.join('; ')
+        exportData.push(exportRow)
+      }
+
+      const ws = XLSX.utils.json_to_sheet(exportData, { header: [...originalColumns, '错误原因'] })
+      ws['!cols'] = [
+        ...originalColumns.map(() => ({ wch: 18 })),
+        { wch: 50 }
+      ]
+      XLSX.utils.book_append_sheet(wb, ws, '异常数据')
+    }
+
+    // Sheet 2: 无行号的后端错误
+    if (unparsableErrors.length > 0) {
+      const errorData = unparsableErrors.map(err => ({ '错误信息': err }))
+      const ws2 = XLSX.utils.json_to_sheet(errorData)
+      ws2['!cols'] = [{ wch: 60 }]
+      XLSX.utils.book_append_sheet(wb, ws2, '其他错误')
+    }
+
+    const dateStr = new Date().toISOString().slice(0, 10)
+    const fileName = `${title}_导入异常数据_${dateStr}.xlsx`
+    XLSX.writeFile(wb, fileName)
+  }, [result, rows, title])
 
   const handleSaveTemplate = async () => {
     if (!onSaveTemplate) {
@@ -346,7 +422,7 @@ export default function ExcelImportWithMapping({
               <div className={`flex items-center gap-1.5 text-xs font-medium transition-colors
                 ${isCur ? 'text-primary' : isPast ? 'text-text-muted' : 'text-text-muted/50'}`}>
                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs transition-colors
-                  ${isCur ? 'bg-primary text-white' : isPast ? 'bg-emerald-100 text-primary' : 'bg-warm/30 text-text-muted/50'}`}>
+                  ${isCur ? 'bg-primary ' : isPast ? 'bg-emerald-100 text-primary' : 'bg-warm/30 text-text-muted/50'}`}>
                   {isPast ? '✓' : i + 1}
                 </div>
                 {s.label}
@@ -408,7 +484,7 @@ export default function ExcelImportWithMapping({
                 💾 保存为模板
               </button>
               <button onClick={() => setStep('upload')}
-                className="text-xs border border-border text-text-muted px-3 py-1.5 rounded-btn hover:bg-warm/30">
+                className="text-xs border bg-danger-200 border-border text-white text-text-muted px-3 py-1.5 rounded-btn hover:bg-warm/30">
                 重新上传
               </button>
             </div>
@@ -656,7 +732,15 @@ export default function ExcelImportWithMapping({
               ))}
             </div>
           )}
-          <button onClick={handleClose} className="px-6 py-2 bg-primary text-white rounded-btn text-sm hover:bg-primary/90">
+          {result.errors.length > 0 && (
+            <div className="mb-4">
+              <button onClick={handleExportErrors}
+                className="px-4 py-2 bg-red-50 border border-red-200 text-red-700 rounded-btn text-sm hover:bg-red-100">
+                ↓ 导出异常数据
+              </button>
+            </div>
+          )}
+          <button onClick={handleClose} className="px-6 py-2 bg-primary  rounded-btn text-sm hover:bg-primary/90">
             完成
           </button>
         </div>

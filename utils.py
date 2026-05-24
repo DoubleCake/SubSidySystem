@@ -189,31 +189,46 @@ def check_area_anomaly(
     excel_contract_area: float | None,
     db_contract_area: float | None,
     apply_area: float | None,
-    excel_trust_out: float = 0,
+    trust_out_arable: float = 0,
+    trust_out_cash_crop: float = 0,
     excel_trust_in: float = 0,
-    excel_no_subsidy: float = 0,
+    no_subsidy_area: float = 0,
     actual_subsidy_area: float | None = None,
     season: str | None = None,
     hh_used: float = 0,
-    ignore_trust_in: bool = True
+    ignore_trust_in: bool = True,
+    farmland_protection_area: float | None = None,
+    household_trust_in_arable: float = 0,
+    household_trust_in_cash_crop: float = 0,
+    idle_arable: float = 0,
 ) -> dict:
     """
     统一面积异常检查
 
+    两种超限场景：
+    情况A — 单行超限：本行自有占用面积 > 本季有效参考上限
+    情况B — 户级累计超限：全户当季累计申报面积(hh_used + 本行) > 参考上限(reference_area)
+              大春/小春 → 耕地地力保护补贴面积 - trust_out_cash_crop + household_trust_in_cash_crop
+              耕地地力保护/临时 → 承包面积 - 不予补贴面积 - trust_out_arable + household_trust_in_arable
+
+    大春/小春流转计入取决于 land_trust.subsidy_cash_crop（经济作物补贴是否由流入方享受）。
+    耕地地力保护/临时流转计入取决于 land_trust.subsidy_arable（耕地补贴是否由流入方享受）。
+
     Args:
         excel_contract_area: Excel填报的承包面积
         db_contract_area: 数据库中的承包面积
-        apply_area: 申请面积
-        excel_trust_out: 流转出面积
-        excel_trust_in: 代耕代种进面积
-        excel_no_subsidy: 不补贴面积
-        actual_subsidy_area: 实际补贴面积
-        season: 补贴季节
-        hh_used: 户级已用面积
+        apply_area: Excel填报的申请面积
+        trust_out_arable: 家庭户流转出面积（subsidy_arable=1，用于耕地地力保护/临时）
+        trust_out_cash_crop: 家庭户流转出面积（subsidy_cash_crop=1，用于大春/小春）
+        excel_trust_in: 单条申请的代耕代种面积（仅用于 self_occupy 计算）
+        no_subsidy_area: 家庭户不予补贴面积（从耕地保护补贴记录汇总）
+        actual_subsidy_area: 实际补贴面积（最终参与计算的面积）
+        season: 补贴季节（大春/小春/耕地地力保护/临时，决定参考上限公式）
+        hh_used: 户级同季已用面积（排除本行自身后的值，用于情况B累计判断）
         ignore_trust_in: 是否忽略代耕代种进面积（超限检查时）
-
-    Returns:
-        dict with anomaly_type, anomaly_details, exceed_amount, self_occupy, hh_total
+        farmland_protection_area: 耕地地力保护补贴面积（大春/小春时用作参考基准）
+        household_trust_in_arable: 家庭户代耕代种进面积（subsidy_arable=1，用于耕地地力保护/临时）
+        household_trust_in_cash_crop: 家庭户代耕代种进面积（subsidy_cash_crop=1，用于大春/小春）
     """
     anomaly_type = None
     anomaly_details = []
@@ -221,60 +236,102 @@ def check_area_anomaly(
     self_occupy = 0.0
     hh_total = 0.0
 
-    if excel_contract_area is None or db_contract_area is None:
+    # ── 兜底：缺少DB承包面积时无法做任何面积比较，直接跳过 ──
+    if db_contract_area is None:
         return {
             "anomaly_type": None,
             "anomaly_details": [],
             "exceed_amount": 0.0,
             "self_occupy": 0.0,
             "hh_total": 0.0,
+            "reference_area": 0.0,
+            "area_source": "",
         }
 
-    excel_c = float(excel_contract_area)
     db_c = float(db_contract_area)
+    # excel_contract_area 缺失时仍可进行 Case A/B 超限检查（使用 apply_area），仅跳过承包面积一致性
+    excel_c = float(excel_contract_area) if excel_contract_area is not None else None
 
-    # 检查一：Excel承包面积与数据库承包面积不一致
-    if abs(excel_c - db_c) > 0.001:
+    # ── 确定参考上限(reference_area) ──
+    #   大春/小春: farmland_base - trust_out_cash_crop + household_trust_in_cash_crop
+    #   耕地地力保护/临时: contract_base - trust_out_arable - idle_arable + household_trust_in_arable
+    farmland_base = farmland_protection_area if (farmland_protection_area is not None and farmland_protection_area > 0) else db_c
+    contract_base = max(0, db_c - no_subsidy_area)
+    if season in ("大春", "小春"):
+        base_area = farmland_base
+        base_source = "耕地地力保护补贴面积" if (farmland_protection_area is not None and farmland_protection_area > 0) else "承包面积"
+        if farmland_protection_area is not None and farmland_protection_area == 0:
+            anomaly_details.append(f"该家庭户无耕地地力保护补贴记录，回退使用承包面积{db_c}亩作为参考")
+        elif farmland_protection_area is None:
+            anomaly_details.append(f"无耕地地力保护补贴数据，使用承包面积{db_c}亩作为参考")
+        _tout = trust_out_cash_crop
+        _tin = household_trust_in_cash_crop
+        _idle = 0.0
+    else:
+        base_area = contract_base
+        base_source = "承包面积"
+        if no_subsidy_area > 0:
+            base_source += f"-不予补贴{no_subsidy_area}亩"
+        _tout = trust_out_arable
+        _tin = household_trust_in_arable
+        _idle = idle_arable
+
+    reference_area = max(0, base_area - _tout - _idle + _tin)
+    area_source = base_source
+    if _tout > 0:
+        area_source += f"-流转出{_tout}亩"
+    if _idle > 0:
+        area_source += f"-撂荒{_idle}亩"
+    if _tin > 0:
+        area_source += f"+代耕代种{_tin}亩"
+
+    effective_contract = max(0, base_area - _tout - _idle)
+
+    # ── 检查一：Excel填报承包面积 vs 数据库承包面积 ──
+    if excel_c is not None and abs(excel_c - db_c) > 0.001:
         anomaly_type = "承包面积不一致"
         anomaly_details.append(f"Excel填报{excel_c}亩，数据库登记{db_c}亩")
 
-    # 检查二：面积超限
-    # 计算有效补贴面积
+    # ── 检查二：面积超限 ──
     final_subsidy = 0.0
     if actual_subsidy_area is not None:
         final_subsidy = float(actual_subsidy_area)
+    elif apply_area is not None:
+        final_subsidy = float(apply_area)
     else:
-        final_subsidy = round(excel_c - excel_trust_out - excel_no_subsidy, 4)
+        final_subsidy = round((excel_c or 0) - trust_out_arable - no_subsidy_area, 4)
 
-    # 计算自有占用面积（忽略代耕代种进面积）
     if ignore_trust_in:
         self_occupy = round(final_subsidy, 4)
     else:
         self_occupy = round(final_subsidy - excel_trust_in, 4)
 
-    # 情况A：单行超限
-    if db_c > 0 and self_occupy > db_c:
+    # ── 情况A：单行超限 ──
+    #     本行自有占用面积 > 本季有效参考上限（不含代耕代种进）
+    if effective_contract > 0 and self_occupy > effective_contract:
         if anomaly_type:
             anomaly_type = f"{anomaly_type}+面积超限"
         else:
             anomaly_type = "面积超限"
-        exceed_amount = round(self_occupy - db_c, 4)
+        exceed_amount = round(self_occupy - effective_contract, 4)
         anomaly_details.append(f"单行超限{exceed_amount}亩")
 
-    # 情况B：户级累计超限（需要season）
-    VALID_SEASONS = {"大春", "小春", "全年单补", "临时"}
-    if season in VALID_SEASONS and db_c > 0:
+    # ── 情况B：户级累计超限 ──
+    #     全户当季已用面积 + 本行 > 参考上限（含代耕代种进）
+    VALID_SEASONS = {"大春", "小春", "耕地地力保护", "临时"}
+    if season in VALID_SEASONS and reference_area > 0:
         hh_total = round(hh_used + final_subsidy, 4)
-        if hh_total > db_c:
+        if hh_total > reference_area:
             if anomaly_type:
                 if "面积超限" not in anomaly_type:
                     anomaly_type = f"{anomaly_type}+面积超限"
             else:
                 anomaly_type = "面积超限"
-            hh_exceed = round(hh_total - db_c, 4)
+            hh_exceed = round(hh_total - reference_area, 4)
             exceed_amount = max(exceed_amount, hh_exceed)
-            if f"累计超限{hh_exceed}亩" not in anomaly_details:
-                anomaly_details.append(f"累计超限{hh_exceed}亩")
+            detail = f"累计超限{hh_exceed}亩（参考{area_source}:{reference_area}亩）"
+            if detail not in anomaly_details:
+                anomaly_details.append(detail)
 
     return {
         "anomaly_type": anomaly_type,
@@ -285,6 +342,8 @@ def check_area_anomaly(
         "final_subsidy": final_subsidy,
         "db_contract_area": db_c,
         "hh_used": hh_used,
+        "reference_area": reference_area,
+        "area_source": area_source,
     }
 
 

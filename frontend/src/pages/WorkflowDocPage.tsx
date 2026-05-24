@@ -6,7 +6,6 @@ const sections: Section[] = [
   { id: 'overview',     title: '系统概览',      icon: '📋' },
   { id: 'basics',       title: '基础数据管理',    icon: '🏘️' },
   { id: 'subsidy',      title: '补贴项目管理',    icon: '💰' },
-  { id: 'precheck',     title: '数据预检',      icon: '🔍' },
   { id: 'land',         title: '土地流转管理',    icon: '🌾' },
   { id: 'agri-task',    title: '农业任务分解',    icon: '🌱' },
   { id: 'eligibility',  title: '资格规则引擎',    icon: '⚖️' },
@@ -23,7 +22,7 @@ function FlowDiagram({ steps }: { steps: { label: string; desc: string }[] }) {
       {steps.map((s, i) => (
         <div key={i} className="flex items-start">
           <div className="flex flex-col items-center min-w-[100px]">
-            <div className={`w-10 h-10 ${stepColors[i % stepColors.length]} rounded-full flex items-center justify-center text-white text-sm font-bold shadow`}>
+            <div className={`w-10 h-10 ${stepColors[i % stepColors.length]} rounded-full flex items-center justify-center  text-sm font-bold shadow`}>
               {i + 1}
             </div>
             <div className="mt-1.5 text-xs font-semibold text-stone-700 text-center px-1 leading-tight">{s.label}</div>
@@ -179,26 +178,6 @@ function SectionContent({ id }: { id: string }) {
               </ul>
             </InfoCard>
           </div>
-        </div>
-      )
-
-    case 'precheck':
-      return (
-        <div className="space-y-4">
-          <p className="text-sm text-stone-600 leading-relaxed">
-            数据预检是导入前的重要质量保障环节，系统自动检测数据问题并生成报告。
-          </p>
-          <FlowDiagram steps={[
-            { label: '上传 Excel', desc: '拖拽或选择文件' },
-            { label: '智能列识别', desc: '自动匹配列名映射' },
-            { label: '逐项校验', desc: '身份证/面积/重复/缺失' },
-            { label: '错误库比对', desc: '交叉比对已知问题人员' },
-            { label: '导出报告', desc: '生成详细预检报告' },
-          ]} />
-          <BranchDiagram branches={[
-            { label: '校验项目', items: ['身份证号码合法性', '姓名与身份证是否匹配', '手机号格式', '银行卡号格式', '面积数值合理性', '数据库重复检测', '村组存在性验证'] },
-            { label: '错误级别', items: ['⚠ 警告 — 可导入但需关注', '✗ 错误 — 需修正后导入', '✓ 通过 — 无需处理'] },
-          ]} />
         </div>
       )
 

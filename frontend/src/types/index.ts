@@ -4,6 +4,13 @@ export interface VillageGroup {
   village_name: string
   group_no: number
   full_name: string
+  retained_land?: number
+  population?: number
+  farmer_land_total?: number
+  trust_out_total?: number
+  trust_in_total?: number
+  total_land?: number
+  household_count?: number
 }
 
 export interface FarmerOut {
@@ -18,6 +25,7 @@ export interface FarmerOut {
   is_head: number
   relation: string | null
   farmer_status: number
+  restricted_identity?: number
   village_full_name: string
   contract_area: string | null
   address: string | null
@@ -44,6 +52,7 @@ export interface FarmerCreate {
   contract_area?: number
   farmer_status: number
   remark?: string
+  restricted_identity?: number
 }
 
 export interface FarmerDetail {
@@ -54,6 +63,7 @@ export interface FarmerDetail {
   address: string | null; remark: string | null; created_at: string | null
   household_id: number; birth_date?: string
   id_card?: string; phone?: string; bank_card?: string
+  restricted_identity?: number
   applications?: { id: number; apply_year: number; subsidy_name: string; calc_mode: string; apply_amount: string | null; actual_amount: string | null; apply_area: string | null; pay_status: number; pay_date: string | null; remark: string | null }[]
 }
 
@@ -75,6 +85,7 @@ export interface SubsidyType {
 export interface SubsidyTypeCreate {
   subsidy_name: string
   subsidy_year: number
+  season?: string
   calc_mode: 'fixed' | 'per_mu'
   standard_amount?: number
   standard_unit?: string
@@ -348,7 +359,8 @@ export interface ErrorLibraryCreate {
 
 // ── 家庭户 ──
 export interface SeasonUsage {
-  used_area: number; remaining_area: number
+  used_area: number; apply_area?: number; payment_area?: number
+  reference_area?: number; remaining_area: number
   is_overdrawn: boolean; overdraw_amount: number
   subsidies: { subsidy_name: string; apply_year: number; used_area: number; total_amount: number; app_count: number }[]
 }
@@ -372,6 +384,7 @@ export interface HHMember {
   is_head: number; relation: string | null; farmer_status: number; phone_masked?: string | null
   own_village_id?: number | null; own_group_no?: number | null
   village_full_name?: string
+  restricted_identity?: number
 }
 
 export interface HHDetail {
@@ -385,17 +398,28 @@ export interface HHDetail {
   members: HHMember[]
   area_usage: {
     contracted_area: number; trust_out_area?: number; trust_in_area?: number
+    trust_out_arable_area?: number; trust_in_arable_area?: number; trust_in_cash_crop_area?: number
+    farmland_area?: number; no_subsidy_area?: number
     cultivable_area?: number; used_area: number; remaining_area: number
+    season_reference?: Record<string, number>
     is_overdrawn: boolean; overdraw_amount?: number; has_trust_data?: boolean
     season_breakdown?: Record<string, SeasonUsage>
     subsidy_breakdown: { subsidy_name: string; apply_area: number; calc_mode: string }[]
     year_totals?: Record<string, Record<string, number>>
+    year_apply_totals?: Record<string, Record<string, number>>
+    year_payment_totals?: Record<string, Record<string, number>>
   }
   app_summary: {
     apply_year: number; farmer_id: number; farmer_name: string; subsidy_name: string
     calc_mode: string; apply_area: number | null; apply_amount: number | null; actual_amount: number | null
     pay_status: number; apply_village_name: string; apply_group_display: string; is_proxy: number
     proxy_info?: { type: string; proxy_name?: string; beneficiary_name?: string; proxy_farmer_id?: number; beneficiary_farmer_id?: number; remark?: string } | null
+  }[]
+  trust_records?: {
+    id: number; direction: string; trust_type: string; area: number | null; trust_year: number
+    subsidy_arable: number; subsidy_cash_crop: number; affect_subsidy_calc: number
+    start_date: string | null; end_date: string | null; note: string | null
+    data_reliability: string; counterparty: string
   }[]
 }
 
@@ -422,6 +446,7 @@ export interface SnapshotMember {
   is_head: number
   relation: string | null
   farmer_status: number
+  restricted_identity?: number
   phone_masked?: string | null
   id_card?: string
   phone?: string
@@ -479,6 +504,7 @@ export interface MemberCreate {
   relation?: string
   is_head?: number
   farmer_status?: number
+  restricted_identity?: number
   remark?: string
 }
 
@@ -490,6 +516,7 @@ export interface MemberUpdate {
   relation?: string
   is_head?: number
   farmer_status?: number
+  restricted_identity?: number
   remark?: string
   event_date?: string
   village_id?: number
@@ -519,13 +546,13 @@ export interface CheckResult {
     format_errors: number
     village_errors: number
     duplicate_errors: number
-    db_duplicate_apps: number
     gender_mismatch: number
     error_library_hits: number
     area_anomalies: number
     area_missing: number
     age_anomaly: number
     deceased_farmers: number
+    restricted_farmers: number
     household_duplicates: number
     new_farmers: number
     removed_farmers: number
@@ -535,16 +562,32 @@ export interface CheckResult {
   format_errors: Array<{ row: number; name: string; id_card: string; village: string; group: string; errors: string[]; error_count: number }>
   village_errors: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
   duplicate_errors: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
-  db_duplicate_apps: Array<{ row: number; name: string; id_card: string; village: string; group: string; existing_apps: string; error: string }>
   gender_mismatch: Array<{ row: number; name: string; id_card: string; village: string; group: string; excel_gender: string; id_card_gender: string; error: string }>
   error_library_hits: Array<{ row: number; name: string; id_card: string; village: string; group: string; error_type: string; error_reason: string; source: string }>
-  area_anomalies: Array<{ row: number; name: string; id_card: string; village: string; group: string; anomaly_type: string; anomaly_details: string; contract_area: number; trust_out_area: number; trust_in_area: number; no_subsidy_area: number; actual_subsidy_area: number; self_occupy: number; hh_used: number; hh_total: number; db_contract_area: number; exceed_amount: number }>
+  area_anomalies: Array<{ row: number; name: string; id_card: string; village: string; group: string; anomaly_type: string; anomaly_details: string; contract_area: number; trust_out_area: number; trust_in_area: number; no_subsidy_area: number; actual_subsidy_area: number; self_occupy: number; hh_used: number; hh_total: number; db_contract_area: number; reference_area: number; area_source: string; exceed_amount: number }>
   area_missing: Array<{ row: number; name: string; id_card: string; village: string; group: string; contract_area: number; error: string }>
   age_anomaly: Array<{ row: number; name: string; id_card: string; village: string; group: string; age: number; birth_year: number; error: string }>
   deceased_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
+  restricted_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
   household_duplicates: Array<{ row: number; name: string; id_card: string; village: string; group: string; household_id: string; total_count: number; other_members: string[]; excel_remark: string; db_existing_apps: Array<{ real_name: string; subsidy_name: string; remark: string }> }>
   new_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; village_group_id: number | null }>
   removed_farmers: Array<{ id_card: string; name: string; village: string; group: string; farmer_id: number; note: string }>
   changed_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; db_name: string; db_village: string; db_group: string; changes: string[]; farmer_id: number }>
   year_compare: Record<string, unknown>
+}
+
+// ── 预检配置 ──
+export interface CheckConfig {
+  checks: {
+    format: boolean
+    village: boolean
+    duplicate: boolean
+    gender: boolean
+    error_library: boolean
+    area_anomaly: boolean
+    db_compare: boolean
+    year_compare: boolean
+  }
+  area_mode: 'disabled' | 'seasonal' | 'standalone'
+  check_trust_deduction: boolean
 }

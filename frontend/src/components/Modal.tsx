@@ -39,7 +39,7 @@ export default function Modal({ open, title, onClose, onConfirm, confirmText = '
               取消
             </button>
             <button onClick={onConfirm}
-              className="px-4 py-1.5 text-body bg-primary text-white rounded-btn hover:bg-primary/90 transition-colors flex items-center gap-1.5">
+              className="px-4 py-1.5 text-body bg-primary-300 text-white rounded-btn hover:bg-primary-200 transition-colors flex items-center gap-1.5">
               <Icon name="confirm" size={14} />
               {confirmText}
             </button>

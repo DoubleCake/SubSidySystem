@@ -58,12 +58,12 @@ def main():
     print(f"  村组: {len(vg_map)} 个")
 
     # 2. 补贴类型（按季节分类）
-    # 季节分类: 大春|小春|全年单补|临时
-    # 固定金额类: 不按面积计算，不参与面积检查
+    # 季节分类: 大春|小春|耕地地力保护|临时
+    # 固定金额类: 不按面积计算，参与面积检查
     season_types = {
         "大春": ["水稻补贴", "玉米补贴", "大豆补贴"],
         "小春": ["小麦补贴", "油菜补贴"],
-        "全年单补": ["耕地地力保护补贴"],
+        "耕地地力保护": ["耕地地力保护补贴"],
     }
     fixed_types = ["农村低保补助", "高龄老人补贴", "残疾人补贴", "生育补贴"]
 
@@ -89,10 +89,10 @@ def main():
                 amt = round(random.uniform(500, 2000), 2)
                 ex = SubsidyType(subsidy_name=name, subsidy_year=year, calc_mode="fixed",
                     standard_amount=amt, standard_unit="元/人", fund_source="县级",
-                    season="全年单补",
+                    season="耕地地力保护",
                     pay_status=2)
                 db.add(ex); db.flush()
-            all_st_ids.append((ex.id, year, float(ex.standard_amount), "全年单补"))
+            all_st_ids.append((ex.id, year, float(ex.standard_amount), "耕地地力保护"))
     db.commit()
     print(f"  补贴类型: {len(all_st_ids)} 个")
 
@@ -144,7 +144,7 @@ def main():
 
     # 4. 补贴申请
     created_app = 0
-    # 按面积补贴（大春/小春/全年单补）
+    # 按面积补贴（大春/小春/耕地地力保护）
     area_st_ids = [(sid, yr, amt, s) for sid, yr, amt, s in all_st_ids
                    if db.get(SubsidyType, sid).calc_mode == "per_mu"]
     # 固定金额补贴（按人/户）

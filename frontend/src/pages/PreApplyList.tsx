@@ -75,7 +75,7 @@ interface PreApplyListProps {
 const SUBSIDY_IMPORT_FIELDS = [
   { field: "id_card", label: "身份证号", required: true, type: "id_card" },
   { field: "real_name", label: "姓名", required: true, type: "string" },
-  { field: "apply_area", label: "种植面积", required: false, type: "decimal" },
+  { field: "apply_area", label: "实际补贴面积", required: false, type: "decimal" },
   { field: "contract_area", label: "承包地面积", required: false, type: "decimal" },
   { field: "trust_area", label: "代耕代种面积", required: false, type: "decimal" },
   { field: "no_subsidy_area", label: "不予补贴面积", required: false, type: "decimal" },
@@ -286,7 +286,7 @@ export default function PreApplyList({
       const contractArea = Number(row['contract_area'] || row['承包地面积(亩)']) || 0
       const trustArea = Number(row['trust_area'] || row['代耕代种面积(亩)']) || 0
       const noSubsidyArea = Number(row['no_subsidy_area'] || row['不予补贴面积']) || undefined
-      const applyAreaExplicit = Number(row['apply_area'] || row['种植面积'] || row['面积(亩)']) || 0
+      const applyAreaExplicit = Number(row['apply_area'] || row['实际补贴面积'] || row['面积(亩)']) || 0
       const area = applyAreaExplicit || (contractArea + trustArea || undefined)
       const amount = Number(row['actual_amount'] || row['实发金额']) || (area ? area * Number(subsidyType.standard_amount || 0) : undefined)
 
@@ -366,7 +366,7 @@ export default function PreApplyList({
   const selectedTmpl = templates.find(t => t.id) || null
   const IMPORT_HEADERS = selectedTmpl
     ? selectedTmpl.column_mapping.filter(m => m.system_field).map(m => m.excel_column + (m.required ? '*' : ''))
-    : ['身份证号*', '姓名*', '种植面积', '承包地面积(亩)', '代耕代种面积(亩)', '不予补贴面积(亩)', '所在村', '所在组', '备注']
+    : ['身份证号*', '姓名*', '实际补贴面积', '承包地面积(亩)', '代耕代种面积(亩)', '不予补贴面积(亩)', '所在村', '所在组', '备注']
   const IMPORT_EXAMPLE = selectedTmpl
     ? [Object.fromEntries(selectedTmpl.column_mapping.filter(m => m.system_field).map(m => {
         const sample: Record<string, unknown> = {
@@ -376,7 +376,7 @@ export default function PreApplyList({
         }
         return [m.excel_column, sample[m.system_field!] ?? '']
       }))]
-    : [{ '身份证号*': '510123196503154231', '姓名*': '张国强', '种植面积': 3.5, '承包地面积(亩)': 2.5, '代耕代种面积(亩)': 1.0, '不予补贴面积(亩)': 0.5, '所在村': '红星村', '所在组': '一组', '备注': '' }]
+    : [{ '身份证号*': '510123196503154231', '姓名*': '张国强', '实际补贴面积': 3.5, '承包地面积(亩)': 2.5, '代耕代种面积(亩)': 1.0, '不予补贴面积(亩)': 0.5, '所在村': '红星村', '所在组': '一组', '备注': '' }]
 
   const detectExcelColumns = async (columns: string[], sampleRows: Record<string, unknown>[]) => {
     try {

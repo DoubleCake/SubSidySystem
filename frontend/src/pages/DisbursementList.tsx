@@ -75,7 +75,7 @@ interface DisbursementListProps {
 const SUBSIDY_IMPORT_FIELDS = [
   { field: "id_card", label: "身份证号", required: true, type: "id_card" },
   { field: "real_name", label: "姓名", required: true, type: "string" },
-  { field: "apply_area", label: "种植面积", required: false, type: "decimal" },
+  { field: "apply_area", label: "实际补贴面积", required: false, type: "decimal" },
   { field: "contract_area", label: "承包地面积", required: false, type: "decimal" },
   { field: "trust_area", label: "代耕代种面积", required: false, type: "decimal" },
   { field: "no_subsidy_area", label: "不予补贴面积", required: false, type: "decimal" },
@@ -313,7 +313,7 @@ export default function DisbursementList({
       const contractArea = Number(row['contract_area'] || row['承包地面积(亩)']) || 0
       const trustArea = Number(row['trust_area'] || row['代耕代种面积(亩)']) || 0
       const noSubsidyArea = Number(row['no_subsidy_area'] || row['不予补贴面积']) || undefined
-      const applyAreaExplicit = Number(row['apply_area'] || row['种植面积'] || row['面积(亩)']) || 0
+      const applyAreaExplicit = Number(row['apply_area'] || row['实际补贴面积'] || row['面积(亩)']) || 0
       const area = applyAreaExplicit || (contractArea + trustArea || undefined)
       const amount = Number(row['actual_amount'] || row['实发金额']) || (area ? area * Number(subsidyType.standard_amount || 0) : undefined)
 
@@ -455,7 +455,7 @@ export default function DisbursementList({
           <div className="flex items-center gap-1 flex-1 min-w-[200px] max-w-[300px]">
             <input type="text" value={search} onChange={e => handleSearchChange(e.target.value)}
               placeholder="姓名/身份证" className="flex-1 border border-border rounded-btn px-2 py-1.5 text-xs outline-none" />
-            <button onClick={() => setPage(1)} className="px-2 py-1 text-xs bg-primary text-white rounded-btn hover:bg-primary/90">搜索</button>
+            <button onClick={() => setPage(1)} className="px-2 py-1 text-xs bg-primary  rounded-btn hover:bg-primary/90">搜索</button>
           </div>
           <button onClick={clearFilters} className="text-xs text-text-muted hover:text-text-primary border border-border px-2 py-1 rounded"
             disabled={Object.values(filters).every(v => !v) && !search}>清除</button>
@@ -467,7 +467,7 @@ export default function DisbursementList({
               <th className="px-2 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap">
                 <button onClick={toggleSelectAll}
                   className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                    apps.length > 0 && selectedIds.length === apps.length ? 'bg-primary/90 border-emerald-600 text-white' : 'border-stone-300 hover:border-emerald-400'
+                    apps.length > 0 && selectedIds.length === apps.length ? 'bg-primary/90 border-emerald-600 ' : 'border-stone-300 hover:border-emerald-400'
                   }`}>
                   {apps.length > 0 && selectedIds.length === apps.length && (
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
@@ -491,7 +491,7 @@ export default function DisbursementList({
                 <td className="px-2 py-2 text-center">
                   <button onClick={() => toggleSelect(a.id)}
                     className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                      selectedIds.includes(a.id) ? 'bg-primary/90 border-emerald-600 text-white' : 'border-stone-300 hover:border-emerald-400'
+                      selectedIds.includes(a.id) ? 'bg-primary/90 border-emerald-600 ' : 'border-stone-300 hover:border-emerald-400'
                     }`}>
                     {selectedIds.includes(a.id) && (
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">

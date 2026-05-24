@@ -160,7 +160,7 @@ export default function ApplicationsPage() {
           {[2024, 2023, 2022].map(y => (
             <button key={y} onClick={() => setYearFilter(y)}
               className={`px-3 py-1.5 text-sm rounded-btn border transition-colors
-                ${yearFilter === y ? 'bg-primary text-white border-emerald-700' : 'bg-white border-border text-text-primary hover:border-border'}`}>
+                ${yearFilter === y ? 'bg-primary  border-emerald-700' : 'bg-white border-border text-text-primary hover:border-border'}`}>
               {y}年
             </button>
           ))}
@@ -179,7 +179,7 @@ export default function ApplicationsPage() {
         <div className="ml-auto flex gap-2">
           <button onClick={() => setImportOpen(true)} className="px-3 py-1.5 text-sm border border-primary/20 text-primary rounded-btn hover:bg-primary/5">↑ Excel导入</button>
           <button onClick={() => { setAddOpen(true); setIdInput(''); setFarmerHint(''); setFarmerId(null); setForm({ pay_status: 0 }) }}
-            className="px-3 py-1.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">＋ 新增记录</button>
+            className="px-3 py-1.5 text-sm bg-primary  rounded-btn hover:bg-primary/90">＋ 新增记录</button>
         </div>
       </div>
 

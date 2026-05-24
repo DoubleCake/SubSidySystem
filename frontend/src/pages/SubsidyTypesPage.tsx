@@ -73,12 +73,12 @@ export default function SubsidyTypesPage() {
           {years.slice(0, 4).map(y => (
             <button key={y} onClick={() => setYearFilter(y)}
               className={`px-3 py-1.5 text-sm rounded-btn border transition-colors
-                ${yearFilter === y ? 'bg-primary text-white border-emerald-700' : 'bg-white border-border text-text-primary hover:border-border'}`}>
+                ${yearFilter === y ? 'bg-primary  border-emerald-700' : 'bg-white border-border text-text-primary hover:border-border'}`}>
               {y}年
             </button>
           ))}
         </div>
-        <button onClick={openAdd} className="ml-auto px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">＋ 新增补贴类型</button>
+        <button onClick={openAdd} className="ml-auto px-3 py-2 text-sm bg-primary rounded-btn hover:bg-primary/90">＋ 新增补贴类型</button>
       </div>
 
       {/* 说明卡片 */}

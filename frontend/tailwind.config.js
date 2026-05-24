@@ -10,7 +10,7 @@ export default {
           100: '#c4d9d0',
           200: '#9cbfb1',
           300: '#70a590',
-          400: '#4d9178',
+          400: '#34755c',
           500: '#1A4D3A',
           600: '#154031',
           700: '#103428',
@@ -74,9 +74,9 @@ export default {
           900: '#7e5c1c',
         },
         // 辅助文字色
-        'text-muted': '#999999',
+        'text-muted': '#7A9A8A',
         // 基础文字色
-        'text-primary': '#2E2E2E',
+        'text-primary': '#1A4D3A',
         // 面板暖底（基于米杏色）
         warm: {
           50:  '#fdfcf9',
@@ -86,6 +86,7 @@ export default {
           400: '#f5f1eb',
           500: '#F0EBE1',
           600: '#d0c8b8',
+          650:'#8b8983'
         },
         // 暖色标签
         'orange-tag': '#EAA45E',

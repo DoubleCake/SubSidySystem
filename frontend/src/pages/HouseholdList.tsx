@@ -123,8 +123,13 @@ export default function HouseholdList({
           <div key={h.id}
             onClick={() => onSelect(h.id)}
             className={`px-5 py-4 border-b border-border/50 cursor-pointer transition-all hover:bg-warm/30
-              ${selectedId === h.id ? 'bg-primary/5 border-l-4 border-l-primary shadow-inner' : ''}
-              ${h.is_overdrawn ? 'bg-red-50/40' : ''}`}>
+              ${selectedId === h.id ? 'border-l-4 border-l-primary' : ''}
+              ${h.is_overdrawn ? 'bg-red-50/40' : ''}`}
+            style={selectedId === h.id ? {
+              backgroundImage: 'url(/images/focus.png)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            } : undefined}>
             <div className="flex items-center gap-2.5 mb-1.5">
               <span className="font-semibold text-base text-text-primary">{h.household_name}</span>
               <span className="text-xs font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20">{h.household_code}</span>

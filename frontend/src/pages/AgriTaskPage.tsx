@@ -230,7 +230,7 @@ export default function AgriTaskPage() {
           {(meta?.statuses || []).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
         <button onClick={() => setShowCreate(true)}
-          className="ml-auto bg-primary/90 hover:bg-primary text-white text-sm px-4 py-1.5 rounded-btn">
+          className="ml-auto bg-primary/90 hover:bg-primary  text-sm px-4 py-1.5 rounded-btn">
           + 新建任务
         </button>
       </div>
@@ -290,7 +290,7 @@ export default function AgriTaskPage() {
         <div className="flex justify-center gap-2 mt-4">
           {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
             <button key={p} onClick={() => setPage(p)}
-              className={`w-8 h-8 text-sm rounded ${p === page ? 'bg-primary/90 text-white' : 'bg-white border border-border text-text-primary hover:border-primary/30'}`}>
+              className={`w-8 h-8 text-sm rounded ${p === page ? 'bg-primary/90 ' : 'bg-white border border-border text-text-primary hover:border-primary/30'}`}>
               {p}
             </button>
           ))}
@@ -481,13 +481,13 @@ export default function AgriTaskPage() {
                 <button onClick={() => { setShowDetail(false); handlePreview(detail.id) }}
                   className="px-3 py-1.5 text-sm text-amber-600 border border-amber-200 rounded-btn hover:bg-amber-50">预览分配</button>
                 <button onClick={() => handleIssue(detail.id)}
-                  className="px-3 py-1.5 text-sm bg-primary/90 text-white rounded-btn hover:bg-primary">下达任务</button>
+                  className="px-3 py-1.5 text-sm bg-primary/90  rounded-btn hover:bg-primary">下达任务</button>
               </>}
               {detail.status === 'ISSUED' && <>
                 <button onClick={() => handleRevoke(detail.id)}
                   className="px-3 py-1.5 text-sm text-text-muted border border-border rounded-btn hover:bg-warm/30">撤回</button>
                 <button onClick={() => handleDone(detail.id)}
-                  className="px-3 py-1.5 text-sm bg-primary/90 text-white rounded-btn hover:bg-primary">标记完成</button>
+                  className="px-3 py-1.5 text-sm bg-primary/90  rounded-btn hover:bg-primary">标记完成</button>
               </>}
             </div>
           </div>

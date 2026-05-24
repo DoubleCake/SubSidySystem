@@ -4,7 +4,7 @@
  * - 进入子页查看/管理人员记录
  * - 记录支持搜索、新增、Excel导入、编辑、删除
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import * as api from '../api'
 import type { SubsidyType, SubsidyTypeCreate } from '../types'
@@ -41,6 +41,7 @@ export default function SubsidyProjectsPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [editing, setEditing] = useState<SubsidyType | null>(null)
   const [form, setForm] = useState<Partial<SubsidyTypeCreate>>({ subsidy_year: thisYear, calc_mode: 'fixed' })
+  const pendingCheckConfig = useRef<object | null>(null)
 
   // 更新URL参数和状态
   const handleYearChange = (year: number) => {
@@ -82,12 +83,13 @@ export default function SubsidyProjectsPage() {
     }
   }, [types, location.search])
 
-  const openAdd = () => { setEditing(null); setForm({ subsidy_year: yearFilter, calc_mode: 'fixed' }); setEditOpen(true) }
+  const openAdd = () => { setEditing(null); setForm({ subsidy_year: yearFilter, calc_mode: 'fixed', season: '耕地地力保护' }); setEditOpen(true) }
   const openEdit = (t: SubsidyType) => {
     setEditing(t)
     setForm({
       subsidy_name: t.subsidy_name,
       subsidy_year: t.subsidy_year,
+      season: t.season ?? undefined,
       calc_mode: t.calc_mode,
       standard_amount: t.standard_amount ? Number(t.standard_amount) : undefined,
       standard_unit: t.standard_unit ?? undefined,
@@ -105,8 +107,21 @@ export default function SubsidyProjectsPage() {
     const autoUnit = form.calc_mode === 'per_mu' ? '元/亩' : (form.standard_unit || '元/户')
     const payload = { ...form, standard_unit: autoUnit }
     try {
-      if (editing) { await api.updateSubsidyType(editing.id, payload); show('✓ 更新成功') }
-      else { await api.createSubsidyType(payload as SubsidyTypeCreate); show('✓ 创建成功') }
+      if (editing) {
+        await api.updateSubsidyType(editing.id, payload)
+        // SubsidyForms 内部已自动保存 check_config（编辑模式）
+        show('✓ 更新成功')
+      } else {
+        const res = await api.createSubsidyType(payload as SubsidyTypeCreate)
+        // 新建项目：将表单里的预检配置保存到新类型
+        if (pendingCheckConfig.current) {
+          await fetch(`/api/subsidies/types/${res.id}/check-config`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(pendingCheckConfig.current),
+          })
+        }
+        show('✓ 创建成功')
+      }
       setEditOpen(false); loadTypes()
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
@@ -134,7 +149,7 @@ export default function SubsidyProjectsPage() {
           {years.map(y => <option key={y} value={y}>{y}年</option>)}
         </select>
         <span className="text-xs text-text-muted">共 {types.length} 个项目</span>
-        <button onClick={openAdd} className="ml-auto px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">＋ 新增项目</button>
+        <button onClick={openAdd} className="">＋ 新增项目</button>
       </div>
 
       <div className="bg-blue-50 border border-blue-100 rounded-card px-4 py-3 mb-4 text-xs text-blue-700">
@@ -157,6 +172,7 @@ export default function SubsidyProjectsPage() {
                   <span className="font-bold text-text-primary text-base">{t.subsidy_name}</span>
                   <Tag label={`${t.subsidy_year}年`} color="gray" />
                   <Tag label={t.calc_mode === 'per_mu' ? '按亩计算' : '固定金额'} color={t.calc_mode === 'per_mu' ? 'blue' : 'purple'} />
+                  {t.season && <Tag label={t.season} color={t.season === '大春' ? 'green' : t.season === '小春' ? 'blue' : t.season === '临时' ? 'amber' : 'gray'} />}
                   {t.fund_source && <span className="text-xs text-text-muted/50">{t.fund_source}</span>}
                 </div>
                 <div className="flex gap-6 text-sm mb-3 flex-wrap">
@@ -175,8 +191,12 @@ export default function SubsidyProjectsPage() {
               {/* 操作区 */}
               <div className="flex flex-col gap-2 shrink-0">
                 <button onClick={() => { setActiveType(t); updateUrlType(t.id) }}
-                  className="px-3 py-1.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 whitespace-nowrap">
+                  className="px-3 py-1.5 text-sm bg-primary/10 text-primary-700 rounded-btn hover:bg-primary/20 whitespace-nowrap font-medium">
                   查看人员 →
+                </button>
+                <button onClick={() => navigate(`/project-progress?subsidy_type_id=${t.id}`)}
+                  className="px-3 py-1.5 text-xs border border-blue-200 text-blue-700 rounded-btn hover:bg-blue-50 whitespace-nowrap">
+                  📋 管理进度
                 </button>
                 <button onClick={() => openEdit(t)}
                   className="px-3 py-1.5 text-xs border border-border text-text-muted rounded-btn hover:border-border text-center">
@@ -205,6 +225,7 @@ export default function SubsidyProjectsPage() {
         onSubmit={submitType}
         onClose={() => setEditOpen(false)}
         thisYear={thisYear}
+        onCheckConfigChange={cfg => { pendingCheckConfig.current = cfg }}
       />
 
       <Toast {...toast} />

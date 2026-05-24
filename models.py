@@ -1,6 +1,7 @@
 from sqlalchemy import (
     Column, Integer, String, SmallInteger, Date,
-    DateTime, Text, DECIMAL, Numeric, ForeignKey, UniqueConstraint, Index
+    DateTime, Text, DECIMAL, Numeric, ForeignKey,
+    UniqueConstraint, Index, CheckConstraint, Boolean
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -17,6 +18,8 @@ class Village(Base):
 
     id           = Column(Integer, primary_key=True, autoincrement=True)
     village_name = Column(String(50), nullable=False, unique=True, comment="村名")
+    leader_name  = Column(String(30), nullable=True, comment="村负责人")
+    leader_phone = Column(String(20), nullable=True, comment="负责人电话")
     created_at   = Column(DateTime, default=func.now())
 
     # 关联
@@ -46,10 +49,12 @@ class FamilyHousehold(Base):
     created_at      = Column(DateTime, default=func.now())
     updated_at      = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    # 索引
+    # 索引 + 约束
     __table_args__ = (
         Index('ix_family_household_village_id', 'village_id'),
         Index('ix_family_household_head_farmer', 'head_farmer_id'),
+        CheckConstraint("contract_area IS NULL OR contract_area >= 0", name="ck_hh_contract_area_non_negative"),
+        CheckConstraint("confirmed_area IS NULL OR confirmed_area >= 0", name="ck_hh_confirmed_area_non_negative"),
     )
 
     # 关联
@@ -74,6 +79,8 @@ class FarmerProfile(Base):
     relation         = Column(String(20), nullable=True, default="本人", comment="与户主关系")
     farmer_status    = Column(SmallInteger, nullable=False, default=1,
                               comment="1在册 2注销 3迁出 4死亡")
+    restricted_identity = Column(SmallInteger, nullable=False, default=0,
+                                 comment="受限身份标记：0=无限制 1=受限制（公务员/事业人员等）")
     own_village_id   = Column(Integer, ForeignKey("village.id"), nullable=True,
                               comment="个人所在村（出嫁/迁居等，NULL=与家庭户相同）")
     own_group_no     = Column(SmallInteger, nullable=True,
@@ -109,14 +116,15 @@ class SubsidyType(Base):
     standard_unit   = Column(String(20), nullable=True, comment="元/亩 元/人 元/户")
     fund_source     = Column(String(50), nullable=True, comment="中央/省级/县级")
     category        = Column(String(50), nullable=True, comment="补贴分类，用于同类项目对比，如：耕地保护、大豆、玉米等")
-    season          = Column(String(20), nullable=False, default="全年单补",
-                             comment="补贴季节/类型：大春|小春|全年单补|临时")
+    season          = Column(String(20), nullable=False, default="耕地地力保护",
+                             comment="补贴季节/类型：大春|小春|耕地地力保护|临时")
     apply_deadline  = Column(Date, nullable=True)
     pay_status      = Column(SmallInteger, nullable=False, default=0,
                              comment="0未发放 1部分发放 2已发放完毕")
     description        = Column(Text, nullable=True)
     count_toward_area  = Column(SmallInteger, nullable=False, default=1,
                                 comment="1=按亩补贴累计入家庭承包面积 0=不计入（固定金额补贴一般选0）")
+    check_config    = Column(Text, nullable=True, comment="预检配置（JSON）")
     created_at      = Column(DateTime, default=func.now())
 
     # 关联
@@ -160,6 +168,7 @@ class SubsidyApplication(Base):
                          name="uq_farmer_subsidy_year"),
         Index('ix_subsidy_application_farmer_year', 'farmer_id', 'apply_year'),
         Index('ix_subsidy_application_subsidy_type', 'subsidy_type_id'),
+        Index('ix_subsidy_app_type_year', 'subsidy_type_id', 'apply_year'),
     )
 
     # 关联
@@ -257,7 +266,7 @@ class HouseholdAreaUsageCache(Base):
     id            = Column(Integer, primary_key=True, autoincrement=True)
     household_id  = Column(Integer, ForeignKey("family_household.id"), nullable=False)
     year          = Column(SmallInteger, nullable=False)
-    season        = Column(String(20), nullable=False)  # 大春/小春/全年单补/临时
+    season        = Column(String(20), nullable=False)  # 大春/小春/耕地地力保护/临时
     apply_area    = Column(Numeric(10, 2), default=0, comment="申报面积汇总")
     payment_area  = Column(Numeric(10, 2), default=0, comment="发放面积汇总")
     used_area     = Column(Numeric(10, 2), default=0, comment="最终使用面积(=payment_area if exists else apply_area)")
@@ -413,13 +422,21 @@ class LandTrust(Base):
 
     id                   = Column(Integer, primary_key=True, autoincrement=True)
 
-    # ── 流出方（承包权人）──
-    owner_household_id   = Column(Integer, ForeignKey("family_household.id"), nullable=False,
-                                   comment="流出方：土地承包人家庭户")
+    # ── 流出方（承包权人/村/村组）──
+    owner_type           = Column(String(20), nullable=False, default='household',
+                                   comment="household=家庭户/village=村/village_group=村组")
+    owner_household_id   = Column(Integer, ForeignKey("family_household.id"), nullable=True,
+                                   comment="流出方：家庭户ID（当owner_type=household时）")
+    owner_entity_id      = Column(Integer, nullable=True,
+                                   comment="流出方实体ID（当owner_type=village时=村ID，village_group时=村组ID）")
 
-    # ── 流入方（经营权人，可为空表示撂荒/集体统一）──
-    operator_household_id = Column(Integer, ForeignKey("family_household.id"), nullable=True,
-                                    comment="流入方：实际耕种人家庭户，null=撂荒或集体")
+    # ── 流入方（经营权人/村/村组，可为空表示撂荒/集体统一）──
+    operator_type           = Column(String(20), nullable=False, default='household',
+                                     comment="household=家庭户/village=村/village_group=村组")
+    operator_household_id   = Column(Integer, ForeignKey("family_household.id"), nullable=True,
+                                     comment="流入方：家庭户ID（当operator_type=household时）")
+    operator_entity_id      = Column(Integer, nullable=True,
+                                     comment="流入方实体ID（当operator_type=village时=村ID，village_group时=村组ID）")
 
     # ── 流转类型 ──
     trust_type           = Column(String(20), nullable=False, default="ENTRUST",
@@ -427,7 +444,8 @@ class LandTrust(Base):
 
     # ── 面积与时间（核心字段，都可选）──
     area                 = Column(DECIMAL(10, 2), nullable=True, comment="流转面积（亩），null=未精确量")
-    trust_year           = Column(SmallInteger, nullable=False, comment="流转年度（一年一签）")
+    trust_year           = Column(SmallInteger, nullable=False, comment="流转起始年度")
+    trust_end_year       = Column(SmallInteger, nullable=True, comment="流转结束年度，null=同起始年度")
     start_date           = Column(Date, nullable=True, comment="开始日期，可仅填年度")
     end_date             = Column(Date, nullable=True, comment="结束日期，可仅填年度")
 
@@ -447,6 +465,10 @@ class LandTrust(Base):
     # ── 补贴影响配置 ──
     affect_subsidy_calc  = Column(SmallInteger, nullable=False, default=1,
                                    comment="1=纳入补贴面积计算/0=仅作记录不影响计算")
+    subsidy_arable       = Column(SmallInteger, nullable=False, default=1,
+                                   comment="1=耕地地力补贴由流入方享受 0=否")
+    subsidy_cash_crop    = Column(SmallInteger, nullable=False, default=1,
+                                   comment="1=经济作物补贴由流入方享受 0=否")
 
     # ── 审核信息 ──
     verified_by          = Column(String(50), nullable=True)
@@ -456,6 +478,14 @@ class LandTrust(Base):
     is_active            = Column(SmallInteger, nullable=False, default=1)
     created_at           = Column(DateTime, default=func.now())
     updated_at           = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # ── 索引 ──
+    __table_args__ = (
+        Index('ix_land_trust_owner_year', 'owner_household_id', 'trust_year', 'is_active'),
+        Index('ix_land_trust_operator_year', 'operator_household_id', 'trust_year', 'is_active'),
+        Index('ix_land_trust_year_active', 'trust_year', 'is_active'),
+        Index('ix_land_trust_type_year', 'trust_type', 'trust_year', 'is_active'),
+    )
 
     # ── 关联 ──
     owner_household    = relationship("FamilyHousehold", foreign_keys=[owner_household_id],
@@ -527,13 +557,18 @@ class VillageGroup(Base):
     """村组定义表 —— 记录各村下辖的组，独立于家庭户存在"""
     __tablename__ = "village_group"
 
-    id         = Column(Integer, primary_key=True, autoincrement=True)
-    village_id = Column(Integer, ForeignKey("village.id"), nullable=False)
-    group_no   = Column(String(20), nullable=False, comment="组名，如：一组、二组")
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    village_id    = Column(Integer, ForeignKey("village.id"), nullable=False)
+    group_no      = Column(String(20), nullable=False, comment="组名，如：一组、二组")
+    leader_name   = Column(String(30), nullable=True, comment="组负责人")
+    leader_phone  = Column(String(20), nullable=True, comment="负责人电话")
+    retained_land = Column(DECIMAL(10, 2), nullable=False, default=0.00, comment="村留存土地（亩）")
+    population    = Column(Integer, nullable=True, comment="人口数")
 
     __table_args__ = (
         UniqueConstraint("village_id", "group_no", name="uq_village_group"),
         Index("ix_village_group_village", "village_id"),
+        CheckConstraint("retained_land >= 0", name="ck_vg_retained_land_non_negative"),
     )
 
     village = relationship("Village", backref="groups")
@@ -868,3 +903,47 @@ class LargeFarmerContractReminder(Base):
     sent_at             = Column(DateTime, nullable=True, comment="发送时间")
     note                = Column(Text, nullable=True, comment="备注")
     created_at          = Column(DateTime, default=func.now())
+
+
+class ProjectProgress(Base):
+    """
+    补贴项目进度跟踪表
+    按村+项目维度记录各阶段工作进度，支持自定义阶段名称
+    stages JSON 格式：[{"name":"宣传动员","status":"done","date":"2026-05-20","note":""}]
+    status: none=未开始 in_progress=进行中 done=已完成 reminded=已提醒 urged=已催缴
+    """
+    __tablename__ = "project_progress"
+
+    id                = Column(Integer, primary_key=True, autoincrement=True)
+    subsidy_type_id   = Column(Integer, ForeignKey("subsidy_type.id"), nullable=False, comment="补贴项目ID")
+    village_id        = Column(Integer, ForeignKey("village.id"), nullable=False, comment="村ID")
+    village_name      = Column(String(50), nullable=False, comment="村名（冗余）")
+    person_name       = Column(String(30), nullable=True, comment="村社区负责人")
+    phone             = Column(String(20), nullable=True, comment="联系方式")
+    stages            = Column(Text, nullable=False, default="[]", comment="阶段列表 JSON")
+    note              = Column(Text, nullable=True, comment="备注")
+    created_at        = Column(DateTime, default=func.now())
+    updated_at        = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("subsidy_type_id", "village_id", name="uq_progress_project_village"),
+        Index("ix_project_progress_project", "subsidy_type_id"),
+        Index("ix_project_progress_village", "village_id"),
+    )
+
+    subsidy_type = relationship("SubsidyType", backref="progress_records")
+    village      = relationship("Village")
+
+
+class User(Base):
+    """系统用户表"""
+    __tablename__ = "user"
+
+    id           = Column(Integer, primary_key=True, autoincrement=True)
+    username     = Column(String(50), nullable=False, unique=True, comment="用户名")
+    password_hash= Column(String(128), nullable=False, comment="bcrypt 哈希")
+    display_name = Column(String(30), nullable=True, comment="显示名称")
+    role         = Column(String(20), nullable=False, default="operator", comment="admin/operator")
+    is_active    = Column(Boolean, nullable=False, default=True, comment="是否启用")
+    last_login   = Column(DateTime, nullable=True, comment="最后登录时间")
+    created_at   = Column(DateTime, default=func.now())

@@ -154,7 +154,7 @@ export default function HouseholdImportPage() {
         </div>
         {step > 1 && (
           <button onClick={resetAll}
-            className="text-sm text-text-muted hover:text-text-primary border border-border rounded-btn px-3 py-1.5">
+            className="text-sm text-text-muted bg-danger-200 hover:text-text-primary border border-border rounded-btn px-3 py-1.5">
             重新上传
           </button>
         )}
@@ -166,7 +166,7 @@ export default function HouseholdImportPage() {
           <div key={i} className="flex items-center flex-1">
             <div className={`flex items-center gap-2 ${i + 1 === step ? 'text-primary font-semibold' : i + 1 < step ? 'text-primary/70' : 'text-text-muted/50'}`}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
-                ${i + 1 === step ? 'bg-primary/90 text-white' : i + 1 < step ? 'bg-emerald-100 text-primary' : 'bg-warm/30 text-text-muted'}`}>
+                ${i + 1 === step ? 'bg-primary/90 ' : i + 1 < step ? 'bg-emerald-100 text-primary' : 'bg-warm/30 text-text-muted'}`}>
                 {i + 1 < step ? '✓' : i + 1}
               </div>
               <span className="text-sm whitespace-nowrap">{s}</span>
@@ -184,7 +184,7 @@ export default function HouseholdImportPage() {
           <div className="text-4xl">📂</div>
           <p className="text-text-primary text-sm">上传包含家庭户信息的 Excel 文件（.xlsx / .xls）</p>
           <p className="text-text-muted text-xs">必须包含：姓名、身份证号、家庭住址；建议包含：户主关系</p>
-          <label className="cursor-pointer bg-primary/90 text-white px-6 py-2 rounded-btn text-sm hover:bg-primary transition-colors">
+          <label className="cursor-pointer bg-primary/90  px-6 py-2 rounded-btn text-sm hover:bg-primary transition-colors">
             选择文件
             <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFile} />
           </label>
@@ -246,7 +246,7 @@ export default function HouseholdImportPage() {
 
           <div className="flex justify-end">
             <button onClick={handlePreview} disabled={loading}
-              className="bg-primary/90 text-white px-6 py-2 rounded-btn text-sm hover:bg-primary disabled:opacity-50 transition-colors">
+              className="bg-primary/90  px-6 py-2 rounded-btn text-sm hover:bg-primary disabled:opacity-50 transition-colors">
               {loading ? '分析中…' : '预览导入结果 →'}
             </button>
           </div>
@@ -385,7 +385,7 @@ export default function HouseholdImportPage() {
               ← 返回列映射
             </button>
             <button onClick={handleExecute} disabled={loading}
-              className="bg-primary/90 text-white px-8 py-2 rounded-btn text-sm hover:bg-primary disabled:opacity-50 transition-colors font-medium">
+              className="bg-primary/90  px-8 py-2 rounded-btn text-sm hover:bg-primary disabled:opacity-50 transition-colors font-medium">
               {loading ? '导入中…' : '确认导入'}
             </button>
           </div>
@@ -429,7 +429,7 @@ export default function HouseholdImportPage() {
               继续导入
             </button>
             <a href="/farmers"
-              className="bg-primary/90 text-white px-6 py-2 rounded-btn text-sm hover:bg-primary">
+              className="bg-primary/90  px-6 py-2 rounded-btn text-sm hover:bg-primary">
               前往户籍管理查看
             </a>
           </div>

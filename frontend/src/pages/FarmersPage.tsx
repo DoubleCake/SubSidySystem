@@ -77,7 +77,6 @@ export default function FarmersPage() {
   const [overdrawnOnly, setOverdrawnOnly] = useState(false)
   const [confirmedFilter, setConfirmedFilter] = useState<string>('') // ''=全部, '1'=已确认, '0'=未确认
   const [statusFilter, setStatusFilter] = useState<string>('1') // ''=全部, '1'=在册, '2'=注销, '3'=迁出
-  const [highSubsidyOnly, setHighSubsidyOnly] = useState(false) // 补贴记录≥4条
   const yearFilter = new Date().getFullYear()
 
   // ── 批量确认状态 ──
@@ -224,7 +223,7 @@ export default function FarmersPage() {
   // ── 成员管理 ──
   const [memberAddOpen, setMemberAddOpen] = useState(false)
   const [memberEditTarget, setMemberEditTarget] = useState<HHMember | null>(null)
-  const [memberForm, setMemberForm] = useState({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: 0, group_no: 1, village_name: '', group_name: '' })
+  const [memberForm, setMemberForm] = useState({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', restricted_identity: '0', event_date: '', village_id: 0, group_no: 1, village_name: '', group_name: '' })
   const [memberImportOpen, setMemberImportOpen] = useState(false)
 
   // ── 分户向导 ──
@@ -275,11 +274,10 @@ export default function FarmersPage() {
       if (overdrawnOnly) p.overdrawn_only = '1'
       if (confirmedFilter) p.confirmed_only = confirmedFilter
       if (statusFilter) p.status = statusFilter
-      if (highSubsidyOnly) p.min_app_count = 4
       const r = await api.getHouseholds(p)
       setHhList(r.items); setHhTotal(r.total)
     } finally { setHhLoading(false) }
-  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter, highSubsidyOnly])
+  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter])
 
   useEffect(() => {
     if (leftTab === 'farmers') loadFarmers()
@@ -384,7 +382,8 @@ export default function FarmersPage() {
 
   // ── 打开户详情 ──
   const openDetail = async (id: number, skipUrlUpdate = false) => {
-    const d = await api.getHouseholdDetail(id)
+    setAreaYear(detailYear)
+    const d = await api.getHouseholdDetail(id, detailYear)
     setDetail(d); setDetailTab('members'); setEvents([]); setSelectedFarmer(null); setSelectedFarmerHousehold(null)
     setHistoryEventId(null); setSnapshotData(null)
     // 打开详情时清除合并和批量确认状态
@@ -517,6 +516,15 @@ export default function FarmersPage() {
   useEffect(() => {
     if (detail || selectedFarmerHousehold) loadEvents()
   }, [detail?.id, selectedFarmerHousehold?.id, loadEvents])
+
+  // ── 年份切换时，重新获取该年度的流转数据和面积信息 ──
+  useEffect(() => {
+    if (!detail || historyEventId !== null) return
+    const currentId = detail.id
+    api.getHouseholdDetail(currentId, areaYear > 0 ? areaYear : undefined).then(d => {
+      if (d.id === currentId) setDetail(d)
+    })
+  }, [areaYear]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 切换左侧 Tab ──
   const handleTabChange = (tab: LeftTab) => {
@@ -662,6 +670,7 @@ export default function FarmersPage() {
           bank_card: memberForm.bank_card || undefined,
           bank_name: memberForm.bank_name || undefined,
           farmer_status: Number(memberForm.farmer_status),
+          restricted_identity: Number(memberForm.restricted_identity) || 0,
           event_date: memberForm.event_date || undefined,
           village_id: memberForm.village_id || undefined,
           group_no: memberForm.group_no || undefined,
@@ -678,6 +687,7 @@ export default function FarmersPage() {
           bank_card: memberForm.bank_card || undefined,
           bank_name: memberForm.bank_name || undefined,
           farmer_status: 1,
+          restricted_identity: Number(memberForm.restricted_identity) || 0,
         })
         show('✓ 成员已添加')
       }
@@ -710,6 +720,7 @@ export default function FarmersPage() {
       real_name: m.real_name, id_card: '', gender: String(m.gender),
       relation: m.relation || '成员', is_head: m.is_head === 1,
       phone: '', bank_card: '', bank_name: '', farmer_status: String(m.farmer_status),
+      restricted_identity: String((m as HHMember).restricted_identity ?? 0),
       event_date: '',
       village_id: effVid ?? 0,
       group_no: effGno ?? 1,
@@ -997,11 +1008,11 @@ export default function FarmersPage() {
           {leftTab === 'households' && !mergeMode && (
             <>
               <div className="flex gap-2 flex-wrap">
-                <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
+                <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-primary-500  rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
                   <Icon name="create" size={14} className="inline mr-1" />创建新家庭户
                 </button>
                 <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]); setHhPage(1) }}
-                  className="px-3 py-2 text-sm border border-orange-tag/30 text-[#B8860B] rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium bg-orange-tag/5">
+                  className="px-3 py-2 text-sm border border-orange-tag/30  bg-[#f7edd8] text-[#B8860B] rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium bg-orange-tag/5">
                   <Icon name="merge" size={14} className="inline mr-1" />合并家庭户
                 </button>
                 <button onClick={exportCurrentList} className="px-3 py-2 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30 shadow-card hover:shadow-card-hover transition-all font-medium">
@@ -1014,11 +1025,11 @@ export default function FarmersPage() {
                   <Icon name="upload" size={14} className="inline mr-1" />导入确权面积
                 </button>
                 <button onClick={() => { setBatchConfirmMode(true); setBatchSelected([]); setBatchSelectedHouseholds([]); setMergeMode(false); setMergeSelected([]); setMergeSelectedHouseholds([]) }}
-                  className="px-3 py-2 text-sm border border-primary/20 text-primary rounded-btn hover:bg-primary/5 shadow-card hover:shadow-card-hover transition-all font-medium bg-primary/[0.02]">
+                  className="px-3 py-2 text-sm border border-primary/20 text-primary bg-[#e3e7ec] rounded-btn hover:bg-primary/5 shadow-card hover:shadow-card-hover transition-all font-medium bg-primary/[0.02]">
                   <Icon name="confirm" size={14} className="inline mr-1" />批量确认
                 </button>
                 <button onClick={() => handleRefreshCache()} disabled={refreshingCache}
-                  className="px-3 py-2 text-sm border-2 border-danger/30 text-danger bg-danger/5 rounded-btn hover:bg-danger/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
+                  className="px-3 py-2 bg-[#edeaed]  hover:brightness-95 text-sm border-2 border-danger/30 text-danger bg-danger/5 rounded-btn hover:bg-danger/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-purple-700 ">
                   <Icon name="refresh" size={14} className="inline mr-1" />
                   {refreshingCache ? '刷新中…' : '刷新缓存'}
                 </button>
@@ -1028,13 +1039,9 @@ export default function FarmersPage() {
                   {recalculatingArea ? '计算中…' : '重算未确认户承包面积'}
                 </button>
               </div>
-              <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer bg-warm/30 px-3 py-2 rounded-btn border border-border shadow-card hover:bg-warm/50 transition-all">
+              <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer bg-warm/30  px-3 py-2 rounded-btn border border-border shadow-card hover:bg-warm/50 transition-all">
                 <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-primary rounded" />
                 <span className="font-medium">仅看超领</span>
-              </label>
-              <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer bg-warm/30 px-3 py-2 rounded-btn border border-border shadow-card hover:bg-warm/50 transition-all">
-                <input type="checkbox" checked={highSubsidyOnly} onChange={e => { setHighSubsidyOnly(e.target.checked); setHhPage(1) }} className="w-4 h-4 text-primary rounded" />
-                <span className="font-medium">补贴≥4条</span>
               </label>
             </>
           )}
@@ -1065,7 +1072,7 @@ export default function FarmersPage() {
             </span>
             <button onClick={handleMergeConfirm}
               disabled={mergeSelectedHouseholds.length < 2}
-              className="ml-auto px-4 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium">
+              className="ml-auto px-4 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium">
               确认合并
             </button>
           </div>
@@ -1084,14 +1091,14 @@ export default function FarmersPage() {
             </span>
             <button onClick={handleBatchConfirm}
               disabled={batchSelected.length === 0 || batchConfirmLoading}
-              className="ml-auto px-4 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2">
+              className="ml-auto px-4 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2">
               {batchConfirmLoading ? <><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>确认中...</> : '确认所选'}
             </button>
           </div>
         )}
         {leftTab === 'farmers' && (
           <>
-            <button onClick={() => setCreateFarmerOpen(true)} className="px-4 py-2.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
+            <button onClick={() => setCreateFarmerOpen(true)} className="px-4 py-2.5 text-sm bg-primary  rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
               <Icon name="create" size={14} className="inline mr-1" />新建农户
             </button>
             <div className="flex items-center gap-0 border border-border rounded-btn shadow-card overflow-hidden">
@@ -1111,7 +1118,7 @@ export default function FarmersPage() {
         )}
 
         {/* 列表 */}
-        <div className="flex-1 bg-white border border-border rounded-card overflow-hidden shadow-card flex flex-col min-h-0">
+        <div className="flex-1 bg-warm-100 border border-border rounded-card overflow-hidden shadow-card flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto">
             {/* 农户列表 */}
             {leftTab === 'farmers' && (
@@ -1171,6 +1178,8 @@ export default function FarmersPage() {
               selectedFarmer={selectedFarmer}
               showAppSummary={true}
               appSummary={selectedFarmerHousehold?.app_summary}
+              groups={groups}
+              onUpdate={() => openFarmer(selectedFarmer!.id)}
             />
             {selectedFarmerHousehold && (
               <div className="flex gap-4 flex-1 min-h-0">
@@ -1201,7 +1210,7 @@ export default function FarmersPage() {
                     onOpenMemberAdd={() => {
                       const v = groups.find(g => g.village_id === detail?.village_id)
                       const g = groups.find(g => g.village_id === detail?.village_id && g.group_no === detail?.group_no)
-                      setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` })
+                      setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', restricted_identity: '0', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` })
                       setMemberAddOpen(true)
                     }}
                     onOpenMemberImport={() => setMemberImportOpen(true)}
@@ -1252,7 +1261,7 @@ export default function FarmersPage() {
                 onOpenMemberAdd={() => {
                   const v = groups.find(g => g.village_id === detail?.village_id)
                   const g = groups.find(g => g.village_id === detail?.village_id && g.group_no === detail?.group_no)
-                  setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` })
+                  setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', restricted_identity: '0', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` })
                   setMemberAddOpen(true)
                 }}
                 onOpenEvent={() => setEventOpen(true)}
