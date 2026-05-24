@@ -429,6 +429,34 @@ export function HouseholdDetailContent({
           </div>
         )}
 
+        {/* 流转记录 */}
+        {(detail.trust_records && detail.trust_records.length > 0) && (
+          <div className="bg-main border-b border-border px-4 py-3">
+            <details open>
+              <summary className="text-xs text-text-muted font-medium cursor-pointer mb-2">
+                🔄 流转记录 ({detail.trust_records.length}条)
+              </summary>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {detail.trust_records.map((t, i) => (
+                  <div key={t.id || i} className="flex items-center gap-2 text-xs py-1 border-b border-border/20 last:border-0">
+                    <span className={`font-bold shrink-0 ${t.direction === '流入' ? 'text-emerald-600' : 'text-orange-500'}`}>
+                      {t.direction === '流入' ? '＋流入' : '－流出'}
+                    </span>
+                    <span className="text-text-muted shrink-0">{t.counterparty || '—'}</span>
+                    <span className="text-text-primary font-mono shrink-0">{t.area?.toFixed(2)}亩</span>
+                    <span className="text-text-muted/50 shrink-0">{t.trust_type}</span>
+                    <span className="text-text-muted/50 shrink-0">{t.trust_year}年</span>
+                    {t.subsidy_arable === 1 && <span className="text-emerald-600 shrink-0">耕地✓</span>}
+                    {t.subsidy_cash_crop === 1 && <span className="text-blue-600 shrink-0">作物✓</span>}
+                    {t.end_date && <span className="text-text-muted/50 shrink-0">至{t.end_date}</span>}
+                    {t.note && <span className="text-text-muted/40 truncate">{t.note}</span>}
+                  </div>
+                ))}
+              </div>
+            </details>
+          </div>
+        )}
+
         {/* Tab 栏 */}
         <div className="flex border-b border-border bg-warm/30 items-center">
           {([
@@ -539,7 +567,7 @@ export function HouseholdDetailContent({
                               {labelType}
                             </span>
                           </button>
-                          <div className="left-0 top-full mt-1 bg-stone-800  text-xs px-2 py-1.5 rounded-btn shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                          <div className="left-0 top-full mt-1   text-xs px-2 py-1.5 rounded-btn shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                             {labelType === '受益'
                               ? <>受益人: {proxy.beneficiary_name} → 代领人: {proxy.proxy_name}</>
                               : <>代领人: {proxy.proxy_name} → 受益人: {proxy.beneficiary_name}</>}

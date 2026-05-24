@@ -77,7 +77,6 @@ export default function FarmersPage() {
   const [overdrawnOnly, setOverdrawnOnly] = useState(false)
   const [confirmedFilter, setConfirmedFilter] = useState<string>('') // ''=全部, '1'=已确认, '0'=未确认
   const [statusFilter, setStatusFilter] = useState<string>('1') // ''=全部, '1'=在册, '2'=注销, '3'=迁出
-  const [highSubsidyOnly, setHighSubsidyOnly] = useState(false) // 补贴记录≥4条
   const yearFilter = new Date().getFullYear()
 
   // ── 批量确认状态 ──
@@ -275,11 +274,10 @@ export default function FarmersPage() {
       if (overdrawnOnly) p.overdrawn_only = '1'
       if (confirmedFilter) p.confirmed_only = confirmedFilter
       if (statusFilter) p.status = statusFilter
-      if (highSubsidyOnly) p.min_app_count = 4
       const r = await api.getHouseholds(p)
       setHhList(r.items); setHhTotal(r.total)
     } finally { setHhLoading(false) }
-  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter, highSubsidyOnly])
+  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter])
 
   useEffect(() => {
     if (leftTab === 'farmers') loadFarmers()
@@ -1044,10 +1042,6 @@ export default function FarmersPage() {
               <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer bg-warm/30  px-3 py-2 rounded-btn border border-border shadow-card hover:bg-warm/50 transition-all">
                 <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-primary rounded" />
                 <span className="font-medium">仅看超领</span>
-              </label>
-              <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer bg-warm/30 px-3 py-2 rounded-btn border border-border shadow-card hover:bg-warm/50 transition-all">
-                <input type="checkbox" checked={highSubsidyOnly} onChange={e => { setHighSubsidyOnly(e.target.checked); setHhPage(1) }} className="w-4 h-4 text-primary rounded" />
-                <span className="font-medium">补贴≥4条</span>
               </label>
             </>
           )}

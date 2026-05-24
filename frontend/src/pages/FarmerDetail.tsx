@@ -287,7 +287,7 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, group
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead><tr className="bg-warm/30 border-b border-border">
-                {['年度', '补贴项目', '面积', '申请金额', '实发金额', '状态'].map(h => (
+                {['年度', '补贴项目', '面积', '申请金额', '实发金额', '状态', '类型'].map(h => (
                   <th key={h} className="px-4 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
                 ))}
               </tr></thead>
@@ -302,6 +302,13 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, group
                       {a.actual_amount ? fmt(a.actual_amount) : '待发放'}
                     </td>
                     <td className="px-4 py-2"><Tag label={PAY_STATUS[a.pay_status]?.label} color={PAY_STATUS[a.pay_status]?.color as 'green'} /></td>
+                    <td className="px-4 py-2">
+                      {a.proxy_info ? (
+                        <Tag label={a.proxy_info.type} color={a.proxy_info.type === '代领' ? 'amber' : 'green'} />
+                      ) : (
+                        <span className="text-xs text-text-muted/50">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -844,6 +844,7 @@ def create_proxy_relation(db: Session, data: dict) -> dict:
         application_id=data.get("application_id"),
         payment_id=data.get("payment_id"),
         subsidy_type_id=subsidy_type_id,
+        proxy_type=data.get("proxy_type", "代领"),
         remark=data.get("remark", ""),
     )
     db.add(proxy_rel)

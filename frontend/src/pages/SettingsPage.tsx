@@ -10,6 +10,8 @@ interface VillageGroup {
   village_name: string
   group_no: string
   full_name: string
+  leader_name?: string
+  leader_phone?: string
   household_count: number
   retained_land?: number
   population?: number
@@ -78,18 +80,26 @@ export default function SettingsPage() {
   const [editTarget, setEditTarget] = useState<VillageGroup | null>(null)
   const [editVillage, setEditVillage] = useState('')
   const [editGroup, setEditGroup] = useState('')
+  const [editLeaderName, setEditLeaderName] = useState('')
+  const [editLeaderPhone, setEditLeaderPhone] = useState('')
   const [editRetainedLand, setEditRetainedLand] = useState<number>(0)
   const [editPopulation, setEditPopulation] = useState<number>(0)
 
   // 快速新增组
   const [quickAddVillage, setQuickAddVillage] = useState<string | null>(null)
   const [quickGroupNo, setQuickGroupNo] = useState('')
+  // 村负责人编辑
+  const [editLeaderVillage, setEditLeaderVillage] = useState<string | null>(null)
+  const [villageLeaders, setVillageLeaders] = useState<Record<string, { name: string; phone: string; vid: number }>>({})
 
   // 耕地信息
   const [landInfoMap, setLandInfoMap] = useState<Record<number, VillageLandInfo>>({})
   const [editingLandId, setEditingLandId] = useState<number | null>(null)
   const [landEditForm, setLandEditForm] = useState<Partial<VillageLandInfo>>({})
   const [savingLand, setSavingLand] = useState<number | null>(null)
+  // 批量导入负责人
+  const [batchLeaderOpen, setBatchLeaderOpen] = useState(false)
+  const [batchLeaderText, setBatchLeaderText] = useState('')
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -105,7 +115,29 @@ export default function SettingsPage() {
     } catch { /* ignore */ }
   }, [])
 
-  useEffect(() => { reload(); reloadLand() }, [reload, reloadLand])
+  const loadLeaders = useCallback(async () => {
+    try {
+      const list = await req<any[]>('/api/settings/villages')
+      const map: Record<string, { name: string; phone: string; vid: number }> = {}
+      list.forEach(v => { map[v.village_name] = { name: v.leader_name || '', phone: v.leader_phone || '', vid: v.id } })
+      setVillageLeaders(map)
+    } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => { reload(); reloadLand(); loadLeaders() }, [reload, reloadLand, loadLeaders])
+
+  const saveLeader = async (vname: string) => {
+    const info = villageLeaders[vname]
+    if (!info) return
+    try {
+      await req(`/api/settings/villages/${info.vid}`, {
+        method: 'PUT', body: JSON.stringify({ leader_name: editLeaderName, leader_phone: editLeaderPhone }),
+      })
+      show('✓ 负责人已更新')
+      setEditLeaderVillage(null)
+      loadLeaders()
+    } catch (e: unknown) { show((e as Error).message, 'err') }
+  }
 
   const openLandEdit = (vid: number) => {
     const info = landInfoMap[vid] || { village_id: vid }
@@ -163,6 +195,7 @@ export default function SettingsPage() {
 
   const openEdit = (g: VillageGroup) => {
     setEditTarget(g); setEditVillage(g.village_name); setEditGroup(g.group_no)
+    setEditLeaderName(g.leader_name || ''); setEditLeaderPhone(g.leader_phone || '')
     setEditRetainedLand(g.retained_land ?? 0)
     setEditPopulation(g.population ?? 0)
   }
@@ -173,11 +206,31 @@ export default function SettingsPage() {
         method: 'PUT', body: JSON.stringify({
           village_name: editVillage,
           group_no: editGroup,
+          leader_name: editLeaderName,
+          leader_phone: editLeaderPhone,
           retained_land: editRetainedLand,
           population: editPopulation,
         })
       })
       show('✓ 更新成功'); setEditTarget(null); reload()
+    } catch (e: unknown) { show((e as Error).message, 'err') }
+  }
+
+  // 批量导入负责人（粘贴 村名\t组名\t姓名\t电话）
+  const submitBatchLeaders = async () => {
+    const lines = batchLeaderText.split('\n').filter(l => l.trim())
+    const rows: { village_name: string; group_no: string; leader_name: string; leader_phone: string }[] = []
+    for (const line of lines) {
+      const parts = line.split('\t')
+      if (parts.length >= 3) {
+        rows.push({ village_name: parts[0].trim(), group_no: parts[1].trim(), leader_name: parts[2].trim(), leader_phone: (parts[3] || '').trim() })
+      }
+    }
+    if (!rows.length) return show('请按格式粘贴：村名\t组名\t姓名\t电话', 'err')
+    try {
+      await req('/api/settings/village-groups/batch-leaders', { method: 'POST', body: JSON.stringify({ rows }) })
+      show(`✓ 已更新 ${rows.length} 个组的负责人`)
+      setBatchLeaderOpen(false); setBatchLeaderText(''); reload()
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
@@ -236,10 +289,16 @@ export default function SettingsPage() {
           {/* 工具栏 */}
           <div className="flex justify-between items-center mb-4">
             <p className="text-sm text-text-muted">点击村名右侧「＋组」可快速添加该村新组</p>
-            <button onClick={() => { setAddMode('single'); setAddOpen(true) }}
-              className="px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
-              ＋ 新增村 / 组
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => setBatchLeaderOpen(true)}
+                className="px-3 py-2 text-sm border border-blue-200 text-blue-700 rounded-btn hover:bg-blue-50">
+                📥 批量导入负责人
+              </button>
+              <button onClick={() => { setAddMode('single'); setAddOpen(true) }}
+                className="px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
+                ＋ 新增村 / 组
+              </button>
+            </div>
           </div>
 
           {/* 村组卡片列表 */}
@@ -255,6 +314,30 @@ export default function SettingsPage() {
                       <span className="text-xs text-text-muted font-mono">{glist.length} 个组</span>
                       <span className="text-xs text-text-muted/50">·</span>
                       <span className="text-xs text-text-muted">{glist.reduce((s, g) => s + g.household_count, 0)} 户</span>
+                      {/* 负责人 */}
+                      {editLeaderVillage === vname ? (
+                        <div className="flex items-center gap-1.5">
+                          <input autoFocus value={editLeaderName} onChange={e => setEditLeaderName(e.target.value)}
+                            placeholder="姓名" className="border border-border rounded px-2 py-0.5 text-xs outline-none w-20" />
+                          <input value={editLeaderPhone} onChange={e => setEditLeaderPhone(e.target.value)}
+                            placeholder="电话" className="border border-border rounded px-2 py-0.5 text-xs outline-none w-28" />
+                          <button onClick={() => saveLeader(vname)} className="text-xs text-primary font-medium">保存</button>
+                          <button onClick={() => setEditLeaderVillage(null)} className="text-xs text-text-muted">取消</button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {villageLeaders[vname]?.name ? (
+                            <span className="text-xs text-text-muted">👤 {villageLeaders[vname].name}{villageLeaders[vname].phone ? ` · ${villageLeaders[vname].phone}` : ''}</span>
+                          ) : (
+                            <span className="text-xs text-text-muted/40">未设置负责人</span>
+                          )}
+                          <button onClick={() => {
+                            setEditLeaderVillage(vname)
+                            setEditLeaderName(villageLeaders[vname]?.name || '')
+                            setEditLeaderPhone(villageLeaders[vname]?.phone || '')
+                          }} className="text-xs text-blue-500 hover:text-blue-700">✏️</button>
+                        </div>
+                      )}
                     </div>
                     {quickAddVillage === vname ? (
                       <div className="flex items-center gap-2">
@@ -291,6 +374,9 @@ export default function SettingsPage() {
                         )}
                         {(g.total_land ?? 0) > 0 && (
                           <span className="text-xs text-text-muted font-mono">={(g.total_land ?? 0).toFixed(1)}亩</span>
+                        )}
+                        {(g.leader_name || g.leader_phone) && (
+                          <span className="text-xs text-blue-600">👤 {[g.leader_name, g.leader_phone].filter(Boolean).join(' · ')}</span>
                         )}
                         <div className="hidden group-hover:flex items-center gap-1 ml-0.5">
                           <button onClick={() => openEdit(g)} className="text-xs text-blue-500 hover:text-blue-700 px-1">改</button>
@@ -462,6 +548,16 @@ export default function SettingsPage() {
                   className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
               </div>
               <div>
+                <label className="block text-xs text-text-muted mb-1">👤 负责人</label>
+                <input value={editLeaderName} onChange={e => setEditLeaderName(e.target.value)}
+                  placeholder="姓名" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="block text-xs text-text-muted mb-1">📞 电话</label>
+                <input value={editLeaderPhone} onChange={e => setEditLeaderPhone(e.target.value)}
+                  placeholder="手机号" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              </div>
+              <div>
                 <label className="block text-xs text-text-muted mb-1">村留存土地（亩）</label>
                 <input type="number" min="0" step="0.01"
                   value={editRetainedLand} onChange={e => setEditRetainedLand(Number(e.target.value) || 0)}
@@ -480,6 +576,21 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
+          </Modal>
+
+          {/* 批量导入负责人 */}
+          <Modal open={batchLeaderOpen} title="批量导入村组负责人"
+            onClose={() => setBatchLeaderOpen(false)}
+            onConfirm={submitBatchLeaders}>
+            <p className="text-xs text-text-muted mb-2">
+              每行一个组，用 <strong>Tab</strong> 分隔：村名 → 组名 → 负责人姓名 → 电话
+            </p>
+            <textarea rows={12} value={batchLeaderText} onChange={e => setBatchLeaderText(e.target.value)}
+              placeholder={`XX村\t一组\t张三\t138xxxx\nXX村\t二组\t李四\t139xxxx`}
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none font-mono" />
+            <p className="text-xs text-text-muted mt-1">
+              共 <strong>{batchLeaderText.split('\n').filter(l => l.trim()).length}</strong> 行
+            </p>
           </Modal>
         </>
       ) : (

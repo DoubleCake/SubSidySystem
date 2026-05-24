@@ -161,6 +161,19 @@ def create_household(data: HouseholdCreateSchema, db: Session = Depends(get_db))
     return household_service.create_household(db, data.model_dump())
 
 
+class QuickCreateSchema(BaseModel):
+    real_name: str
+    id_card: str
+    village_name: str = ""
+    group_no: str = ""
+
+
+@router.post("/quick-create")
+def quick_create(data: QuickCreateSchema, db: Session = Depends(get_db)):
+    """快速创建家庭户+农户，用于流转等场景中查不到时快速新建"""
+    return household_service.quick_create_household(db, data.real_name, data.id_card, data.village_name, data.group_no)
+
+
 # ─────────────────────────────────────
 #  家庭户详情
 # ─────────────────────────────────────

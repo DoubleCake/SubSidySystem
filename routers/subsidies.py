@@ -335,14 +335,30 @@ def list_types_with_stats(
                st.standard_amount, st.standard_unit, st.fund_source,
                st.category, st.apply_deadline, st.pay_status, st.description,
                st.count_toward_area,
-               COUNT(sa.id)                               AS app_count,
-               COUNT(DISTINCT sa.farmer_id)               AS beneficiary_count,
-               ROUND(SUM(COALESCE(sa.apply_amount,0)),2)  AS total_apply,
-               ROUND(SUM(COALESCE(sa.actual_amount,0)),2) AS total_actual
+               COALESCE(p.pay_count, a.app_count, 0)              AS app_count,
+               COALESCE(p.pay_beneficiary_count, a.app_beneficiary_count, 0) AS beneficiary_count,
+               COALESCE(p.pay_total_amount, a.app_apply_amount, 0)   AS total_apply,
+               COALESCE(p.pay_total_actual, a.app_actual_amount, 0)  AS total_actual
         FROM subsidy_type st
-        LEFT JOIN subsidy_application sa ON sa.subsidy_type_id = st.id
+        LEFT JOIN (
+            SELECT subsidy_type_id,
+                   COUNT(id) AS pay_count,
+                   COUNT(DISTINCT beneficiary_id) AS pay_beneficiary_count,
+                   ROUND(SUM(COALESCE(amount,0)),2) AS pay_total_amount,
+                   ROUND(SUM(COALESCE(amount,0)),2) AS pay_total_actual
+            FROM subsidy_payment
+            GROUP BY subsidy_type_id
+        ) p ON p.subsidy_type_id = st.id
+        LEFT JOIN (
+            SELECT subsidy_type_id,
+                   COUNT(id) AS app_count,
+                   COUNT(DISTINCT beneficiary_id) AS app_beneficiary_count,
+                   ROUND(SUM(COALESCE(apply_amount,0)),2) AS app_apply_amount,
+                   ROUND(SUM(COALESCE(actual_amount,0)),2) AS app_actual_amount
+            FROM subsidy_application
+            GROUP BY subsidy_type_id
+        ) a ON a.subsidy_type_id = st.id
         {where}
-        GROUP BY st.id
         ORDER BY st.subsidy_year DESC, st.id
     """)
     return [dict(r._mapping) for r in db.execute(sql, params)]
@@ -595,7 +611,7 @@ def precheck_applications(
         trust_out_rows = db.execute(text("""
             SELECT owner_household_id, COALESCE(SUM(area),0)
             FROM land_trust
-            WHERE trust_year=:yr AND is_active=1
+            WHERE (trust_year = :yr OR (trust_year <= :yr AND trust_end_year IS NOT NULL AND trust_end_year >= :yr)) AND is_active=1
               AND affect_subsidy_calc=1 AND trust_type!='IDLE'
               AND subsidy_arable=1
               AND (operator_household_id IS NOT NULL
@@ -607,7 +623,7 @@ def precheck_applications(
         trust_in_rows = db.execute(text("""
             SELECT operator_household_id, COALESCE(SUM(area),0)
             FROM land_trust
-            WHERE trust_year=:yr AND is_active=1
+            WHERE (trust_year = :yr OR (trust_year <= :yr AND trust_end_year IS NOT NULL AND trust_end_year >= :yr)) AND is_active=1
               AND affect_subsidy_calc=1 AND subsidy_arable=1
             GROUP BY operator_household_id
         """), {"yr": compare_year}).all()
@@ -617,7 +633,7 @@ def precheck_applications(
         trust_out_cash_rows = db.execute(text("""
             SELECT owner_household_id, COALESCE(SUM(area),0)
             FROM land_trust
-            WHERE trust_year=:yr AND is_active=1
+            WHERE (trust_year = :yr OR (trust_year <= :yr AND trust_end_year IS NOT NULL AND trust_end_year >= :yr)) AND is_active=1
               AND affect_subsidy_calc=1 AND trust_type!='IDLE'
               AND subsidy_cash_crop=1
               AND (operator_household_id IS NOT NULL
@@ -629,7 +645,7 @@ def precheck_applications(
         trust_in_cash_rows = db.execute(text("""
             SELECT operator_household_id, COALESCE(SUM(area),0)
             FROM land_trust
-            WHERE trust_year=:yr AND is_active=1
+            WHERE (trust_year = :yr OR (trust_year <= :yr AND trust_end_year IS NOT NULL AND trust_end_year >= :yr)) AND is_active=1
               AND affect_subsidy_calc=1 AND subsidy_cash_crop=1
             GROUP BY operator_household_id
         """), {"yr": compare_year}).all()
@@ -639,7 +655,7 @@ def precheck_applications(
         idle_rows = db.execute(text("""
             SELECT owner_household_id, COALESCE(SUM(area),0)
             FROM land_trust
-            WHERE trust_year=:yr AND is_active=1
+            WHERE (trust_year = :yr OR (trust_year <= :yr AND trust_end_year IS NOT NULL AND trust_end_year >= :yr)) AND is_active=1
               AND affect_subsidy_calc=1 AND trust_type='IDLE'
               AND subsidy_arable=1
             GROUP BY owner_household_id

@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import engine
 from models import Base
-from routers import farmers, subsidies, ai_analyze, settings, households, external_links, backup, eligibility, excel_templates, land, error_library, household_import, agri_tasks, large_farmers
+from routers import farmers, subsidies, ai_analyze, settings, households, external_links, backup, eligibility, excel_templates, land, error_library, household_import, agri_tasks, large_farmers, project_progress
 from core.exceptions import AppException, NotFound, BadRequest, Conflict, ValidationError, Forbidden
 from core.response import error_response
 
@@ -162,6 +162,7 @@ app.include_router(error_library.router)
 app.include_router(household_import.router)
 app.include_router(agri_tasks.router)
 app.include_router(large_farmers.router)
+app.include_router(project_progress.router)
 
 @app.get("/api/health")
 def health():

@@ -194,6 +194,10 @@ export default function SubsidyProjectsPage() {
                   className="px-3 py-1.5 text-sm bg-primary/10 text-primary-700 rounded-btn hover:bg-primary/20 whitespace-nowrap font-medium">
                   查看人员 →
                 </button>
+                <button onClick={() => navigate(`/project-progress?subsidy_type_id=${t.id}`)}
+                  className="px-3 py-1.5 text-xs border border-blue-200 text-blue-700 rounded-btn hover:bg-blue-50 whitespace-nowrap">
+                  📋 管理进度
+                </button>
                 <button onClick={() => openEdit(t)}
                   className="px-3 py-1.5 text-xs border border-border text-text-muted rounded-btn hover:border-border text-center">
                   编辑项目

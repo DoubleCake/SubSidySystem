@@ -415,6 +415,12 @@ export interface HHDetail {
     pay_status: number; apply_village_name: string; apply_group_display: string; is_proxy: number
     proxy_info?: { type: string; proxy_name?: string; beneficiary_name?: string; proxy_farmer_id?: number; beneficiary_farmer_id?: number; remark?: string } | null
   }[]
+  trust_records?: {
+    id: number; direction: string; trust_type: string; area: number | null; trust_year: number
+    subsidy_arable: number; subsidy_cash_crop: number; affect_subsidy_calc: number
+    start_date: string | null; end_date: string | null; note: string | null
+    data_reliability: string; counterparty: string
+  }[]
 }
 
 export interface HHEvent {

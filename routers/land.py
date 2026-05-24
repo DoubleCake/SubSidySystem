@@ -204,6 +204,7 @@ def create_trust(data: dict, db: Session = Depends(get_db)):
         trust_type            = data.get("trust_type", "ENTRUST"),
         area                  = Decimal(str(data["area"])) if data.get("area") else None,
         trust_year            = int(year),
+        trust_end_year        = data.get("trust_end_year") or None,
         start_date            = start,
         end_date              = end,
         annual_fee            = Decimal(str(data["annual_fee"])) if data.get("annual_fee") else None,
@@ -239,7 +240,7 @@ def update_trust(trust_id: int, data: dict, db: Session = Depends(get_db)):
     if not trust or not trust.is_active:
         raise HTTPException(404, "记录不存在")
 
-    updatable = ["trust_type", "area", "trust_year", "start_date", "end_date",
+    updatable = ["trust_type", "area", "trust_year", "trust_end_year", "start_date", "end_date",
                  "annual_fee", "payment_method", "fee_note", "parcel_desc",
                  "data_reliability", "affect_subsidy_calc",
                  "subsidy_arable", "subsidy_cash_crop", "note",
@@ -577,29 +578,35 @@ def search_household(q: str = Query("", min_length=0), db: Session = Depends(get
 def list_all_trusts(
     year:         Optional[int] = Query(None, description="流转年度"),
     trust_type:   Optional[str] = Query(None),
-    source_type:  Optional[str] = Query(None, description="来源类型：normal普通大户 large_farmer"),
+    source_type:  Optional[str] = Query(None, description="来源类型"),
+    search:       Optional[str] = Query(None, description="搜索户名或村名"),
     page:         int = Query(1, ge=1),
     page_size:    int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
     """
-    查询所有流转记录，包含普通流转和大户流转。
-    source_type: normal=普通家庭户流转, large_farmer=大户流转, 不传=全部
+    查询所有流转记录。
+    search: 在流出方/流入方名称中模糊搜索
+    source_type: 已废弃，保留兼容
     """
     all_items = []
     total = 0
 
-    # 1. 查询普通家庭户流转
+    # 查询家庭户流转
     if source_type is None or source_type == "normal":
         normal_where = "lt.is_active = 1"
         params: dict = {}
 
         if year:
-            normal_where += " AND lt.trust_year=:yr"
+            normal_where += " AND (lt.trust_year = :yr OR (lt.trust_year <= :yr AND lt.trust_end_year IS NOT NULL AND lt.trust_end_year >= :yr))"
             params["yr"] = year
         if trust_type:
             normal_where += " AND lt.trust_type=:tt"
             params["tt"] = trust_type
+        # 搜索：在流出方和流入方名称中模糊匹配
+        if search:
+            normal_where += " AND (oh.household_name LIKE :s OR oh.household_code LIKE :s OR op.household_name LIKE :s OR op.household_code LIKE :s OR ov.village_name LIKE :s)"
+            params["s"] = f"%{search.strip()}%"
 
         normal_count_sql = f"SELECT COUNT(*) FROM land_trust lt WHERE {normal_where}"
         normal_total = db.execute(text(normal_count_sql), params).scalar() or 0
@@ -744,6 +751,51 @@ def trust_summary_with_large(
     }
 
 
+@router.post("/trusts/batch-renew")
+def batch_renew_trusts(payload: dict, db: Session = Depends(get_db)):
+    """批量续约流转记录，每条续到下一年"""
+    ids = payload.get("ids", [])
+    if not ids:
+        return {"created": 0}
+
+    created = 0
+    for trust_id in ids:
+        src = db.get(LandTrust, trust_id)
+        if not src or not src.is_active:
+            continue
+        new_year = src.trust_year + 1
+        # 检查目标年度是否已存在相同记录
+        exists = db.query(LandTrust).filter(
+            LandTrust.owner_household_id == src.owner_household_id,
+            LandTrust.operator_household_id == src.operator_household_id,
+            LandTrust.trust_type == src.trust_type,
+            LandTrust.trust_year == new_year,
+            LandTrust.is_active == 1,
+        ).first()
+        if exists:
+            continue
+        new_trust = LandTrust(
+            owner_type=src.owner_type, owner_household_id=src.owner_household_id,
+            owner_entity_id=src.owner_entity_id,
+            operator_type=src.operator_type, operator_household_id=src.operator_household_id,
+            operator_entity_id=src.operator_entity_id,
+            trust_type=src.trust_type, area=src.area,
+            trust_year=new_year, trust_end_year=None,
+            start_date=None, end_date=None,
+            annual_fee=src.annual_fee, payment_method=src.payment_method,
+            fee_note=src.fee_note, parcel_desc=src.parcel_desc,
+            data_reliability=src.data_reliability,
+            affect_subsidy_calc=src.affect_subsidy_calc,
+            subsidy_arable=src.subsidy_arable, subsidy_cash_crop=src.subsidy_cash_crop,
+            note=src.note, is_active=1,
+        )
+        db.add(new_trust)
+        created += 1
+
+    db.commit()
+    return {"created": created}
+
+
 @router.post("/trusts/batch-import-idle")
 def batch_import_idle(payload: dict, db: Session = Depends(get_db)):
     """批量导入撂荒地记录（简化模板）"""
@@ -758,7 +810,7 @@ def batch_import_idle(payload: dict, db: Session = Depends(get_db)):
     for idx, row in enumerate(rows):
         row_no = idx + 2
         try:
-            # 解析流出方
+            # 解析流出方（查不到时自动创建）
             hh_id = row.get("owner_household_id")
             if not hh_id:
                 name = str(row.get("owner_name", "")).strip()
@@ -771,6 +823,14 @@ def batch_import_idle(payload: dict, db: Session = Depends(get_db)):
                     hh = db.query(FamilyHousehold).filter(FamilyHousehold.household_name.like(f"%{name}%")).first()
                     if hh:
                         hh_id = hh.id
+                # 仍未找到且身份证有效，自动创建
+                if not hh_id and id_card and name:
+                    from services.household_service import quick_create_household
+                    try:
+                        r = quick_create_household(db, name, id_card)
+                        hh_id = r["household_id"]
+                    except Exception:
+                        pass
                 if not hh_id:
                     errors.append(f"第{row_no}行 无法找到流出方: {name or id_card}")
                     continue

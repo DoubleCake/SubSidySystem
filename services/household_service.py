@@ -527,7 +527,7 @@ def calc_household_area_usage(
 
     out_r = db.execute(text("""
         SELECT COALESCE(SUM(area),0) FROM land_trust
-        WHERE owner_household_id=:hid AND trust_year=:yr AND is_active=1
+        WHERE owner_household_id=:hid AND (trust_year = :yr OR (trust_year <= :yr AND trust_end_year IS NOT NULL AND trust_end_year >= :yr)) AND is_active=1
           AND affect_subsidy_calc=1 AND trust_type!='IDLE'
           AND (operator_household_id IS NOT NULL
                OR (operator_type IN ('village','village_group') AND operator_entity_id IS NOT NULL))
@@ -536,7 +536,7 @@ def calc_household_area_usage(
 
     out_arable_r = db.execute(text("""
         SELECT COALESCE(SUM(area),0) FROM land_trust
-        WHERE owner_household_id=:hid AND trust_year=:yr AND is_active=1
+        WHERE owner_household_id=:hid AND (trust_year = :yr OR (trust_year <= :yr AND trust_end_year IS NOT NULL AND trust_end_year >= :yr)) AND is_active=1
           AND affect_subsidy_calc=1 AND trust_type!='IDLE'
           AND subsidy_arable=1
           AND (operator_household_id IS NOT NULL
@@ -546,7 +546,7 @@ def calc_household_area_usage(
 
     out_cash_r = db.execute(text("""
         SELECT COALESCE(SUM(area),0) FROM land_trust
-        WHERE owner_household_id=:hid AND trust_year=:yr AND is_active=1
+        WHERE owner_household_id=:hid AND (trust_year = :yr OR (trust_year <= :yr AND trust_end_year IS NOT NULL AND trust_end_year >= :yr)) AND is_active=1
           AND affect_subsidy_calc=1 AND trust_type!='IDLE'
           AND subsidy_cash_crop=1
           AND (operator_household_id IS NOT NULL
@@ -557,7 +557,7 @@ def calc_household_area_usage(
     # 撂荒地（仅 subsidy_arable=1 时扣减耕地地力保护补贴面积）
     idle_r = db.execute(text("""
         SELECT COALESCE(SUM(area),0) FROM land_trust
-        WHERE owner_household_id=:hid AND trust_year=:yr AND is_active=1
+        WHERE owner_household_id=:hid AND (trust_year = :yr OR (trust_year <= :yr AND trust_end_year IS NOT NULL AND trust_end_year >= :yr)) AND is_active=1
           AND affect_subsidy_calc=1 AND trust_type='IDLE'
           AND subsidy_arable=1
     """), {"hid": household_id, "yr": trust_year}).scalar()
@@ -565,21 +565,21 @@ def calc_household_area_usage(
 
     in_r = db.execute(text("""
         SELECT COALESCE(SUM(area),0) FROM land_trust
-        WHERE operator_household_id=:hid AND trust_year=:yr AND is_active=1
+        WHERE operator_household_id=:hid AND (trust_year = :yr OR (trust_year <= :yr AND trust_end_year IS NOT NULL AND trust_end_year >= :yr)) AND is_active=1
           AND affect_subsidy_calc=1
     """), {"hid": household_id, "yr": trust_year}).scalar()
     trust_in = float(in_r or 0)
 
     in_arable_r = db.execute(text("""
         SELECT COALESCE(SUM(area),0) FROM land_trust
-        WHERE operator_household_id=:hid AND trust_year=:yr AND is_active=1
+        WHERE operator_household_id=:hid AND (trust_year = :yr OR (trust_year <= :yr AND trust_end_year IS NOT NULL AND trust_end_year >= :yr)) AND is_active=1
           AND affect_subsidy_calc=1 AND subsidy_arable=1
     """), {"hid": household_id, "yr": trust_year}).scalar()
     trust_in_arable = float(in_arable_r or 0)
 
     in_cash_r = db.execute(text("""
         SELECT COALESCE(SUM(area),0) FROM land_trust
-        WHERE operator_household_id=:hid AND trust_year=:yr AND is_active=1
+        WHERE operator_household_id=:hid AND (trust_year = :yr OR (trust_year <= :yr AND trust_end_year IS NOT NULL AND trust_end_year >= :yr)) AND is_active=1
           AND affect_subsidy_calc=1 AND subsidy_cash_crop=1
     """), {"hid": household_id, "yr": trust_year}).scalar()
     trust_in_cash_crop = float(in_cash_r or 0)
@@ -920,7 +920,7 @@ def list_overdrawn_households(
     trust_results = db.execute(text("""
         SELECT owner_household_id, operator_household_id, COALESCE(SUM(area), 0) as area
         FROM land_trust
-        WHERE trust_year = :yr AND is_active = 1 AND affect_subsidy_calc = 1
+        WHERE (trust_year = :yr OR (trust_year <= :yr AND trust_end_year IS NOT NULL AND trust_end_year >= :yr)) AND is_active = 1 AND affect_subsidy_calc = 1
         GROUP BY owner_household_id, operator_household_id
     """), {"yr": year}).fetchall()
 
@@ -1030,6 +1030,52 @@ def create_household(db: Session, data: dict) -> dict:
     return {"id": hh.id}
 
 
+def quick_create_household(
+    db: Session, real_name: str, id_card: str, village_name: str = "", group_no: str = ""
+) -> dict:
+    """快速创建家庭户+农户，返回 household_id 和 farmer_id"""
+    from models import Village
+    vname = village_name.strip()
+    if vname:
+        village = db.query(Village).filter(Village.village_name == vname).first()
+        if not village:
+            village = Village(village_name=vname)
+            db.add(village)
+            db.flush()
+    else:
+        village = None
+
+    gno_int = parse_group_no_to_int(group_no) if group_no else 1
+    parsed = parse_id_card(id_card) or {}
+
+    farmer = FarmerProfile(
+        household_id=0, real_name=real_name,
+        gender=parsed.get("gender") or 1,
+        id_card=id_card, relation="本人", farmer_status=1,
+    )
+    db.add(farmer)
+    db.flush()
+
+    hh = FamilyHousehold(
+        household_code=gen_household_code(farmer.id),
+        household_name=f"{real_name}户", head_farmer_id=farmer.id,
+        village_id=village.id if village else 1,
+        group_no=gno_int, status=1,
+    )
+    db.add(hh)
+    db.flush()
+    farmer.household_id = hh.id
+    db.commit()
+
+    return {
+        "household_id": hh.id,
+        "household_name": hh.household_name,
+        "farmer_id": farmer.id,
+        "id_card": id_card,
+        "real_name": real_name,
+    }
+
+
 # ════════════════════════════════════════════════════════
 #  家庭户详情
 # ════════════════════════════════════════════════════════
@@ -1064,6 +1110,7 @@ def get_household(db: Session, household_id: int, year: Optional[int] = None) ->
 
     area_info = calc_household_area_usage(household_id, db, year)
     app_summary = _get_household_app_summary(db, household_id)
+    trust_records = _get_household_trust_records(db, household_id, year)
 
     return {
         "id": hh.id,
@@ -1083,6 +1130,7 @@ def get_household(db: Session, household_id: int, year: Optional[int] = None) ->
         "members": member_list,
         "area_usage": area_info,
         "app_summary": app_summary,
+        "trust_records": trust_records,
     }
 
 
@@ -1140,7 +1188,68 @@ def _get_household_app_summary(
         .all()
     )
 
-    all_rows = [("application", r) for r in app_rows] + [("payment", r) for r in pay_rows]
+    # 代领记录：本户成员作为 farmer_id（代领人）的申请/发放
+    proxy_app_rows = (
+        db.query(
+            SubsidyApplication.apply_year,
+            SubsidyApplication.farmer_id,
+            FarmerProfile.real_name,
+            SubsidyType.subsidy_name,
+            SubsidyType.calc_mode,
+            SubsidyApplication.apply_area,
+            SubsidyApplication.apply_amount,
+            SubsidyApplication.actual_amount,
+            SubsidyApplication.pay_status,
+            SubsidyApplication.apply_village_name,
+            SubsidyApplication.apply_group_display,
+            SubsidyApplication.is_proxy,
+            SubsidyApplication.beneficiary_id,
+            SubsidyApplication.id.label("record_id"),
+        )
+        .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id)
+        .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
+        .filter(
+            FarmerProfile.household_id == household_id,
+            SubsidyApplication.is_proxy == 1,
+            SubsidyApplication.farmer_id != SubsidyApplication.beneficiary_id,
+        )
+        .order_by(SubsidyApplication.apply_year.desc())
+        .all()
+    )
+    proxy_pay_rows = (
+        db.query(
+            SubsidyPayment.payment_year.label("apply_year"),
+            SubsidyPayment.farmer_id,
+            FarmerProfile.real_name,
+            SubsidyType.subsidy_name,
+            SubsidyType.calc_mode,
+            SubsidyPayment.apply_area,
+            SubsidyPayment.amount.label("apply_amount"),
+            SubsidyPayment.amount.label("actual_amount"),
+            (SubsidyPayment.pay_status or 2).label("pay_status"),
+            SubsidyPayment.payment_village_name.label("apply_village_name"),
+            SubsidyPayment.payment_group_display.label("apply_group_display"),
+            SubsidyPayment.is_proxy,
+            SubsidyPayment.beneficiary_id,
+            SubsidyPayment.id.label("record_id"),
+        )
+        .join(FarmerProfile, FarmerProfile.id == SubsidyPayment.farmer_id)
+        .join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
+        .filter(
+            FarmerProfile.household_id == household_id,
+            SubsidyPayment.is_proxy == 1,
+            SubsidyPayment.farmer_id != SubsidyPayment.beneficiary_id,
+        )
+        .order_by(SubsidyPayment.payment_year.desc())
+        .all()
+    )
+
+    all_rows = (
+        [("application", r) for r in app_rows]
+        + [("payment", r) for r in pay_rows]
+        + [("proxy_app", r) for r in proxy_app_rows]
+        + [("proxy_pay", r) for r in proxy_pay_rows]
+    )
 
     # Collect all involved farmer IDs for name lookup
     all_involved_ids = set()
@@ -1158,8 +1267,10 @@ def _get_household_app_summary(
         is_proxy = getattr(r, 'is_proxy', 0) or 0
         if is_proxy == 1 and r.beneficiary_id and r.beneficiary_id != r.farmer_id:
             key = (record_type, r.record_id)
+            # proxy_app/proxy_pay = 本户是代领人，application/payment = 本户是受益人
+            is_beneficiary = record_type in ("application", "payment")
             proxy_map[key] = {
-                "type": "受益",
+                "type": "受益" if is_beneficiary else "代领",
                 "beneficiary_name": farmer_names.get(r.beneficiary_id, "未知"),
                 "beneficiary_farmer_id": r.beneficiary_id,
                 "proxy_name": farmer_names.get(r.farmer_id, "未知"),
@@ -1195,6 +1306,74 @@ def _get_household_app_summary(
 
     app_summary.sort(key=lambda x: -x["apply_year"])
     return app_summary
+
+
+def _get_household_trust_records(
+    db: Session, household_id: int, year: Optional[int] = None
+) -> list[dict]:
+    """获取家庭户的流转记录（流出+流入）"""
+    from datetime import date
+    trust_year = year or date.today().year
+    result: list[dict] = []
+
+    # 流出（本户转给别人的地）
+    out_rows = db.execute(text("""
+        SELECT lt.id, lt.trust_type, lt.area, lt.trust_year,
+               lt.subsidy_arable, lt.subsidy_cash_crop,
+               lt.affect_subsidy_calc, lt.start_date, lt.end_date,
+               lt.note, lt.data_reliability,
+               CASE WHEN lt.operator_household_id IS NOT NULL
+                    THEN fh.household_name ELSE
+                    CASE WHEN lt.operator_type='village' THEN v.village_name
+                         ELSE v2.village_name || vg.group_no END
+               END AS operator_name
+        FROM land_trust lt
+        LEFT JOIN family_household fh ON lt.operator_household_id = fh.id
+        LEFT JOIN village v ON lt.operator_type='village' AND lt.operator_entity_id=v.id
+        LEFT JOIN village_group vg ON lt.operator_type='village_group' AND lt.operator_entity_id=vg.id
+        LEFT JOIN village v2 ON vg.village_id = v2.id
+        WHERE lt.owner_household_id = :hid AND (lt.trust_year = :yr OR (lt.trust_year <= :yr AND lt.trust_end_year IS NOT NULL AND lt.trust_end_year >= :yr)) AND lt.is_active = 1
+        ORDER BY lt.trust_type, lt.id
+    """), {"hid": household_id, "yr": trust_year}).mappings().all()
+
+    for r in out_rows:
+        result.append({
+            "id": r["id"], "direction": "流出", "trust_type": r["trust_type"],
+            "area": float(r["area"]) if r["area"] else None, "trust_year": r["trust_year"],
+            "subsidy_arable": r["subsidy_arable"], "subsidy_cash_crop": r["subsidy_cash_crop"],
+            "affect_subsidy_calc": r["affect_subsidy_calc"],
+            "start_date": str(r["start_date"]) if r["start_date"] else None,
+            "end_date": str(r["end_date"]) if r["end_date"] else None,
+            "note": r["note"], "data_reliability": r["data_reliability"],
+            "counterparty": r["operator_name"] or "",
+        })
+
+    # 流入（别人转给本户的地）
+    in_rows = db.execute(text("""
+        SELECT lt.id, lt.trust_type, lt.area, lt.trust_year,
+               lt.subsidy_arable, lt.subsidy_cash_crop,
+               lt.affect_subsidy_calc, lt.start_date, lt.end_date,
+               lt.note, lt.data_reliability,
+               fh.household_name AS owner_name
+        FROM land_trust lt
+        LEFT JOIN family_household fh ON lt.owner_household_id = fh.id
+        WHERE lt.operator_household_id = :hid AND (lt.trust_year = :yr OR (lt.trust_year <= :yr AND lt.trust_end_year IS NOT NULL AND lt.trust_end_year >= :yr)) AND lt.is_active = 1
+        ORDER BY lt.trust_type, lt.id
+    """), {"hid": household_id, "yr": trust_year}).mappings().all()
+
+    for r in in_rows:
+        result.append({
+            "id": r["id"], "direction": "流入", "trust_type": r["trust_type"],
+            "area": float(r["area"]) if r["area"] else None, "trust_year": r["trust_year"],
+            "subsidy_arable": r["subsidy_arable"], "subsidy_cash_crop": r["subsidy_cash_crop"],
+            "affect_subsidy_calc": r["affect_subsidy_calc"],
+            "start_date": str(r["start_date"]) if r["start_date"] else None,
+            "end_date": str(r["end_date"]) if r["end_date"] else None,
+            "note": r["note"], "data_reliability": r["data_reliability"],
+            "counterparty": r["owner_name"] or "",
+        })
+
+    return result
 
 
 # ════════════════════════════════════════════════════════

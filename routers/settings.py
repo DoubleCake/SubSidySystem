@@ -15,9 +15,13 @@ router = APIRouter(prefix="/api/settings", tags=["基础设置"])
 
 class VillageCreate(BaseModel):
     village_name: str
+    leader_name: Optional[str] = None
+    leader_phone: Optional[str] = None
 
 class VillageUpdate(BaseModel):
     village_name: Optional[str] = None
+    leader_name: Optional[str] = None
+    leader_phone: Optional[str] = None
 
 @router.get("/villages")
 def list_villages(db: Session = Depends(get_db)):
@@ -26,6 +30,8 @@ def list_villages(db: Session = Depends(get_db)):
         {
             "id": v.id,
             "village_name": v.village_name,
+            "leader_name": v.leader_name or "",
+            "leader_phone": v.leader_phone or "",
             "household_count": len(v.households),
         }
         for v in items
@@ -36,7 +42,7 @@ def create_village(data: VillageCreate, db: Session = Depends(get_db)):
     exists = db.query(Village).filter(Village.village_name == data.village_name).first()
     if exists:
         raise HTTPException(status_code=400, detail=f"村「{data.village_name}」已存在")
-    v = Village(village_name=data.village_name)
+    v = Village(village_name=data.village_name, leader_name=data.leader_name, leader_phone=data.leader_phone)
     db.add(v)
     db.commit()
     db.refresh(v)
@@ -47,8 +53,12 @@ def update_village(village_id: int, data: VillageUpdate, db: Session = Depends(g
     v = db.get(Village, village_id)
     if not v:
         raise HTTPException(status_code=404, detail="村不存在")
-    if data.village_name:
+    if data.village_name is not None:
         v.village_name = data.village_name
+    if data.leader_name is not None:
+        v.leader_name = data.leader_name
+    if data.leader_phone is not None:
+        v.leader_phone = data.leader_phone
     db.commit()
     return {"message": "更新成功"}
 
@@ -79,6 +89,7 @@ def list_village_groups(db: Session = Depends(get_db)):
     group_sql = text("""
         SELECT vg.id, vg.village_id, vg.group_no,
                vg.retained_land, vg.population,
+               vg.leader_name, vg.leader_phone,
                v.village_name,
                v.village_name || vg.group_no AS full_name,
                COUNT(hh.id) AS household_count,
@@ -89,7 +100,7 @@ def list_village_groups(db: Session = Depends(get_db)):
                ON hh.village_id = vg.village_id
               AND format_group_no(hh.group_no) = vg.group_no
               AND hh.status = 1
-        GROUP BY vg.id, vg.village_id, vg.group_no, v.village_name, vg.retained_land, vg.population
+        GROUP BY vg.id, vg.village_id, vg.group_no, v.village_name, vg.retained_land, vg.population, vg.leader_name, vg.leader_phone
         ORDER BY v.village_name, vg.group_no
     """)
     rows = db.execute(group_sql).mappings().all()
@@ -128,6 +139,8 @@ def list_village_groups(db: Session = Depends(get_db)):
             "village_name":    r["village_name"],
             "group_no":        r["group_no"],
             "full_name":       r["full_name"],
+            "leader_name":     r["leader_name"] or "",
+            "leader_phone":    r["leader_phone"] or "",
             "household_count": r["household_count"] or 0,
             "retained_land":   retained,
             "population":      r["population"],
@@ -142,6 +155,8 @@ def list_village_groups(db: Session = Depends(get_db)):
 class GroupCreate(BaseModel):
     village_name: str
     group_no: str
+    leader_name: Optional[str] = None
+    leader_phone: Optional[str] = None
 
 class GroupBatchCreate(BaseModel):
     rows: List[GroupCreate]
@@ -149,6 +164,8 @@ class GroupBatchCreate(BaseModel):
 class GroupUpdate(BaseModel):
     village_name: Optional[str] = None
     group_no: Optional[str] = None
+    leader_name: Optional[str] = None
+    leader_phone: Optional[str] = None
     retained_land: Optional[float] = None
     population: Optional[int] = None
 
@@ -175,7 +192,8 @@ def create_village_group(data: GroupCreate, db: Session = Depends(get_db)):
     if exists:
         raise HTTPException(status_code=400, detail=f"「{vname}{gno}」已存在")
 
-    g = VillageGroup(village_id=v.id, group_no=gno)
+    g = VillageGroup(village_id=v.id, group_no=gno,
+                     leader_name=data.leader_name, leader_phone=data.leader_phone)
     db.add(g); db.commit(); db.refresh(g)
     return {"id": g.id, "message": "创建成功"}
 
@@ -198,10 +216,42 @@ def batch_create_village_groups(data: GroupBatchCreate, db: Session = Depends(ge
         if exists:
             skipped += 1
         else:
-            db.add(VillageGroup(village_id=v.id, group_no=gno))
+            db.add(VillageGroup(village_id=v.id, group_no=gno,
+                               leader_name=row.leader_name, leader_phone=row.leader_phone))
             created += 1
     db.commit()
     return {"created": created, "skipped": skipped}
+
+
+class LeaderBatchRow(BaseModel):
+    village_name: str
+    group_no: str
+    leader_name: str = ""
+    leader_phone: str = ""
+
+class LeaderBatchCreate(BaseModel):
+    rows: List[LeaderBatchRow]
+
+
+@router.post("/village-groups/batch-leaders")
+def batch_update_leaders(data: LeaderBatchCreate, db: Session = Depends(get_db)):
+    """批量更新村组负责人"""
+    updated = 0
+    for row in data.rows:
+        vname = row.village_name.strip(); gno = row.group_no.strip()
+        if not vname or not gno: continue
+        v = db.query(Village).filter(Village.village_name == vname).first()
+        if not v: continue
+        g = db.query(VillageGroup).filter(
+            VillageGroup.village_id == v.id,
+            VillageGroup.group_no == gno,
+        ).first()
+        if g:
+            g.leader_name = row.leader_name or None
+            g.leader_phone = row.leader_phone or None
+            updated += 1
+    db.commit()
+    return {"updated": updated}
 
 
 @router.put("/village-groups/{group_id}")
@@ -228,6 +278,11 @@ def update_village_group(group_id: int, data: GroupUpdate, db: Session = Depends
         if data.population < 0:
             raise HTTPException(status_code=400, detail="人口数不能为负数")
         g.population = data.population
+
+    if data.leader_name is not None:
+        g.leader_name = data.leader_name
+    if data.leader_phone is not None:
+        g.leader_phone = data.leader_phone
 
     db.commit()
     return {"message": "更新成功"}

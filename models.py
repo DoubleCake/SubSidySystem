@@ -18,6 +18,8 @@ class Village(Base):
 
     id           = Column(Integer, primary_key=True, autoincrement=True)
     village_name = Column(String(50), nullable=False, unique=True, comment="村名")
+    leader_name  = Column(String(30), nullable=True, comment="村负责人")
+    leader_phone = Column(String(20), nullable=True, comment="负责人电话")
     created_at   = Column(DateTime, default=func.now())
 
     # 关联
@@ -442,7 +444,8 @@ class LandTrust(Base):
 
     # ── 面积与时间（核心字段，都可选）──
     area                 = Column(DECIMAL(10, 2), nullable=True, comment="流转面积（亩），null=未精确量")
-    trust_year           = Column(SmallInteger, nullable=False, comment="流转年度（一年一签）")
+    trust_year           = Column(SmallInteger, nullable=False, comment="流转起始年度")
+    trust_end_year       = Column(SmallInteger, nullable=True, comment="流转结束年度，null=同起始年度")
     start_date           = Column(Date, nullable=True, comment="开始日期，可仅填年度")
     end_date             = Column(Date, nullable=True, comment="结束日期，可仅填年度")
 
@@ -557,6 +560,8 @@ class VillageGroup(Base):
     id            = Column(Integer, primary_key=True, autoincrement=True)
     village_id    = Column(Integer, ForeignKey("village.id"), nullable=False)
     group_no      = Column(String(20), nullable=False, comment="组名，如：一组、二组")
+    leader_name   = Column(String(30), nullable=True, comment="组负责人")
+    leader_phone  = Column(String(20), nullable=True, comment="负责人电话")
     retained_land = Column(DECIMAL(10, 2), nullable=False, default=0.00, comment="村留存土地（亩）")
     population    = Column(Integer, nullable=True, comment="人口数")
 
@@ -898,3 +903,33 @@ class LargeFarmerContractReminder(Base):
     sent_at             = Column(DateTime, nullable=True, comment="发送时间")
     note                = Column(Text, nullable=True, comment="备注")
     created_at          = Column(DateTime, default=func.now())
+
+
+class ProjectProgress(Base):
+    """
+    补贴项目进度跟踪表
+    按村+项目维度记录各阶段工作进度，支持自定义阶段名称
+    stages JSON 格式：[{"name":"宣传动员","status":"done","date":"2026-05-20","note":""}]
+    status: none=未开始 in_progress=进行中 done=已完成 reminded=已提醒 urged=已催缴
+    """
+    __tablename__ = "project_progress"
+
+    id                = Column(Integer, primary_key=True, autoincrement=True)
+    subsidy_type_id   = Column(Integer, ForeignKey("subsidy_type.id"), nullable=False, comment="补贴项目ID")
+    village_id        = Column(Integer, ForeignKey("village.id"), nullable=False, comment="村ID")
+    village_name      = Column(String(50), nullable=False, comment="村名（冗余）")
+    person_name       = Column(String(30), nullable=True, comment="村社区负责人")
+    phone             = Column(String(20), nullable=True, comment="联系方式")
+    stages            = Column(Text, nullable=False, default="[]", comment="阶段列表 JSON")
+    note              = Column(Text, nullable=True, comment="备注")
+    created_at        = Column(DateTime, default=func.now())
+    updated_at        = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("subsidy_type_id", "village_id", name="uq_progress_project_village"),
+        Index("ix_project_progress_project", "subsidy_type_id"),
+        Index("ix_project_progress_village", "village_id"),
+    )
+
+    subsidy_type = relationship("SubsidyType", backref="progress_records")
+    village      = relationship("Village")

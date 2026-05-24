@@ -30,7 +30,7 @@ interface Trust {
   operator_type?: string; operator_entity_id?: number | null
   operator_household_id: number | null; operator_name: string | null; operator_code: string | null
   trust_type: string;  trust_type_label: string
-  area: number | null; trust_year: number
+  area: number | null; trust_year: number; trust_end_year?: number | null
   start_date: string | null; end_date: string | null
   annual_fee: number | null; payment_method: string | null
   parcel_desc: string | null
@@ -96,6 +96,7 @@ const emptyForm = () => ({
   trust_type: 'ENTRUST',
   area: '' as string,
   trust_year: thisYear,
+  trust_end_year: null as number | null,
   start_date: '',
   end_date: '',
   annual_fee: '' as string,
@@ -117,8 +118,9 @@ export default function LandTrustPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage]   = useState(1)
   const [loading, setLoading] = useState(false)
-  // 流转来源类型：all=全部 normal=普通流转 large_farmer=大户流转
-  const [sourceType, setSourceType] = useState<'all' | 'normal' | 'large_farmer'>('all')
+  const [searchText, setSearchText] = useState('')
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [renewing, setRenewing] = useState(false)
 
   // 详情/面积汇总
   const [summaryHH, setSummaryHH]   = useState<HHOption | null>(null)
@@ -139,6 +141,12 @@ export default function LandTrustPage() {
   const [ownerVillageOpts, setOwnerVillageOpts] = useState<{id: number; village_name?: string; full_name?: string}[]>([])
   const [operVillageSearch, setOperVillageSearch] = useState('')
   const [operVillageOpts, setOperVillageOpts] = useState<{id: number; village_name?: string; full_name?: string}[]>([])
+  // 快速新建农户
+  const [quickNewOpen, setQuickNewOpen] = useState(false)
+  const [quickNewName, setQuickNewName] = useState('')
+  const [quickNewIdCard, setQuickNewIdCard] = useState('')
+  const [quickNewVillage, setQuickNewVillage] = useState('')
+  const [quickNewFor, setQuickNewFor] = useState<'owner' | 'operator'>('owner')
 
   // 家庭户查询弹窗（用于面积汇总）
   const [hhSearch, setHhSearch] = useState('')
@@ -150,12 +158,12 @@ export default function LandTrustPage() {
       const p = new URLSearchParams({ page: String(page), page_size: '20' })
       if (yearFilter) p.set('year', String(yearFilter))
       if (typeFilter) p.set('trust_type', typeFilter)
-      if (sourceType !== 'all') p.set('source_type', sourceType)
+      if (searchText) p.set('search', searchText.trim())
 
       const r = await req<{ total: number; items: Trust[] }>(`/api/land/all-trusts?${p}`)
       setList(r.items); setTotal(r.total)
     } finally { setLoading(false) }
-  }, [page, yearFilter, typeFilter, sourceType])
+  }, [page, yearFilter, typeFilter, searchText])
 
   useEffect(() => { load() }, [load])
 
@@ -192,6 +200,24 @@ export default function LandTrustPage() {
       const r = await req<AreaSummary>(`/api/land/area-summary/${hh.id}?year=${yearFilter}`)
       setSummary(r)
     } finally { setSummaryLoading(false) }
+  }
+
+  // 快速新建农户
+  const handleQuickCreate = async () => {
+    const name = quickNewName.trim(); const idCard = quickNewIdCard.trim()
+    if (!name || !idCard) return show('姓名和身份证不能为空', 'err')
+    try {
+      const res = await req<{ household_id: number; household_name: string; farmer_id: number }>('/api/households/quick-create', {
+        method: 'POST', body: JSON.stringify({ real_name: name, id_card: idCard, village_name: quickNewVillage, group_no: '' }),
+      })
+      show(`✓ 已创建 ${res.household_name}`)
+      if (quickNewFor === 'owner') {
+        sf('owner_household_id', res.household_id); setOwnerSearch(res.household_name)
+      } else {
+        sf('operator_household_id', res.household_id); setOperSearch(res.household_name)
+      }
+      setQuickNewOpen(false); setQuickNewName(''); setQuickNewIdCard(''); setQuickNewVillage('')
+    } catch (e) { show((e as Error).message, 'err') }
   }
 
   // 批量导入撂荒地
@@ -232,6 +258,7 @@ export default function LandTrustPage() {
       trust_type: t.trust_type,
       area: t.area !== null ? String(t.area) : '',
       trust_year: t.trust_year,
+      trust_end_year: t.trust_end_year ?? null,
       start_date: t.start_date || '',
       end_date: t.end_date || '',
       annual_fee: t.annual_fee !== null ? String(t.annual_fee) : '',
@@ -293,6 +320,26 @@ export default function LandTrustPage() {
     if (summaryHH) loadSummary(summaryHH)
   }
 
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+  const toggleAll = () => {
+    if (selectedIds.size === list.length) { setSelectedIds(new Set()) }
+    else { setSelectedIds(new Set(list.map(t => t.id))) }
+  }
+  const batchRenew = async () => {
+    if (selectedIds.size === 0) return show('请先选择要续约的记录', 'err')
+    setRenewing(true)
+    try {
+      const r = await req<{ created: number }>('/api/land/trusts/batch-renew', {
+        method: 'POST', body: JSON.stringify({ ids: [...selectedIds] }),
+      })
+      show(`✓ 已续约 ${r.created} 条`)
+      setSelectedIds(new Set()); load()
+    } catch (e) { show((e as Error).message, 'err') }
+    finally { setRenewing(false) }
+  }
+
   const sf = (k: keyof ReturnType<typeof emptyForm>, v: unknown) => setForm(f => ({ ...f, [k]: v }))
 
   const TRUST_COLOR: Record<string, 'blue'|'green'|'purple'|'red'|'amber'|'gray'> = {
@@ -303,16 +350,10 @@ export default function LandTrustPage() {
     <div className="grid grid-cols-[1fr_340px] gap-4">
       {/* ── 左列：流转台账 ── */}
       <div>
-        {/* 一级Tab切换：土地与大户 */}
-        <div className="flex items-center gap-1 mb-4 border-b border-border">
-          <button onClick={() => {}}
-            className="px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-primary">
-            土地流转
-          </button>
-          <button onClick={() => navigate('/settings/large-farmers')}
-            className="px-4 py-2 text-sm text-text-muted hover:text-text-primary border-b-2 border-transparent hover:border-border">
-            大户管理
-          </button>
+        {/* 标题 */}
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-lg font-bold text-text-primary">土地流转</h2>
+          <span className="text-xs text-text-muted">共 {total} 条</span>
         </div>
         {/* 工具栏 */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
@@ -325,34 +366,25 @@ export default function LandTrustPage() {
             <option value="">所有类型</option>
             {TRUST_TYPE_OPTS.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
           </select>
-          {/* 来源类型切换 */}
-          <div className="flex border border-border rounded-btn overflow-hidden">
-            <button onClick={() => { setSourceType('all'); setPage(1) }}
-              className={`px-3 py-2 text-xs ${sourceType === 'all' ? 'bg-primary ' : 'bg-white text-text-primary hover:bg-warm/30'}`}>
-              全部
+          <input value={searchText} onChange={e => { setSearchText(e.target.value); setPage(1) }}
+            placeholder="🔍 搜索户名或村名…"
+            className="border border-border rounded-btn px-3 py-2 text-sm outline-none w-40" />
+          {selectedIds.size > 0 && (
+            <button onClick={batchRenew} disabled={renewing}
+              className="px-3 py-2 text-sm bg-emerald-600  rounded-btn hover:bg-emerald-700">
+              🔄 续约 {selectedIds.size} 条（＋1年）
             </button>
-            <button onClick={() => { setSourceType('normal'); setPage(1) }}
-              className={`px-3 py-2 text-xs ${sourceType === 'normal' ? 'bg-primary ' : 'bg-white text-text-primary hover:bg-warm/30'}`}>
-              普通流转
+          )}
+          <div className="ml-auto flex gap-2">
+            <button onClick={() => setIdleImportOpen(true)}
+              className="px-3 py-2 text-sm border border-border rounded-btn hover:bg-warm/30">
+              📥 批量导入撂荒地
             </button>
-            <button onClick={() => { setSourceType('large_farmer'); setPage(1) }}
-              className={`px-3 py-2 text-xs ${sourceType === 'large_farmer' ? 'bg-primary ' : 'bg-white text-text-primary hover:bg-warm/30'}`}>
-              大户流转
+            <button onClick={openAdd}
+              className="px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
+              ＋ 新增流转记录
             </button>
           </div>
-          <span className="text-xs text-text-muted">共 {total} 条</span>
-          {sourceType === 'normal' && (
-            <div className="ml-auto flex gap-2">
-              <button onClick={() => setIdleImportOpen(true)}
-                className="px-3 py-2 text-sm border border-border rounded-btn hover:bg-warm/30">
-                📥 批量导入撂荒地
-              </button>
-              <button onClick={openAdd}
-                className="px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
-                ＋ 新增流转记录
-              </button>
-            </div>
-          )}
         </div>
 
         {/* 说明栏 */}
@@ -366,19 +398,21 @@ export default function LandTrustPage() {
         <div className="bg-white border border-border rounded-card overflow-hidden shadow-card">
           <table className="w-full border-collapse">
             <thead><tr className="bg-warm/30 border-b-2 border-border">
+              <th className="px-2 py-2.5 w-8"><input type="checkbox" checked={selectedIds.size === list.length && list.length > 0} onChange={toggleAll} /></th>
               {['流出方（承包人）','流入方（耕种人）','类型','面积','来源','可信度','补贴计算','操作'].map(h => (
                 <th key={h} className="px-3 py-2.5 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
               ))}
             </tr></thead>
             <tbody>
-              {loading && <tr><td colSpan={8} className="text-center py-10 text-text-muted/50">加载中…</td></tr>}
+              {loading && <tr><td colSpan={9} className="text-center py-10 text-text-muted/50">加载中…</td></tr>}
               {!loading && list.length === 0 && (
-                <tr><td colSpan={8} className="text-center py-10 text-text-muted/50 text-sm">
+                <tr><td colSpan={9} className="text-center py-10 text-text-muted/50 text-sm">
                   {yearFilter}年暂无流转记录
                 </td></tr>
               )}
               {list.map(t => (
-                <tr key={`${t.source_type || 'normal'}-${t.id}`} className="border-b border-border/50 hover:bg-warm/30">
+                <tr key={t.id} className="border-b border-border/50 hover:bg-warm/30">
+                <td className="px-2 py-3"><input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)} /></td>
                   <td className="px-3 py-2.5">
                     <div className="text-sm font-semibold">
                       {t.owner_type && t.owner_type !== 'household' && (
@@ -682,6 +716,10 @@ export default function LandTrustPage() {
             )}
             {(form.owner_type === 'household' && form.owner_household_id) && <p className="text-xs text-primary mt-0.5">✓ 已选择: {ownerSearch}</p>}
             {(form.owner_type !== 'household' && form.owner_entity_id) && <p className="text-xs text-primary mt-0.5">✓ 已选择: {ownerVillageSearch}</p>}
+            {form.owner_type === 'household' && !form.owner_household_id && ownerSearch && ownerOpts.length === 0 && (
+              <button onClick={() => { setQuickNewFor('owner'); setQuickNewName(ownerSearch); setQuickNewIdCard(''); setQuickNewVillage(''); setQuickNewOpen(true) }}
+                className="text-xs text-blue-500 hover:text-blue-700 mt-1">＋ 快速新建「{ownerSearch}」</button>
+            )}
           </div>
 
           {/* 流入方（撂荒时可为空）*/}
@@ -748,17 +786,26 @@ export default function LandTrustPage() {
               )}
               {(form.operator_type === 'household' && form.operator_household_id) && <p className="text-xs text-primary mt-0.5">✓ 已选择: {operSearch}</p>}
               {(form.operator_type !== 'household' && form.operator_entity_id) && <p className="text-xs text-primary mt-0.5">✓ 已选择: {operVillageSearch}</p>}
+              {form.operator_type === 'household' && !form.operator_household_id && operSearch && operOpts.length === 0 && (
+                <button onClick={() => { setQuickNewFor('operator'); setQuickNewName(operSearch); setQuickNewIdCard(''); setQuickNewVillage(''); setQuickNewOpen(true) }}
+                  className="text-xs text-blue-500 hover:text-blue-700 mt-1">＋ 快速新建「{operSearch}」</button>
+              )}
             </div>
           )}
 
           {/* 年度 + 面积 + 地块描述 */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs text-text-muted mb-1">流转年度 *</label>
+              <label className="block text-xs text-text-muted mb-1">起始年度 *</label>
               <select value={form.trust_year} onChange={e => sf('trust_year', Number(e.target.value))}
                 className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
                 {years.map(y => <option key={y} value={y}>{y}年</option>)}
               </select>
+            </div>
+            <div>
+              <label className="block text-xs text-text-muted mb-1">结束年度 <span className="text-text-muted/50">同起始则留空</span></label>
+              <input type="number" value={form.trust_end_year || ''} onChange={e => sf('trust_end_year', e.target.value ? Number(e.target.value) : null)}
+                placeholder="同起始年度" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">面积（亩）<span className="text-text-muted/50">可不填</span></label>
@@ -847,6 +894,28 @@ export default function LandTrustPage() {
               ⚠️ 撂荒记录不计入流出面积（地还在，只是没种），但会在补贴资格规则中触发「要求土地未撂荒」检查。
             </div>
           )}
+        </div>
+      </Modal>
+
+      {/* 快速新建农户 */}
+      <Modal open={quickNewOpen} title="快速新建农户" onClose={() => setQuickNewOpen(false)} onConfirm={handleQuickCreate}>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-text-muted mb-1">姓名 *</label>
+            <input value={quickNewName} onChange={e => setQuickNewName(e.target.value)}
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+          </div>
+          <div>
+            <label className="block text-xs text-text-muted mb-1">身份证 *</label>
+            <input value={quickNewIdCard} onChange={e => setQuickNewIdCard(e.target.value)}
+              placeholder="18位身份证号" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" />
+          </div>
+          <div>
+            <label className="block text-xs text-text-muted mb-1">所在村（可选）</label>
+            <input value={quickNewVillage} onChange={e => setQuickNewVillage(e.target.value)}
+              placeholder="如：两河村" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+          </div>
+          <p className="text-xs text-text-muted/50">将自动创建家庭户「{quickNewName}户」及农户信息</p>
         </div>
       </Modal>
 

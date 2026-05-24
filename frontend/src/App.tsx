@@ -14,6 +14,7 @@ import FamilyRelationImportPage from './pages/FamilyRelationImportPage'
 import ProxyManagePage from './pages/ProxyManagePage'
 import AgriTaskPage from './pages/AgriTaskPage'
 import LargeFarmersPage from './pages/LargeFarmersPage'
+import ProjectProgressPage from './pages/ProjectProgressPage'
 import WorkflowDocPage from './pages/WorkflowDocPage'
 import { healthCheck } from './api'
 import { useState } from 'react'
@@ -21,17 +22,20 @@ import { QUOTES } from './utils/quotes'
 import Icon from './components/Icon'
 
 const mainNav = [
-  { to: '/',                        label: '首页',       icon: 'dashboard' as const, end: true },
-  { to: '/farmers',                 label: '户籍管理',   icon: 'farmers' as const },
-  { to: '/projects',                label: '补贴项目',   icon: 'subsidies' as const },
-  { to: '/land',                    label: '土地与大户', icon: 'land' as const },
-  { to: '/agri-tasks',              label: '任务分解',   icon: 'tasks' as const },
-  { to: '/settings/village-groups', label: '村组管理',   icon: 'village' as const },
-  { to: '/links',                   label: '补贴查询',   icon: 'link' as const },
-  { to: '/workflow',                label: '操作流程',   icon: 'menu' as const },
+  { to: '/',          label: '首页',     icon: 'dashboard' as const, end: true },
+  { to: '/farmers',   label: '户籍管理', icon: 'farmers' as const },
+  { to: '/projects',  label: '补贴项目', icon: 'subsidies' as const },
+  { to: '/links',     label: '补贴查询', icon: 'link' as const },
+  { to: '/workflow',  label: '操作流程', icon: 'menu' as const },
 ]
 
 // 系统设置下拉菜单分组
+const settingNavBiz = [  // 业务管理
+  { to: '/settings/land-trust',    label: '土地流转', icon: 'land' as const },
+  { to: '/settings/large-farmers', label: '大户管理', icon: 'household' as const },
+  { to: '/agri-tasks',             label: '任务分解', icon: 'tasks' as const },
+]
+
 const settingNavBasic = [  // 基础配置
   { to: '/settings/village-groups', label: '村组管理',   icon: 'village' as const },
 ]
@@ -129,6 +133,21 @@ function Layout() {
               </button>
               {settingsOpen && (
                 <div className="absolute right-0 top-full mt-2 bg-white rounded-card shadow-card border border-border overflow-hidden w-52 z-50">
+                  {settingNavBiz.length > 0 && (
+                    <>
+                      <div className="px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30">业务管理</div>
+                      {settingNavBiz.map(({ to, label, icon }) => (
+                        <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
+                          className={({ isActive }) =>
+                            `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
+                            ${isActive ? 'text-primary font-semibold bg-primary/5' : 'text-text-primary hover:bg-warm/30'}`
+                          }>
+                          <Icon name={icon} size={16} className="text-text-muted" />
+                          <span>{label}</span>
+                        </NavLink>
+                      ))}
+                    </>
+                  )}
                   {settingNavBasic.length > 0 && (
                     <>
                       <div className="px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30">基础配置</div>
@@ -213,6 +232,7 @@ function Layout() {
             <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
             <Route path="/farmers"   element={<FarmersPage />} />
             <Route path="/projects"  element={<SubsidyProjectsPage />} />
+            <Route path="/project-progress" element={<ProjectProgressPage />} />
             <Route path="/agri-tasks" element={<AgriTaskPage />} />
             <Route path="/land"      element={<LandTrustPage />} />
             <Route path="/links"     element={<ExternalLinksPage />} />
