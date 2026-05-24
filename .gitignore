@@ -66,3 +66,6 @@ npm-debug.log*
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+*.xlsx
+cleanup_log_*.json
+out.txt
