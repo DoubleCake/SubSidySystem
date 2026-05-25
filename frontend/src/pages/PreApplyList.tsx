@@ -75,7 +75,8 @@ interface PreApplyListProps {
 const SUBSIDY_IMPORT_FIELDS = [
   { field: "id_card", label: "身份证号", required: true, type: "id_card" },
   { field: "real_name", label: "姓名", required: true, type: "string" },
-  { field: "apply_area", label: "实际补贴面积", required: false, type: "decimal" },
+  { field: "apply_area", label: "计入超限计算的补贴面积", required: false, type: "decimal" },
+  { field: "apply_area_no_calc", label: "不计入超限计算的补贴面积", required: false, type: "decimal" },
   { field: "contract_area", label: "承包地面积", required: false, type: "decimal" },
   { field: "trust_area", label: "代耕代种面积", required: false, type: "decimal" },
   { field: "no_subsidy_area", label: "不予补贴面积", required: false, type: "decimal" },
@@ -169,6 +170,7 @@ export default function PreApplyList({
       await api.updateApplication(editTarget.id, {
         actual_amount: form.actual_amount,
         apply_area: form.apply_area,
+        apply_area_no_calc: (form as any).apply_area_no_calc,
         contract_area: form.contract_area,
         trust_area: form.trust_area,
         no_subsidy_area: form.no_subsidy_area,
@@ -261,7 +263,7 @@ export default function PreApplyList({
   }
 
   // Excel导入
-  const handleImport = async (rows: Record<string, unknown>[], mapping?: Record<string, string>): Promise<{ created: number; skipped: number; errors: string[] }> => {
+  const handleImport = async (rows: Record<string, unknown>[], mapping?: Record<string, string>, overwrite?: boolean): Promise<{ created: number; skipped: number; errors: string[]; updated?: number }> => {
     const toCreate: Record<string, unknown>[] = []
     const errors: string[] = []
 
@@ -286,9 +288,11 @@ export default function PreApplyList({
       const contractArea = Number(row['contract_area'] || row['承包地面积(亩)']) || 0
       const trustArea = Number(row['trust_area'] || row['代耕代种面积(亩)']) || 0
       const noSubsidyArea = Number(row['no_subsidy_area'] || row['不予补贴面积']) || undefined
-      const applyAreaExplicit = Number(row['apply_area'] || row['实际补贴面积'] || row['面积(亩)']) || 0
+      const applyAreaExplicit = Number(row['apply_area'] || row['计入超限面积'] || row['实际补贴面积'] || row['面积(亩)']) || 0
       const area = applyAreaExplicit || (contractArea + trustArea || undefined)
       const amount = Number(row['actual_amount'] || row['实发金额']) || (area ? area * Number(subsidyType.standard_amount || 0) : undefined)
+
+      const applyAreaNoCalc = Number(row['apply_area_no_calc'] || row['不计入超限面积'] || 0) || undefined
 
       toCreate.push({
         farmer_id: farmerId,
@@ -299,6 +303,7 @@ export default function PreApplyList({
         subsidy_type_id: subsidyType.id,
         apply_year: subsidyType.subsidy_year,
         apply_area: area,
+        apply_area_no_calc: applyAreaNoCalc,
         contract_area: contractArea || undefined,
         trust_area: trustArea || undefined,
         no_subsidy_area: noSubsidyArea,
@@ -340,10 +345,11 @@ export default function PreApplyList({
         const res2 = await fetch('/api/subsidies/applications/batch-import', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rows: passedRows }),
-        }).then(r => r.json()) as { created: number; skipped: number; errors: string[]; new_farmers?: number }
+          body: JSON.stringify({ rows: passedRows, overwrite: overwrite || false }),
+        }).then(r => r.json()) as { created: number; skipped: number; errors: string[]; new_farmers?: number; updated?: number }
         const newMsg = res2.new_farmers ? `，新建农户 ${res2.new_farmers} 人` : ''
-        show(`✓ 通过规则 ${chk.passed} 条，导入 ${res2.created} 条；规则拒绝 ${chk.failed} 条${newMsg}`)
+        const updMsg = res2.updated ? `，覆盖 ${res2.updated} 条` : ''
+        show(`✓ 通过规则 ${chk.passed} 条，导入 ${res2.created} 条${updMsg}；规则拒绝 ${chk.failed} 条${newMsg}`)
         load()
         return { ...res2, errors: [...errors, ...(res2.errors || [])] }
       }
@@ -352,10 +358,11 @@ export default function PreApplyList({
     const res = await fetch('/api/subsidies/applications/batch-import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rows: toCreate }),
-    }).then(r => r.json()) as { created: number; skipped: number; errors: string[]; new_farmers?: number }
+      body: JSON.stringify({ rows: toCreate, overwrite: overwrite || false }),
+    }).then(r => r.json()) as { created: number; skipped: number; errors: string[]; new_farmers?: number; updated?: number }
     const newMsg = res.new_farmers ? `，新建农户 ${res.new_farmers} 人` : ''
-    show(`✓ 导入 ${res.created} 条，跳过 ${res.skipped} 条${newMsg}`)
+    const updMsg = res.updated ? `，覆盖 ${res.updated} 条` : ''
+    show(`✓ 导入 ${res.created} 条${updMsg}，跳过 ${res.skipped} 条${newMsg}`)
     load()
     return { ...res, errors: [...errors, ...(res.errors || [])] }
   }
@@ -366,7 +373,7 @@ export default function PreApplyList({
   const selectedTmpl = templates.find(t => t.id) || null
   const IMPORT_HEADERS = selectedTmpl
     ? selectedTmpl.column_mapping.filter(m => m.system_field).map(m => m.excel_column + (m.required ? '*' : ''))
-    : ['身份证号*', '姓名*', '实际补贴面积', '承包地面积(亩)', '代耕代种面积(亩)', '不予补贴面积(亩)', '所在村', '所在组', '备注']
+    : ['身份证号*', '姓名*', '计入超限面积', '不计入超限面积', '承包地面积(亩)', '代耕代种面积(亩)', '不予补贴面积(亩)', '所在村', '所在组', '备注']
   const IMPORT_EXAMPLE = selectedTmpl
     ? [Object.fromEntries(selectedTmpl.column_mapping.filter(m => m.system_field).map(m => {
         const sample: Record<string, unknown> = {
@@ -376,7 +383,7 @@ export default function PreApplyList({
         }
         return [m.excel_column, sample[m.system_field!] ?? '']
       }))]
-    : [{ '身份证号*': '510123196503154231', '姓名*': '张国强', '实际补贴面积': 3.5, '承包地面积(亩)': 2.5, '代耕代种面积(亩)': 1.0, '不予补贴面积(亩)': 0.5, '所在村': '红星村', '所在组': '一组', '备注': '' }]
+    : [{ '身份证号*': '510123196503154231', '姓名*': '张国强', '计入超限面积': 3.5, '不计入超限面积': 0.0, '承包地面积(亩)': 2.5, '代耕代种面积(亩)': 1.0, '不予补贴面积(亩)': 0.5, '所在村': '红星村', '所在组': '一组', '备注': '' }]
 
   const detectExcelColumns = async (columns: string[], sampleRows: Record<string, unknown>[]) => {
     try {
@@ -473,7 +480,7 @@ export default function PreApplyList({
                   )}
                 </button>
               </th>
-              {['姓名', '身份证', '手机号', '所在村', '所在组', '实际补贴面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额', '状态', '打款日期', '备注', '代领备注', '操作'].map(h => (
+              {['姓名', '身份证', '手机号', '所在村', '所在组', '计入超限面积', '不计超限面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额', '状态', '打款日期', '备注', '代领备注', '操作'].map(h => (
                 <th key={h} className="px-2 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
               ))}
             </tr>
@@ -508,6 +515,7 @@ export default function PreApplyList({
                 <td className="px-2 py-2 text-xs text-text-muted whitespace-nowrap">{a.village || '—'}</td>
                 <td className="px-2 py-2 text-xs text-text-muted whitespace-nowrap">{a.group_no || '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono font-bold text-text-primary">{a.apply_area ? `${a.apply_area}` : '—'}</td>
+                <td className="px-2 py-2 text-xs font-mono text-text-muted">{a.apply_area_no_calc || '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono text-text-muted">{a.contract_area || '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono text-text-muted">{a.trust_area || '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono text-red-400">{a.no_subsidy_area || '—'}</td>
@@ -574,10 +582,17 @@ export default function PreApplyList({
                   }}
                     className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
                 </div>
-                <div className="col-span-2">
-                  <label className="block text-xs text-text-muted mb-1">实际补贴面积(亩) <span className="text-text-muted/50">— 可手动填写</span></label>
-                  <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))}
-                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                <div className="col-span-2 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-text-muted mb-1">计入超限计算的补贴面积(亩) <span className="text-text-muted/50">— 可手动填写</span></label>
+                    <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))}
+                      className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-text-muted mb-1">不计入超限计算的补贴面积(亩)</label>
+                    <input type="number" step="0.01" value={(form as any).apply_area_no_calc ?? ''} onChange={e => setForm(f => ({ ...f, apply_area_no_calc: Number(e.target.value) || undefined }))}
+                      className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  </div>
                 </div>
               </>
             )}
@@ -626,10 +641,17 @@ export default function PreApplyList({
                 }}
                   className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
               </div>
-              <div className="col-span-2">
-                <label className="block text-xs text-text-muted mb-1">实际补贴面积(亩) <span className="text-text-muted/50">— 可手动填写</span></label>
-                <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))}
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              <div className="col-span-2 grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-text-muted mb-1">计入超限计算的补贴面积(亩) <span className="text-text-muted/50">— 可手动填写</span></label>
+                  <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))}
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                </div>
+                <div>
+                  <label className="block text-xs text-text-muted mb-1">不计入超限计算的补贴面积(亩)</label>
+                  <input type="number" step="0.01" value={(form as any).apply_area_no_calc ?? ''} onChange={e => setForm(f => ({ ...f, apply_area_no_calc: Number(e.target.value) || undefined }))}
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                </div>
               </div>
             </>
           )}
@@ -671,6 +693,7 @@ export default function PreApplyList({
         templateExample={IMPORT_EXAMPLE}
         systemFields={SUBSIDY_IMPORT_FIELDS}
         templates={templates}
+        overwriteOption={true}
         onDetectColumns={detectExcelColumns}
         onSaveTemplate={saveColumnMappingTemplate}
         onImport={handleImport}

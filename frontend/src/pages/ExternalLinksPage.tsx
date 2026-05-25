@@ -24,7 +24,7 @@ async function req<T>(path:string, opts:RequestInit={}):Promise<T> {
   return r.json() as Promise<T>
 }
 
-type AppRow = { id:number; farmer_id:number; farmer_name:string; id_card_masked?:string; village?:string; subsidy_name:string; calc_mode:string; apply_year:number; apply_area:string|null; apply_amount:string|null; actual_amount:string|null; pay_status:number; pay_date:string|null; remark:string|null }
+type AppRow = { id:number; farmer_id:number; farmer_name:string; id_card_masked?:string; village?:string; subsidy_name:string; calc_mode:string; apply_year:number; apply_area:string|null; apply_area_no_calc?:string|null; apply_amount:string|null; actual_amount:string|null; pay_status:number; pay_date:string|null; remark:string|null }
 
 const QUERY_TYPES = ['身份证查询','姓名查询','综合查询','其他']
 const TAGS_PRESET = ['年度核查','补贴核验','重复申领排查','死亡核查','迁出核查','待处理','已完成','存疑']

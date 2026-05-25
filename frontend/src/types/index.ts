@@ -109,6 +109,7 @@ export interface ApplicationOut {
   apply_amount: string | null
   actual_amount: string | null
   apply_area: string | null
+  apply_area_no_calc?: string | null
   pay_status: number
   pay_date: string | null
   remark: string | null
@@ -127,6 +128,7 @@ export interface ApplicationForPrecheck {
   apply_amount: string | null
   actual_amount: string | null
   apply_area: string | null
+  apply_area_no_calc?: string | null
   pay_status: number
   pay_date: string | null
   remark: string | null
@@ -152,6 +154,7 @@ export interface ApplicationSearchResult {
   calc_mode?: string
   apply_year: number
   apply_area: string | null
+  apply_area_no_calc?: string | null
   contract_area: string | null
   trust_area: string | null
   no_subsidy_area: string | null
@@ -179,6 +182,11 @@ export interface PaymentOut {
   proxy_remark: string | null
   is_proxy?: number
   pay_status?: number
+  apply_area?: string | null
+  apply_area_no_calc?: string | null
+  contract_area?: string | null
+  trust_area?: string | null
+  no_subsidy_area?: string | null
 }
 
 export interface PaymentCreate {
@@ -188,6 +196,7 @@ export interface PaymentCreate {
   amount?: number
   payment_date?: string
   apply_area?: number
+  apply_area_no_calc?: number
   contract_area?: number
   trust_area?: number
   no_subsidy_area?: number
@@ -236,6 +245,7 @@ export interface ApplicationSearchResult {
   calc_mode?: string
   apply_year: number
   apply_area: string | null
+  apply_area_no_calc?: string | null
   contract_area: string | null
   trust_area: string | null
   no_subsidy_area: string | null
@@ -255,6 +265,7 @@ export interface ApplicationCreate {
   apply_amount?: number
   actual_amount?: number
   apply_area?: number
+  apply_area_no_calc?: number
   contract_area?: number
   trust_area?: number
   no_subsidy_area?: number
