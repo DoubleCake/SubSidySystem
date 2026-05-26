@@ -470,6 +470,7 @@ def search_applications(
         rows.append({
             "id":              a.id,
             "farmer_id":       a.farmer_id,
+            "household_id":    f.household_id if f else None,
             "farmer_name":     f.real_name    if f  else "—",
             "id_card_masked":  (f.id_card[:6] + "********" + f.id_card[-4:]) if f and f.id_card else "—",
             "phone":           f.phone        if f  else None,
@@ -1433,7 +1434,8 @@ def list_payments(
 
     q = db.query(
         SubsidyPayment, FarmerProfile.real_name, SubsidyType.subsidy_name,
-        Village.village_name, FamilyHousehold.group_no
+        Village.village_name, FamilyHousehold.group_no,
+        FarmerProfile.household_id
     )
     q = q.join(FarmerProfile, FarmerProfile.id == SubsidyPayment.farmer_id)
     q = q.join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
@@ -1508,6 +1510,7 @@ def list_payments(
             {
                 "id": p[0].id,
                 "farmer_id": p[0].farmer_id,
+                "household_id": p[5],
                 "farmer_name": p[1],
                 "subsidy_type_id": p[0].subsidy_type_id,
                 "subsidy_name": p[2],

@@ -510,7 +510,15 @@ export default function DisbursementList({
                 </td>
                 <td className="px-2 py-2 text-sm font-semibold whitespace-nowrap">
                   <div className="flex items-center gap-1">
-                    {a.farmer_name}
+                    <span
+                      className="cursor-pointer hover:text-primary/80 hover:underline decoration-dotted underline-offset-2"
+                      title="点击查看家庭户详情"
+                      onClick={() => {
+                        if (a.household_id) {
+                          navigate(`/farmers?tab=households&householdId=${a.household_id}`)
+                        }
+                      }}
+                    >{a.farmer_name}</span>
                     {a.is_proxy === 1 && <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">代领</span>}
                   </div>
                 </td>

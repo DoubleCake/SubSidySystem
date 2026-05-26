@@ -144,6 +144,7 @@ export interface ApplicationForPrecheck {
 export interface ApplicationSearchResult {
   id: number
   farmer_id: number
+  household_id?: number | null
   farmer_name: string
   id_card_masked?: string
   phone?: string | null
@@ -235,6 +236,7 @@ export interface SubsidyProxyCreate {
 export interface ApplicationSearchResult {
   id: number
   farmer_id: number
+  household_id?: number | null
   farmer_name: string
   id_card_masked?: string
   phone?: string | null
