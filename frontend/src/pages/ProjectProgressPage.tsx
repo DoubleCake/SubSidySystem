@@ -59,6 +59,9 @@ export default function ProjectProgressPage() {
   // 右键菜单
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; vid: number; sidx: number } | null>(null)
   const ctxRef = useRef<HTMLDivElement>(null)
+  // 全列批量菜单
+  const [batchCol, setBatchCol] = useState<string | null>(null)
+  const batchRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (projectId) {
@@ -85,7 +88,10 @@ export default function ProjectProgressPage() {
 
   useEffect(() => { loadRecords() }, [loadRecords])
   useEffect(() => {
-    const h = (e: MouseEvent) => { if (ctxRef.current && !ctxRef.current.contains(e.target as Node)) setCtxMenu(null) }
+    const h = (e: MouseEvent) => {
+      if (ctxRef.current && !ctxRef.current.contains(e.target as Node)) setCtxMenu(null)
+      if (batchRef.current && !batchRef.current.contains(e.target as Node)) setBatchCol(null)
+    }
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
   }, [])
@@ -135,6 +141,18 @@ export default function ProjectProgressPage() {
   }
 
   const savePerson = async (rec: ProgressRecord) => { await saveRec(rec); setEditVid(null); show('已保存') }
+
+  const batchSetStageStatus = async (stageName: string, status: StageItem['status']) => {
+    if (!projectId) return
+    const now = new Date().toISOString().slice(0, 10)
+    await fetch(`/api/project-progress/${projectId}/batch`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'batch_stage', stage_name: stageName, status, date: now }),
+    })
+    show(`已将所有村「${stageName}」设为${STATUS_CFG[status].label}`)
+    setBatchCol(null)
+    loadRecords()
+  }
 
   const swapStages = async (idxA: number, idxB: number) => {
     if (idxA < 0 || idxB < 0 || idxA >= allStages.length || idxB >= allStages.length) return
@@ -256,6 +274,27 @@ export default function ProjectProgressPage() {
                         <span>{sn}</span>
                         <button onClick={() => swapStages(i, i + 1)} disabled={i === allStages.length - 1}
                           className="text-text-muted/30 hover:text-text-muted disabled:opacity-20 text-xs leading-none" title="右移">▶</button>
+                        <span className="relative">
+                          <button onClick={e => { e.stopPropagation(); setBatchCol(batchCol === sn ? null : sn) }}
+                            className="text-text-muted/30 hover:text-primary ml-0.5 text-xs leading-none cursor-pointer" title="批量设置该列状态">▼</button>
+                          {batchCol === sn && (
+                            <div ref={batchRef}
+                              className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-white border border-border rounded-card shadow-lg py-1 min-w-[110px]"
+                              onClick={e => e.stopPropagation()}>
+                              {STATUS_ORDER.map(st => {
+                                const cfg = STATUS_CFG[st]
+                                return (
+                                  <button key={st}
+                                    onClick={() => batchSetStageStatus(sn, st)}
+                                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-warm/30 flex items-center gap-2 whitespace-nowrap ${cfg.text}`}>
+                                    <span className="text-base leading-none">{STATUS_DOT[st]}</span>
+                                    <span>全部设为{cfg.label}</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </span>
                       </div>
                     </th>
                   ))}
