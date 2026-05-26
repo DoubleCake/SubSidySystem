@@ -977,7 +977,7 @@ export default function FarmersPage() {
 
         {/* 工具栏 - 搜索和筛选 */}
         <div className="flex gap-2 mb-3 flex-wrap">
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={leftTab === 'farmers' ? '搜索农户姓名或身份证…' : '搜索户名或户主…'}
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={leftTab === 'farmers' ? '搜索农户姓名或身份证…' : '搜索户名、户号或户主…'}
             className="flex-1 min-w-32 border border-border rounded-btn px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white shadow-card transition-all" />
           <select value={villageFilter} onChange={e => { setVillageFilter(e.target.value); leftTab === 'farmers' ? setFarmerPage(1) : setHhPage(1) }}
             className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all">

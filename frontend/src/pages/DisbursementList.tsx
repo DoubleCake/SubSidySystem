@@ -149,12 +149,14 @@ export default function DisbursementList({
     return () => clearTimeout(t)
   }, [idInput, setFarmerHint, setFarmerId])
 
-  // 按亩自动计算
+  // 按亩自动计算（合计入超限+不计超限面积）
   useEffect(() => {
-    if (subsidyType.calc_mode !== 'per_mu' || !form.apply_area) return
-    const amt = Number(subsidyType.standard_amount || 0) * Number(form.apply_area)
+    if (subsidyType.calc_mode !== 'per_mu') return
+    const totalArea = Number(form.apply_area || 0) + Number((form as any).apply_area_no_calc || 0)
+    if (totalArea <= 0) return
+    const amt = Number(subsidyType.standard_amount || 0) * totalArea
     setForm(f => ({ ...f, apply_amount: Math.round(amt * 100) / 100, actual_amount: Math.round(amt * 100) / 100 }))
-  }, [form.apply_area, subsidyType, setForm])
+  }, [form.apply_area, (form as any).apply_area_no_calc, subsidyType, setForm])
 
   const submitAdd = async () => {
     if (!farmerId) return show('请输入有效身份证号', 'err')
@@ -316,10 +318,10 @@ export default function DisbursementList({
       const trustArea = Number(row['trust_area'] || row['代耕代种面积(亩)']) || 0
       const noSubsidyArea = Number(row['no_subsidy_area'] || row['不予补贴面积']) || undefined
       const applyAreaExplicit = Number(row['apply_area'] || row['计入超限面积'] || row['实际补贴面积'] || row['面积(亩)']) || 0
-      const area = applyAreaExplicit || (contractArea + trustArea || undefined)
-      const amount = Number(row['actual_amount'] || row['实发金额']) || (area ? area * Number(subsidyType.standard_amount || 0) : undefined)
-
       const applyAreaNoCalc = Number(row['apply_area_no_calc'] || row['不计入超限面积'] || 0) || undefined
+      const totalArea = applyAreaExplicit + (applyAreaNoCalc || 0)
+      const area = applyAreaExplicit || (contractArea + trustArea || undefined)
+      const amount = Number(row['actual_amount'] || row['实发金额']) || (totalArea ? totalArea * Number(subsidyType.standard_amount || 0) : undefined)
 
       toCreate.push({
         farmer_id: farmerId,

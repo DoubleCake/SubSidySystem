@@ -771,6 +771,7 @@ def list_households(
         search = search.strip()
         query = query.filter(
             (FamilyHousehold.household_name.like(f"%{search}%")) |
+            (FamilyHousehold.household_code.like(f"%{search}%")) |
             exists().where(
                 (FarmerProfile.household_id == FamilyHousehold.id) &
                 (
@@ -1148,6 +1149,7 @@ def _get_household_app_summary(
             SubsidyType.subsidy_name,
             SubsidyType.calc_mode,
             SubsidyApplication.apply_area,
+            SubsidyApplication.apply_area_no_calc,
             SubsidyApplication.apply_amount,
             SubsidyApplication.actual_amount,
             SubsidyApplication.pay_status,
@@ -1172,6 +1174,7 @@ def _get_household_app_summary(
             SubsidyType.subsidy_name,
             SubsidyType.calc_mode,
             SubsidyPayment.apply_area,
+            SubsidyPayment.apply_area_no_calc,
             SubsidyPayment.amount.label("apply_amount"),
             SubsidyPayment.amount.label("actual_amount"),
             (SubsidyPayment.pay_status or 2).label("pay_status"),
@@ -1197,6 +1200,7 @@ def _get_household_app_summary(
             SubsidyType.subsidy_name,
             SubsidyType.calc_mode,
             SubsidyApplication.apply_area,
+            SubsidyApplication.apply_area_no_calc,
             SubsidyApplication.apply_amount,
             SubsidyApplication.actual_amount,
             SubsidyApplication.pay_status,
@@ -1224,6 +1228,7 @@ def _get_household_app_summary(
             SubsidyType.subsidy_name,
             SubsidyType.calc_mode,
             SubsidyPayment.apply_area,
+            SubsidyPayment.apply_area_no_calc,
             SubsidyPayment.amount.label("apply_amount"),
             SubsidyPayment.amount.label("actual_amount"),
             (SubsidyPayment.pay_status or 2).label("pay_status"),
@@ -1295,6 +1300,7 @@ def _get_household_app_summary(
             "subsidy_name": r.subsidy_name,
             "calc_mode": r.calc_mode,
             "apply_area": float(r.apply_area) if r.apply_area else None,
+            "apply_area_no_calc": float(r.apply_area_no_calc) if r.apply_area_no_calc else None,
             "apply_amount": float(r.apply_amount) if r.apply_amount else None,
             "actual_amount": float(r.actual_amount) if r.actual_amount else None,
             "pay_status": r.pay_status,

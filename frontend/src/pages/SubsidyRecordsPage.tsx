@@ -270,6 +270,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
   }
 
   // 删除全部记录
+  const [deletingAll, setDeletingAll] = useState(false)
   const deleteAll = async () => {
     if (!apps || apps.length === 0) {
       show('没有可删除的记录', 'err')
@@ -278,6 +279,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
     if (!confirm(`⚠️ 确定要删除全部 ${total} 条记录吗？此操作不可恢复。`)) {
       return
     }
+    setDeletingAll(true)
     try {
       const response = await fetch('/api/subsidies/applications/batch-delete', {
         method: 'POST',
@@ -292,6 +294,8 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
     } catch (error) {
       console.error('删除全部失败:', error)
       show('删除全部失败: ' + (error as Error).message, 'err')
+    } finally {
+      setDeletingAll(false)
     }
   }
 
@@ -901,9 +905,9 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
                     🗑️ 删除选中 ({selectedIds.length})
                   </button>
                 )}
-                <button onClick={deleteAll}
-                  className="px-3 py-2 text-sm bg-red-600/80  rounded-btn hover:bg-red-700 flex items-center gap-1.5">
-                  🗑️ 删除全部
+                <button onClick={deleteAll} disabled={deletingAll}
+                  className={`px-3 py-2 text-sm rounded-btn flex items-center gap-1.5 ${deletingAll ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600/80 hover:bg-red-700'}`}>
+                  {deletingAll ? '⏳ 删除中...' : '🗑️ 删除全部'}
                 </button>
                 {activeTab === 'disbursement' && (
                   <button onClick={() => setPaymentImportOpen(true)}

@@ -54,6 +54,20 @@ interface Props {
   }) => Promise<{ id: number }>
   onImport: (rows: Record<string, unknown>[], mapping?: Record<string, string>, overwrite?: boolean) => Promise<{ created: number; updated?: number; skipped: number; errors: string[] }>
   onSuccess: () => void
+  preCheck?: (rows: Record<string, unknown>[], mapping?: Record<string, string>) => Promise<{
+    passed_rows: number[]
+    failed_rows: Array<{ index: number; real_name: string; id_card_masked: string; issues: string[] }>
+    warning_rows: Array<{ index: number; real_name: string; id_card_masked: string; warnings: string[] }>
+  }>
+}
+
+type PreCheckStatus = {
+  result: 'checking' | 'done' | 'error'
+  failedIndices: Set<number>
+  warningIndices: Set<number>
+  failedRows: Array<{ index: number; real_name: string; id_card_masked: string; issues: string[] }>
+  warningRows: Array<{ index: number; real_name: string; id_card_masked: string; warnings: string[] }>
+  errorMsg?: string
 }
 
 type Step = 'upload' | 'mapping' | 'preview' | 'importing' | 'result'
@@ -64,7 +78,7 @@ export default function ExcelImportWithMapping({
   systemFields, templates = [],
   overwriteOption = false,
   onDetectColumns, onSaveTemplate,
-  onImport, onSuccess
+  onImport, onSuccess, preCheck
 }: Props) {
   const [step, setStep] = useState<Step>('upload')
   const [rows, setRows] = useState<Record<string, unknown>[]>([])
@@ -76,6 +90,9 @@ export default function ExcelImportWithMapping({
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([])
   const [detecting, setDetecting] = useState(false)
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false)
+
+  // 预检查状态
+  const [preCheckStatus, setPreCheckStatus] = useState<PreCheckStatus | null>(null)
   const [saveTemplateForm, setSaveTemplateForm] = useState({
     name: '',
     year: new Date().getFullYear().toString(),
@@ -203,6 +220,35 @@ export default function ExcelImportWithMapping({
     }
     
     setStep('preview')
+    setPreCheckStatus(null) // 重置预检查状态
+  }
+
+  // 预检查
+  const handlePreCheck = async () => {
+    if (!preCheck) return
+    setPreCheckStatus({ result: 'checking', failedIndices: new Set(), warningIndices: new Set(), failedRows: [], warningRows: [] })
+    try {
+      const mapping: Record<string, string> = {}
+      columnMappings.forEach(m => { if (m.system_field) mapping[m.excel_column] = m.system_field })
+      const res = await preCheck(rows, mapping)
+      setPreCheckStatus({
+        result: 'done',
+        failedIndices: new Set(res.failed_rows.map(r => r.index)),
+        warningIndices: new Set(res.warning_rows.map(r => r.index)),
+        failedRows: res.failed_rows,
+        warningRows: res.warning_rows,
+      })
+    } catch (e) {
+      setPreCheckStatus({ result: 'error', errorMsg: String(e), failedIndices: new Set(), warningIndices: new Set(), failedRows: [], warningRows: [] })
+    }
+  }
+
+  // 删除所有检查失败的行
+  const handleDeleteFailed = () => {
+    if (!preCheckStatus) return
+    const failedSet = preCheckStatus.failedIndices
+    setRows(prev => prev.filter((_, i) => !failedSet.has(i)))
+    setPreCheckStatus(null)
   }
 
   const handleImportConfirm = async () => {
@@ -610,6 +656,62 @@ export default function ExcelImportWithMapping({
               ← 修改映射
             </button>
           </div>
+          {/* 预检查区域 */}
+          {preCheck && (
+            <div className="mb-3">
+              {!preCheckStatus && (
+                <button onClick={handlePreCheck}
+                  className="text-xs border border-primary/30 text-primary px-3 py-1.5 rounded-btn hover:bg-primary/5 transition-colors">
+                  🔍 预检查
+                </button>
+              )}
+              {preCheckStatus?.result === 'checking' && (
+                <div className="flex items-center gap-2 text-xs text-text-muted">
+                  <span className="inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  正在预检查…
+                </div>
+              )}
+              {preCheckStatus?.result === 'error' && (
+                <div className="bg-red-50 border border-red-200 rounded-btn px-3 py-2 text-xs text-red-600">
+                  预检查出错：{preCheckStatus.errorMsg}
+                </div>
+              )}
+              {preCheckStatus?.result === 'done' && (
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="text-emerald-600 font-medium">✓ {rows.length - preCheckStatus.failedRows.length} 条通过</span>
+                    {preCheckStatus.failedRows.length > 0 && (
+                      <span className="text-red-500 font-medium">✗ {preCheckStatus.failedRows.length} 条失败</span>
+                    )}
+                    {preCheckStatus.warningRows.length > 0 && (
+                      <span className="text-amber-600 font-medium">! {preCheckStatus.warningRows.length} 条警告</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {preCheckStatus.failedRows.length > 0 && (
+                      <button onClick={handleDeleteFailed}
+                        className="text-xs border border-red-200 text-red-600 px-3 py-1.5 rounded-btn hover:bg-red-50 transition-colors">
+                        🗑 删除 {preCheckStatus.failedRows.length} 条失败行
+                      </button>
+                    )}
+                    <button onClick={handlePreCheck}
+                      className="text-xs border border-border text-text-muted px-3 py-1.5 rounded-btn hover:bg-warm/30 transition-colors">
+                      重新检查
+                    </button>
+                  </div>
+                </div>
+              )}
+              {preCheckStatus?.result === 'done' && preCheckStatus.failedRows.length > 0 && (
+                <div className="mt-2 bg-red-50 border border-red-200 rounded-btn px-3 py-2 max-h-24 overflow-y-auto">
+                  {preCheckStatus.failedRows.map((r, i) => (
+                    <p key={i} className="text-xs text-red-600 mb-0.5">
+                      第{r.index + 2}行 · {r.real_name}（{r.id_card_masked}）：{r.issues.join('；')}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {overwriteOption && (
             <div className="mb-3 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-btn px-4 py-2.5">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -633,7 +735,10 @@ export default function ExcelImportWithMapping({
             <table className="w-full text-xs border-collapse">
               <thead className="bg-warm/30 sticky top-0">
                 <tr>
-                  {Object.keys(rows[0] || {}).slice(0, 8).map(k => (
+                  {preCheckStatus?.result === 'done' && (
+                    <th className="px-1 py-2 text-center text-xs text-text-muted font-semibold border-b border-border w-6">检</th>
+                  )}
+                  {Object.keys(rows[0] || {}).slice(0, preCheckStatus?.result === 'done' ? 7 : 8).map(k => (
                     <th key={k} className="px-3 py-2 text-left text-text-muted font-semibold border-b border-border whitespace-nowrap">
                       {k}
                       {columnMappings.find(m => m.excel_column === k)?.system_field && (
@@ -646,13 +751,27 @@ export default function ExcelImportWithMapping({
                 </tr>
               </thead>
               <tbody>
-                {rows.slice(0, 30).map((row, i) => (
-                  <tr key={i} className="border-b border-border/50 hover:bg-warm/30">
-                    {Object.values(row).slice(0, 8).map((v, j) => (
-                      <td key={j} className="px-3 py-1.5 text-text-primary whitespace-nowrap font-mono">{String(v ?? '')}</td>
-                    ))}
-                  </tr>
-                ))}
+                {rows.slice(0, 30).map((row, i) => {
+                  const rowBg = preCheckStatus?.result === 'done'
+                    ? preCheckStatus.failedIndices.has(i) ? 'bg-red-50'
+                    : preCheckStatus.warningIndices.has(i) ? 'bg-amber-50'
+                    : 'bg-emerald-50/30'
+                    : ''
+                  return (
+                    <tr key={i} className={`border-b border-border/50 hover:bg-warm/30 ${rowBg}`}>
+                      {preCheckStatus?.result === 'done' && (
+                        <td className="px-1 py-1.5 text-center text-xs">
+                          {preCheckStatus.failedIndices.has(i) ? <span className="text-red-500">✗</span>
+                          : preCheckStatus.warningIndices.has(i) ? <span className="text-amber-500">!</span>
+                          : <span className="text-emerald-500">✓</span>}
+                        </td>
+                      )}
+                      {Object.values(row).slice(0, preCheckStatus?.result === 'done' ? 7 : 8).map((v, j) => (
+                        <td key={j} className="px-3 py-1.5 text-text-primary whitespace-nowrap font-mono">{String(v ?? '')}</td>
+                      ))}
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

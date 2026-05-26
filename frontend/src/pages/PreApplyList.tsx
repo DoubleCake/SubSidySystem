@@ -149,12 +149,14 @@ export default function PreApplyList({
     return () => clearTimeout(t)
   }, [idInput, setFarmerHint, setFarmerId])
 
-  // 按亩自动计算
+  // 按亩自动计算（合计入超限+不计超限面积）
   useEffect(() => {
-    if (subsidyType.calc_mode !== 'per_mu' || !form.apply_area) return
-    const amt = Number(subsidyType.standard_amount || 0) * Number(form.apply_area)
+    if (subsidyType.calc_mode !== 'per_mu') return
+    const totalArea = Number(form.apply_area || 0) + Number((form as any).apply_area_no_calc || 0)
+    if (totalArea <= 0) return
+    const amt = Number(subsidyType.standard_amount || 0) * totalArea
     setForm(f => ({ ...f, apply_amount: Math.round(amt * 100) / 100, actual_amount: Math.round(amt * 100) / 100 }))
-  }, [form.apply_area, subsidyType, setForm])
+  }, [form.apply_area, (form as any).apply_area_no_calc, subsidyType, setForm])
 
   const submitAdd = async () => {
     if (!farmerId) return show('请输入有效身份证号', 'err')
@@ -289,10 +291,10 @@ export default function PreApplyList({
       const trustArea = Number(row['trust_area'] || row['代耕代种面积(亩)']) || 0
       const noSubsidyArea = Number(row['no_subsidy_area'] || row['不予补贴面积']) || undefined
       const applyAreaExplicit = Number(row['apply_area'] || row['计入超限面积'] || row['实际补贴面积'] || row['面积(亩)']) || 0
-      const area = applyAreaExplicit || (contractArea + trustArea || undefined)
-      const amount = Number(row['actual_amount'] || row['实发金额']) || (area ? area * Number(subsidyType.standard_amount || 0) : undefined)
-
       const applyAreaNoCalc = Number(row['apply_area_no_calc'] || row['不计入超限面积'] || 0) || undefined
+      const totalArea = applyAreaExplicit + (applyAreaNoCalc || 0)
+      const area = applyAreaExplicit || (contractArea + trustArea || undefined)
+      const amount = Number(row['actual_amount'] || row['实发金额']) || (totalArea ? totalArea * Number(subsidyType.standard_amount || 0) : undefined)
 
       toCreate.push({
         farmer_id: farmerId,
@@ -365,6 +367,58 @@ export default function PreApplyList({
     show(`✓ 导入 ${res.created} 条${updMsg}，跳过 ${res.skipped} 条${newMsg}`)
     load()
     return { ...res, errors: [...errors, ...(res.errors || [])] }
+  }
+
+  // Excel导入预检查
+  const handlePreCheck = async (rows: Record<string, unknown>[], mapping?: Record<string, string>) => {
+    // 将原始行按映射转换为系统字段格式，并记录索引
+    const mappedRows = rows.map((row, idx) => {
+      const mapped: Record<string, unknown> = { ...row }
+      if (mapping) {
+        for (const [excelCol, systemField] of Object.entries(mapping)) {
+          if (row[excelCol] !== undefined) mapped[systemField] = row[excelCol]
+        }
+      }
+      mapped._row_index = idx
+      return mapped
+    })
+
+    const checkPayload = {
+      subsidy_type_id: subsidyType.id,
+      year: subsidyType.subsidy_year,
+      rows: mappedRows.map(r => ({
+        id_card: String(r.id_card || r['身份证号*'] || r['身份证号'] || ''),
+        real_name: String(r.real_name || r['姓名*'] || r['姓名'] || ''),
+        apply_area: Number(r.apply_area || 0),
+        _row_index: r._row_index,
+      })),
+    }
+
+    const chk = await fetch('/api/eligibility/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(checkPayload),
+    }).then(r => r.json()) as {
+      passed_list: Array<{ id_card: string; id_card_masked: string; real_name: string; issues: string[]; warnings: string[]; _row_index?: number }>
+      failed_list: Array<{ id_card: string; id_card_masked: string; real_name: string; issues: string[]; _row_index?: number }>
+      warning_list: Array<{ id_card: string; id_card_masked: string; real_name: string; warnings: string[]; _row_index?: number }>
+    }
+
+    return {
+      passed_rows: (chk.passed_list || []).map(r => r._row_index).filter(i => i != null) as number[],
+      failed_rows: (chk.failed_list || []).map(r => ({
+        index: r._row_index ?? 0,
+        real_name: r.real_name,
+        id_card_masked: r.id_card_masked,
+        issues: r.issues,
+      })),
+      warning_rows: (chk.warning_list || []).map(r => ({
+        index: r._row_index ?? 0,
+        real_name: r.real_name,
+        id_card_masked: r.id_card_masked,
+        warnings: r.warnings,
+      })),
+    }
   }
 
   const totalAmt = apps.reduce((s, a) => s + Number(a.actual_amount || 0), 0)
@@ -697,7 +751,8 @@ export default function PreApplyList({
         onDetectColumns={detectExcelColumns}
         onSaveTemplate={saveColumnMappingTemplate}
         onImport={handleImport}
-        onSuccess={load} />
+        onSuccess={load}
+        preCheck={handlePreCheck} />
     </>
   )
 }
