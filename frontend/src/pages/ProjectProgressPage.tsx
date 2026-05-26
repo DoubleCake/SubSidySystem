@@ -46,8 +46,10 @@ export default function ProjectProgressPage() {
   const { toast, show } = useToast()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const projectId = Number(searchParams.get('subsidy_type_id')) || null
+  const urlProjectId = Number(searchParams.get('subsidy_type_id')) || null
 
+  const [projectId, setProjectId] = useState<number | null>(urlProjectId)
+  const [projectList, setProjectList] = useState<{ id: number; subsidy_name: string; subsidy_year: number }[]>([])
   const [projectName, setProjectName] = useState('')
   const [records, setRecords] = useState<ProgressRecord[]>([])
   const [loading, setLoading] = useState(false)
@@ -63,18 +65,30 @@ export default function ProjectProgressPage() {
   const [batchCol, setBatchCol] = useState<string | null>(null)
   const batchRef = useRef<HTMLDivElement>(null)
 
+  // 加载项目列表，设置当前项目名
   useEffect(() => {
-    if (projectId) {
-      fetch('/api/subsidies/types')
-        .then(r => r.json())
-        .then(data => {
-          const list = Array.isArray(data) ? data : []
+    fetch('/api/subsidies/types')
+      .then(r => r.json())
+      .then(data => {
+        const list = Array.isArray(data) ? data : []
+        setProjectList(list)
+        if (projectId) {
           const p = list.find((t: any) => t.id === projectId)
           setProjectName(p ? `${p.subsidy_name}（${p.subsidy_year}年）` : `项目 #${projectId}`)
-        })
-        .catch(() => {})
+        } else if (list.length > 0) {
+          setProjectId(list[0].id)
+        }
+      })
+      .catch(() => {})
+  }, []) // 注意：只在首次加载运行
+
+  // projectId 变化时更新项目名
+  useEffect(() => {
+    if (projectId && projectList.length > 0) {
+      const p = projectList.find(t => t.id === projectId)
+      setProjectName(p ? `${p.subsidy_name}（${p.subsidy_year}年）` : `项目 #${projectId}`)
     }
-  }, [projectId])
+  }, [projectId, projectList])
 
   const loadRecords = useCallback(async () => {
     if (!projectId) return
@@ -163,6 +177,20 @@ export default function ProjectProgressPage() {
     loadRecords()
   }
 
+  // 删除所有筛选出的记录
+  const deleteFiltered = async () => {
+    if (!projectId || filtered.length === 0) return
+    const names = filtered.map(r => r.village_name).join('、')
+    if (!confirm(`确认删除筛选出的 ${filtered.length} 个村的进度记录？\n\n${names}`)) return
+    const ids = filtered.map(r => r.village_id)
+    await fetch(`/api/project-progress/${projectId}/batch-delete`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ village_ids: ids }),
+    })
+    show(`已删除 ${filtered.length} 个村的进度记录`)
+    loadRecords()
+  }
+
   // 导出 Excel
   const exportExcel = () => {
     const headers = ['村名', '负责人', '电话', ...allStages]
@@ -223,6 +251,12 @@ export default function ProjectProgressPage() {
 
       {/* 操作栏 */}
       <div className="bg-white border border-border rounded-card p-3 mb-3 flex items-center gap-3 flex-wrap">
+        <select value={projectId ?? ''} onChange={e => setProjectId(Number(e.target.value))}
+          className="border border-border rounded-btn px-2 py-1.5 text-xs outline-none bg-white">
+          {projectList.map(p => (
+            <option key={p.id} value={p.id}>{p.subsidy_name}（{p.subsidy_year}年）</option>
+          ))}
+        </select>
         <button onClick={initAllVillages} className="px-3 py-1.5 text-xs border border-border rounded-btn hover:bg-warm/30">🔄 初始化全部村</button>
         <div className="flex items-center gap-1">
           <input value={newStageName} onChange={e => setNewStageName(e.target.value)} placeholder="新阶段名称"
@@ -247,6 +281,10 @@ export default function ProjectProgressPage() {
           <div className="w-32 h-1.5 bg-warm/30 rounded-full overflow-hidden">
             <div className="h-full bg-emerald-400 rounded-full" style={{ width: Math.round(totalDone / Math.max(1, totalCells) * 100) + '%' }} />
           </div>
+        )}
+        {filtered.length > 0 && (
+          <button onClick={deleteFiltered}
+            className="ml-auto px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-btn hover:bg-red-50">🗑 删除筛选结果</button>
         )}
       </div>
 

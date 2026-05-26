@@ -155,11 +155,14 @@ def create_large_farmer(data: dict, db: Session = Depends(get_db)):
 
     farmer = LargeFarmer(
         operator_name=data.get("operator_name"),
+        responsible_person=data.get("responsible_person"),
         operator_type=data.get("operator_type", "FAMILY_FARM"),
         id_card=data.get("id_card"),
         phone=data.get("phone"),
+        org_code=data.get("org_code"),
         bank_card=data.get("bank_card"),
         bank_name=data.get("bank_name"),
+        planting_location=data.get("planting_location"),
         village_id=village_id,
         group_no=data.get("group_no"),
         address=data.get("address"),
@@ -190,7 +193,8 @@ def update_large_farmer(farmer_id: int, data: dict, db: Session = Depends(get_db
         raise HTTPException(404, "大户信息不存在")
 
     updatable = [
-        "operator_name", "operator_type", "id_card", "phone", "bank_card", "bank_name",
+        "operator_name", "responsible_person", "operator_type", "id_card", "phone",
+        "org_code", "bank_card", "bank_name", "planting_location",
         "village_id", "group_no", "address", "total_managed_area", "own_contract_area",
         "trust_in_area", "main_crops", "registration_no", "registration_date", "status",
         "is_verified", "verified_by", "verified_date", "remark", "operator"

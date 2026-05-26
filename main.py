@@ -321,6 +321,10 @@ def migrate_db():
         # 006: 拆分 apply_area，新增不计入超限计算的补贴面积字段
         "ALTER TABLE subsidy_application ADD COLUMN apply_area_no_calc DECIMAL(10,2)",
         "ALTER TABLE subsidy_payment ADD COLUMN apply_area_no_calc DECIMAL(10,2)",
+        # 大户管理新增字段
+        "ALTER TABLE large_farmer ADD COLUMN responsible_person VARCHAR(100)",
+        "ALTER TABLE large_farmer ADD COLUMN planting_location VARCHAR(200)",
+        "ALTER TABLE large_farmer ADD COLUMN org_code VARCHAR(50)",
     ]
     with engine.connect() as conn:
         for sql in migrations:
