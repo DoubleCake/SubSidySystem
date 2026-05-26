@@ -869,6 +869,12 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
         >
           👥 代领关系
         </button>
+        <button
+          onClick={() => navigate(`/project-progress?subsidy_type_id=${subsidyType.id}`)}
+          className="px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-text-muted hover:text-text-primary transition-colors"
+        >
+          📊 项目管理
+        </button>
         <div className="ml-auto flex items-center gap-2">
           {activeTab === 'preApply' && (
             <button

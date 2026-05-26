@@ -217,7 +217,7 @@ export default function ProjectProgressPage() {
   return (
     <div className="p-4 max-w-full mx-auto" onClick={() => setCtxMenu(null)}>
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={() => navigate('/projects')} className="text-text-muted hover:text-text-primary">← 返回项目</button>
+        <button onClick={() => navigate(-1)} className="text-text-muted hover:text-text-primary">← 返回</button>
         <h1 className="text-lg font-bold">📋 {projectName || '项目进度'}</h1>
       </div>
 
