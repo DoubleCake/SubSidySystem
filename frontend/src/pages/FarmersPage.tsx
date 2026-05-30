@@ -1008,7 +1008,7 @@ export default function FarmersPage() {
           {leftTab === 'households' && !mergeMode && (
             <>
               <div className="flex gap-2 flex-wrap">
-                <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-primary-500  rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
+                <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
                   <Icon name="create" size={14} className="inline mr-1" />创建新家庭户
                 </button>
                 <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]); setHhPage(1) }}

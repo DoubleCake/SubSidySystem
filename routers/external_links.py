@@ -118,9 +118,17 @@ class RecordUpdate(BaseModel):
 # ─────────────────────────────────────
 
 def ensure_tables(db: Session):
-    """确保表存在（首次访问时调用）"""
+    """确保表存在（首次访问时调用），并补齐缺失列"""
     from database import engine
     Base.metadata.create_all(bind=engine, tables=[ExternalSite.__table__, QueryRecord.__table__])
+    # 迁移：为已存在的表补充 image 列
+    from sqlalchemy import text, inspect
+    inspector = inspect(engine)
+    site_cols = {c['name'] for c in inspector.get_columns('external_site')}
+    if 'image' not in site_cols:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE external_site ADD COLUMN image TEXT"))
+            conn.commit()
 
 
 # ─────────────────────────────────────

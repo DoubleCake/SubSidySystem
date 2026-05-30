@@ -185,19 +185,19 @@ export default function VillageContactsPage({ embedded }: { embedded?: boolean }
                   </td>
                   <td className="px-3 py-2">{c.position || '—'}</td>
                   <td className="px-3 py-2 text-center">
-                    {c.is_agri_lead
-                      ? <span className="text-emerald-700 font-bold">🌾 是</span>
-                      : <span className="text-text-muted/40">—</span>}
+                    <button onClick={() => toggleLead(c)}
+                      className={`px-2 py-1 text-xs rounded-btn border transition-colors ${
+                        c.is_agri_lead
+                          ? 'bg-amber-50 border-amber-300 text-amber-600 hover:bg-red-50 hover:border-red-200 hover:text-red-400'
+                          : 'border-transparent text-text-muted/30 hover:border-amber-200 hover:text-amber-500'
+                      }`}
+                      title={c.is_agri_lead ? `取消「${c.name}」的负责人` : `设为${c.village_name}负责人`}>
+                      ⭐ 负责人
+                    </button>
                   </td>
                   <td className="px-3 py-2 text-text-muted max-w-[120px] truncate" title={c.remark}>{c.remark || '—'}</td>
                   <td className="px-3 py-2 text-right">
                     <div className="flex gap-1 justify-end">
-                      <button onClick={() => toggleLead(c)}
-                        className={`px-2 py-1 text-xs rounded border ${
-                          c.is_agri_lead ? 'border-red-200 text-red-400 hover:bg-red-50' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
-                        }`}>
-                        {c.is_agri_lead ? '取消' : '⭐ 负责人'}
-                      </button>
                       <button onClick={() => openEdit(c)} className="px-2 py-1 text-xs border border-border rounded hover:bg-warm/20">编辑</button>
                       <button onClick={() => del(c)} className="px-2 py-1 text-xs border border-red-100 text-red-400 rounded hover:bg-red-50">删</button>
                     </div>

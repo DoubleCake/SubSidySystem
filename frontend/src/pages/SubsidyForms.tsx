@@ -152,17 +152,6 @@ export default function SubsidyForms({
               className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select></div>
-          <div><label className="block text-xs text-text-muted mb-1">项目分类</label>
-            <select value={form.category ?? ''} onChange={e => onFormChange({ ...form, category: e.target.value || undefined })}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">
-              <option value="">不分类</option>
-              <option value="耕地保护">耕地保护补贴</option>
-              <option value="大豆">大豆补贴</option>
-              <option value="玉米">玉米补贴</option>
-              <option value="稻谷">稻谷补贴</option>
-              <option value="油菜">油菜补贴</option>
-              <option value="其他">其他补贴</option>
-            </select></div>
           <div><label className="block text-xs text-text-muted mb-1">{form.calc_mode === 'per_mu' ? '每亩金额(元)' : '标准金额(元)'}</label>
             <input type="number" step="0.01" value={form.standard_amount ?? ''} onChange={e => onFormChange({ ...form, standard_amount: Number(e.target.value) || undefined })}
               className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
@@ -173,14 +162,7 @@ export default function SubsidyForms({
                 {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
               </select></div>
           )}
-          <div><label className="block text-xs text-text-muted mb-1">资金来源</label>
-            <select value={form.fund_source ?? ''} onChange={e => onFormChange({ ...form, fund_source: e.target.value || undefined })}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">
-              <option value="">不限</option>{FUND_SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select></div>
-          <div><label className="block text-xs text-text-muted mb-1">申请截止日期</label>
-            <input type="date" value={form.apply_deadline ?? ''} onChange={e => onFormChange({ ...form, apply_deadline: e.target.value || undefined })}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+          
           <div><label className="block text-xs text-text-muted mb-1">是否计入当季补贴面积累计</label>
             <select value={form.count_toward_area ?? 1} onChange={e => onFormChange({ ...form, count_toward_area: Number(e.target.value) })}
               className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">

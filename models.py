@@ -576,6 +576,24 @@ class VillageGroup(Base):
     village = relationship("Village", backref="groups")
 
 
+class VillageContact(Base):
+    """村联系人表 —— 村两委干部/工作人员"""
+    __tablename__ = "village_contacts"
+
+    id           = Column(Integer, primary_key=True, autoincrement=True)
+    village_id   = Column(Integer, ForeignKey("village.id"), nullable=False, comment="所属村庄")
+    name         = Column(String(30), nullable=False, comment="姓名")
+    phone        = Column(String(20), nullable=True, comment="电话号码")
+    position     = Column(String(20), nullable=True, comment="职务：书记/副书记/副主任/文书/其他")
+    is_agri_lead = Column(Boolean, nullable=False, default=False, comment="是否为农业负责人")
+    sort_order   = Column(Integer, nullable=False, default=0, comment="排序")
+    remark       = Column(String(200), nullable=True, comment="备注")
+    created_at   = Column(DateTime, default=func.now())
+    updated_at   = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    village = relationship("Village")
+
+
 class VillageLandInfo(Base):
     """村级土地基础信息扩展表"""
     __tablename__ = "village_land_info"

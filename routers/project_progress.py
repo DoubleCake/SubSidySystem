@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from database import get_db
-from models import ProjectProgress, SubsidyType, Village
+from models import ProjectProgress, SubsidyType, Village, VillageContact
 
 router = APIRouter(prefix="/api/project-progress", tags=["项目进度"])
 
@@ -78,9 +78,17 @@ def batch_upsert(
     action = data.get("action", "init")
     if action == "init":
         # 为所有村创建/更新进度记录，自动同步村负责人信息
+        # 优先从 VillageContact 取 is_agri_lead 的联系人，其次用 Village 表的 leader
         villages = db.query(Village).order_by(Village.village_name).all()
+        # 加载所有村的负责人（从 VillageContact）
+        leads = {}
+        for c in db.query(VillageContact).filter(VillageContact.is_agri_lead == True).all():
+            leads[c.village_id] = c  # 每个村只保留第一个（后端逻辑保证唯一）
         created, updated = 0, 0
         for v in villages:
+            lead = leads.get(v.id)
+            person_name = lead.name if lead else (v.leader_name or "")
+            phone = lead.phone if lead and lead.phone else (v.leader_phone or "")
             exists = db.query(ProjectProgress).filter(
                 ProjectProgress.subsidy_type_id == subsidy_type_id,
                 ProjectProgress.village_id == v.id,
@@ -90,17 +98,17 @@ def batch_upsert(
                     subsidy_type_id=subsidy_type_id,
                     village_id=v.id,
                     village_name=v.village_name,
-                    person_name=v.leader_name or "",
-                    phone=v.leader_phone or "",
+                    person_name=person_name,
+                    phone=phone,
                     stages="[]",
                 ))
                 created += 1
             else:
-                # 同步负责人信息（如果进度表中为空则从 Village 表补充）
-                if not exists.person_name and v.leader_name:
-                    exists.person_name = v.leader_name
-                if not exists.phone and v.leader_phone:
-                    exists.phone = v.leader_phone
+                # 同步负责人信息（从 VillageContact 覆盖）
+                if person_name:
+                    exists.person_name = person_name
+                if phone:
+                    exists.phone = phone
                 updated += 1
         db.commit()
         return {"ok": True, "created": created, "updated": updated}
@@ -133,6 +141,28 @@ def batch_upsert(
             row.stages = json.dumps(stages, ensure_ascii=False)
         db.commit()
         return {"ok": True}
+
+    if action == "sync_leaders":
+        leads = {}
+        for c in db.query(VillageContact).filter(VillageContact.is_agri_lead == True).all():
+            leads[c.village_id] = c
+        updated = 0
+        for row in db.query(ProjectProgress).filter(
+            ProjectProgress.subsidy_type_id == subsidy_type_id
+        ).all():
+            lead = leads.get(row.village_id)
+            if lead:
+                changed = False
+                if lead.name and row.person_name != lead.name:
+                    row.person_name = lead.name
+                    changed = True
+                if lead.phone and row.phone != lead.phone:
+                    row.phone = lead.phone
+                    changed = True
+                if changed:
+                    updated += 1
+        db.commit()
+        return {"ok": True, "updated": updated}
 
     if action == "swap_stages":
         name_a = data.get("stage_a", "")

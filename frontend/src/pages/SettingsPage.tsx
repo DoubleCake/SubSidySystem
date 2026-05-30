@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Modal from '../components/Modal'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
+import VillageContactsPage from './VillageContactsPage'
 
 // ── 类型 ──────────────────────────────────
 interface VillageGroup {
@@ -63,7 +64,7 @@ const SOIL_OPTS       = ['优', '良', '一般', '差']
 
 // ══════════════════════════════════════════
 export default function SettingsPage() {
-  const [tab, setTab] = useState<'groups' | 'land'>('groups')
+  const [tab, setTab] = useState<'groups' | 'land' | 'contacts'>('groups')
   const { toast, show } = useToast()
   const [groups, setGroups] = useState<VillageGroup[]>([])
   const [loading, setLoading] = useState(false)
@@ -249,7 +250,7 @@ export default function SettingsPage() {
       <div className="flex items-center gap-4 mb-5">
         <h1 className="text-xl font-bold text-text-primary">村组管理</h1>
         <div className="flex gap-1 bg-warm/30 p-1 rounded-btn text-sm">
-          {([['groups', '村组结构'], ['land', '土地基础信息']] as const).map(([t, label]) => (
+          {([['groups', '村组结构'], ['land', '土地基础信息'], ['contacts', '村组联系人']] as const).map(([t, label]) => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-1.5 rounded-md transition-colors ${tab === t
                 ? 'bg-white shadow text-primary font-medium'
@@ -593,6 +594,8 @@ export default function SettingsPage() {
             </p>
           </Modal>
         </>
+      ) : tab === 'contacts' ? (
+        <VillageContactsPage embedded />
       ) : (
         <LandInfoTab show={show} />
       )}
