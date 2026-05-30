@@ -315,8 +315,23 @@ export default function LandTrustPage() {
 
   const del = async (id: number) => {
     if (!confirm('确认删除此流转记录？')) return
-    await req(`/api/land/trusts/${id}`, { method: 'DELETE' })
-    show('✓ 已删除'); load()
+    // 乐观更新：立即从列表中移除
+    setList(prev => prev.filter(t => t.id !== id))
+    setTotal(prev => Math.max(0, prev - 1))
+    try {
+      await req(`/api/land/trusts/${id}`, { method: 'DELETE' })
+      show('✓ 已删除')
+    } catch (e) {
+      show('删除失败，请重试', 'err')
+      load() // 失败后重新加载恢复数据
+      return
+    }
+    // 如果当前页删空了且不是第一页，退回到上一页
+    if (list.length <= 1 && page > 1) {
+      setPage(p => p - 1)
+    } else {
+      await load()
+    }
     if (summaryHH) loadSummary(summaryHH)
   }
 

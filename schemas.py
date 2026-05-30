@@ -171,6 +171,7 @@ class ApplicationCreate(BaseModel):
     apply_amount: Optional[Decimal] = None
     actual_amount: Optional[Decimal] = None
     apply_area: Optional[Decimal] = None
+    apply_area_no_calc: Optional[Decimal] = None
     contract_area: Optional[Decimal] = None
     trust_area: Optional[Decimal] = None
     no_subsidy_area: Optional[Decimal] = None
@@ -181,6 +182,7 @@ class ApplicationCreate(BaseModel):
 class ApplicationUpdate(BaseModel):
     actual_amount: Optional[Decimal] = None
     apply_area: Optional[Decimal] = None
+    apply_area_no_calc: Optional[Decimal] = None
     contract_area: Optional[Decimal] = None
     trust_area: Optional[Decimal] = None
     no_subsidy_area: Optional[Decimal] = None
@@ -198,6 +200,7 @@ class ApplicationOut(BaseModel):
     apply_amount: Optional[Decimal]
     actual_amount: Optional[Decimal]
     apply_area: Optional[Decimal]
+    apply_area_no_calc: Optional[Decimal] = None
     contract_area: Optional[Decimal] = None
     trust_area: Optional[Decimal] = None
     no_subsidy_area: Optional[Decimal] = None
@@ -217,6 +220,7 @@ class PaymentCreate(BaseModel):
     amount: Optional[Decimal] = None
     payment_date: Optional[date] = None
     apply_area: Optional[Decimal] = None
+    apply_area_no_calc: Optional[Decimal] = None
     contract_area: Optional[Decimal] = None
     trust_area: Optional[Decimal] = None
     no_subsidy_area: Optional[Decimal] = None

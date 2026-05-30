@@ -143,7 +143,8 @@ class SubsidyApplication(Base):
     apply_year          = Column(SmallInteger, nullable=False)
     apply_amount        = Column(DECIMAL(10, 2), nullable=True, comment="申请金额")
     actual_amount       = Column(DECIMAL(10, 2), nullable=True, comment="实发金额")
-    apply_area          = Column(DECIMAL(10, 2), nullable=True, comment="实际补贴面积(亩)=承包地+代耕代种")
+    apply_area          = Column(DECIMAL(10, 2), nullable=True, comment="计入超限计算的补贴面积(亩)=承包地+代耕代种")
+    apply_area_no_calc  = Column(DECIMAL(10, 2), nullable=True, comment="不计入超限计算的补贴面积(亩)")
     contract_area       = Column(DECIMAL(10, 2), nullable=True, comment="承包地面积(亩)")
     trust_area          = Column(DECIMAL(10, 2), nullable=True, comment="代耕代种面积(亩)")
     no_subsidy_area     = Column(DECIMAL(10, 2), nullable=True, comment="不予补贴面积(亩)")
@@ -193,7 +194,8 @@ class SubsidyPayment(Base):
     payment_group_no    = Column(SmallInteger, nullable=True, comment="发放时组号（整数，快照）")
     payment_village_name= Column(String(50), nullable=True, comment="冗余：发放时村名（快照）")
     payment_group_display= Column(String(20), nullable=True, comment="冗余：发放时组显示名（快照，如'一组'）")
-    apply_area          = Column(DECIMAL(10, 2), nullable=True, comment="实际补贴面积(亩)")
+    apply_area          = Column(DECIMAL(10, 2), nullable=True, comment="计入超限计算的补贴面积(亩)")
+    apply_area_no_calc  = Column(DECIMAL(10, 2), nullable=True, comment="不计入超限计算的补贴面积(亩)")
     contract_area       = Column(DECIMAL(10, 2), nullable=True, comment="承包地面积(亩)")
     trust_area          = Column(DECIMAL(10, 2), nullable=True, comment="代耕代种面积(亩)")
     no_subsidy_area     = Column(DECIMAL(10, 2), nullable=True, comment="不予补贴面积(亩)")
@@ -667,12 +669,15 @@ class LargeFarmer(Base):
 
     # 基本信息
     operator_name       = Column(String(100), nullable=False, comment="经营者姓名/主体名称")
+    responsible_person  = Column(String(100), nullable=True, comment="责任人名称")
     operator_type       = Column(String(20), nullable=False, default="FAMILY_FARM",
                                   comment="FAMILY_FARM家庭农场/COOPERATIVE合作社/LARGE_PLANTER种植大户/OTHER其他")
     id_card             = Column(String(18), nullable=True, comment="负责人身份证号")
     phone               = Column(String(20), nullable=True, comment="联系电话")
+    org_code            = Column(String(50), nullable=True, comment="机构代码")
     bank_card           = Column(String(25), nullable=True, comment="银行卡号")
     bank_name           = Column(String(100), nullable=True, comment="开户行")
+    planting_location   = Column(String(200), nullable=True, comment="种粮地点")
 
     # 所属村组
     village_id          = Column(Integer, ForeignKey("village.id"), nullable=False, comment="所属村")

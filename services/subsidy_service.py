@@ -306,16 +306,18 @@ def delete_type(db: Session, type_id: int) -> None:
 # ═══════════════════════════════════════════
 
 def batch_import_applications(
-    db: Session, rows: list[dict], defer_cache: bool = False
+    db: Session, rows: list[dict], defer_cache: bool = False,
+    overwrite: bool = False,
 ) -> dict:
     """
     批量导入补贴申请记录（优化版：Village缓存 + 批量查重）。
     defer_cache=True 时跳过缓存重算，返回 affected_households 由调用方统一处理。
+    overwrite=True 时覆盖更新已有记录（相同农户+项目+年度+状态）。
     """
     if not rows:
-        return {"created": 0, "skipped": 0, "errors": [], "new_farmers": 0, "affected_households": []}
+        return {"created": 0, "updated": 0, "skipped": 0, "errors": [], "new_farmers": 0, "affected_households": []}
 
-    created, skipped = 0, 0
+    created, updated, skipped = 0, 0, 0
     errors: list[str] = []
     new_farmers_created = 0
     affected_households: set[int] = set()
@@ -401,7 +403,27 @@ def batch_import_applications(
                 continue
             key = (farmer.id, row.get("subsidy_type_id"), row.get("apply_year"), (row.get("pay_status") or 0))
             if key in duplicate_set or key in seen_in_batch:
-                skipped += 1
+                if overwrite and key in duplicate_set:
+                    # ── 覆盖更新现有记录 ──
+                    exist_app = db.query(SubsidyApplication).filter(
+                        SubsidyApplication.farmer_id == key[0],
+                        SubsidyApplication.subsidy_type_id == key[1],
+                        SubsidyApplication.apply_year == key[2],
+                        SubsidyApplication.pay_status == key[3],
+                    ).first()
+                    if exist_app:
+                        row["farmer_id"] = farmer.id
+                        # 更新非空字段
+                        for fld in ("apply_amount", "actual_amount", "apply_area",
+                                    "apply_area_no_calc", "contract_area", "trust_area", "no_subsidy_area",
+                                    "pay_date", "remark", "pay_status"):
+                            val = row.get(fld)
+                            if val is not None and val != '':
+                                setattr(exist_app, fld, val)
+                        affected_households.add(farmer.household_id)
+                        updated += 1
+                else:
+                    skipped += 1
                 continue
             row["farmer_id"] = farmer.id
             app = _build_application_from_row(db, farmer, row, village_cache)
@@ -420,6 +442,7 @@ def batch_import_applications(
 
     return {
         "created": created,
+        "updated": updated,
         "skipped": skipped,
         "errors": errors,
         "new_farmers": new_farmers_created,
@@ -663,12 +686,12 @@ def get_year_compare(db: Session, year: int) -> dict:
 #  补贴发放 - 批量导入
 # ═══════════════════════════════════════════
 
-def batch_import_payments(db: Session, rows: list[dict]) -> dict:
-    """批量导入发放记录（优化版：批量查农户+批量查重）"""
+def batch_import_payments(db: Session, rows: list[dict], overwrite: bool = False) -> dict:
+    """批量导入发放记录（优化版：批量查农户+批量查重）。overwrite=True 时覆盖更新已有记录。"""
     if not rows:
-        return {"created": 0, "skipped": 0, "errors": []}
+        return {"created": 0, "updated": 0, "skipped": 0, "errors": []}
 
-    created, skipped = 0, 0
+    created, updated, skipped = 0, 0, 0
     errors: list[str] = []
     affected_households: set[int] = set()
 
@@ -734,7 +757,25 @@ def batch_import_payments(db: Session, rows: list[dict]) -> dict:
             payment_year = row.get("payment_year")
             key = (farmer.id, subsidy_type_id, payment_year)
             if key in duplicate_set or key in seen_in_batch:
-                skipped += 1
+                if overwrite and key in duplicate_set and key not in seen_in_batch:
+                    # ── 覆盖更新现有发放记录 ──
+                    exist_pay = db.query(SubsidyPayment).filter(
+                        SubsidyPayment.farmer_id == key[0],
+                        SubsidyPayment.subsidy_type_id == key[1],
+                        SubsidyPayment.payment_year == key[2],
+                    ).first()
+                    if exist_pay:
+                        for fld in ("amount", "payment_date", "apply_area",
+                                    "apply_area_no_calc", "contract_area", "trust_area", "no_subsidy_area",
+                                    "bank_card", "bank_name", "remark", "proxy_remark"):
+                            val = row.get(fld)
+                            if val is not None and val != '':
+                                setattr(exist_pay, fld, val)
+                        if farmer.household_id:
+                            affected_households.add(farmer.household_id)
+                        updated += 1
+                else:
+                    skipped += 1
                 continue
 
             snapshot = get_village_snapshot_simple(db, farmer)
@@ -750,6 +791,7 @@ def batch_import_payments(db: Session, rows: list[dict]) -> dict:
                 payment_village_name=snapshot["village_name"],
                 payment_group_display=snapshot["group_display"],
                 apply_area=row.get("apply_area"),
+                apply_area_no_calc=row.get("apply_area_no_calc"),
                 contract_area=row.get("contract_area"),
                 trust_area=row.get("trust_area"),
                 no_subsidy_area=row.get("no_subsidy_area"),
@@ -770,7 +812,7 @@ def batch_import_payments(db: Session, rows: list[dict]) -> dict:
     db.commit()
     if affected_households:
         recalc_household_cache(db, list(affected_households))
-    return {"created": created, "skipped": skipped, "errors": errors}
+    return {"created": created, "updated": updated, "skipped": skipped, "errors": errors}
 
 
 def _sync_application_pay_status(

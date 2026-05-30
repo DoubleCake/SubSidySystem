@@ -68,6 +68,12 @@ export function HouseholdDetailContent({
     if (!appsByYear[a.apply_year]) appsByYear[a.apply_year] = []
     appsByYear[a.apply_year].push(a)
   })
+  // 统计不计入超限面积（apply_area_no_calc）按年度汇总
+  const noCalcByYear: Record<number, number> = {}
+  detail.app_summary.forEach(a => {
+    const area = Number(a.apply_area_no_calc || 0)
+    if (area > 0) noCalcByYear[a.apply_year] = (noCalcByYear[a.apply_year] || 0) + area
+  })
   const displayMembers = historyDate !== null && snapshotData?.snapshot ? snapshotData.snapshot.members : detail.members
   const defaultAreaUsage = {
     contracted_area: detail.contracted_area || 0,
@@ -356,6 +362,8 @@ export function HouseholdDetailContent({
             })()}
             <div className="space-y-2">
               {Object.entries(areaUsage.season_breakdown).map(([season, usage]) => {
+                // 跳过"临时"（改为由下方的独立卡片显示不占用补贴面积数据）
+                if (season === '临时') return null
                 // 计算该季节在该年度的使用面积
                 let yearUsedArea = 0
                 let yearApplyArea = 0  // 预申请面积
@@ -425,6 +433,23 @@ export function HouseholdDetailContent({
                   </div>
                 )
               })}
+              {/* 不占用补贴面积卡片 - 独立于 season_breakdown 渲染 */}
+              {(() => {
+                const hasNoCalc = Object.keys(noCalcByYear).length > 0
+                if (!hasNoCalc) return null
+                const noCalcTotal = areaYear === 0
+                  ? Object.values(noCalcByYear).reduce((s, v) => s + v, 0)
+                  : (noCalcByYear[areaYear] || 0)
+                if (noCalcTotal <= 0) return null
+                return (
+                  <div className="border border-border rounded-btn overflow-hidden opacity-70">
+                    <div className="flex items-center justify-between px-3 py-2 bg-warm/30">
+                      <span className="text-sm font-bold text-text-muted">不占用补贴面积</span>
+                      <span className="text-sm font-mono text-text-muted">{noCalcTotal.toFixed(2)} 亩</span>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
           </div>
         )}
@@ -579,7 +604,12 @@ export function HouseholdDetailContent({
                         </span>
                       )
                     })()}
-                    {a.apply_area && <span className="text-xs text-text-muted font-mono">{a.apply_area}亩</span>}
+                    {a.apply_area != null && (
+                      <span className="text-xs text-text-muted font-mono" title={`计入超限 ${a.apply_area}亩 / 不计超限 ${a.apply_area_no_calc || 0}亩`}>
+                        <span>{Number(a.apply_area).toFixed(2)}</span>
+                        {a.apply_area_no_calc ? <span className="text-text-muted/50">+{Number(a.apply_area_no_calc).toFixed(2)}</span> : null}亩
+                      </span>
+                    )}
                     <span className="text-sm font-mono font-bold text-primary">{a.actual_amount ? fmt(a.actual_amount) : '—'}</span>
                     <Tag label={PAY_STATUS[a.pay_status]?.label || '—'} color={PAY_STATUS[a.pay_status]?.color as 'green'} />
                   </div>

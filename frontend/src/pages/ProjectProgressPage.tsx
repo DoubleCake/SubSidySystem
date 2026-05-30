@@ -46,8 +46,10 @@ export default function ProjectProgressPage() {
   const { toast, show } = useToast()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const projectId = Number(searchParams.get('subsidy_type_id')) || null
+  const urlProjectId = Number(searchParams.get('subsidy_type_id')) || null
 
+  const [projectId, setProjectId] = useState<number | null>(urlProjectId)
+  const [projectList, setProjectList] = useState<{ id: number; subsidy_name: string; subsidy_year: number }[]>([])
   const [projectName, setProjectName] = useState('')
   const [records, setRecords] = useState<ProgressRecord[]>([])
   const [loading, setLoading] = useState(false)
@@ -59,19 +61,34 @@ export default function ProjectProgressPage() {
   // 右键菜单
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; vid: number; sidx: number } | null>(null)
   const ctxRef = useRef<HTMLDivElement>(null)
+  // 全列批量菜单
+  const [batchCol, setBatchCol] = useState<string | null>(null)
+  const batchRef = useRef<HTMLDivElement>(null)
 
+  // 加载项目列表，设置当前项目名
   useEffect(() => {
-    if (projectId) {
-      fetch('/api/subsidies/types')
-        .then(r => r.json())
-        .then(data => {
-          const list = Array.isArray(data) ? data : []
+    fetch('/api/subsidies/types')
+      .then(r => r.json())
+      .then(data => {
+        const list = Array.isArray(data) ? data : []
+        setProjectList(list)
+        if (projectId) {
           const p = list.find((t: any) => t.id === projectId)
           setProjectName(p ? `${p.subsidy_name}（${p.subsidy_year}年）` : `项目 #${projectId}`)
-        })
-        .catch(() => {})
+        } else if (list.length > 0) {
+          setProjectId(list[0].id)
+        }
+      })
+      .catch(() => {})
+  }, []) // 注意：只在首次加载运行
+
+  // projectId 变化时更新项目名
+  useEffect(() => {
+    if (projectId && projectList.length > 0) {
+      const p = projectList.find(t => t.id === projectId)
+      setProjectName(p ? `${p.subsidy_name}（${p.subsidy_year}年）` : `项目 #${projectId}`)
     }
-  }, [projectId])
+  }, [projectId, projectList])
 
   const loadRecords = useCallback(async () => {
     if (!projectId) return
@@ -85,7 +102,10 @@ export default function ProjectProgressPage() {
 
   useEffect(() => { loadRecords() }, [loadRecords])
   useEffect(() => {
-    const h = (e: MouseEvent) => { if (ctxRef.current && !ctxRef.current.contains(e.target as Node)) setCtxMenu(null) }
+    const h = (e: MouseEvent) => {
+      if (ctxRef.current && !ctxRef.current.contains(e.target as Node)) setCtxMenu(null)
+      if (batchRef.current && !batchRef.current.contains(e.target as Node)) setBatchCol(null)
+    }
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
   }, [])
@@ -136,12 +156,38 @@ export default function ProjectProgressPage() {
 
   const savePerson = async (rec: ProgressRecord) => { await saveRec(rec); setEditVid(null); show('已保存') }
 
+  const batchSetStageStatus = async (stageName: string, status: StageItem['status']) => {
+    if (!projectId) return
+    const now = new Date().toISOString().slice(0, 10)
+    await fetch(`/api/project-progress/${projectId}/batch`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'batch_stage', stage_name: stageName, status, date: now }),
+    })
+    show(`已将所有村「${stageName}」设为${STATUS_CFG[status].label}`)
+    setBatchCol(null)
+    loadRecords()
+  }
+
   const swapStages = async (idxA: number, idxB: number) => {
     if (idxA < 0 || idxB < 0 || idxA >= allStages.length || idxB >= allStages.length) return
     await fetch(`/api/project-progress/${projectId}/batch`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'swap_stages', stage_a: allStages[idxA], stage_b: allStages[idxB] }),
     })
+    loadRecords()
+  }
+
+  // 删除所有筛选出的记录
+  const deleteFiltered = async () => {
+    if (!projectId || filtered.length === 0) return
+    const names = filtered.map(r => r.village_name).join('、')
+    if (!confirm(`确认删除筛选出的 ${filtered.length} 个村的进度记录？\n\n${names}`)) return
+    const ids = filtered.map(r => r.village_id)
+    await fetch(`/api/project-progress/${projectId}/batch-delete`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ village_ids: ids }),
+    })
+    show(`已删除 ${filtered.length} 个村的进度记录`)
     loadRecords()
   }
 
@@ -199,12 +245,18 @@ export default function ProjectProgressPage() {
   return (
     <div className="p-4 max-w-full mx-auto" onClick={() => setCtxMenu(null)}>
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={() => navigate('/projects')} className="text-text-muted hover:text-text-primary">← 返回项目</button>
+        <button onClick={() => navigate(-1)} className="text-text-muted hover:text-text-primary">← 返回</button>
         <h1 className="text-lg font-bold">📋 {projectName || '项目进度'}</h1>
       </div>
 
       {/* 操作栏 */}
       <div className="bg-white border border-border rounded-card p-3 mb-3 flex items-center gap-3 flex-wrap">
+        <select value={projectId ?? ''} onChange={e => setProjectId(Number(e.target.value))}
+          className="border border-border rounded-btn px-2 py-1.5 text-xs outline-none bg-white">
+          {projectList.map(p => (
+            <option key={p.id} value={p.id}>{p.subsidy_name}（{p.subsidy_year}年）</option>
+          ))}
+        </select>
         <button onClick={initAllVillages} className="px-3 py-1.5 text-xs border border-border rounded-btn hover:bg-warm/30">🔄 初始化全部村</button>
         <div className="flex items-center gap-1">
           <input value={newStageName} onChange={e => setNewStageName(e.target.value)} placeholder="新阶段名称"
@@ -229,6 +281,10 @@ export default function ProjectProgressPage() {
           <div className="w-32 h-1.5 bg-warm/30 rounded-full overflow-hidden">
             <div className="h-full bg-emerald-400 rounded-full" style={{ width: Math.round(totalDone / Math.max(1, totalCells) * 100) + '%' }} />
           </div>
+        )}
+        {filtered.length > 0 && (
+          <button onClick={deleteFiltered}
+            className="ml-auto px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-btn hover:bg-red-50">🗑 删除筛选结果</button>
         )}
       </div>
 
@@ -256,6 +312,27 @@ export default function ProjectProgressPage() {
                         <span>{sn}</span>
                         <button onClick={() => swapStages(i, i + 1)} disabled={i === allStages.length - 1}
                           className="text-text-muted/30 hover:text-text-muted disabled:opacity-20 text-xs leading-none" title="右移">▶</button>
+                        <span className="relative">
+                          <button onClick={e => { e.stopPropagation(); setBatchCol(batchCol === sn ? null : sn) }}
+                            className="text-text-muted/30 hover:text-primary ml-0.5 text-xs leading-none cursor-pointer" title="批量设置该列状态">▼</button>
+                          {batchCol === sn && (
+                            <div ref={batchRef}
+                              className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-white border border-border rounded-card shadow-lg py-1 min-w-[110px]"
+                              onClick={e => e.stopPropagation()}>
+                              {STATUS_ORDER.map(st => {
+                                const cfg = STATUS_CFG[st]
+                                return (
+                                  <button key={st}
+                                    onClick={() => batchSetStageStatus(sn, st)}
+                                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-warm/30 flex items-center gap-2 whitespace-nowrap ${cfg.text}`}>
+                                    <span className="text-base leading-none">{STATUS_DOT[st]}</span>
+                                    <span>全部设为{cfg.label}</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </span>
                       </div>
                     </th>
                   ))}

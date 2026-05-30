@@ -151,10 +151,12 @@ def api_batch_import_applications(
     """
     批量导入补贴申请记录。
     defer_cache=true 时跳过缓存重算，由前端汇总后调用 /recalc-cache 统一处理。
+    overwrite=true 时覆盖更新已有记录。
     """
     rows = payload.get("rows", [])
     defer = payload.get("defer_cache", False)
-    result = batch_import_applications(db, rows, defer_cache=defer)
+    overwrite = payload.get("overwrite", False)
+    result = batch_import_applications(db, rows, defer_cache=defer, overwrite=overwrite)
     return result
 
 
@@ -222,8 +224,12 @@ def list_applications(
             "apply_amount": a.apply_amount,
             "actual_amount": a.actual_amount,
             "apply_area": a.apply_area,
+            "apply_area_no_calc": a.apply_area_no_calc,
             "contract_area": a.contract_area,
             "trust_area": a.trust_area,
+            "no_subsidy_area": a.no_subsidy_area,
+            "apply_amount": a.apply_amount,
+            "actual_amount": a.actual_amount,
             "pay_status": a.pay_status,
             "pay_date": a.pay_date,
             "remark": a.remark,
@@ -464,6 +470,7 @@ def search_applications(
         rows.append({
             "id":              a.id,
             "farmer_id":       a.farmer_id,
+            "household_id":    f.household_id if f else None,
             "farmer_name":     f.real_name    if f  else "—",
             "id_card_masked":  (f.id_card[:6] + "********" + f.id_card[-4:]) if f and f.id_card else "—",
             "phone":           f.phone        if f  else None,
@@ -474,6 +481,7 @@ def search_applications(
             "calc_mode":       st.calc_mode    if st else "fixed",
             "apply_year":      a.apply_year,
             "apply_area":      a.apply_area,
+            "apply_area_no_calc": a.apply_area_no_calc,
             "contract_area":   a.contract_area,
             "trust_area":      a.trust_area,
             "no_subsidy_area": a.no_subsidy_area,
@@ -1426,7 +1434,8 @@ def list_payments(
 
     q = db.query(
         SubsidyPayment, FarmerProfile.real_name, SubsidyType.subsidy_name,
-        Village.village_name, FamilyHousehold.group_no
+        Village.village_name, FamilyHousehold.group_no,
+        FarmerProfile.household_id
     )
     q = q.join(FarmerProfile, FarmerProfile.id == SubsidyPayment.farmer_id)
     q = q.join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
@@ -1501,6 +1510,7 @@ def list_payments(
             {
                 "id": p[0].id,
                 "farmer_id": p[0].farmer_id,
+                "household_id": p[5],
                 "farmer_name": p[1],
                 "subsidy_type_id": p[0].subsidy_type_id,
                 "subsidy_name": p[2],
@@ -1510,6 +1520,7 @@ def list_payments(
                 "amount": p[0].amount,
                 "payment_date": p[0].payment_date,
                 "apply_area": p[0].apply_area,
+                "apply_area_no_calc": p[0].apply_area_no_calc,
                 "contract_area": p[0].contract_area,
                 "trust_area": p[0].trust_area,
                 "no_subsidy_area": p[0].no_subsidy_area,
@@ -1556,6 +1567,7 @@ def create_payment(data: PaymentCreate, db: Session = Depends(get_db)):
         payment_village_name=snapshot["village_name"],
         payment_group_display=snapshot["group_display"],
         apply_area=data.apply_area,
+        apply_area_no_calc=data.apply_area_no_calc,
         contract_area=data.contract_area,
         trust_area=data.trust_area,
         no_subsidy_area=data.no_subsidy_area,
@@ -1635,9 +1647,10 @@ def delete_payment(payment_id: int, db: Session = Depends(get_db)):
 
 @router.post("/payments/batch-import")
 def api_batch_import_payments(payload: dict, db: Session = Depends(get_db)):
-    """批量导入发放记录"""
+    """批量导入发放记录。overwrite=true 时覆盖更新已有记录。"""
     rows = payload.get("rows", [])
-    return batch_import_payments(db, rows)
+    overwrite = payload.get("overwrite", False)
+    return batch_import_payments(db, rows, overwrite=overwrite)
 
 
 @router.post("/payments/sync-pay-status")

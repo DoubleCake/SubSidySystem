@@ -170,6 +170,24 @@ def delete_progress(
     return {"ok": True}
 
 
+@router.post("/{subsidy_type_id}/batch-delete")
+def batch_delete_progress(
+    subsidy_type_id: int,
+    data: dict,
+    db: Session = Depends(get_db),
+):
+    """批量删除进度记录（传入 village_ids 列表）"""
+    village_ids = data.get("village_ids", [])
+    if not village_ids:
+        return {"error": "缺少 village_ids"}, 400
+    deleted = db.query(ProjectProgress).filter(
+        ProjectProgress.subsidy_type_id == subsidy_type_id,
+        ProjectProgress.village_id.in_(village_ids),
+    ).delete(synchronize_session=False)
+    db.commit()
+    return {"ok": True, "deleted": deleted}
+
+
 def _serialize(r: ProjectProgress) -> dict:
     return {
         "id": r.id,

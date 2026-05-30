@@ -109,6 +109,7 @@ export interface ApplicationOut {
   apply_amount: string | null
   actual_amount: string | null
   apply_area: string | null
+  apply_area_no_calc?: string | null
   pay_status: number
   pay_date: string | null
   remark: string | null
@@ -127,6 +128,7 @@ export interface ApplicationForPrecheck {
   apply_amount: string | null
   actual_amount: string | null
   apply_area: string | null
+  apply_area_no_calc?: string | null
   pay_status: number
   pay_date: string | null
   remark: string | null
@@ -142,6 +144,7 @@ export interface ApplicationForPrecheck {
 export interface ApplicationSearchResult {
   id: number
   farmer_id: number
+  household_id?: number | null
   farmer_name: string
   id_card_masked?: string
   phone?: string | null
@@ -152,6 +155,7 @@ export interface ApplicationSearchResult {
   calc_mode?: string
   apply_year: number
   apply_area: string | null
+  apply_area_no_calc?: string | null
   contract_area: string | null
   trust_area: string | null
   no_subsidy_area: string | null
@@ -179,6 +183,11 @@ export interface PaymentOut {
   proxy_remark: string | null
   is_proxy?: number
   pay_status?: number
+  apply_area?: string | null
+  apply_area_no_calc?: string | null
+  contract_area?: string | null
+  trust_area?: string | null
+  no_subsidy_area?: string | null
 }
 
 export interface PaymentCreate {
@@ -188,6 +197,7 @@ export interface PaymentCreate {
   amount?: number
   payment_date?: string
   apply_area?: number
+  apply_area_no_calc?: number
   contract_area?: number
   trust_area?: number
   no_subsidy_area?: number
@@ -226,6 +236,7 @@ export interface SubsidyProxyCreate {
 export interface ApplicationSearchResult {
   id: number
   farmer_id: number
+  household_id?: number | null
   farmer_name: string
   id_card_masked?: string
   phone?: string | null
@@ -236,6 +247,7 @@ export interface ApplicationSearchResult {
   calc_mode?: string
   apply_year: number
   apply_area: string | null
+  apply_area_no_calc?: string | null
   contract_area: string | null
   trust_area: string | null
   no_subsidy_area: string | null
@@ -255,6 +267,7 @@ export interface ApplicationCreate {
   apply_amount?: number
   actual_amount?: number
   apply_area?: number
+  apply_area_no_calc?: number
   contract_area?: number
   trust_area?: number
   no_subsidy_area?: number
@@ -411,7 +424,7 @@ export interface HHDetail {
   }
   app_summary: {
     apply_year: number; farmer_id: number; farmer_name: string; subsidy_name: string
-    calc_mode: string; apply_area: number | null; apply_amount: number | null; actual_amount: number | null
+    calc_mode: string; apply_area: number | null; apply_area_no_calc?: number | null; apply_amount: number | null; actual_amount: number | null
     pay_status: number; apply_village_name: string; apply_group_display: string; is_proxy: number
     proxy_info?: { type: string; proxy_name?: string; beneficiary_name?: string; proxy_farmer_id?: number; beneficiary_farmer_id?: number; remark?: string } | null
   }[]
@@ -467,7 +480,7 @@ export interface SnapshotAtResponse {
     members: SnapshotMember[]
     app_summary?: Array<{
       apply_year: number; farmer_name: string; subsidy_name: string
-      calc_mode: string; apply_area: number | null; actual_amount: number | null; pay_status: number
+      calc_mode: string; apply_area: number | null; apply_area_no_calc?: number | null; actual_amount: number | null; pay_status: number
     }>
     area_usage?: {
       contracted_area: number; used_area: number; remaining_area: number

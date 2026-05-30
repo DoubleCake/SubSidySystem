@@ -31,7 +31,8 @@ const PROXY_IMPORT_FIELDS = [
 const PAYMENT_IMPORT_FIELDS = [
   { field: 'id_card',         label: '身份证*', required: true,  type: 'id_card' },
   { field: 'real_name',       label: '姓名*', required: true,  type: 'string' },
-  { field: 'apply_area',      label: '补贴面积(亩)', required: false, type: 'decimal' },
+  { field: 'apply_area',      label: '计入超限面积(亩)', required: false, type: 'decimal' },
+  { field: 'apply_area_no_calc', label: '不计超限面积(亩)', required: false, type: 'decimal' },
   { field: 'contract_area',   label: '承包面积(亩)', required: false, type: 'decimal' },
   { field: 'trust_area',      label: '代耕代种面积(亩)', required: false, type: 'decimal' },
   { field: 'no_subsidy_area', label: '不予补贴面积(亩)', required: false, type: 'decimal' },
@@ -269,6 +270,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
   }
 
   // 删除全部记录
+  const [deletingAll, setDeletingAll] = useState(false)
   const deleteAll = async () => {
     if (!apps || apps.length === 0) {
       show('没有可删除的记录', 'err')
@@ -277,6 +279,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
     if (!confirm(`⚠️ 确定要删除全部 ${total} 条记录吗？此操作不可恢复。`)) {
       return
     }
+    setDeletingAll(true)
     try {
       const response = await fetch('/api/subsidies/applications/batch-delete', {
         method: 'POST',
@@ -291,6 +294,8 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
     } catch (error) {
       console.error('删除全部失败:', error)
       show('删除全部失败: ' + (error as Error).message, 'err')
+    } finally {
+      setDeletingAll(false)
     }
   }
 
@@ -420,7 +425,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
   }
 
   // 发放记录 Excel 导入
-  const handlePaymentImport = async (rows: Record<string, unknown>[]) => {
+  const handlePaymentImport = async (rows: Record<string, unknown>[], mapping?: unknown, overwrite?: boolean) => {
     const payload = rows.map(r => ({
       id_card: r.id_card,
       real_name: r.real_name,
@@ -439,9 +444,9 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
     const res = await fetch('/api/subsidies/payments/batch-import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rows: payload }),
+      body: JSON.stringify({ rows: payload, overwrite: overwrite || false }),
     }).then(r => r.json())
-    return { created: res.created || 0, skipped: res.skipped || 0, errors: res.errors || [] }
+    return { created: res.created || 0, updated: res.updated || 0, skipped: res.skipped || 0, errors: res.errors || [] }
   }
 
   // 获取村庄列表
@@ -864,6 +869,12 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
         >
           👥 代领关系
         </button>
+        <button
+          onClick={() => navigate(`/project-progress?subsidy_type_id=${subsidyType.id}`)}
+          className="px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-text-muted hover:text-text-primary transition-colors"
+        >
+          📊 项目管理
+        </button>
         <div className="ml-auto flex items-center gap-2">
           {activeTab === 'preApply' && (
             <button
@@ -900,9 +911,9 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
                     🗑️ 删除选中 ({selectedIds.length})
                   </button>
                 )}
-                <button onClick={deleteAll}
-                  className="px-3 py-2 text-sm bg-red-600/80  rounded-btn hover:bg-red-700 flex items-center gap-1.5">
-                  🗑️ 删除全部
+                <button onClick={deleteAll} disabled={deletingAll}
+                  className={`px-3 py-2 text-sm rounded-btn flex items-center gap-1.5 ${deletingAll ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600/80 hover:bg-red-700'}`}>
+                  {deletingAll ? '⏳ 删除中...' : '🗑️ 删除全部'}
                 </button>
                 {activeTab === 'disbursement' && (
                   <button onClick={() => setPaymentImportOpen(true)}
@@ -1205,7 +1216,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
         templateExample={[{ '身份证*': '510123196503154231', '姓名*': '张三', '补贴面积(亩)': '3.5', '发放金额(元)': '420' }]}
         systemFields={PAYMENT_IMPORT_FIELDS}
         templates={[]}
-        overwriteOption={false}
+        overwriteOption={true}
         onDetectColumns={async (columns) => ({
           columns: columns.map(col => ({
             excel_column: col,

@@ -75,7 +75,8 @@ interface DisbursementListProps {
 const SUBSIDY_IMPORT_FIELDS = [
   { field: "id_card", label: "身份证号", required: true, type: "id_card" },
   { field: "real_name", label: "姓名", required: true, type: "string" },
-  { field: "apply_area", label: "实际补贴面积", required: false, type: "decimal" },
+  { field: "apply_area", label: "计入超限计算的补贴面积", required: false, type: "decimal" },
+  { field: "apply_area_no_calc", label: "不计入超限计算的补贴面积", required: false, type: "decimal" },
   { field: "contract_area", label: "承包地面积", required: false, type: "decimal" },
   { field: "trust_area", label: "代耕代种面积", required: false, type: "decimal" },
   { field: "no_subsidy_area", label: "不予补贴面积", required: false, type: "decimal" },
@@ -148,12 +149,14 @@ export default function DisbursementList({
     return () => clearTimeout(t)
   }, [idInput, setFarmerHint, setFarmerId])
 
-  // 按亩自动计算
+  // 按亩自动计算（合计入超限+不计超限面积）
   useEffect(() => {
-    if (subsidyType.calc_mode !== 'per_mu' || !form.apply_area) return
-    const amt = Number(subsidyType.standard_amount || 0) * Number(form.apply_area)
+    if (subsidyType.calc_mode !== 'per_mu') return
+    const totalArea = Number(form.apply_area || 0) + Number((form as any).apply_area_no_calc || 0)
+    if (totalArea <= 0) return
+    const amt = Number(subsidyType.standard_amount || 0) * totalArea
     setForm(f => ({ ...f, apply_amount: Math.round(amt * 100) / 100, actual_amount: Math.round(amt * 100) / 100 }))
-  }, [form.apply_area, subsidyType, setForm])
+  }, [form.apply_area, (form as any).apply_area_no_calc, subsidyType, setForm])
 
   const submitAdd = async () => {
     if (!farmerId) return show('请输入有效身份证号', 'err')
@@ -191,6 +194,7 @@ export default function DisbursementList({
         body: JSON.stringify({
           amount: form.actual_amount,
           apply_area: form.apply_area,
+          apply_area_no_calc: (form as any).apply_area_no_calc,
           contract_area: form.contract_area,
           trust_area: form.trust_area,
           no_subsidy_area: form.no_subsidy_area,
@@ -313,9 +317,11 @@ export default function DisbursementList({
       const contractArea = Number(row['contract_area'] || row['承包地面积(亩)']) || 0
       const trustArea = Number(row['trust_area'] || row['代耕代种面积(亩)']) || 0
       const noSubsidyArea = Number(row['no_subsidy_area'] || row['不予补贴面积']) || undefined
-      const applyAreaExplicit = Number(row['apply_area'] || row['实际补贴面积'] || row['面积(亩)']) || 0
+      const applyAreaExplicit = Number(row['apply_area'] || row['计入超限面积'] || row['实际补贴面积'] || row['面积(亩)']) || 0
+      const applyAreaNoCalc = Number(row['apply_area_no_calc'] || row['不计入超限面积'] || 0) || undefined
+      const totalArea = applyAreaExplicit + (applyAreaNoCalc || 0)
       const area = applyAreaExplicit || (contractArea + trustArea || undefined)
-      const amount = Number(row['actual_amount'] || row['实发金额']) || (area ? area * Number(subsidyType.standard_amount || 0) : undefined)
+      const amount = Number(row['actual_amount'] || row['实发金额']) || (totalArea ? totalArea * Number(subsidyType.standard_amount || 0) : undefined)
 
       toCreate.push({
         farmer_id: farmerId,
@@ -326,6 +332,7 @@ export default function DisbursementList({
         subsidy_type_id: subsidyType.id,
         payment_year: subsidyType.subsidy_year,
         apply_area: area,
+        apply_area_no_calc: applyAreaNoCalc,
         contract_area: contractArea || undefined,
         trust_area: trustArea || undefined,
         no_subsidy_area: noSubsidyArea,
@@ -347,6 +354,7 @@ export default function DisbursementList({
       amount: r.amount,
       payment_date: r.payment_date,
       apply_area: r.apply_area,
+      apply_area_no_calc: r.apply_area_no_calc,
       contract_area: r.contract_area,
       trust_area: r.trust_area,
       no_subsidy_area: r.no_subsidy_area,
@@ -476,7 +484,7 @@ export default function DisbursementList({
                   )}
                 </button>
               </th>
-              {['姓名', '身份证', '手机号', '所在村', '所在组', '实际补贴面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额', '状态', '打款日期', '备注', '代领备注', '操作'].map(h => (
+              {['姓名', '身份证', '手机号', '所在村', '所在组', '计入超限面积', '不计超限面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额', '状态', '打款日期', '备注', '代领备注', '操作'].map(h => (
                 <th key={h} className="px-2 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
               ))}
             </tr>
@@ -502,7 +510,15 @@ export default function DisbursementList({
                 </td>
                 <td className="px-2 py-2 text-sm font-semibold whitespace-nowrap">
                   <div className="flex items-center gap-1">
-                    {a.farmer_name}
+                    <span
+                      className="cursor-pointer hover:text-primary/80 hover:underline decoration-dotted underline-offset-2"
+                      title="点击查看家庭户详情"
+                      onClick={() => {
+                        if (a.household_id) {
+                          navigate(`/farmers?tab=households&householdId=${a.household_id}`)
+                        }
+                      }}
+                    >{a.farmer_name}</span>
                     {a.is_proxy === 1 && <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">代领</span>}
                   </div>
                 </td>
@@ -511,6 +527,7 @@ export default function DisbursementList({
                 <td className="px-2 py-2 text-xs text-text-muted whitespace-nowrap">{a.village || '—'}</td>
                 <td className="px-2 py-2 text-xs text-text-muted whitespace-nowrap">{a.group_no || '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono font-bold text-text-primary">{a.apply_area ? `${a.apply_area}` : '—'}</td>
+                <td className="px-2 py-2 text-xs font-mono text-text-muted">{a.apply_area_no_calc || '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono text-text-muted">{a.contract_area || '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono text-text-muted">{a.trust_area || '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono text-red-400">{a.no_subsidy_area || '—'}</td>
@@ -573,10 +590,17 @@ export default function DisbursementList({
                   }}
                     className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
                 </div>
-                <div className="col-span-2">
-                  <label className="block text-xs text-text-muted mb-1">实际补贴面积(亩) <span className="text-text-muted/50">— 可手动填写</span></label>
-                  <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_amount: Number(e.target.value) || undefined }))}
-                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                <div className="col-span-2 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-text-muted mb-1">计入超限计算的补贴面积(亩) <span className="text-text-muted/50">— 可手动填写</span></label>
+                    <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_amount: Number(e.target.value) || undefined }))}
+                      className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-text-muted mb-1">不计入超限计算的补贴面积(亩)</label>
+                    <input type="number" step="0.01" value={(form as any).apply_area_no_calc ?? ''} onChange={e => setForm(f => ({ ...f, apply_area_no_calc: Number(e.target.value) || undefined }))}
+                      className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  </div>
                 </div>
               </>
             )}
@@ -630,10 +654,17 @@ export default function DisbursementList({
                 }}
                   className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
               </div>
-              <div className="col-span-2">
-                <label className="block text-xs text-text-muted mb-1">实际补贴面积(亩) <span className="text-text-muted/50">— 可手动填写</span></label>
-                <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))}
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              <div className="col-span-2 grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-text-muted mb-1">计入超限计算的补贴面积(亩) <span className="text-text-muted/50">— 可手动填写</span></label>
+                  <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))}
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                </div>
+                <div>
+                  <label className="block text-xs text-text-muted mb-1">不计入超限计算的补贴面积(亩)</label>
+                  <input type="number" step="0.01" value={(form as any).apply_area_no_calc ?? ''} onChange={e => setForm(f => ({ ...f, apply_area_no_calc: Number(e.target.value) || undefined }))}
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                </div>
               </div>
             </>
           )}
