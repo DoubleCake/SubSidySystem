@@ -14,7 +14,7 @@ import Toast from '../components/Toast'
 import { fmt, PAY_STATUS, years } from '../utils'
 
 // ─── 类型 ───
-interface Site { id:number; name:string; url:string; site_type:'link'|'query'; description:string|null; sort_order:number; is_active:number }
+interface Site { id:number; name:string; url:string; site_type:'link'|'query'; image:string|null; description:string|null; sort_order:number; is_active:number }
 interface QRecord { id:number; site_name:string; query_type:string; query_inputs:string[]; query_count:number; result_note:string|null; purpose:string|null; operator:string; tags:string|null; created_at:string|null }
 interface Stats { total_records:number; total_items:number; by_type:{type:string;times:number;total_items:number}[]; by_site:{site:string;times:number}[] }
 
@@ -225,7 +225,11 @@ export default function ExternalLinksPage() {
                  <div key={s.id} className="bg-white border border-border rounded-card p-5 shadow-card hover:border-primary/30 hover:shadow-card transition-all cursor-pointer group"
                    onClick={()=>setOpenSite(s)}>
                    <div className="flex items-start justify-between mb-3">
-                     <div className="w-10 h-10 bg-primary/5 border border-primary/10 rounded-card flex items-center justify-center text-xl">🌐</div>
+                     <div className="w-12 h-12 bg-primary/5 border border-primary/10 rounded-card flex items-center justify-center overflow-hidden">
+                       {s.image
+                         ? <img src={s.image} alt={s.name} className="w-full h-full object-cover" />
+                         : <span className="text-xl">🌐</span>}
+                     </div>
                    </div>
                    <h3 className="font-bold text-text-primary text-sm mb-1 group-hover:text-primary">{s.name}</h3>
                    {s.description&&<p className="text-xs text-text-muted mb-2">{s.description}</p>}
@@ -435,6 +439,23 @@ export default function ExternalLinksPage() {
             <div><label className="block text-xs text-text-muted mb-1">网址 *</label>
               <input value={siteForm.url??''} onChange={e=>setSiteForm(f=>({...f,url:e.target.value}))} placeholder="https://"
                 className="w-full border border-border rounded-btn px-3 py-2 text-sm font-mono outline-none focus:border-primary"/></div>
+            <div><label className="block text-xs text-text-muted mb-1">图标（可选）</label>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 border border-border rounded-card overflow-hidden bg-warm/20 flex items-center justify-center flex-shrink-0">
+                  {siteForm.image
+                    ? <img src={siteForm.image as string} alt="" className="w-full h-full object-cover" />
+                    : <span className="text-text-muted/40 text-lg">🖼</span>}
+                </div>
+                <label className="px-3 py-1.5 text-xs border border-border rounded-btn cursor-pointer hover:bg-warm/20">
+                  {siteForm.image ? '更换图片' : '选择图片'}
+                  <input type="file" accept="image/*" className="hidden" onChange={e=>{
+                    const f=e.target.files?.[0]; if(!f) return
+                    const r=new FileReader(); r.onload=()=>setSiteForm(p=>({...p,image:r.result as string})); r.readAsDataURL(f)
+                  }}/>
+                </label>
+                {siteForm.image&&<button onClick={()=>setSiteForm(f=>({...f,image:null}))}
+                  className="text-xs text-red-400 hover:underline">移除</button>}
+              </div></div>
             <div><label className="block text-xs text-text-muted mb-1">描述（可选）</label>
               <input value={siteForm.description??''} onChange={e=>setSiteForm(f=>({...f,description:e.target.value}))}
                 className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"/></div>
@@ -476,7 +497,7 @@ export default function ExternalLinksPage() {
                   <div className="flex gap-1 shrink-0">
                     <button onClick={()=>{
                       setEditSite(s)
-                      setSiteForm({name:s.name,url:s.url,site_type:s.site_type,description:s.description||'',sort_order:s.sort_order,is_active:s.is_active})
+                      setSiteForm({name:s.name,url:s.url,site_type:s.site_type,image:s.image,description:s.description||'',sort_order:s.sort_order,is_active:s.is_active})
                       setSiteFormMode(true)
                     }} className="text-xs text-text-muted border border-border px-2 py-1 rounded hover:text-primary hover:border-primary/20">编辑</button>
                     <a href={s.url} target="_blank" rel="noopener noreferrer"

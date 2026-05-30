@@ -43,6 +43,7 @@ class ExternalSite(Base):
                           comment="GET=URL参数 POST=表单提交")
     url_param    = Column(String(50), nullable=True,
                           comment="URL 查询参数名，如 ?id_card=xxx 中的 id_card")
+    image        = Column(Text, nullable=True, comment="图片 base64 或 URL")
     description  = Column(String(200), nullable=True)
     sort_order   = Column(Integer, nullable=False, default=0, comment="排序")
     is_active    = Column(SmallInteger, nullable=False, default=1)
@@ -78,6 +79,7 @@ class SiteCreate(BaseModel):
     query_field: Optional[str] = None
     query_method: Optional[str] = "GET"
     url_param: Optional[str] = None
+    image: Optional[str] = None
     description: Optional[str] = None
     sort_order: int = 0
 
@@ -88,6 +90,7 @@ class SiteUpdate(BaseModel):
     site_type: Optional[str] = None
     query_field: Optional[str] = None
     url_param: Optional[str] = None
+    image: Optional[str] = None
     description: Optional[str] = None
     sort_order: Optional[int] = None
     is_active: Optional[int] = None
@@ -134,8 +137,8 @@ def list_sites(db: Session = Depends(get_db)):
             "id": s.id, "name": s.name, "url": s.url,
             "site_type": s.site_type, "query_field": s.query_field,
             "query_method": s.query_method, "url_param": s.url_param,
-            "description": s.description, "sort_order": s.sort_order,
-            "is_active": s.is_active,
+            "image": s.image, "description": s.description,
+            "sort_order": s.sort_order, "is_active": s.is_active,
         }
         for s in sites
     ]
