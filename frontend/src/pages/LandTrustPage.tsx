@@ -533,7 +533,7 @@ export default function LandTrustPage() {
             <input value={hhSearch} onChange={e => setHhSearch(e.target.value)}
               placeholder="输入户名、户主姓名搜索…"
               className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
-            {hhOpts.length > 0 && (
+            {hhSearch.length > 0 && hhOpts.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-10 max-h-48 overflow-y-auto">
                 {hhOpts.map(h => (
                   <button key={h.id} onClick={() => { loadSummary(h); setHhSearch(''); setHhOpts([]) }}
@@ -695,7 +695,7 @@ export default function LandTrustPage() {
                   onChange={e => { setOwnerSearch(e.target.value); sf('owner_household_id', null) }}
                   placeholder="输入户名或户主姓名搜索"
                   className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
-                {ownerOpts.length > 0 && (
+                {!form.owner_household_id && ownerOpts.length > 0 && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
                     {ownerOpts.map(h => (
                       <button key={h.id} onClick={() => { sf('owner_household_id', h.id); setOwnerSearch(h.household_name); setOwnerOpts([]) }}
@@ -716,7 +716,7 @@ export default function LandTrustPage() {
                   onChange={e => { setOwnerVillageSearch(e.target.value); sf('owner_entity_id', null) }}
                   placeholder={form.owner_type === 'village' ? '输入村名搜索…' : '输入村组名搜索…'}
                   className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
-                {ownerVillageOpts.length > 0 && (
+                {!form.owner_entity_id && ownerVillageOpts.length > 0 && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
                     {ownerVillageOpts.map(h => (
                       <button key={h.id} onClick={() => { sf('owner_entity_id', h.id); setOwnerVillageSearch(h.village_name || h.full_name || ''); setOwnerVillageOpts([]) }}
@@ -766,7 +766,7 @@ export default function LandTrustPage() {
                     onChange={e => { setOperSearch(e.target.value); sf('operator_household_id', null) }}
                     placeholder="输入户名或户主姓名搜索（可不填）"
                     className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
-                  {operOpts.length > 0 && (
+                  {!form.operator_household_id && operOpts.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
                       {operOpts.map(h => (
                         <button key={h.id} onClick={() => { sf('operator_household_id', h.id); setOperSearch(h.household_name); setOperOpts([]) }}
@@ -786,7 +786,7 @@ export default function LandTrustPage() {
                     onChange={e => { setOperVillageSearch(e.target.value); sf('operator_entity_id', null) }}
                     placeholder={form.operator_type === 'village' ? '输入村名搜索…' : '输入村组名搜索…'}
                     className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
-                  {operVillageOpts.length > 0 && (
+                  {!form.operator_entity_id && operVillageOpts.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
                       {operVillageOpts.map(h => (
                         <button key={h.id} onClick={() => { sf('operator_entity_id', h.id); setOperVillageSearch(h.village_name || h.full_name || ''); setOperVillageOpts([]) }}
