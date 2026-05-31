@@ -18,7 +18,7 @@ export interface FarmerDetailProps {
   /** app_summary数据（showAppSummary=true时使用） */
   appSummary?: {
     apply_year: number; farmer_id: number; farmer_name: string; subsidy_name: string
-    calc_mode: string; apply_area: number | null; apply_amount: number | null; actual_amount: number | null
+    calc_mode: string; apply_area: number | null; apply_area_no_calc?: number | null; apply_amount: number | null; actual_amount: number | null
     pay_status: number; apply_village_name: string; apply_group_display: string; is_proxy: number
     proxy_info?: { type: string; proxy_name?: string; beneficiary_name?: string; proxy_farmer_id?: number; beneficiary_farmer_id?: number; remark?: string } | null
   }[]
@@ -287,7 +287,7 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, group
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead><tr className="bg-warm/30 border-b border-border">
-                {['年度', '补贴项目', '面积', '申请金额', '实发金额', '状态', '类型'].map(h => (
+                {['年度', '补贴项目', '面积(计入+不计)', '申请金额', '实发金额', '状态', '类型'].map(h => (
                   <th key={h} className="px-4 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
                 ))}
               </tr></thead>
@@ -296,7 +296,11 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, group
                   <tr key={a.id ?? `app-${a.farmer_id}-${a.apply_year}-${a.subsidy_name}`} className="border-b border-border/50 hover:bg-warm/30 transition-colors">
                     <td className="px-4 py-2 text-sm font-bold text-primary">{a.apply_year}</td>
                     <td className="px-4 py-2 text-sm">{a.subsidy_name}</td>
-                    <td className="px-4 py-2 text-sm font-mono">{a.apply_area ? `${a.apply_area}亩` : '—'}</td>
+                    <td className="px-4 py-2 text-sm font-mono" title={`计入超限 ${a.apply_area || 0}亩 / 不计入超限 ${a.apply_area_no_calc || 0}亩`}>
+                      {a.apply_area != null
+                        ? <><span>{Number(a.apply_area).toFixed(2)}</span>{a.apply_area_no_calc ? <span className="text-text-muted/50">+{Number(a.apply_area_no_calc).toFixed(2)}</span> : null}亩</>
+                        : '—'}
+                    </td>
                     <td className="px-4 py-2 text-sm font-mono text-text-muted">{fmt(a.apply_amount)}</td>
                     <td className="px-4 py-2 text-sm font-mono font-bold" style={{ color: a.actual_amount ? '#059669' : '#d97706' }}>
                       {a.actual_amount ? fmt(a.actual_amount) : '待发放'}

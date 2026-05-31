@@ -28,12 +28,12 @@ interface ProgressRecord {
   updated_at: string
 }
 
-const STATUS_CFG: Record<string, { label: string; color: string; dot: string; bg: string; border: string }> = {
-  none:        { label: '未开始', color: '#9ca3af', dot: '○', bg: 'bg-gray-50',   border: 'border-gray-200' },
-  in_progress: { label: '进行中', color: '#3b82f6', dot: '◐', bg: 'bg-blue-50',   border: 'border-blue-300' },
-  done:        { label: '已完成', color: '#10b981', dot: '●', bg: 'bg-emerald-50', border: 'border-emerald-300' },
-  reminded:    { label: '已提醒', color: '#f59e0b', dot: '△', bg: 'bg-amber-50',  border: 'border-amber-300' },
-  urged:       { label: '已催缴', color: '#ef4444', dot: '▲', bg: 'bg-red-50',    border: 'border-red-300' },
+const STATUS_CFG: Record<string, { label: string; square: string; pillBg: string; pillText: string; border: string; dot: string }> = {
+  none:        { label: '未开始', square: '#c2c3c5', pillBg: '#e8e8e8', pillText: '#6b6b6b', border: 'border-gray-200', dot: '○' },
+  in_progress: { label: '进行中', square: '#f4c076', pillBg: '#f9f0d6', pillText: '#6a5f44', border: 'border-amber-200', dot: '◐' },
+  done:        { label: '已完成', square: '#5EBd9A', pillBg: '#def1e6', pillText: '#457557', border: 'border-emerald-300', dot: '●' },
+  reminded:    { label: '已提醒', square: '#f09c78', pillBg: '#fbe3df', pillText: '#d56652', border: 'border-orange-200', dot: '△' },
+  urged:       { label: '已催缴', square: '#e07060', pillBg: '#fbe3df', pillText: '#b83a2a', border: 'border-red-300', dot: '▲' },
 }
 
 const STATUS_ORDER: StageItem['status'][] = ['none', 'in_progress', 'done', 'reminded', 'urged']
@@ -224,19 +224,6 @@ export default function ProjectProgressPage() {
   }
   const handleDragEnd = () => { setDragIdx(null); setDropIdx(null) }
 
-  const deleteFiltered = async () => {
-    if (!projectId || filtered.length === 0) return
-    const names = filtered.map(r => r.village_name).join('、')
-    if (!confirm(`确认删除筛选出的 ${filtered.length} 个村的进度记录？\n\n${names}`)) return
-    const ids = filtered.map(r => r.village_id)
-    await fetch(`/api/project-progress/${projectId}/batch-delete`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ village_ids: ids }),
-    })
-    show(`已删除 ${filtered.length} 个村的进度记录`)
-    loadRecords()
-  }
-
   const exportExcel = () => {
     const headers = ['村名', '负责人', '电话', ...allStages]
     const data = filtered.map(rec => {
@@ -314,7 +301,7 @@ export default function ProjectProgressPage() {
       {/* 操作栏 */}
       <div className="bg-white border border-border rounded-card p-3 mb-3 flex items-center gap-3 flex-wrap shadow-sm">
         <select value={projectId ?? ''} onChange={e => setProjectId(Number(e.target.value))}
-          className="border border-border rounded-btn px-2 py-1.5 text-xs outline-none bg-white">
+          className="border border-border rounded-btn px-2 py-1.5 text-[11px] outline-none bg-white">
           {projectList.map(p => (
             <option key={p.id} value={p.id}>{p.subsidy_name}（{p.subsidy_year}年）</option>
           ))}
@@ -323,14 +310,14 @@ export default function ProjectProgressPage() {
         <button onClick={syncLeaders} className="px-3 py-1.5 text-xs border border-amber-200 text-amber-700 rounded-btn hover:bg-amber-50">👤 同步负责人</button>
         <div className="flex items-center gap-1">
           <input value={newStageName} onChange={e => setNewStageName(e.target.value)} placeholder="新阶段名称"
-            className="border border-border rounded-btn px-2 py-1 text-xs outline-none w-28" />
+            className="border border-border rounded-btn px-2 py-1 text-[11px] outline-none w-28" />
           <button onClick={addStageToAll} className="px-2 py-1 text-xs bg-primary  rounded-btn hover:bg-primary/90">＋ 全部添加</button>
         </div>
         <div className="w-px h-6 bg-border" />
         <input value={searchVillage} onChange={e => setSearchVillage(e.target.value)} placeholder="🔍 搜索村名…"
-          className="border border-border rounded-btn px-2 py-1 text-xs outline-none w-32" />
+          className="border border-border rounded-btn px-2 py-1 text-[11px] outline-none w-32" />
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}
-          className="border border-border rounded-btn px-2 py-1 text-xs outline-none">
+          className="border border-border rounded-btn px-2 py-1 text-[11px] outline-none">
           <option value="all">全部状态</option><option value="undone">有未完成</option><option value="done">全部完成</option>
         </select>
         <div className="w-px h-6 bg-border" />
@@ -339,97 +326,93 @@ export default function ProjectProgressPage() {
         {(searchVillage || statusFilter !== 'all') && (
           <button onClick={() => { setSearchVillage(''); setStatusFilter('all') }} className="text-xs text-blue-500">清除筛选</button>
         )}
-        {filtered.length > 0 && (
-          <button onClick={deleteFiltered}
-            className="ml-auto px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-btn hover:bg-red-50">🗑 删除筛选结果</button>
+        {allStages.length > 0 && (
+          <>
+            <span className="relative">
+              <button onClick={() => setBatchCol(batchCol ? null : '___all___')}
+                className={`px-3 py-1.5 text-xs rounded-lg border transition-all duration-200
+                  ${batchCol === '___all___'
+                    ? 'bg-orange-600 text-white border-orange-600 shadow ring-2 ring-orange-300 ring-offset-1'
+                    : 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:border-orange-600 hover:shadow active:scale-95'}`}>
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-md bg-white/20 text-[10px] mr-1">⊞</span>
+                阶段状态管理
+              </button>
+              {batchCol === '___all___' && (
+                <div ref={batchRef}
+                  className="absolute top-full left-0 mt-1.5 z-50 bg-white border border-border rounded-card shadow-xl py-2 min-w-[520px] overflow-hidden"
+                  onClick={e => e.stopPropagation()}>
+                  <div className="px-4 py-2 text-xs text-text-muted border-b border-border/30 flex items-center justify-between">
+                    <span>⠿ 拖动排序 · 点击按钮批量设置状态 · 📋 复制进度</span>
+                    <button onClick={() => setBatchCol(null)} className="text-text-muted/40 hover:text-text-primary">✕</button>
+                  </div>
+                  {allStages.map((sn, i) => {
+                    const st = stageStats[sn]
+                    const allDone = st.done === st.total && st.total > 0
+                    return (
+                      <div key={sn}
+                        draggable
+                        onDragStart={e => handleDragStart(e, i)}
+                        onDragOver={e => handleDragOver(e, i)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={e => handleDrop(e, i)}
+                        onDragEnd={handleDragEnd}
+                        className={`flex items-center gap-3 px-4 py-3 border-b border-border/30 last:border-0
+                          ${dragIdx === i ? 'opacity-40' : ''}
+                          ${dropIdx === i && dragIdx !== null && dropIdx !== dragIdx ? 'bg-primary/5 ring-1 ring-primary/30' : ''}
+                          hover:bg-warm/20 transition-all`}>
+                        <span className="text-text-muted/20 cursor-grab select-none text-xs" title="拖拽排序">⠿</span>
+                        <div className="min-w-[80px]">
+                          <span className="text-xs font-semibold text-text-primary">{sn}</span>
+                        </div>
+                        <div className="flex-1 flex items-center gap-2">
+                          <div className="flex-1 h-2 bg-warm/30 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${allDone ? 'bg-emerald-400' : 'bg-primary/50'}`}
+                              style={{ width: st.total > 0 ? Math.round(st.done / st.total * 100) + '%' : '0%' }} />
+                          </div>
+                          <span className={`font-mono font-bold text-[11px] min-w-[36px] text-right ${allDone ? 'text-emerald-600' : 'text-text-muted'}`}>
+                            {st.done}/{st.total}
+                          </span>
+                        </div>
+                        <div className="flex gap-1">
+                          {STATUS_ORDER.map(stt => {
+                            const cfg = STATUS_CFG[stt]
+                            const lightBg = stt === 'none' || stt === 'in_progress' || stt === 'reminded'
+                            return (
+                              <button key={stt}
+                                onClick={() => batchSetStageStatus(sn, stt)}
+                                className="px-2 py-0.5 text-[9px] font-bold rounded border transition-all duration-150 hover:shadow-md hover:scale-110 active:scale-90"
+                                style={{
+                                  backgroundColor: cfg.square,
+                                  borderColor: cfg.square,
+                                  color: lightBg ? '#374151' : '#ffffff',
+                                }}
+                                title={`全部设为${cfg.label}`}>
+                                {cfg.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <button onClick={() => copyStageSummary(sn)}
+                          className="shrink-0 px-2 py-1 text-[10px] border border-border rounded-btn text-text-muted hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
+                          title="复制完成情况到剪贴板">
+                          📋 复制
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </span>
+            <div className="flex items-center gap-2 text-[11px] text-text-muted">
+              <span className="font-medium">总进度</span>
+              <div className="w-20 h-2 bg-warm/30 rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-400 rounded-full" style={{ width: Math.round(totalDone / Math.max(1, totalCells) * 100) + '%' }} />
+              </div>
+              <span className="font-mono font-bold text-emerald-600">{totalDone}/{totalCells}</span>
+            </div>
+          </>
         )}
       </div>
-
-      {/* ─── 阶段信息栏 ─── */}
-      {allStages.length > 0 && (
-        <div className="flex items-center gap-3 mb-3 px-1 text-xs">
-          <span className="relative">
-            <button onClick={() => setBatchCol(batchCol ? null : '___all___')}
-              className={`px-4 py-2 text-sm rounded-btn border-2 font-semibold shadow-sm transition-all
-                ${batchCol === '___all___'
-                  ? 'bg-primary text-white border-primary'
-                  : 'bg-primary/5 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50'}`}>
-              📋 阶段状态管理
-            </button>
-            {batchCol === '___all___' && (
-              <div ref={batchRef}
-                className="absolute top-full left-0 mt-1.5 z-50 bg-white border border-border rounded-card shadow-xl py-2 min-w-[380px] overflow-hidden"
-                onClick={e => e.stopPropagation()}>
-                <div className="px-4 py-2 text-xs text-text-muted border-b border-border/30 flex items-center justify-between">
-                  <span>⠿ 拖动排序 · 点击按钮批量设置状态 · 📋 复制进度</span>
-                  <button onClick={() => setBatchCol(null)} className="text-text-muted/40 hover:text-text-primary">✕</button>
-                </div>
-                {allStages.map((sn, i) => {
-                  const st = stageStats[sn]
-                  const allDone = st.done === st.total && st.total > 0
-                  return (
-                    <div key={sn}
-                      draggable
-                      onDragStart={e => handleDragStart(e, i)}
-                      onDragOver={e => handleDragOver(e, i)}
-                      onDragLeave={handleDragLeave}
-                      onDrop={e => handleDrop(e, i)}
-                      onDragEnd={handleDragEnd}
-                      className={`flex items-center gap-3 px-4 py-3 border-b border-border/30 last:border-0
-                        ${dragIdx === i ? 'opacity-40' : ''}
-                        ${dropIdx === i && dragIdx !== null && dropIdx !== dragIdx ? 'bg-primary/5 ring-1 ring-primary/30' : ''}
-                        hover:bg-warm/20 transition-all`}>
-                      <span className="text-text-muted/20 cursor-grab select-none text-sm" title="拖拽排序">⠿</span>
-                      {/* 阶段名 */}
-                      <div className="min-w-[80px]">
-                        <span className="text-sm font-semibold text-text-primary">{sn}</span>
-                      </div>
-                      {/* 进度条 + 统计 */}
-                      <div className="flex-1 flex items-center gap-2">
-                        <div className="flex-1 h-2 bg-warm/30 rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full transition-all ${allDone ? 'bg-emerald-400' : 'bg-primary/50'}`}
-                            style={{ width: st.total > 0 ? Math.round(st.done / st.total * 100) + '%' : '0%' }} />
-                        </div>
-                        <span className={`font-mono font-bold text-xs min-w-[36px] text-right ${allDone ? 'text-emerald-600' : 'text-text-muted'}`}>
-                          {st.done}/{st.total}
-                        </span>
-                      </div>
-                      {/* 批量状态按钮 */}
-                      <div className="flex gap-1">
-                        {STATUS_ORDER.map(stt => {
-                          const cfg = STATUS_CFG[stt]
-                          return (
-                            <button key={stt}
-                              onClick={() => batchSetStageStatus(sn, stt)}
-                              className={`w-7 h-7 flex items-center justify-center rounded-full text-sm border-2 ${cfg.border} ${cfg.bg} hover:brightness-90 transition-all`}
-                              title={`全部设为${cfg.label}`}>
-                              {cfg.dot}
-                            </button>
-                          )
-                        })}
-                      </div>
-                      {/* 复制按钮 */}
-                      <button onClick={() => copyStageSummary(sn)}
-                        className="shrink-0 px-2 py-1 text-xs border border-border rounded-btn text-text-muted hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
-                        title="复制完成情况到剪贴板">
-                        📋 复制
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </span>
-          {/* 总体进度 */}
-          <div className="flex items-center gap-2 text-text-muted">
-            <span className="font-medium text-text-primary">总进度</span>
-            <div className="w-24 h-2 bg-warm/30 rounded-full overflow-hidden">
-              <div className="h-full bg-emerald-400 rounded-full" style={{ width: Math.round(totalDone / Math.max(1, totalCells) * 100) + '%' }} />
-            </div>
-            <span className="font-mono font-bold text-xs text-emerald-600">{totalDone}/{totalCells}</span>
-          </div>
-        </div>
-      )}
 
       {loading ? (
         <div className="text-center text-text-muted py-8">加载中…</div>
@@ -450,7 +433,7 @@ export default function ProjectProgressPage() {
               <div key={rec.village_id}
                 className={`bg-white border rounded-card shadow-sm transition-all ${
                   isExpanded ? 'border-primary/30' : 'border-border hover:border-primary/20'
-                } ${allDone ? 'bg-emerald-50/20' : ''} ${hasUrged ? 'ring-1 ring-red-200' : ''}`}>
+                } ${allDone ? 'bg-emerald-50/20' : ''} ${hasUrged ? 'ring-1 ring-amber-400' : ''}`}>
                 {/* ── 收起行 ── */}
                 <div className="flex items-center gap-3 px-4 py-2.5 cursor-pointer select-none"
                   onClick={() => toggleExpand(rec.village_id)}>
@@ -475,8 +458,8 @@ export default function ProjectProgressPage() {
                       return (
                         <div key={sn} className="flex items-center gap-1 group/tip relative"
                           title={`${sn}: ${cfg.label}${s?.note ? ' — ' + s.note : ''}`}>
-                          <span className={`w-3 h-3 rounded-full inline-block`}
-                            style={{ backgroundColor: cfg.color }} />
+                          <span className="w-3 h-3 rounded-sm inline-block"
+                            style={{ backgroundColor: cfg.square }} />
                           <span className="text-text-muted/40 text-[10px] hidden sm:inline">{sn}</span>
                           {/* tooltip */}
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover/tip:block z-10
@@ -508,11 +491,11 @@ export default function ProjectProgressPage() {
 
                         return (
                           <div key={sn}
-                            className={`border rounded-lg p-2.5 transition-all hover:shadow-sm group/card
-                              ${cfg.border} ${cfg.bg}`}>
+                            className="rounded-lg p-2.5 transition-all hover:shadow-sm group/card"
+                            style={{ backgroundImage: 'url(/images/progress_change.png)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
                             {/* 阶段名 + 日期 */}
                             <div className="flex items-center gap-1.5 mb-2">
-                              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cfg.color }} />
+                              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cfg.square }} />
                               <span className="text-xs font-semibold text-text-primary truncate">{sn}</span>
                             </div>
 
@@ -520,22 +503,23 @@ export default function ProjectProgressPage() {
                             <div className="relative">
                               <button
                                 onClick={() => setOpenDropdown(openDropdown === ddKey ? null : ddKey)}
-                                className={`w-full px-2 py-1 rounded text-[11px] font-medium border flex items-center gap-1.5
-                                  ${cfg.bg} ${cfg.border} hover:brightness-95 transition-all`}>
-                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cfg.color }} />
+                                className="w-[85%]  px-2 py-1 rounded-md text-[11px] font-semibold border flex items-center justify-center gap-1.5 hover:brightness-95 transition-all"
+                                style={{ backgroundImage: 'url(/images/stateChange.png)', backgroundSize: 'cover', backgroundPosition: 'center', color: cfg.pillText, borderColor: cfg.square + '40' }}>
+                                <span className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ backgroundColor: cfg.square }} />
                                 <span>{cfg.label}</span>
-                                <span className="ml-auto text-text-muted/40 text-[10px]">▾</span>
+                                <span className="ml-auto text-text-muted/40 text-[10px]  ml-[15%]">▾</span>
                               </button>
                               {openDropdown === ddKey && (
                                 <div ref={dropdownRef}
-                                  className="absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-border rounded-lg shadow-lg py-0.5 overflow-hidden">
+                                  className="absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-border rounded-lg shadow-lg py-0.5 overflow-hidden"
+                                  >
                                   {STATUS_ORDER.map(st => {
                                     const c = STATUS_CFG[st]
                                     return (
                                       <button key={st}
                                         onClick={() => setStageStatus(rec, si, st)}
                                         className={`w-full text-left px-2.5 py-1.5 text-xs flex items-center gap-2 hover:bg-warm/30 ${st === s.status ? 'font-bold' : ''}`}>
-                                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                                        <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: c.square }} />
                                         {c.label}
                                         {st === s.status && <span className="ml-auto text-primary text-[10px]">✓</span>}
                                       </button>
@@ -621,9 +605,9 @@ function EditablePerson({
   return (
     <div className="flex items-center gap-1">
       <input value={name} onChange={e => setName(e.target.value)}
-        className="w-16 border border-border rounded px-1 py-0.5 text-xs outline-none" placeholder="姓名" />
+        className="w-16 border border-border rounded px-1 py-0.5 text-[11px] outline-none" placeholder="姓名" />
       <input value={phone} onChange={e => setPhone(e.target.value)}
-        className="w-20 border border-border rounded px-1 py-0.5 text-xs outline-none" placeholder="电话" />
+        className="w-20 border border-border rounded px-1 py-0.5 text-[11px] outline-none" placeholder="电话" />
       <button onClick={async() => {
         const updated = { ...rec, person_name: name, phone }
         setRecords(prev => prev.map(p => p.village_id === villageId ? updated : p))
