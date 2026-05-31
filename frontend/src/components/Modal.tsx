@@ -21,8 +21,7 @@ export default function Modal({ open, title, onClose, onConfirm, confirmText = '
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-16 px-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-16 px-4">
       <div className="bg-white rounded-card shadow-card flex flex-col max-h-[80vh] overflow-hidden"
         style={{ width: Math.min(width, window.innerWidth - 32) }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
