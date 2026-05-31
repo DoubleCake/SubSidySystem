@@ -26,7 +26,8 @@ export default function Modal({ open, title, onClose, onConfirm, confirmText = '
         style={{ width: Math.min(width, window.innerWidth - 32) }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <h3 className="font-bold text-text-primary text-card-title">{title}</h3>
-          <button onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors">
+          <button onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center rounded-full text-text-muted hover:bg-red-50 hover:text-red-500 transition-all">
             <Icon name="close" size={18} />
           </button>
         </div>
@@ -34,11 +35,11 @@ export default function Modal({ open, title, onClose, onConfirm, confirmText = '
         {onConfirm && (
           <div className="flex justify-end gap-3 px-5 py-3 border-t border-border shrink-0">
             <button onClick={onClose}
-              className="px-4 py-1.5 text-body border border-border rounded-btn text-text-primary hover:bg-warm/40 transition-colors">
+              className="px-4 py-1.5 text-body border-2 border-red-200 rounded-btn text-red-600 hover:bg-red-50 hover:border-red-300 transition-all font-medium">
               取消
             </button>
             <button onClick={onConfirm}
-              className="px-4 py-1.5 text-body bg-primary-300 text-white rounded-btn hover:bg-primary-200 transition-colors flex items-center gap-1.5">
+              className="px-4 py-1.5 text-body bg-primary-500 text-white rounded-btn hover:bg-primary-400 transition-all flex items-center gap-1.5 font-medium shadow-sm">
               <Icon name="confirm" size={14} />
               {confirmText}
             </button>
