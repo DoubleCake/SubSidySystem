@@ -27,7 +27,7 @@ export default function Modal({ open, title, onClose, onConfirm, confirmText = '
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <h3 className="font-bold text-text-primary text-card-title">{title}</h3>
           <button onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-full text-text-muted hover:bg-red-50 hover:text-red-500 transition-all">
+            className="w-7 h-7 flex items-center justify-center rounded-md border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-all">
             <Icon name="close" size={18} />
           </button>
         </div>
