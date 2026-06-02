@@ -181,6 +181,12 @@ export const batchImportApplications = (rows: ApplicationCreate[]) =>
     { method: 'POST', body: JSON.stringify({ rows }) }
   )
 
+export const exportApplications = (subsidyTypeId: number) =>
+  req<{ items: any[] }>('/api/subsidies/applications/export?subsidy_type_id=' + subsidyTypeId)
+
+export const exportPayments = (subsidyTypeId: number) =>
+  req<{ items: any[] }>('/api/subsidies/payments/export?subsidy_type_id=' + subsidyTypeId)
+
 // ── 代领关系 ──
 export const getProxies = (params: Record<string, string | number>) =>
   req<SubsidyProxyOut[]>('/api/subsidies/proxies?' + new URLSearchParams(params as Record<string, string>))

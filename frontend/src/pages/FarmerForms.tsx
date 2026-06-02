@@ -808,15 +808,14 @@ export function ConfirmedAreaImport({ open, confirmedAreaRows, setConfirmedAreaR
 export interface FarmerImportProps {
   open: boolean
   templates: ExcelColumnTemplate[]
-  importOverwrite: boolean
   onClose: () => void
   onDetectColumns: (columns: string[], sampleRows: Record<string, unknown>[]) => Promise<{ columns: Array<{ excel_column: string; suggested_field: string | null; confidence: number; alternatives: Array<{ field: string; confidence: number }> }>; recommended_templates: any[] }>
   onSaveTemplate: (data: Record<string, unknown>) => Promise<any>
-  onImport: (rows: Record<string, unknown>[]) => Promise<{ created: number; skipped: number; errors: string[] }>
+  onImport: (rows: Record<string, unknown>[], mapping?: Record<string, string>, overwrite?: boolean) => Promise<{ created: number; skipped: number; errors: string[] }>
   onSuccess: () => void
 }
 
-export function FarmerImport({ open, templates, importOverwrite, onClose, onDetectColumns, onSaveTemplate, onImport, onSuccess }: FarmerImportProps) {
+export function FarmerImport({ open, templates, onClose, onDetectColumns, onSaveTemplate, onImport, onSuccess }: FarmerImportProps) {
   return (
     <ExcelImportWithMapping open={open} onClose={onClose} title="农户信息导入"
       templateHeaders={FARMER_TEMPLATE_HEADERS} templateExample={FARMER_TEMPLATE_EXAMPLE}
@@ -830,6 +829,7 @@ export function FarmerImport({ open, templates, importOverwrite, onClose, onDete
           required: m.required,
         })),
       }))}
+      overwriteOption={true}
       onDetectColumns={onDetectColumns} onSaveTemplate={onSaveTemplate}
       onImport={onImport} onSuccess={onSuccess} />
   )

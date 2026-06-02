@@ -241,7 +241,6 @@ export default function FarmersPage() {
 
   // ── 批量导入农户 ──
   const [importOpen, setImportOpen] = useState(false)
-  const [importOverwrite, setImportOverwrite] = useState(false)
   const [templates, setTemplates] = useState<ExcelColumnTemplate[]>([])
 
   // ── 批量导入确权面积 ──
@@ -834,7 +833,7 @@ export default function FarmersPage() {
   }
 
   // ── 批量导入农户 ──
-  const handleImport = async (rows: Record<string, unknown>[]) => {
+  const handleImport = async (rows: Record<string, unknown>[], _mapping?: Record<string, string>, overwrite?: boolean) => {
     const toCreate: Record<string, unknown>[] = []
     const formatErrors: string[] = []
     rows.forEach((row, i) => {
@@ -860,7 +859,7 @@ export default function FarmersPage() {
       })
     })
     if (formatErrors.length > 0 && toCreate.length === 0) return { created: 0, skipped: 0, errors: formatErrors }
-    const res = await api.batchImportFarmers(toCreate as unknown as Parameters<typeof api.batchImportFarmers>[0], importOverwrite)
+    const res = await api.batchImportFarmers(toCreate as unknown as Parameters<typeof api.batchImportFarmers>[0], overwrite ?? false)
     api.getVillageGroups().then(g => { setGroups(g); setVillages([...new Set(g.map(v => v.village_name))]) })
     const allErrors = [...formatErrors, ...(res.errors || [])]
     if (res.skipped > 0) allErrors.push(`已跳过 ${res.skipped} 条重复身份证（未开启覆盖）`)
@@ -943,6 +942,44 @@ export default function FarmersPage() {
       const date = new Date().toLocaleDateString('zh-CN').replace(/\//g, '')
       XLSX.writeFile(wb, `家庭户列表_${date}.xlsx`)
       show(`✓ 已导出 ${rows.length} 条记录`)
+    }
+  }
+
+  // 导出超限明细
+  const exportOverdrawnDetail = async () => {
+    try {
+      const res = await fetch('/api/households/alert/overdrawn?year=' + yearFilter).then(r => r.json()) as {
+        year: number; total: number; items: Array<{
+          household_name: string; head_name: string; village: string
+          contracted_area: number; cultivable_area: number; used_area: number; overdraw_amount: number
+          season_breakdown: Record<string, { used_area: number; is_overdrawn: boolean; overdraw_amount: number }>
+        }>
+      }
+      if (res.total === 0) { show('当前年度无超限家庭户', 'err'); return }
+      const rows = res.items.map(h => {
+        const row: Record<string, unknown> = {
+          '户名': h.household_name,
+          '户主': h.head_name,
+          '所在村组': h.village,
+          '承包面积(亩)': h.contracted_area,
+          '可耕种面积(亩)': h.cultivable_area,
+          '已使用面积(亩)': h.used_area,
+          '超限面积(亩)': h.overdraw_amount,
+        }
+        for (const [season, breakdown] of Object.entries(h.season_breakdown)) {
+          row[`${season}使用面积`] = breakdown.used_area
+          row[`${season}超限面积`] = breakdown.overdraw_amount
+        }
+        return row
+      })
+      const ws = XLSX.utils.json_to_sheet(rows)
+      ws['!cols'] = Object.keys(rows[0] || {}).map(() => ({ wch: 14 }))
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, '超限明细')
+      XLSX.writeFile(wb, `超限明细_${yearFilter}年_${new Date().toISOString().slice(0, 10)}.xlsx`)
+      show(`✓ 已导出 ${res.total} 户超限明细`)
+    } catch (e) {
+      show('导出超限明细失败：' + (e as Error).message, 'err')
     }
   }
 
@@ -1044,6 +1081,10 @@ export default function FarmersPage() {
                 <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-primary rounded" />
                 <span className="font-medium">仅看超领</span>
               </label>
+              <button onClick={exportOverdrawnDetail}
+                className="px-3 py-2 text-sm border border-orange-tag/30 text-[#B8860B] bg-orange-tag/5 rounded-btn hover:bg-orange-tag/10 shadow-card hover:shadow-card-hover transition-all font-medium whitespace-nowrap">
+                <Icon name="export" size={14} className="inline mr-1" />导出超限明细
+              </button>
             </>
           )}
         </div>
@@ -1099,22 +1140,17 @@ export default function FarmersPage() {
         )}
         {leftTab === 'farmers' && (
           <>
-            <button onClick={() => setCreateFarmerOpen(true)} className="px-4 py-2.5 text-sm bg-primary  rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
-              <Icon name="create" size={14} className="inline mr-1" />新建农户
-            </button>
-            <div className="flex items-center gap-0 border border-border rounded-btn shadow-card overflow-hidden">
-              <button onClick={() => setImportOpen(true)} className="px-4 py-2.5 text-sm text-text-primary hover:bg-warm/30 transition-all font-medium">
+            <div className="flex items-center gap-2">
+              <button onClick={() => setCreateFarmerOpen(true)} className="px-4 py-2.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
+                <Icon name="create" size={14} className="inline mr-1" />新建农户
+              </button>
+              <button onClick={() => setImportOpen(true)} className="px-4 py-2.5 text-sm border border-primary/30 text-primary bg-primary/[0.03] rounded-btn hover:bg-primary/10 shadow-card hover:shadow-card-hover transition-all font-medium">
                 <Icon name="import" size={14} className="inline mr-1" />导入农户
               </button>
-              <label className={`flex items-center gap-1.5 px-3 py-2.5 text-meta cursor-pointer border-l border-border transition-colors select-none ${importOverwrite ? 'bg-orange-tag/10 text-[#B8860B]' : 'text-text-muted hover:bg-warm/30'}`}
-                title="开启后，重复身份证的记录将被 Excel 中的数据覆盖更新">
-                <input type="checkbox" checked={importOverwrite} onChange={e => setImportOverwrite(e.target.checked)} className="accent-orange-tag w-3 h-3" />
-                覆盖重复
-              </label>
+              <button onClick={exportCurrentList} className="px-4 py-2.5 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30 shadow-card hover:shadow-card-hover transition-all font-medium">
+                <Icon name="export" size={14} className="inline mr-1" />导出
+              </button>
             </div>
-            <button onClick={exportCurrentList} className="px-4 py-2.5 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30 shadow-card hover:shadow-card-hover transition-all font-medium">
-              <Icon name="export" size={14} className="inline mr-1" />导出
-            </button>
           </>
         )}
 
@@ -1447,7 +1483,6 @@ export default function FarmersPage() {
       <FarmerImport
         open={importOpen}
         templates={templates}
-        importOverwrite={importOverwrite}
         onClose={() => setImportOpen(false)}
         onDetectColumns={detectExcelColumns}
         onSaveTemplate={saveColumnMappingTemplate}

@@ -19,7 +19,10 @@ def list_progress(
     db: Session = Depends(get_db),
 ):
     """获取某项目下所有村的进度记录"""
-    q = db.query(ProjectProgress).filter(ProjectProgress.subsidy_type_id == subsidy_type_id)
+    q = db.query(ProjectProgress).filter(
+        ProjectProgress.subsidy_type_id == subsidy_type_id,
+        ProjectProgress.village_name != "待分配",
+    )
     if village_id:
         q = q.filter(ProjectProgress.village_id == village_id)
     records = q.order_by(ProjectProgress.village_name).all()
@@ -79,7 +82,7 @@ def batch_upsert(
     if action == "init":
         # 为所有村创建/更新进度记录，自动同步村负责人信息
         # 优先从 VillageContact 取 is_agri_lead 的联系人，其次用 Village 表的 leader
-        villages = db.query(Village).order_by(Village.village_name).all()
+        villages = db.query(Village).filter(Village.village_name != "待分配").order_by(Village.village_name).all()
         # 加载所有村的负责人（从 VillageContact）
         leads = {}
         for c in db.query(VillageContact).filter(VillageContact.is_agri_lead == True).all():
@@ -118,7 +121,8 @@ def batch_upsert(
         stage_name = data.get("stage_name", "")
         status = data.get("status", "done")
         for row in db.query(ProjectProgress).filter(
-            ProjectProgress.subsidy_type_id == subsidy_type_id
+            ProjectProgress.subsidy_type_id == subsidy_type_id,
+            ProjectProgress.village_name != "待分配",
         ).all():
             stages = json.loads(row.stages) if row.stages else []
             for s in stages:
@@ -133,7 +137,8 @@ def batch_upsert(
         # 为所有记录添加新阶段
         stage = data.get("stage", {})
         for row in db.query(ProjectProgress).filter(
-            ProjectProgress.subsidy_type_id == subsidy_type_id
+            ProjectProgress.subsidy_type_id == subsidy_type_id,
+            ProjectProgress.village_name != "待分配",
         ).all():
             stages = json.loads(row.stages) if row.stages else []
             if not any(s.get("name") == stage.get("name") for s in stages):
@@ -148,7 +153,8 @@ def batch_upsert(
             leads[c.village_id] = c
         updated = 0
         for row in db.query(ProjectProgress).filter(
-            ProjectProgress.subsidy_type_id == subsidy_type_id
+            ProjectProgress.subsidy_type_id == subsidy_type_id,
+            ProjectProgress.village_name != "待分配",
         ).all():
             lead = leads.get(row.village_id)
             if lead:
@@ -170,7 +176,8 @@ def batch_upsert(
         if not name_a or not name_b:
             return {"error": "缺少 stage_a/stage_b"}, 400
         for row in db.query(ProjectProgress).filter(
-            ProjectProgress.subsidy_type_id == subsidy_type_id
+            ProjectProgress.subsidy_type_id == subsidy_type_id,
+            ProjectProgress.village_name != "待分配",
         ).all():
             stages = json.loads(row.stages) if row.stages else []
             i = next((idx for idx, s in enumerate(stages) if s.get("name") == name_a), -1)

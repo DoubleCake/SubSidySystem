@@ -496,6 +496,51 @@ def search_applications(
     return {"total": total, "page": page, "page_size": page_size, "items": rows}
 
 
+@router.get("/applications/export")
+def export_applications(
+    subsidy_type_id: int = Query(..., description="补贴类型ID"),
+    db: Session = Depends(get_db),
+):
+    """导出预申请全部数据（无分页）"""
+    from sqlalchemy import or_
+
+    q = db.query(SubsidyApplication).filter(
+        SubsidyApplication.subsidy_type_id == subsidy_type_id
+    )
+    apps = q.order_by(SubsidyApplication.id.desc()).all()
+
+    rows = []
+    for a in apps:
+        f  = db.get(FarmerProfile, a.farmer_id)
+        vname = a.apply_village_name
+        gno = a.apply_group_display
+        if not vname or not gno:
+            if f and f.household:
+                if f.household.village:
+                    vname = f.household.village.village_name
+                gno = format_group_no(f.household.group_no) if f.household.group_no else "一组"
+        rows.append({
+            "farmer_name":     f.real_name    if f  else "—",
+            "id_card":         f.id_card      if f  else "",
+            "phone":           f.phone        if f  else None,
+            "village":         vname,
+            "group_no":        gno,
+            "apply_area":      a.apply_area,
+            "apply_area_no_calc": a.apply_area_no_calc,
+            "contract_area":   a.contract_area,
+            "trust_area":      a.trust_area,
+            "no_subsidy_area": a.no_subsidy_area,
+            "apply_amount":    a.apply_amount,
+            "actual_amount":   a.actual_amount,
+            "pay_status":      a.pay_status,
+            "pay_date":        str(a.pay_date) if a.pay_date else None,
+            "remark":          a.remark,
+            "proxy_remark":    None,
+            "is_proxy":        a.is_proxy,
+        })
+    return {"items": rows}
+
+
 # ── 补贴申请数据预检（后端直接处理，不走前端中转）──
 @router.post("/applications/precheck")
 def precheck_applications(
@@ -1534,6 +1579,43 @@ def list_payments(
             for p in rows
         ]
     }
+
+
+@router.get("/payments/export")
+def export_payments(
+    subsidy_type_id: int = Query(..., description="补贴类型ID"),
+    db: Session = Depends(get_db),
+):
+    """导出发放全部数据（无分页）"""
+    q = db.query(
+        SubsidyPayment, FarmerProfile.real_name,
+        Village.village_name, FamilyHousehold.group_no,
+    )
+    q = q.join(FarmerProfile, FarmerProfile.id == SubsidyPayment.farmer_id)
+    q = q.join(FamilyHousehold, FamilyHousehold.id == FarmerProfile.household_id)
+    q = q.join(Village, Village.id == FamilyHousehold.village_id)
+    q = q.filter(SubsidyPayment.subsidy_type_id == subsidy_type_id)
+    rows = q.order_by(SubsidyPayment.id.desc()).all()
+
+    return {"items": [
+        {
+            "farmer_name":     p[1],
+            "village_name":    p[2],
+            "group_no":        format_group_no(p[3]) if p[3] else "一组",
+            "amount":          p[0].amount,
+            "payment_date":    p[0].payment_date,
+            "apply_area":      p[0].apply_area,
+            "apply_area_no_calc": p[0].apply_area_no_calc,
+            "contract_area":   p[0].contract_area,
+            "trust_area":      p[0].trust_area,
+            "no_subsidy_area": p[0].no_subsidy_area,
+            "pay_status":      p[0].pay_status,
+            "remark":          p[0].remark,
+            "proxy_remark":    p[0].proxy_remark,
+            "is_proxy":        p[0].is_proxy,
+        }
+        for p in rows
+    ]}
 
 
 @router.post("/payments")

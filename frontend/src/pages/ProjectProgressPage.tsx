@@ -55,15 +55,6 @@ export default function ProjectProgressPage() {
   const [searchVillage, setSearchVillage] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'undone' | 'done'>('all')
 
-  // 排序
-  const [sortField, setSortField] = useState<'village' | 'progress'>('village')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
-
-  const toggleSort = (field: 'village' | 'progress') => {
-    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortField(field); setSortDir('asc') }
-  }
-
   // 展开收起
   const [expandedSet, setExpandedSet] = useState<Set<number>>(new Set())
 
@@ -297,16 +288,6 @@ export default function ProjectProgressPage() {
     if (statusFilter === 'done' && r.stages.some(s => s.status !== 'done')) return false
     if (statusFilter === 'undone' && r.stages.every(s => s.status === 'done')) return false
     return true
-  }).sort((a, b) => {
-    let cmp: number
-    if (sortField === 'village') {
-      cmp = a.village_name.localeCompare(b.village_name, 'zh')
-    } else {
-      const aDone = a.stages.filter(s => s.status === 'done').length
-      const bDone = b.stages.filter(s => s.status === 'done').length
-      cmp = aDone - bDone
-    }
-    return sortDir === 'asc' ? cmp : -cmp
   })
 
   return (
@@ -458,16 +439,12 @@ export default function ProjectProgressPage() {
                   onClick={() => toggleExpand(rec.village_id)}>
                   {/* 展开箭头 */}
                   <span className={`text-text-muted/50 text-xs transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
-                  {/* 村名 — 可排序 */}
-                  <div className="min-w-[100px] cursor-pointer select-none group"
-                    onClick={(e) => { e.stopPropagation(); toggleSort('village') }}>
+                  {/* 村名 */}
+                  <div className="min-w-[100px]">
                     <span className={`font-semibold text-sm ${allDone ? 'text-emerald-700' : 'text-text-primary'}`}>
                       {rec.village_name}
                     </span>
                     {allDone && <span className="ml-1.5 text-emerald-500 text-xs">✓</span>}
-                    <span className="ml-1 text-text-muted/30 text-[10px] group-hover:text-text-muted/60">
-                      {sortField === 'village' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}
-                    </span>
                   </div>
                   {/* 负责人 */}
                   <div className="text-xs text-text-muted/60 min-w-[120px]">
@@ -493,13 +470,9 @@ export default function ProjectProgressPage() {
                       )
                     })}
                   </div>
-                  {/* 全部完成标记 — 可排序 */}
-                  <div className="text-right text-xs font-mono text-text-muted/40 whitespace-nowrap cursor-pointer select-none group"
-                    onClick={(e) => { e.stopPropagation(); toggleSort('progress') }}>
+                  {/* 全部完成标记 */}
+                  <div className="text-right text-xs font-mono text-text-muted/40 whitespace-nowrap">
                     {rec.stages.filter(s => s.status === 'done').length}/{rec.stages.length}
-                    <span className="ml-1 text-text-muted/30 text-[10px] group-hover:text-text-muted/60">
-                      {sortField === 'progress' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}
-                    </span>
                   </div>
                 </div>
 

@@ -2,11 +2,12 @@
  * 发放列表组件
  * 显示发放记录的表格、筛选、分页功能
  */
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Tag from '../components/Tag'
 import Modal from '../components/Modal'
 import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
+import * as XLSX from 'xlsx'
 import * as api from '../api'
 import type { ApplicationSearchResult, ApplicationCreate, ApplicationOut, ExcelColumnTemplate } from '../types'
 import { PAY_STATUS, fmt } from '../utils'
@@ -129,6 +130,20 @@ export default function DisbursementList({
   clearFilters,
 }: DisbursementListProps) {
   const navigate = useNavigate()
+
+  // ── 面积列排序 ──
+  const [sortField, setSortField] = useState<string>('')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const toggleSort = (field: string) => {
+    if (sortField === field) setSortDir((d: 'asc' | 'desc') => d === 'asc' ? 'desc' : 'asc')
+    else { setSortField(field); setSortDir('desc') }
+  }
+  const sortedApps = [...apps].sort((a: ApplicationSearchResult, b: ApplicationSearchResult) => {
+    if (!sortField) return 0
+    const va = Number((a as any)[sortField] || 0)
+    const vb = Number((b as any)[sortField] || 0)
+    return sortDir === 'desc' ? vb - va : va - vb
+  })
 
   // 加载模板列表
   useEffect(() => {
@@ -373,6 +388,47 @@ export default function DisbursementList({
 
   const totalAmt = apps.reduce((s, a) => s + Number(a.actual_amount || 0), 0)
 
+  // 导出全部数据（从后端拉取全部）
+  const handleExport = async () => {
+    try {
+      const res = await api.exportPayments(subsidyType.id)
+      const rows = res.items.map(a => ({
+        '姓名': a.farmer_name + (a.is_proxy === 1 ? '（代领）' : ''),
+        '所在村': a.village_name || '',
+        '所在组': a.group_no || '',
+        '计入超限面积': a.apply_area ?? '',
+        '不计超限面积': a.apply_area_no_calc ?? '',
+        '承包地面积': a.contract_area ?? '',
+        '代耕代种面积': a.trust_area ?? '',
+        '不予补贴面积': a.no_subsidy_area ?? '',
+        '发放金额': a.amount ? Number(a.amount).toFixed(2) : '',
+        '状态': PAY_STATUS[a.pay_status]?.label || '',
+        '打款日期': a.payment_date ?? '',
+        '备注': a.remark || '',
+        '代领备注': a.proxy_remark || '',
+      }))
+      const ws = XLSX.utils.json_to_sheet(rows)
+      ws['!cols'] = Object.keys(rows[0] || {}).map(() => ({ wch: 14 }))
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, '发放列表')
+      XLSX.writeFile(wb, `发放列表_${subsidyType.subsidy_name}_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    } catch (e) {
+      show('导出失败：' + (e as Error).message, 'err')
+    }
+  }
+
+  const SORTABLE_COLS: Record<string, string> = {
+    '计入超限面积': 'apply_area',
+    '不计超限面积': 'apply_area_no_calc',
+    '承包地面积': 'contract_area',
+    '代耕代种面积': 'trust_area',
+    '不予补贴面积': 'no_subsidy_area',
+    '申请金额': 'apply_amount',
+    '发放金额': 'actual_amount',
+  }
+
+  const HEADERS = ['姓名', '身份证', '手机号', '所在村', '所在组', '计入超限面积', '不计超限面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额', '状态', '打款日期', '备注', '代领备注', '操作']
+
   // 模板相关
   const selectedTmpl = templates.find(t => t.id) || null
   const IMPORT_HEADERS = selectedTmpl
@@ -467,6 +523,7 @@ export default function DisbursementList({
           </div>
           <button onClick={clearFilters} className="text-xs text-text-muted hover:text-text-primary border border-border px-2 py-1 rounded"
             disabled={Object.values(filters).every(v => !v) && !search}>清除</button>
+          <button onClick={handleExport} className="text-xs border border-emerald-300 text-emerald-700 px-2.5 py-1 rounded hover:bg-emerald-50 font-medium whitespace-nowrap">导出</button>
         </div>
 
         <table className="w-full border-collapse min-w-[950px]">
@@ -484,17 +541,26 @@ export default function DisbursementList({
                   )}
                 </button>
               </th>
-              {['姓名', '身份证', '手机号', '所在村', '所在组', '计入超限面积', '不计超限面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额', '状态', '打款日期', '备注', '代领备注', '操作'].map(h => (
-                <th key={h} className="px-2 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
-              ))}
+              {HEADERS.map(h => {
+                const field = SORTABLE_COLS[h]
+                return (
+                  <th key={h}
+                    className={`px-2 py-2 text-left text-xs font-semibold whitespace-nowrap ${field ? 'cursor-pointer select-none hover:text-text-primary' : 'text-text-muted'}`}
+                    onClick={field ? () => toggleSort(field) : undefined}>
+                    {h}
+                    {field && sortField === field && <span className="ml-1 text-[10px]">{sortDir === 'desc' ? '▼' : '▲'}</span>}
+                    {field && sortField !== field && <span className="ml-1 text-[10px] text-text-muted/20">⇅</span>}
+                  </th>
+                )
+              })}
             </tr>
           </thead>
           <tbody>
             {loading && <tr><td colSpan={16} className="text-center py-10 text-text-muted/50">加载中…</td></tr>}
-            {!loading && (!apps || apps.length === 0) && (
+            {!loading && (!sortedApps || sortedApps.length === 0) && (
               <tr><td colSpan={16} className="text-center py-10 text-text-muted/50 text-sm">暂无记录，通过「Excel 导入」或「＋ 新增一条」添加</td></tr>
             )}
-            {!loading && apps && apps.map(a => (
+            {!loading && sortedApps && sortedApps.map(a => (
               <tr key={a.id} className={`border-b border-border/50 hover:bg-warm/30 ${a.pay_status === 0 ? 'bg-amber-50/30' : ''}`}>
                 <td className="px-2 py-2 text-center">
                   <button onClick={() => toggleSelect(a.id)}

@@ -38,6 +38,7 @@ export default function SubsidyProjectsPage() {
   const [yearFilter, setYearFilter] = useState(initialYear)
   const [types, setTypes] = useState<StatsType[]>([])
   const [loading, setLoading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [activeType, setActiveType] = useState<StatsType | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [editing, setEditing] = useState<SubsidyType | null>(null)
@@ -128,6 +129,7 @@ export default function SubsidyProjectsPage() {
   }
 
   const deleteProject = async (type_id: number) => {
+    setDeleting(true)
     try {
       const response = await fetch(`/api/subsidies/types/${type_id}`, { method: 'DELETE' })
       if (!response.ok) throw new Error('删除失败')
@@ -135,6 +137,8 @@ export default function SubsidyProjectsPage() {
       loadTypes()
     } catch (error) {
       show('删除失败：' + (error as Error).message, 'err')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -228,6 +232,16 @@ export default function SubsidyProjectsPage() {
         thisYear={thisYear}
         onCheckConfigChange={cfg => { pendingCheckConfig.current = cfg }}
       />
+
+      {/* 删除中遮罩 */}
+      {deleting && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/20">
+          <div className="bg-white rounded-card shadow-xl border border-border px-8 py-6 flex flex-col items-center gap-3">
+            <span className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-text-muted">删除项目中，请稍候…</span>
+          </div>
+        </div>
+      )}
 
       <Toast {...toast} />
     </div>
