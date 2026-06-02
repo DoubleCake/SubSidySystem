@@ -308,11 +308,6 @@ export default function ProjectProgressPage() {
         </select>
         <button onClick={initAllVillages} className="px-3 py-1.5 text-xs border border-border rounded-btn hover:bg-warm/30">🔄 初始化全部村</button>
         <button onClick={syncLeaders} className="px-3 py-1.5 text-xs border border-amber-200 text-amber-700 rounded-btn hover:bg-amber-50">👤 同步负责人</button>
-        <div className="flex items-center gap-1">
-          <input value={newStageName} onChange={e => setNewStageName(e.target.value)} placeholder="新阶段名称"
-            className="border border-border rounded-btn px-2 py-1 text-[11px] outline-none w-28" />
-          <button onClick={addStageToAll} className="px-2 py-1 text-xs bg-primary  rounded-btn hover:bg-primary/90">＋ 全部添加</button>
-        </div>
         <div className="w-px h-6 bg-border" />
         <input value={searchVillage} onChange={e => setSearchVillage(e.target.value)} placeholder="🔍 搜索村名…"
           className="border border-border rounded-btn px-2 py-1 text-[11px] outline-none w-32" />
@@ -400,6 +395,13 @@ export default function ProjectProgressPage() {
                       </div>
                     )
                   })}
+                  {/* 添加新阶段 */}
+                  <div className="flex items-center gap-2 px-4 py-3 border-t border-border/30 bg-warm/10">
+                    <span className="text-xs text-text-muted">＋ 添加阶段：</span>
+                    <input value={newStageName} onChange={e => setNewStageName(e.target.value)} placeholder="新阶段名称"
+                      className="flex-1 border border-border rounded-btn px-2 py-1 text-[11px] outline-none" />
+                    <button onClick={addStageToAll} className="px-3 py-1 text-xs bg-primary text-white rounded-btn hover:bg-primary/90 font-medium">添加</button>
+                  </div>
                 </div>
               )}
             </span>
