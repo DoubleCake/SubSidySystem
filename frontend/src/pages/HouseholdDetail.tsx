@@ -31,6 +31,7 @@ export interface HouseholdDetailContentProps {
   onOpenManualConfirm: () => void
   onOpenCancelConfirm: () => void
   onDelete: () => void
+  onNavigateToProject?: (subsidyTypeId: number, farmerName: string) => void
   onRefreshCache: (householdId: number) => void
   refreshingCache: boolean
 }
@@ -60,6 +61,7 @@ export function HouseholdDetailContent({
   onOpenManualConfirm,
   onOpenCancelConfirm,
   onDelete,
+  onNavigateToProject,
   onRefreshCache,
   refreshingCache,
 }: HouseholdDetailContentProps) {
@@ -612,6 +614,12 @@ export function HouseholdDetailContent({
                     )}
                     <span className="text-sm font-mono font-bold text-primary">{a.actual_amount ? fmt(a.actual_amount) : '—'}</span>
                     <Tag label={PAY_STATUS[a.pay_status]?.label || '—'} color={PAY_STATUS[a.pay_status]?.color as 'green'} />
+                    {onNavigateToProject && a.subsidy_type_id && (
+                      <button onClick={() => onNavigateToProject(a.subsidy_type_id!, a.farmer_name)}
+                        className="text-xs text-blue-600 border border-blue-200 px-2 py-1 rounded-btn hover:bg-blue-50 whitespace-nowrap shrink-0">
+                        ↗ 项目
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

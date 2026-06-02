@@ -17,13 +17,14 @@ export interface FarmerDetailProps {
   showAppSummary?: boolean
   /** app_summary数据（showAppSummary=true时使用） */
   appSummary?: {
-    apply_year: number; farmer_id: number; farmer_name: string; subsidy_name: string
+    apply_year: number; farmer_id: number; farmer_name: string; subsidy_name: string; subsidy_type_id?: number
     calc_mode: string; apply_area: number | null; apply_area_no_calc?: number | null; apply_amount: number | null; actual_amount: number | null
     pay_status: number; apply_village_name: string; apply_group_display: string; is_proxy: number
     proxy_info?: { type: string; proxy_name?: string; beneficiary_name?: string; proxy_farmer_id?: number; beneficiary_farmer_id?: number; remark?: string } | null
   }[]
   groups?: VillageGroup[]
   onUpdate?: () => void
+  onNavigateToProject?: (subsidyTypeId: number, farmerName: string) => void
 }
 
 // ── 通用编辑字段渲染 ──
@@ -37,7 +38,7 @@ function EditField({ label, children }: { label: string; children: React.ReactNo
 }
 
 // ── 农户详情卡片 ──
-export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, groups, onUpdate }: FarmerDetailProps) {
+export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, groups, onUpdate, onNavigateToProject }: FarmerDetailProps) {
   const [editMode, setEditMode] = useState(false)
   const [editForm, setEditForm] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -287,7 +288,7 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, group
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead><tr className="bg-warm/30 border-b border-border">
-                {['年度', '补贴项目', '面积(计入+不计)', '申请金额', '实发金额', '状态', '类型'].map(h => (
+                {['年度', '补贴项目', '面积(计入+不计)', '申请金额', '实发金额', '状态', '操作'].map(h => (
                   <th key={h} className="px-4 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
                 ))}
               </tr></thead>
@@ -307,11 +308,19 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, group
                     </td>
                     <td className="px-4 py-2"><Tag label={PAY_STATUS[a.pay_status]?.label} color={PAY_STATUS[a.pay_status]?.color as 'green'} /></td>
                     <td className="px-4 py-2">
-                      {a.proxy_info ? (
-                        <Tag label={a.proxy_info.type} color={a.proxy_info.type === '代领' ? 'amber' : 'green'} />
-                      ) : (
-                        <span className="text-xs text-text-muted/50">—</span>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {a.proxy_info ? (
+                          <Tag label={a.proxy_info.type} color={a.proxy_info.type === '代领' ? 'amber' : 'green'} />
+                        ) : (
+                          <span className="text-xs text-text-muted/50">—</span>
+                        )}
+                        {onNavigateToProject && (a as any).subsidy_type_id && (
+                          <button onClick={() => onNavigateToProject((a as any).subsidy_type_id!, a.farmer_name)}
+                            className="text-xs text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded hover:bg-blue-50 whitespace-nowrap">
+                            ↗ 项目
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

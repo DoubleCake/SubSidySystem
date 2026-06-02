@@ -167,6 +167,7 @@ def snapshot_household(db: Session, household_id: int) -> dict:
                 SubsidyApplication.apply_group_display,
                 SubsidyApplication.is_proxy,
                 SubsidyApplication.id.label("app_id"),
+                SubsidyType.id.label("subsidy_type_id"),
             )
             .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id)
             .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
@@ -218,6 +219,7 @@ def snapshot_household(db: Session, household_id: int) -> dict:
                 "farmer_id": r.farmer_id,
                 "farmer_name": r.real_name,
                 "subsidy_name": r.subsidy_name,
+                "subsidy_type_id": r.subsidy_type_id,
                 "calc_mode": r.calc_mode,
                 "apply_area": float(r.apply_area) if r.apply_area else None,
                 "apply_amount": float(r.apply_amount) if r.apply_amount else None,
@@ -1158,6 +1160,7 @@ def _get_household_app_summary(
             SubsidyApplication.is_proxy,
             SubsidyApplication.beneficiary_id,
             SubsidyApplication.id.label("record_id"),
+            SubsidyType.id.label("subsidy_type_id"),
         )
         .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.beneficiary_id)
         .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
@@ -1183,6 +1186,7 @@ def _get_household_app_summary(
             SubsidyPayment.is_proxy,
             SubsidyPayment.beneficiary_id,
             SubsidyPayment.id.label("record_id"),
+            SubsidyType.id.label("subsidy_type_id"),
         )
         .join(FarmerProfile, FarmerProfile.id == SubsidyPayment.beneficiary_id)
         .join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
@@ -1298,6 +1302,7 @@ def _get_household_app_summary(
             "farmer_id": r.farmer_id,
             "farmer_name": r.real_name,
             "subsidy_name": r.subsidy_name,
+            "subsidy_type_id": r.subsidy_type_id,
             "calc_mode": r.calc_mode,
             "apply_area": float(r.apply_area) if r.apply_area else None,
             "apply_area_no_calc": float(r.apply_area_no_calc) if r.apply_area_no_calc else None,

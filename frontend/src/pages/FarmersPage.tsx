@@ -7,7 +7,7 @@
  *   - 选中家庭户：家庭户详情（成员/面积/补贴/历史）
  */
 import { useState, useEffect, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import * as api from '../api'
 import type { VillageGroup, HH, HHDetail, HHMember, HHEvent, HistoryDateEvent, SnapshotAtResponse, FarmerDetail, FarmerOut, SnapshotMember, ExcelColumnTemplate } from '../types'
@@ -41,6 +41,7 @@ type LeftTab = 'farmers' | 'households'
 export default function FarmersPage() {
   const { toast, show } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
 
   // ── 从 URL 恢复状态 ──
   const getInitialLeftTab = (): LeftTab => {
@@ -1180,6 +1181,7 @@ export default function FarmersPage() {
               appSummary={selectedFarmerHousehold?.app_summary}
               groups={groups}
               onUpdate={() => openFarmer(selectedFarmer!.id)}
+              onNavigateToProject={(typeId, farmerName) => navigate(`/projects?subsidy_type_id=${typeId}&farmer_name=${encodeURIComponent(farmerName)}`)}
             />
             {selectedFarmerHousehold && (
               <div className="flex gap-4 flex-1 min-h-0">
@@ -1274,6 +1276,7 @@ export default function FarmersPage() {
                 onOpenManualConfirm={() => { setConfirmForm({ operator: '', remark: '' }); setManualConfirmOpen(true) }}
                 onOpenCancelConfirm={() => { setConfirmForm({ operator: '', remark: '' }); setCancelConfirmOpen(true) }}
                 onDelete={() => { setDeleteTarget(detail); setDeleteConfirmOpen(true) }}
+                onNavigateToProject={(typeId, farmerName) => navigate(`/projects?subsidy_type_id=${typeId}&farmer_name=${encodeURIComponent(farmerName)}`)}
                 onRefreshCache={handleRefreshCache}
                 refreshingCache={refreshingCache}
               />

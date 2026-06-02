@@ -34,6 +34,7 @@ export default function SubsidyProjectsPage() {
   const searchParams = new URLSearchParams(location.search)
   const urlYear = searchParams.get('year')
   const initialYear = urlYear ? parseInt(urlYear, 10) : thisYear
+  const urlFarmerName = searchParams.get('farmer_name') || undefined
   const [yearFilter, setYearFilter] = useState(initialYear)
   const [types, setTypes] = useState<StatsType[]>([])
   const [loading, setLoading] = useState(false)
@@ -138,7 +139,7 @@ export default function SubsidyProjectsPage() {
   }
 
   if (activeType) {
-    return <SubsidyRecordsPage subsidyType={activeType} onBack={() => { setActiveType(null); updateUrlType(null); loadTypes() }} />
+    return <SubsidyRecordsPage subsidyType={activeType} onBack={() => { setActiveType(null); updateUrlType(null); loadTypes() }} farmerName={urlFarmerName} />
   }
 
   return (

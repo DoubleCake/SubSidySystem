@@ -5,6 +5,7 @@
  * 批量查询记录：记录本次查了哪些人，留备注标签，供后期统计
  */
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import * as api from '../api'
 import type { SubsidyType } from '../types'
 import Tag from '../components/Tag'
@@ -24,13 +25,14 @@ async function req<T>(path:string, opts:RequestInit={}):Promise<T> {
   return r.json() as Promise<T>
 }
 
-type AppRow = { id:number; farmer_id:number; farmer_name:string; id_card_masked?:string; village?:string; subsidy_name:string; calc_mode:string; apply_year:number; apply_area:string|null; apply_area_no_calc?:string|null; apply_amount:string|null; actual_amount:string|null; pay_status:number; pay_date:string|null; remark:string|null }
+type AppRow = { id:number; farmer_id:number; farmer_name:string; id_card_masked?:string; village?:string; subsidy_name:string; subsidy_type_id?:number; calc_mode:string; apply_year:number; apply_area:string|null; apply_area_no_calc?:string|null; apply_amount:string|null; actual_amount:string|null; pay_status:number; pay_date:string|null; remark:string|null }
 
 const QUERY_TYPES = ['身份证查询','姓名查询','综合查询','其他']
 const TAGS_PRESET = ['年度核查','补贴核验','重复申领排查','死亡核查','迁出核查','待处理','已完成','存疑']
 
 export default function ExternalLinksPage() {
   const { toast, show } = useToast()
+  const navigate = useNavigate()
   const [tab, setTab] = useState<'sites'|'search'|'records'>('search')
 
   // ── 网站 ──
@@ -308,12 +310,20 @@ export default function ExternalLinksPage() {
                       <td className="px-3.5 py-2.5 text-sm font-mono font-bold text-primary">{fmt(a.actual_amount)}</td>
                       <td className="px-3.5 py-2.5"><Tag label={PAY_STATUS[a.pay_status]?.label||'—'} color={PAY_STATUS[a.pay_status]?.color as 'green'}/></td>
                       <td className="px-3.5 py-2.5">
-                        <button onClick={()=>{
-                          setFavorContext({ inputs:[a.farmer_name + (a.id_card_masked?' '+a.id_card_masked:'')], type:'综合查询', source:'系统内查询' })
-                          setFavorOpen(true)
-                        }} className="text-xs text-amber-600 border border-amber-200 px-2.5 py-1 rounded-btn hover:bg-amber-50 whitespace-nowrap">
-                          ★ 收藏
-                        </button>
+                        <div className="flex gap-1">
+                          <button onClick={()=>{
+                            setFavorContext({ inputs:[a.farmer_name + (a.id_card_masked?' '+a.id_card_masked:'')], type:'综合查询', source:'系统内查询' })
+                            setFavorOpen(true)
+                          }} className="text-xs text-amber-600 border border-amber-200 px-2.5 py-1 rounded-btn hover:bg-amber-50 whitespace-nowrap">
+                            ★ 收藏
+                          </button>
+                          {a.subsidy_type_id && (
+                            <button onClick={()=>navigate(`/projects?subsidy_type_id=${a.subsidy_type_id}&farmer_name=${encodeURIComponent(a.farmer_name)}`)}
+                              className="text-xs text-blue-600 border border-blue-200 px-2.5 py-1 rounded-btn hover:bg-blue-50 whitespace-nowrap">
+                              ↗ 查看项目
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

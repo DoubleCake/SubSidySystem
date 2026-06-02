@@ -423,7 +423,7 @@ export interface HHDetail {
     year_payment_totals?: Record<string, Record<string, number>>
   }
   app_summary: {
-    apply_year: number; farmer_id: number; farmer_name: string; subsidy_name: string
+    apply_year: number; farmer_id: number; farmer_name: string; subsidy_name: string; subsidy_type_id?: number
     calc_mode: string; apply_area: number | null; apply_area_no_calc?: number | null; apply_amount: number | null; actual_amount: number | null
     pay_status: number; apply_village_name: string; apply_group_display: string; is_proxy: number
     proxy_info?: { type: string; proxy_name?: string; beneficiary_name?: string; proxy_farmer_id?: number; beneficiary_farmer_id?: number; remark?: string } | null
@@ -479,7 +479,7 @@ export interface SnapshotAtResponse {
     head_id: number | null
     members: SnapshotMember[]
     app_summary?: Array<{
-      apply_year: number; farmer_name: string; subsidy_name: string
+      apply_year: number; farmer_name: string; subsidy_name: string; subsidy_type_id?: number
       calc_mode: string; apply_area: number | null; apply_area_no_calc?: number | null; actual_amount: number | null; pay_status: number
     }>
     area_usage?: {

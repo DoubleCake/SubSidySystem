@@ -62,9 +62,10 @@ type StatsType = {
 interface SubsidyRecordsPageProps {
   subsidyType: StatsType
   onBack: () => void
+  farmerName?: string
 }
 
-export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecordsPageProps) {
+export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: SubsidyRecordsPageProps) {
   const { toast, show } = useToast()
   const navigate = useNavigate()
 
@@ -79,8 +80,17 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
   }
 
   // 两个列表分别维护独立的搜索和筛选状态
-  const [searchPreApply, setSearchPreApply] = useState('')
+  const [searchPreApply, setSearchPreApply] = useState(farmerName || '')
   const [searchDisbursement, setSearchDisbursement] = useState('')
+
+  // 外部传入 farmerName 时，自动填入搜索并切换到预申请列表
+  useEffect(() => {
+    if (farmerName) {
+      setSearchPreApply(farmerName)
+      switchTab('preApply')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [farmerName])
   const [filtersPreApply, setFiltersPreApply] = useState({
     village: '',
     payStatus: '',
