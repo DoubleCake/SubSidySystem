@@ -617,7 +617,7 @@ export function HouseholdDetailContent({
                     {onNavigateToProject && a.subsidy_type_id && (
                       <button onClick={() => onNavigateToProject(a.subsidy_type_id!, a.farmer_name)}
                         className="text-xs text-blue-600 border border-blue-200 px-2 py-1 rounded-btn hover:bg-blue-50 whitespace-nowrap shrink-0">
-                        ↗ 项目
+                        ↗ 查看明细
                       </button>
                     )}
                   </div>

@@ -317,7 +317,7 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, group
                         {onNavigateToProject && (a as any).subsidy_type_id && (
                           <button onClick={() => onNavigateToProject((a as any).subsidy_type_id!, a.farmer_name)}
                             className="text-xs text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded hover:bg-blue-50 whitespace-nowrap">
-                            ↗ 项目
+                            ↗ 查看明细
                           </button>
                         )}
                       </div>

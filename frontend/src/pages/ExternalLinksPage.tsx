@@ -320,7 +320,7 @@ export default function ExternalLinksPage() {
                           {a.subsidy_type_id && (
                             <button onClick={()=>navigate(`/projects?subsidy_type_id=${a.subsidy_type_id}&farmer_name=${encodeURIComponent(a.farmer_name)}`)}
                               className="text-xs text-blue-600 border border-blue-200 px-2.5 py-1 rounded-btn hover:bg-blue-50 whitespace-nowrap">
-                              ↗ 查看项目
+                              ↗ 查看明细
                             </button>
                           )}
                         </div>

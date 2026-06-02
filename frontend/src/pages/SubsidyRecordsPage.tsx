@@ -83,11 +83,14 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   const [searchPreApply, setSearchPreApply] = useState(farmerName || '')
   const [searchDisbursement, setSearchDisbursement] = useState('')
 
-  // 外部传入 farmerName 时，自动填入搜索并切换到预申请列表
+  // 外部传入 farmerName 时，自动填入搜索并触发数据加载
   useEffect(() => {
     if (farmerName) {
       setSearchPreApply(farmerName)
-      switchTab('preApply')
+      setActiveTab('preApply')
+      setPage(1)
+      setSelectedIds([])
+      setAreaStats(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [farmerName])
@@ -488,7 +491,8 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
           subsidy_type_id: subsidyType.id,
           payment_year: subsidyType.subsidy_year,
         }
-        if (search) params.search = search
+        const effectiveSearch = search || farmerName || ''
+        if (effectiveSearch) params.search = effectiveSearch
         if (filters.payStatus) params.pay_status = filters.payStatus
         if (filters.village) params.village_name = filters.village
         if (filters.dateFrom) params.date_from = filters.dateFrom
@@ -528,7 +532,8 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         subsidy_type_id: subsidyType.id,
         year: subsidyType.subsidy_year,
       }
-      if (search) params.search = search
+      const effectiveSearch = search || farmerName || ''
+      if (effectiveSearch) params.search = effectiveSearch
       if (filters.payStatus) params.pay_status = filters.payStatus
       if (filters.village) params.village = filters.village
       if (filters.minAmount) params.min_amount = filters.minAmount
@@ -544,7 +549,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     } finally {
       setLoading(false)
     }
-  }, [page, search, filters, subsidyType.id, subsidyType.subsidy_year, activeTab])
+  }, [page, search, filters, subsidyType.id, subsidyType.subsidy_year, activeTab, farmerName])
 
   useEffect(() => {
     load()
