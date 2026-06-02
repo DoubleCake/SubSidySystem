@@ -83,6 +83,9 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   const [searchPreApply, setSearchPreApply] = useState(farmerName || '')
   const [searchDisbursement, setSearchDisbursement] = useState('')
 
+  // 搜索触发计数器 — 搜索按钮点击时递增，强制 load 重新触发
+  const [searchTrigger, setSearchTrigger] = useState(0)
+
   // 外部传入 farmerName 时，初始化搜索框内容
   useEffect(() => {
     if (farmerName) {
@@ -529,8 +532,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         subsidy_type_id: subsidyType.id,
         year: subsidyType.subsidy_year,
       }
-      const effectiveSearch = search || farmerName || ''
-      if (effectiveSearch) params.search = effectiveSearch
+      if (search) params.search = search
       if (filters.payStatus) params.pay_status = filters.payStatus
       if (filters.village) params.village = filters.village
       if (filters.minAmount) params.min_amount = filters.minAmount
@@ -546,7 +548,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     } finally {
       setLoading(false)
     }
-  }, [page, search, filters, subsidyType.id, subsidyType.subsidy_year, activeTab])
+  }, [page, search, filters, subsidyType.id, subsidyType.subsidy_year, activeTab, searchTrigger])
 
   useEffect(() => {
     load()
@@ -983,6 +985,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
           setVillages={setVillages}
           show={show}
           load={load}
+          onSearch={() => { setPage(1); setSearchTrigger(n => n + 1) }}
           handleFilterChange={handleFilterChange}
           handleSearchChange={handleSearchChange}
           clearFilters={clearFilters}

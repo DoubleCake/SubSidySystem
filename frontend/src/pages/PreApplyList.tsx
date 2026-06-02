@@ -67,6 +67,7 @@ interface PreApplyListProps {
   // 回调函数
   show: (msg: string, type?: 'ok' | 'err') => void
   load: () => void
+  onSearch?: () => void
   handleFilterChange: (field: string, value: string) => void
   handleSearchChange: (value: string) => void
   clearFilters: () => void
@@ -124,6 +125,7 @@ export default function PreApplyList({
   setVillages,
   show,
   load,
+  onSearch,
   handleFilterChange,
   handleSearchChange,
   clearFilters,
@@ -513,7 +515,7 @@ export default function PreApplyList({
           <div className="flex items-center gap-1 flex-1 min-w-[200px] max-w-[300px]">
             <input type="text" value={search} onChange={e => handleSearchChange(e.target.value)}
               placeholder="姓名/身份证" className="flex-1 border border-border rounded-btn px-2 py-1.5 text-xs outline-none" />
-            <button onClick={() => setPage(1)} className="px-2 py-1 text-xs bg-primary text-white rounded-btn hover:bg-primary/90">搜索</button>
+            <button onClick={() => onSearch ? onSearch() : setPage(1)} className="px-2 py-1 text-xs bg-primary text-white rounded-btn hover:bg-primary/90">搜索</button>
           </div>
           <button onClick={clearFilters} className="text-xs text-text-muted hover:text-text-primary border border-border px-2 py-1 rounded"
             disabled={Object.values(filters).every(v => !v) && !search}>清除</button>
