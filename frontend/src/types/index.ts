@@ -604,3 +604,27 @@ export interface CheckConfig {
   area_mode: 'disabled' | 'seasonal' | 'standalone'
   check_trust_deduction: boolean
 }
+
+export interface PrecheckHistoryItem {
+  id: number
+  subsidy_type_id: number
+  year: number
+  batch_key: string
+  error_type: string
+  farmer_name: string | null
+  id_card: string | null
+  village: string | null
+  group_no: string | null
+  error_message: string
+  detail_json: string | null
+  status: 'active' | 'resolved'
+  resolved_at: string | null
+  created_at: string | null
+}
+
+export interface PrecheckHistoryBatch {
+  batch_key: string
+  total: number
+  resolved_count: number
+  latest_at: string | null
+}

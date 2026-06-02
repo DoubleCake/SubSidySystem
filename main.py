@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import engine
 from models import Base
-from routers import farmers, subsidies, ai_analyze, settings, households, external_links, backup, eligibility, excel_templates, land, error_library, household_import, agri_tasks, large_farmers, project_progress, auth, village_contacts
+from routers import farmers, subsidies, ai_analyze, settings, households, external_links, backup, eligibility, excel_templates, land, error_library, household_import, agri_tasks, large_farmers, project_progress, auth, village_contacts, precheck_history
 from core.exceptions import AppException, NotFound, BadRequest, Conflict, ValidationError, Forbidden
 from core.response import error_response
 
@@ -165,6 +165,7 @@ app.include_router(large_farmers.router)
 app.include_router(project_progress.router)
 app.include_router(auth.router)
 app.include_router(village_contacts.router)
+app.include_router(precheck_history.router)
 
 # 启动时初始化管理员账号
 from routers.auth import ensure_admin

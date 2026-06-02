@@ -7,6 +7,7 @@ import type {
   HH, HHDetail, HHEvent, HistoryDateEvent, SnapshotAtResponse,
   HouseholdCreate, MemberCreate, MemberUpdate, MemberMoveRequest,
   SubsidyProxyOut, SubsidyProxyCreate, CheckConfig,
+  PrecheckHistoryItem, PrecheckHistoryBatch, CheckResult,
 } from '../types'
 import { getAuth } from '../pages/LoginPage'
 
@@ -133,6 +134,32 @@ export const getCheckConfig = (typeId: number) =>
 export const updateCheckConfig = (typeId: number, config: CheckConfig) =>
   req('/api/subsidies/types/' + typeId + '/check-config', { method: 'PUT', body: JSON.stringify(config) })
 
+// ── 预检历史 ──
+export const savePrecheckHistory = (
+  subsidy_type_id: number, year: number, precheck_result: CheckResult,
+  error_types?: string[],
+) =>
+  req<{ saved: number; batch_key: string }>('/api/precheck-history?subsidy_type_id=' + subsidy_type_id + '&year=' + year,
+    { method: 'POST', body: JSON.stringify({ precheck_result, error_types }) })
+
+export const getPrecheckHistory = (params: Record<string, string | number>) =>
+  req<PageResult<PrecheckHistoryItem>>('/api/precheck-history?' + new URLSearchParams(params as Record<string, string>))
+
+export const getPrecheckHistoryBatches = (subsidy_type_id: number, year: number) =>
+  req<{ batches: PrecheckHistoryBatch[] }>('/api/precheck-history/batches?subsidy_type_id=' + subsidy_type_id + '&year=' + year)
+
+export const resolvePrecheckHistory = (id: number) =>
+  req('/api/precheck-history/' + id + '/resolve', { method: 'PUT' })
+
+export const unresolvePrecheckHistory = (id: number) =>
+  req('/api/precheck-history/' + id + '/unresolve', { method: 'PUT' })
+
+export const deletePrecheckHistory = (id: number) =>
+  req('/api/precheck-history/' + id, { method: 'DELETE' })
+
+export const autoResolvePrecheckHistory = (subsidy_type_id: number, year: number) =>
+  req<{ resolved_count: number; total: number }>('/api/precheck-history/auto-resolve?subsidy_type_id=' + subsidy_type_id + '&year=' + year, { method: 'POST' })
+
 // ── 补贴申请 ──
 export const getApplications = (params: Record<string, string | number>) =>
   req<PageResult<ApplicationOut>>('/api/subsidies/applications?' + new URLSearchParams(params as Record<string, string>))
@@ -191,6 +218,7 @@ export interface AreaStatsResponse {
   by_village: VillageAreaStats[]
   total: VillageAreaStats
   data_source: 'payment' | 'application'
+  villages_without_data?: string[]
 }
 
 export const getAreaStatsByVillage = (subsidyTypeId: number, year: number, dataSource?: 'payment' | 'application') => {

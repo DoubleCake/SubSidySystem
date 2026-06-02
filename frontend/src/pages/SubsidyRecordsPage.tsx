@@ -19,6 +19,7 @@ import { exportAreaStatsToExcel } from '../utils/exportAreaStats'
 import PreApplyList from './PreApplyList'
 import DisbursementList from './DisbursementList'
 import ProxyList from './ProxyList'
+import PrecheckHistoryTab from '../components/PrecheckHistoryTab'
 
 // 代领导入字段配置
 const PROXY_IMPORT_FIELDS = [
@@ -70,12 +71,13 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   const navigate = useNavigate()
 
   // Tab状态管理
-  const [activeTab, setActiveTab] = useState<'preApply' | 'disbursement' | 'proxy'>('preApply')
-  const switchTab = (tab: 'preApply' | 'disbursement' | 'proxy') => {
+  const [activeTab, setActiveTab] = useState<'preApply' | 'disbursement' | 'proxy' | 'precheckHistory'>('preApply')
+  const switchTab = (tab: 'preApply' | 'disbursement' | 'proxy' | 'precheckHistory') => {
     setActiveTab(tab)
-    setPage(1)
-    setSelectedIds([])
-    // 切换tab时清空面积统计，下次展开时会重新加载对应数据源
+    if (tab !== 'precheckHistory') {
+      setPage(1)
+      setSelectedIds([])
+    }
     setAreaStats(null)
   }
 
@@ -849,6 +851,20 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
                   数据来源：{areaStats.data_source === 'payment' ? '发放记录' : '预申请记录'}
                   {areaStats.by_village.length > 0 && ' · 代领记录已去重，仅统计受益人'}
                 </div>
+                {areaStats.villages_without_data && areaStats.villages_without_data.length > 0 && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-card">
+                    <div className="text-xs font-medium text-amber-700 mb-1.5">
+                      ⚠️ 以下村无 {areaStats.data_source === 'payment' ? '发放' : '预申请'}数据
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {areaStats.villages_without_data.map(v => (
+                        <span key={v} className="px-2 py-0.5 bg-white border border-amber-200 rounded text-xs text-amber-700">
+                          {v}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="py-8 text-center text-text-muted">暂无数据</div>
@@ -889,6 +905,14 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         >
           📊 项目管理
         </button>
+        <button
+          onClick={() => switchTab('precheckHistory')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'precheckHistory' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text-primary'
+          }`}
+        >
+          📋 预检历史
+        </button>
         <div className="ml-auto flex items-center gap-2">
           {activeTab === 'preApply' && (
             <button
@@ -915,8 +939,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
               </button>
             </>
           )}
-          {activeTab !== 'proxy' && (
-            <>
+          {activeTab !== 'proxy' && activeTab !== 'precheckHistory' && (<>
               <span className="text-xs text-text-muted">共 {total} 条</span>
               <div className="flex gap-2 items-center">
                 {selectedIds.length > 0 && (
@@ -1039,6 +1062,13 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
 
       {activeTab === 'proxy' && (
         <ProxyList key={proxyRefreshKey} subsidyType={subsidyType} show={show} />
+      )}
+
+      {activeTab === 'precheckHistory' && (
+        <PrecheckHistoryTab
+          subsidyType={subsidyType}
+          preCheckResults={preCheckResults}
+        />
       )}
 
       {/* 预检结果展示 */}

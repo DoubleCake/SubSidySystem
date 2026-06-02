@@ -1875,10 +1875,16 @@ def get_stats_by_village(
     for key in ["total_apply_area", "total_contract_area", "total_trust_area", "total_no_subsidy_area", "total_amount"]:
         totals[key] = round(totals[key], 2)
 
+    # 找出没有数据/记录的村
+    villages_with_data = {s["village"] for s in village_stats}
+    all_villages = [v.village_name for v in db.query(Village.village_name).order_by(Village.village_name).all()]
+    villages_without_data = [v for v in all_villages if v not in villages_with_data]
+
     return {
         "by_village": village_stats,
         "total": totals,
-        "data_source": "payment" if use_payment else "application"
+        "data_source": "payment" if use_payment else "application",
+        "villages_without_data": villages_without_data,
     }
 
 

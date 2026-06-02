@@ -958,6 +958,30 @@ class ProjectProgress(Base):
     village      = relationship("Village")
 
 
+class PrecheckHistory(Base):
+    """预检错误历史 —— 保存每次预检发现的错误，支持标记已解决"""
+    __tablename__ = "precheck_history"
+
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    subsidy_type_id = Column(Integer, nullable=False, comment="补贴类型ID")
+    year          = Column(Integer, nullable=False, comment="年度")
+    batch_key     = Column(String(50), nullable=False, comment="批次标识 YYYY-MM-DD HH:mm:ss")
+    error_type    = Column(String(50), nullable=False, comment="错误类型")
+    farmer_name   = Column(String(50), nullable=True, comment="农户姓名")
+    id_card       = Column(String(18), nullable=True, comment="身份证号")
+    village       = Column(String(50), nullable=True, comment="村")
+    group_no      = Column(String(20), nullable=True, comment="组")
+    error_message = Column(Text, nullable=False, comment="错误描述")
+    detail_json   = Column(Text, nullable=True, comment="原始错误详情JSON")
+    status        = Column(String(20), nullable=False, default="active", comment="active=待处理 resolved=已解决")
+    resolved_at   = Column(DateTime, nullable=True, comment="解决时间")
+    created_at    = Column(DateTime, default=func.now())
+
+    __table_args__ = (
+        Index("ix_precheck_history_sub_type_year", "subsidy_type_id", "year"),
+    )
+
+
 class User(Base):
     """系统用户表"""
     __tablename__ = "user"
