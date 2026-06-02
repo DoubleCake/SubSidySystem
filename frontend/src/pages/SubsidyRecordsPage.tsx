@@ -83,14 +83,12 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   const [searchPreApply, setSearchPreApply] = useState(farmerName || '')
   const [searchDisbursement, setSearchDisbursement] = useState('')
 
-  // 外部传入 farmerName 时，自动填入搜索并触发数据加载
+  // 外部传入 farmerName 时，初始化搜索框内容
   useEffect(() => {
     if (farmerName) {
       setSearchPreApply(farmerName)
       setActiveTab('preApply')
       setPage(1)
-      setSelectedIds([])
-      setAreaStats(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [farmerName])
@@ -491,8 +489,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
           subsidy_type_id: subsidyType.id,
           payment_year: subsidyType.subsidy_year,
         }
-        const effectiveSearch = search || farmerName || ''
-        if (effectiveSearch) params.search = effectiveSearch
+        if (search) params.search = search
         if (filters.payStatus) params.pay_status = filters.payStatus
         if (filters.village) params.village_name = filters.village
         if (filters.dateFrom) params.date_from = filters.dateFrom
@@ -549,7 +546,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     } finally {
       setLoading(false)
     }
-  }, [page, search, filters, subsidyType.id, subsidyType.subsidy_year, activeTab, farmerName])
+  }, [page, search, filters, subsidyType.id, subsidyType.subsidy_year, activeTab])
 
   useEffect(() => {
     load()
