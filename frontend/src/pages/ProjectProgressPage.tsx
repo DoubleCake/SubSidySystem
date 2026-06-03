@@ -54,6 +54,7 @@ export default function ProjectProgressPage() {
   const [newStageName, setNewStageName] = useState('')
   const [searchVillage, setSearchVillage] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'undone' | 'done'>('all')
+  const [villageOptions, setVillageOptions] = useState<string[]>([])
 
   // 展开收起
   const [expandedSet, setExpandedSet] = useState<Set<number>>(new Set())
@@ -113,10 +114,12 @@ export default function ProjectProgressPage() {
 
   useEffect(() => { loadRecords() }, [loadRecords])
 
-  // 切换项目时重置筛选条件
+  // 切换项目时重置筛选条件并清空旧记录
   useEffect(() => {
     setSearchVillage('')
     setStatusFilter('all')
+    setRecords([])
+    setExpandedSet(new Set())
   }, [projectId])
 
   // 点击外部关闭下拉
@@ -315,8 +318,13 @@ export default function ProjectProgressPage() {
         <button onClick={initAllVillages} className="px-3 py-1.5 text-xs border border-border rounded-btn hover:bg-warm/30">🔄 初始化全部村</button>
         <button onClick={syncLeaders} className="px-3 py-1.5 text-xs border border-amber-200 text-amber-700 rounded-btn hover:bg-amber-50">👤 同步负责人</button>
         <div className="w-px h-6 bg-border" />
-        <input value={searchVillage} onChange={e => setSearchVillage(e.target.value)} placeholder="🔍 搜索村名…"
-          className="border border-border rounded-btn px-2 py-1 text-[11px] outline-none w-32" />
+        <select value={searchVillage} onChange={e => setSearchVillage(e.target.value)}
+            className="border border-border rounded-btn px-2 py-1 text-[11px] outline-none bg-white">
+            <option value="">全部村</option>
+            {[...new Set(records.map(r => r.village_name))].map(v => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}
           className="border border-border rounded-btn px-2 py-1 text-[11px] outline-none">
           <option value="all">全部状态</option><option value="undone">有未完成</option><option value="done">全部完成</option>
