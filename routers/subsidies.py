@@ -1867,6 +1867,7 @@ def get_stats_by_village(
             COUNT(DISTINCT fp.id) as farmer_count,
             COUNT(DISTINCT sa.id) as record_count,
             ROUND(SUM(COALESCE(sa.apply_area, 0)), 2) as total_apply_area,
+            ROUND(SUM(COALESCE(sa.apply_area_no_calc, 0)), 2) as total_apply_area_no_calc,
             ROUND(SUM(COALESCE(sa.contract_area, 0)), 2) as total_contract_area,
             ROUND(SUM(COALESCE(sa.trust_area, 0)), 2) as total_trust_area,
             ROUND(SUM(COALESCE(sa.no_subsidy_area, 0)), 2) as total_no_subsidy_area,
@@ -1886,6 +1887,7 @@ def get_stats_by_village(
             COUNT(DISTINCT fp.id) as farmer_count,
             COUNT(DISTINCT sp.id) as record_count,
             ROUND(SUM(COALESCE(sp.apply_area, 0)), 2) as total_apply_area,
+            ROUND(SUM(COALESCE(sp.apply_area_no_calc, 0)), 2) as total_apply_area_no_calc,
             ROUND(SUM(COALESCE(sp.contract_area, 0)), 2) as total_contract_area,
             ROUND(SUM(COALESCE(sp.trust_area, 0)), 2) as total_trust_area,
             ROUND(SUM(COALESCE(sp.no_subsidy_area, 0)), 2) as total_no_subsidy_area,
@@ -1926,6 +1928,7 @@ def get_stats_by_village(
         "farmer_count": 0,
         "record_count": 0,
         "total_apply_area": 0.0,
+        "total_apply_area_no_calc": 0.0,
         "total_contract_area": 0.0,
         "total_trust_area": 0.0,
         "total_no_subsidy_area": 0.0,
@@ -1938,6 +1941,7 @@ def get_stats_by_village(
             "farmer_count": r.farmer_count,
             "record_count": r.record_count,
             "total_apply_area": float(r.total_apply_area or 0),
+            "total_apply_area_no_calc": float(r.total_apply_area_no_calc or 0),
             "total_contract_area": float(r.total_contract_area or 0),
             "total_trust_area": float(r.total_trust_area or 0),
             "total_no_subsidy_area": float(r.total_no_subsidy_area or 0),
@@ -1948,13 +1952,14 @@ def get_stats_by_village(
         totals["farmer_count"] += stat["farmer_count"]
         totals["record_count"] += stat["record_count"]
         totals["total_apply_area"] += stat["total_apply_area"]
+        totals["total_apply_area_no_calc"] += stat["total_apply_area_no_calc"]
         totals["total_contract_area"] += stat["total_contract_area"]
         totals["total_trust_area"] += stat["total_trust_area"]
         totals["total_no_subsidy_area"] += stat["total_no_subsidy_area"]
         totals["total_amount"] += stat["total_amount"]
 
     # 对合计值进行四舍五入
-    for key in ["total_apply_area", "total_contract_area", "total_trust_area", "total_no_subsidy_area", "total_amount"]:
+    for key in ["total_apply_area", "total_apply_area_no_calc", "total_contract_area", "total_trust_area", "total_no_subsidy_area", "total_amount"]:
         totals[key] = round(totals[key], 2)
 
     # 找出没有数据/记录的村

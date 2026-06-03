@@ -214,6 +214,7 @@ export interface VillageAreaStats {
   farmer_count: number
   record_count: number
   total_apply_area: number
+  total_apply_area_no_calc: number
   total_contract_area: number
   total_trust_area: number
   total_no_subsidy_area: number

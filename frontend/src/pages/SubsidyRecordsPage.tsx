@@ -815,7 +815,8 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
                       <th className="px-3 py-2 text-left font-medium text-text-primary">村名</th>
                       <th className="px-3 py-2 text-right font-medium text-text-primary">农户数</th>
                       <th className="px-3 py-2 text-right font-medium text-text-primary">记录数</th>
-                      <th className="px-3 py-2 text-right font-medium text-text-primary">实际补贴面积(亩)</th>
+                      <th className="px-3 py-2 text-right font-medium text-text-primary">计入超限面积(亩)</th>
+                      <th className="px-3 py-2 text-right font-medium text-text-primary">不计超限面积(亩)</th>
                       <th className="px-3 py-2 text-right font-medium text-text-primary">承包地面积(亩)</th>
                       <th className="px-3 py-2 text-right font-medium text-text-primary">代耕代种面积(亩)</th>
                       <th className="px-3 py-2 text-right font-medium text-text-primary">不予补贴面积(亩)</th>
@@ -829,6 +830,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
                         <td className="px-3 py-2 text-right text-text-primary">{row.farmer_count}</td>
                         <td className="px-3 py-2 text-right text-text-primary">{row.record_count}</td>
                         <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_apply_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_apply_area_no_calc.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
                         <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_contract_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
                         <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_trust_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
                         <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_no_subsidy_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
@@ -840,6 +842,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
                       <td className="px-3 py-2 text-right text-text-primary">{areaStats.total.farmer_count}</td>
                       <td className="px-3 py-2 text-right text-text-primary">{areaStats.total.record_count}</td>
                       <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_apply_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_apply_area_no_calc.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
                       <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_contract_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
                       <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_trust_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
                       <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_no_subsidy_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
