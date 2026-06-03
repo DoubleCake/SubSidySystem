@@ -113,6 +113,12 @@ export default function ProjectProgressPage() {
 
   useEffect(() => { loadRecords() }, [loadRecords])
 
+  // 切换项目时重置筛选条件
+  useEffect(() => {
+    setSearchVillage('')
+    setStatusFilter('all')
+  }, [projectId])
+
   // 点击外部关闭下拉
   useEffect(() => {
     const h = (e: MouseEvent) => {
