@@ -3,7 +3,7 @@
  * 包含预申请/发放/代领三个Tab
  */
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+
 import Tag from '../components/Tag'
 import Modal from '../components/Modal'
 import ResultTable from '../components/ResultTable'
@@ -20,6 +20,7 @@ import PreApplyList from './PreApplyList'
 import DisbursementList from './DisbursementList'
 import ProxyList from './ProxyList'
 import PrecheckHistoryTab from '../components/PrecheckHistoryTab'
+import ProjectProgressTab from '../components/ProjectProgressTab'
 
 // 代领导入字段配置
 const PROXY_IMPORT_FIELDS = [
@@ -68,13 +69,12 @@ interface SubsidyRecordsPageProps {
 
 export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: SubsidyRecordsPageProps) {
   const { toast, show } = useToast()
-  const navigate = useNavigate()
 
   // Tab状态管理
-  const [activeTab, setActiveTab] = useState<'preApply' | 'disbursement' | 'proxy' | 'precheckHistory'>('preApply')
-  const switchTab = (tab: 'preApply' | 'disbursement' | 'proxy' | 'precheckHistory') => {
+  const [activeTab, setActiveTab] = useState<'preApply' | 'disbursement' | 'proxy' | 'precheckHistory' | 'projectProgress'>('preApply')
+  const switchTab = (tab: 'preApply' | 'disbursement' | 'proxy' | 'precheckHistory' | 'projectProgress') => {
     setActiveTab(tab)
-    if (tab !== 'precheckHistory') {
+    if (tab !== 'precheckHistory' && tab !== 'projectProgress') {
       setPage(1)
       setSelectedIds([])
     }
@@ -903,8 +903,10 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
           👥 代领关系
         </button>
         <button
-          onClick={() => navigate(`/project-progress?subsidy_type_id=${subsidyType.id}`)}
-          className="px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-text-muted hover:text-text-primary transition-colors"
+          onClick={() => switchTab('projectProgress')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'projectProgress' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text-primary'
+          }`}
         >
           📊 项目管理
         </button>
@@ -1072,6 +1074,10 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
           subsidyType={subsidyType}
           preCheckResults={preCheckResults}
         />
+      )}
+
+      {activeTab === 'projectProgress' && (
+        <ProjectProgressTab subsidyType={subsidyType} />
       )}
 
       {/* 预检结果展示 */}
