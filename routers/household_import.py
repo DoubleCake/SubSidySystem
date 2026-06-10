@@ -37,6 +37,8 @@ class ImportRow(BaseModel):
     bank_card: Optional[str] = None
     bank_name: Optional[str] = None
     gender: Optional[str] = None        # "男"/"女"，空则从身份证推断
+    household_code: Optional[str] = None # 家庭编码（分组依据，优先级高于地址）
+    farmer_status: Optional[str] = None  # 人员状态：死亡、移居、出国等
 
 
 class ImportRequest(BaseModel):
@@ -134,17 +136,34 @@ def _analyze_groups(rows: List[ImportRow], db: Session) -> List[dict]:
             "bank_card": row.bank_card,
             "bank_name": row.bank_name,
             "gender": _parse_gender(id_card, row.gender),
+            "household_code": (row.household_code or "").strip(),
+            "farmer_status": (row.farmer_status or "").strip(),
             "has_errors": bool(errs),
         })
 
-    # ── 按地址分组 ──
+    # ── 分组：优先按 household_code，其次按 address ──
     groups_map: dict[str, list] = {}
+    groups_meta: dict[str, dict] = {}  # 记录每组的 household_code
     for p in parsed:
-        if p["address"]:
-            groups_map.setdefault(p["address"], []).append(p)
+        code = p.get("household_code", "")
+        if code:
+            # 有编码的行按编码分组
+            key = f"CODE:{code}"
+            groups_map.setdefault(key, []).append(p)
+            groups_meta[key] = {"household_code": code}
+        elif p["address"]:
+            # 无编码的行按地址分组
+            key = f"ADDR:{p['address']}"
+            groups_map.setdefault(key, []).append(p)
+            groups_meta[key] = {"household_code": ""}
 
     groups = []
-    for address, members in groups_map.items():
+    for key, members in groups_map.items():
+        # 提取 household_code 和 display_address
+        household_code = groups_meta.get(key, {}).get("household_code", "")
+        # display key：去掉前缀用于展示
+        display_key = key.replace("CODE:", "").replace("ADDR:", "")
+
         # 找户主
         heads = [m for m in members if m["is_head"]]
         warnings = []
@@ -173,6 +192,18 @@ def _analyze_groups(rows: List[ImportRow], db: Session) -> List[dict]:
                     "group_no": hh.group_no if hh else None,
                 })
 
+        # 如果有 household_code，直接用编码查 DB 中的已有家庭户
+        code_matched_hh = None
+        if household_code:
+            code_matched_hh = db.query(FamilyHousehold).filter(
+                FamilyHousehold.household_code == household_code,
+                FamilyHousehold.status == 1
+            ).first()
+            if code_matched_hh:
+                matched_hh_ids.add(code_matched_hh.id)
+                if code_matched_hh.id not in all_households:
+                    all_households[code_matched_hh.id] = code_matched_hh
+
         # 确定村组信息：优先用户主已有家庭户，否则用任意匹配户
         target_village_id = None
         target_group_no = 1
@@ -186,6 +217,9 @@ def _analyze_groups(rows: List[ImportRow], db: Session) -> List[dict]:
             first = member_db_info[0]
             target_village_id = first["village_id"]
             target_group_no = first["group_no"] or 1
+        elif code_matched_hh:
+            target_village_id = code_matched_hh.village_id
+            target_group_no = code_matched_hh.group_no or 1
 
         # 合并场景判断
         matched_hh_ids_list = list(matched_hh_ids)
@@ -213,7 +247,8 @@ def _analyze_groups(rows: List[ImportRow], db: Session) -> List[dict]:
         ]
 
         groups.append({
-            "address": address,
+            "address": display_key,
+            "household_code": household_code,
             "head": head,
             "members": members,
             "member_count": len(members),
@@ -248,6 +283,7 @@ def preview_import(req: ImportRequest, db: Session = Depends(get_db)):
     for g in groups:
         preview_groups.append({
             "address": g["address"],
+            "household_code": g.get("household_code") or None,
             "action": g["action"],
             "head_name": g["head"]["real_name"],
             "head_id_card": g["head"]["id_card"],
@@ -330,8 +366,21 @@ def execute_import(req: ImportRequest, db: Session = Depends(get_db)):
                 vid = pending_v.id
 
             hh_counter += 1
+            # 若传入 household_code 则直接使用，否则自动生成
+            import_code = g.get("household_code", "")
+            if import_code:
+                # 校验编码唯一性
+                existing = db.query(FamilyHousehold).filter(
+                    FamilyHousehold.household_code == import_code
+                ).first()
+                if existing:
+                    import_errors.append(f"家庭编码「{import_code}」已存在（{existing.household_name}），跳过该组")
+                    continue
+                code = import_code
+            else:
+                code = gen_household_code(max_hh_id + hh_counter)
             new_hh = FamilyHousehold(
-                household_code=gen_household_code(max_hh_id + hh_counter),
+                household_code=code,
                 household_name=f"{head['real_name']}户",
                 head_farmer_id=None,
                 village_id=vid,
@@ -416,19 +465,50 @@ def execute_import(req: ImportRequest, db: Session = Depends(get_db)):
             ))
             merged_hh += 1
 
-        # ── 添加/跳过成员 ──
+        # ── 添加/更新成员 ──
         for m in members:
             if m["id_card"] in all_farmers:
-                # 已存在：不覆盖信息，但确保 household_id 更新到目标户（仅限 merge 场景）
-                if action != "create":
-                    existing_f = all_farmers[m["id_card"]]
-                    if existing_f.household_id != target_hh.id:
-                        existing_f.household_id = target_hh.id
+                # 已存在：用导入数据覆盖更新
+                existing_f = all_farmers[m["id_card"]]
+                existing_f.real_name = m["real_name"] or existing_f.real_name
+                existing_f.gender = m["gender"] or existing_f.gender
+                existing_f.relation = "户主" if m["is_head"] else (m["head_relation"] or existing_f.relation or "成员")
+                # 以下字段允许导入覆盖（含空值覆盖）
+                existing_f.phone = m["phone"] or None
+                existing_f.bank_card = m["bank_card"] or None
+                existing_f.bank_name = m["bank_name"] or None
+                # 状态：有明确状态值才覆盖
+                status_str = m.get("farmer_status", "")
+                if status_str:
+                    status_lower = status_str.lower()
+                    if any(kw in status_lower for kw in ["死亡", "去世", "deceased", "dead", "移居", "迁出", "moved", "出国", "overseas", "abroad", "失踪", "missing"]):
+                        existing_f.farmer_status = 0
+                    else:
+                        existing_f.farmer_status = 1
+                # 确保 household_id 更新到目标户（merge 场景）
+                if action != "create" and existing_f.household_id != target_hh.id:
+                    existing_f.household_id = target_hh.id
                 skipped_farmers += 1
                 continue
 
             # 新建成员
             relation = "户主" if m["is_head"] else (m["head_relation"] or "成员")
+            # 处理 farmer_status：映射常见状态值
+            status_str = m.get("farmer_status", "")
+            if status_str:
+                status_lower = status_str.lower()
+                if any(kw in status_lower for kw in ["死亡", "去世", "deceased", "dead"]):
+                    fs = 0  # 死亡/注销
+                elif any(kw in status_lower for kw in ["移居", "迁出", "moved", "移出"]):
+                    fs = 0
+                elif any(kw in status_lower for kw in ["出国", "overseas", "abroad"]):
+                    fs = 0
+                elif any(kw in status_lower for kw in ["失踪", "missing"]):
+                    fs = 0
+                else:
+                    fs = 1  # 默认正常
+            else:
+                fs = 1
             new_f = FarmerProfile(
                 household_id=target_hh.id,
                 real_name=m["real_name"],
@@ -438,7 +518,7 @@ def execute_import(req: ImportRequest, db: Session = Depends(get_db)):
                 bank_card=m["bank_card"] or None,
                 bank_name=m["bank_name"] or None,
                 relation=relation,
-                farmer_status=1,
+                farmer_status=fs,
             )
             db.add(new_f)
             db.flush()

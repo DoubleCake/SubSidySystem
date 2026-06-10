@@ -26,6 +26,8 @@ export interface FarmerOut {
   relation: string | null
   farmer_status: number
   restricted_identity?: number
+  death_date?: string | null
+  restrict_date?: string | null
   village_full_name: string
   contract_area: string | null
   address: string | null
@@ -64,6 +66,8 @@ export interface FarmerDetail {
   household_id: number; birth_date?: string
   id_card?: string; phone?: string; bank_card?: string
   restricted_identity?: number
+  death_date?: string | null
+  restrict_date?: string | null
   applications?: { id: number; apply_year: number; subsidy_name: string; calc_mode: string; apply_amount: string | null; actual_amount: string | null; apply_area: string | null; pay_status: number; pay_date: string | null; remark: string | null }[]
 }
 
@@ -580,7 +584,7 @@ export interface CheckResult {
   area_anomalies: Array<{ row: number; name: string; id_card: string; village: string; group: string; anomaly_type: string; anomaly_details: string; contract_area: number; trust_out_area: number; trust_in_area: number; no_subsidy_area: number; actual_subsidy_area: number; self_occupy: number; hh_used: number; hh_total: number; db_contract_area: number; reference_area: number; area_source: string; exceed_amount: number }>
   area_missing: Array<{ row: number; name: string; id_card: string; village: string; group: string; contract_area: number; error: string }>
   age_anomaly: Array<{ row: number; name: string; id_card: string; village: string; group: string; age: number; birth_year: number; error: string }>
-  deceased_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
+  deceased_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; death_date?: string | null; error: string }>
   restricted_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
   household_duplicates: Array<{ row: number; name: string; id_card: string; village: string; group: string; household_id: string; total_count: number; other_members: string[]; excel_remark: string; db_existing_apps: Array<{ real_name: string; subsidy_name: string; remark: string }> }>
   new_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; village_group_id: number | null }>

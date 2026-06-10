@@ -164,9 +164,10 @@ export const PRECHECK_TABLE_CONFIGS: Record<PrecheckErrorType, TableConfig> = {
   deceased_farmers: {
     field: 'deceased_farmers',
     title: (count) => `🚫 死亡农户（${count}条）— 该农户已标记为离世，不应出现在补贴名单中`,
-    headers: ['行号', '姓名', '身份证号', '所在村', '所在组', '说明'],
+    headers: ['行号', '姓名', '身份证号', '所在村', '所在组', '死亡日期', '说明'],
     rowMapper: (r) => [
       r.row, r.name, r.id_card, r.village, r.group,
+      <span key="dd" className="text-text-muted text-xs">{r.death_date || '—'}</span>,
       <span key="e" className="text-red-600 text-xs">{r.error}</span>,
     ],
   },

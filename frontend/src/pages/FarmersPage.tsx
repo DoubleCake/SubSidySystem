@@ -57,6 +57,11 @@ export default function FarmersPage() {
     return id ? Number(id) : null
   }
 
+  const getInitialYear = (): number => {
+    const y = searchParams.get('year')
+    return y ? Number(y) : new Date().getFullYear()
+  }
+
   // ── 左侧Tab ──
   const [leftTab, setLeftTab] = useState<LeftTab>(getInitialLeftTab)
 
@@ -78,7 +83,7 @@ export default function FarmersPage() {
   const [overdrawnOnly, setOverdrawnOnly] = useState(false)
   const [confirmedFilter, setConfirmedFilter] = useState<string>('') // ''=全部, '1'=已确认, '0'=未确认
   const [statusFilter, setStatusFilter] = useState<string>('1') // ''=全部, '1'=在册, '2'=注销, '3'=迁出
-  const yearFilter = new Date().getFullYear()
+  const [yearFilter, setYearFilter] = useState<number>(getInitialYear)
 
   // ── 批量确认状态 ──
   const [batchConfirmMode, setBatchConfirmMode] = useState(false)
@@ -93,9 +98,8 @@ export default function FarmersPage() {
 
   // ── 户详情 ──
   const [detail, setDetail] = useState<HHDetail | null>(null)
-  const detailYear = new Date().getFullYear()
   const [detailTab, setDetailTab] = useState<'members' | 'subsidy'>('members')
-  const [areaYear, setAreaYear] = useState(detailYear)
+  const [areaYear, setAreaYear] = useState(yearFilter)
   const [events, setEvents] = useState<HHEvent[]>([])
 
   // ── 历史快照 ──
@@ -125,6 +129,9 @@ export default function FarmersPage() {
   // ── 新建家庭户 ──
   const [createHhOpen, setCreateHhOpen] = useState(false)
   const [createHhForm, setCreateHhForm] = useState({ household_name: '', village_group_id: 0, contract_area: '', address: '', remark: '' })
+
+  // ── 工具栏收缩 ──
+  const [showToolbar, setShowToolbar] = useState(true)
 
   // ── 合并家庭户（内嵌模式） ──
   const [mergeMode, setMergeMode] = useState(false)
@@ -312,7 +319,7 @@ export default function FarmersPage() {
   }, [])
 
   // ── 更新 URL ──
-  const updateUrl = useCallback((params: { tab?: LeftTab; farmerId?: number | null; householdId?: number | null }) => {
+  const updateUrl = useCallback((params: { tab?: LeftTab; farmerId?: number | null; householdId?: number | null; year?: number }) => {
     const newParams = new URLSearchParams(searchParams)
     if (params.tab) {
       newParams.set('tab', params.tab)
@@ -332,6 +339,9 @@ export default function FarmersPage() {
       } else {
         newParams.delete('householdId')
       }
+    }
+    if (params.year !== undefined) {
+      newParams.set('year', String(params.year))
     }
     setSearchParams(newParams, { replace: true })
   }, [searchParams, setSearchParams])
@@ -363,7 +373,7 @@ export default function FarmersPage() {
       // 同时加载所属家庭户信息
       if (f.household_id) {
         try {
-          const hh = await api.getHouseholdDetail(f.household_id)
+          const hh = await api.getHouseholdDetail(f.household_id, yearFilter)
           setSelectedFarmerHousehold(hh)
           await loadHouseholdHistoryDates(f.household_id)
         } catch {
@@ -382,8 +392,8 @@ export default function FarmersPage() {
 
   // ── 打开户详情 ──
   const openDetail = async (id: number, skipUrlUpdate = false) => {
-    setAreaYear(detailYear)
-    const d = await api.getHouseholdDetail(id, detailYear)
+    setAreaYear(yearFilter)
+    const d = await api.getHouseholdDetail(id, yearFilter)
     setDetail(d); setDetailTab('members'); setEvents([]); setSelectedFarmer(null); setSelectedFarmerHousehold(null)
     setHistoryEventId(null); setSnapshotData(null)
     // 打开详情时清除合并和批量确认状态
@@ -436,12 +446,12 @@ export default function FarmersPage() {
   // ── 刷新户详情 ──
   const refreshDetail = async () => {
     if (detail) {
-      const d = await api.getHouseholdDetail(detail.id)
+      const d = await api.getHouseholdDetail(detail.id, yearFilter)
       setDetail(d)
     }
     if (selectedFarmer?.household_id) {
       try {
-        const hh = await api.getHouseholdDetail(selectedFarmer.household_id)
+        const hh = await api.getHouseholdDetail(selectedFarmer.household_id, yearFilter)
         setSelectedFarmerHousehold(hh)
       } catch {
         setSelectedFarmerHousehold(null)
@@ -516,6 +526,11 @@ export default function FarmersPage() {
   useEffect(() => {
     if (detail || selectedFarmerHousehold) loadEvents()
   }, [detail?.id, selectedFarmerHousehold?.id, loadEvents])
+
+  // ── 筛选年份变化时，同步 areaYear ──
+  useEffect(() => {
+    setAreaYear(yearFilter)
+  }, [yearFilter])
 
   // ── 年份切换时，重新获取该年度的流转数据和面积信息 ──
   useEffect(() => {
@@ -1024,6 +1039,12 @@ export default function FarmersPage() {
           </select>
           {leftTab === 'households' && (
             <>
+              <select value={yearFilter} onChange={e => { setYearFilter(Number(e.target.value)); setHhPage(1); updateUrl({ year: Number(e.target.value) }) }}
+                className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all">
+                {Array.from({ length: 21 }, (_, i) => new Date().getFullYear() - 10 + i).map(y => (
+                  <option key={y} value={y}>{y}年</option>
+                ))}
+              </select>
               <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setHhPage(1) }}
                 className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all">
                 <option value="">全部状态</option>
@@ -1042,50 +1063,65 @@ export default function FarmersPage() {
         </div>
 
         {/* 工具栏 - 操作按钮 */}
-        <div className="flex gap-2 mb-3 flex-wrap">
-          {leftTab === 'households' && !mergeMode && (
-            <>
-              <div className="flex gap-2 flex-wrap">
-                <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
-                  <Icon name="create" size={14} className="inline mr-1" />创建新家庭户
-                </button>
-                <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]); setHhPage(1) }}
-                  className="px-3 py-2 text-sm border border-orange-tag/30  bg-[#f7edd8] text-[#B8860B] rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium bg-orange-tag/5">
-                  <Icon name="merge" size={14} className="inline mr-1" />合并家庭户
-                </button>
-                <button onClick={exportCurrentList} className="px-3 py-2 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30 shadow-card hover:shadow-card-hover transition-all font-medium">
-                  <Icon name="export" size={14} className="inline mr-1" />导出
-                </button>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <button onClick={() => { setConfirmedAreaRows([]); setConfirmedAreaImportResult(null); setConfirmedAreaImportOpen(true) }}
-                  className="px-3 py-2 text-sm border border-blue-200 text-blue-700 rounded-btn hover:bg-blue-50 shadow-card hover:shadow-card-hover transition-all font-medium">
-                  <Icon name="upload" size={14} className="inline mr-1" />导入确权面积
-                </button>
-                <button onClick={() => { setBatchConfirmMode(true); setBatchSelected([]); setBatchSelectedHouseholds([]); setMergeMode(false); setMergeSelected([]); setMergeSelectedHouseholds([]) }}
-                  className="px-3 py-2 text-sm border border-primary/20 text-primary bg-[#e3e7ec] rounded-btn hover:bg-primary/5 shadow-card hover:shadow-card-hover transition-all font-medium bg-primary/[0.02]">
-                  <Icon name="confirm" size={14} className="inline mr-1" />批量确认
-                </button>
-                <button onClick={() => handleRefreshCache()} disabled={refreshingCache}
-                  className="px-3 py-2 bg-[#edeaed]  hover:brightness-95 text-sm border-2 border-danger/30 text-danger bg-danger/5 rounded-btn hover:bg-danger/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-purple-700 ">
-                  <Icon name="refresh" size={14} className="inline mr-1" />
-                  {refreshingCache ? '刷新中…' : '刷新缓存'}
-                </button>
-                <button onClick={handleRecalcUnconfirmedArea} disabled={recalculatingArea}
-                  className="px-3 py-2 text-sm border-2 border-orange-tag/30 text-[#B8860B] bg-orange-tag/5 rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
-                  <Icon name="area" size={14} className="inline mr-1" />
-                  {recalculatingArea ? '计算中…' : '重算未确认户承包面积'}
-                </button>
-              </div>
-              <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer bg-warm/30  px-3 py-2 rounded-btn border border-border shadow-card hover:bg-warm/50 transition-all">
-                <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-primary rounded" />
-                <span className="font-medium">仅看超领</span>
-              </label>
-              <button onClick={exportOverdrawnDetail}
-                className="px-3 py-2 text-sm border border-orange-tag/30 text-[#B8860B] bg-orange-tag/5 rounded-btn hover:bg-orange-tag/10 shadow-card hover:shadow-card-hover transition-all font-medium whitespace-nowrap">
-                <Icon name="export" size={14} className="inline mr-1" />导出超限明细
-              </button>
-            </>
+        <div className="mb-3">
+          {/* 收缩栏头部 */}
+          {leftTab === 'households' && !mergeMode && !batchConfirmMode && (
+            <button
+              onClick={() => setShowToolbar(v => !v)}
+              className="flex items-center gap-2 text-sm text-text-muted hover:text-text-primary transition-colors mb-2 w-full"
+            >
+              <span className={`inline-block transition-transform text-xs ${showToolbar ? 'rotate-90' : ''}`}>▸</span>
+              <span className="font-medium">操作工具</span>
+              <span className="text-xs text-text-muted/60 ml-2">{showToolbar ? '点击收起' : '点击展开'}</span>
+            </button>
+          )}
+          {showToolbar && (
+            <div className="flex gap-2 flex-wrap">
+              {leftTab === 'households' && !mergeMode && (
+                <>
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
+                      <Icon name="create" size={14} className="inline mr-1" />创建新家庭户
+                    </button>
+                    <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]); setHhPage(1) }}
+                      className="px-3 py-2 text-sm border border-orange-tag/30  bg-[#f7edd8] text-[#B8860B] rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium bg-orange-tag/5">
+                      <Icon name="merge" size={14} className="inline mr-1" />合并家庭户
+                    </button>
+                    <button onClick={exportCurrentList} className="px-3 py-2 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30 shadow-card hover:shadow-card-hover transition-all font-medium">
+                      <Icon name="export" size={14} className="inline mr-1" />导出
+                    </button>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={() => { setConfirmedAreaRows([]); setConfirmedAreaImportResult(null); setConfirmedAreaImportOpen(true) }}
+                      className="px-3 py-2 text-sm border border-blue-200 text-blue-700 rounded-btn hover:bg-blue-50 shadow-card hover:shadow-card-hover transition-all font-medium">
+                      <Icon name="upload" size={14} className="inline mr-1" />导入确权面积
+                    </button>
+                    <button onClick={() => { setBatchConfirmMode(true); setBatchSelected([]); setBatchSelectedHouseholds([]); setMergeMode(false); setMergeSelected([]); setMergeSelectedHouseholds([]) }}
+                      className="px-3 py-2 text-sm border border-primary/20 text-primary bg-[#e3e7ec] rounded-btn hover:bg-primary/5 shadow-card hover:shadow-card-hover transition-all font-medium bg-primary/[0.02]">
+                      <Icon name="confirm" size={14} className="inline mr-1" />批量确认
+                    </button>
+                    <button onClick={() => handleRefreshCache()} disabled={refreshingCache}
+                      className="px-3 py-2 bg-[#edeaed]  hover:brightness-95 text-sm border-2 border-danger/30 text-danger bg-danger/5 rounded-btn hover:bg-danger/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-purple-700 ">
+                      <Icon name="refresh" size={14} className="inline mr-1" />
+                      {refreshingCache ? '刷新中…' : '刷新缓存'}
+                    </button>
+                    <button onClick={handleRecalcUnconfirmedArea} disabled={recalculatingArea}
+                      className="px-3 py-2 text-sm border-2 border-orange-tag/30 text-[#B8860B] bg-orange-tag/5 rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
+                      <Icon name="area" size={14} className="inline mr-1" />
+                      {recalculatingArea ? '计算中…' : '重算未确认户承包面积'}
+                    </button>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer bg-warm/30  px-3 py-2 rounded-btn border border-border shadow-card hover:bg-warm/50 transition-all">
+                    <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-primary rounded" />
+                    <span className="font-medium">仅看超领</span>
+                  </label>
+                  <button onClick={exportOverdrawnDetail}
+                    className="px-3 py-2 text-sm border border-orange-tag/30 text-[#B8860B] bg-orange-tag/5 rounded-btn hover:bg-orange-tag/10 shadow-card hover:shadow-card-hover transition-all font-medium whitespace-nowrap">
+                    <Icon name="export" size={14} className="inline mr-1" />导出超限明细
+                  </button>
+                </>
+              )}
+            </div>
           )}
         </div>
 

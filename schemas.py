@@ -100,6 +100,8 @@ class FarmerUpdate(BaseModel):
     contract_area: Optional[Decimal] = None
     farmer_status: Optional[int] = None
     restricted_identity: Optional[int] = None
+    death_date: Optional[date] = None
+    restrict_date: Optional[date] = None
     remark: Optional[str] = None
 
 class FarmerOut(BaseModel):
@@ -115,6 +117,8 @@ class FarmerOut(BaseModel):
     relation: Optional[str]
     farmer_status: int
     restricted_identity: int
+    death_date: Optional[date] = None
+    restrict_date: Optional[date] = None
     village_full_name: str             # 冗余展示用
     contract_area: Optional[Decimal]
     address: Optional[str]
@@ -129,6 +133,8 @@ class FarmerDetail(FarmerOut):
     id_card: str
     phone: Optional[str]
     bank_card: Optional[str]
+    death_date: Optional[date] = None
+    restrict_date: Optional[date] = None
 
 
 # ───────────── 补贴类型 ─────────────

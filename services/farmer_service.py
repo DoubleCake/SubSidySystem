@@ -30,7 +30,7 @@ from utils import (
 _COLS = """
     fp.id, fp.household_id, fp.real_name, fp.gender, fp.id_card,
     fp.phone, fp.bank_card, fp.bank_name, fp.relation,
-    fp.farmer_status, fp.remark, fp.created_at,
+    fp.farmer_status, fp.restricted_identity, fp.death_date, fp.restrict_date, fp.remark, fp.created_at,
     hh.contract_area, hh.address, hh.household_code, hh.head_farmer_id,
     fp.own_village_id, fp.own_group_no,
     COALESCE(fv.village_name, v.village_name, '未知村') || format_group_no(COALESCE(fp.own_group_no, hh.group_no, 1)) AS village_full_name,
@@ -57,6 +57,9 @@ def _to_list(r) -> dict:
         "is_head":          1 if m.get("head_farmer_id") and m.get("id") == m.get("head_farmer_id") else 0,
         "relation":         m.get("relation"),
         "farmer_status":    m.get("farmer_status") or 1,
+        "restricted_identity": m.get("restricted_identity") or 0,
+        "death_date":       str(m["death_date"]) if m.get("death_date") else None,
+        "restrict_date":    str(m["restrict_date"]) if m.get("restrict_date") else None,
         "village_full_name": m.get("village_full_name") or "—",
         "contract_area":    m.get("contract_area"),
         "address":          m.get("address"),
@@ -219,7 +222,9 @@ def create_farmer(db: Session, data: dict) -> dict:
 # ═══════════════════════════════════════════
 
 def update_farmer(db: Session, farmer_id: int, data: dict) -> dict:
-    """更新农户信息，处理户主变更/家庭户状态"""
+    """更新农户信息，处理户主变更/家庭户状态。状态变更为死亡时自动记录死亡日期。"""
+    from datetime import date as date_type
+
     farmer = db.get(FarmerProfile, farmer_id)
     if not farmer:
         raise NotFound("农户不存在")
@@ -229,6 +234,8 @@ def update_farmer(db: Session, farmer_id: int, data: dict) -> dict:
     # village_id / group_no 写入农户个人字段
     new_village_id = data.pop("village_id", None)
     new_group_no = data.pop("group_no", None)
+    new_death_date = data.pop("death_date", None)
+    new_restrict_date = data.pop("restrict_date", None)
 
     # id_card 变更需校验唯一性
     new_id_card = data.get("id_card")
@@ -239,6 +246,26 @@ def update_farmer(db: Session, farmer_id: int, data: dict) -> dict:
         ).first()
         if existing:
             raise BadRequest(f"身份证号 {new_id_card} 已被农户 {existing.real_name} 使用")
+
+    # 状态变更为死亡(4)时自动记录死亡日期
+    new_farmer_status = data.get("farmer_status")
+    if new_farmer_status == 4 and farmer.farmer_status != 4:
+        if new_death_date:
+            farmer.death_date = new_death_date
+        elif not farmer.death_date:
+            farmer.death_date = date_type.today()
+    elif new_death_date is not None:
+        farmer.death_date = new_death_date
+
+    # 受限身份变更为受限(1)时自动记录日期
+    new_restricted = data.get("restricted_identity")
+    if new_restricted == 1 and farmer.restricted_identity != 1:
+        if new_restrict_date:
+            farmer.restrict_date = new_restrict_date
+        elif not farmer.restrict_date:
+            farmer.restrict_date = date_type.today()
+    elif new_restrict_date is not None:
+        farmer.restrict_date = new_restrict_date
 
     hh_fields = {k: data.pop(k) for k in ("address", "contract_area") if k in data}
     for k, v in data.items():

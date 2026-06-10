@@ -606,9 +606,9 @@ export function HouseholdDetailContent({
                         </span>
                       )
                     })()}
-                    {a.apply_area != null && (
-                      <span className="text-xs text-text-muted font-mono" title={`计入超限 ${a.apply_area}亩 / 不计超限 ${a.apply_area_no_calc || 0}亩`}>
-                        <span>{Number(a.apply_area).toFixed(2)}</span>
+                    {(a.apply_area != null || a.apply_area_no_calc != null) && (
+                      <span className="text-xs text-text-muted font-mono" title={`计入超限 ${a.apply_area || 0}亩 / 不计超限 ${a.apply_area_no_calc || 0}亩`}>
+                        <span>{Number(a.apply_area || 0).toFixed(2)}</span>
                         {a.apply_area_no_calc ? <span className="text-text-muted/50">+{Number(a.apply_area_no_calc).toFixed(2)}</span> : null}亩
                       </span>
                     )}

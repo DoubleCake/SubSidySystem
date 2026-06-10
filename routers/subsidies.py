@@ -34,11 +34,14 @@ router = APIRouter(prefix="/api/subsidies", tags=["补贴管理"])
 @router.get("/types")
 def list_subsidy_types(
     year: Optional[int] = Query(None),
+    status: Optional[int] = Query(1, description="1=正常 0=已删除"),
     db: Session = Depends(get_db),
 ):
     q = db.query(SubsidyType)
     if year:
         q = q.filter(SubsidyType.subsidy_year == year)
+    if status is not None:
+        q = q.filter(SubsidyType.status == status)
     return q.order_by(SubsidyType.subsidy_year.desc()).all()
 
 
@@ -53,7 +56,8 @@ def list_comparable_types(
     """
     types = db.query(SubsidyType).filter(
         SubsidyType.category == category,
-        SubsidyType.id != current_type_id
+        SubsidyType.id != current_type_id,
+        SubsidyType.status == 1,
     ).order_by(SubsidyType.subsidy_year.desc()).all()
     
     return [{"id": t.id, "subsidy_name": t.subsidy_name, "subsidy_year": t.subsidy_year} for t in types]
@@ -111,10 +115,18 @@ def update_subsidy_type(type_id: int, data: dict, db: Session = Depends(get_db),
 
 @router.delete("/types/{type_id}")
 def delete_subsidy_type(type_id: int, db: Session = Depends(get_db)):
-    """删除补贴项目（会级联删除相关的补贴申请记录）"""
+    """软删除补贴项目（标记 status=0，保留关联数据）"""
     from services.subsidy_service import delete_type
     delete_type(db, type_id)
-    return {"message": "删除成功"}
+    return {"message": "项目已移入回收站"}
+
+
+@router.post("/types/{type_id}/restore")
+def restore_subsidy_type(type_id: int, db: Session = Depends(get_db)):
+    """恢复已删除的补贴项目"""
+    from services.subsidy_service import restore_type
+    restore_type(db, type_id)
+    return {"message": "项目已恢复"}
 
 
 @router.get("/types/{type_id}/check-config")
@@ -333,7 +345,10 @@ def list_types_with_stats(
     db: Session = Depends(get_db),
 ):
     from sqlalchemy import text
-    where = "WHERE st.subsidy_year = :year" if year else ""
+    where_clauses = ["st.status = 1"]
+    if year:
+        where_clauses.append("st.subsidy_year = :year")
+    where = "WHERE " + " AND ".join(where_clauses)
     params = {"year": year} if year else {}
 
     sql = text(f"""
@@ -771,6 +786,7 @@ def precheck_applications(
                 "contract_area": f.household.contract_area if f.household and f.household.contract_area else 0,
                 "farmer_status": f.farmer_status,
                 "restricted_identity": getattr(f, 'restricted_identity', 0),
+                "death_date": f.death_date,
                 "household_id": f.household_id,
             }
 
@@ -1035,13 +1051,30 @@ def precheck_applications(
             except Exception:
                 pass
 
-        # 死亡农户检查
+        # 死亡农户检查（考虑死亡日期与项目年份的关系）
         if id_card in db_farmers and db_farmers[id_card].get("farmer_status") == 4:
-            deceased_farmers.append({
-                "row": row_no, "name": name, "id_card": id_card,
-                "village": village, "group": group,
-                "error": "该农户已标记为离世，不应出现在补贴名单中",
-            })
+            death_date = db_farmers[id_card].get("death_date")
+            # 如果项目年份在死亡日期之前，则该农户在项目时仍然在世，不算已故
+            if death_date and compare_year:
+                death_year = death_date.year if hasattr(death_date, 'year') else int(str(death_date)[:4])
+                if compare_year < death_year:
+                    # 项目年份在死亡年份之前，不算问题
+                    pass
+                else:
+                    deceased_farmers.append({
+                        "row": row_no, "name": name, "id_card": id_card,
+                        "village": village, "group": group,
+                        "death_date": str(death_date) if death_date else None,
+                        "error": f"该农户已标记为离世（死亡日期：{death_date}），项目年份{compare_year}年不应享受补贴",
+                    })
+            else:
+                # 无死亡日期记录，按原逻辑处理
+                deceased_farmers.append({
+                    "row": row_no, "name": name, "id_card": id_card,
+                    "village": village, "group": group,
+                    "death_date": str(death_date) if death_date else None,
+                    "error": "该农户已标记为离世，不应出现在补贴名单中",
+                })
 
         # 受限身份检查（公务员/事业人员等不可享受补贴）
         if id_card in db_farmers and db_farmers[id_card].get("restricted_identity") == 1:

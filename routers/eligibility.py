@@ -142,9 +142,15 @@ def check_eligibility(payload: dict, db: Session = Depends(get_db)):
 
             # 1. 农户状态检查
             if rule.require_farmer_status is not None:
-                if fp.farmer_status != rule.require_farmer_status:
+                # 死亡状态特殊处理：如果项目年份在死亡日期之前，视为在世
+                effective_status = fp.farmer_status
+                if fp.farmer_status == 4 and fp.death_date and year:
+                    death_year = fp.death_date.year
+                    if year < death_year:
+                        effective_status = 1  # 项目年份在死亡之前，视为在册
+                if effective_status != rule.require_farmer_status:
                     status_map = {1:"在册",2:"注销",3:"迁出",4:"死亡"}
-                    actual = status_map.get(fp.farmer_status, str(fp.farmer_status))
+                    actual = status_map.get(effective_status, str(effective_status))
                     required = status_map.get(rule.require_farmer_status, str(rule.require_farmer_status))
                     issues.append(f"【{rule.rule_name}】农户状态为「{actual}」，要求「{required}」")
 

@@ -114,8 +114,13 @@ export const previewMultiHeadHouseholds = (villageNames: string[], excelRows: Fa
   )
 
 // ── 补贴类型 ──
-export const getSubsidyTypes = (year?: number) =>
-  req<SubsidyType[]>('/api/subsidies/types' + (year ? `?year=${year}` : ''))
+export const getSubsidyTypes = (year?: number, status?: number) => {
+  const params = new URLSearchParams()
+  if (year) params.set('year', String(year))
+  if (status !== undefined) params.set('status', String(status))
+  const qs = params.toString()
+  return req<SubsidyType[]>('/api/subsidies/types' + (qs ? `?${qs}` : ''))
+}
 
 export const getSubsidyTypesWithStats = (year?: number) =>
   req<(SubsidyType & { app_count: number; beneficiary_count: number; total_apply: number; total_actual: number })[]>(
@@ -133,6 +138,9 @@ export const getCheckConfig = (typeId: number) =>
 
 export const updateCheckConfig = (typeId: number, config: CheckConfig) =>
   req('/api/subsidies/types/' + typeId + '/check-config', { method: 'PUT', body: JSON.stringify(config) })
+
+export const restoreSubsidyType = (typeId: number) =>
+  req<{ message: string }>('/api/subsidies/types/' + typeId + '/restore', { method: 'POST' })
 
 // ── 预检历史 ──
 export const savePrecheckHistory = (
@@ -460,11 +468,14 @@ export interface HouseholdImportRow {
   bank_card?: string
   bank_name?: string
   gender?: string
+  household_code?: string
+  farmer_status?: string
 }
 
 export interface HouseholdImportPreview {
   groups: {
     address: string
+    household_code?: string
     action: 'create' | 'merge_one' | 'merge_multi'
     head_name: string
     head_id_card: string

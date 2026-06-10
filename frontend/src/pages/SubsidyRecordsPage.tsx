@@ -1059,6 +1059,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
           setVillages={setVillages}
           show={show}
           load={load}
+          onSearch={() => { setPage(1); setSearchTrigger(n => n + 1) }}
           handleFilterChange={handleFilterChange}
           handleSearchChange={handleSearchChange}
           clearFilters={clearFilters}

@@ -68,6 +68,7 @@ interface DisbursementListProps {
   // 回调函数
   show: (msg: string, type?: 'ok' | 'err') => void
   load: () => void
+  onSearch?: () => void
   handleFilterChange: (field: string, value: string) => void
   handleSearchChange: (value: string) => void
   clearFilters: () => void
@@ -125,6 +126,7 @@ export default function DisbursementList({
   setVillages,
   show,
   load,
+  onSearch,
   handleFilterChange,
   handleSearchChange,
   clearFilters,
@@ -307,7 +309,7 @@ export default function DisbursementList({
   }
 
   // Excel导入
-  const handleImport = async (rows: Record<string, unknown>[], mapping?: Record<string, string>): Promise<{ created: number; skipped: number; errors: string[] }> => {
+  const handleImport = async (rows: Record<string, unknown>[], mapping?: Record<string, string>, overwrite?: boolean): Promise<{ created: number; skipped: number; errors: string[]; updated?: number }> => {
     const toCreate: Record<string, unknown>[] = []
     const errors: string[] = []
 
@@ -345,29 +347,84 @@ export default function DisbursementList({
         village_name: villageName || undefined,
         group_no: groupNo || undefined,
         subsidy_type_id: subsidyType.id,
-        payment_year: subsidyType.subsidy_year,
+        apply_year: subsidyType.subsidy_year,
         apply_area: area,
         apply_area_no_calc: applyAreaNoCalc,
         contract_area: contractArea || undefined,
         trust_area: trustArea || undefined,
         no_subsidy_area: noSubsidyArea,
-        amount,
-        payment_date: String(row['pay_date'] || row['打款日期'] || '').trim() || undefined,
+        apply_amount: amount,
+        actual_amount: amount,
+        pay_status: 0,
+        pay_date: String(row['pay_date'] || row['打款日期'] || '').trim() || undefined,
         remark: String(row['remark'] || row['备注'] || '').trim() || undefined,
         proxy_remark: String(row['proxy_remark'] || row['代领备注'] || '').trim() || undefined,
       })
     }
     if (errors.length && !toCreate.length) return { created: 0, skipped: 0, errors }
 
-    // 发放记录导入（独立表）
+    // 资格规则检查
+    try {
+      const checkPayload = {
+        subsidy_type_id: subsidyType.id,
+        year: subsidyType.subsidy_year,
+        rows: toCreate.map(r => ({
+          id_card: String(r.id_card || ''),
+          real_name: String(r.real_name || ''),
+          apply_area: r.apply_area,
+        })),
+      }
+      const chk = await fetch('/api/eligibility/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(checkPayload),
+      }).then(r => r.json()) as {
+        passed: number; failed: number; warning: number; rules_applied: number
+        passed_list: { id_card: string }[]
+        failed_list: { real_name: string; id_card_masked: string; issues: string[] }[]
+        warning_list: { real_name: string; id_card_masked: string; warnings: string[] }[]
+      }
+      if (chk.rules_applied > 0 && (chk.failed > 0 || chk.warning > 0)) {
+        const passedIds = new Set(chk.passed_list.map(p => p.id_card))
+        const passedRows = toCreate.filter(r => passedIds.has(String(r.id_card || '')))
+        if (passedRows.length === 0) return { created: 0, skipped: 0, errors: [`规则检查：全部 ${chk.failed} 条不通过`] }
+        const paymentRows = passedRows.map(r => ({
+          farmer_id: r.farmer_id,
+          id_card: r.id_card,
+          real_name: r.real_name,
+          subsidy_type_id: r.subsidy_type_id,
+          payment_year: subsidyType.subsidy_year,
+          amount: r.apply_amount,
+          payment_date: r.pay_date,
+          apply_area: r.apply_area,
+          apply_area_no_calc: r.apply_area_no_calc,
+          contract_area: r.contract_area,
+          trust_area: r.trust_area,
+          no_subsidy_area: r.no_subsidy_area,
+          remark: r.remark,
+          proxy_remark: r.proxy_remark,
+        }))
+        const res2 = await fetch('/api/subsidies/payments/batch-import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rows: paymentRows, overwrite: overwrite || false }),
+        }).then(r => r.json()) as { created: number; skipped: number; errors: string[]; new_farmers?: number; updated?: number }
+        const newMsg = res2.new_farmers ? `，新建农户 ${res2.new_farmers} 人` : ''
+        const updMsg = res2.updated ? `，覆盖 ${res2.updated} 条` : ''
+        show(`✓ 通过规则 ${chk.passed} 条，导入 ${res2.created} 条${updMsg}；规则拒绝 ${chk.failed} 条${newMsg}`)
+        load()
+        return { ...res2, errors: [...errors, ...(res2.errors || [])] }
+      }
+    } catch (_) { /* 规则引擎出错不阻断 */ }
+
     const paymentRows = toCreate.map(r => ({
       farmer_id: r.farmer_id,
       id_card: r.id_card,
       real_name: r.real_name,
       subsidy_type_id: r.subsidy_type_id,
       payment_year: subsidyType.subsidy_year,
-      amount: r.amount,
-      payment_date: r.payment_date,
+      amount: r.apply_amount,
+      payment_date: r.pay_date,
       apply_area: r.apply_area,
       apply_area_no_calc: r.apply_area_no_calc,
       contract_area: r.contract_area,
@@ -379,9 +436,11 @@ export default function DisbursementList({
     const res = await fetch('/api/subsidies/payments/batch-import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rows: paymentRows }),
-    }).then(r => r.json()) as { created: number; skipped: number; errors: string[] }
-    show(`✓ 导入 ${res.created} 条发放记录，跳过 ${res.skipped} 条`)
+      body: JSON.stringify({ rows: paymentRows, overwrite: overwrite || false }),
+    }).then(r => r.json()) as { created: number; skipped: number; errors: string[]; new_farmers?: number; updated?: number }
+    const newMsg = res.new_farmers ? `，新建农户 ${res.new_farmers} 人` : ''
+    const updMsg = res.updated ? `，覆盖 ${res.updated} 条` : ''
+    show(`✓ 导入 ${res.created} 条${updMsg}，跳过 ${res.skipped} 条${newMsg}`)
     load()
     return { ...res, errors: [...errors, ...(res.errors || [])] }
   }
@@ -417,6 +476,57 @@ export default function DisbursementList({
     }
   }
 
+  // Excel导入预检查
+  const handlePreCheck = async (rows: Record<string, unknown>[], mapping?: Record<string, string>) => {
+    const mappedRows = rows.map((row, idx) => {
+      const mapped: Record<string, unknown> = { ...row }
+      if (mapping) {
+        for (const [excelCol, systemField] of Object.entries(mapping)) {
+          if (row[excelCol] !== undefined) mapped[systemField] = row[excelCol]
+        }
+      }
+      mapped._row_index = idx
+      return mapped
+    })
+
+    const checkPayload = {
+      subsidy_type_id: subsidyType.id,
+      year: subsidyType.subsidy_year,
+      rows: mappedRows.map(r => ({
+        id_card: String(r.id_card || r['身份证号*'] || r['身份证号'] || ''),
+        real_name: String(r.real_name || r['姓名*'] || r['姓名'] || ''),
+        apply_area: Number(r.apply_area || 0),
+        _row_index: r._row_index,
+      })),
+    }
+
+    const chk = await fetch('/api/eligibility/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(checkPayload),
+    }).then(r => r.json()) as {
+      passed_list: Array<{ id_card: string; id_card_masked: string; real_name: string; issues: string[]; warnings: string[]; _row_index?: number }>
+      failed_list: Array<{ id_card: string; id_card_masked: string; real_name: string; issues: string[]; _row_index?: number }>
+      warning_list: Array<{ id_card: string; id_card_masked: string; real_name: string; warnings: string[]; _row_index?: number }>
+    }
+
+    return {
+      passed_rows: (chk.passed_list || []).map(r => r._row_index).filter(i => i != null) as number[],
+      failed_rows: (chk.failed_list || []).map(r => ({
+        index: r._row_index ?? 0,
+        real_name: r.real_name,
+        id_card_masked: r.id_card_masked,
+        issues: r.issues,
+      })),
+      warning_rows: (chk.warning_list || []).map(r => ({
+        index: r._row_index ?? 0,
+        real_name: r.real_name,
+        id_card_masked: r.id_card_masked,
+        warnings: r.warnings,
+      })),
+    }
+  }
+
   const SORTABLE_COLS: Record<string, string> = {
     '计入超限面积': 'apply_area',
     '不计超限面积': 'apply_area_no_calc',
@@ -433,17 +543,17 @@ export default function DisbursementList({
   const selectedTmpl = templates.find(t => t.id) || null
   const IMPORT_HEADERS = selectedTmpl
     ? selectedTmpl.column_mapping.filter(m => m.system_field).map(m => m.excel_column + (m.required ? '*' : ''))
-    : ['身份证号*', '姓名*', '实发金额', '承包地面积(亩)', '代耕代种面积(亩)', '不予补贴面积(亩)', '打款日期', '所在村', '所在组', '备注', '代领备注']
+    : ['身份证号*', '姓名*', '计入超限面积', '不计入超限面积', '实发金额', '承包地面积(亩)', '代耕代种面积(亩)', '不予补贴面积(亩)', '打款日期', '所在村', '所在组', '备注', '代领备注']
   const IMPORT_EXAMPLE = selectedTmpl
     ? [Object.fromEntries(selectedTmpl.column_mapping.filter(m => m.system_field).map(m => {
         const sample: Record<string, unknown> = {
-          id_card: '510123196503154231', real_name: '张国强', actual_amount: 420,
-          contract_area: 2.5, trust_area: 1.0, pay_date: `${subsidyType.subsidy_year}-07-15`,
+          id_card: '510123196503154231', real_name: '张国强', apply_area: 3.5, apply_area_no_calc: 0.0,
+          actual_amount: 420, contract_area: 2.5, trust_area: 1.0, pay_date: `${subsidyType.subsidy_year}-07-15`,
           village_name: '红星村', group_no: '一组', remark: '', proxy_remark: '',
         }
         return [m.excel_column, sample[m.system_field!] ?? '']
       }))]
-    : [{ '身份证号*': '510123196503154231', '姓名*': '张国强', '实发金额': 420, '承包地面积(亩)': 2.5, '代耕代种面积(亩)': 1.0, '不予补贴面积(亩)': 0.5, '打款日期': `${subsidyType.subsidy_year}-07-15`, '所在村': '红星村', '所在组': '一组', '备注': '', '代领备注': '' }]
+    : [{ '身份证号*': '510123196503154231', '姓名*': '张国强', '计入超限面积': 3.5, '不计入超限面积': 0.0, '实发金额': 420, '承包地面积(亩)': 2.5, '代耕代种面积(亩)': 1.0, '不予补贴面积(亩)': 0.5, '打款日期': `${subsidyType.subsidy_year}-07-15`, '所在村': '红星村', '所在组': '一组', '备注': '', '代领备注': '' }]
 
   const detectExcelColumns = async (columns: string[], sampleRows: Record<string, unknown>[]) => {
     try {
@@ -519,7 +629,7 @@ export default function DisbursementList({
           <div className="flex items-center gap-1 flex-1 min-w-[200px] max-w-[300px]">
             <input type="text" value={search} onChange={e => handleSearchChange(e.target.value)}
               placeholder="姓名/身份证" className="flex-1 border border-border rounded-btn px-2 py-1.5 text-xs outline-none" />
-            <button onClick={() => setPage(1)} className="px-2 py-1 text-xs bg-primary  rounded-btn hover:bg-primary/90">搜索</button>
+            <button onClick={() => onSearch ? onSearch() : setPage(1)} className="px-2 py-1 text-xs bg-primary rounded-btn hover:bg-primary/90">搜索</button>
           </div>
           <button onClick={clearFilters} className="text-xs text-text-muted hover:text-text-primary border border-border px-2 py-1 rounded"
             disabled={Object.values(filters).every(v => !v) && !search}>清除</button>
@@ -772,10 +882,12 @@ export default function DisbursementList({
         templateExample={IMPORT_EXAMPLE}
         systemFields={SUBSIDY_IMPORT_FIELDS}
         templates={templates}
+        overwriteOption={true}
         onDetectColumns={detectExcelColumns}
         onSaveTemplate={saveColumnMappingTemplate}
         onImport={handleImport}
-        onSuccess={load} />
+        onSuccess={load}
+        preCheck={handlePreCheck} />
     </>
   )
 }

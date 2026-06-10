@@ -55,6 +55,8 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, group
         bank_name: selectedFarmer.bank_name || '',
         farmer_status: String(selectedFarmer.farmer_status),
         restricted_identity: String(selectedFarmer.restricted_identity ?? 0),
+        death_date: selectedFarmer.death_date || '',
+        restrict_date: selectedFarmer.restrict_date || '',
         remark: selectedFarmer.remark || '',
       })
     }
@@ -84,6 +86,8 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, group
       bank_name: fd.bank_name || '',
       farmer_status: String(fd.farmer_status),
       restricted_identity: String(fd.restricted_identity ?? 0),
+      death_date: fd.death_date || '',
+      restrict_date: fd.restrict_date || '',
       remark: fd.remark || '',
     }
     for (const k of Object.keys(editForm)) {
@@ -121,6 +125,8 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, group
       if (changes.bank_name) body.bank_name = changes.bank_name
       if (changes.farmer_status) body.farmer_status = Number(changes.farmer_status)
       if (changes.restricted_identity) body.restricted_identity = Number(changes.restricted_identity)
+      if (changes.death_date) body.death_date = changes.death_date || null
+      if (changes.restrict_date) body.restrict_date = changes.restrict_date || null
       if (changes.remark !== undefined) body.remark = changes.remark
       await updateFarmer(fd.id, body as any)
       setEditMode(false)
@@ -255,6 +261,16 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, group
                     <option value="1">受限制</option>
                   </select>
                 </EditField>
+                {ef('farmer_status') === '4' && (
+                  <EditField label="死亡日期">
+                    <input type="date" value={ef('death_date')} onChange={e => setEditForm(f => ({ ...f, death_date: e.target.value }))} className={ic} />
+                  </EditField>
+                )}
+                {ef('restricted_identity') === '1' && (
+                  <EditField label="受限日期">
+                    <input type="date" value={ef('restrict_date')} onChange={e => setEditForm(f => ({ ...f, restrict_date: e.target.value }))} className={ic} />
+                  </EditField>
+                )}
                 <EditField label="备注">
                   <textarea value={ef('remark')} onChange={e => setEditForm(f => ({ ...f, remark: e.target.value }))} className={`${ic} min-h-[60px] resize-y`} />
                 </EditField>
@@ -265,7 +281,9 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, group
                   ['银行卡号', <span key="bc" className="font-mono text-xs text-amber-600 select-all">{fd.bank_card || fd.bank_card_masked || '—'}</span>],
                   ['开户行', fd.bank_name || '—'],
                   ['农户状态', <Tag key="st" label={FARMER_STATUS[fd.farmer_status]?.label ?? '未知'} color={FARMER_STATUS[fd.farmer_status]?.color as 'green'} />],
+                  ...(fd.farmer_status === 4 ? [['死亡日期', fd.death_date ? fd.death_date.slice(0, 10) : '—']] as const : []),
                   ['受限身份', <Tag key="ri" label={RESTRICTED_IDENTITY[fd.restricted_identity ?? 0]?.label ?? '无限制'} color={(RESTRICTED_IDENTITY[fd.restricted_identity ?? 0]?.color ?? 'green') as 'green' | 'red'} />],
+                  ...(fd.restricted_identity === 1 ? [['受限日期', fd.restrict_date ? fd.restrict_date.slice(0, 10) : '—']] as const : []),
                   ['备注', fd.remark || '—'],
                   ['录入时间', fd.created_at ? fd.created_at.slice(0, 10) : '—'],
                 ].map(([k, v], i) => (

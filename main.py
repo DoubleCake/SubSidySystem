@@ -271,6 +271,9 @@ def migrate_db():
         "ALTER TABLE large_farmer_trust ADD COLUMN payment_status VARCHAR(20)",
         # 农户受限身份标记
         "ALTER TABLE farmer_profile ADD COLUMN restricted_identity SMALLINT DEFAULT 0",
+        # 农户死亡日期和受限日期
+        "ALTER TABLE farmer_profile ADD COLUMN death_date DATE",
+        "ALTER TABLE farmer_profile ADD COLUMN restrict_date DATE",
         # 创建大户地块表
         """CREATE TABLE IF NOT EXISTS large_farmer_parcel (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -327,6 +330,8 @@ def migrate_db():
         "ALTER TABLE large_farmer ADD COLUMN responsible_person VARCHAR(100)",
         "ALTER TABLE large_farmer ADD COLUMN planting_location VARCHAR(200)",
         "ALTER TABLE large_farmer ADD COLUMN org_code VARCHAR(50)",
+        # 补贴项目软删除
+        "ALTER TABLE subsidy_type ADD COLUMN status SMALLINT NOT NULL DEFAULT 1",
     ]
     with engine.connect() as conn:
         for sql in migrations:

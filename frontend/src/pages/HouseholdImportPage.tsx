@@ -35,6 +35,8 @@ export default function HouseholdImportPage() {
     bank_card:    '',
     bank_name:    '',
     gender:       '',
+    household_code: '',
+    farmer_status: '',
   })
 
   // 步骤：1=上传, 2=列映射, 3=预览, 4=结果
@@ -71,6 +73,8 @@ export default function HouseholdImportPage() {
         bank_card:    guess(['银行卡', '卡号']),
         bank_name:    guess(['开户行', '银行名']),
         gender:       guess(['性别', '男女']),
+        household_code: guess(['家庭编码', '户编码', '编码', '户号']),
+        farmer_status: guess(['状态', '人员状态', '农户状态']),
       })
       setStep(2)
     }
@@ -88,6 +92,8 @@ export default function HouseholdImportPage() {
       bank_card:    colMap.bank_card ? (r[colMap.bank_card] || '').trim() || undefined : undefined,
       bank_name:    colMap.bank_name ? (r[colMap.bank_name] || '').trim() || undefined : undefined,
       gender:       colMap.gender ? (r[colMap.gender] || '').trim() || undefined : undefined,
+      household_code: colMap.household_code ? (r[colMap.household_code] || '').trim() || undefined : undefined,
+      farmer_status: colMap.farmer_status ? (r[colMap.farmer_status] || '').trim() || undefined : undefined,
     }))
 
   // ── 预览 ──
@@ -204,7 +210,9 @@ export default function HouseholdImportPage() {
               { key: 'real_name',    label: '姓名', required: true },
               { key: 'id_card',      label: '身份证号', required: true },
               { key: 'address',      label: '家庭住址（分组依据）', required: true },
-              { key: 'head_relation',label: '户主关系', required: false },
+              { key: 'household_code',label: '家庭编码（分组依据，可选）', required: false },
+              { key: 'head_relation',label: '与户主关系（户主、儿子、女儿等）', required: false },
+              { key: 'farmer_status',label: '状态（死亡、移居、出国等）', required: false },
               { key: 'phone',        label: '手机号', required: false },
               { key: 'bank_card',    label: '银行卡号', required: false },
               { key: 'bank_name',    label: '开户行', required: false },
@@ -311,6 +319,9 @@ export default function HouseholdImportPage() {
                       <span className="text-text-muted text-xs w-4">{expanded ? '▾' : '▸'}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ac.color}`}>{ac.label}</span>
                       <span className="text-sm text-text-primary flex-1 truncate">{g.address}</span>
+                      {g.household_code && (
+                        <span className="text-xs font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20">{g.household_code}</span>
+                      )}
                       <span className="text-xs text-text-muted">{g.member_count} 人</span>
                       <span className="text-xs text-text-muted">户主：{g.head_name}</span>
                       {g.target_village_name && (

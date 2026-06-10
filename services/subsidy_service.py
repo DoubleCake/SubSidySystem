@@ -256,10 +256,12 @@ def get_village_snapshot_simple(db: Session, farmer: FarmerProfile) -> dict:
 #  补贴类型
 # ═══════════════════════════════════════════
 
-def list_types(db: Session, year: Optional[int] = None) -> list:
+def list_types(db: Session, year: Optional[int] = None, status: Optional[int] = 1) -> list:
     q = db.query(SubsidyType)
     if year:
         q = q.filter(SubsidyType.subsidy_year == year)
+    if status is not None:
+        q = q.filter(SubsidyType.status == status)
     return q.order_by(SubsidyType.subsidy_year.desc()).all()
 
 
@@ -283,22 +285,24 @@ def update_type(db: Session, type_id: int, data: dict) -> SubsidyType:
 
 
 def delete_type(db: Session, type_id: int) -> None:
+    """软删除：标记 status=0，保留关联申请记录"""
     st = db.get(SubsidyType, type_id)
     if not st:
         raise NotFound("补贴项目不存在")
-    # 先查出受影响的家庭户
-    affected = db.execute(text("""
-        SELECT DISTINCT fp.household_id
-        FROM subsidy_application sa
-        JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
-        WHERE sa.subsidy_type_id = :type_id AND fp.household_id IS NOT NULL
-    """), {"type_id": type_id}).fetchall()
-    hh_ids = [r[0] for r in affected if r[0]]
-    db.execute(text("DELETE FROM subsidy_application WHERE subsidy_type_id = :id"), {"id": type_id})
-    db.execute(text("DELETE FROM subsidy_type WHERE id = :id"), {"id": type_id})
+    st.status = 0
     db.commit()
-    if hh_ids:
-        recalc_household_cache(db, hh_ids)
+
+
+def restore_type(db: Session, type_id: int) -> SubsidyType:
+    """恢复已删除的补贴项目"""
+    st = db.get(SubsidyType, type_id)
+    if not st:
+        raise NotFound("补贴项目不存在")
+    if st.status == 1:
+        raise ValueError("该项目未被删除，无需恢复")
+    st.status = 1
+    db.commit()
+    return st
 
 
 # ═══════════════════════════════════════════
@@ -404,7 +408,7 @@ def batch_import_applications(
             key = (farmer.id, row.get("subsidy_type_id"), row.get("apply_year"), (row.get("pay_status") or 0))
             if key in duplicate_set or key in seen_in_batch:
                 if overwrite and key in duplicate_set:
-                    # ── 覆盖更新现有记录 ──
+                    # ── 覆盖更新现有记录（完全覆盖，含空值） ──
                     exist_app = db.query(SubsidyApplication).filter(
                         SubsidyApplication.farmer_id == key[0],
                         SubsidyApplication.subsidy_type_id == key[1],
@@ -413,13 +417,14 @@ def batch_import_applications(
                     ).first()
                     if exist_app:
                         row["farmer_id"] = farmer.id
-                        # 更新非空字段
                         for fld in ("apply_amount", "actual_amount", "apply_area",
                                     "apply_area_no_calc", "contract_area", "trust_area", "no_subsidy_area",
                                     "pay_date", "remark", "pay_status"):
                             val = row.get(fld)
-                            if val is not None and val != '':
-                                setattr(exist_app, fld, val)
+                            # 空字符串视为 None（清空旧值）
+                            if val == '':
+                                val = None
+                            setattr(exist_app, fld, val)
                         affected_households.add(farmer.household_id)
                         updated += 1
                 else:
@@ -769,8 +774,10 @@ def batch_import_payments(db: Session, rows: list[dict], overwrite: bool = False
                                     "apply_area_no_calc", "contract_area", "trust_area", "no_subsidy_area",
                                     "bank_card", "bank_name", "remark", "proxy_remark"):
                             val = row.get(fld)
-                            if val is not None and val != '':
-                                setattr(exist_pay, fld, val)
+                            # 空字符串视为 None（清空旧值）
+                            if val == '':
+                                val = None
+                            setattr(exist_pay, fld, val)
                         if farmer.household_id:
                             affected_households.add(farmer.household_id)
                         updated += 1

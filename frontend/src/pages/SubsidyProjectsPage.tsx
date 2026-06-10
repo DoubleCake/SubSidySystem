@@ -39,6 +39,9 @@ export default function SubsidyProjectsPage() {
   const [types, setTypes] = useState<StatsType[]>([])
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [showTrash, setShowTrash] = useState(false)  // 回收站模式
+  const [deletedTypes, setDeletedTypes] = useState<SubsidyType[]>([])
+  const [restoring, setRestoring] = useState<number | null>(null)  // 正在恢复的项目ID
   const [activeType, setActiveType] = useState<StatsType | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [editing, setEditing] = useState<SubsidyType | null>(null)
@@ -69,6 +72,11 @@ export default function SubsidyProjectsPage() {
     try { setTypes(await api.getSubsidyTypesWithStats(yearFilter) as StatsType[]) }
     finally { setLoading(false) }
   }, [yearFilter])
+
+  const loadDeletedTypes = async () => {
+    try { setDeletedTypes(await api.getSubsidyTypes(yearFilter, 0)) }
+    catch { /* ignore */ }
+  }
 
   useEffect(() => { loadTypes() }, [loadTypes])
 
@@ -133,13 +141,34 @@ export default function SubsidyProjectsPage() {
     try {
       const response = await fetch(`/api/subsidies/types/${type_id}`, { method: 'DELETE' })
       if (!response.ok) throw new Error('删除失败')
-      show('✓ 项目删除成功')
+      show('✓ 项目已移入回收站')
       loadTypes()
+      if (showTrash) loadDeletedTypes()
     } catch (error) {
       show('删除失败：' + (error as Error).message, 'err')
     } finally {
       setDeleting(false)
     }
+  }
+
+  const restoreProject = async (type_id: number) => {
+    setRestoring(type_id)
+    try {
+      await api.restoreSubsidyType(type_id)
+      show('✓ 项目已恢复')
+      loadDeletedTypes()
+      loadTypes()
+    } catch (error) {
+      show('恢复失败：' + (error as Error).message, 'err')
+    } finally {
+      setRestoring(null)
+    }
+  }
+
+  const toggleTrash = () => {
+    const next = !showTrash
+    setShowTrash(next)
+    if (next) loadDeletedTypes()
   }
 
   if (activeType) {
@@ -154,7 +183,11 @@ export default function SubsidyProjectsPage() {
           {years.map(y => <option key={y} value={y}>{y}年</option>)}
         </select>
         <span className="text-xs text-text-muted">共 {types.length} 个项目</span>
-        <button onClick={openAdd} className="">＋ 新增项目</button>
+        <button onClick={openAdd} className="px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary/90 transition-all">＋ 新增项目</button>
+        <button onClick={toggleTrash}
+          className={`px-3 py-2 text-sm border rounded-btn transition-all ${showTrash ? 'bg-amber-50 border-amber-300 text-amber-700' : 'border-border text-text-muted hover:bg-warm/30'}`}>
+          🗑️ 回收站{deletedTypes.length > 0 && <span className="ml-1 text-amber-600">({deletedTypes.length})</span>}
+        </button>
       </div>
 
       <div className="bg-blue-50 border border-blue-100 rounded-card px-4 py-3 mb-4 text-xs text-blue-700">
@@ -208,7 +241,7 @@ export default function SubsidyProjectsPage() {
                   编辑项目
                 </button>
                 <button onClick={() => {
-                  if (confirm(`确定要删除项目「${t.subsidy_name}」吗？\n\n⚠️ 警告：此操作会同时删除该项目下的所有补贴申请记录，且无法恢复！`)) {
+                  if (confirm(`确定要删除项目「${t.subsidy_name}」吗？\n\n删除后项目将移入回收站，关联的申请记录会被保留。可在回收站中恢复。`)) {
                     deleteProject(t.id)
                   }
                 }}
@@ -232,6 +265,41 @@ export default function SubsidyProjectsPage() {
         thisYear={thisYear}
         onCheckConfigChange={cfg => { pendingCheckConfig.current = cfg }}
       />
+
+      {/* 回收站 */}
+      {showTrash && (
+        <div className="mt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-sm font-bold text-text-primary">🗑️ 回收站</span>
+            <span className="text-xs text-text-muted">已删除项目（关联数据已保留）</span>
+          </div>
+          {deletedTypes.length === 0 ? (
+            <div className="text-center py-8 bg-white border border-border rounded-card text-text-muted/50 text-sm">
+              回收站为空
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              {deletedTypes.map(t => (
+                <div key={t.id} className="bg-amber-50/50 border border-amber-200 rounded-card px-4 py-3 flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-text-muted line-through">{t.subsidy_name}</span>
+                      <Tag label={`${t.subsidy_year}年`} color="gray" />
+                      {t.season && <Tag label={t.season} color="gray" />}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => restoreProject(t.id)}
+                    disabled={restoring === t.id}
+                    className="px-3 py-1.5 text-xs bg-emerald-500 text-white rounded-btn hover:bg-emerald-600 disabled:opacity-50 transition-all whitespace-nowrap">
+                    {restoring === t.id ? '恢复中…' : '↩ 恢复项目'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 删除中遮罩 */}
       {deleting && (

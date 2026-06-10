@@ -85,6 +85,8 @@ class FarmerProfile(Base):
                               comment="个人所在村（出嫁/迁居等，NULL=与家庭户相同）")
     own_group_no     = Column(SmallInteger, nullable=True,
                               comment="个人所在组（NULL=与家庭户相同）")
+    death_date       = Column(Date, nullable=True, comment="死亡日期（状态变更为死亡时记录）")
+    restrict_date    = Column(Date, nullable=True, comment="受限身份标记日期")
     remark           = Column(Text, nullable=True)
     created_at       = Column(DateTime, default=func.now())
     updated_at       = Column(DateTime, default=func.now(), onupdate=func.now())
@@ -125,6 +127,8 @@ class SubsidyType(Base):
     count_toward_area  = Column(SmallInteger, nullable=False, default=1,
                                 comment="1=按亩补贴累计入家庭承包面积 0=不计入（固定金额补贴一般选0）")
     check_config    = Column(Text, nullable=True, comment="预检配置（JSON）")
+    status          = Column(SmallInteger, nullable=False, default=1,
+                             comment="状态：1=正常 0=已删除（软删除）")
     created_at      = Column(DateTime, default=func.now())
 
     # 关联
