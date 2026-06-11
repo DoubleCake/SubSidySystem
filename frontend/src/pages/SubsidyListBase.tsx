@@ -47,6 +47,8 @@ export interface SubsidyListConfig {
   importFields?: { field: string; label: string; required: boolean; type: string }[]
   /** 编辑时额外字段设置 */
   onOpenEditExtra?: (a: ApplicationSearchResult) => Partial<Record<string, unknown>>
+  /** 导入行字段映射（发放列表用于 apply_year→payment_year 等字段名转换） */
+  buildImportRow?: (common: Record<string, unknown>) => Record<string, unknown>
 }
 
 const DEFAULT_IMPORT_FIELDS = [
@@ -258,7 +260,8 @@ export default function SubsidyListBase({
         remark: String(row['remark'] || row['备注'] || '').trim() || undefined,
         proxy_remark: String(row['proxy_remark'] || row['代领备注'] || '').trim() || undefined,
       }
-      toCreate.push({ ...common, apply_amount: amount, actual_amount: undefined, pay_status: 0, pay_date: undefined })
+      const rowData = { ...common, apply_amount: amount, actual_amount: undefined, pay_status: 0, pay_date: undefined }
+      toCreate.push(config.buildImportRow ? config.buildImportRow(rowData) : rowData)
     }
     if (errors.length && !toCreate.length) return { created: 0, skipped: 0, errors }
     // 资格检查
