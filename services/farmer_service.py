@@ -748,3 +748,156 @@ def _split_multi_head_households(db: Session, village_names: list[str]) -> dict:
         "migrated_members": migrated_members,
         "details": split_details,
     }
+
+
+# ═══════════════════════════════════════════
+#  人员模糊匹配
+# ═══════════════════════════════════════════
+
+def match_people(db: Session, rows: list[dict]) -> dict:
+    """
+    根据输入的 姓名+村名+电话 模糊匹配数据库中的农户。
+    返回每个输入行的匹配结果及置信度。
+
+    匹配策略（按优先级）：
+    1. 电话精确匹配 → 置信度 high
+    2. 姓名精确 + 村名包含 → 置信度 high
+    3. 姓名精确（跨村）→ 置信度 medium
+    4. 姓名模糊（相似度≥0.7）→ 置信度 low
+    5. 电话部分匹配（后8位）→ 置信度 medium
+    """
+    from difflib import SequenceMatcher
+    from models import Village
+
+    # 预加载所有农户 + 关联村名
+    all_farmers = db.query(FarmerProfile).all()
+    farmer_data: list[dict] = []
+    for f in all_farmers:
+        village_name = ""
+        if f.household and f.household.village:
+            village_name = f.household.village.village_name
+        farmer_data.append({
+            "id": f.id,
+            "real_name": f.real_name,
+            "phone": (f.phone or "").strip(),
+            "id_card": f.id_card,
+            "village_name": village_name,
+            "farmer_status": f.farmer_status,
+        })
+
+    # 构建电话索引
+    phone_index: dict[str, list[dict]] = {}
+    for fd in farmer_data:
+        p = fd["phone"]
+        if p:
+            phone_index.setdefault(p, []).append(fd)
+            # 后8位索引
+            if len(p) >= 8:
+                tail = p[-8:]
+                phone_index.setdefault("tail:" + tail, []).append(fd)
+
+    results = []
+    for i, row in enumerate(rows):
+        name = (row.get("name") or row.get("real_name") or row.get("姓名") or row.get("名字") or "").strip()
+        village = (row.get("village") or row.get("village_name") or row.get("村名") or row.get("村") or "").strip()
+        phone = (row.get("phone") or row.get("电话号码") or row.get("电话") or row.get("手机") or "").strip()
+        # 清洗电话
+        clean_phone = "".join(c for c in phone if c.isdigit())
+
+        candidates: list[dict] = []
+        matched_by = ""
+        confidence = "none"
+
+        if not name and not clean_phone:
+            results.append({
+                "index": i, "input": {"name": name, "village": village, "phone": phone},
+                "matches": [], "matched_by": "", "confidence": "none",
+                "warning": "缺少姓名和电话，无法匹配",
+            })
+            continue
+
+        # 1. 电话精确匹配
+        if clean_phone and clean_phone in phone_index:
+            candidates = phone_index[clean_phone]
+            matched_by = "phone_exact"
+            confidence = "high"
+
+        # 2. 姓名精确 + 村名包含
+        if not candidates and name:
+            for fd in farmer_data:
+                if fd["real_name"] == name and village and village in fd["village_name"]:
+                    candidates.append(fd)
+            if candidates:
+                matched_by = "name_village"
+                confidence = "high"
+
+        # 3. 姓名精确（跨村）
+        if not candidates and name:
+            for fd in farmer_data:
+                if fd["real_name"] == name:
+                    candidates.append(fd)
+            if candidates:
+                matched_by = "name_exact"
+                confidence = "medium"
+
+        # 4. 姓名模糊匹配
+        if not candidates and name:
+            best_score = 0.0
+            best_fd = None
+            for fd in farmer_data:
+                score = SequenceMatcher(None, name, fd["real_name"]).ratio()
+                if score >= 0.65 and score > best_score:
+                    best_score = score
+                    best_fd = fd
+            if best_fd and best_score >= 0.7:
+                candidates = [best_fd]
+                matched_by = f"name_fuzzy({best_score:.0%})"
+                confidence = "low"
+            elif best_fd and best_score >= 0.65:
+                candidates = [best_fd]
+                matched_by = f"name_fuzzy({best_score:.0%})"
+                confidence = "low"
+
+        # 5. 电话后8位匹配
+        if not candidates and clean_phone and len(clean_phone) >= 8:
+            tail_key = "tail:" + clean_phone[-8:]
+            if tail_key in phone_index:
+                candidates = phone_index[tail_key]
+                matched_by = "phone_tail"
+                confidence = "medium"
+
+        # 去重
+        seen = set()
+        unique_candidates = []
+        for c in candidates:
+            if c["id"] not in seen:
+                seen.add(c["id"])
+                unique_candidates.append(c)
+
+        results.append({
+            "index": i,
+            "input": {"name": name, "village": village, "phone": phone},
+            "matches": [{
+                "farmer_id": c["id"],
+                "real_name": c["real_name"],
+                "village_name": c["village_name"],
+                "phone": c["phone"],
+                "id_card": c["id_card"],
+                "farmer_status": c["farmer_status"],
+            } for c in unique_candidates[:5]],  # 最多返回5个
+            "matched_by": matched_by,
+            "confidence": confidence,
+            "match_count": len(unique_candidates),
+        })
+
+    # 统计
+    high = sum(1 for r in results if r["confidence"] == "high")
+    medium = sum(1 for r in results if r["confidence"] == "medium")
+    low = sum(1 for r in results if r["confidence"] == "low")
+    none = sum(1 for r in results if r["confidence"] == "none")
+
+    return {
+        "total": len(results),
+        "summary": {"high": high, "medium": medium, "low": low, "none": none},
+        "results": results,
+    }

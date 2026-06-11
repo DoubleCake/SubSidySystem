@@ -78,7 +78,6 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       setPage(1)
       setSelectedIds([])
     }
-    setAreaStats(null)
   }
 
   // 两个列表分别维护独立的搜索和筛选状态
@@ -668,7 +667,6 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
 
   // 加载面积统计数据
   const loadAreaStats = useCallback(async () => {
-    if (!areaStatsExpanded) return
     setLoadingAreaStats(true)
     try {
       const dataSource = activeTab === 'disbursement' ? 'payment' : 'application'
@@ -680,7 +678,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     } finally {
       setLoadingAreaStats(false)
     }
-  }, [subsidyType.id, subsidyType.subsidy_year, areaStatsExpanded, activeTab, show])
+  }, [subsidyType.id, subsidyType.subsidy_year, activeTab, show])
 
   // 导出面积统计Excel
   const handleExportAreaStats = () => {
@@ -695,9 +693,10 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
 
   useEffect(() => {
     if (areaStatsExpanded) {
+      setAreaStats(null)
       loadAreaStats()
     }
-  }, [areaStatsExpanded, loadAreaStats])
+  }, [areaStatsExpanded, activeTab, loadAreaStats])
 
   // 数据概览展开/收起状态
   const [statsExpanded, setStatsExpanded] = useState(false)
@@ -719,11 +718,12 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       {/* 数据概览 - 可折叠下拉框 */}
       <div className="mb-4 bg-white border border-border rounded-card shadow-card overflow-hidden">
         <button
-          onClick={() => setStatsExpanded(!statsExpanded)}
+          onClick={() => setStatsExpanded(prev => !prev)}
           className="w-full flex items-center justify-between px-4 py-3 hover:bg-warm/30 transition-colors"
         >
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-text-primary">📊 数据概览</span>
+            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">预申请</span>
             {statsExpanded && (
               <span className="text-xs text-text-muted">发放总额 ¥{stats.totalAmount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })} · {stats.totalFarmers}人 · 总面积 {stats.totalArea}亩 · {stats.villageDistribution.length}个村</span>
             )}
@@ -773,11 +773,18 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       {/* 面积统计 - 可折叠下拉框 */}
       <div className="mb-4 bg-white border border-border rounded-card shadow-card overflow-hidden">
         <button
-          onClick={() => setAreaStatsExpanded(!areaStatsExpanded)}
+          onClick={() => setAreaStatsExpanded(prev => !prev)}
           className="w-full flex items-center justify-between px-4 py-3 hover:bg-warm/30 transition-colors"
         >
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-text-primary">📐 面积统计</span>
+            {activeTab === 'disbursement' ? (
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">发放</span>
+            ) : activeTab === 'preApply' ? (
+              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">预申请</span>
+            ) : (
+              <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">预申请</span>
+            )}
             {areaStatsExpanded && areaStats && (
               <span className="text-xs text-text-muted">
                 合计：{areaStats.total.total_apply_area}亩 / {areaStats.by_village.length}个村
@@ -812,47 +819,49 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-warm/30 border-b border-border">
-                      <th className="px-3 py-2 text-left font-medium text-text-primary">村名</th>
-                      <th className="px-3 py-2 text-right font-medium text-text-primary">农户数</th>
-                      <th className="px-3 py-2 text-right font-medium text-text-primary">记录数</th>
-                      <th className="px-3 py-2 text-right font-medium text-text-primary">计入超限面积(亩)</th>
-                      <th className="px-3 py-2 text-right font-medium text-text-primary">不计超限面积(亩)</th>
-                      <th className="px-3 py-2 text-right font-medium text-text-primary">承包地面积(亩)</th>
-                      <th className="px-3 py-2 text-right font-medium text-text-primary">代耕代种面积(亩)</th>
-                      <th className="px-3 py-2 text-right font-medium text-text-primary">不予补贴面积(亩)</th>
-                      <th className="px-3 py-2 text-right font-medium text-text-primary">补贴金额(元)</th>
+                      <th className="px-3 py-2 text-left font-medium text-text-primary text-sm">村名</th>
+                      <th className="px-1.5 py-2 text-right font-medium text-text-primary text-sm">农户数</th>
+                      <th className="px-1.5 py-2 text-right font-medium text-text-primary text-sm">记录数</th>
+                      <th className="px-1.5 py-2 text-center font-medium text-text-primary text-[11px] leading-tight max-w-[60px]">计入超限<br/>面积(亩)</th>
+                      <th className="px-1.5 py-2 text-center font-medium text-text-primary text-[11px] leading-tight max-w-[60px]">不计超限<br/>面积(亩)</th>
+                      <th className="px-1.5 py-2 text-center font-medium text-text-primary text-[11px] leading-tight max-w-[60px]">承包地<br/>面积(亩)</th>
+                      <th className="px-1.5 py-2 text-center font-medium text-text-primary text-[11px] leading-tight max-w-[60px]">代耕代种<br/>面积(亩)</th>
+                      <th className="px-1.5 py-2 text-center font-medium text-text-primary text-[11px] leading-tight max-w-[60px]">不予补贴<br/>面积(亩)</th>
+                      <th className="px-1.5 py-2 text-right font-medium text-text-primary text-sm">金额(元)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100">
                     {areaStats.by_village.map((row, idx) => (
                       <tr key={idx} className="hover:bg-warm/30">
                         <td className="px-3 py-2 text-text-primary">{row.village}</td>
-                        <td className="px-3 py-2 text-right text-text-primary">{row.farmer_count}</td>
-                        <td className="px-3 py-2 text-right text-text-primary">{row.record_count}</td>
-                        <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_apply_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_apply_area_no_calc.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_contract_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_trust_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_no_subsidy_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right font-mono text-primary">¥{row.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-1.5 py-2 text-right text-text-primary">{row.farmer_count}</td>
+                        <td className="px-1.5 py-2 text-right text-text-primary">{row.record_count}</td>
+                        <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{row.total_apply_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{row.total_apply_area_no_calc.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{row.total_contract_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{row.total_trust_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{row.total_no_subsidy_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-1.5 py-2 text-right font-mono text-primary text-xs">¥{row.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
                       </tr>
                     ))}
                     <tr className="bg-warm/30 font-semibold">
                       <td className="px-3 py-2 text-text-primary">{areaStats.total.village}</td>
-                      <td className="px-3 py-2 text-right text-text-primary">{areaStats.total.farmer_count}</td>
-                      <td className="px-3 py-2 text-right text-text-primary">{areaStats.total.record_count}</td>
-                      <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_apply_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                      <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_apply_area_no_calc.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                      <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_contract_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                      <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_trust_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                      <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_no_subsidy_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                      <td className="px-3 py-2 text-right font-mono text-primary">¥{areaStats.total.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-1.5 py-2 text-right text-text-primary">{areaStats.total.farmer_count}</td>
+                      <td className="px-1.5 py-2 text-right text-text-primary">{areaStats.total.record_count}</td>
+                      <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{areaStats.total.total_apply_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{areaStats.total.total_apply_area_no_calc.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{areaStats.total.total_contract_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{areaStats.total.total_trust_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{areaStats.total.total_no_subsidy_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-1.5 py-2 text-right font-mono text-primary text-xs">¥{areaStats.total.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
                     </tr>
                   </tbody>
                 </table>
-                <div className="mt-2 text-xs text-text-muted">
-                  数据来源：{areaStats.data_source === 'payment' ? '发放记录' : '预申请记录'}
-                  {areaStats.by_village.length > 0 && ' · 代领记录已去重，仅统计受益人'}
+                <div className="mt-2 text-xs text-text-muted flex items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded-full font-medium text-xs ${areaStats.data_source === 'payment' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                    {areaStats.data_source === 'payment' ? '发放数据' : '预申请数据'}
+                  </span>
+                  {areaStats.by_village.length > 0 && '· 代领记录已去重，仅统计受益人'}
                 </div>
                 {areaStats.villages_without_data && areaStats.villages_without_data.length > 0 && (
                   <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-card">
@@ -964,7 +973,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
                   </button>
                 )}
                 <button onClick={() => setAddOpen(true)}
-                  className="px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
+                  className="px-3 py-2 text-sm border-2 border-green-500 bg-green-500 text-white rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-medium">
                   ＋ 批量导入
                 </button>
               </div>

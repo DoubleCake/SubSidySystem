@@ -124,3 +124,29 @@ def import_family_relations(req: ImportFamilyRelationsRequest, db: Session = Dep
         db, [r.model_dump() for r in req.rows],
         split_villages=req.split_villages
     )
+
+
+class MatchPeopleRow(BaseModel):
+    name: Optional[str] = None
+    real_name: Optional[str] = None
+    village: Optional[str] = None
+    village_name: Optional[str] = None
+    phone: Optional[str] = None
+    # 支持中文列名
+    姓名: Optional[str] = None
+    名字: Optional[str] = None
+    村名: Optional[str] = None
+    村: Optional[str] = None
+    电话号码: Optional[str] = None
+    电话: Optional[str] = None
+    手机: Optional[str] = None
+
+
+class MatchPeopleRequest(BaseModel):
+    rows: list[dict]
+
+
+@router.post("/match-people")
+def match_people(req: MatchPeopleRequest, db: Session = Depends(get_db)):
+    """人员模糊匹配：输入姓名+村名+电话，匹配数据库中的农户"""
+    return farmer_service.match_people(db, req.rows)

@@ -500,7 +500,7 @@ export function HouseholdDetailContent({
             <div className="ml-auto px-2 flex gap-1.5">
               {detailTab === 'members' && (
                 <>
-                  <button onClick={onOpenMemberImport} className="text-xs border border-primary/20 text-primary px-2.5 py-1.5 rounded-btn hover:bg-primary/5 transition-colors">↑ 批量导入</button>
+                  <button onClick={onOpenMemberImport} className="text-xs border-2 border-green-500 bg-green-500 text-white px-2.5 py-1.5 rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-medium">↑ 批量导入</button>
                   <button onClick={onOpenMemberAdd} className="text-xs bg-primary  px-2.5 py-1.5 rounded-btn hover:bg-primary/90 transition-colors">＋ 成员</button>
                   <button onClick={onOpenEvent} className="text-xs border border-border text-text-primary px-2.5 py-1.5 rounded-btn hover:bg-warm/30 transition-colors">＋ 补录</button>
                 </>

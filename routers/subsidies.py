@@ -1711,6 +1711,95 @@ def create_payment(data: PaymentCreate, db: Session = Depends(get_db)):
     return {"id": payment.id, "message": "发放记录创建成功"}
 
 
+@router.post("/applications/convert-to-payment")
+def batch_convert_to_payment(payload: dict, db: Session = Depends(get_db)):
+    """
+    一键将预申请记录转为发放记录
+    输入：{application_ids: [1,2,3]}
+    """
+    from models import SubsidyPayment
+
+    app_ids = payload.get("application_ids", [])
+    if not app_ids:
+        raise HTTPException(400, "请提供要转换的预申请记录ID列表")
+
+    apps = db.query(SubsidyApplication).filter(
+        SubsidyApplication.id.in_(app_ids)
+    ).all()
+
+    if not apps:
+        raise HTTPException(404, "未找到指定的预申请记录")
+
+    created = 0
+    skipped = 0
+    errors: list[str] = []
+    affected_households: set[int] = set()
+
+    for app in apps:
+        farmer = db.get(FarmerProfile, app.farmer_id)
+        if not farmer:
+            errors.append(f"记录#{app.id}：农户不存在")
+            continue
+
+        # 检查是否已有发放记录
+        existing = db.query(SubsidyPayment).filter(
+            SubsidyPayment.farmer_id == app.farmer_id,
+            SubsidyPayment.subsidy_type_id == app.subsidy_type_id,
+            SubsidyPayment.payment_year == app.apply_year,
+        ).first()
+        if existing:
+            skipped += 1
+            # 仍然更新申请状态
+            if app.pay_status != 2:
+                app.pay_status = 2
+            continue
+
+        snapshot = get_village_snapshot_simple(db, farmer)
+
+        payment = SubsidyPayment(
+            farmer_id=app.farmer_id,
+            beneficiary_id=app.beneficiary_id or app.farmer_id,
+            subsidy_type_id=app.subsidy_type_id,
+            payment_year=app.apply_year,
+            amount=app.actual_amount or app.apply_amount,
+            payment_date=app.pay_date,
+            payment_village_id=snapshot["village_id"],
+            payment_group_no=snapshot["group_no"],
+            payment_village_name=snapshot["village_name"],
+            payment_group_display=snapshot["group_display"],
+            apply_area=app.apply_area,
+            apply_area_no_calc=app.apply_area_no_calc,
+            contract_area=app.contract_area,
+            trust_area=app.trust_area,
+            no_subsidy_area=app.no_subsidy_area,
+            bank_card=app.bank_card_snapshot or farmer.bank_card,
+            bank_name=farmer.bank_name,
+            remark=app.remark,
+            pay_status=2,  # 已发放
+            is_proxy=app.is_proxy,
+        )
+        db.add(payment)
+        app.pay_status = 2  # 标记申请为已发放
+        if farmer.household_id:
+            affected_households.add(farmer.household_id)
+        created += 1
+
+    db.commit()
+
+    for hh_id in affected_households:
+        try:
+            recalc_household_cache(db, [hh_id])
+        except Exception:
+            pass
+
+    return {
+        "created": created,
+        "skipped": skipped,
+        "errors": errors,
+        "message": f"成功转换 {created} 条，跳过 {skipped} 条（已存在）",
+    }
+
+
 @router.put("/payments/{payment_id}")
 def update_payment(payment_id: int, data: dict, db: Session = Depends(get_db)):
     """更新发放记录"""

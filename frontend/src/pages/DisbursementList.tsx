@@ -537,6 +537,8 @@ export default function DisbursementList({
     '发放金额': 'actual_amount',
   }
 
+  const NARROW_COLS = new Set(['计入超限面积', '不计超限面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额'])
+
   const HEADERS = ['姓名', '身份证', '手机号', '所在村', '所在组', '计入超限面积', '不计超限面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额', '状态', '打款日期', '备注', '代领备注', '操作']
 
   // 模板相关
@@ -653,9 +655,10 @@ export default function DisbursementList({
               </th>
               {HEADERS.map(h => {
                 const field = SORTABLE_COLS[h]
+                const isNarrow = NARROW_COLS.has(h)
                 return (
                   <th key={h}
-                    className={`px-2 py-2 text-left text-xs font-semibold whitespace-nowrap ${field ? 'cursor-pointer select-none hover:text-text-primary' : 'text-text-muted'}`}
+                    className={`px-1.5 py-2 text-center text-[11px] font-semibold leading-tight ${isNarrow ? 'max-w-[55px]' : 'text-left whitespace-nowrap'} ${field ? 'cursor-pointer select-none hover:text-text-primary' : 'text-text-muted'}`}
                     onClick={field ? () => toggleSort(field) : undefined}>
                     {h}
                     {field && sortField === field && <span className="ml-1 text-[10px]">{sortDir === 'desc' ? '▼' : '▲'}</span>}
@@ -702,12 +705,12 @@ export default function DisbursementList({
                 <td className="px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap">{a.phone || '—'}</td>
                 <td className="px-2 py-2 text-xs text-text-muted whitespace-nowrap">{a.village || '—'}</td>
                 <td className="px-2 py-2 text-xs text-text-muted whitespace-nowrap">{a.group_no || '—'}</td>
-                <td className="px-2 py-2 text-xs font-mono font-bold text-text-primary">{a.apply_area ? `${a.apply_area}` : '—'}</td>
-                <td className="px-2 py-2 text-xs font-mono text-text-muted">{a.apply_area_no_calc || '—'}</td>
-                <td className="px-2 py-2 text-xs font-mono text-text-muted">{a.contract_area || '—'}</td>
-                <td className="px-2 py-2 text-xs font-mono text-text-muted">{a.trust_area || '—'}</td>
-                <td className="px-2 py-2 text-xs font-mono text-red-400">{a.no_subsidy_area || '—'}</td>
-                <td className="px-2 py-2 text-xs font-mono text-text-muted">{a.apply_amount ? `¥${fmt(a.apply_amount)}` : '—'}</td>
+                <td className="px-1.5 py-2 text-xs font-mono font-bold text-text-primary text-right max-w-[55px]">{a.apply_area ? `${a.apply_area}` : '—'}</td>
+                <td className="px-1.5 py-2 text-xs font-mono text-text-muted text-right max-w-[55px]">{a.apply_area_no_calc || '—'}</td>
+                <td className="px-1.5 py-2 text-xs font-mono text-text-muted text-right max-w-[55px]">{a.contract_area || '—'}</td>
+                <td className="px-1.5 py-2 text-xs font-mono text-text-muted text-right max-w-[55px]">{a.trust_area || '—'}</td>
+                <td className="px-1.5 py-2 text-xs font-mono text-red-400 text-right max-w-[55px]">{a.no_subsidy_area || '—'}</td>
+                <td className="px-1.5 py-2 text-xs font-mono text-text-muted text-right max-w-[55px]">{a.apply_amount ? `¥${fmt(a.apply_amount)}` : '—'}</td>
                 <td className="px-2 py-2 text-sm font-mono font-bold text-primary whitespace-nowrap">
                   {a.actual_amount
                     ? <span title={a.apply_amount && a.apply_amount !== a.actual_amount ? `申请：${fmt(a.apply_amount)}` : ''}>{fmt(a.actual_amount)}</span>

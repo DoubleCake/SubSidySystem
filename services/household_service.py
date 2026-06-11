@@ -1213,6 +1213,7 @@ def _get_household_app_summary(
             SubsidyApplication.is_proxy,
             SubsidyApplication.beneficiary_id,
             SubsidyApplication.id.label("record_id"),
+            SubsidyType.id.label("subsidy_type_id"),
         )
         .join(FarmerProfile, FarmerProfile.id == SubsidyApplication.farmer_id)
         .join(SubsidyType, SubsidyType.id == SubsidyApplication.subsidy_type_id)
@@ -1241,6 +1242,7 @@ def _get_household_app_summary(
             SubsidyPayment.is_proxy,
             SubsidyPayment.beneficiary_id,
             SubsidyPayment.id.label("record_id"),
+            SubsidyType.id.label("subsidy_type_id"),
         )
         .join(FarmerProfile, FarmerProfile.id == SubsidyPayment.farmer_id)
         .join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)

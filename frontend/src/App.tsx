@@ -17,6 +17,7 @@ import LargeFarmersPage from './pages/LargeFarmersPage'
 import ProjectProgressPage from './pages/ProjectProgressPage'
 import WorkflowDocPage from './pages/WorkflowDocPage'
 import UserManagementPage from './pages/UserManagementPage'
+import PeopleMatchPage from './pages/PeopleMatchPage'
 import LoginPage, { getAuth, clearAuth, isAuthDisabled, setAuthDisabled } from './pages/LoginPage'
 import { healthCheck } from './api'
 import { useState } from 'react'
@@ -44,6 +45,7 @@ const settingNavBasic = [  // 基础配置
 
 const settingNavData = [  // 数据工具
   { to: '/ai',                     label: 'AI 分析',    icon: 'ai' as const },
+  { to: '/match-people',           label: '人员匹配',   icon: 'person' as const },
   { to: '/settings/excel-templates', label: 'Excel模板', icon: 'export' as const },
 ]
 
@@ -259,6 +261,7 @@ function Layout() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
             <Route path="/farmers"   element={<FarmersPage />} />
+            <Route path="/match-people" element={<PeopleMatchPage />} />
             <Route path="/projects"  element={<SubsidyProjectsPage />} />
             <Route path="/project-progress" element={<ProjectProgressPage />} />
             <Route path="/agri-tasks" element={<AgriTaskPage />} />

@@ -617,8 +617,10 @@ export default function FarmersPage() {
   }
 
   const confirmMerge = async () => {
-    const targetId = mergeSelected[0]
-    const sourceIds = mergeSelected.slice(1)
+    if (mergeSelectedHouseholds.length < 2) return show('请至少选择 2 个家庭户', 'err')
+    const targetId = mergeSelectedHouseholds[0].id
+    const sourceIds = mergeSelectedHouseholds.slice(1).map(h => h.id).filter(id => id !== targetId)
+    if (sourceIds.length === 0) return show('目标户不能与被合并户相同', 'err')
     setMergeLoading(true)
     try {
       for (const srcId of sourceIds) {
