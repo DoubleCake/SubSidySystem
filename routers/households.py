@@ -433,3 +433,27 @@ def refresh_area_cache(
 @router.post("/recalc-unconfirmed-contract-area")
 def recalc_unconfirmed_contract_area(db: Session = Depends(get_db)):
     return household_service.recalc_unconfirmed_contract_area(db)
+
+
+# ─────────────────────────────────────
+#  导出家庭户/农户全部补贴记录
+# ─────────────────────────────────────
+
+@router.get("/{household_id}/export-subsidies")
+def export_household_subsidies(household_id: int, db: Session = Depends(get_db)):
+    """导出家庭户全部补贴数据（申请+发放）为 Excel"""
+    from fastapi.responses import StreamingResponse
+    from export_utils import export_household_subsidies_excel
+    output = export_household_subsidies_excel(db, household_id, None)
+    headers = {"Content-Disposition": "attachment; filename*=UTF-8''%E8%A1%A5%E8%B4%B4%E8%AE%B0%E5%BD%95.xlsx"}
+    return StreamingResponse(output, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
+
+
+@router.get("/farmer/{farmer_id}/export-subsidies")
+def export_farmer_subsidies(farmer_id: int, db: Session = Depends(get_db)):
+    """导出单个农户全部补贴数据（申请+发放）为 Excel"""
+    from fastapi.responses import StreamingResponse
+    from export_utils import export_household_subsidies_excel
+    output = export_household_subsidies_excel(db, None, farmer_id)
+    headers = {"Content-Disposition": "attachment; filename*=UTF-8''%E8%A1%A5%E8%B4%B4%E8%AE%B0%E5%BD%95.xlsx"}
+    return StreamingResponse(output, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)

@@ -1252,7 +1252,7 @@ export default function FarmersPage() {
             <FarmerDetailCard
               selectedFarmer={selectedFarmer}
               showAppSummary={true}
-              appSummary={selectedFarmerHousehold?.app_summary}
+              appSummary={selectedFarmerHousehold?.app_summary?.filter(a => a.farmer_id === selectedFarmer.id)}
               groups={groups}
               onUpdate={() => openFarmer(selectedFarmer!.id)}
               onNavigateToProject={(typeId, farmerName) => navigate(`/projects?subsidy_type_id=${typeId}&farmer_name=${encodeURIComponent(farmerName)}`)}

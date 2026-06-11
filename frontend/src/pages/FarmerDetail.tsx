@@ -184,7 +184,13 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, group
             <div className="text-text-muted text-xs mt-0.5">累计获得补贴</div>
           </div>
           {!editMode ? (
-            <button onClick={startEdit} className="text-xs border border-primary/30 text-primary px-3 py-1 rounded-btn hover:bg-primary/5 transition-colors">✏️ 编辑</button>
+            <div className="flex gap-1.5">
+              <a href={`/api/households/farmer/${fd.id}/export-subsidies`}
+                className="text-xs bg-blue-500 text-white px-3 py-1 rounded-btn hover:brightness-95 transition-all font-medium">
+                📥 导出补贴
+              </a>
+              <button onClick={startEdit} className="text-xs border border-primary/30 text-primary px-3 py-1 rounded-btn hover:bg-primary/5 transition-colors">✏️ 编辑</button>
+            </div>
           ) : (
             <div className="flex gap-1.5">
               <button onClick={cancelEdit} className="text-xs border border-border text-text-muted px-3 py-1 rounded-btn hover:bg-warm/30 transition-colors">取消</button>
@@ -487,13 +493,19 @@ export function FarmerHouseholdDetail({
             {hh.address && <span className="ml-1 text-text-muted">{hh.address}</span>}
           </div>
         </div>
-        <div className="text-right shrink-0 mr-2">
-          <div className="text-lg font-bold font-mono text-primary-100">
-            {historyEventId !== null && snapshotData?.snapshot
-              ? (snapshotData.snapshot.contract_area > 0 ? `${snapshotData.snapshot.contract_area}亩` : '未设置')
-              : (hh.contracted_area > 0 ? `${hh.contracted_area}亩` : '未设置')}
+        <div className="text-right shrink-0 mr-2 flex items-center gap-2">
+          <a href={`/api/households/${hh.id}/export-subsidies`}
+            className="text-xs bg-blue-500 text-white px-3 py-1.5 rounded-btn hover:brightness-95 transition-all font-medium">
+            📥 导出补贴
+          </a>
+          <div>
+            <div className="text-lg font-bold font-mono text-primary-100">
+              {historyEventId !== null && snapshotData?.snapshot
+                ? (snapshotData.snapshot.contract_area > 0 ? `${snapshotData.snapshot.contract_area}亩` : '未设置')
+                : (hh.contracted_area > 0 ? `${hh.contracted_area}亩` : '未设置')}
+            </div>
+            <div className="text-text-muted text-xs">承包面积</div>
           </div>
-          <div className="text-text-muted text-xs">承包面积</div>
         </div>
       </div>
 

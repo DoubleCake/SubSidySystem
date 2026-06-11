@@ -661,3 +661,109 @@ def export_precheck_report_with_options(
 
     return buffer, filename, media_type
 
+
+def export_household_subsidies_excel(db, household_id=None, farmer_id=None):
+    """导出家庭户或农户的全部补贴记录为 Excel"""
+    from models import FarmerProfile, FamilyHousehold, SubsidyApplication, SubsidyPayment, SubsidyType, Village
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "补贴记录"
+
+    # 表头
+    headers = ["姓名", "身份证号", "所在村", "所在组", "补贴项目", "年度", "类型",
+               "补贴标准", "计入超限面积(亩)", "不计超限面积(亩)", "承包地面积(亩)", "代耕代种面积(亩)",
+               "不予补贴面积(亩)", "金额(元)", "状态", "日期", "代领", "备注"]
+    ws.append(headers)
+
+    rows = []
+
+    if farmer_id:
+        farmer = db.get(FarmerProfile, farmer_id)
+        if farmer:
+            rows.extend(_get_farmer_subsidy_rows(db, farmer))
+    elif household_id:
+        hh = db.get(FamilyHousehold, household_id)
+        if hh:
+            for m in hh.members:
+                rows.extend(_get_farmer_subsidy_rows(db, m))
+
+    for row in rows:
+        ws.append(row)
+
+    auto_width(ws)
+    apply_styles(ws)
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+
+def _get_farmer_subsidy_rows(db, farmer):
+    """获取单个农户的补贴记录行"""
+    from models import SubsidyApplication, SubsidyPayment, SubsidyType
+    rows = []
+    village = farmer.household.village.village_name if farmer.household and farmer.household.village else ""
+    group = farmer.household.group_no if farmer.household else ""
+    id_card = farmer.id_card or ""
+
+    status_map = {0: "待审核/待发放", 1: "审核通过/部分发放", 2: "已发放", 3: "驳回"}
+
+    # 申请记录
+    apps = db.query(SubsidyApplication).filter(
+        SubsidyApplication.beneficiary_id == farmer.id
+    ).order_by(SubsidyApplication.apply_year.desc()).all()
+    for a in apps:
+        st = a.subsidy_type
+        standard = ""
+        if st:
+            if st.calc_mode == "per_mu" and st.standard_amount:
+                standard = f"¥{float(st.standard_amount)}/亩"
+            elif st.standard_amount:
+                standard = f"¥{float(st.standard_amount)}{st.standard_unit or '/户'}"
+        rows.append([
+            farmer.real_name, id_card, village, str(group),
+            st.subsidy_name if st else "",
+            a.apply_year, "预申请",
+            standard,
+            float(a.apply_area or 0), float(a.apply_area_no_calc or 0),
+            float(a.contract_area or 0), float(a.trust_area or 0),
+            float(a.no_subsidy_area or 0), float(a.actual_amount or a.apply_amount or 0),
+            status_map.get(a.pay_status, str(a.pay_status)),
+            str(a.pay_date) if a.pay_date else "",
+            "是" if a.is_proxy else "",
+            a.remark or "",
+        ])
+
+    # 发放记录
+    pays = db.query(SubsidyPayment).filter(
+        SubsidyPayment.beneficiary_id == farmer.id
+    ).order_by(SubsidyPayment.payment_year.desc()).all()
+    for p in pays:
+        has_app = any(a.subsidy_type_id == p.subsidy_type_id and a.apply_year == p.payment_year for a in apps)
+        if has_app:
+            continue
+        st = p.subsidy_type
+        standard = ""
+        if st:
+            if st.calc_mode == "per_mu" and st.standard_amount:
+                standard = f"¥{float(st.standard_amount)}/亩"
+            elif st.standard_amount:
+                standard = f"¥{float(st.standard_amount)}{st.standard_unit or '/户'}"
+        rows.append([
+            farmer.real_name, id_card, village, str(group),
+            st.subsidy_name if st else "",
+            p.payment_year, "发放",
+            standard,
+            float(p.apply_area or 0), float(p.apply_area_no_calc or 0),
+            float(p.contract_area or 0), float(p.trust_area or 0),
+            float(p.no_subsidy_area or 0), float(p.amount or 0),
+            status_map.get(p.pay_status, str(p.pay_status)),
+            str(p.payment_date) if p.payment_date else "",
+            "是" if p.is_proxy else "",
+            p.remark or "",
+        ])
+
+    return rows
+
