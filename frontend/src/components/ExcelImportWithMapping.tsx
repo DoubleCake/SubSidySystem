@@ -58,6 +58,11 @@ interface Props {
     passed_rows: number[]
     failed_rows: Array<{ index: number; real_name: string; id_card_masked: string; issues: string[] }>
     warning_rows: Array<{ index: number; real_name: string; id_card_masked: string; warnings: string[] }>
+    comparison?: {
+      missing_from_import: Array<{ id_card: string; real_name: string; village?: string; apply_area?: number }>
+      new_in_import: Array<{ id_card: string; real_name: string; village?: string; apply_area?: number }>
+      area_changed: Array<{ id_card: string; real_name: string; app_area: number; import_area: number; diff: number }>
+    }
   }>
 }
 
@@ -67,6 +72,11 @@ type PreCheckStatus = {
   warningIndices: Set<number>
   failedRows: Array<{ index: number; real_name: string; id_card_masked: string; issues: string[] }>
   warningRows: Array<{ index: number; real_name: string; id_card_masked: string; warnings: string[] }>
+  comparison?: {
+    missing_from_import: Array<{ id_card: string; real_name: string; village?: string; apply_area?: number }>
+    new_in_import: Array<{ id_card: string; real_name: string; village?: string; apply_area?: number }>
+    area_changed: Array<{ id_card: string; real_name: string; app_area: number; import_area: number; diff: number }>
+  }
   errorMsg?: string
 }
 
@@ -264,6 +274,7 @@ export default function ExcelImportWithMapping({
         warningIndices: new Set(res.warning_rows.map(r => r.index)),
         failedRows: res.failed_rows,
         warningRows: res.warning_rows,
+        comparison: res.comparison,
       })
     } catch (e) {
       setPreCheckStatus({ result: 'error', errorMsg: String(e), failedIndices: new Set(), warningIndices: new Set(), failedRows: [], warningRows: [] })
@@ -763,6 +774,45 @@ export default function ExcelImportWithMapping({
                       第{r.index + 2}行 · {r.real_name}（{r.id_card_masked}）：{r.issues.join('；')}
                     </p>
                   ))}
+                </div>
+              )}
+              {/* 与预申请数据比对 */}
+              {preCheckStatus?.result === 'done' && preCheckStatus.comparison && (
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                  {preCheckStatus.comparison.missing_from_import.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-btn p-2">
+                      <div className="font-semibold text-red-700 mb-1">⚠ 申请有但导入无 ({preCheckStatus.comparison.missing_from_import.length}人)</div>
+                      <div className="max-h-20 overflow-y-auto space-y-0.5">
+                        {preCheckStatus.comparison.missing_from_import.map((m, i) => (
+                          <div key={i} className="text-red-600">{m.real_name} <span className="text-red-400">({m.id_card.slice(-4)})</span> {m.apply_area ? `${m.apply_area}亩` : ''}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {preCheckStatus.comparison.new_in_import.length > 0 && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-btn p-2">
+                      <div className="font-semibold text-blue-700 mb-1">＋ 导入新增 ({preCheckStatus.comparison.new_in_import.length}人)</div>
+                      <div className="max-h-20 overflow-y-auto space-y-0.5">
+                        {preCheckStatus.comparison.new_in_import.map((m, i) => (
+                          <div key={i} className="text-blue-600">{m.real_name} <span className="text-blue-400">({m.id_card.slice(-4)})</span> {m.apply_area ? `${m.apply_area}亩` : ''}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {preCheckStatus.comparison.area_changed.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-btn p-2">
+                      <div className="font-semibold text-amber-700 mb-1">📐 面积变化 ({preCheckStatus.comparison.area_changed.length}人)</div>
+                      <div className="max-h-20 overflow-y-auto space-y-0.5">
+                        {preCheckStatus.comparison.area_changed.map((m, i) => (
+                          <div key={i} className="text-amber-700">{m.real_name}: {m.app_area}→{m.import_area}亩
+                            <span className={m.diff > 0 ? 'text-red-500 ml-1' : m.diff < 0 ? 'text-green-500 ml-1' : 'text-text-muted ml-1'}>
+                              ({m.diff > 0 ? '+' : ''}{m.diff.toFixed(2)})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -193,6 +193,8 @@ def list_applications(
     pay_status: Optional[int] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    sort_field: Optional[str] = Query(None, description="排序字段"),
+    sort_dir: Optional[str] = Query("desc", description="asc/desc"),
     db: Session = Depends(get_db),
 ):
     q = db.query(SubsidyApplication)
@@ -211,6 +213,23 @@ def list_applications(
         farmer_ids = [f.id for f in db.query(FarmerProfile)
                       .filter(FarmerProfile.household_id.in_(hh_ids)).all()]
         q = q.filter(SubsidyApplication.farmer_id.in_(farmer_ids))
+
+    # 排序
+    sort_col_map = {
+        "apply_area": SubsidyApplication.apply_area,
+        "apply_area_no_calc": SubsidyApplication.apply_area_no_calc,
+        "contract_area": SubsidyApplication.contract_area,
+        "trust_area": SubsidyApplication.trust_area,
+        "no_subsidy_area": SubsidyApplication.no_subsidy_area,
+        "apply_amount": SubsidyApplication.apply_amount,
+        "actual_amount": SubsidyApplication.actual_amount,
+        "pay_date": SubsidyApplication.pay_date,
+    }
+    if sort_field and sort_field in sort_col_map:
+        col = sort_col_map[sort_field]
+        q = q.order_by(col.desc()) if sort_dir == "desc" else q.order_by(col.asc())
+    else:
+        q = q.order_by(SubsidyApplication.id.desc())
 
     total = q.count()
     apps = q.offset((page - 1) * page_size).limit(page_size).all()
@@ -1250,13 +1269,8 @@ def batch_delete_applications(payload: dict, db: Session = Depends(get_db)):
             WHERE sa.subsidy_type_id = :type_id AND fp.household_id IS NOT NULL
         """), {"type_id": subsidy_type_id}).fetchall()
         hh_ids = [r[0] for r in affected if r[0]]
-        # 同时清理申请表和发放表中的数据
         result = db.execute(
             text("DELETE FROM subsidy_application WHERE subsidy_type_id = :sid"),
-            {"sid": subsidy_type_id},
-        )
-        db.execute(
-            text("DELETE FROM subsidy_payment WHERE subsidy_type_id = :sid"),
             {"sid": subsidy_type_id},
         )
     else:
@@ -1273,6 +1287,47 @@ def batch_delete_applications(payload: dict, db: Session = Depends(get_db)):
         """)).fetchall()
         hh_ids = [r[0] for r in affected if r[0]]
         result = db.execute(text(f"DELETE FROM subsidy_application WHERE id IN ({ids_str})"))
+
+    db.commit()
+    if hh_ids:
+        recalc_household_cache(db, hh_ids)
+    return {"deleted": result.rowcount}
+
+
+@router.post("/payments/batch-delete")
+def batch_delete_payments(payload: dict, db: Session = Depends(get_db)):
+    from sqlalchemy import text
+    delete_all = payload.get("delete_all", False)
+    hh_ids: list[int] = []
+
+    if delete_all:
+        subsidy_type_id = payload.get("subsidy_type_id")
+        if not subsidy_type_id:
+            raise BadRequest("delete_all 模式下需要 subsidy_type_id")
+        affected = db.execute(text("""
+            SELECT DISTINCT fp.household_id
+            FROM subsidy_payment sp
+            JOIN farmer_profile fp ON sp.beneficiary_id = fp.id
+            WHERE sp.subsidy_type_id = :type_id AND fp.household_id IS NOT NULL
+        """), {"type_id": subsidy_type_id}).fetchall()
+        hh_ids = [r[0] for r in affected if r[0]]
+        result = db.execute(
+            text("DELETE FROM subsidy_payment WHERE subsidy_type_id = :sid"),
+            {"sid": subsidy_type_id},
+        )
+    else:
+        ids = payload.get("ids", [])
+        if not ids or not isinstance(ids, list):
+            raise BadRequest("缺少 ids 列表")
+        ids_str = ','.join(str(int(i)) for i in ids)
+        affected = db.execute(text(f"""
+            SELECT DISTINCT fp.household_id
+            FROM subsidy_payment sp
+            JOIN farmer_profile fp ON sp.beneficiary_id = fp.id
+            WHERE sp.id IN ({ids_str}) AND fp.household_id IS NOT NULL
+        """)).fetchall()
+        hh_ids = [r[0] for r in affected if r[0]]
+        result = db.execute(text(f"DELETE FROM subsidy_payment WHERE id IN ({ids_str})"))
 
     db.commit()
     if hh_ids:
@@ -1505,6 +1560,8 @@ def list_payments(
     search: Optional[str] = Query(None, description="姓名或身份证号"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=500),
+    sort_field: Optional[str] = Query(None, description="排序字段"),
+    sort_dir: Optional[str] = Query("desc", description="asc/desc"),
     db: Session = Depends(get_db),
 ):
     """查询补贴发放记录"""
@@ -1538,9 +1595,26 @@ def list_payments(
             )
         )
 
+    # 排序
+    sort_col_map_pay = {
+        "apply_area": SubsidyPayment.apply_area,
+        "apply_area_no_calc": SubsidyPayment.apply_area_no_calc,
+        "contract_area": SubsidyPayment.contract_area,
+        "trust_area": SubsidyPayment.trust_area,
+        "no_subsidy_area": SubsidyPayment.no_subsidy_area,
+        "apply_amount": SubsidyPayment.amount,
+        "actual_amount": SubsidyPayment.amount,
+        "pay_date": SubsidyPayment.payment_date,
+    }
+    if sort_field and sort_field in sort_col_map_pay:
+        col = sort_col_map_pay[sort_field]
+        q = q.order_by(col.desc()) if sort_dir == "desc" else q.order_by(col.asc())
+    else:
+        q = q.order_by(SubsidyPayment.payment_year.desc(), SubsidyPayment.id.desc())
+
     total = q.count()
     offset = (page - 1) * page_size
-    rows = q.order_by(SubsidyPayment.payment_year.desc(), SubsidyPayment.id.desc()).offset(offset).limit(page_size).all()
+    rows = q.offset(offset).limit(page_size).all()
 
     # 查询代领关系，自动同步备注信息
     payment_ids = [p[0].id for p in rows]

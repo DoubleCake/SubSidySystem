@@ -30,21 +30,6 @@ const PROXY_IMPORT_FIELDS = [
   { field: 'remark', label: '备注', required: false, type: 'string' },
 ]
 
-const PAYMENT_IMPORT_FIELDS = [
-  { field: 'id_card',         label: '身份证*', required: true,  type: 'id_card' },
-  { field: 'real_name',       label: '姓名*', required: true,  type: 'string' },
-  { field: 'apply_area',      label: '计入超限面积(亩)', required: false, type: 'decimal' },
-  { field: 'apply_area_no_calc', label: '不计超限面积(亩)', required: false, type: 'decimal' },
-  { field: 'contract_area',   label: '承包面积(亩)', required: false, type: 'decimal' },
-  { field: 'trust_area',      label: '代耕代种面积(亩)', required: false, type: 'decimal' },
-  { field: 'no_subsidy_area', label: '不予补贴面积(亩)', required: false, type: 'decimal' },
-  { field: 'amount',          label: '发放金额(元)', required: false, type: 'decimal' },
-  { field: 'payment_date',    label: '发放日期', required: false, type: 'string' },
-  { field: 'bank_card',       label: '银行卡号', required: false, type: 'string' },
-  { field: 'bank_name',       label: '开户行', required: false, type: 'string' },
-  { field: 'remark',          label: '备注', required: false, type: 'string' },
-]
-
 type StatsType = {
   id: number
   subsidy_name: string
@@ -144,7 +129,6 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   // 代领表单相关状态
   const [proxyAddOpen, setProxyAddOpen] = useState(false)
   const [proxyImportOpen, setProxyImportOpen] = useState(false)
-  const [paymentImportOpen, setPaymentImportOpen] = useState(false)
   const [proxyRefreshKey, setProxyRefreshKey] = useState(0)
   const [proxyForm, setProxyForm] = useState<{
     beneficiary_id_card: string
@@ -153,9 +137,60 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     remark: string
   }>({ beneficiary_id_card: '', proxy_id_card: '', proxy_type: '代领', remark: '' })
 
+  // 排序
+  const [sortField, setSortField] = useState('')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const handleSortChange = (field: string) => {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field); setSortDir('desc')
+    }
+    setPage(1)
+  }
+
   // 预检相关
   const [preCheckLoading, setPreCheckLoading] = useState(false)
   const [preCheckResults, setPreCheckResults] = useState<CheckResult | null>(null)
+
+  // 发放 vs 预申请比对
+  const [checkingDisbursement, setCheckingDisbursement] = useState(false)
+  const [disbCompareResult, setDisbCompareResult] = useState<{
+    missing: { id_card: string; real_name: string; village?: string; apply_area?: number }[]
+    extra: { id_card: string; real_name: string; village?: string; apply_area?: number }[]
+    areaDiff: { id_card: string; real_name: string; app_area: number; pay_area: number; diff: number }[]
+  } | null>(null)
+  const [disbCompareOpen, setDisbCompareOpen] = useState(false)
+
+  const runDisbursementCheck = async () => {
+    if (!subsidyType) return
+    setCheckingDisbursement(true)
+    try {
+      const [appRes, payRes] = await Promise.all([
+        fetch(`/api/subsidies/applications/export?subsidy_type_id=${subsidyType.id}&year=${subsidyType.subsidy_year}`).then(r => r.json()),
+        fetch(`/api/subsidies/payments/export?subsidy_type_id=${subsidyType.id}&year=${subsidyType.subsidy_year}`).then(r => r.json()),
+      ])
+      const apps = appRes.items || []
+      const pays = payRes.items || []
+
+      const appMap: Record<string, any> = {}
+      for (const a of apps) { const ic = a.id_card || ''; if (ic) appMap[ic] = { real_name: a.farmer_name, village: a.village, apply_area: Number(a.apply_area || 0) } }
+      const payMap: Record<string, any> = {}
+      for (const p of pays) { const ic = p.id_card || ''; if (ic) payMap[ic] = { real_name: p.farmer_name, village: p.village, apply_area: Number(p.apply_area || 0) } }
+
+      const appIds = new Set(Object.keys(appMap)), payIds = new Set(Object.keys(payMap))
+      setDisbCompareResult({
+        missing: [...appIds].filter(ic => !payIds.has(ic)).map(ic => ({ id_card: ic, ...appMap[ic] })),
+        extra: [...payIds].filter(ic => !appIds.has(ic)).map(ic => ({ id_card: ic, ...payMap[ic] })),
+        areaDiff: [...appIds].filter(ic => payIds.has(ic)).map(ic => ({ id_card: ic, real_name: appMap[ic].real_name, app_area: appMap[ic].apply_area, pay_area: payMap[ic].apply_area, diff: payMap[ic].apply_area - appMap[ic].apply_area })).filter((a: any) => Math.abs(a.diff) > 0.001),
+      })
+      setDisbCompareOpen(true)
+    } catch (e) {
+      show('比对失败: ' + (e as Error).message, 'err')
+    } finally {
+      setCheckingDisbursement(false)
+    }
+  }
 
   // 导出选项状态
   const [exportModalOpen, setExportModalOpen] = useState(false)
@@ -269,7 +304,10 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       return
     }
     try {
-      const response = await fetch('/api/subsidies/applications/batch-delete', {
+      const endpoint = activeTab === 'disbursement'
+        ? '/api/subsidies/payments/batch-delete'
+        : '/api/subsidies/applications/batch-delete'
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: selectedIds })
@@ -296,7 +334,10 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     }
     setDeletingAll(true)
     try {
-      const response = await fetch('/api/subsidies/applications/batch-delete', {
+      const endpoint = activeTab === 'disbursement'
+        ? '/api/subsidies/payments/batch-delete'
+        : '/api/subsidies/applications/batch-delete'
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ delete_all: true, subsidy_type_id: subsidyType.id })
@@ -439,31 +480,6 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     return { created: successCount, skipped: proxies.length - successCount, errors }
   }
 
-  // 发放记录 Excel 导入
-  const handlePaymentImport = async (rows: Record<string, unknown>[], mapping?: unknown, overwrite?: boolean) => {
-    const payload = rows.map(r => ({
-      id_card: r.id_card,
-      real_name: r.real_name,
-      subsidy_type_id: subsidyType.id,
-      payment_year: subsidyType.subsidy_year,
-      apply_area: r.apply_area,
-      contract_area: r.contract_area,
-      trust_area: r.trust_area,
-      no_subsidy_area: r.no_subsidy_area,
-      amount: r.amount,
-      payment_date: r.payment_date,
-      bank_card: r.bank_card,
-      bank_name: r.bank_name,
-      remark: r.remark,
-    }))
-    const res = await fetch('/api/subsidies/payments/batch-import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rows: payload, overwrite: overwrite || false }),
-    }).then(r => r.json())
-    return { created: res.created || 0, updated: res.updated || 0, skipped: res.skipped || 0, errors: res.errors || [] }
-  }
-
   // 获取村庄列表
   const loadVillages = useCallback(async () => {
     setLoadingVillages(true)
@@ -498,6 +514,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         if (filters.village) params.village_name = filters.village
         if (filters.dateFrom) params.date_from = filters.dateFrom
         if (filters.dateTo) params.date_to = filters.dateTo
+        if (sortField) { params.sort_field = sortField; params.sort_dir = sortDir }
 
         const res = await fetch(`/api/subsidies/payments?${new URLSearchParams(params as Record<string, string>)}`).then(r => r.json())
         setApps(res.items.map((p: any) => ({
@@ -540,6 +557,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       if (filters.maxAmount) params.max_amount = filters.maxAmount
       if (filters.dateFrom) params.date_from = filters.dateFrom
       if (filters.dateTo) params.date_to = filters.dateTo
+      if (sortField) { params.sort_field = sortField; params.sort_dir = sortDir }
 
       const res = await api.searchApplications(params)
       setApps(res.items)
@@ -549,7 +567,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     } finally {
       setLoading(false)
     }
-  }, [page, search, filters, subsidyType.id, subsidyType.subsidy_year, activeTab, searchTrigger])
+  }, [page, search, filters, subsidyType.id, subsidyType.subsidy_year, activeTab, searchTrigger, sortField, sortDir])
 
   useEffect(() => {
     load()
@@ -962,16 +980,16 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
                     🗑️ 删除选中 ({selectedIds.length})
                   </button>
                 )}
+                {activeTab === 'disbursement' && (
+                  <button onClick={runDisbursementCheck} disabled={checkingDisbursement}
+                    className="px-3 py-2 text-sm border-2 border-amber-300 bg-amber-50 text-amber-700 rounded-btn hover:bg-amber-100 hover:border-amber-400 transition-all font-medium whitespace-nowrap disabled:opacity-50 flex items-center gap-1.5">
+                    {checkingDisbursement ? '⏳' : '🔍'} 检查
+                  </button>
+                )}
                 <button onClick={deleteAll} disabled={deletingAll}
                   className={`px-3 py-2 text-sm rounded-btn flex items-center gap-1.5 ${deletingAll ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600/80 hover:bg-red-700'}`}>
                   {deletingAll ? '⏳ 删除中...' : '🗑️ 删除全部'}
                 </button>
-                {activeTab === 'disbursement' && (
-                  <button onClick={() => setPaymentImportOpen(true)}
-                    className="px-3 py-2 text-sm border border-blue-200 text-blue-700 rounded-btn hover:bg-blue-50 flex items-center gap-1.5">
-                    ↑ 导入发放记录
-                  </button>
-                )}
                 <button onClick={() => setAddOpen(true)}
                   className="px-3 py-2 text-sm border-2 border-green-500 bg-green-500 text-white rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-medium">
                   ＋ 批量导入
@@ -1026,6 +1044,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
           handleFilterChange={handleFilterChange}
           handleSearchChange={handleSearchChange}
           clearFilters={clearFilters}
+          sortField={sortField} sortDir={sortDir} onSortChange={handleSortChange}
         />
       )}
 
@@ -1072,6 +1091,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
           handleFilterChange={handleFilterChange}
           handleSearchChange={handleSearchChange}
           clearFilters={clearFilters}
+          sortField={sortField} sortDir={sortDir} onSortChange={handleSortChange}
         />
       )}
 
@@ -1273,38 +1293,73 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         onSuccess={() => setProxyRefreshKey(prev => prev + 1)}
       />
 
-      {/* 发放记录 Excel 导入 */}
-      <ExcelImportWithMapping open={paymentImportOpen} onClose={() => setPaymentImportOpen(false)}
-        title="发放记录 Excel 导入"
-        templateHeaders={['身份证*', '姓名*', '补贴面积(亩)', '承包面积(亩)', '代耕代种面积(亩)', '不予补贴面积(亩)', '发放金额(元)', '发放日期', '银行卡号', '开户行', '备注']}
-        templateExample={[{ '身份证*': '510123196503154231', '姓名*': '张三', '补贴面积(亩)': '3.5', '发放金额(元)': '420' }]}
-        systemFields={PAYMENT_IMPORT_FIELDS}
-        templates={[]}
-        overwriteOption={true}
-        onDetectColumns={async (columns) => ({
-          columns: columns.map(col => ({
-            excel_column: col,
-            suggested_field: col.includes('身份证') ? 'id_card'
-              : col.includes('姓名') ? 'real_name'
-              : col.includes('补贴面积') ? 'apply_area'
-              : col.includes('承包面积') ? 'contract_area'
-              : col.includes('代耕') ? 'trust_area'
-              : col.includes('不予') || col.includes('不补贴') ? 'no_subsidy_area'
-              : col.includes('金额') ? 'amount'
-              : col.includes('日期') ? 'payment_date'
-              : col.includes('银行卡') || col.includes('卡号') ? 'bank_card'
-              : col.includes('开户') || col.includes('银行') ? 'bank_name'
-              : col.includes('备注') ? 'remark' : null,
-            confidence: 0.9, alternatives: [],
-          })),
-          recommended_templates: [],
-        })}
-        onSaveTemplate={async () => ({ id: 0 })}
-        onImport={handlePaymentImport}
-        onSuccess={() => { setPaymentImportOpen(false); load() }}
-      />
-
       {toast && <Toast msg={toast.msg} type={toast.type} />}
+
+      {/* 发放 vs 预申请比对弹窗 */}
+      <Modal open={disbCompareOpen} title={`🔍 发放 vs 预申请比对 · ${subsidyType?.subsidy_name || ''}`}
+        onClose={() => setDisbCompareOpen(false)} confirmText="关闭" onConfirm={() => setDisbCompareOpen(false)}>
+        {disbCompareResult && (
+          <div className="space-y-3 text-sm">
+            <div className="grid grid-cols-3 gap-3">
+              <div className={`rounded-card p-3 text-center ${disbCompareResult.missing.length > 0 ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}`}>
+                <div className={`text-xl font-bold ${disbCompareResult.missing.length > 0 ? 'text-red-600' : 'text-green-600'}`}>{disbCompareResult.missing.length}</div>
+                <div className="text-xs text-text-muted">预申请有·发放无</div>
+              </div>
+              <div className={`rounded-card p-3 text-center ${disbCompareResult.extra.length > 0 ? 'bg-blue-50 border border-blue-200' : 'bg-green-50 border border-green-200'}`}>
+                <div className={`text-xl font-bold ${disbCompareResult.extra.length > 0 ? 'text-blue-600' : 'text-green-600'}`}>{disbCompareResult.extra.length}</div>
+                <div className="text-xs text-text-muted">发放有·预申请无</div>
+              </div>
+              <div className={`rounded-card p-3 text-center ${disbCompareResult.areaDiff.length > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-green-50 border border-green-200'}`}>
+                <div className={`text-xl font-bold ${disbCompareResult.areaDiff.length > 0 ? 'text-amber-600' : 'text-green-600'}`}>{disbCompareResult.areaDiff.length}</div>
+                <div className="text-xs text-text-muted">面积变化</div>
+              </div>
+            </div>
+            {disbCompareResult.missing.length > 0 && (
+              <div>
+                <div className="font-semibold text-red-700 mb-1 text-xs">⚠ 预申请有但发放无 ({disbCompareResult.missing.length}人)</div>
+                <div className="bg-red-50 border border-red-200 rounded-btn p-2 max-h-40 overflow-y-auto text-xs space-y-0.5">
+                  {disbCompareResult.missing.map((m, i) => (
+                    <div key={i} className="text-red-700">{m.real_name} <span className="text-red-400 font-mono">({m.id_card.slice(-4)})</span> {m.village && <span className="text-red-400">{m.village}</span>} {m.apply_area ? `${m.apply_area}亩` : ''}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {disbCompareResult.extra.length > 0 && (
+              <div>
+                <div className="font-semibold text-blue-700 mb-1 text-xs">＋ 发放有但预申请无 ({disbCompareResult.extra.length}人)</div>
+                <div className="bg-blue-50 border border-blue-200 rounded-btn p-2 max-h-40 overflow-y-auto text-xs space-y-0.5">
+                  {disbCompareResult.extra.map((m, i) => (
+                    <div key={i} className="text-blue-700">{m.real_name} <span className="text-blue-400 font-mono">({m.id_card.slice(-4)})</span> {m.village && <span className="text-blue-400">{m.village}</span>} {m.apply_area ? `${m.apply_area}亩` : ''}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {disbCompareResult.areaDiff.length > 0 && (
+              <div>
+                <div className="font-semibold text-amber-700 mb-1 text-xs">📐 面积变化 ({disbCompareResult.areaDiff.length}人)</div>
+                <div className="bg-amber-50 border border-amber-200 rounded-btn p-2 max-h-40 overflow-y-auto text-xs">
+                  <table className="w-full">
+                    <thead><tr className="text-amber-600"><th className="text-left py-1">姓名</th><th className="text-right py-1">预申请</th><th className="text-right py-1">发放</th><th className="text-right py-1">差额</th></tr></thead>
+                    <tbody>
+                      {disbCompareResult.areaDiff.map((m, i) => (
+                        <tr key={i} className="border-t border-amber-200">
+                          <td className="py-1 text-amber-800">{m.real_name} <span className="text-amber-500 font-mono text-xs">({m.id_card.slice(-4)})</span></td>
+                          <td className="text-right font-mono">{m.app_area.toFixed(2)}</td>
+                          <td className="text-right font-mono">{m.pay_area.toFixed(2)}</td>
+                          <td className={`text-right font-mono font-semibold ${m.diff > 0 ? 'text-red-500' : m.diff < 0 ? 'text-green-500' : 'text-text-muted'}`}>{m.diff > 0 ? '+' : ''}{m.diff.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {disbCompareResult.missing.length === 0 && disbCompareResult.extra.length === 0 && disbCompareResult.areaDiff.length === 0 && (
+              <div className="text-center py-6 text-green-600 font-medium">✅ 发放与预申请完全一致，无差异</div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }
