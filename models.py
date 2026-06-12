@@ -169,8 +169,6 @@ class SubsidyApplication(Base):
 
     # 索引
     __table_args__ = (
-        UniqueConstraint("farmer_id", "subsidy_type_id", "apply_year",
-                         name="uq_farmer_subsidy_year"),
         Index('ix_subsidy_application_farmer_year', 'farmer_id', 'apply_year'),
         Index('ix_subsidy_application_subsidy_type', 'subsidy_type_id'),
         Index('ix_subsidy_app_type_year', 'subsidy_type_id', 'apply_year'),

@@ -3,6 +3,7 @@
  * 输入姓名+村名+电话 → 匹配数据库中的农户
  */
 import { useState } from 'react'
+import * as XLSX from 'xlsx'
 import Tag from '../components/Tag'
 import { FARMER_STATUS } from '../utils'
 
@@ -22,6 +23,7 @@ interface MatchResult {
   confidence: 'high' | 'medium' | 'low' | 'none'
   match_count: number
   warning?: string
+  note?: string
 }
 
 interface MatchResponse {
@@ -107,29 +109,24 @@ export default function PeopleMatchPage() {
     }
   }
 
-  const exportCsv = () => {
+  const exportXlsx = () => {
     if (!result) return
-    const rows = result.results.map(r => {
+    const sheetRows = result.results.map(r => {
       const m = r.matches[0]
       const cfg = CONFIDENCE_CFG[r.confidence]
-      return [
-        r.input.name, r.input.village, r.input.phone,
-        m?.real_name || '—',
-        m?.village_name || '—',
-        m?.phone || '—',
-        m?.id_card || m?.id_card_masked || '—',
-        r.match_count > 1 ? `+${r.match_count - 1}人` : '',
-        cfg.label,
-        r.matched_by,
-      ]
+      return {
+        '输入姓名': r.input.name, '输入村名': r.input.village, '输入电话': r.input.phone,
+        '匹配姓名': m?.real_name || '—', '匹配村名': m?.village_name || '—',
+        '匹配电话': m?.phone || '—', '匹配身份证': m?.id_card || m?.id_card_masked || '—',
+        '其他匹配': r.match_count > 1 ? `${r.match_count - 1}人` : '',
+        '置信度': cfg.label, '匹配方式': r.matched_by, '备注': r.note || '',
+      }
     })
-    const header = ['输入姓名', '输入村名', '输入电话', '匹配姓名', '匹配村名', '匹配电话', '匹配身份证', '其他匹配', '置信度', '匹配方式']
-    const csv = [header, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n')
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `人员匹配结果_${new Date().toISOString().slice(0, 10)}.csv`
-    a.click(); URL.revokeObjectURL(url)
+    const ws = XLSX.utils.json_to_sheet(sheetRows)
+    ws['!cols'] = [{ wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 20 }, { wch: 8 }, { wch: 6 }, { wch: 16 }, { wch: 14 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '匹配结果')
+    XLSX.writeFile(wb, `人员匹配结果_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
   return (
@@ -166,8 +163,8 @@ export default function PeopleMatchPage() {
             {loading ? <><span className="animate-spin inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full mr-2" />匹配中…</> : '🔍 开始匹配'}
           </button>
           {result && (
-            <button onClick={exportCsv} className="px-4 py-2.5 text-sm border border-border text-text-primary rounded-btn hover:bg-warm/30 transition-all">
-              ↓ 导出 CSV
+            <button onClick={exportXlsx} className="px-4 py-2.5 text-sm border border-border text-text-primary rounded-btn hover:bg-warm/30 transition-all">
+              ↓ 导出 Excel
             </button>
           )}
         </div>
@@ -240,7 +237,8 @@ export default function PeopleMatchPage() {
                           </span>
                         </td>
                         <td className="px-3 py-2 text-xs text-text-muted">
-                          {r.matched_by.replace('phone_exact', '电话精确').replace('name_village', '姓名+村名').replace('name_exact', '姓名精确').replace('name_fuzzy', '姓名模糊').replace('phone_tail', '电话尾号')}
+                          {r.matched_by.replace('name_village_phone', '姓名+村名+电话一致').replace('name_village_exact', '姓名+村名一致').replace('village_phone', '村名+电话一致')}
+                          {r.note && <span className="ml-1 text-amber-600">({r.note})</span>}
                           {r.match_count > 1 && (
                             <span className="ml-1 text-amber-600">(+{r.match_count - 1})</span>
                           )}

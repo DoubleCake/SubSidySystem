@@ -2187,23 +2187,26 @@ def delete_household(db: Session, household_id: int) -> dict:
     ).scalar() or 0
 
     warnings = []
-    if member_count > 0:
-        warnings.append(f"该家庭户仍有 {member_count} 名成员未迁出")
     if app_count > 0:
         warnings.append(f"该家庭户已有 {app_count} 条补贴申请记录")
     if trust_out_count > 0:
         warnings.append(f"该家庭户已有 {trust_out_count} 条土地转出记录")
     if trust_in_count > 0:
         warnings.append(f"该家庭户已有 {trust_in_count} 条土地转入记录")
-    if event_count > 0:
-        warnings.append(f"该家庭户已有 {event_count} 条变更事件记录")
 
     if warnings:
         raise BadRequest(f"无法删除：该家庭户存在关联数据；{'；'.join(warnings)}。请先处理相关数据后再尝试删除。")
 
+    # 允许删除：先清理家庭成员和变更事件
+    if member_count > 0:
+        db.query(FarmerProfile).filter(FarmerProfile.household_id == household_id).delete()
+    if event_count > 0:
+        db.query(HouseholdEvent).filter(HouseholdEvent.household_id == household_id).delete()
+    db.flush()
+
     db.delete(hh)
     db.commit()
-    return {"message": "家庭户已删除", "household_id": household_id}
+    return {"message": f"家庭户已删除（含 {member_count} 名成员）", "household_id": household_id}
 
 
 # ════════════════════════════════════════════════════════

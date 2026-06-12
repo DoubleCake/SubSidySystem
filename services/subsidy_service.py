@@ -406,30 +406,27 @@ def batch_import_applications(
                 errors.append(f"第{row_no}行 {farmer.real_name}（{farmer.id_card}）：受限制身份")
                 continue
             key = (farmer.id, row.get("subsidy_type_id"), row.get("apply_year"), (row.get("pay_status") or 0))
-            if key in duplicate_set or key in seen_in_batch:
-                if overwrite and key in duplicate_set:
-                    # ── 覆盖更新现有记录（完全覆盖，含空值） ──
-                    exist_app = db.query(SubsidyApplication).filter(
-                        SubsidyApplication.farmer_id == key[0],
-                        SubsidyApplication.subsidy_type_id == key[1],
-                        SubsidyApplication.apply_year == key[2],
-                        SubsidyApplication.pay_status == key[3],
-                    ).first()
-                    if exist_app:
-                        row["farmer_id"] = farmer.id
-                        for fld in ("apply_amount", "actual_amount", "apply_area",
-                                    "apply_area_no_calc", "contract_area", "trust_area", "no_subsidy_area",
-                                    "pay_date", "remark", "pay_status"):
-                            val = row.get(fld)
-                            # 空字符串视为 None（清空旧值）
-                            if val == '':
-                                val = None
-                            setattr(exist_app, fld, val)
-                        affected_households.add(farmer.household_id)
-                        updated += 1
-                else:
-                    skipped += 1
-                continue
+            if key in duplicate_set and overwrite:
+                # ── 覆盖更新现有记录 ──
+                exist_app = db.query(SubsidyApplication).filter(
+                    SubsidyApplication.farmer_id == key[0],
+                    SubsidyApplication.subsidy_type_id == key[1],
+                    SubsidyApplication.apply_year == key[2],
+                    SubsidyApplication.pay_status == key[3],
+                ).first()
+                if exist_app:
+                    row["farmer_id"] = farmer.id
+                    for fld in ("apply_amount", "actual_amount", "apply_area",
+                                "apply_area_no_calc", "contract_area", "trust_area", "no_subsidy_area",
+                                "pay_date", "remark", "pay_status"):
+                        val = row.get(fld)
+                        if val == '':
+                            val = None
+                        setattr(exist_app, fld, val)
+                    affected_households.add(farmer.household_id)
+                    updated += 1
+                    continue
+            # 不覆盖：允许重复导入（不跳过）
             row["farmer_id"] = farmer.id
             app = _build_application_from_row(db, farmer, row, village_cache)
             if app is None:

@@ -816,55 +816,34 @@ def match_people(db: Session, rows: list[dict]) -> dict:
             })
             continue
 
-        # 1. 电话精确匹配
-        if clean_phone and clean_phone in phone_index:
-            candidates = phone_index[clean_phone]
-            matched_by = "phone_exact"
-            confidence = "high"
-
-        # 2. 姓名精确 + 村名包含
-        if not candidates and name:
+        # 1. 姓名精确 + 村名一致 + 电话一致 → 高置信
+        if name and village and clean_phone:
             for fd in farmer_data:
-                if fd["real_name"] == name and village and village in fd["village_name"]:
+                if fd["real_name"] == name and fd["village_name"] == village and fd["phone"] == clean_phone:
                     candidates.append(fd)
             if candidates:
-                matched_by = "name_village"
+                matched_by = "name_village_phone"
                 confidence = "high"
 
-        # 3. 姓名精确（跨村）
-        if not candidates and name:
+        # 2. 姓名精确 + 村名一致 → 中置信
+        if not candidates and name and village:
             for fd in farmer_data:
-                if fd["real_name"] == name:
+                if fd["real_name"] == name and fd["village_name"] == village:
                     candidates.append(fd)
             if candidates:
-                matched_by = "name_exact"
+                matched_by = "name_village_exact"
                 confidence = "medium"
 
-        # 4. 姓名模糊匹配
-        if not candidates and name:
-            best_score = 0.0
-            best_fd = None
+        # 3. 村名一致 + 电话一致（姓名不同）→ 低置信，备注可能为一家人
+        note = ""
+        if not candidates and village and clean_phone:
             for fd in farmer_data:
-                score = SequenceMatcher(None, name, fd["real_name"]).ratio()
-                if score >= 0.65 and score > best_score:
-                    best_score = score
-                    best_fd = fd
-            if best_fd and best_score >= 0.7:
-                candidates = [best_fd]
-                matched_by = f"name_fuzzy({best_score:.0%})"
+                if fd["village_name"] == village and fd["phone"] == clean_phone:
+                    candidates.append(fd)
+            if candidates:
+                matched_by = "village_phone"
                 confidence = "low"
-            elif best_fd and best_score >= 0.65:
-                candidates = [best_fd]
-                matched_by = f"name_fuzzy({best_score:.0%})"
-                confidence = "low"
-
-        # 5. 电话后8位匹配
-        if not candidates and clean_phone and len(clean_phone) >= 8:
-            tail_key = "tail:" + clean_phone[-8:]
-            if tail_key in phone_index:
-                candidates = phone_index[tail_key]
-                matched_by = "phone_tail"
-                confidence = "medium"
+                note = "可能为一家人"
 
         # 去重
         seen = set()
@@ -887,6 +866,7 @@ def match_people(db: Session, rows: list[dict]) -> dict:
             } for c in unique_candidates[:5]],  # 最多返回5个
             "matched_by": matched_by,
             "confidence": confidence,
+            "note": note,
             "match_count": len(unique_candidates),
         })
 

@@ -294,13 +294,25 @@ export default function ExcelImportWithMapping({
     setProgress(0)
     setProgressMsg(`准备导入 ${rows.length} 条记录…`)
 
-    // 根据映射转换数据
+    // 根据映射转换数据（多列映射同一字段时数值累加）
     const mapping: Record<string, string> = {}
     const dataToImport = rows.map(row => {
       const mappedRow: Record<string, unknown> = {}
       columnMappings.forEach(cm => {
         if (cm.system_field && row[cm.excel_column] !== undefined) {
-          mappedRow[cm.system_field] = row[cm.excel_column]
+          const existing = mappedRow[cm.system_field]
+          const newVal = row[cm.excel_column]
+          if (existing !== undefined) {
+            // 多列映射同一字段：数值累加，字符串拼接
+            const eNum = Number(existing), nNum = Number(newVal)
+            if (!isNaN(eNum) && !isNaN(nNum)) {
+              mappedRow[cm.system_field] = eNum + nNum
+            } else {
+              mappedRow[cm.system_field] = String(existing) + String(newVal)
+            }
+          } else {
+            mappedRow[cm.system_field] = newVal
+          }
         }
       })
       return mappedRow
