@@ -14,7 +14,7 @@ from schemas import (
     YearCompare, YearSummary,
     SubsidyProxyCreate, SubsidyProxyOut,
 )
-from utils import parse_group_no_to_int, format_group_no, validate_id_card, parse_gender_from_id, check_area_anomaly
+from utils import parse_group_no_to_int, format_group_no, validate_id_card, parse_gender_from_id, check_area_anomaly, mask_id_card
 from core.exceptions import NotFound, BadRequest
 from services.subsidy_service import (
     recalc_household_cache, recalc_cache_for_type, update_cache_incremental,
@@ -249,6 +249,8 @@ def list_applications(
             "id": a.id,
             "farmer_id": a.farmer_id,
             "farmer_name": a.farmer.real_name if a.farmer else "-",
+            "id_card": a.farmer.id_card if a.farmer else "",
+            "id_card_masked": mask_id_card(a.farmer.id_card) if a.farmer and a.farmer.id_card else "",
             "subsidy_type_id": a.subsidy_type_id,
             "subsidy_name": a.subsidy_type.subsidy_name if a.subsidy_type else "-",
             "apply_year": a.apply_year,
@@ -1568,9 +1570,9 @@ def list_payments(
     from sqlalchemy import or_ as sql_or
 
     q = db.query(
-        SubsidyPayment, FarmerProfile.real_name, SubsidyType.subsidy_name,
-        Village.village_name, FamilyHousehold.group_no,
-        FarmerProfile.household_id
+        SubsidyPayment, FarmerProfile.real_name, FarmerProfile.id_card,
+        SubsidyType.subsidy_name, Village.village_name,
+        FamilyHousehold.group_no, FarmerProfile.household_id
     )
     q = q.join(FarmerProfile, FarmerProfile.id == SubsidyPayment.farmer_id)
     q = q.join(SubsidyType, SubsidyType.id == SubsidyPayment.subsidy_type_id)
@@ -1662,12 +1664,14 @@ def list_payments(
             {
                 "id": p[0].id,
                 "farmer_id": p[0].farmer_id,
-                "household_id": p[5],
+                "household_id": p[6],
                 "farmer_name": p[1],
+                "id_card": p[2],
+                "id_card_masked": mask_id_card(p[2]) if p[2] else "",
                 "subsidy_type_id": p[0].subsidy_type_id,
-                "subsidy_name": p[2],
-                "village_name": p[3],
-                "group_no": format_group_no(p[4]) if p[4] else "一组",
+                "subsidy_name": p[3],
+                "village_name": p[4],
+                "group_no": format_group_no(p[5]) if p[5] else "一组",
                 "payment_year": p[0].payment_year,
                 "amount": p[0].amount,
                 "payment_date": p[0].payment_date,

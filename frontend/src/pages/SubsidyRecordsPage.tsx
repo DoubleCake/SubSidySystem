@@ -521,6 +521,8 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
           id: p.id,
           farmer_id: p.farmer_id,
           farmer_name: p.farmer_name,
+          id_card: p.id_card,
+          id_card_masked: p.id_card_masked || p.id_card,
           village: p.village_name,
           group_no: p.group_no,
           subsidy_type_id: p.subsidy_type_id,

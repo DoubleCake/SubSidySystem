@@ -274,10 +274,6 @@ def migrate_db():
         # 农户死亡日期和受限日期
         "ALTER TABLE farmer_profile ADD COLUMN death_date DATE",
         "ALTER TABLE farmer_profile ADD COLUMN restrict_date DATE",
-        # 移除 subsidy_application 唯一约束（允许重复导入）
-        "DROP INDEX IF EXISTS uq_farmer_subsidy_year",
-        "DROP INDEX IF EXISTS uq_farmer_subsidy_year_paystatus",
-        "CREATE INDEX IF NOT EXISTS ix_farmer_subsidy_year ON subsidy_application(farmer_id, subsidy_type_id, apply_year)",
         # 创建大户地块表
         """CREATE TABLE IF NOT EXISTS large_farmer_parcel (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

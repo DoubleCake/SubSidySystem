@@ -136,17 +136,32 @@ def get_farmer(db: Session, farmer_id: int) -> dict:
     detail = _to_detail(row)
     hh_id = dict(row._mapping).get("household_id")
 
-    # 补贴记录
-    apps = db.execute(text("""
+    # 补贴记录：发放优先，无发放则显示预申请
+    apps_raw = db.execute(text("""
         SELECT sa.id, sa.apply_year, sa.apply_amount, sa.actual_amount,
                sa.apply_area, sa.pay_status, sa.pay_date, sa.remark,
-               st.subsidy_name, st.calc_mode
+               st.subsidy_name, st.calc_mode, 'application' AS source
         FROM subsidy_application sa
         LEFT JOIN subsidy_type st ON sa.subsidy_type_id = st.id
         WHERE sa.farmer_id = :fid
-        ORDER BY sa.apply_year DESC, sa.id DESC
-    """), {"fid": farmer_id}).fetchall()
-    detail["applications"] = [dict(a._mapping) for a in apps]
+        UNION ALL
+        SELECT sp.id, sp.payment_year, CAST(sp.amount AS TEXT), CAST(sp.amount AS TEXT),
+               sp.apply_area, sp.pay_status, sp.payment_date, sp.remark,
+               st2.subsidy_name, st2.calc_mode, 'payment' AS source
+        FROM subsidy_payment sp
+        LEFT JOIN subsidy_type st2 ON sp.subsidy_type_id = st2.id
+        WHERE sp.farmer_id = :fid2
+        ORDER BY apply_year DESC, source DESC, id DESC
+    """), {"fid": farmer_id, "fid2": farmer_id}).fetchall()
+    # 去重：同项目同年优先保留 payment
+    seen = set()
+    apps_list = []
+    for a in apps_raw:
+        key = (a.subsidy_name, a.apply_year)
+        if key not in seen:
+            seen.add(key)
+            apps_list.append(dict(a._mapping))
+    detail["applications"] = apps_list
 
     # 同户成员
     if hh_id:

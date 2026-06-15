@@ -428,7 +428,7 @@ export default function SubsidyListBase({
                     {a.is_proxy === 1 && <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">代领</span>}
                   </div>
                 </td>
-                <td className="px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap">{a.id_card_masked || '—'}</td>
+                <td className="px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap">{(a as any).id_card || a.id_card_masked || '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap">{a.phone || '—'}</td>
                 <td className="px-2 py-2 text-xs text-text-muted whitespace-nowrap">{a.village || '—'}</td>
                 <td className="px-2 py-2 text-xs text-text-muted whitespace-nowrap">{a.group_no || '—'}</td>
