@@ -225,6 +225,104 @@ def batch_delete_progress(
     return {"ok": True, "deleted": deleted}
 
 
+@router.post("/{subsidy_type_id}/scan-files")
+def scan_files_for_progress(
+    subsidy_type_id: int,
+    data: dict,
+    db: Session = Depends(get_db),
+):
+    """
+    扫描本地目录，按子文件夹匹配阶段，按文件名匹配村名。
+    目录结构: D:/材料/宣传动员/红星村.pdf
+    data: { path: "D:/材料", stage_name: "宣传动员" }
+    """
+    import os
+    from datetime import date as date_type
+
+    scan_path = data.get("path", "")
+    stage_name = data.get("stage_name", "")
+
+    if not scan_path or not os.path.isdir(scan_path):
+        return {"error": f"目录不存在: {scan_path}"}, 400
+    if not stage_name:
+        return {"error": "缺少 stage_name"}, 400
+
+    # 查找匹配阶段名的子文件夹
+    stage_dir = None
+    matched_stage = ""
+    try:
+        for entry in os.listdir(scan_path):
+            full = os.path.join(scan_path, entry)
+            if os.path.isdir(full):
+                # 模糊匹配：阶段名包含在文件夹名中，或文件夹名包含阶段名
+                if stage_name in entry or entry in stage_name:
+                    stage_dir = full
+                    matched_stage = entry
+                    break
+    except Exception as e:
+        return {"error": f"读取目录失败: {e}"}, 500
+
+    if not stage_dir:
+        return {"error": f"未找到匹配阶段「{stage_name}」的子文件夹，请检查目录结构"}, 400
+
+    # 获取阶段文件夹下的文件名（不含扩展名）
+    file_names: set[str] = set()
+    try:
+        for f in os.listdir(stage_dir):
+            name, _ = os.path.splitext(f)
+            file_names.add(name.strip())
+    except Exception as e:
+        return {"error": f"读取阶段目录失败: {e}"}, 500
+
+    # 获取该项目的所有进度记录
+    records = db.query(ProjectProgress).filter(
+        ProjectProgress.subsidy_type_id == subsidy_type_id
+    ).all()
+
+    updated = 0
+    today_str = date_type.today().isoformat()
+
+    for rec in records:
+        stages = json.loads(rec.stages) if rec.stages else []
+        village = rec.village_name
+
+        # 检查村名是否出现在文件名中
+        found = any(village in f for f in file_names)
+
+        # 查找或创建对应阶段
+        stage_updated = False
+        for s in stages:
+            if s.get("name") == stage_name:
+                if found and s.get("status") != "done":
+                    s["status"] = "done"
+                    s["date"] = today_str
+                    stage_updated = True
+                elif not found and s.get("status") == "done":
+                    s["status"] = "none"
+                    s["date"] = ""
+                    stage_updated = True
+                break
+        else:
+            status = "done" if found else "none"
+            stages.append({"name": stage_name, "status": status, "date": today_str if found else "", "note": ""})
+            stage_updated = True
+
+        if stage_updated:
+            rec.stages = json.dumps(stages, ensure_ascii=False)
+            updated += 1
+
+    db.commit()
+
+    return {
+        "ok": True,
+        "updated": updated,
+        "total": len(records),
+        "scanned_files": len(file_names),
+        "matched_stage_dir": matched_stage,
+        "message": f"扫描完成：阶段「{matched_stage}」下 {len(file_names)} 个文件，更新 {updated}/{len(records)} 个村",
+    }
+
+
 def _serialize(r: ProjectProgress) -> dict:
     return {
         "id": r.id,

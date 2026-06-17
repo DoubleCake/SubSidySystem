@@ -56,6 +56,59 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
   const [newStageName, setNewStageName] = useState('')
   const [searchVillage, setSearchVillage] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'undone' | 'done'>('all')
+  const [scanPath, setScanPath] = useState('')
+  const [scanning, setScanning] = useState<string | null>(null)  // 正在扫描的阶段名
+
+  const scanFiles = async (stageName: string) => {
+    if (!scanPath) { show('请先选择扫描源目录', 'err'); return }
+    setScanning(stageName)
+    try {
+      const res = await fetch(`/api/project-progress/${projectId}/scan-files`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: scanPath, stage_name: stageName }),
+      }).then(r => r.json())
+      if (res.error) { show(res.error, 'err'); return }
+      show(`✓ ${res.message}`)
+      loadRecords()
+    } catch (e) { show('扫描失败: ' + (e as Error).message, 'err') }
+    finally { setScanning(null) }
+  }
+
+  // 文件夹选择：支持拖放和点击
+  const pickFolder = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    ;(input as any).webkitdirectory = true
+    input.onchange = () => {
+      if (input.files && input.files.length > 0) {
+        const p = (input.files[0] as any).webkitRelativePath || ''
+        const dir = p.split('/')[0] || ''
+        if (dir) { setScanPath(dir); show(`✓ 已选择: ${dir}`) }
+      }
+    }
+    input.click()
+  }
+
+  const handleFolderDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    const items = e.dataTransfer.items
+    if (items && items.length > 0) {
+      const entry = (items[0] as any).webkitGetAsEntry?.()
+      if (entry && entry.isDirectory) {
+        setScanPath(entry.name)
+        show(`✓ 已选择: ${entry.name}`)
+        return
+      }
+      // fallback: 从文件路径推断
+      const file = items[0].getAsFile()
+      if (file) {
+        const p = (file as any).webkitRelativePath || (file as any).path || file.name
+        const dir = (typeof p === 'string' && p.includes('/')) ? p.split('/')[0] : p
+        if (dir) { setScanPath(dir); show(`✓ 已选择: ${dir}`) }
+        else show('请拖入文件夹（非单个文件）', 'err')
+      }
+    }
+  }
 
   // 展开收起
   const [expandedSet, setExpandedSet] = useState<Set<number>>(new Set())
@@ -267,10 +320,31 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
 
   return (
     <div className="max-w-full">
+      {/* 文件夹拖放区 */}
+      <div className="bg-white border border-border rounded-card p-3 mb-3 flex items-center gap-3 shadow-sm">
+        <span className="text-xs font-semibold text-text-primary shrink-0 self-center">📁 扫描源目录</span>
+        <div
+          className={`flex-1 border-2 border-dashed rounded-btn px-4 py-2.5 flex items-center justify-center gap-2 cursor-pointer transition-colors ${scanPath ? 'border-green-300 bg-green-50' : 'border-border/50 hover:border-primary/40 hover:bg-primary/5'}`}
+          onClick={pickFolder}
+          onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('border-primary', 'bg-primary/5') }}
+          onDragLeave={e => e.currentTarget.classList.remove('border-primary', 'bg-primary/5')}
+          onDrop={handleFolderDrop}>
+          {scanPath ? (
+            <span className="text-sm text-green-700 font-medium">📁 {scanPath} <span className="text-xs text-text-muted ml-2">— 拖放或点击更换</span></span>
+          ) : (
+            <span className="text-xs text-text-muted">拖放文件夹到此处，或点击选择文件夹（扫描时将按子文件夹名匹配阶段）</span>
+          )}
+        </div>
+        {scanPath && (
+          <button onClick={() => setScanPath('')} className="px-2 py-1 text-xs text-red-500 border border-red-200 rounded-btn hover:bg-red-50">清除</button>
+        )}
+      </div>
+
       {/* 操作栏 */}
       <div className="bg-white border border-border rounded-card p-3 mb-3 flex items-center gap-3 flex-wrap shadow-sm">
         <button onClick={initAllVillages} className="px-3 py-1.5 text-xs border border-border rounded-btn hover:bg-warm/30">🔄 初始化全部村</button>
         <button onClick={syncLeaders} className="px-3 py-1.5 text-xs border border-amber-200 text-amber-700 rounded-btn hover:bg-amber-50">👤 同步负责人</button>
+        <div className="w-px h-6 bg-border" />
         <div className="w-px h-6 bg-border" />
         <select value={searchVillage} onChange={e => setSearchVillage(e.target.value)}
             className="border border-border rounded-btn px-2 py-1 text-[11px] outline-none bg-white">
@@ -355,6 +429,11 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
                             )
                           })}
                         </div>
+                        <button onClick={() => scanFiles(sn)} disabled={scanning === sn}
+                          className="shrink-0 px-2 py-1 text-[10px] border-2 border-green-500 bg-green-500 text-white rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-bold disabled:opacity-50"
+                          title="扫描目录中的村名文件，自动标记已完成">
+                          {scanning === sn ? '⏳' : '🔍'} 扫描
+                        </button>
                         <button onClick={() => copyStageSummary(sn)}
                           className="shrink-0 px-2 py-1 text-[10px] border border-border rounded-btn text-text-muted hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
                           title="复制完成情况到剪贴板">
@@ -368,7 +447,7 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
                     <span className="text-xs text-text-muted">＋ 添加阶段：</span>
                     <input value={newStageName} onChange={e => setNewStageName(e.target.value)} placeholder="新阶段名称"
                       className="flex-1 border border-border rounded-btn px-2 py-1 text-[11px] outline-none" />
-                    <button onClick={addStageToAll} className="px-3 py-1 text-xs bg-primary text-white rounded-btn hover:bg-primary/90 font-medium">添加</button>
+                    <button onClick={addStageToAll} className="px-4 py-1.5 text-xs border-2 border-green-500 bg-green-500 text-white rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-bold">添加</button>
                   </div>
                 </div>
               )}

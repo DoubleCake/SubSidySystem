@@ -503,8 +503,7 @@ export default function ExcelImportWithMapping({
 
   return (
     <Modal open={open} title={`Excel批量导入 · ${title}`} onClose={handleClose} width={800}
-      onConfirm={handleConfirm}
-      confirmText={confirmText}>
+      onConfirm={handleConfirm} confirmText={confirmText}>
 
       {/* 步骤指示 */}
       <div className="flex items-center gap-2 mb-5 overflow-x-auto">
