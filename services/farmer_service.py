@@ -140,14 +140,14 @@ def get_farmer(db: Session, farmer_id: int) -> dict:
     apps_raw = db.execute(text("""
         SELECT sa.id, sa.apply_year, sa.apply_amount, sa.actual_amount,
                sa.apply_area, sa.pay_status, sa.pay_date, sa.remark,
-               st.subsidy_name, st.calc_mode, 'application' AS source
+               st.subsidy_name, st.calc_mode, sa.subsidy_type_id, 'application' AS source
         FROM subsidy_application sa
         LEFT JOIN subsidy_type st ON sa.subsidy_type_id = st.id
         WHERE sa.farmer_id = :fid
         UNION ALL
         SELECT sp.id, sp.payment_year, CAST(sp.amount AS TEXT), CAST(sp.amount AS TEXT),
                sp.apply_area, sp.pay_status, sp.payment_date, sp.remark,
-               st2.subsidy_name, st2.calc_mode, 'payment' AS source
+               st2.subsidy_name, st2.calc_mode, sp.subsidy_type_id, 'payment' AS source
         FROM subsidy_payment sp
         LEFT JOIN subsidy_type st2 ON sp.subsidy_type_id = st2.id
         WHERE sp.farmer_id = :fid2

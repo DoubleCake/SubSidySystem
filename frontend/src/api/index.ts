@@ -470,9 +470,12 @@ export interface HouseholdImportRow {
   gender?: string
   household_code?: string
   farmer_status?: string
+  village_name?: string
+  group_no?: string
 }
 
 export interface HouseholdImportPreview {
+  conflicts?: { row: number; real_name: string; id_card: string; village_name: string; group_no: string; phone: string; db_name: string; db_household_id: number }[]
   groups: {
     address: string
     household_code?: string

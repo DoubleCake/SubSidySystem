@@ -37,6 +37,8 @@ export default function HouseholdImportPage() {
     gender:       '',
     household_code: '',
     farmer_status: '',
+    village_name: '',
+    group_no:     '',
   })
 
   // 步骤：1=上传, 2=列映射, 3=预览, 4=结果
@@ -68,13 +70,15 @@ export default function HouseholdImportPage() {
         real_name:    guess(['姓名', '名字', '户主姓名']),
         id_card:      guess(['身份证', '证号', 'ID']),
         address:      guess(['地址', '住址', '户籍']),
-        head_relation: guess(['关系', '户主', '称谓']),
+        head_relation: guess(['关系', '户主', '称谓', '成员身份']),
         phone:        guess(['电话', '手机', '联系']),
         bank_card:    guess(['银行卡', '卡号']),
         bank_name:    guess(['开户行', '银行名']),
         gender:       guess(['性别', '男女']),
-        household_code: guess(['家庭编码', '户编码', '编码', '户号']),
+        household_code: guess(['家庭编码', '户编码', '编码', '户号', '家庭户ID']),
         farmer_status: guess(['状态', '人员状态', '农户状态']),
+        village_name: guess(['村', '村庄', '所在村', '村名']),
+        group_no:     guess(['组', '所在组', '组名']),
       })
       setStep(2)
     }
@@ -94,6 +98,8 @@ export default function HouseholdImportPage() {
       gender:       colMap.gender ? (r[colMap.gender] || '').trim() || undefined : undefined,
       household_code: colMap.household_code ? (r[colMap.household_code] || '').trim() || undefined : undefined,
       farmer_status: colMap.farmer_status ? (r[colMap.farmer_status] || '').trim() || undefined : undefined,
+      village_name: colMap.village_name ? (r[colMap.village_name] || '').trim() || undefined : undefined,
+      group_no:     colMap.group_no ? (r[colMap.group_no] || '').trim() || undefined : undefined,
     }))
 
   // ── 预览 ──
@@ -213,6 +219,8 @@ export default function HouseholdImportPage() {
               { key: 'household_code',label: '家庭编码（分组依据，可选）', required: false },
               { key: 'head_relation',label: '与户主关系（户主、儿子、女儿等）', required: false },
               { key: 'farmer_status',label: '状态（死亡、移居、出国等）', required: false },
+              { key: 'village_name',label: '所在村', required: false },
+              { key: 'group_no',    label: '所在组', required: false },
               { key: 'phone',        label: '手机号', required: false },
               { key: 'bank_card',    label: '银行卡号', required: false },
               { key: 'bank_name',    label: '开户行', required: false },
@@ -279,6 +287,41 @@ export default function HouseholdImportPage() {
               </div>
             ))}
           </div>
+
+          {/* 冲突明细：身份证已存在 */}
+          {preview.conflicts && preview.conflicts.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-card p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-semibold text-amber-700">
+                  ⚠ 人员冲突（{preview.conflicts.length} 条）— 这些身份证号已存在于数据库
+                </p>
+                <button onClick={() => {
+                  const header = ['行号', '姓名', '身份证号', '导入村', '导入组', '电话', 'DB姓名', 'DB家庭户ID']
+                  const rows = preview.conflicts!.map((c: any) => [c.row, c.real_name, c.id_card, c.village_name, c.group_no, c.phone, c.db_name, c.db_household_id])
+                  const ws = XLSX.utils.json_to_sheet(rows.map((r: any[]) => {
+                    const obj: Record<string, any> = {}
+                    header.forEach((h, i) => obj[h] = r[i])
+                    return obj
+                  }))
+                  ws['!cols'] = header.map(() => ({ wch: 16 }))
+                  const wb = XLSX.utils.book_new()
+                  XLSX.utils.book_append_sheet(wb, ws, '人员冲突')
+                  XLSX.writeFile(wb, `人员冲突_${new Date().toISOString().slice(0, 10)}.xlsx`)
+                }}
+                  className="text-xs bg-amber-200 text-amber-800 px-3 py-1.5 rounded-btn hover:bg-amber-300 font-medium">
+                  📥 导出冲突 Excel
+                </button>
+              </div>
+              <div className="max-h-32 overflow-y-auto text-xs space-y-0.5">
+                {preview.conflicts.map((c: any, i: number) => (
+                  <div key={i} className="text-amber-700">
+                    第{c.row}行: {c.real_name}（{c.id_card}）
+                    → DB已存在「{c.db_name}」
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 行级错误 */}
           {preview.row_errors.length > 0 && (

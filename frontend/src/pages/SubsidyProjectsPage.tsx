@@ -84,12 +84,20 @@ export default function SubsidyProjectsPage() {
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const typeIdParam = params.get('subsidy_type_id')
-    if (typeIdParam && types.length > 0) {
-      const typeId = parseInt(typeIdParam, 10)
-      const found = types.find(t => t.id === typeId)
-      if (found) {
-        setActiveType(found)
-      }
+    if (!typeIdParam) return
+    const typeId = parseInt(typeIdParam, 10)
+    // 先在当前列表中查找
+    const found = types.find(t => t.id === typeId)
+    if (found) {
+      setActiveType(found)
+      return
+    }
+    // 未找到：可能跨年度，从后台直接获取
+    if (types.length > 0) {
+      api.getSubsidyTypesWithStats().then((allTypes: StatsType[]) => {
+        const crossYear = allTypes.find((t: StatsType) => t.id === typeId)
+        if (crossYear) setActiveType(crossYear)
+      }).catch(() => {})
     }
   }, [types, location.search])
 

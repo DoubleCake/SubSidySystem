@@ -20,7 +20,7 @@ from datetime import datetime
 
 from database import get_db
 from models import FamilyHousehold, FarmerProfile, Village, HouseholdEvent
-from utils import format_group_no, gen_household_code, parse_gender_from_id, validate_id_card
+from utils import format_group_no, gen_household_code, parse_gender_from_id, validate_id_card, parse_group_no_to_int
 
 router = APIRouter(prefix="/api/household-import", tags=["家庭户批量导入"])
 
@@ -39,6 +39,8 @@ class ImportRow(BaseModel):
     gender: Optional[str] = None        # "男"/"女"，空则从身份证推断
     household_code: Optional[str] = None # 家庭编码（分组依据，优先级高于地址）
     farmer_status: Optional[str] = None  # 人员状态：死亡、移居、出国等
+    village_name: Optional[str] = None   # 指定所属村
+    group_no: Optional[str] = None       # 指定所属组（如"一组"或"1"）
 
 
 class ImportRequest(BaseModel):
@@ -126,6 +128,9 @@ def _analyze_groups(rows: List[ImportRow], db: Session) -> List[dict]:
         if errs:
             row_errors.append({"row": idx + 1, "name": name, "errors": errs})
 
+        # 解析 village/group
+        raw_village = (row.village_name or "").strip()
+        raw_group = (row.group_no or "").strip()
         parsed.append({
             "real_name": name,
             "id_card": id_card,
@@ -138,6 +143,8 @@ def _analyze_groups(rows: List[ImportRow], db: Session) -> List[dict]:
             "gender": _parse_gender(id_card, row.gender),
             "household_code": (row.household_code or "").strip(),
             "farmer_status": (row.farmer_status or "").strip(),
+            "village_name": raw_village,
+            "group_no": raw_group,
             "has_errors": bool(errs),
         })
 
@@ -204,22 +211,39 @@ def _analyze_groups(rows: List[ImportRow], db: Session) -> List[dict]:
                 if code_matched_hh.id not in all_households:
                     all_households[code_matched_hh.id] = code_matched_hh
 
-        # 确定村组信息：优先用户主已有家庭户，否则用任意匹配户
+        # 确定村组信息：
+        # 1) 导入数据中指定的 village/group 优先
+        # 2) 否则用户主已有家庭户的村组
+        # 3) 否则用任意匹配户的村组
         target_village_id = None
         target_group_no = 1
-        head_existing = all_farmers.get(head["id_card"])
-        if head_existing:
-            hh = all_households.get(head_existing.household_id)
-            if hh:
-                target_village_id = hh.village_id
-                target_group_no = hh.group_no
-        elif member_db_info:
-            first = member_db_info[0]
-            target_village_id = first["village_id"]
-            target_group_no = first["group_no"] or 1
-        elif code_matched_hh:
-            target_village_id = code_matched_hh.village_id
-            target_group_no = code_matched_hh.group_no or 1
+        # 解析导入中指定的村和组
+        input_village = (head.get("village_name") or "").strip()
+        input_group = (head.get("group_no") or "").strip()
+        if input_village:
+            v = db.query(Village).filter(Village.village_name == input_village).first()
+            if not v:
+                v = Village(village_name=input_village)
+                db.add(v)
+                db.flush()
+            target_village_id = v.id
+        if input_group:
+            target_group_no = parse_group_no_to_int(input_group)
+        elif not input_village:
+            # 无导入村组信息：查已有记录
+            head_existing = all_farmers.get(head["id_card"])
+            if head_existing:
+                hh = all_households.get(head_existing.household_id)
+                if hh:
+                    target_village_id = target_village_id or hh.village_id
+                    target_group_no = hh.group_no or target_group_no
+            if not target_village_id and member_db_info:
+                first = member_db_info[0]
+                target_village_id = first["village_id"]
+                target_group_no = first["group_no"] or 1
+            if not target_village_id and code_matched_hh:
+                target_village_id = code_matched_hh.village_id
+                target_group_no = code_matched_hh.group_no or 1
 
         # 合并场景判断
         matched_hh_ids_list = list(matched_hh_ids)
@@ -310,9 +334,31 @@ def preview_import(req: ImportRequest, db: Session = Depends(get_db)):
     for g in groups:
         action_counts[g["action"]] = action_counts.get(g["action"], 0) + 1
 
+    # 冲突明细：身份证号在DB中已存在的行
+    all_farmers_snapshot = {
+        f.id_card: {"name": f.real_name, "household_id": f.household_id}
+        for f in db.query(FarmerProfile).all()
+    }
+    conflicts = []
+    for idx, row in enumerate(req.rows):
+        ic = (row.id_card or "").strip().upper()
+        if ic and ic in all_farmers_snapshot:
+            existing = all_farmers_snapshot[ic]
+            conflicts.append({
+                "row": idx + 1,
+                "real_name": row.real_name,
+                "id_card": ic[:6] + "****" + ic[-4:],
+                "village_name": row.village_name or "",
+                "group_no": row.group_no or "",
+                "phone": row.phone or "",
+                "db_name": existing["name"],
+                "db_household_id": existing["household_id"],
+            })
+
     return {
         "groups": preview_groups,
         "row_errors": row_errors,
+        "conflicts": conflicts,
         "summary": {
             "total_rows": len(req.rows),
             "total_groups": len(groups),

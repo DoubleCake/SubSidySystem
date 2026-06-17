@@ -458,63 +458,114 @@ def search_applications(
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    """补贴申请搜索：支持姓名/身份证、年度、补贴类型、村组筛选"""
+    """补贴查询：发放记录优先，无发放则显示预申请"""
     from sqlalchemy import or_
 
-    q = db.query(SubsidyApplication)
+    def _apply_filters(q, year_field, type_field, farmer_field, payment=False):
+        if year:
+            q = q.filter(year_field == year)
+        if subsidy_type_id:
+            q = q.filter(type_field == subsidy_type_id)
+        if pay_status is not None:
+            statuses = [int(s.strip()) for s in pay_status.split(',') if s.strip().isdigit()]
+            if len(statuses) == 1:
+                q = q.filter(SubsidyPayment.pay_status == statuses[0] if payment else SubsidyApplication.pay_status == statuses[0])
+            elif len(statuses) > 1:
+                q = q.filter(SubsidyPayment.pay_status.in_(statuses) if payment else SubsidyApplication.pay_status.in_(statuses))
+        if village_name:
+            v_ids  = [v.id for v in db.query(Village).filter(Village.village_name == village_name).all()]
+            hh_ids  = [h.id for h in db.query(FamilyHousehold).filter(FamilyHousehold.village_id.in_(v_ids)).all()]
+            f_ids   = [f.id for f in db.query(FarmerProfile).filter(FarmerProfile.household_id.in_(hh_ids)).all()]
+            q = q.filter(farmer_field.in_(f_ids))
+        if search:
+            matched = db.query(FarmerProfile.id).filter(
+                or_(FarmerProfile.real_name.contains(search),
+                    FarmerProfile.id_card.contains(search))
+            ).all()
+            matched_ids = [r.id for r in matched]
+            q = q.filter(farmer_field.in_(matched_ids))
+        return q
 
-    if year:
-        q = q.filter(SubsidyApplication.apply_year == year)
-    if subsidy_type_id:
-        q = q.filter(SubsidyApplication.subsidy_type_id == subsidy_type_id)
-    if pay_status is not None:
-        statuses = [int(s.strip()) for s in pay_status.split(',') if s.strip().isdigit()]
-        if len(statuses) == 1:
-            q = q.filter(SubsidyApplication.pay_status == statuses[0])
-        elif len(statuses) > 1:
-            q = q.filter(SubsidyApplication.pay_status.in_(statuses))
-    if village_name:
-        v_ids  = [v.id for v in db.query(Village).filter(Village.village_name == village_name).all()]
-        hh_ids  = [h.id for h in db.query(FamilyHousehold).filter(FamilyHousehold.village_id.in_(v_ids)).all()]
-        f_ids   = [f.id for f in db.query(FarmerProfile).filter(FarmerProfile.household_id.in_(hh_ids)).all()]
-        q = q.filter(SubsidyApplication.farmer_id.in_(f_ids))
-    if search:
-        matched = db.query(FarmerProfile.id).filter(
-            or_(FarmerProfile.real_name.contains(search),
-                FarmerProfile.id_card.contains(search))
-        ).all()
-        matched_ids = [r.id for r in matched]
-        q = q.filter(SubsidyApplication.farmer_id.in_(matched_ids))
+    # ── 1. 查发放记录 ──
+    pay_q = db.query(SubsidyPayment)
+    pay_q = _apply_filters(pay_q, SubsidyPayment.payment_year, SubsidyPayment.subsidy_type_id, SubsidyPayment.farmer_id, payment=True)
+    pays = pay_q.order_by(SubsidyPayment.payment_year.desc(), SubsidyPayment.id.desc()).all()
 
-    total = q.count()
-    apps  = q.order_by(SubsidyApplication.apply_year.desc(), SubsidyApplication.id.desc())\
-             .offset((page-1)*page_size).limit(page_size).all()
+    # 记录已覆盖的 (farmer_id, subsidy_type_id, year) 组合
+    covered = set()
+    pay_rows = []
+    for p in pays:
+        f  = db.get(FarmerProfile, p.farmer_id)
+        st = db.get(SubsidyType, p.subsidy_type_id)
+        if not f:
+            continue
+        vname = p.payment_village_name
+        gno = p.payment_group_display
+        if not vname or not gno:
+            if f.household and f.household.village:
+                vname = f.household.village.village_name
+                gno = format_group_no(f.household.group_no) if f.household.group_no else ""
+        covered.add((f.id, p.subsidy_type_id, p.payment_year))
+        pay_rows.append({
+            "id":              p.id,
+            "farmer_id":       p.farmer_id,
+            "household_id":    f.household_id if f else None,
+            "farmer_name":     f.real_name,
+            "id_card_masked":  (f.id_card[:6] + "********" + f.id_card[-4:]) if f and f.id_card else "—",
+            "phone":           f.phone,
+            "village":         vname,
+            "group_no":        gno,
+            "subsidy_type_id": p.subsidy_type_id,
+            "subsidy_name":    st.subsidy_name if st else "—",
+            "calc_mode":       st.calc_mode if st else "fixed",
+            "apply_year":      p.payment_year,
+            "apply_area":      p.apply_area,
+            "apply_area_no_calc": p.apply_area_no_calc,
+            "contract_area":   p.contract_area,
+            "trust_area":      p.trust_area,
+            "no_subsidy_area": p.no_subsidy_area,
+            "apply_amount":    p.amount,
+            "actual_amount":   p.amount,
+            "pay_status":      p.pay_status,
+            "pay_date":        str(p.payment_date) if p.payment_date else None,
+            "remark":          p.remark,
+            "proxy_remark":    p.proxy_remark,
+            "is_proxy":        p.is_proxy,
+            "source":          "payment",
+        })
 
-    rows = []
+    # ── 2. 查预申请记录（排除已被发放覆盖的） ──
+    app_q = db.query(SubsidyApplication)
+    app_q = _apply_filters(app_q, SubsidyApplication.apply_year, SubsidyApplication.subsidy_type_id, SubsidyApplication.farmer_id)
+    apps = app_q.order_by(SubsidyApplication.apply_year.desc(), SubsidyApplication.id.desc()).all()
+
+    app_rows = []
     for a in apps:
         f  = db.get(FarmerProfile, a.farmer_id)
         st = db.get(SubsidyType, a.subsidy_type_id)
-        # 使用申请记录的快照村组信息（申请时的村组），而不是农户当前的村组
+        if not f:
+            continue
+        if (f.id, a.subsidy_type_id, a.apply_year) in covered:
+            continue  # 已被发放记录覆盖
         vname = a.apply_village_name
         gno = a.apply_group_display
-        # 如果快照信息不存在，回退到农户当前的村组信息
         if not vname or not gno:
             if f and f.household:
                 if f.household.village:
                     vname = f.household.village.village_name
-                gno = format_group_no(f.household.group_no) if f.household.group_no else "一组"
-        rows.append({
+                gno = format_group_no(f.household.group_no) if f.household.group_no else ""
+        app_rows.append({
             "id":              a.id,
             "farmer_id":       a.farmer_id,
             "household_id":    f.household_id if f else None,
-            "farmer_name":     f.real_name    if f  else "—",
+            "farmer_name":     f.real_name,
             "id_card_masked":  (f.id_card[:6] + "********" + f.id_card[-4:]) if f and f.id_card else "—",
-            "phone":           f.phone        if f  else None,
+            "phone":           f.phone,
             "village":         vname,
             "group_no":        gno,
             "subsidy_type_id": a.subsidy_type_id,
             "subsidy_name":    st.subsidy_name if st else "—",
-            "calc_mode":       st.calc_mode    if st else "fixed",
+            "calc_mode":       st.calc_mode if st else "fixed",
             "apply_year":      a.apply_year,
             "apply_area":      a.apply_area,
             "apply_area_no_calc": a.apply_area_no_calc,
@@ -528,8 +579,16 @@ def search_applications(
             "remark":          a.remark,
             "proxy_remark":    None,
             "is_proxy":        a.is_proxy,
+            "source":          "application",
         })
-    return {"total": total, "page": page, "page_size": page_size, "items": rows}
+
+    # ── 3. 合并 + 排序 + 分页 ──
+    all_rows = sorted(pay_rows + app_rows, key=lambda r: r.get("apply_year") or 0, reverse=True)
+    total = len(all_rows)
+    start = (page - 1) * page_size
+    items = all_rows[start:start + page_size]
+
+    return {"total": total, "page": page, "page_size": page_size, "items": items}
 
 
 @router.get("/applications/export")
