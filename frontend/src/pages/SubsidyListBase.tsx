@@ -413,7 +413,12 @@ export default function SubsidyListBase({
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={16} className="text-center py-10 text-text-muted/50">加载中…</td></tr>}
+            {loading && <tr><td colSpan={16} className="text-center py-10">
+              <div className="inline-flex items-center gap-2 text-text-muted/60">
+                <span className="w-5 h-5 border-2 border-stone-300 border-t-primary rounded-full animate-spin" />
+                <span className="text-sm">加载中…</span>
+              </div>
+            </td></tr>}
             {!loading && (!apps || apps.length === 0) && (<tr><td colSpan={16} className="text-center py-10 text-text-muted/50 text-sm">暂无记录，通过「Excel 导入」或「＋ 新增一条」添加</td></tr>)}
             {!loading && apps && apps.map(a => (
               <tr key={a.id} className={`border-b border-border/50 hover:bg-warm/30 ${a.pay_status === 0 ? 'bg-amber-50/30' : ''}`}>

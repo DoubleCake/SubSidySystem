@@ -56,58 +56,35 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
   const [newStageName, setNewStageName] = useState('')
   const [searchVillage, setSearchVillage] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'undone' | 'done'>('all')
-  const [scanPath, setScanPath] = useState('')
-  const [scanning, setScanning] = useState<string | null>(null)  // 正在扫描的阶段名
+  const [scanning, setScanning] = useState<string | null>(null)
+  const scanPath = localStorage.getItem(`scan_${projectId}`) || ''  // 正在扫描的阶段名
+
+  const deleteStage = async (stageName: string) => {
+    if (!confirm(`确定要删除阶段「${stageName}」？将从所有村中移除。`)) return
+    try {
+      const res = await fetch(`/api/project-progress/${projectId}/delete-stage`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stage_name: stageName }),
+      }).then(r => r.json())
+      show(`✓ ${res.message}`)
+      loadRecords()
+    } catch (e) { show('删除失败: ' + (e as Error).message, 'err') }
+  }
 
   const scanFiles = async (stageName: string) => {
-    if (!scanPath) { show('请先选择扫描源目录', 'err'); return }
+    const dir = localStorage.getItem(`scan_${projectId}`)
+    if (!dir) { show('请先在项目卡片中设置扫描源目录', 'err'); return }
     setScanning(stageName)
     try {
       const res = await fetch(`/api/project-progress/${projectId}/scan-files`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: scanPath, stage_name: stageName }),
+        body: JSON.stringify({ path: dir, stage_name: stageName }),
       }).then(r => r.json())
       if (res.error) { show(res.error, 'err'); return }
       show(`✓ ${res.message}`)
       loadRecords()
     } catch (e) { show('扫描失败: ' + (e as Error).message, 'err') }
     finally { setScanning(null) }
-  }
-
-  // 文件夹选择：支持拖放和点击
-  const pickFolder = () => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    ;(input as any).webkitdirectory = true
-    input.onchange = () => {
-      if (input.files && input.files.length > 0) {
-        const p = (input.files[0] as any).webkitRelativePath || ''
-        const dir = p.split('/')[0] || ''
-        if (dir) { setScanPath(dir); show(`✓ 已选择: ${dir}`) }
-      }
-    }
-    input.click()
-  }
-
-  const handleFolderDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    const items = e.dataTransfer.items
-    if (items && items.length > 0) {
-      const entry = (items[0] as any).webkitGetAsEntry?.()
-      if (entry && entry.isDirectory) {
-        setScanPath(entry.name)
-        show(`✓ 已选择: ${entry.name}`)
-        return
-      }
-      // fallback: 从文件路径推断
-      const file = items[0].getAsFile()
-      if (file) {
-        const p = (file as any).webkitRelativePath || (file as any).path || file.name
-        const dir = (typeof p === 'string' && p.includes('/')) ? p.split('/')[0] : p
-        if (dir) { setScanPath(dir); show(`✓ 已选择: ${dir}`) }
-        else show('请拖入文件夹（非单个文件）', 'err')
-      }
-    }
   }
 
   // 展开收起
@@ -320,31 +297,11 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
 
   return (
     <div className="max-w-full">
-      {/* 文件夹拖放区 */}
-      <div className="bg-white border border-border rounded-card p-3 mb-3 flex items-center gap-3 shadow-sm">
-        <span className="text-xs font-semibold text-text-primary shrink-0 self-center">📁 扫描源目录</span>
-        <div
-          className={`flex-1 border-2 border-dashed rounded-btn px-4 py-2.5 flex items-center justify-center gap-2 cursor-pointer transition-colors ${scanPath ? 'border-green-300 bg-green-50' : 'border-border/50 hover:border-primary/40 hover:bg-primary/5'}`}
-          onClick={pickFolder}
-          onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('border-primary', 'bg-primary/5') }}
-          onDragLeave={e => e.currentTarget.classList.remove('border-primary', 'bg-primary/5')}
-          onDrop={handleFolderDrop}>
-          {scanPath ? (
-            <span className="text-sm text-green-700 font-medium">📁 {scanPath} <span className="text-xs text-text-muted ml-2">— 拖放或点击更换</span></span>
-          ) : (
-            <span className="text-xs text-text-muted">拖放文件夹到此处，或点击选择文件夹（扫描时将按子文件夹名匹配阶段）</span>
-          )}
-        </div>
-        {scanPath && (
-          <button onClick={() => setScanPath('')} className="px-2 py-1 text-xs text-red-500 border border-red-200 rounded-btn hover:bg-red-50">清除</button>
-        )}
-      </div>
-
       {/* 操作栏 */}
       <div className="bg-white border border-border rounded-card p-3 mb-3 flex items-center gap-3 flex-wrap shadow-sm">
         <button onClick={initAllVillages} className="px-3 py-1.5 text-xs border border-border rounded-btn hover:bg-warm/30">🔄 初始化全部村</button>
         <button onClick={syncLeaders} className="px-3 py-1.5 text-xs border border-amber-200 text-amber-700 rounded-btn hover:bg-amber-50">👤 同步负责人</button>
-        <div className="w-px h-6 bg-border" />
+        {scanPath && <span className="text-[11px] text-text-muted font-mono truncate max-w-[200px]" title={scanPath}>📁 {scanPath}</span>}
         <div className="w-px h-6 bg-border" />
         <select value={searchVillage} onChange={e => setSearchVillage(e.target.value)}
             className="border border-border rounded-btn px-2 py-1 text-[11px] outline-none bg-white">
@@ -399,7 +356,7 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
                           hover:bg-warm/20 transition-all`}>
                         <span className="text-text-muted/20 cursor-grab select-none text-xs" title="拖拽排序">⠿</span>
                         <div className="min-w-[80px]">
-                          <span className="text-xs font-semibold text-text-primary">{sn}</span>
+                          <span className="text-xs font-bold text-text-primary">{sn}</span>
                         </div>
                         <div className="flex-1 flex items-center gap-2">
                           <div className="flex-1 h-2 bg-warm/30 rounded-full overflow-hidden">
@@ -438,6 +395,11 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
                           className="shrink-0 px-2 py-1 text-[10px] border border-border rounded-btn text-text-muted hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
                           title="复制完成情况到剪贴板">
                           📋 复制
+                        </button>
+                        <button onClick={() => deleteStage(sn)}
+                          className="shrink-0 px-2 py-1 text-[10px] border border-red-200 text-red-500 rounded-btn hover:bg-red-50 hover:border-red-300 transition-all"
+                          title="删除此阶段">
+                          🗑
                         </button>
                       </div>
                     )
@@ -507,7 +469,7 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
                           title={`${sn}: ${cfg.label}${s?.note ? ' — ' + s.note : ''}`}>
                           <span className="w-3 h-3 rounded-sm inline-block"
                             style={{ backgroundColor: cfg.square }} />
-                          <span className="text-text-muted/40 text-[10px] hidden sm:inline">{sn}</span>
+                          <span className="text-text-muted/80 text-[10px] hidden sm:inline font-medium">{sn}</span>
                           {/* tooltip */}
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover/tip:block z-10
                             bg-gray-800 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap shadow-lg pointer-events-none">
@@ -543,7 +505,7 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
                             {/* 阶段名 + 日期 */}
                             <div className="flex items-center gap-1.5 mb-2">
                               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cfg.square }} />
-                              <span className="text-xs font-semibold text-text-primary truncate">{sn}</span>
+                              <span className="text-xs font-bold text-text-primary truncate">{sn}</span>
                             </div>
 
                             {/* 状态切换 */}

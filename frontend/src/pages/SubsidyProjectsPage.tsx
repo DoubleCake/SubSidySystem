@@ -232,6 +232,9 @@ export default function SubsidyProjectsPage() {
                   <div><span className="text-text-muted">记录</span><span className="text-text-primary ml-1">{t.app_count}条</span></div>
                 </div>
                 {t.apply_deadline && <p className="text-xs text-text-muted/50 mt-1.5">截止：{t.apply_deadline}</p>}
+
+                {/* 扫描源目录 */}
+                <ScanDirInput projectId={t.id} />
               </div>
 
               {/* 操作区 */}
@@ -320,6 +323,30 @@ export default function SubsidyProjectsPage() {
       )}
 
       <Toast {...toast} />
+    </div>
+  )
+}
+
+// ── 扫描目录设置组件（嵌入项目卡片） ──
+function ScanDirInput({ projectId }: { projectId: number }) {
+  const [path, setPath] = useState(() => localStorage.getItem(`scan_${projectId}`) || '')
+
+  const updatePath = (v: string) => { setPath(v); localStorage.setItem(`scan_${projectId}`, v) }
+
+  return (
+    <div className="mt-2 pt-2 border-t border-border/30 text-xs">
+      <div className="flex items-center gap-2">
+        <span className="text-text-muted shrink-0">📁 项目本地路径:</span>
+        <input value={path} onChange={e => updatePath(e.target.value)}
+          placeholder="D:\材料\2024耕地补贴"
+          className="flex-1 border border-border/50 rounded px-1.5 py-0.5 text-[10px] outline-none focus:border-primary/40" />
+        {path && (
+          <button onClick={() => updatePath('')} className="text-[9px] text-red-400 hover:text-red-600 shrink-0">✕</button>
+        )}
+      </div>
+      {path && (
+        <div className="text-[10px] text-green-600 font-mono mt-1 truncate" title={path}>📂 {path}</div>
+      )}
     </div>
   )
 }

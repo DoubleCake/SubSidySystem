@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import engine
+from database import engine, DB_PATH
 from models import Base
 from routers import farmers, subsidies, ai_analyze, settings, households, external_links, backup, eligibility, excel_templates, land, error_library, household_import, agri_tasks, large_farmers, project_progress, auth, village_contacts, precheck_history
 from core.exceptions import AppException, NotFound, BadRequest, Conflict, ValidationError, Forbidden
@@ -217,15 +217,18 @@ else:
 
 if __name__ == "__main__":
     import uvicorn
+    is_dev = os.getenv("ENV", "production") == "development"
     print("=" * 50)
     print("  农户补贴管理系统启动中...")
+    print(f"  环境: {'开发模式' if is_dev else '生产模式'}")
+    print(f"  数据库: {DB_PATH}")
     print(f"  静态文件目录: {static_dir}")
     print(f"  前端就绪: {'[OK]' if has_index(static_dir) else '[ERROR] 请先 npm run build'}")
     print("  接口文档:  http://localhost:8000/docs")
     print("  前端页面:  http://localhost:8000")
     print("  按 Ctrl+C 停止")
     print("=" * 50)
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=is_dev)
 
 
 

@@ -1,8 +1,10 @@
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
-# 数据库文件放在项目根目录
-DATABASE_URL = "sqlite:///./subsidy.db"
+# 数据库文件路径，支持环境变量（Docker 部署时挂载到 /app/data/）
+import os
+DB_PATH = os.getenv("DATABASE_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "subsidy.db"))
+DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(
     DATABASE_URL,

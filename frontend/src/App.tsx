@@ -16,6 +16,8 @@ import AgriTaskPage from './pages/AgriTaskPage'
 import LargeFarmersPage from './pages/LargeFarmersPage'
 import ProjectProgressPage from './pages/ProjectProgressPage'
 import WorkflowDocPage from './pages/WorkflowDocPage'
+import ToolsPage from './pages/ToolsPage'
+import DataVerifyPage from './pages/DataVerifyPage'
 import UserManagementPage from './pages/UserManagementPage'
 import PeopleMatchPage from './pages/PeopleMatchPage'
 import LoginPage, { getAuth, clearAuth, isAuthDisabled, setAuthDisabled } from './pages/LoginPage'
@@ -29,7 +31,7 @@ const mainNav = [
   { to: '/farmers',   label: '户籍管理', icon: 'farmers' as const },
   { to: '/projects',  label: '补贴项目', icon: 'subsidies' as const },
   { to: '/links',     label: '补贴查询', icon: 'link' as const },
-  { to: '/workflow',  label: '操作流程', icon: 'menu' as const },
+  { to: '/tools',     label: '数据工具', icon: 'menu' as const },
 ]
 
 // 系统设置下拉菜单分组
@@ -44,9 +46,6 @@ const settingNavBasic = [  // 基础配置
 ]
 
 const settingNavData = [  // 数据工具
-  { to: '/ai',                     label: 'AI 分析',    icon: 'ai' as const },
-  { to: '/match-people',           label: '人员匹配',   icon: 'person' as const },
-  { to: '/settings/household-import', label: '家庭户导入', icon: 'import' as const },
   { to: '/settings/excel-templates', label: 'Excel模板', icon: 'export' as const },
 ]
 
@@ -268,6 +267,8 @@ function Layout() {
             <Route path="/agri-tasks" element={<AgriTaskPage />} />
             <Route path="/land"      element={<LandTrustPage />} />
             <Route path="/links"     element={<ExternalLinksPage />} />
+            <Route path="/tools"     element={<ToolsPage />} />
+            <Route path="/data-verify" element={<DataVerifyPage />} />
             <Route path="/ai"        element={<AIPage />} />
             <Route path="/settings/village-groups" element={<SettingsPage />} />
             <Route path="/settings/backup" element={<BackupPage />} />

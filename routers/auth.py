@@ -17,7 +17,7 @@ from models import User
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 
-JWT_SECRET = "subsidy-system-jwt-secret-change-in-production"
+JWT_SECRET = os.getenv("JWT_SECRET", "subsidy-system-jwt-secret-change-in-production")
 JWT_ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 24
 

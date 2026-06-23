@@ -667,6 +667,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
 
   // 获取全部统计数据
   const loadStats = useCallback(async () => {
+    setLoadingStats(true)
     try {
       const params = new URLSearchParams({
         subsidy_type_id: String(subsidyType.id),
@@ -682,6 +683,8 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     } catch (error) {
       console.error('加载统计数据失败:', error)
       show('加载统计数据失败', 'err')
+    } finally {
+      setLoadingStats(false)
     }
   }, [subsidyType.id, subsidyType.subsidy_year, selectedCompareType])
 
@@ -720,6 +723,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
 
   // 数据概览展开/收起状态
   const [statsExpanded, setStatsExpanded] = useState(false)
+  const [loadingStats, setLoadingStats] = useState(false)
 
   return (
     <div>
@@ -753,6 +757,15 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
 
         {statsExpanded && (
           <div className="px-4 pb-4 border-t border-border/50">
+            {loadingStats ? (
+              <div className="py-10 text-center">
+                <div className="inline-flex items-center gap-2 text-text-muted/60">
+                  <span className="w-5 h-5 border-2 border-stone-300 border-t-primary rounded-full animate-spin" />
+                  <span className="text-sm">正在加载统计数据…</span>
+                </div>
+              </div>
+            ) : (
+              <>
             <div className="flex items-center justify-end gap-2 pt-3 mb-4">
               {subsidyType.category && (
                 <select
@@ -786,6 +799,8 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
                 <div className="text-sm text-purple-600 mt-2">补贴面积合计</div>
               </div>
             </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -830,9 +845,11 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         {areaStatsExpanded && (
           <div className="px-4 pb-4 border-t border-border/50">
             {loadingAreaStats ? (
-              <div className="py-8 text-center text-text-muted">
-                <span className="animate-spin inline-block w-4 h-4 border-2 border-stone-300 border-t-emerald-500 rounded-full mr-2" />
-                加载中...
+              <div className="py-10 text-center">
+                <div className="inline-flex items-center gap-2 text-text-muted/60">
+                  <span className="w-5 h-5 border-2 border-stone-300 border-t-emerald-500 rounded-full animate-spin" />
+                  <span className="text-sm">正在计算面积统计…</span>
+                </div>
               </div>
             ) : areaStats ? (
               <div className="overflow-x-auto mt-4">

@@ -225,6 +225,33 @@ def batch_delete_progress(
     return {"ok": True, "deleted": deleted}
 
 
+@router.post("/{subsidy_type_id}/delete-stage")
+def delete_stage(
+    subsidy_type_id: int,
+    data: dict,
+    db: Session = Depends(get_db),
+):
+    """删除指定阶段（所有记录）"""
+    stage_name = data.get("stage_name", "")
+    if not stage_name:
+        return {"error": "缺少 stage_name"}, 400
+
+    records = db.query(ProjectProgress).filter(
+        ProjectProgress.subsidy_type_id == subsidy_type_id
+    ).all()
+
+    updated = 0
+    for rec in records:
+        stages = json.loads(rec.stages) if rec.stages else []
+        new_stages = [s for s in stages if s.get("name") != stage_name]
+        if len(new_stages) != len(stages):
+            rec.stages = json.dumps(new_stages, ensure_ascii=False)
+            updated += 1
+
+    db.commit()
+    return {"ok": True, "updated": updated, "message": f"已从 {updated} 个村删除阶段「{stage_name}」"}
+
+
 @router.post("/{subsidy_type_id}/scan-files")
 def scan_files_for_progress(
     subsidy_type_id: int,
@@ -247,23 +274,28 @@ def scan_files_for_progress(
     if not stage_name:
         return {"error": "缺少 stage_name"}, 400
 
-    # 查找匹配阶段名的子文件夹
+    # 查找匹配阶段名的子文件夹；若路径本身就有文件则直接使用
     stage_dir = None
     matched_stage = ""
     try:
         for entry in os.listdir(scan_path):
             full = os.path.join(scan_path, entry)
             if os.path.isdir(full):
-                # 模糊匹配：阶段名包含在文件夹名中，或文件夹名包含阶段名
                 if stage_name in entry or entry in stage_name:
                     stage_dir = full
                     matched_stage = entry
                     break
+        # 没找到子文件夹时，检查路径本身是否就直接包含了文件
+        if not stage_dir:
+            files_in_root = [f for f in os.listdir(scan_path) if os.path.isfile(os.path.join(scan_path, f))]
+            if files_in_root:
+                stage_dir = scan_path
+                matched_stage = os.path.basename(scan_path)
     except Exception as e:
         return {"error": f"读取目录失败: {e}"}, 500
 
     if not stage_dir:
-        return {"error": f"未找到匹配阶段「{stage_name}」的子文件夹，请检查目录结构"}, 400
+        return {"error": f"未找到匹配阶段「{stage_name}」的子文件夹，路径下也无文件"}, 400
 
     # 获取阶段文件夹下的文件名（不含扩展名）
     file_names: set[str] = set()

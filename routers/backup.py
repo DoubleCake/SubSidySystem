@@ -15,13 +15,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 import io
 
-from database import get_db, engine, DATABASE_URL
+from database import get_db, engine, DATABASE_URL, DB_PATH
 from utils import format_group_no
 
 router = APIRouter(prefix="/api/backup", tags=["备份管理"])
 
-# 数据库文件路径
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "subsidy.db")
+# 备份目录
 BACKUP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "backups")
 
 

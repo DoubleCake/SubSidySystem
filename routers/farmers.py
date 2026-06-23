@@ -150,3 +150,32 @@ class MatchPeopleRequest(BaseModel):
 def match_people(req: MatchPeopleRequest, db: Session = Depends(get_db)):
     """人员模糊匹配：输入姓名+村名+电话，匹配数据库中的农户"""
     return farmer_service.match_people(db, req.rows)
+
+
+@router.post("/verify-names")
+def verify_names(payload: dict, db: Session = Depends(get_db)):
+    """
+    数据验证：比对输入姓名+身份证号与数据库是否一致。
+    输入: { rows: [{ name: "张三", id_card: "510123..." }] }
+    """
+    from models import FarmerProfile
+    rows = payload.get("rows", [])
+    results = []
+    for i, row in enumerate(rows):
+        name = (row.get("name") or "").strip()
+        ic = (row.get("id_card") or "").strip()
+        if not ic or len(ic) != 18:
+            results.append({"row": i + 1, "input_name": name, "input_id_card": ic, "db_name": None, "db_village": None, "match": "invalid"})
+            continue
+        fp = db.query(FarmerProfile).filter(FarmerProfile.id_card == ic).first()
+        if not fp:
+            results.append({"row": i + 1, "input_name": name, "input_id_card": ic, "db_name": None, "db_village": None, "match": "not_found"})
+            continue
+        db_village = fp.household.village.village_name if fp.household and fp.household.village else ""
+        name_match = name and (name == fp.real_name or fp.real_name in name or name in fp.real_name)
+        results.append({
+            "row": i + 1, "input_name": name, "input_id_card": ic,
+            "db_name": fp.real_name, "db_village": db_village,
+            "match": "ok" if name_match else "mismatch",
+        })
+    return {"results": results, "total": len(results)}

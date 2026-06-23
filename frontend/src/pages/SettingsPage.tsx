@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Modal from '../components/Modal'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
@@ -20,6 +21,50 @@ interface VillageGroup {
   trust_out_total?: number
   trust_in_total?: number
   total_land?: number
+}
+
+interface VillageDetail {
+  village_id: number
+  village_name: string
+  leader_name: string
+  leader_phone: string
+  household_count: number
+  contacts: Array<{
+    id: number
+    name: string
+    phone: string
+    position: string
+    is_agri_lead: boolean
+    sort_order: number
+    remark: string
+    farmer_id: number | null
+  }>
+  groups: Array<{
+    id: number
+    group_no: string
+    leader_name: string
+    leader_phone: string
+    leader_farmer_id: number | null
+    household_count: number
+    retained_land: number
+    population: number
+    contract_area: number
+    subsidy_hh_count: number
+    total_apply_area: number
+    total_amount: number
+    latest_year: number | null
+  }>
+  land_info: {
+    id: number
+    survey_year: number | null
+    paddy_area: number | null
+    dry_land_area: number | null
+    arable_area: number | null
+    irrigation_level: string | null
+    terrain_type: string | null
+    soil_quality: string | null
+    remark: string | null
+  } | null
 }
 
 interface VillageLandInfo {
@@ -66,6 +111,7 @@ const SOIL_OPTS       = ['优', '良', '一般', '差']
 export default function SettingsPage() {
   const [tab, setTab] = useState<'groups' | 'land' | 'contacts'>('groups')
   const { toast, show } = useToast()
+  const navigate = useNavigate()
   const [groups, setGroups] = useState<VillageGroup[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -85,6 +131,10 @@ export default function SettingsPage() {
   const [editLeaderPhone, setEditLeaderPhone] = useState('')
   const [editRetainedLand, setEditRetainedLand] = useState<number>(0)
   const [editPopulation, setEditPopulation] = useState<number>(0)
+  // 负责人搜索
+  const [leaderSearchResults, setLeaderSearchResults] = useState<{ id: number; real_name: string; id_card: string; phone: string; village_name: string }[]>([])
+  const [leaderSearchTimer, setLeaderSearchTimer] = useState<ReturnType<typeof setTimeout> | null>(null)
+  const [leaderDropdownOpen, setLeaderDropdownOpen] = useState(false)
 
   // 快速新增组
   const [quickAddVillage, setQuickAddVillage] = useState<string | null>(null)
@@ -101,6 +151,11 @@ export default function SettingsPage() {
   // 批量导入负责人
   const [batchLeaderOpen, setBatchLeaderOpen] = useState(false)
   const [batchLeaderText, setBatchLeaderText] = useState('')
+
+  // 两侧布局：选中村详情
+  const [selectedVillage, setSelectedVillage] = useState<string | null>(null)
+  const [villageDetail, setVillageDetail] = useState<VillageDetail | null>(null)
+  const [loadingDetail, setLoadingDetail] = useState(false)
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -126,6 +181,18 @@ export default function SettingsPage() {
   }, [])
 
   useEffect(() => { reload(); reloadLand(); loadLeaders() }, [reload, reloadLand, loadLeaders])
+
+  const loadVillageDetail = async (villageName: string) => {
+    const g = groups.find(gr => gr.village_name === villageName)
+    if (!g) return
+    setSelectedVillage(villageName)
+    setLoadingDetail(true)
+    try {
+      const res = await req<VillageDetail>(`/api/settings/villages/${g.village_id}/detail`)
+      setVillageDetail(res)
+    } catch (e: unknown) { show((e as Error).message, 'err') }
+    finally { setLoadingDetail(false) }
+  }
 
   const saveLeader = async (vname: string) => {
     const info = villageLeaders[vname]
@@ -199,6 +266,8 @@ export default function SettingsPage() {
     setEditLeaderName(g.leader_name || ''); setEditLeaderPhone(g.leader_phone || '')
     setEditRetainedLand(g.retained_land ?? 0)
     setEditPopulation(g.population ?? 0)
+    setLeaderSearchResults([])
+    setLeaderDropdownOpen(false)
   }
   const submitEdit = async () => {
     if (!editTarget) return
@@ -215,6 +284,29 @@ export default function SettingsPage() {
       })
       show('✓ 更新成功'); setEditTarget(null); reload()
     } catch (e: unknown) { show((e as Error).message, 'err') }
+  }
+
+  // 搜索农户匹配村组长
+  const searchFarmers = (query: string) => {
+    if (leaderSearchTimer) clearTimeout(leaderSearchTimer)
+    if (!query.trim()) { setLeaderSearchResults([]); setLeaderDropdownOpen(false); return }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await req<{ items: any[] }>(`/api/farmers?search=${encodeURIComponent(query.trim())}&page_size=5`)
+        setLeaderSearchResults((res.items || []).map((f: any) => ({
+          id: f.id, real_name: f.real_name, id_card: f.id_card || '', phone: f.phone || '', village_name: f.village_name || ''
+        })))
+        setLeaderDropdownOpen(true)
+      } catch { setLeaderSearchResults([]) }
+    }, 300)
+    setLeaderSearchTimer(timer)
+  }
+
+  const selectLeader = (f: { id: number; real_name: string; id_card: string; phone: string }) => {
+    setEditLeaderName(f.real_name)
+    if (f.phone) setEditLeaderPhone(f.phone)
+    setLeaderSearchResults([])
+    setLeaderDropdownOpen(false)
   }
 
   // 批量导入负责人（粘贴 村名\t组名\t姓名\t电话）
@@ -263,215 +355,33 @@ export default function SettingsPage() {
 
       {tab === 'groups' ? (
         <>
-          {/* 统计栏 */}
-          <div className="grid grid-cols-4 gap-3 mb-5">
-            <div className="bg-white border border-border rounded-card p-4 shadow-card">
-              <div className="text-2xl font-bold font-mono text-primary">{villages.length}</div>
-              <div className="text-xs text-text-muted mt-1">村庄总数</div>
-            </div>
-            <div className="bg-white border border-border rounded-card p-4 shadow-card">
-              <div className="text-2xl font-bold font-mono text-blue-600">{groups.length}</div>
-              <div className="text-xs text-text-muted mt-1">村组总数</div>
-            </div>
-            <div className="bg-white border border-border rounded-card p-4 shadow-card">
-              <div className="text-2xl font-bold font-mono text-amber-600">
-                {groups.reduce((s, g) => s + g.household_count, 0)}
-              </div>
-              <div className="text-xs text-text-muted mt-1">关联农户数</div>
-            </div>
-            <div className="bg-white border border-border rounded-card p-4 shadow-card">
-              <div className="text-2xl font-bold font-mono text-emerald-600">
-                {groups.reduce((s, g) => s + (g.total_land ?? 0), 0).toFixed(1)}
-              </div>
-              <div className="text-xs text-text-muted mt-1">土地总面积（亩）</div>
-            </div>
-          </div>
-
-          {/* 工具栏 */}
-          <div className="flex justify-between items-center mb-4">
-            <p className="text-sm text-text-muted">点击村名右侧「＋组」可快速添加该村新组</p>
-            <div className="flex gap-2">
-              <button onClick={() => setBatchLeaderOpen(true)}
-                className="px-3 py-2 text-sm border border-blue-200 text-blue-700 rounded-btn hover:bg-blue-50">
-                📥 批量导入负责人
-              </button>
-              <button onClick={() => { setAddMode('single'); setAddOpen(true) }}
-                className="px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
-                ＋ 新增村 / 组
-              </button>
-            </div>
-          </div>
-
-          {/* 村组卡片列表 */}
-          {loading && <div className="text-center py-16 text-text-muted/50">加载中…</div>}
-          <div className="space-y-3">
-            {villages.map(vname => {
-              const glist = villageMap.get(vname) ?? []
-              return (
-                <div key={vname} className="bg-white border border-border rounded-card overflow-hidden shadow-card">
-                  <div className="flex items-center justify-between px-5 py-3 bg-warm/30 border-b border-border/50">
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold text-text-primary">{vname}</span>
-                      <span className="text-xs text-text-muted font-mono">{glist.length} 个组</span>
-                      <span className="text-xs text-text-muted/50">·</span>
-                      <span className="text-xs text-text-muted">{glist.reduce((s, g) => s + g.household_count, 0)} 户</span>
-                      {/* 负责人 */}
-                      {editLeaderVillage === vname ? (
-                        <div className="flex items-center gap-1.5">
-                          <input autoFocus value={editLeaderName} onChange={e => setEditLeaderName(e.target.value)}
-                            placeholder="姓名" className="border border-border rounded px-2 py-0.5 text-xs outline-none w-20" />
-                          <input value={editLeaderPhone} onChange={e => setEditLeaderPhone(e.target.value)}
-                            placeholder="电话" className="border border-border rounded px-2 py-0.5 text-xs outline-none w-28" />
-                          <button onClick={() => saveLeader(vname)} className="text-xs text-primary font-medium">保存</button>
-                          <button onClick={() => setEditLeaderVillage(null)} className="text-xs text-text-muted">取消</button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          {villageLeaders[vname]?.name ? (
-                            <span className="text-xs text-text-muted">👤 {villageLeaders[vname].name}{villageLeaders[vname].phone ? ` · ${villageLeaders[vname].phone}` : ''}</span>
-                          ) : (
-                            <span className="text-xs text-text-muted/40">未设置负责人</span>
-                          )}
-                          <button onClick={() => {
-                            setEditLeaderVillage(vname)
-                            setEditLeaderName(villageLeaders[vname]?.name || '')
-                            setEditLeaderPhone(villageLeaders[vname]?.phone || '')
-                          }} className="text-xs text-blue-500 hover:text-blue-700">✏️</button>
-                        </div>
-                      )}
-                    </div>
-                    {quickAddVillage === vname ? (
-                      <div className="flex items-center gap-2">
-                        <input autoFocus value={quickGroupNo} onChange={e => setQuickGroupNo(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') submitQuickAdd(vname); if (e.key === 'Escape') setQuickAddVillage(null) }}
-                          placeholder="组号，如：一组" className="border border-primary/30 rounded-btn px-3 py-1 text-sm w-32 outline-none" />
-                        <button onClick={() => submitQuickAdd(vname)} className="px-3 py-1 text-xs bg-primary  rounded-btn">确认</button>
-                        <button onClick={() => setQuickAddVillage(null)} className="px-3 py-1 text-xs border border-border rounded-btn text-text-muted">取消</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => { setQuickAddVillage(vname); setQuickGroupNo('') }}
-                        className="text-xs text-primary border border-primary/20 px-3 py-1 rounded-btn hover:bg-primary/5">
-                        ＋ 加组
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2 px-5 py-3">
-                    {glist.sort((a, b) => a.group_no.localeCompare(b.group_no, 'zh')).map(g => (
-                      <div key={g.id}
-                        className="flex items-center gap-1.5 bg-warm/30 border border-border rounded-btn px-3 py-1.5 group hover:border-border transition-colors">
-                        <span className="text-sm text-text-primary font-medium">{g.group_no}</span>
-                        {g.household_count > 0 && <span className="text-xs text-text-muted font-mono">{g.household_count}户</span>}
-                        {(g.farmer_land_total ?? 0) > 0 && (
-                          <span className="text-xs text-emerald-600 font-mono">📐{(g.farmer_land_total ?? 0).toFixed(1)}</span>
-                        )}
-                        {(g.retained_land ?? 0) > 0 && (
-                          <span className="text-xs text-amber-600 font-mono">集体{(g.retained_land ?? 0).toFixed(1)}</span>
-                        )}
-                        {(g.trust_out_total ?? 0) > 0 && (
-                          <span className="text-xs text-blue-500 font-mono">+流出{(g.trust_out_total ?? 0).toFixed(1)}</span>
-                        )}
-                        {(g.trust_in_total ?? 0) > 0 && (
-                          <span className="text-xs text-purple-500 font-mono">+流转进{(g.trust_in_total ?? 0).toFixed(1)}</span>
-                        )}
-                        {(g.total_land ?? 0) > 0 && (
-                          <span className="text-xs text-text-muted font-mono">={(g.total_land ?? 0).toFixed(1)}亩</span>
-                        )}
-                        {(g.leader_name || g.leader_phone) && (
-                          <span className="text-xs text-blue-600">👤 {[g.leader_name, g.leader_phone].filter(Boolean).join(' · ')}</span>
-                        )}
-                        <div className="hidden group-hover:flex items-center gap-1 ml-0.5">
-                          <button onClick={() => openEdit(g)} className="text-xs text-blue-500 hover:text-blue-700 px-1">改</button>
-                          <button onClick={() => handleDelete(g)}
-                            className={`text-xs px-1 ${g.household_count > 0 ? 'text-text-muted/50 cursor-not-allowed' : 'text-red-400 hover:text-red-600'}`}>
-                            删
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* 耕地信息 */}
-                  {(() => {
-                    const vid = glist[0]?.village_id
-                    if (!vid) return null
-                    const li = landInfoMap[vid]
-                    const isEditing = editingLandId === vid
-                    return (
-                      <div className="border-t border-border/50 px-5 py-2.5 bg-warm/10">
-                        {isEditing ? (
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            {([
-                              ['paddy_area',    '水田面积(亩)'],
-                              ['dry_land_area', '旱地面积(亩)'],
-                              ['arable_area',   '可耕种面积(亩)'],
-                            ] as const).map(([field, label]) => (
-                              <div key={field}>
-                                <div className="text-xs text-text-muted mb-0.5">{label}</div>
-                                <input type="number" min="0" step="0.01"
-                                  value={(landEditForm[field] as number | undefined) ?? ''}
-                                  onChange={e => setLandEditForm(f => ({ ...f, [field]: e.target.value === '' ? null : Number(e.target.value) }))}
-                                  className="w-full border border-border rounded px-2 py-1 text-xs font-mono" />
-                              </div>
-                            ))}
-                            {([
-                              ['irrigation_level', '灌溉条件', IRRIGATION_OPTS],
-                              ['terrain_type',     '地形',     TERRAIN_OPTS],
-                              ['soil_quality',     '土壤质量', SOIL_OPTS],
-                            ] as const).map(([field, label, opts]) => (
-                              <div key={field}>
-                                <div className="text-xs text-text-muted mb-0.5">{label}</div>
-                                <select value={(landEditForm[field] as string | undefined) ?? ''}
-                                  onChange={e => setLandEditForm(f => ({ ...f, [field]: e.target.value || null }))}
-                                  className="w-full border border-border rounded px-2 py-1 text-xs bg-white">
-                                  <option value="">-</option>
-                                  {opts.map((o: string) => <option key={o}>{o}</option>)}
-                                </select>
-                              </div>
-                            ))}
-                            <div className="col-span-2 sm:col-span-4 flex gap-2 mt-1">
-                              <button onClick={() => saveLand(vid)} disabled={savingLand === vid}
-                                className="text-xs bg-primary/90  px-3 py-1 rounded hover:bg-primary disabled:opacity-50">
-                                {savingLand === vid ? '保存中...' : '保存'}
-                              </button>
-                              <button onClick={() => setEditingLandId(null)}
-                                className="text-xs text-text-muted border border-border px-2 py-1 rounded hover:bg-warm/30">
-                                取消
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-4 flex-wrap">
-                            <span className="text-xs text-text-muted">耕地：</span>
-                            {li?.paddy_area != null
-                              ? <span className="text-xs text-text-primary">水田 <b className="font-mono">{fmt(li.paddy_area)}</b> 亩</span>
-                              : <span className="text-xs text-text-muted/50">水田 -</span>}
-                            {li?.dry_land_area != null
-                              ? <span className="text-xs text-text-primary">旱地 <b className="font-mono">{fmt(li.dry_land_area)}</b> 亩</span>
-                              : <span className="text-xs text-text-muted/50">旱地 -</span>}
-                            {li?.arable_area != null
-                              ? <span className="text-xs text-text-primary">可耕 <b className="font-mono">{fmt(li.arable_area)}</b> 亩</span>
-                              : <span className="text-xs text-text-muted/50">可耕 -</span>}
-                            {li?.irrigation_level && <span className="text-xs text-text-muted">灌溉:{li.irrigation_level}</span>}
-                            {li?.terrain_type && <span className="text-xs text-text-muted">{li.terrain_type}</span>}
-                            <button onClick={() => openLandEdit(vid)}
-                              className="ml-auto text-xs text-blue-500 hover:underline">
-                              {li?.paddy_area != null || li?.arable_area != null ? '编辑耕地信息' : '录入耕地信息'}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })()}
-                </div>
-              )
-            })}
-            {!loading && villages.length === 0 && (
-              <div className="text-center py-16 text-text-muted/50 bg-white border border-border rounded-card">
-                <div className="text-4xl mb-3">🏘️</div>
-                <p className="text-sm">暂无村组信息，点击右上角新增</p>
-              </div>
-            )}
-          </div>
+        <VillageGroupsLayout
+          villages={villages}
+          villageMap={villageMap}
+          groups={groups}
+          landInfoMap={landInfoMap}
+          villageLeaders={villageLeaders}
+          selectedVillage={selectedVillage}
+          villageDetail={villageDetail}
+          loadingDetail={loadingDetail}
+          loading={loading}
+          show={show}
+          navigate={navigate}
+          onSelectVillage={loadVillageDetail}
+          onSaveLeader={saveLeader}
+          editLeaderVillage={editLeaderVillage} setEditLeaderVillage={setEditLeaderVillage}
+          editLeaderName={editLeaderName} setEditLeaderName={setEditLeaderName}
+          editLeaderPhone={editLeaderPhone} setEditLeaderPhone={setEditLeaderPhone}
+          quickAddVillage={quickAddVillage} setQuickAddVillage={setQuickAddVillage}
+          quickGroupNo={quickGroupNo} setQuickGroupNo={setQuickGroupNo}
+          submitQuickAdd={submitQuickAdd}
+          setAddMode={setAddMode} setAddOpen={setAddOpen}
+          setBatchLeaderOpen={setBatchLeaderOpen}
+          openEdit={openEdit} handleDelete={handleDelete}
+          editLandForm={landEditForm} setEditLandForm={setLandEditForm}
+          editingLandId={editingLandId} setEditingLandId={setEditingLandId}
+          saveLand={saveLand} savingLand={savingLand} openLandEdit={openLandEdit}
+        />
 
           {/* 新增弹窗 */}
           <Modal open={addOpen} title="新增村组" onClose={() => setAddOpen(false)}
@@ -548,10 +458,25 @@ export default function SettingsPage() {
                 <input value={editGroup} onChange={e => setEditGroup(e.target.value)}
                   className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
               </div>
-              <div>
-                <label className="block text-xs text-text-muted mb-1">👤 负责人</label>
-                <input value={editLeaderName} onChange={e => setEditLeaderName(e.target.value)}
-                  placeholder="姓名" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              <div className="relative">
+                <label className="block text-xs text-text-muted mb-1">👤 负责人（输入姓名/身份证搜索）</label>
+                <input value={editLeaderName} onChange={e => { setEditLeaderName(e.target.value); searchFarmers(e.target.value) }}
+                  onFocus={() => { if (leaderSearchResults.length > 0) setLeaderDropdownOpen(true) }}
+                  onBlur={() => setTimeout(() => setLeaderDropdownOpen(false), 200)}
+                  placeholder="输入姓名或身份证号自动匹配…" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                {leaderDropdownOpen && leaderSearchResults.length > 0 && (
+                  <div className="absolute z-50 top-full left-0 right-0 bg-white border border-border rounded-card shadow-xl mt-1 max-h-48 overflow-y-auto">
+                    {leaderSearchResults.map(f => (
+                      <button key={f.id}
+                        onMouseDown={() => selectLeader(f)}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/30 last:border-0 flex items-center gap-2">
+                        <span className="font-semibold text-text-primary">{f.real_name}</span>
+                        <span className="text-xs text-text-muted font-mono">{f.id_card.slice(-6)}</span>
+                        <span className="text-xs text-blue-500 ml-auto">{f.village_name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs text-text-muted mb-1">📞 电话</label>
@@ -607,6 +532,300 @@ export default function SettingsPage() {
 
 
 // ══════════════════════════════════════════
+//  村组管理两侧布局
+// ══════════════════════════════════════════
+function VillageGroupsLayout(props: {
+  villages: string[]
+  villageMap: Map<string, any[]>
+  groups: any[]
+  landInfoMap: Record<number, any>
+  villageLeaders: Record<string, { name: string; phone: string; vid: number }>
+  selectedVillage: string | null
+  villageDetail: VillageDetail | null
+  loadingDetail: boolean
+  loading: boolean
+  show: (msg: string, type?: 'ok' | 'err') => void
+  navigate: ReturnType<typeof useNavigate>
+  onSelectVillage: (vname: string) => void
+  onSaveLeader: (vname: string) => void
+  editLeaderVillage: string | null; setEditLeaderVillage: (v: string | null) => void
+  editLeaderName: string; setEditLeaderName: (v: string) => void
+  editLeaderPhone: string; setEditLeaderPhone: (v: string) => void
+  quickAddVillage: string | null; setQuickAddVillage: (v: string | null) => void
+  quickGroupNo: string; setQuickGroupNo: (v: string) => void
+  submitQuickAdd: (vname: string) => void
+  setAddMode: (m: 'single' | 'batch') => void; setAddOpen: (b: boolean) => void
+  setBatchLeaderOpen: (b: boolean) => void
+  openEdit: (g: any) => void; handleDelete: (g: any) => void
+  editLandForm: Partial<any>; setEditLandForm: (f: any) => void
+  editingLandId: number | null; setEditingLandId: (id: number | null) => void
+  saveLand: (vid: number) => void; savingLand: number | null
+  openLandEdit: (vid: number) => void
+}) {
+  const {
+    villages, villageDetail, loadingDetail, loading,
+    selectedVillage, show, navigate, onSelectVillage,
+  } = props
+
+  const [searchVillage, setSearchVillage] = useState('')
+
+  const filteredVillages = villages.filter(v =>
+    !searchVillage || v.includes(searchVillage)
+  )
+
+  // 计算总体统计
+  const totalGroups = props.groups.length
+  const totalHouseholds = props.groups.reduce((s: number, g: any) => s + g.household_count, 0)
+  const totalLand = props.groups.reduce((s: number, g: any) => s + (g.total_land ?? 0), 0)
+
+  return (
+    <div className="flex gap-4" style={{ minHeight: 'calc(100vh - 200px)' }}>
+      {/* ═══ 左侧：村列表 ═══ */}
+      <div className="w-56 shrink-0 bg-white border border-border rounded-card shadow-card flex flex-col">
+        {/* 搜索 */}
+        <div className="p-3 border-b border-border">
+          <input
+            value={searchVillage}
+            onChange={e => setSearchVillage(e.target.value)}
+            placeholder="🔍 搜索村名…"
+            className="w-full border border-border rounded px-2 py-1.5 text-xs outline-none focus:border-primary/40"
+          />
+        </div>
+        {/* 统计 */}
+        <div className="px-3 py-2 border-b border-border/30 bg-warm/20">
+          <div className="flex items-center justify-between text-[10px] text-text-muted">
+            <span>{filteredVillages.length}村</span>
+            <span>{totalGroups}组</span>
+            <span>{totalHouseholds}户</span>
+            <span className="font-mono">{totalLand.toFixed(0)}亩</span>
+          </div>
+        </div>
+        {/* 村名列表 */}
+        <div className="flex-1 overflow-y-auto">
+          {loading && (
+            <div className="py-8 text-center text-text-muted/50 text-xs">加载中…</div>
+          )}
+          {filteredVillages.map(vname => {
+            const glist = props.villageMap.get(vname) ?? []
+            const isSelected = selectedVillage === vname
+            return (
+              <button
+                key={vname}
+                onClick={() => onSelectVillage(vname)}
+                className={`w-full text-left px-3 py-2.5 text-sm flex items-center justify-between border-b border-border/20 transition-colors
+                  ${isSelected ? 'bg-primary/10 text-primary font-semibold border-l-[3px] border-l-primary' : 'hover:bg-warm/20 border-l-[3px] border-l-transparent'}`}
+              >
+                <span className="truncate">{vname}</span>
+                <span className="text-xs text-text-muted/50 ml-1 shrink-0">{glist.length}组</span>
+              </button>
+            )
+          })}
+        </div>
+        {/* 底部操作 */}
+        <div className="p-2 border-t border-border flex gap-1.5">
+          <button onClick={() => { props.setAddMode('single'); props.setAddOpen(true) }}
+            className="flex-1 text-xs bg-primary text-white rounded px-2 py-1.5 hover:bg-primary/90">
+            ＋ 新增
+          </button>
+          <button onClick={() => props.setBatchLeaderOpen(true)}
+            className="text-xs border border-blue-200 text-blue-700 rounded px-2 py-1.5 hover:bg-blue-50">
+            📥
+          </button>
+        </div>
+      </div>
+
+      {/* ═══ 右侧：村详情 ═══ */}
+      <div className="flex-1 min-w-0">
+        {!selectedVillage ? (
+          <div className="bg-white border border-border rounded-card shadow-card flex items-center justify-center py-20">
+            <div className="text-center text-text-muted/50">
+              <div className="text-5xl mb-4">🏘️</div>
+              <p className="text-sm">请从左侧选择一个村庄查看详情</p>
+              <p className="text-xs mt-1">包含村干部、各组信息、土地数据</p>
+            </div>
+          </div>
+        ) : loadingDetail ? (
+          <div className="bg-white border border-border rounded-card shadow-card flex items-center justify-center py-20">
+            <div className="inline-flex items-center gap-2 text-text-muted/60">
+              <span className="w-5 h-5 border-2 border-stone-300 border-t-primary rounded-full animate-spin" />
+              <span className="text-sm">加载中…</span>
+            </div>
+          </div>
+        ) : villageDetail ? (
+          <div className="space-y-4">
+            {/* 村名标题 */}
+            <div className="bg-white border border-border rounded-card shadow-card p-4">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-bold text-text-primary">{villageDetail.village_name}</h2>
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{villageDetail.groups.length}个组</span>
+                <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{villageDetail.household_count}户</span>
+              </div>
+            </div>
+
+            {/* 村干部 */}
+            <div className="bg-white border border-border rounded-card shadow-card p-4">
+              <h3 className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
+                <span>📋</span> 村干部
+              </h3>
+              {villageDetail.contacts.length === 0 ? (
+                <p className="text-xs text-text-muted/50">暂未设置村干部，请在「村组联系人」tab中添加</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {villageDetail.contacts.map(c => (
+                    <div key={c.id}
+                      className="flex items-center gap-2 bg-warm/20 border border-border/50 rounded-btn px-3 py-2">
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                        c.position === '书记' ? 'bg-red-100 text-red-700' :
+                        c.position === '副书记' ? 'bg-orange-100 text-orange-700' :
+                        c.position === '副主任' ? 'bg-blue-100 text-blue-700' :
+                        c.position === '文书' ? 'bg-purple-100 text-purple-700' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>{c.position || '干部'}</span>
+                      <span className="text-sm font-semibold text-text-primary">{c.name}</span>
+                      {c.phone && (
+                        <a href={`tel:${c.phone}`} className="text-xs text-blue-500 font-mono hover:underline">
+                          📞{c.phone}
+                        </a>
+                      )}
+                      {c.farmer_id ? (
+                        <button
+                          onClick={() => navigate(`/farmers?id=${c.farmer_id}`)}
+                          className="ml-auto text-xs text-primary border border-primary/20 px-2 py-0.5 rounded hover:bg-primary/5"
+                          title="查看农户详情"
+                        >
+                          👤 农户
+                        </button>
+                      ) : (
+                        <span className="ml-auto text-xs text-text-muted/40">未关联</span>
+                      )}
+                      {c.is_agri_lead && (
+                        <span className="text-[9px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full">⭐ 农业负责人</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 村组信息 */}
+            <div className="bg-white border border-border rounded-card shadow-card p-4">
+              <h3 className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
+                <span>📐</span> 村组信息
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                {villageDetail.groups.map(g => (
+                  <div key={g.id}
+                    className="bg-warm/20 border border-border/50 rounded-card p-3 hover:border-primary/20 transition-colors">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm font-bold text-text-primary">{g.group_no}</span>
+                      <span className="text-xs bg-white border border-border/50 rounded-full px-2 py-0.5 font-medium">
+                        {g.household_count}户
+                      </span>
+                      {g.population > 0 && <span className="text-xs text-text-muted">{g.population}人</span>}
+                    </div>
+                    {/* 土地数据 */}
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 mb-2 text-xs">
+                      {g.contract_area > 0 && (
+                        <span className="text-text-muted">📐 承包地<span className="text-emerald-600 font-semibold ml-0.5">{g.contract_area.toFixed(1)}亩</span></span>
+                      )}
+                      {g.retained_land > 0 && (
+                        <span className="text-text-muted">🏛 集体地<span className="text-amber-600 font-semibold ml-0.5">{g.retained_land.toFixed(1)}亩</span></span>
+                      )}
+                      {g.total_apply_area > 0 && (
+                        <span className="text-text-muted">📋 申报面积<span className="text-blue-600 font-semibold ml-0.5">{g.total_apply_area.toFixed(1)}亩</span></span>
+                      )}
+                    </div>
+                    {/* 补贴数据（最新年度） */}
+                    {g.latest_year && (
+                      <div className="bg-white/60 border border-border/30 rounded px-2 py-1 mb-2 text-xs">
+                        <span className="text-text-muted">{g.latest_year}年度：</span>
+                        <span className="text-text-primary font-medium">{g.subsidy_hh_count}户受益</span>
+                        {g.total_amount > 0 && (
+                          <span className="text-primary font-semibold ml-2">¥{g.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</span>
+                        )}
+                      </div>
+                    )}
+                    {/* 组长信息 */}
+                    <div className="border-t border-border/30 pt-2 flex items-center gap-2">
+                      {g.leader_name ? (
+                        <>
+                          <span className="text-xs text-text-primary font-medium">👤 {g.leader_name}</span>
+                          {g.leader_phone && (
+                            <a href={`tel:${g.leader_phone}`} className="text-xs text-blue-500 font-mono">{g.leader_phone}</a>
+                          )}
+                          {g.leader_farmer_id ? (
+                            <button
+                              onClick={() => navigate(`/farmers?id=${g.leader_farmer_id}`)}
+                              className="ml-auto text-[10px] text-primary border border-primary/20 px-1.5 py-0.5 rounded hover:bg-primary/5"
+                            >
+                              农户
+                            </button>
+                          ) : (
+                            <span className="ml-auto text-[10px] text-text-muted/40">未关联</span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-xs text-text-muted/40">暂未设置组长</span>
+                      )}
+                      <button onClick={() => props.openEdit(g)}
+                        className="text-[10px] text-blue-500 hover:text-blue-700 px-1">✏️</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {villageDetail.groups.length === 0 && (
+                <p className="text-xs text-text-muted/50">暂未创建村组</p>
+              )}
+            </div>
+
+            {/* 土地基础信息 */}
+            <div className="bg-white border border-border rounded-card shadow-card p-4">
+              <h3 className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
+                <span>🌾</span> 土地基础信息
+              </h3>
+              {villageDetail.land_info ? (
+                <div>
+                  <div className="flex items-center gap-4 flex-wrap text-sm">
+                    {villageDetail.land_info.paddy_area != null && (
+                      <span>水田 <b className="font-mono text-emerald-600">{villageDetail.land_info.paddy_area.toFixed(2)}</b> 亩</span>
+                    )}
+                    {villageDetail.land_info.dry_land_area != null && (
+                      <span>旱地 <b className="font-mono text-amber-600">{villageDetail.land_info.dry_land_area.toFixed(2)}</b> 亩</span>
+                    )}
+                    {villageDetail.land_info.arable_area != null && (
+                      <span>可耕种 <b className="font-mono text-blue-600">{villageDetail.land_info.arable_area.toFixed(2)}</b> 亩</span>
+                    )}
+                    {villageDetail.land_info.irrigation_level && (
+                      <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">灌溉: {villageDetail.land_info.irrigation_level}</span>
+                    )}
+                    {villageDetail.land_info.terrain_type && (
+                      <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{villageDetail.land_info.terrain_type}</span>
+                    )}
+                    {villageDetail.land_info.soil_quality && (
+                      <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">土壤: {villageDetail.land_info.soil_quality}</span>
+                    )}
+                  </div>
+                  {villageDetail.land_info.remark && (
+                    <p className="text-xs text-text-muted mt-2">📝 {villageDetail.land_info.remark}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-text-muted/50">暂未录入土地基础信息</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white border border-border rounded-card shadow-card flex items-center justify-center py-20">
+            <div className="text-center text-text-muted/50 text-sm">加载失败，请重试</div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+
+// ══════════════════════════════════════════
 //  土地基础信息 Tab
 // ══════════════════════════════════════════
 function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => void }) {
@@ -616,6 +835,14 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
   const [editForms, setEditForms] = useState<{ [vid: number]: Partial<VillageLandInfo> }>({})
   const [saving, setSaving] = useState<number | null>(null)
   const [importing, setImporting] = useState(false)
+  const [refModal, setRefModal] = useState<{ name: string; refs: Record<string, number>; total: number } | null>(null)
+
+  const checkVillageRefs = async (vid: number, vname: string) => {
+    try {
+      const res = await fetch(`/api/settings/villages/${vid}/references`).then(r => r.json())
+      setRefModal({ name: vname, refs: res.references, total: res.total })
+    } catch (e) { show('查询失败: ' + (e as Error).message, 'err') }
+  }
   const fileRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
@@ -817,8 +1044,12 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
                         </button>
                       </div>
                     ) : (
-                      <button onClick={() => setEditing(info.village_id)}
-                        className="text-xs text-blue-600 hover:underline">编辑</button>
+                      <div className="flex gap-1.5">
+                        <button onClick={() => checkVillageRefs(info.village_id, info.village_name)}
+                          className="text-xs text-amber-600 hover:underline">引用</button>
+                        <button onClick={() => setEditing(info.village_id)}
+                          className="text-xs text-blue-600 hover:underline">编辑</button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -830,6 +1061,25 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
           </tbody>
         </table>
       </div>
+
+      {/* 引用详情弹窗 */}
+      {refModal && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setRefModal(null)}>
+          <div className="bg-white rounded-card shadow-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-text-primary mb-1">「{refModal.name}」引用详情</h3>
+            <p className="text-xs text-text-muted mb-4">{refModal.total > 0 ? `共 ${refModal.total} 条引用，无法删除` : '无引用，可以安全删除'}</p>
+            <div className="space-y-1.5 text-sm max-h-60 overflow-y-auto">
+              {Object.entries(refModal.refs).map(([k, v]) => (
+                <div key={k} className={`flex justify-between px-3 py-1.5 rounded-btn ${v > 0 ? 'bg-red-50 text-red-700 font-medium' : 'bg-warm/20 text-text-muted'}`}>
+                  <span>{k}</span>
+                  <span className="font-mono">{v} 条</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setRefModal(null)} className="mt-4 w-full text-sm bg-primary text-white py-2 rounded-btn">关闭</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

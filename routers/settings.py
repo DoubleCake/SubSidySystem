@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, func
 from pydantic import BaseModel
 from typing import Optional, List
 from database import get_db
-from models import FamilyHousehold, Village, VillageGroup
+from models import FamilyHousehold, Village, VillageGroup, FarmerProfile, ProjectProgress, SubsidyApplication, SubsidyPayment, LargeFarmer, LandTrust, VillageContact, VillageLandInfo
+from utils import format_group_no
 
 router = APIRouter(prefix="/api/settings", tags=["基础设置"])
 
@@ -62,17 +63,184 @@ def update_village(village_id: int, data: VillageUpdate, db: Session = Depends(g
     db.commit()
     return {"message": "更新成功"}
 
+@router.get("/villages/{village_id}/references")
+def check_village_references(village_id: int, db: Session = Depends(get_db)):
+    """查看该村被哪些数据引用"""
+    refs = {}
+    refs["family_household"] = db.query(FamilyHousehold).filter(FamilyHousehold.village_id == village_id).count()
+    refs["farmer_profile"] = db.query(FarmerProfile).filter(FarmerProfile.own_village_id == village_id).count()
+    refs["village_group"] = db.query(VillageGroup).filter(VillageGroup.village_id == village_id).count()
+    refs["project_progress"] = db.query(ProjectProgress).filter(ProjectProgress.village_id == village_id).count()
+    refs["subsidy_application"] = db.query(SubsidyApplication).filter(SubsidyApplication.apply_village_id == village_id).count()
+    refs["subsidy_payment"] = db.query(SubsidyPayment).filter(SubsidyPayment.payment_village_id == village_id).count()
+    refs["large_farmer"] = db.query(LargeFarmer).filter(LargeFarmer.village_id == village_id).count()
+    refs["land_trust_owner"] = db.query(LandTrust).filter(LandTrust.owner_household_id.isnot(None)).count()  # indirect
+    total = sum(refs.values())
+    return {"village_id": village_id, "references": refs, "total": total, "can_delete": total == 0}
+
+
 @router.delete("/villages/{village_id}")
 def delete_village(village_id: int, db: Session = Depends(get_db)):
     v = db.get(Village, village_id)
     if not v:
         raise HTTPException(status_code=404, detail="村不存在")
-    hh_count = db.query(FamilyHousehold).filter(FamilyHousehold.village_id == village_id).count()
-    if hh_count > 0:
-        raise HTTPException(status_code=400, detail=f"该村下有 {hh_count} 户，无法删除")
+    # 检查所有引用
+    refs = {}
+    refs["家庭户"] = db.query(FamilyHousehold).filter(FamilyHousehold.village_id == village_id).count()
+    refs["农户个人村"] = db.query(FarmerProfile).filter(FarmerProfile.own_village_id == village_id).count()
+    refs["村组"] = db.query(VillageGroup).filter(VillageGroup.village_id == village_id).count()
+    refs["项目进度"] = db.query(ProjectProgress).filter(ProjectProgress.village_id == village_id).count()
+    refs["补贴申请"] = db.query(SubsidyApplication).filter(SubsidyApplication.apply_village_id == village_id).count()
+    refs["补贴发放"] = db.query(SubsidyPayment).filter(SubsidyPayment.payment_village_id == village_id).count()
+    refs["大户"] = db.query(LargeFarmer).filter(LargeFarmer.village_id == village_id).count()
+    blockers = {k: v for k, v in refs.items() if v > 0}
+    if blockers:
+        detail = "；".join(f"{k}:{v}条" for k, v in blockers.items())
+        raise HTTPException(status_code=400, detail=f"无法删除：{detail}")
     db.delete(v)
     db.commit()
     return {"message": "删除成功"}
+
+
+@router.get("/villages/{village_id}/detail")
+def get_village_detail(village_id: int, db: Session = Depends(get_db)):
+    """获取村庄综合详情：干部+组+土地信息"""
+    v = db.get(Village, village_id)
+    if not v:
+        raise HTTPException(status_code=404, detail="村不存在")
+
+    # 联系人（按职务排序）
+    pos_order = {"书记": 0, "副书记": 1, "副主任": 2, "文书": 3}
+    contacts = db.query(VillageContact).filter(
+        VillageContact.village_id == village_id
+    ).all()
+    contacts_out = []
+    for c in contacts:
+        # 尝试通过姓名查找农户
+        farmer_id = None
+        farmer = db.query(FarmerProfile).filter(
+            FarmerProfile.real_name == c.name,
+            FarmerProfile.own_village_id == village_id
+        ).first()
+        if farmer:
+            farmer_id = farmer.id
+        contacts_out.append({
+            "id": c.id,
+            "name": c.name,
+            "phone": c.phone or "",
+            "position": c.position or "",
+            "is_agri_lead": bool(c.is_agri_lead),
+            "sort_order": c.sort_order,
+            "remark": c.remark or "",
+            "farmer_id": farmer_id,
+        })
+    contacts_out.sort(key=lambda c: pos_order.get(c["position"], 99))
+
+    # 村组（按组号排序），用 raw SQL 统计户数和面积（因为需要 format_group_no 匹配）
+    group_stats_sql = text("""
+        SELECT vg.id,
+               COUNT(hh.id) AS household_count,
+               COALESCE(SUM(hh.contract_area), 0) AS contract_area_total
+        FROM village_group vg
+        LEFT JOIN family_household hh
+               ON hh.village_id = vg.village_id
+              AND format_group_no(hh.group_no) = vg.group_no
+              AND hh.status = 1
+        WHERE vg.village_id = :vid
+        GROUP BY vg.id
+    """)
+    stats_rows = db.execute(group_stats_sql, {"vid": village_id}).mappings().all()
+    stats_map = {r["id"]: r for r in stats_rows}
+
+    groups = db.query(VillageGroup).filter(
+        VillageGroup.village_id == village_id
+    ).order_by(VillageGroup.group_no).all()
+
+    # 最新年度补贴统计（按组汇总）
+    subsidy_group_sql = text("""
+        SELECT format_group_no(hh.group_no) AS group_no_str,
+               COUNT(DISTINCT hh.id) AS hh_count,
+               COALESCE(SUM(sa.apply_area), 0) AS total_apply_area,
+               COALESCE(SUM(sa.actual_amount), 0) AS total_amount,
+               MAX(sa.apply_year) AS latest_year
+        FROM family_household hh
+        JOIN farmer_profile fp ON fp.household_id = hh.id
+        JOIN subsidy_application sa ON sa.farmer_id = fp.id
+        WHERE hh.village_id = :vid AND hh.status = 1
+        GROUP BY hh.group_no
+    """)
+    sub_rows = db.execute(subsidy_group_sql, {"vid": village_id}).mappings().all()
+    sub_map: dict = {}
+    for r in sub_rows:
+        key = r["group_no_str"] or ""
+        sub_map[key] = {
+            "subsidy_hh_count": r["hh_count"] or 0,
+            "total_apply_area": round(float(r["total_apply_area"] or 0), 2),
+            "total_amount": round(float(r["total_amount"] or 0), 2),
+            "latest_year": r["latest_year"],
+        }
+
+    groups_out = []
+    for g in groups:
+        st = stats_map.get(g.id, {})
+        hh_count = st.get("household_count", 0) or 0
+        contract_area = float(st.get("contract_area_total", 0) or 0)
+        sub = sub_map.get(g.group_no, {})
+
+        # 组长关联农户
+        leader_farmer_id = None
+        if g.leader_name:
+            f = db.query(FarmerProfile).filter(
+                FarmerProfile.real_name == g.leader_name,
+                FarmerProfile.own_village_id == village_id
+            ).first()
+            if f:
+                leader_farmer_id = f.id
+
+        groups_out.append({
+            "id": g.id,
+            "group_no": g.group_no,
+            "leader_name": g.leader_name or "",
+            "leader_phone": g.leader_phone or "",
+            "leader_farmer_id": leader_farmer_id,
+            "household_count": hh_count,
+            "retained_land": float(g.retained_land or 0),
+            "population": g.population or 0,
+            "contract_area": contract_area,
+            "subsidy_hh_count": sub.get("subsidy_hh_count", 0),
+            "total_apply_area": sub.get("total_apply_area", 0),
+            "total_amount": sub.get("total_amount", 0),
+            "latest_year": sub.get("latest_year"),
+        })
+
+    # 土地基础信息
+    land = db.query(VillageLandInfo).filter(
+        VillageLandInfo.village_id == village_id
+    ).first()
+    land_out = None
+    if land:
+        land_out = {
+            "id": land.id,
+            "survey_year": land.survey_year,
+            "paddy_area": float(land.paddy_area) if land.paddy_area else None,
+            "dry_land_area": float(land.dry_land_area) if land.dry_land_area else None,
+            "arable_area": float(land.arable_area) if land.arable_area else None,
+            "irrigation_level": land.irrigation_level,
+            "terrain_type": land.terrain_type,
+            "soil_quality": land.soil_quality,
+            "remark": land.remark,
+        }
+
+    return {
+        "village_id": v.id,
+        "village_name": v.village_name,
+        "leader_name": v.leader_name or "",
+        "leader_phone": v.leader_phone or "",
+        "household_count": len(v.households),
+        "contacts": contacts_out,
+        "groups": groups_out,
+        "land_info": land_out,
+    }
 
 
 # ─────────────────────────────────────────
