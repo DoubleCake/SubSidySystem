@@ -123,14 +123,10 @@ export default function SettingsPage() {
   const [batchVillage, setBatchVillage] = useState('')
   const [batchGroups, setBatchGroups] = useState('')
 
-  // 编辑弹窗
+  // 编辑弹窗（仅组长）
   const [editTarget, setEditTarget] = useState<VillageGroup | null>(null)
-  const [editVillage, setEditVillage] = useState('')
-  const [editGroup, setEditGroup] = useState('')
   const [editLeaderName, setEditLeaderName] = useState('')
   const [editLeaderPhone, setEditLeaderPhone] = useState('')
-  const [editRetainedLand, setEditRetainedLand] = useState<number>(0)
-  const [editPopulation, setEditPopulation] = useState<number>(0)
   // 负责人搜索
   const [leaderSearchResults, setLeaderSearchResults] = useState<{ id: number; real_name: string; id_card: string; phone: string; village_name: string }[]>([])
   const [leaderSearchTimer, setLeaderSearchTimer] = useState<ReturnType<typeof setTimeout> | null>(null)
@@ -262,10 +258,8 @@ export default function SettingsPage() {
   }
 
   const openEdit = (g: VillageGroup) => {
-    setEditTarget(g); setEditVillage(g.village_name); setEditGroup(g.group_no)
+    setEditTarget(g)
     setEditLeaderName(g.leader_name || ''); setEditLeaderPhone(g.leader_phone || '')
-    setEditRetainedLand(g.retained_land ?? 0)
-    setEditPopulation(g.population ?? 0)
     setLeaderSearchResults([])
     setLeaderDropdownOpen(false)
   }
@@ -274,15 +268,11 @@ export default function SettingsPage() {
     try {
       await req(`/api/settings/village-groups/${editTarget.id}`, {
         method: 'PUT', body: JSON.stringify({
-          village_name: editVillage,
-          group_no: editGroup,
           leader_name: editLeaderName,
           leader_phone: editLeaderPhone,
-          retained_land: editRetainedLand,
-          population: editPopulation,
         })
       })
-      show('✓ 更新成功'); setEditTarget(null); reload()
+      show('✓ 组长已更新'); setEditTarget(null); reload()
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
@@ -444,26 +434,19 @@ export default function SettingsPage() {
             )}
           </Modal>
 
-          {/* 编辑弹窗 */}
-          <Modal open={!!editTarget} title={`编辑村组 · ${editTarget?.full_name}`}
-            onClose={() => setEditTarget(null)} onConfirm={submitEdit}>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-text-muted mb-1">村名</label>
-                <input value={editVillage} onChange={e => setEditVillage(e.target.value)}
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
-              </div>
-              <div>
-                <label className="block text-xs text-text-muted mb-1">组号</label>
-                <input value={editGroup} onChange={e => setEditGroup(e.target.value)}
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+          {/* 编辑弹窗 — 仅设置组长 */}
+          <Modal open={!!editTarget} title={`设置组长 · ${editTarget?.village_name || ''}${editTarget?.group_no || ''}`}
+            onClose={() => setEditTarget(null)} onConfirm={submitEdit} confirmText="保存">
+            <div className="space-y-3">
+              <div className="bg-blue-50 border border-blue-100 rounded-btn px-3 py-2 text-xs text-blue-700">
+                为「<strong>{editTarget?.village_name}{editTarget?.group_no}</strong>」设置组长，输入姓名或身份证号从农户表匹配。
               </div>
               <div className="relative">
-                <label className="block text-xs text-text-muted mb-1">👤 负责人（输入姓名/身份证搜索）</label>
+                <label className="block text-xs text-text-muted mb-1">👤 组长姓名（输入姓名/身份证号搜索）</label>
                 <input value={editLeaderName} onChange={e => { setEditLeaderName(e.target.value); searchFarmers(e.target.value) }}
                   onFocus={() => { if (leaderSearchResults.length > 0) setLeaderDropdownOpen(true) }}
                   onBlur={() => setTimeout(() => setLeaderDropdownOpen(false), 200)}
-                  placeholder="输入姓名或身份证号自动匹配…" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  placeholder="输入姓名或身份证号自动匹配农户…" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
                 {leaderDropdownOpen && leaderSearchResults.length > 0 && (
                   <div className="absolute z-50 top-full left-0 right-0 bg-white border border-border rounded-card shadow-xl mt-1 max-h-48 overflow-y-auto">
                     {leaderSearchResults.map(f => (
@@ -479,28 +462,10 @@ export default function SettingsPage() {
                 )}
               </div>
               <div>
-                <label className="block text-xs text-text-muted mb-1">📞 电话</label>
+                <label className="block text-xs text-text-muted mb-1">📞 电话（匹配后自动填入，可手动修改）</label>
                 <input value={editLeaderPhone} onChange={e => setEditLeaderPhone(e.target.value)}
                   placeholder="手机号" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
               </div>
-              <div>
-                <label className="block text-xs text-text-muted mb-1">村留存土地（亩）</label>
-                <input type="number" min="0" step="0.01"
-                  value={editRetainedLand} onChange={e => setEditRetainedLand(Number(e.target.value) || 0)}
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" />
-              </div>
-              <div>
-                <label className="block text-xs text-text-muted mb-1">人口数</label>
-                <input type="number" min="0" step="1"
-                  value={editPopulation} onChange={e => setEditPopulation(Number(e.target.value) || 0)}
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" />
-              </div>
-              {editTarget && (editVillage !== editTarget.village_name || editGroup !== editTarget.group_no) && (
-                <div className="col-span-2 bg-amber-50 border border-amber-100 rounded-btn px-4 py-2.5 text-sm text-amber-700">
-                  ⚠️ 修改后：<strong>{editVillage}{editGroup}</strong>
-                  {editTarget.household_count > 0 && `，关联的 ${editTarget.household_count} 户农户会自动更新显示`}
-                </div>
-              )}
             </div>
           </Modal>
 
@@ -749,17 +714,22 @@ function VillageGroupsLayout(props: {
                     <div className="border-t border-border/30 pt-2 flex items-center gap-2">
                       {g.leader_name ? (
                         <>
-                          <span className="text-xs text-text-primary font-medium">👤 {g.leader_name}</span>
+                          {g.leader_farmer_id ? (
+                            <button
+                              onClick={() => navigate(`/farmers?id=${g.leader_farmer_id}`)}
+                              className="text-xs text-primary font-medium hover:underline"
+                              title="点击查看农户详情"
+                            >
+                              👤 {g.leader_name}
+                            </button>
+                          ) : (
+                            <span className="text-xs text-text-primary font-medium">👤 {g.leader_name}</span>
+                          )}
                           {g.leader_phone && (
                             <a href={`tel:${g.leader_phone}`} className="text-xs text-blue-500 font-mono">{g.leader_phone}</a>
                           )}
                           {g.leader_farmer_id ? (
-                            <button
-                              onClick={() => navigate(`/farmers?id=${g.leader_farmer_id}`)}
-                              className="ml-auto text-[10px] text-primary border border-primary/20 px-1.5 py-0.5 rounded hover:bg-primary/5"
-                            >
-                              农户
-                            </button>
+                            <span className="ml-auto text-[10px] text-emerald-500">✓ 已关联</span>
                           ) : (
                             <span className="ml-auto text-[10px] text-text-muted/40">未关联</span>
                           )}

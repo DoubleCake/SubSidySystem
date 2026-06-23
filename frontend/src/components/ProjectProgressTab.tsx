@@ -36,7 +36,7 @@ const STATUS_CFG: Record<string, { label: string; square: string; pillBg: string
 
 const STATUS_ORDER: StageItem['status'][] = ['none', 'in_progress', 'done', 'reminded', 'urged']
 
-function fmtDate(iso: string) { return iso ? iso.slice(0, 10) : '' }
+function fmtDateTime(iso: string) { return iso ? iso.slice(0, 16).replace('T', ' ') : '' }
 
 interface ProjectProgressTabProps {
   subsidyType: {
@@ -166,7 +166,7 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
 
   const setStageStatus = async (rec: ProgressRecord, stageIdx: number, status: StageItem['status']) => {
     const stages = [...rec.stages]
-    stages[stageIdx] = { ...stages[stageIdx], status, date: new Date().toISOString().slice(0, 10) }
+    stages[stageIdx] = { ...stages[stageIdx], status, date: new Date().toISOString() }
     const updated = { ...rec, stages }
     setRecords(prev => prev.map(p => p.village_id === rec.village_id ? updated : p))
     await saveRec(updated)
@@ -192,7 +192,7 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
 
   const batchSetStageStatus = async (stageName: string, status: StageItem['status']) => {
     if (!projectId) return
-    const now = new Date().toISOString().slice(0, 10)
+    const now = new Date().toISOString()
     await fetch(`/api/project-progress/${projectId}/batch`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'batch_stage', stage_name: stageName, status, date: now }),
@@ -251,7 +251,7 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
   // ─── 一键复制阶段完成情况 ───
   const copyStageSummary = async (stageName: string) => {
     const groups: Record<string, string[]> = {}
-    for (const rec of filtered) {
+    for (const rec of records) {
       const s = rec.stages.find(st => st.name === stageName)
       const label = s ? STATUS_CFG[s.status].label : '无此阶段'
       if (!groups[label]) groups[label] = []
@@ -473,7 +473,7 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
                           {/* tooltip */}
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover/tip:block z-10
                             bg-gray-800 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap shadow-lg pointer-events-none">
-                            {sn}: {cfg.label}{s?.date ? ` (${fmtDate(s.date)})` : ''}
+                            {sn}: {cfg.label}{s?.date ? ` · ${fmtDateTime(s.date)}` : ''}
                           </div>
                         </div>
                       )
@@ -539,8 +539,8 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
                             </div>
 
                             {/* 时间戳 */}
-                            <div className="mt-1.5 text-[10px] text-text-muted/40 text-right">
-                              {s.date ? fmtDate(s.date) : '—'}
+                            <div className="mt-1.5 text-[10px] text-text-muted/60 text-right">
+                              {s.date ? fmtDateTime(s.date) : '—'}
                             </div>
 
                             {/* 备注 */}

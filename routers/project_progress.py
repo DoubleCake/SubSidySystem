@@ -264,7 +264,7 @@ def scan_files_for_progress(
     data: { path: "D:/材料", stage_name: "宣传动员" }
     """
     import os
-    from datetime import date as date_type
+    from datetime import datetime as dt_type
 
     scan_path = data.get("path", "")
     stage_name = data.get("stage_name", "")
@@ -312,7 +312,7 @@ def scan_files_for_progress(
     ).all()
 
     updated = 0
-    today_str = date_type.today().isoformat()
+    today_str = dt_type.now().isoformat()
 
     for rec in records:
         stages = json.loads(rec.stages) if rec.stages else []
