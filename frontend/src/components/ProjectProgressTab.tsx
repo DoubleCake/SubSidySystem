@@ -3,7 +3,7 @@
  * 嵌入 SubsidyRecordsPage 使用，自动锁定当前补贴项目
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
-import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx-js-style'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 
@@ -233,16 +233,72 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
 
   const exportExcel = () => {
     const headers = ['村名', '负责人', '电话', ...allStages]
-    const data = filtered.map(rec => {
-      const row: Record<string, string> = { '村名': rec.village_name, '负责人': rec.person_name, '电话': rec.phone }
-      allStages.forEach(sn => {
+
+    // 构建数据（每行是单元格对象数组）
+    const aoa: any[][] = []
+
+    // 表头行
+    aoa.push(headers.map(h => ({ v: h, s: {
+      font: { bold: true, sz: 11 },
+      fill: { fgColor: { rgb: 'F5F0EB' } },
+      border: {
+        bottom: { style: 'medium', color: { rgb: 'D1C7BD' } },
+      },
+      alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+    } })))
+
+    // 数据行
+    for (const rec of filtered) {
+      const row: any[] = [
+        { v: rec.village_name, s: { font: { bold: true, sz: 10.5 }, alignment: { vertical: 'center' } } },
+        { v: rec.person_name || '', s: { font: { sz: 10 }, alignment: { vertical: 'center' } } },
+        { v: rec.phone || '', s: { font: { sz: 10 }, alignment: { vertical: 'center' } } },
+      ]
+      for (const sn of allStages) {
         const s = rec.stages.find(st => st.name === sn)
-        row[sn] = s ? `${STATUS_CFG[s.status].label}${s.date ? ' ' + s.date : ''}${s.note ? ' ' + s.note : ''}` : '-'
-      })
-      return row
+        const statusKey = s?.status || 'none'
+        const cfg = STATUS_CFG[statusKey]
+        const text = s
+          ? `${cfg.label}${s.date ? ' ' + fmtDateTime(s.date) : ''}${s.note ? ' ' + s.note : ''}`
+          : '-'
+
+        // 已完成用浅绿底色
+        const isDone = statusKey === 'done'
+        const cellStyle: any = {
+          font: { sz: 9.5, color: { rgb: isDone ? '2D5A3D' : '333333' } },
+          alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+        }
+        if (isDone) {
+          cellStyle.fill = { fgColor: { rgb: 'C6EFCE' } }  // 浅绿底
+        } else if (statusKey === 'urged') {
+          cellStyle.fill = { fgColor: { rgb: 'FFC7CE' } }  // 浅红底
+          cellStyle.font.color = { rgb: '9C0006' }
+        } else if (statusKey === 'reminded') {
+          cellStyle.fill = { fgColor: { rgb: 'FFEBC8' } }  // 浅橙底
+        }
+
+        row.push({ v: text, s: cellStyle })
+      }
+      aoa.push(row)
+    }
+
+    // 手动构建 worksheet（保留样式）
+    const ws = XLSX.utils.aoa_to_sheet(aoa)
+
+    // 列宽：村名 14，负责人 8，电话 14，阶段列 18
+    ws['!cols'] = headers.map((_h, i) => {
+      if (i === 0) return { wch: 14 }           // 村名
+      if (i === 1) return { wch: 8 }            // 负责人
+      if (i === 2) return { wch: 14 }           // 电话
+      return { wch: 18 }                         // 阶段列
     })
-    const ws = XLSX.utils.json_to_sheet(data, { header: headers })
-    ws['!cols'] = headers.map(h => ({ wch: h === '村名' ? 14 : h === '备注' ? 30 : 12 }))
+
+    // 行高
+    ws['!rows'] = [
+      { hpx: 28 },  // 表头
+      ...aoa.slice(1).map(() => ({ hpx: 22 })),  // 数据行
+    ]
+
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '项目进度')
     XLSX.writeFile(wb, `${projectName || '进度表'}.xlsx`)
@@ -267,11 +323,23 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
     for (const [label, villages] of Object.entries(groups)) {
       if (!order.includes(label)) lines.push(`${label}：${villages.join('、')}`)
     }
+    const text = lines.join('\n')
     try {
-      await navigator.clipboard.writeText(lines.join('\n'))
+      // 优先 Clipboard API（需 HTTPS/localhost），降级 execCommand（兼容 HTTP）
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.style.position = 'fixed'; ta.style.left = '-9999px'; ta.style.top = '-9999px'
+        document.body.appendChild(ta)
+        ta.focus(); ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      }
       show(`✓ 已复制「${stageName}」进度到剪贴板`)
     } catch {
-      show('复制失败', 'err')
+      show('复制失败，请手动选中文字复制', 'err')
     }
   }
 

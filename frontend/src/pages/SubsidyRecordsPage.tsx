@@ -234,6 +234,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   const [areaStats, setAreaStats] = useState<api.AreaStatsResponse | null>(null)
   const [loadingAreaStats, setLoadingAreaStats] = useState(false)
   const [areaStatsExpanded, setAreaStatsExpanded] = useState(false)
+  const [areaStatsGroupBy, setAreaStatsGroupBy] = useState<'excel' | 'database'>('excel')
 
   // 当 subsidyType 改变时重置状态
   useEffect(() => {
@@ -693,7 +694,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     setLoadingAreaStats(true)
     try {
       const dataSource = activeTab === 'disbursement' ? 'payment' : 'application'
-      const data = await api.getAreaStatsByVillage(subsidyType.id, subsidyType.subsidy_year, dataSource)
+      const data = await api.getAreaStatsByVillage(subsidyType.id, subsidyType.subsidy_year, dataSource, areaStatsGroupBy)
       setAreaStats(data)
     } catch (error) {
       console.error('加载面积统计失败:', error)
@@ -701,7 +702,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     } finally {
       setLoadingAreaStats(false)
     }
-  }, [subsidyType.id, subsidyType.subsidy_year, activeTab, show])
+  }, [subsidyType.id, subsidyType.subsidy_year, activeTab, areaStatsGroupBy, show])
 
   // 导出面积统计Excel
   const handleExportAreaStats = () => {
@@ -719,7 +720,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       setAreaStats(null)
       loadAreaStats()
     }
-  }, [areaStatsExpanded, activeTab, loadAreaStats])
+  }, [areaStatsExpanded, activeTab, areaStatsGroupBy, loadAreaStats])
 
   // 数据概览展开/收起状态
   const [statsExpanded, setStatsExpanded] = useState(false)
@@ -820,6 +821,29 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
             ) : (
               <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">预申请</span>
             )}
+            {/* 分村依据切换 */}
+            <div className="flex items-center gap-0.5 bg-warm/30 rounded-btn p-0.5" onClick={e => e.stopPropagation()}>
+              <button
+                onClick={() => setAreaStatsGroupBy('excel')}
+                className={`px-2 py-0.5 text-[11px] rounded transition-all ${
+                  areaStatsGroupBy === 'excel'
+                    ? 'bg-white shadow-sm text-text-primary font-medium'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                📄 Excel
+              </button>
+              <button
+                onClick={() => setAreaStatsGroupBy('database')}
+                className={`px-2 py-0.5 text-[11px] rounded transition-all ${
+                  areaStatsGroupBy === 'database'
+                    ? 'bg-white shadow-sm text-text-primary font-medium'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                🗄️ 数据库
+              </button>
+            </div>
             {areaStatsExpanded && areaStats && (
               <span className="text-xs text-text-muted">
                 合计：{areaStats.total.total_apply_area}亩 / {areaStats.by_village.length}个村
@@ -894,9 +918,14 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
                     </tr>
                   </tbody>
                 </table>
-                <div className="mt-2 text-xs text-text-muted flex items-center gap-2">
+                <div className="mt-2 text-xs text-text-muted flex items-center gap-2 flex-wrap">
                   <span className={`px-2 py-0.5 rounded-full font-medium text-xs ${areaStats.data_source === 'payment' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                     {areaStats.data_source === 'payment' ? '发放数据' : '预申请数据'}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full font-medium text-xs ${
+                    areaStats.group_by === 'database' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {areaStats.group_by === 'database' ? '按数据库分村' : '按Excel分村'}
                   </span>
                   {areaStats.by_village.length > 0 && '· 代领记录已去重，仅统计受益人'}
                 </div>
@@ -904,6 +933,9 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
                   <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-card">
                     <div className="text-xs font-medium text-amber-700 mb-1.5">
                       ⚠️ 以下村无 {areaStats.data_source === 'payment' ? '发放' : '预申请'}数据
+                      <span className="ml-1 font-normal text-amber-500">
+                        ({areaStats.group_by === 'database' ? '按数据库分村' : '按Excel分村'})
+                      </span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {areaStats.villages_without_data.map(v => (

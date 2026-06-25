@@ -233,16 +233,25 @@ export interface AreaStatsResponse {
   by_village: VillageAreaStats[]
   total: VillageAreaStats
   data_source: 'payment' | 'application'
+  group_by: 'excel' | 'database'
   villages_without_data?: string[]
 }
 
-export const getAreaStatsByVillage = (subsidyTypeId: number, year: number, dataSource?: 'payment' | 'application') => {
+export const getAreaStatsByVillage = (
+  subsidyTypeId: number,
+  year: number,
+  dataSource?: 'payment' | 'application',
+  groupBy?: 'excel' | 'database',
+) => {
   const params = new URLSearchParams({
     subsidy_type_id: String(subsidyTypeId),
     year: String(year)
   })
   if (dataSource) {
     params.append('data_source', dataSource)
+  }
+  if (groupBy) {
+    params.append('group_by', groupBy)
   }
   return req<AreaStatsResponse>(`/api/subsidies/applications/stats-by-village?${params.toString()}`)
 }

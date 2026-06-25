@@ -2111,53 +2111,18 @@ def get_stats_by_village(
     subsidy_type_id: int = Query(...),
     year: int = Query(...),
     data_source: Optional[str] = Query(None, description="数据源: 'payment' 或 'application'，不指定则自动选择"),
+    group_by: Optional[str] = Query('excel', description="分村依据: 'excel' 按Excel快照村名, 'database' 按数据库匹配身份证后分村"),
     db: Session = Depends(get_db)
 ):
     """
     按村统计面积数据（实际补贴面积、承包地面积、代耕代种面积、不予补贴面积）
     代领关系处理：代领人的记录不计入，只计入受益人的记录（避免重复计算）
+
+    group_by 参数:
+      - 'excel': 按导入时Excel中的村名（快照字段）分组
+      - 'database': 按身份证匹配数据库后，取农户所属家庭户的村进行分组
     """
     from sqlalchemy import text
-
-    # 主统计SQL - 按申请记录快照村统计，使用 beneficiary_id 关联受益人
-    stats_sql = text("""
-        SELECT
-            COALESCE(sa.apply_village_name, '未知村') as village_name,
-            COUNT(DISTINCT fp.id) as farmer_count,
-            COUNT(DISTINCT sa.id) as record_count,
-            ROUND(SUM(COALESCE(sa.apply_area, 0)), 2) as total_apply_area,
-            ROUND(SUM(COALESCE(sa.apply_area_no_calc, 0)), 2) as total_apply_area_no_calc,
-            ROUND(SUM(COALESCE(sa.contract_area, 0)), 2) as total_contract_area,
-            ROUND(SUM(COALESCE(sa.trust_area, 0)), 2) as total_trust_area,
-            ROUND(SUM(COALESCE(sa.no_subsidy_area, 0)), 2) as total_no_subsidy_area,
-            ROUND(SUM(COALESCE(sa.actual_amount, sa.apply_amount, 0)), 2) as total_amount
-        FROM subsidy_application sa
-        LEFT JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
-        WHERE sa.subsidy_type_id = :subsidy_type_id
-            AND sa.apply_year = :year
-        GROUP BY COALESCE(sa.apply_village_name, '未知村')
-        ORDER BY COALESCE(sa.apply_village_name, '未知村')
-    """)
-
-    # 发放表统计 - 使用发放表的快照村组字段，使用 beneficiary_id 关联受益人
-    payment_stats_sql = text("""
-        SELECT
-            COALESCE(sp.payment_village_name, '未知村') as village_name,
-            COUNT(DISTINCT fp.id) as farmer_count,
-            COUNT(DISTINCT sp.id) as record_count,
-            ROUND(SUM(COALESCE(sp.apply_area, 0)), 2) as total_apply_area,
-            ROUND(SUM(COALESCE(sp.apply_area_no_calc, 0)), 2) as total_apply_area_no_calc,
-            ROUND(SUM(COALESCE(sp.contract_area, 0)), 2) as total_contract_area,
-            ROUND(SUM(COALESCE(sp.trust_area, 0)), 2) as total_trust_area,
-            ROUND(SUM(COALESCE(sp.no_subsidy_area, 0)), 2) as total_no_subsidy_area,
-            ROUND(SUM(COALESCE(sp.amount, 0)), 2) as total_amount
-        FROM subsidy_payment sp
-        LEFT JOIN farmer_profile fp ON sp.beneficiary_id = fp.id
-        WHERE sp.subsidy_type_id = :subsidy_type_id
-            AND sp.payment_year = :year
-        GROUP BY COALESCE(sp.payment_village_name, '未知村')
-        ORDER BY COALESCE(sp.payment_village_name, '未知村')
-    """)
 
     # 根据参数决定数据源
     if data_source == 'payment':
@@ -2172,12 +2137,95 @@ def get_stats_by_village(
         ).scalar()
         use_payment = payment_count > 0
 
-    sql = payment_stats_sql if use_payment else stats_sql
-
     params = {
         "subsidy_type_id": subsidy_type_id,
         "year": year
     }
+
+    if group_by == 'database':
+        # 按数据库村分组：通过 farmer → household → village 链路拿到真实村名
+        if use_payment:
+            sql = text("""
+                SELECT
+                    COALESCE(v.village_name, '未知村') as village_name,
+                    COUNT(DISTINCT fp.id) as farmer_count,
+                    COUNT(DISTINCT sp.id) as record_count,
+                    ROUND(SUM(COALESCE(sp.apply_area, 0)), 2) as total_apply_area,
+                    ROUND(SUM(COALESCE(sp.apply_area_no_calc, 0)), 2) as total_apply_area_no_calc,
+                    ROUND(SUM(COALESCE(sp.contract_area, 0)), 2) as total_contract_area,
+                    ROUND(SUM(COALESCE(sp.trust_area, 0)), 2) as total_trust_area,
+                    ROUND(SUM(COALESCE(sp.no_subsidy_area, 0)), 2) as total_no_subsidy_area,
+                    ROUND(SUM(COALESCE(sp.amount, 0)), 2) as total_amount
+                FROM subsidy_payment sp
+                LEFT JOIN farmer_profile fp ON sp.beneficiary_id = fp.id
+                LEFT JOIN family_household fh ON fp.household_id = fh.id
+                LEFT JOIN village v ON fh.village_id = v.id
+                WHERE sp.subsidy_type_id = :subsidy_type_id
+                    AND sp.payment_year = :year
+                GROUP BY v.village_name
+                ORDER BY v.village_name
+            """)
+        else:
+            sql = text("""
+                SELECT
+                    COALESCE(v.village_name, '未知村') as village_name,
+                    COUNT(DISTINCT fp.id) as farmer_count,
+                    COUNT(DISTINCT sa.id) as record_count,
+                    ROUND(SUM(COALESCE(sa.apply_area, 0)), 2) as total_apply_area,
+                    ROUND(SUM(COALESCE(sa.apply_area_no_calc, 0)), 2) as total_apply_area_no_calc,
+                    ROUND(SUM(COALESCE(sa.contract_area, 0)), 2) as total_contract_area,
+                    ROUND(SUM(COALESCE(sa.trust_area, 0)), 2) as total_trust_area,
+                    ROUND(SUM(COALESCE(sa.no_subsidy_area, 0)), 2) as total_no_subsidy_area,
+                    ROUND(SUM(COALESCE(sa.actual_amount, sa.apply_amount, 0)), 2) as total_amount
+                FROM subsidy_application sa
+                LEFT JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
+                LEFT JOIN family_household fh ON fp.household_id = fh.id
+                LEFT JOIN village v ON fh.village_id = v.id
+                WHERE sa.subsidy_type_id = :subsidy_type_id
+                    AND sa.apply_year = :year
+                GROUP BY v.village_name
+                ORDER BY v.village_name
+            """)
+    else:
+        # 默认按Excel快照村名分组
+        if use_payment:
+            sql = text("""
+                SELECT
+                    COALESCE(sp.payment_village_name, '未知村') as village_name,
+                    COUNT(DISTINCT fp.id) as farmer_count,
+                    COUNT(DISTINCT sp.id) as record_count,
+                    ROUND(SUM(COALESCE(sp.apply_area, 0)), 2) as total_apply_area,
+                    ROUND(SUM(COALESCE(sp.apply_area_no_calc, 0)), 2) as total_apply_area_no_calc,
+                    ROUND(SUM(COALESCE(sp.contract_area, 0)), 2) as total_contract_area,
+                    ROUND(SUM(COALESCE(sp.trust_area, 0)), 2) as total_trust_area,
+                    ROUND(SUM(COALESCE(sp.no_subsidy_area, 0)), 2) as total_no_subsidy_area,
+                    ROUND(SUM(COALESCE(sp.amount, 0)), 2) as total_amount
+                FROM subsidy_payment sp
+                LEFT JOIN farmer_profile fp ON sp.beneficiary_id = fp.id
+                WHERE sp.subsidy_type_id = :subsidy_type_id
+                    AND sp.payment_year = :year
+                GROUP BY COALESCE(sp.payment_village_name, '未知村')
+                ORDER BY COALESCE(sp.payment_village_name, '未知村')
+            """)
+        else:
+            sql = text("""
+                SELECT
+                    COALESCE(sa.apply_village_name, '未知村') as village_name,
+                    COUNT(DISTINCT fp.id) as farmer_count,
+                    COUNT(DISTINCT sa.id) as record_count,
+                    ROUND(SUM(COALESCE(sa.apply_area, 0)), 2) as total_apply_area,
+                    ROUND(SUM(COALESCE(sa.apply_area_no_calc, 0)), 2) as total_apply_area_no_calc,
+                    ROUND(SUM(COALESCE(sa.contract_area, 0)), 2) as total_contract_area,
+                    ROUND(SUM(COALESCE(sa.trust_area, 0)), 2) as total_trust_area,
+                    ROUND(SUM(COALESCE(sa.no_subsidy_area, 0)), 2) as total_no_subsidy_area,
+                    ROUND(SUM(COALESCE(sa.actual_amount, sa.apply_amount, 0)), 2) as total_amount
+                FROM subsidy_application sa
+                LEFT JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
+                WHERE sa.subsidy_type_id = :subsidy_type_id
+                    AND sa.apply_year = :year
+                GROUP BY COALESCE(sa.apply_village_name, '未知村')
+                ORDER BY COALESCE(sa.apply_village_name, '未知村')
+            """)
 
     rows = db.execute(sql, params).fetchall()
 
@@ -2230,6 +2278,7 @@ def get_stats_by_village(
         "by_village": village_stats,
         "total": totals,
         "data_source": "payment" if use_payment else "application",
+        "group_by": group_by or "excel",
         "villages_without_data": villages_without_data,
     }
 
