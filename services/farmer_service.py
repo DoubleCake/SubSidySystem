@@ -96,7 +96,7 @@ def list_farmers(
     """查询农户列表，返回分页结果"""
     where, params = [], {}
     if search:
-        where.append("(fp.real_name LIKE :s OR fp.id_card LIKE :s)")
+        where.append("(fp.real_name LIKE :s OR fp.id_card LIKE :s OR fp.phone LIKE :s)")
         params["s"] = f"%{search}%"
     if status is not None:
         where.append("fp.farmer_status = :st")

@@ -778,7 +778,8 @@ def list_households(
                 (FarmerProfile.household_id == FamilyHousehold.id) &
                 (
                     (FarmerProfile.real_name.like(f"%{search}%")) |
-                    (FarmerProfile.id_card.like(f"%{search}%"))
+                    (FarmerProfile.id_card.like(f"%{search}%")) |
+                    (FarmerProfile.phone.like(f"%{search}%"))
                 )
             )
         )
