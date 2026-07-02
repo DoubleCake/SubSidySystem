@@ -538,7 +538,7 @@ export function HouseholdDetailContent({
                   </div>
                   <div className="text-xs text-text-muted mt-0.5">
                     {m.gender === 1 ? '男' : '女'}
-                    {m.phone_masked && <span className="ml-2">{m.phone_masked}</span>}
+                    <span className="ml-2">{m.phone_masked || '—'}</span>
                     <span className="ml-2 font-mono">{m.id_card || m.id_card_masked}</span>
                   </div>
                 </div>
