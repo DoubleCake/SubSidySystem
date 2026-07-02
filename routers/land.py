@@ -16,6 +16,7 @@ from decimal import Decimal
 from database import get_db
 from models import LandTrust, FamilyHousehold, Village, VillageGroup, FarmerProfile
 from services.subsidy_service import recalc_household_cache
+from services.household_service import quick_create_household
 
 router = APIRouter(prefix="/api/land", tags=["土地信息"])
 
@@ -143,7 +144,13 @@ def create_trust(data: dict, db: Session = Depends(get_db)):
     if owner_type == "household":
         owner_id = data.get("owner_household_id")
         if not owner_id:
-            raise HTTPException(400, "家庭户流出方请指定家庭户")
+            # 快捷录入：按身份证/姓名自动匹配或创建
+            owner_name = str(data.get("owner_name", "")).strip()
+            owner_id_card = str(data.get("owner_id_card", "")).strip()
+            if owner_name or owner_id_card:
+                owner_id = _resolve_or_create_household(db, owner_name, owner_id_card)
+            else:
+                raise HTTPException(400, "家庭户流出方请指定家庭户或输入姓名/身份证")
         if not db.get(FamilyHousehold, owner_id):
             raise HTTPException(404, "流出方家庭户不存在")
         owner_entity_id = None
@@ -173,6 +180,14 @@ def create_trust(data: dict, db: Session = Depends(get_db)):
     op_entity_id = None
     if operator_type == "household":
         op_id = data.get("operator_household_id")
+        if not op_id:
+            op_name = str(data.get("operator_name", "")).strip()
+            op_id_card = str(data.get("operator_id_card", "")).strip()
+            if op_name or op_id_card:
+                try:
+                    op_id = _resolve_or_create_household(db, op_name, op_id_card)
+                except Exception:
+                    pass  # 流入方可选，创建失败就跳过
         if op_id and not db.get(FamilyHousehold, op_id):
             raise HTTPException(404, "流入方家庭户不存在")
     elif operator_type == "village":
@@ -568,6 +583,42 @@ def search_household(q: str = Query("", min_length=0), db: Session = Depends(get
         {**dict(r._mapping), "village_full_name": f"{r.village_name or ''}{format_group_no(r.group_no)}"}
         for r in rows
     ]
+
+
+@router.get("/resolve-by-id-card")
+def resolve_by_id_card(q: str = Query("", min_length=15), db: Session = Depends(get_db)):
+    """按身份证号查找农户，返回家庭户信息（用于快捷录入自动匹配）"""
+    farmer = db.query(FarmerProfile).filter(FarmerProfile.id_card == q.strip()).first()
+    if not farmer:
+        return {"found": False, "farmer_name": None, "household_id": None, "household_name": None}
+    hh = db.get(FamilyHousehold, farmer.household_id) if farmer.household_id else None
+    return {
+        "found": True,
+        "farmer_id": farmer.id,
+        "farmer_name": farmer.real_name,
+        "household_id": hh.id if hh else None,
+        "household_name": hh.household_name if hh else None,
+    }
+
+
+def _resolve_or_create_household(db: Session, name: str, id_card: str) -> int:
+    """解析或创建家庭户：先按身份证查，再按姓名查，都不行则自动创建。
+    返回 household_id。"""
+    if id_card:
+        farmer = db.query(FarmerProfile).filter(FarmerProfile.id_card == id_card.strip()).first()
+        if farmer and farmer.household_id:
+            return farmer.household_id
+    if name:
+        hh = db.query(FamilyHousehold).filter(
+            FamilyHousehold.household_name.like(f"%{name.strip()}%")
+        ).first()
+        if hh:
+            return hh.id
+    # 自动创建
+    if name and id_card:
+        result = quick_create_household(db, name.strip(), id_card.strip())
+        return result["household_id"]
+    raise HTTPException(400, f"无法匹配或创建: 姓名={name}, 身份证={id_card}")
 
 
 # ══════════════════════════════════════

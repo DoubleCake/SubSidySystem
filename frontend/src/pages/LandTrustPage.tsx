@@ -90,9 +90,11 @@ const emptyForm = () => ({
   owner_type: 'household',
   owner_household_id: null as number | null,
   owner_entity_id: null as number | null,
+  owner_id_card: '',
   operator_type: 'household',
   operator_household_id: null as number | null,
   operator_entity_id: null as number | null,
+  operator_id_card: '',
   trust_type: 'ENTRUST',
   area: '' as string,
   trust_year: thisYear,
@@ -141,13 +143,6 @@ export default function LandTrustPage() {
   const [ownerVillageOpts, setOwnerVillageOpts] = useState<{id: number; village_name?: string; full_name?: string}[]>([])
   const [operVillageSearch, setOperVillageSearch] = useState('')
   const [operVillageOpts, setOperVillageOpts] = useState<{id: number; village_name?: string; full_name?: string}[]>([])
-  // 快速新建农户
-  const [quickNewOpen, setQuickNewOpen] = useState(false)
-  const [quickNewName, setQuickNewName] = useState('')
-  const [quickNewIdCard, setQuickNewIdCard] = useState('')
-  const [quickNewVillage, setQuickNewVillage] = useState('')
-  const [quickNewFor, setQuickNewFor] = useState<'owner' | 'operator'>('owner')
-
   // 家庭户查询弹窗（用于面积汇总）
   const [hhSearch, setHhSearch] = useState('')
   const [hhOpts, setHhOpts]     = useState<HHOption[]>([])
@@ -191,6 +186,25 @@ export default function LandTrustPage() {
   useEffect(() => { searchHH(hhSearch, setHhOpts) }, [hhSearch])
   useEffect(() => { if (form.owner_type === 'village') searchVillage(ownerVillageSearch, setOwnerVillageOpts) }, [ownerVillageSearch, form.owner_type])
   useEffect(() => { if (form.owner_type === 'village_group') searchVillageGroup(ownerVillageSearch, setOwnerVillageOpts) }, [ownerVillageSearch, form.owner_type])
+
+  // 身份证自动匹配
+  const resolveIdCard = async (idCard: string, side: 'owner' | 'operator') => {
+    if (idCard.length < 15) return
+    try {
+      const r = await req<{ found: boolean; farmer_name: string | null; household_id: number | null; household_name: string | null }>(
+        `/api/land/resolve-by-id-card?q=${encodeURIComponent(idCard.trim())}`
+      )
+      if (r.found && r.household_id) {
+        if (side === 'owner') {
+          sf('owner_household_id', r.household_id)
+          setOwnerSearch(r.household_name || r.farmer_name || '')
+        } else {
+          sf('operator_household_id', r.household_id)
+          setOperSearch(r.household_name || r.farmer_name || '')
+        }
+      }
+    } catch { /* ignore */ }
+  }
   useEffect(() => { if (form.operator_type === 'village') searchVillage(operVillageSearch, setOperVillageOpts) }, [operVillageSearch, form.operator_type])
   useEffect(() => { if (form.operator_type === 'village_group') searchVillageGroup(operVillageSearch, setOperVillageOpts) }, [operVillageSearch, form.operator_type])
 
@@ -200,24 +214,6 @@ export default function LandTrustPage() {
       const r = await req<AreaSummary>(`/api/land/area-summary/${hh.id}?year=${yearFilter}`)
       setSummary(r)
     } finally { setSummaryLoading(false) }
-  }
-
-  // 快速新建农户
-  const handleQuickCreate = async () => {
-    const name = quickNewName.trim(); const idCard = quickNewIdCard.trim()
-    if (!name || !idCard) return show('姓名和身份证不能为空', 'err')
-    try {
-      const res = await req<{ household_id: number; household_name: string; farmer_id: number }>('/api/households/quick-create', {
-        method: 'POST', body: JSON.stringify({ real_name: name, id_card: idCard, village_name: quickNewVillage, group_no: '' }),
-      })
-      show(`✓ 已创建 ${res.household_name}`)
-      if (quickNewFor === 'owner') {
-        sf('owner_household_id', res.household_id); setOwnerSearch(res.household_name)
-      } else {
-        sf('operator_household_id', res.household_id); setOperSearch(res.household_name)
-      }
-      setQuickNewOpen(false); setQuickNewName(''); setQuickNewIdCard(''); setQuickNewVillage('')
-    } catch (e) { show((e as Error).message, 'err') }
   }
 
   // 批量导入撂荒地
@@ -252,9 +248,11 @@ export default function LandTrustPage() {
       owner_type: t.owner_type || 'household',
       owner_household_id: t.owner_type === 'household' ? t.owner_household_id : null,
       owner_entity_id: t.owner_type !== 'household' ? t.owner_entity_id ?? null : null,
+      owner_id_card: '',
       operator_type: t.operator_type || 'household',
       operator_household_id: t.operator_type === 'household' ? t.operator_household_id : null,
       operator_entity_id: t.operator_type !== 'household' ? t.operator_entity_id ?? null : null,
+      operator_id_card: '',
       trust_type: t.trust_type,
       area: t.area !== null ? String(t.area) : '',
       trust_year: t.trust_year,
@@ -287,11 +285,16 @@ export default function LandTrustPage() {
   }
 
   const submit = async () => {
-    if (form.owner_type === 'household' && !form.owner_household_id) return show('请选择流出方（家庭户）', 'err')
+    // 家庭户类型：有 household_id 或用 name/id_card 自动创建
+    if (form.owner_type === 'household' && !form.owner_household_id) {
+      if (!form.owner_id_card && !ownerSearch.trim()) return show('请搜索或输入流出方信息', 'err')
+    }
     if (form.owner_type !== 'household' && !form.owner_entity_id) return show('请选择流出方（村/村组）', 'err')
     if (!form.trust_year) return show('请选择流转年度', 'err')
-    const payload = {
+    const payload: Record<string, unknown> = {
       ...form,
+      owner_name: ownerSearch.trim() || undefined,
+      operator_name: operSearch.trim() || undefined,
       area: form.area ? Number(form.area) : null,
       annual_fee: form.annual_fee ? Number(form.annual_fee) : null,
       start_date: form.start_date || null,
@@ -681,32 +684,41 @@ export default function LandTrustPage() {
                 { val: 'village_group', label: '村组' },
               ].map(o => (
                 <button key={o.val}
-                  onClick={() => { sf('owner_type', o.val); sf('owner_household_id', null); sf('owner_entity_id', null); setOwnerSearch(''); setOwnerVillageSearch(''); setOwnerOpts([]); setOwnerVillageOpts([]) }}
+                  onClick={() => { sf('owner_type', o.val); sf('owner_household_id', null); sf('owner_entity_id', null); sf('owner_id_card', ''); setOwnerSearch(''); setOwnerVillageSearch(''); setOwnerOpts([]); setOwnerVillageOpts([]) }}
                   className={`px-2.5 py-1 text-xs rounded-btn transition-colors
                     ${form.owner_type === o.val ? 'bg-primary ' : 'bg-white text-text-muted border border-border hover:border-primary/40'}`}>
                   {o.val === 'household' ? '🏠 ' : o.val === 'village' ? '🏘 ' : '📋 '}{o.label}
                 </button>
               ))}
             </div>
-            {/* 家庭户搜索 */}
+            {/* 家庭户：搜索 + 身份证直输 */}
             {form.owner_type === 'household' && (
-              <div className="relative">
-                <input value={ownerSearch}
-                  onChange={e => { setOwnerSearch(e.target.value); sf('owner_household_id', null) }}
-                  placeholder="输入户名或户主姓名搜索"
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
-                {!form.owner_household_id && ownerOpts.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
-                    {ownerOpts.map(h => (
-                      <button key={h.id} onClick={() => { sf('owner_household_id', h.id); setOwnerSearch(h.household_name); setOwnerOpts([]) }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0">
-                        <span className="font-semibold">{h.household_name}</span>
-                        <span className="text-text-muted text-xs ml-2">{h.head_name}</span>
-                        {h.land_area && <span className="text-primary text-xs ml-2">{h.land_area}亩</span>}
-                      </button>
-                    ))}
-                  </div>
-                )}
+              <div className="space-y-2">
+                <div className="relative">
+                  <input value={ownerSearch}
+                    onChange={e => { setOwnerSearch(e.target.value); sf('owner_household_id', null) }}
+                    placeholder="输入户名或户主姓名搜索"
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  {!form.owner_household_id && ownerOpts.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
+                      {ownerOpts.map(h => (
+                        <button key={h.id} onClick={() => { sf('owner_household_id', h.id); setOwnerSearch(h.household_name); setOwnerOpts([]) }}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0">
+                          <span className="font-semibold">{h.household_name}</span>
+                          <span className="text-text-muted text-xs ml-2">{h.head_name}</span>
+                          {h.land_area && <span className="text-primary text-xs ml-2">{h.land_area}亩</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input value={form.owner_id_card}
+                    onChange={e => { sf('owner_id_card', e.target.value); sf('owner_household_id', null) }}
+                    onBlur={e => resolveIdCard(e.target.value, 'owner')}
+                    placeholder="或直接输入身份证号自动匹配"
+                    className="flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" />
+                </div>
               </div>
             )}
             {/* 村/村组搜索 */}
@@ -731,9 +743,9 @@ export default function LandTrustPage() {
             )}
             {(form.owner_type === 'household' && form.owner_household_id) && <p className="text-xs text-primary mt-0.5">✓ 已选择: {ownerSearch}</p>}
             {(form.owner_type !== 'household' && form.owner_entity_id) && <p className="text-xs text-primary mt-0.5">✓ 已选择: {ownerVillageSearch}</p>}
-            {form.owner_type === 'household' && !form.owner_household_id && ownerSearch && ownerOpts.length === 0 && (
-              <button onClick={() => { setQuickNewFor('owner'); setQuickNewName(ownerSearch); setQuickNewIdCard(''); setQuickNewVillage(''); setQuickNewOpen(true) }}
-                className="text-xs text-blue-500 hover:text-blue-700 mt-1">＋ 快速新建「{ownerSearch}」</button>
+            {form.owner_type === 'household' && !form.owner_household_id && !form.owner_id_card && ownerSearch && ownerOpts.length === 0 && (
+              <button onClick={() => { sf('owner_id_card', ''); }}
+                className="text-xs text-blue-500 hover:text-blue-700 mt-1">💡 未找到，也可在上方直接输入身份证号</button>
             )}
           </div>
 
@@ -752,31 +764,40 @@ export default function LandTrustPage() {
                   { val: 'village_group', label: '村组' },
                 ].map(o => (
                   <button key={o.val}
-                    onClick={() => { sf('operator_type', o.val); sf('operator_household_id', null); sf('operator_entity_id', null); setOperSearch(''); setOperVillageSearch(''); setOperOpts([]); setOperVillageOpts([]) }}
+                    onClick={() => { sf('operator_type', o.val); sf('operator_household_id', null); sf('operator_entity_id', null); sf('operator_id_card', ''); setOperSearch(''); setOperVillageSearch(''); setOperOpts([]); setOperVillageOpts([]) }}
                     className={`px-2.5 py-1 text-xs rounded-btn transition-colors
                       ${form.operator_type === o.val ? 'bg-primary ' : 'bg-white text-text-muted border border-border hover:border-primary/40'}`}>
                     {o.val === 'household' ? '🏠 ' : o.val === 'village' ? '🏘 ' : '📋 '}{o.label}
                   </button>
                 ))}
               </div>
-              {/* 家庭户搜索 */}
+              {/* 家庭户：搜索 + 身份证直输 */}
               {form.operator_type === 'household' && (
-                <div className="relative">
-                  <input value={operSearch}
-                    onChange={e => { setOperSearch(e.target.value); sf('operator_household_id', null) }}
-                    placeholder="输入户名或户主姓名搜索（可不填）"
-                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
-                  {!form.operator_household_id && operOpts.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
-                      {operOpts.map(h => (
-                        <button key={h.id} onClick={() => { sf('operator_household_id', h.id); setOperSearch(h.household_name); setOperOpts([]) }}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0">
-                          <span className="font-semibold">{h.household_name}</span>
-                          <span className="text-text-muted text-xs ml-2">{h.head_name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                <div className="space-y-2">
+                  <div className="relative">
+                    <input value={operSearch}
+                      onChange={e => { setOperSearch(e.target.value); sf('operator_household_id', null) }}
+                      placeholder="输入户名或户主姓名搜索（可不填）"
+                      className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                    {!form.operator_household_id && operOpts.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
+                        {operOpts.map(h => (
+                          <button key={h.id} onClick={() => { sf('operator_household_id', h.id); setOperSearch(h.household_name); setOperOpts([]) }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0">
+                            <span className="font-semibold">{h.household_name}</span>
+                            <span className="text-text-muted text-xs ml-2">{h.head_name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input value={form.operator_id_card}
+                      onChange={e => { sf('operator_id_card', e.target.value); sf('operator_household_id', null) }}
+                      onBlur={e => resolveIdCard(e.target.value, 'operator')}
+                      placeholder="或直接输入身份证号自动匹配"
+                      className="flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" />
+                  </div>
                 </div>
               )}
               {/* 村/村组搜索 */}
@@ -801,9 +822,9 @@ export default function LandTrustPage() {
               )}
               {(form.operator_type === 'household' && form.operator_household_id) && <p className="text-xs text-primary mt-0.5">✓ 已选择: {operSearch}</p>}
               {(form.operator_type !== 'household' && form.operator_entity_id) && <p className="text-xs text-primary mt-0.5">✓ 已选择: {operVillageSearch}</p>}
-              {form.operator_type === 'household' && !form.operator_household_id && operSearch && operOpts.length === 0 && (
-                <button onClick={() => { setQuickNewFor('operator'); setQuickNewName(operSearch); setQuickNewIdCard(''); setQuickNewVillage(''); setQuickNewOpen(true) }}
-                  className="text-xs text-blue-500 hover:text-blue-700 mt-1">＋ 快速新建「{operSearch}」</button>
+              {form.operator_type === 'household' && !form.operator_household_id && !form.operator_id_card && operSearch && operOpts.length === 0 && (
+                <button onClick={() => { sf('operator_id_card', ''); }}
+                  className="text-xs text-blue-500 hover:text-blue-700 mt-1">💡 未找到，也可在上方直接输入身份证号</button>
               )}
             </div>
           )}
@@ -909,28 +930,6 @@ export default function LandTrustPage() {
               ⚠️ 撂荒记录不计入流出面积（地还在，只是没种），但会在补贴资格规则中触发「要求土地未撂荒」检查。
             </div>
           )}
-        </div>
-      </Modal>
-
-      {/* 快速新建农户 */}
-      <Modal open={quickNewOpen} title="快速新建农户" onClose={() => setQuickNewOpen(false)} onConfirm={handleQuickCreate}>
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs text-text-muted mb-1">姓名 *</label>
-            <input value={quickNewName} onChange={e => setQuickNewName(e.target.value)}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
-          </div>
-          <div>
-            <label className="block text-xs text-text-muted mb-1">身份证 *</label>
-            <input value={quickNewIdCard} onChange={e => setQuickNewIdCard(e.target.value)}
-              placeholder="18位身份证号" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" />
-          </div>
-          <div>
-            <label className="block text-xs text-text-muted mb-1">所在村（可选）</label>
-            <input value={quickNewVillage} onChange={e => setQuickNewVillage(e.target.value)}
-              placeholder="如：两河村" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
-          </div>
-          <p className="text-xs text-text-muted/50">将自动创建家庭户「{quickNewName}户」及农户信息</p>
         </div>
       </Modal>
 
