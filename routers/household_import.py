@@ -375,9 +375,25 @@ def preview_import(req: ImportRequest, db: Session = Depends(get_db)):
 # ──────────────────────────────────────────────────────────
 
 @router.post("/execute")
-def execute_import(req: ImportRequest, db: Session = Depends(get_db)):
-    """执行导入，写入数据库"""
-    groups, row_errors = _analyze_groups(req.rows, db)
+def execute_import(payload: dict, db: Session = Depends(get_db)):
+    """执行导入，写入数据库
+    payload: { rows: [...], default_village_name?: str, default_group_no?: str }
+    """
+    # 解析 rows
+    rows_data = payload.get("rows", [])
+    rows = [ImportRow(**r) for r in rows_data]
+
+    # 全局默认村组：手动指定的覆盖 Excel 中的
+    default_village = (payload.get("default_village_name") or "").strip()
+    default_group = (payload.get("default_group_no") or "").strip()
+    if default_village or default_group:
+        for row in rows:
+            if default_village and not row.village_name:
+                row.village_name = default_village
+            if default_group and not row.group_no:
+                row.group_no = default_group
+
+    groups, row_errors = _analyze_groups(rows, db)
 
     now = datetime.now()
     year_now = now.year

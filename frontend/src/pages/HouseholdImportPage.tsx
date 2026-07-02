@@ -1,7 +1,7 @@
 /**
  * 家庭户批量导入 — 智能导入 + 预览 + 结果
  */
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
 import { useToast } from '../hooks/useToast'
@@ -41,6 +41,15 @@ export default function HouseholdImportPage() {
   const [open, setOpen] = useState(false)
   const [preview, setPreview] = useState<any>(null)
   const [result, setResult] = useState<any>(null)
+  const [defaultVillage, setDefaultVillage] = useState('')
+  const [defaultGroup, setDefaultGroup] = useState('')
+  const [villageList, setVillageList] = useState<string[]>([])
+
+  useEffect(() => {
+    fetch('/api/settings/villages').then(r => r.json()).then(data => {
+      setVillageList((data || []).map((v: any) => v.village_name).filter(Boolean))
+    }).catch(() => {})
+  }, [])
 
   const preCheck = useCallback(async (rows: Record<string, unknown>[], _mapping?: Record<string, string>) => {
     const importRows = buildRows(rows)
@@ -59,14 +68,17 @@ export default function HouseholdImportPage() {
 
   const handleImport = useCallback(async (rows: Record<string, unknown>[], _mapping?: Record<string, string>, _overwrite?: boolean) => {
     const importRows = buildRows(rows)
+    const body: Record<string, unknown> = { rows: importRows }
+    if (defaultVillage.trim()) body.default_village_name = defaultVillage.trim()
+    if (defaultGroup.trim()) body.default_group_no = defaultGroup.trim()
     const res = await fetch('/api/household-import/execute', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rows: importRows }),
+      body: JSON.stringify(body),
     }).then(r => r.json())
     setResult(res)
     show(`新建户 ${res.created_households} · 合并 ${res.merged_households} · 成员 ${res.created_farmers} · 跳过 ${res.skipped_farmers}`, 'ok')
     return { created: res.created_farmers || 0, skipped: res.skipped_farmers || 0, errors: res.errors || [] }
-  }, [show])
+  }, [show, defaultVillage, defaultGroup])
 
   const detectColumns = useCallback(async (columns: string[]) => ({
     columns: columns.map(col => {
@@ -141,6 +153,34 @@ export default function HouseholdImportPage() {
               </div>
             </div>
           )}
+
+          {/* 全局默认村组设置 */}
+          <div className="bg-blue-50 border border-blue-200 rounded-card p-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              <span className="text-sm font-semibold text-blue-700">🏘 全局默认村组</span>
+              <span className="text-xs text-blue-600">Excel中未填村组的行将使用此默认值</span>
+            </div>
+            <div className="flex items-center gap-3 mt-3 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-text-muted">村：</span>
+                <select value={defaultVillage} onChange={e => setDefaultVillage(e.target.value)}
+                  className="border border-border rounded-btn px-3 py-1.5 text-sm bg-white outline-none min-w-[140px]">
+                  <option value="">— 不指定 —</option>
+                  {villageList.map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-text-muted">组：</span>
+                <input value={defaultGroup} onChange={e => setDefaultGroup(e.target.value)}
+                  placeholder="如：一组 或 1"
+                  className="border border-border rounded-btn px-3 py-1.5 text-sm outline-none w-32" />
+              </div>
+              {(defaultVillage || defaultGroup) && (
+                <button onClick={() => { setDefaultVillage(''); setDefaultGroup('') }}
+                  className="text-xs text-blue-500 hover:text-blue-700">清除</button>
+              )}
+            </div>
+          </div>
 
           <div className="border border-border/50 rounded-btn overflow-hidden">
             <div className="px-4 py-2 bg-warm/30 text-xs font-semibold text-text-primary">分组明细（{preview.groups?.length || 0} 组）</div>
