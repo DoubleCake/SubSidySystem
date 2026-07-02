@@ -13,7 +13,6 @@
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import func as sqlfunc
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
@@ -404,10 +403,6 @@ def execute_import(payload: dict, db: Session = Depends(get_db)):
     skipped_farmers = 0
     import_errors = [f"第{e['row']}行({e['name']}): {'; '.join(e['errors'])}" for e in row_errors]
 
-    # 获取最大 household id，用于生成 household_code
-    max_hh_id = db.query(sqlfunc.max(FamilyHousehold.id)).scalar() or 0
-    hh_counter = 0
-
     for g in groups:
         if g["has_errors"]:
             import_errors.append(f"地址「{g['address']}」存在格式错误行，该组已跳过")
@@ -421,28 +416,14 @@ def execute_import(payload: dict, db: Session = Depends(get_db)):
 
         # ── 确定目标家庭户 ──
         if action == "create":
-            # 新建家庭户（先不设 head_farmer_id，稍后更新）
+            # 新建家庭户（暂用占位编码，户主建好后再用 farmer_id 生成正规编码）
             vid = g["target_village_id"]
             if not vid:
                 pending_v = _get_or_create_pending_village(db)
                 vid = pending_v.id
 
-            hh_counter += 1
-            # 若传入 household_code 则直接使用，否则自动生成
-            import_code = g.get("household_code", "")
-            if import_code:
-                # 校验编码唯一性
-                existing = db.query(FamilyHousehold).filter(
-                    FamilyHousehold.household_code == import_code
-                ).first()
-                if existing:
-                    import_errors.append(f"家庭编码「{import_code}」已存在（{existing.household_name}），跳过该组")
-                    continue
-                code = import_code
-            else:
-                code = gen_household_code(max_hh_id + hh_counter)
             new_hh = FamilyHousehold(
-                household_code=code,
+                household_code="",  # 占位，稍后根据户主ID生成
                 household_name=f"{head['real_name']}户",
                 head_farmer_id=None,
                 village_id=vid,
@@ -609,6 +590,10 @@ def execute_import(payload: dict, db: Session = Depends(get_db)):
             first_farmer = all_farmers.get(members[0]["id_card"])
             if first_farmer:
                 target_hh.head_farmer_id = first_farmer.id
+
+        # 新建户：户主确定后，用实际 farmer_id 生成正规编码
+        if action == "create" and target_hh.head_farmer_id:
+            target_hh.household_code = gen_household_code(target_hh.head_farmer_id)
 
     db.commit()
 
