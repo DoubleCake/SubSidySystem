@@ -6,6 +6,7 @@ import { useState } from 'react'
 import * as XLSX from 'xlsx'
 import Tag from '../components/Tag'
 import { FARMER_STATUS } from '../utils'
+import * as api from '../api'
 
 interface MatchResult {
   index: number
@@ -94,13 +95,7 @@ export default function PeopleMatchPage() {
 
     setLoading(true)
     try {
-      const r = await fetch('/api/farmers/match-people', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rows }),
-      })
-      if (!r.ok) throw new Error('匹配请求失败')
-      const data: MatchResponse = await r.json()
+      const data = await api.matchPeople(rows as { name: string; village: string; phone: string }[])
       setResult(data)
     } catch (e) {
       setError((e as Error).message)

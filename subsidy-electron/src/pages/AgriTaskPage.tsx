@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Modal from '../components/Modal'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
+import * as api from '../api'
 
 // ── 类型 ──────────────────────────────────
 interface Task {
@@ -65,15 +66,6 @@ const thisYear = new Date().getFullYear()
 const years = Array.from({ length: 6 }, (_, i) => thisYear + 1 - i)
 const SEASONS = ['大春', '小春']
 
-async function req<T>(url: string, opts?: RequestInit): Promise<T> {
-  const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts })
-  if (!r.ok) {
-    const e = await r.json().catch(() => ({})) as { detail?: string }
-    throw new Error(e.detail || '请求失败')
-  }
-  return r.json() as Promise<T>
-}
-
 const fmt = (v: number | null | undefined, digits = 2) =>
   v == null ? '-' : Number(v).toFixed(digits)
 
@@ -116,16 +108,16 @@ export default function AgriTaskPage() {
   const [editActual, setEditActual] = useState<Record<number, string>>({})
 
   const loadMeta = useCallback(async () => {
-    try { setMeta(await req<Meta>('/api/agri-tasks/meta')) } catch { /* ignore */ }
+    try { setMeta(await api.getAgriTaskMeta()) } catch { /* ignore */ }
   }, [])
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
     try {
-      const p = new URLSearchParams({ page: String(page), page_size: '20' })
-      if (filterYear)   p.set('task_year', String(filterYear))
-      if (filterStatus) p.set('status', filterStatus)
-      const res = await req<{ total: number; items: Task[] }>(`/api/agri-tasks?${p}`)
+      const params: Record<string, string | number> = { page, page_size: 20 }
+      if (filterYear) params.task_year = filterYear
+      if (filterStatus) params.status = filterStatus
+      const res = await api.getAgriTasks(params)
       setTasks(res.items); setTotal(res.total)
     } catch (e: unknown) { show((e as Error).message, 'err') }
     finally { setLoading(false) }
@@ -138,7 +130,7 @@ export default function AgriTaskPage() {
     if (!form.task_name || !form.total_area) { show('任务名称和面积为必填', 'err'); return }
     setSaving(true)
     try {
-      await req('/api/agri-tasks', { method: 'POST', body: JSON.stringify(form) })
+      await api.createAgriTask(form)
       show('创建成功')
       setShowCreate(false); setForm(emptyForm()); loadTasks()
     } catch (e: unknown) { show((e as Error).message, 'err') }
@@ -148,7 +140,7 @@ export default function AgriTaskPage() {
   const handlePreview = async (taskId: number) => {
     setPreviewing(true)
     try {
-      setPreview(await req<PreviewResult>(`/api/agri-tasks/${taskId}/preview`))
+      setPreview(await api.previewAgriTask(taskId))
       setShowPreview(true)
     } catch (e: unknown) { show((e as Error).message, 'err') }
     finally { setPreviewing(false) }
@@ -157,7 +149,7 @@ export default function AgriTaskPage() {
   const handleIssue = async (taskId: number) => {
     if (!confirm('确认下达任务？下达后将保存分配方案。')) return
     try {
-      const res = await req<{ village_count: number }>(`/api/agri-tasks/${taskId}/issue`, { method: 'POST' })
+      const res = await api.issueAgriTask(taskId)
       show(`已下达，共分配至 ${res.village_count} 个村`)
       loadTasks()
       if (showDetail) loadDetail(taskId)
@@ -167,7 +159,7 @@ export default function AgriTaskPage() {
   const handleRevoke = async (taskId: number) => {
     if (!confirm('确认撤回任务？将清除已保存的分配方案。')) return
     try {
-      await req(`/api/agri-tasks/${taskId}/revoke`, { method: 'POST' })
+      await api.revokeAgriTask(taskId)
       show('已撤回'); loadTasks()
       if (showDetail) loadDetail(taskId)
     } catch (e: unknown) { show((e as Error).message, 'err') }
@@ -176,7 +168,7 @@ export default function AgriTaskPage() {
   const handleDone = async (taskId: number) => {
     if (!confirm('确认标记为完成？')) return
     try {
-      await req(`/api/agri-tasks/${taskId}/done`, { method: 'PUT' })
+      await api.completeAgriTask(taskId)
       show('已标记完成'); loadTasks()
       if (showDetail) loadDetail(taskId)
     } catch (e: unknown) { show((e as Error).message, 'err') }
@@ -185,14 +177,14 @@ export default function AgriTaskPage() {
   const handleDelete = async (taskId: number) => {
     if (!confirm('确认删除该任务？')) return
     try {
-      await req(`/api/agri-tasks/${taskId}`, { method: 'DELETE' })
+      await api.deleteAgriTask(taskId)
       show('已删除'); loadTasks()
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
   const loadDetail = async (taskId: number) => {
     try {
-      const d = await req<TaskDetail>(`/api/agri-tasks/${taskId}`)
+      const d = await api.getAgriTaskDetail(taskId)
       setDetail(d)
       const init: Record<number, string> = {}
       d.allocations.forEach(a => { init[a.village_id] = a.actual_area != null ? String(a.actual_area) : '' })
@@ -203,10 +195,7 @@ export default function AgriTaskPage() {
 
   const handleSaveActual = async (taskId: number, villageId: number) => {
     try {
-      await req(`/api/agri-tasks/${taskId}/allocations/${villageId}/actual`, {
-        method: 'PUT',
-        body: JSON.stringify({ actual_area: editActual[villageId] === '' ? null : Number(editActual[villageId]) }),
-      })
+      await api.updateAgriTaskAllocation(taskId, villageId, editActual[villageId] === '' ? null : Number(editActual[villageId]))
       show('保存成功'); loadDetail(taskId)
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }

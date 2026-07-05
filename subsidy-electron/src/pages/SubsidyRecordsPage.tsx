@@ -167,8 +167,8 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     setCheckingDisbursement(true)
     try {
       const [appRes, payRes] = await Promise.all([
-        fetch(`/api/subsidies/applications/export?subsidy_type_id=${subsidyType.id}&year=${subsidyType.subsidy_year}`).then(r => r.json()),
-        fetch(`/api/subsidies/payments/export?subsidy_type_id=${subsidyType.id}&year=${subsidyType.subsidy_year}`).then(r => r.json()),
+        api.exportApplications(subsidyType.id),
+        api.exportPayments(subsidyType.id),
       ])
       const apps = appRes.items || []
       const pays = payRes.items || []
@@ -306,14 +306,11 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     }
     try {
       const endpoint = activeTab === 'disbursement'
-        ? '/api/subsidies/payments/batch-delete'
-        : '/api/subsidies/applications/batch-delete'
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds })
-      })
-      if (!response.ok) throw new Error('批量删除失败')
+        ? 'subsidies:batchDeletePayments'
+        : 'subsidies:batchDeleteApplications'
+      const response = await window.electronAPI.invoke(endpoint, { ids: selectedIds })
+      const data = response?.data ?? response
+      if (data?.code !== undefined && data.code !== 0) throw new Error('批量删除失败')
       show(`✓ 已删除 ${selectedIds.length} 条记录`)
       setSelectedIds([])
       load()
@@ -336,15 +333,10 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     setDeletingAll(true)
     try {
       const endpoint = activeTab === 'disbursement'
-        ? '/api/subsidies/payments/batch-delete'
-        : '/api/subsidies/applications/batch-delete'
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ delete_all: true, subsidy_type_id: subsidyType.id })
-      })
-      if (!response.ok) throw new Error('删除全部失败')
-      const result = await response.json()
+        ? 'subsidies:batchDeletePayments'
+        : 'subsidies:batchDeleteApplications'
+      const response = await window.electronAPI.invoke(endpoint, { delete_all: true, subsidy_type_id: subsidyType.id })
+      const result = response?.data ?? response
       show(`✓ 已删除全部 ${result.deleted} 条记录`)
       setSelectedIds([])
       load()
@@ -368,17 +360,9 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     }
     try {
       // 先通过身份证查找农户ID
-      const beneficiaryResp = await fetch('/api/farmers/batch-lookup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_cards: [proxyForm.beneficiary_id_card.trim()] })
-      }).then(r => r.json())
+      const beneficiaryResp = await api.batchLookupFarmers([proxyForm.beneficiary_id_card.trim()])
 
-      const proxyResp = await fetch('/api/farmers/batch-lookup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_cards: [proxyForm.proxy_id_card.trim()] })
-      }).then(r => r.json())
+      const proxyResp = await api.batchLookupFarmers([proxyForm.proxy_id_card.trim()])
 
       const beneficiaryId = beneficiaryResp.results?.[proxyForm.beneficiary_id_card.trim()]
       const proxyId = proxyResp.results?.[proxyForm.proxy_id_card.trim()]
@@ -439,11 +423,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
 
     // 批量查找农户ID
     const allIdCards = [...new Set(proxies.flatMap(p => [p.beneficiary_id_card, p.proxy_id_card]))]
-    const lookupResp = await fetch('/api/farmers/batch-lookup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id_cards: allIdCards })
-    }).then(r => r.json())
+    const lookupResp = await api.batchLookupFarmers(allIdCards)
 
     const results = lookupResp.results || {}
     let successCount = 0
@@ -485,13 +465,11 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   const loadVillages = useCallback(async () => {
     setLoadingVillages(true)
     try {
-      const params = new URLSearchParams({
-        subsidy_type_id: String(subsidyType.id),
-        year: String(subsidyType.subsidy_year)
+      const response = await window.electronAPI.invoke('subsidies:applicationVillages', {
+        subsidy_type_id: subsidyType.id,
+        year: subsidyType.subsidy_year
       })
-      const response = await fetch(`/api/subsidies/applications/villages?${params}`)
-      if (!response.ok) throw new Error('获取村庄列表失败')
-      const data = await response.json()
+      const data = response?.data ?? response
       setVillages(data.villages || [])
     } catch (error) {
       console.error('加载村庄列表失败:', error)
@@ -517,8 +495,9 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         if (filters.dateTo) params.date_to = filters.dateTo
         if (sortField) { params.sort_field = sortField; params.sort_dir = sortDir }
 
-        const res = await fetch(`/api/subsidies/payments?${new URLSearchParams(params as Record<string, string>)}`).then(r => r.json())
-        setApps(res.items.map((p: any) => ({
+        const res = await window.electronAPI.invoke('subsidies:listPayments', params)
+        const data = res?.data ?? res
+        setApps(data.items.map((p: any) => ({
           id: p.id,
           farmer_id: p.farmer_id,
           farmer_name: p.farmer_name,
@@ -542,7 +521,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
           proxy_remark: p.proxy_remark,
           is_proxy: p.is_proxy,
         })))
-        setTotal(res.total)
+        setTotal(data.total)
         setLoading(false)
         return
       }
@@ -585,19 +564,19 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     }
     setPreCheckLoading(true)
     try {
-      const params = new URLSearchParams()
-      params.append('subsidy_typeId', String(subsidyType.id))
-      if (filters.payStatus) {
-        params.append('payStatus', String(filters.payStatus))
-      } else {
-        params.append('payStatus', activeTab === 'preApply' ? '0' : '1,2')
+      const precheckParams: Record<string, string | number> = {
+        subsidy_type_id: subsidyType.id,
       }
-      if (filters.village) params.append('villageName', filters.village)
+      if (filters.payStatus) {
+        precheckParams.pay_status = filters.payStatus
+      } else {
+        precheckParams.pay_status = activeTab === 'preApply' ? '0' : '1,2'
+      }
+      if (filters.village) precheckParams.village_name = filters.village
 
-      const response = await fetch(`/api/subsidies/applications/precheck?${params}`, { method: 'POST' })
-      if (!response.ok) throw new Error('预检请求失败')
-
-      const result = await response.json()
+      const response = await window.electronAPI.invoke('subsidies:precheck', precheckParams)
+      const result = response?.data ?? response
+      if (response?.code !== undefined && response.code !== 0) throw new Error('预检请求失败')
       const summary = result.summary || {}
       const okCount = summary.ok_rows || 0
       const errorCount = summary.error_rows || 0
@@ -657,9 +636,11 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   const loadComparableTypes = useCallback(async () => {
     if (!subsidyType.category) return
     try {
-      const response = await fetch(`/api/subsidies/types/comparable?category=${encodeURIComponent(subsidyType.category)}&current_type_id=${subsidyType.id}`)
-      if (!response.ok) throw new Error('获取可对比项目失败')
-      const data = await response.json()
+      const response = await window.electronAPI.invoke('subsidies:comparableTypes', {
+        category: subsidyType.category,
+        current_type_id: subsidyType.id
+      })
+      const data = response?.data ?? response
       setComparableTypes(data)
     } catch (error) {
       console.error('加载可对比项目失败:', error)
@@ -670,16 +651,15 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   const loadStats = useCallback(async () => {
     setLoadingStats(true)
     try {
-      const params = new URLSearchParams({
-        subsidy_type_id: String(subsidyType.id),
-        year: String(subsidyType.subsidy_year)
-      })
-      if (selectedCompareType) {
-        params.append('compare_type_id', String(selectedCompareType))
+      const statsParams: Record<string, string | number> = {
+        subsidy_type_id: subsidyType.id,
+        year: subsidyType.subsidy_year,
       }
-      const response = await fetch(`/api/subsidies/applications/stats?${params}`)
-      if (!response.ok) throw new Error('获取统计数据失败')
-      const data = await response.json()
+      if (selectedCompareType) {
+        statsParams.compare_type_id = selectedCompareType
+      }
+      const response = await window.electronAPI.invoke('subsidies:applicationStats', statsParams)
+      const data = response?.data ?? response
       setStats(data)
     } catch (error) {
       console.error('加载统计数据失败:', error)

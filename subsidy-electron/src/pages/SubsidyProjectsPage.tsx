@@ -133,10 +133,7 @@ export default function SubsidyProjectsPage() {
         const res = await api.createSubsidyType(payload as SubsidyTypeCreate)
         // 新建项目：将表单里的预检配置保存到新类型
         if (pendingCheckConfig.current) {
-          await fetch(`/api/subsidies/types/${res.id}/check-config`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(pendingCheckConfig.current),
-          })
+          await api.updateCheckConfig(res.id, pendingCheckConfig.current as any)
         }
         show('✓ 创建成功')
       }
@@ -147,8 +144,7 @@ export default function SubsidyProjectsPage() {
   const deleteProject = async (type_id: number) => {
     setDeleting(true)
     try {
-      const response = await fetch(`/api/subsidies/types/${type_id}`, { method: 'DELETE' })
-      if (!response.ok) throw new Error('删除失败')
+      await window.electronAPI.invoke('subsidies:deleteType', type_id)
       show('✓ 项目已移入回收站')
       loadTypes()
       if (showTrash) loadDeletedTypes()

@@ -3,6 +3,7 @@ import Modal from '../components/Modal'
 import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
+import * as api from '../api'
 import type { ErrorLibraryItem, ErrorLibraryCreate, PageResult, ExcelColumnTemplate } from '../types'
 
 const ERROR_TYPES = ['身份证错误', '重复人员', '已故', '身份冒用', '其他']
@@ -16,7 +17,6 @@ const ERROR_LIBRARY_SYSTEM_FIELDS = [
   { field: "source",          label: "来源",       required: false, type: "string" },
   { field: "village_name",    label: "所在村",     required: false, type: "string" },
   { field: "group_no",        label: "所在组",     required: false, type: "string" },
-  { field: "subsidy_name",    label: "补贴分类",   required: false, type: "string" },
   { field: "discovered_date", label: "发现日期",   required: false, type: "date" },
   { field: "remark",          label: "备注",       required: false, type: "string" },
 ]
@@ -25,12 +25,6 @@ const IMPORT_HEADERS = ['姓名*', '身份证号*', '错误类型*', '错误原�
 const IMPORT_EXAMPLE = [
   { '姓名*': '张三', '身份证号*': '510123196503154231', '错误类型*': '身份证错误', '错误原因*': '身份证号码校验不通过', '来源': '预检发现', '所在村': '红星村', '所在组': '一组', '补贴分类': '耕地地力保护补贴', '发现日期': '2025-03-15', '备注': '' },
 ]
-
-async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const r = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts })
-  if (!r.ok) { const e = await r.json().catch(() => ({})) as { detail?: string }; throw new Error(e.detail || '请求失败') }
-  return r.json() as Promise<T>
-}
 
 export default function ErrorLibraryPage({ embedded = false }: { embedded?: boolean }) {
   const { toast, show } = useToast()
@@ -63,16 +57,16 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
   const [templates, setTemplates] = useState<ExcelColumnTemplate[]>([])
 
   const loadStats = useCallback(async () => {
-    try { setStats(await req('/api/error-library/stats')) } catch { /* ignore */ }
+    try { setStats(await api.getErrorLibraryStats()) } catch { /* ignore */ }
   }, [])
 
   const loadFilterOptions = useCallback(async () => {
-    try { setFilterOptions(await req('/api/error-library/filter-options')) } catch { /* ignore */ }
+    try { setFilterOptions(await api.getErrorLibraryFilterOptions()) } catch { /* ignore */ }
   }, [])
 
   const loadTemplates = useCallback(async () => {
     try {
-      const res = await req<ExcelColumnTemplate[]>('/api/excel-templates?business_type=ERROR_LIBRARY')
+      const res = await api.getExcelTemplates('ERROR_LIBRARY')
       setTemplates(res)
     } catch { /* ignore */ }
   }, [])
@@ -80,17 +74,11 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
   // Excel列名智能检测
   const detectExcelColumns = async (columns: string[], sampleRows: Record<string, unknown>[]) => {
     try {
-      const response = await fetch('/api/excel-templates/detect-columns', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ columns, business_type: 'ERROR_LIBRARY', sample_rows: sampleRows }),
-      })
-      if (!response.ok) throw new Error(`检测失败: ${response.status}`)
-      const raw = await response.json()
-      const mapped = (raw.columns || []).map((d: Record<string, unknown>) => ({
+      const raw = await api.detectExcelColumns(columns, 'ERROR_LIBRARY', sampleRows)
+      const mapped = (raw.columns || []).map((d: any) => ({
         excel_column: d.excel_column,
         suggested_field: d.suggested_field,
-        confidence: d.confidence ?? d.suggested_confidence ?? 0,
+        confidence: (d as any).confidence ?? (d as any).suggested_confidence ?? 0,
         alternatives: d.alternatives || [],
       }))
       return { columns: mapped, recommended_templates: raw.recommended_templates || [] }
@@ -106,20 +94,14 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
     template_name: string; template_year?: number; region_name?: string; business_type: string
     column_mapping: Array<{ excel_column: string; system_field: string; aliases: string[]; required: boolean; transform?: string }>
   }): Promise<{ id: number }> => {
-    const response = await fetch('/api/excel-templates', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
-    })
-    if (!response.ok) throw new Error(`保存失败: ${response.status}`)
-    const res = await response.json()
+    const res = await api.saveExcelTemplate(data)
     loadTemplates()
     return res
   }
 
   // Excel导入处理
   const handleImport = async (rows: Record<string, unknown>[], _mapping?: Record<string, string>): Promise<{ created: number; skipped: number; errors: string[] }> => {
-    const res = await req<{ created: number; skipped: number }>('/api/error-library/batch-import', {
-      method: 'POST', body: JSON.stringify({ rows }),
-    })
+    const res = await api.batchImportErrorLibrary(rows)
     return { created: res.created, skipped: res.skipped, errors: [] }
   }
 
@@ -131,8 +113,7 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
       if (filterType) params.error_type = filterType
       if (filterVillage) params.village_name = filterVillage
       if (filterSubsidy) params.subsidy_name = filterSubsidy
-      const qs = new URLSearchParams(params as Record<string, string>).toString()
-      const res = await req<PageResult<ErrorLibraryItem>>('/api/error-library?' + qs)
+      const res = await api.getErrorLibrary(params)
       setItems(res.items)
       setTotal(res.total)
     } catch (e: unknown) { show((e as Error).message, 'err') }
@@ -173,10 +154,10 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
     }
     try {
       if (editId) {
-        await req('/api/error-library/' + editId, { method: 'PUT', body: JSON.stringify(form) })
+        await api.updateErrorLibrary(editId, form)
         show('✓ 更新成功')
       } else {
-        await req('/api/error-library', { method: 'POST', body: JSON.stringify(form) })
+        await api.createErrorLibrary(form)
         show('✓ 创建成功')
       }
       setModalOpen(false); load(); loadStats(); loadFilterOptions()
@@ -186,7 +167,7 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
   const handleDelete = async (id: number) => {
     if (!confirm('确认删除该记录？')) return
     try {
-      await req('/api/error-library/' + id, { method: 'DELETE' })
+      await api.deleteErrorLibrary(id)
       show('✓ 已删除'); load(); loadStats(); loadFilterOptions()
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
@@ -195,9 +176,7 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
     if (selectedIds.length === 0) { show('请先选择要删除的记录', 'err'); return }
     if (!confirm(`确认删除选中的 ${selectedIds.length} 条记录？`)) return
     try {
-      const res = await req<{ deleted: number }>('/api/error-library/batch-delete', {
-        method: 'POST', body: JSON.stringify({ ids: selectedIds }),
-      })
+      const res = await api.batchDeleteErrorLibrary(selectedIds)
       show(`✓ 已删除 ${res.deleted} 条记录`); setSelectedIds([]); load(); loadStats(); loadFilterOptions()
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }

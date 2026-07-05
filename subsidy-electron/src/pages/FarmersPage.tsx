@@ -886,16 +886,11 @@ export default function FarmersPage() {
 
   const detectExcelColumns = async (columns: string[], sampleRows: Record<string, unknown>[]) => {
     try {
-      const r = await fetch('/api/excel-templates/detect-columns', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ columns, sample_rows: sampleRows, business_type: 'FARMER' }),
-      })
-      const raw = await r.json()
-      const cols = (raw.columns || []).map((d: Record<string, unknown>) => ({
+      const raw = await api.detectExcelColumns(columns, 'FARMER', sampleRows)
+      const cols = (raw.columns || []).map((d: any) => ({
         excel_column: d.excel_column,
         suggested_field: d.suggested_field,
-        confidence: d.confidence ?? d.suggested_confidence ?? 0,
+        confidence: (d as any).confidence ?? (d as any).suggested_confidence ?? 0,
         alternatives: d.alternatives || [],
       }))
       return { columns: cols, recommended_templates: raw.recommended_templates || [] }
@@ -905,12 +900,7 @@ export default function FarmersPage() {
   }
 
   const saveColumnMappingTemplate = async (data: Record<string, unknown>) => {
-    const r = await fetch('/api/excel-templates', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, business_type: 'FARMER' }),
-    })
-    const result = await r.json()
+    const result = await api.saveExcelTemplate({ ...data, business_type: 'FARMER' })
     api.getExcelTemplates('FARMER').then(setTemplates).catch(() => {})
     return result
   }
@@ -965,13 +955,7 @@ export default function FarmersPage() {
   // 导出超限明细
   const exportOverdrawnDetail = async () => {
     try {
-      const res = await fetch('/api/households/alert/overdrawn?year=' + yearFilter).then(r => r.json()) as {
-        year: number; total: number; items: Array<{
-          household_name: string; head_name: string; village: string
-          contracted_area: number; cultivable_area: number; used_area: number; overdraw_amount: number
-          season_breakdown: Record<string, { used_area: number; is_overdrawn: boolean; overdraw_amount: number }>
-        }>
-      }
+      const res = await api.getOverdrawnDetail(yearFilter)
       if (res.total === 0) { show('当前年度无超限家庭户', 'err'); return }
       const rows = res.items.map(h => {
         const row: Record<string, unknown> = {

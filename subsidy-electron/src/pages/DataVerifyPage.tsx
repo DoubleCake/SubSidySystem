@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import * as XLSX from 'xlsx'
 import Tag from '../components/Tag'
+import * as api from '../api'
 
 type MatchType = 'ok' | 'mismatch' | 'not_found' | 'invalid' | 'duplicate' | 'bad_format'
 
@@ -100,10 +101,7 @@ export default function DataVerifyPage() {
     const toVerify = rows.filter((_, i) => localResults[i]?.match === 'ok')
     if (toVerify.length > 0) {
       try {
-        const res = await fetch('/api/farmers/verify-names', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rows: toVerify }),
-        }).then(r => r.json())
+        const res = await api.verifyNames(toVerify)
 
         // 合并结果
         let vi = 0

@@ -411,3 +411,253 @@ export const exportApplications = (subsidyTypeId: number) =>
 
 export const exportPayments = (subsidyTypeId: number) =>
   req<{ items: unknown[] }>('subsidies:exportPayments', subsidyTypeId)
+
+// ── 仪表盘 ──
+export const getDashboardTodos = (year: number) =>
+  req<{ incomplete_projects: number; pending_records: number; overdrawn_households: number; id_card_errors: number }>(
+    'subsidies:dashboardTodos', { year }
+  )
+
+// ── 数据库备份管理 ──
+export const getDbInfo = () =>
+  req<{
+    db_path: string; db_size_kb: number; db_size_mb: number; total_records: number
+    record_counts: Record<string, number>; backups: { filename: string; size_kb: number; created: string }[]
+    backup_dir: string
+  }>('settings:getDbInfo')
+
+export const createBackup = (destPath?: string) =>
+  req<{ message: string; filename: string; size_kb: number }>('settings:backup', destPath)
+
+export const restoreDatabase = (filePath: string) =>
+  req<{ message: string; backup_created: string }>('settings:restore', filePath)
+
+export const deleteBackup = (filename: string) =>
+  req('settings:deleteBackup', filename)
+
+export const exportExcel = () =>
+  window.electronAPI.invoke('settings:exportExcel')
+
+export const downloadDb = () =>
+  window.electronAPI.invoke('settings:downloadDb')
+
+// ── 超领明细 ──
+export interface OverdrawnDetailItem {
+  household_name: string; head_name: string; village: string
+  contracted_area: number; cultivable_area: number; used_area: number; overdraw_amount: number
+  season_breakdown: Record<string, { used_area: number; is_overdrawn: boolean; overdraw_amount: number }>
+}
+
+export const getOverdrawnDetail = (year: number) =>
+  req<{ year: number; total: number; items: OverdrawnDetailItem[] }>('households:overdrawnDetail', { year })
+
+// ── 农业任务 ──
+export interface AgriTask {
+  id: number; task_name: string; crop_type: string; total_area: number
+  task_year: number; season: string | null; alloc_method: string; alloc_method_label: string
+  status: string; status_label: string; description: string | null; operator: string | null
+}
+
+export interface AgriTaskAllocation {
+  village_id: number; village_name: string; alloc_area: number; alloc_ratio: number
+  basis_area: number; actual_area: number | null
+}
+
+export interface AgriTaskDetail extends AgriTask {
+  allocations: AgriTaskAllocation[]
+  total_actual_area: number | null; completion_rate: number | null
+}
+
+export const getAgriTasks = (params: Record<string, string | number>) =>
+  req<{ total: number; items: AgriTask[] }>('agri-tasks:list', params)
+
+export const getAgriTaskDetail = (id: number) =>
+  req<AgriTaskDetail>('agri-tasks:get', id)
+
+export const createAgriTask = (data: Record<string, unknown>) =>
+  req('agri-tasks:create', data)
+
+export const deleteAgriTask = (id: number) =>
+  req('agri-tasks:delete', id)
+
+export const previewAgriTask = (id: number) =>
+  req<{ total_area: number; alloc_method_label: string; total_basis_area: number; allocations: { village_id: number; village_name: string; basis_area: number; alloc_ratio: number; alloc_area: number }[] }>(
+    'agri-tasks:preview', id
+  )
+
+export const issueAgriTask = (id: number) =>
+  req<{ village_count: number }>('agri-tasks:issue', id)
+
+export const revokeAgriTask = (id: number) =>
+  req('agri-tasks:revoke', id)
+
+export const completeAgriTask = (id: number) =>
+  req('agri-tasks:done', id)
+
+export const getAgriTaskMeta = () =>
+  req<{ alloc_methods: { value: string; label: string }[]; statuses: { value: string; label: string }[]; crop_types: string[] }>(
+    'agri-tasks:meta'
+  )
+
+export const updateAgriTaskAllocation = (taskId: number, villageId: number, actualArea: number | null) =>
+  req('agri-tasks:updateAllocation', { taskId, villageId, actual_area: actualArea })
+
+// ── 资格规则 ──
+export interface EligibilityRule {
+  id: number; subsidy_type_id: number; rule_name: string; rule_desc: string | null
+  require_farmer_status: number | null; require_age_min: number | null; require_age_max: number | null
+  require_land_type: string | null; require_min_area: number | null; require_max_area: number | null
+  require_not_idle: number; require_contract_valid: number
+  can_combine_with_others: number; exclusive_with: number[]; is_active: number
+}
+
+export const getEligibilityRules = (subsidyTypeId: number) =>
+  req<EligibilityRule[]>('eligibility:list', subsidyTypeId)
+
+export const getEligibilityRuleTemplates = () =>
+  req<{ name: string; desc: string; preset: Partial<EligibilityRule> }[]>('eligibility:ruleTemplates')
+
+export const createEligibilityRule = (data: Partial<EligibilityRule>) =>
+  req('eligibility:create', data)
+
+export const updateEligibilityRule = (id: number, data: Partial<EligibilityRule>) =>
+  req('eligibility:update', { id, ...data })
+
+export const deleteEligibilityRule = (id: number) =>
+  req('eligibility:delete', id)
+
+export const checkEligibility = (data: { subsidy_type_id: number; year: number; rows: { id_card: string; real_name: string; apply_area: number; _row_index?: number }[] }) =>
+  req<{ passed_list: { _row_index?: number }[]; failed_list: { _row_index?: number; real_name: string; id_card_masked: string; issues: string[] }[]; warning_list?: { _row_index?: number; real_name: string; id_card_masked: string; warnings: string[] }[] }>(
+    'eligibility:check', data
+  )
+
+// ── 土地流转 ──
+export interface LandTrustRecord {
+  id: number; owner_type?: string; owner_entity_id?: number | null
+  owner_household_id: number | null; owner_name: string; owner_code: string
+  operator_type?: string; operator_entity_id?: number | null
+  operator_household_id: number | null; operator_name: string | null; operator_code: string | null
+  trust_type: string; trust_type_label: string
+  area: number | null; trust_year: number; trust_end_year?: number | null
+  start_date: string | null; end_date: string | null
+  annual_fee: number | null; payment_method: string | null
+  parcel_desc: string | null; data_reliability: string; reliability_label: string
+  affect_subsidy_calc: number; subsidy_arable?: number; subsidy_cash_crop?: number
+  note: string | null; operator: string | null; is_active: number
+}
+
+export const getLandTrusts = (params: Record<string, string | number>) =>
+  req<{ total: number; items: LandTrustRecord[] }>('land:list', params)
+
+export const createLandTrust = (data: Record<string, unknown>) =>
+  req('land:create', data)
+
+export const updateLandTrust = (id: number, data: Record<string, unknown>) =>
+  req('land:update', { id, ...data })
+
+export const deleteLandTrust = (id: number) =>
+  req('land:delete', id)
+
+export const searchLandHousehold = (q: string) =>
+  req<{ id: number; household_code: string; household_name: string; head_name: string; village_full_name: string; land_area: number | null }[]>(
+    'land:searchHousehold', q
+  )
+
+export const searchLandVillage = (q: string) =>
+  req<{ id: number; village_name: string }[]>('land:searchVillage', q)
+
+export const searchLandVillageGroup = (q: string) =>
+  req<{ id: number; full_name: string }[]>('land:searchVillageGroup', q)
+
+export const resolveLandByIdCard = (q: string) =>
+  req<{ found: boolean; farmer_name: string | null; household_id: number | null; household_name: string | null }>(
+    'land:resolveByIdCard', q
+  )
+
+export const getLandAreaSummary = (householdId: number, year: number) =>
+  req<{
+    contracted_area: number; trust_out_area: number; trust_in_area: number
+    cultivable_area: number; applied_area: number
+    is_overdrawn: boolean; overdraw_amount: number
+    has_trust_data: boolean; subsidy_breakdown: { subsidy_name: string; applied_area: number; actual_amount: number }[]
+    trust_records: LandTrustRecord[]
+  }>('land:areaSummary', { householdId, year })
+
+export const batchRenewLandTrusts = (ids: number[]) =>
+  req<{ created: number }>('land:batchRenew', ids)
+
+export const batchImportIdleLand = (rows: Record<string, unknown>[]) =>
+  req<{ created: number; skipped: number; errors: string[] }>('land:batchImportIdle', rows)
+
+// ── 外联查询 ──
+export interface ExternalSite { id: number; name: string; url: string; site_type: 'link' | 'query'; description: string | null; sort_order: number; is_active: number }
+
+export const getExternalSites = () =>
+  req<ExternalSite[]>('external-links:list')
+
+export const createExternalSite = (data: Partial<ExternalSite>) =>
+  req('external-links:createSite', data)
+
+export const updateExternalSite = (id: number, data: Partial<ExternalSite>) =>
+  req('external-links:updateSite', { id, ...data })
+
+export const deleteExternalSite = (id: number) =>
+  req('external-links:deleteSite', id)
+
+export const getExternalRecords = (params: Record<string, string | number>) =>
+  req<{ total: number; items: Record<string, unknown>[] }>('external-links:listRecords', params)
+
+export const getExternalStats = () =>
+  req<{ total_records: number; total_items: number; by_type: { type: string; times: number; total_items: number }[]; by_site: { site: string; times: number }[] }>(
+    'external-links:stats'
+  )
+
+export const createExternalRecord = (data: Record<string, unknown>) =>
+  req('external-links:createRecord', data)
+
+export const updateExternalRecord = (id: number, data: Record<string, unknown>) =>
+  req('external-links:updateRecord', { id, ...data })
+
+export const deleteExternalRecord = (id: number) =>
+  req('external-links:deleteRecord', id)
+
+// ── Excel 模板扩展 ──
+export const deleteExcelTemplate = (id: number) =>
+  req('excel-templates:delete', id)
+
+export const getExcelTemplateLogs = (params?: Record<string, string | number>) =>
+  req<{ total: number; items: Record<string, unknown>[] }>('excel-templates:logs', params || { page_size: 30 })
+
+export const aiDetectColumns = (data: { columns: string[]; business_type: string; sample_rows: Record<string, unknown>[] }) =>
+  req<{ results: { excel_column: string; system_field: string | null; confidence: number; reason: string }[]; source: string }>(
+    'excel-templates:aiDetect', data
+  )
+
+// ── 错误库扩展 ──
+export const getErrorLibraryFilterOptions = () =>
+  req<{ villages: string[]; subsidies: string[] }>('error-library:filterOptions')
+
+// ── 身份验证 ──
+export const verifyNames = (rows: { name: string; id_card: string }[]) =>
+  req<{ results: { match: string; db_name: string | null; db_village: string | null }[] }>(
+    'farmers:verifyNames', { rows }
+  )
+
+// ── 人员模糊匹配 ──
+export const matchPeople = (rows: { name: string; village: string; phone: string }[]) =>
+  req<{
+    total: number; summary: { high: number; medium: number; low: number; none: number }
+    results: {
+      index: number; input: { name: string; village: string; phone: string }
+      matches: { farmer_id: number; real_name: string; village_name: string; phone: string; id_card: string; id_card_masked?: string; farmer_status: number }[]
+      matched_by: string; confidence: 'high' | 'medium' | 'low' | 'none'; match_count: number; warning?: string; note?: string
+    }[]
+  }>('farmers:matchPeople', { rows })
+
+// ── 村组列表（非分组选项） ──
+export const getVillages = () =>
+  req<{ village_name: string }[]>('settings:villages')
+
+// ── 家庭户批量组建 ──
+export const batchBuildHouseholdsFromList = (rows: Record<string, unknown>[]) =>
+  req<{ created: number; errors: string[] }>('households:batchBuild', rows)

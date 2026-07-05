@@ -213,8 +213,11 @@ export default function SubsidyListBase({
   // ── 删除 ──
   const deleteApp = async (id: number) => {
     try {
-      const endpoint = config.deleteEndpoint ? config.deleteEndpoint(id) : `${apiBase}/${id}`
-      await fetch(endpoint, { method: 'DELETE' })
+      if (config.apiBase.includes('payments')) {
+        await window.electronAPI.invoke('subsidies:deletePayment', id)
+      } else {
+        await window.electronAPI.invoke('subsidies:deleteApplication', id)
+      }
       show('✓ 已删除'); setDeleteId(null); load()
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
@@ -265,35 +268,36 @@ export default function SubsidyListBase({
     }
     if (errors.length && !toCreate.length) return { created: 0, skipped: 0, errors }
     // 资格检查
+    const isPayment = config.apiBase.includes('payments')
     try {
-      const chk = await fetch('/api/eligibility/check', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subsidy_type_id: subsidyType.id, year: subsidyType.subsidy_year, rows: toCreate.map(r => ({ id_card: String(r.id_card || ''), real_name: String(r.real_name || ''), apply_area: r.apply_area })) }),
-      }).then(r => r.json()) as { passed: number; failed: number; rules_applied: number; passed_list: { id_card: string }[]; failed_list: { issues: string[] }[] }
-      if (chk.rules_applied > 0 && chk.failed > 0) {
-        const passedIds = new Set(chk.passed_list.map(p => p.id_card))
-        const passedRows = toCreate.filter(r => passedIds.has(String(r.id_card || '')))
-        if (passedRows.length === 0) return { created: 0, skipped: 0, errors: [`规则检查：全部 ${chk.failed} 条不通过`] }
-        const res2 = await fetch(batchImportEndpoint, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rows: passedRows, overwrite: overwrite || false }),
-        }).then(r => r.json()) as { created: number; skipped: number; errors: string[]; new_farmers?: number; updated?: number }
-        const newMsg = res2.new_farmers ? `，新建农户 ${res2.new_farmers} 人` : ''
-        const updMsg = res2.updated ? `，覆盖 ${res2.updated} 条` : ''
-        show(`✓ 通过规则 ${chk.passed} 条，导入 ${res2.created} 条${updMsg}；规则拒绝 ${chk.failed} 条${newMsg}`)
+      const chk = await api.checkEligibility({
+        subsidy_type_id: subsidyType.id, year: subsidyType.subsidy_year,
+        rows: toCreate.map((r, idx) => ({ id_card: String(r.id_card || ''), real_name: String(r.real_name || ''), apply_area: Number(r.apply_area) || 0, _row_index: idx })),
+      })
+      const failedCount = chk.failed_list?.length || 0
+      const passedCount = chk.passed_list?.length || 0
+      if ((passedCount + failedCount) > 0 && failedCount > 0) {
+        const passedIndices = new Set(chk.passed_list?.map(p => p._row_index).filter(i => i != null) || [])
+        const passedRows = toCreate.filter((_, idx) => passedIndices.has(idx))
+        if (passedRows.length === 0) return { created: 0, skipped: 0, errors: [`规则检查：全部 ${failedCount} 条不通过`] }
+        const res2 = isPayment
+          ? await window.electronAPI.invoke('subsidies:batchImportPayments', { rows: passedRows, overwrite: overwrite || false })
+          : await api.batchImportApplications(passedRows as any)
+        const newMsg = (res2 as any).new_farmers ? `，新建农户 ${(res2 as any).new_farmers} 人` : ''
+        const updMsg = (res2 as any).updated ? `，覆盖 ${(res2 as any).updated} 条` : ''
+        show(`✓ 通过规则 ${passedCount} 条，导入 ${(res2 as any).created || 0} 条${updMsg}；规则拒绝 ${failedCount} 条${newMsg}`)
         load()
-        return { ...res2, errors: [...errors, ...(res2.errors || [])] }
+        return { ...(res2 as any), errors: [...errors, ...((res2 as any).errors || [])] }
       }
     } catch (_) { /* 规则引擎出错不阻断 */ }
-    const res = await fetch(batchImportEndpoint, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rows: toCreate, overwrite: overwrite || false }),
-    }).then(r => r.json()) as { created: number; skipped: number; errors: string[]; new_farmers?: number; updated?: number }
-    const newMsg = res.new_farmers ? `，新建农户 ${res.new_farmers} 人` : ''
-    const updMsg = res.updated ? `，覆盖 ${res.updated} 条` : ''
-    show(`✓ 导入 ${res.created} 条${updMsg}，跳过 ${res.skipped} 条${newMsg}`)
+    const res = isPayment
+      ? await window.electronAPI.invoke('subsidies:batchImportPayments', { rows: toCreate, overwrite: overwrite || false })
+      : await api.batchImportApplications(toCreate as any)
+    const newMsg = (res as any).new_farmers ? `，新建农户 ${(res as any).new_farmers} 人` : ''
+    const updMsg = (res as any).updated ? `，覆盖 ${(res as any).updated} 条` : ''
+    show(`✓ 导入 ${(res as any).created || 0} 条${updMsg}，跳过 ${(res as any).skipped || 0} 条${newMsg}`)
     load()
-    return { ...res, errors: [...errors, ...(res.errors || [])] }
+    return { ...(res as any), errors: [...errors, ...((res as any).errors || [])] }
   }
 
   // ── 导出 ──
@@ -336,20 +340,13 @@ export default function SubsidyListBase({
 
   const detectExcelColumns = async (columns: string[], sampleRows: Record<string, unknown>[]) => {
     try {
-      const response = await fetch('/api/excel-templates/detect-columns', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ columns, business_type: 'SUBSIDY', sample_rows: sampleRows }),
-      })
-      if (!response.ok) throw new Error(`检测失败: ${response.status}`)
-      const raw = await response.json()
-      return { columns: (raw.columns || []).map((d: Record<string, unknown>) => ({ excel_column: d.excel_column, suggested_field: d.suggested_field, confidence: d.confidence ?? 0, alternatives: d.alternatives || [] })), recommended_templates: raw.recommended_templates || [] }
+      const raw = await api.detectExcelColumns(columns, 'SUBSIDY', sampleRows)
+      return { columns: (raw.columns || []).map((d) => ({ excel_column: d.excel_column, suggested_field: d.suggested_field, confidence: d.confidence ?? 0, alternatives: d.alternatives || [] })), recommended_templates: raw.recommended_templates || [] }
     } catch { return { columns: columns.map(col => ({ excel_column: col, suggested_field: null, confidence: 0, alternatives: [] })) } }
   }
 
   const saveColumnMappingTemplate = async (data: { template_name: string; template_year?: number; region_name?: string; business_type: string; column_mapping: Array<{ excel_column: string; system_field: string; aliases: string[]; required: boolean; transform?: string }> }) => {
-    const response = await fetch('/api/excel-templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-    if (!response.ok) throw new Error(`保存失败: ${response.status}`)
-    return await response.json()
+    return await api.saveExcelTemplate(data as Record<string, unknown>)
   }
 
   const importSysFields = importFields || DEFAULT_IMPORT_FIELDS

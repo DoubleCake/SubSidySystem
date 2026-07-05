@@ -3,12 +3,13 @@
  * - 查看数据库信息（大小、各表记录数）
  * - 下载数据库文件（.db，可直接迁移）
  * - 导出全量 Excel（5个Sheet，可汇报/归档）
- * - 上传恢复数据库
+ * - 恢复数据库（通过文件对话框选择 .db 文件）
  * - 创建/管理本地备份
  */
 import { useState, useEffect } from 'react'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
+import * as api from '../api'
 
 interface BackupInfo {
   db_path: string; db_size_kb: number; db_size_mb: number
@@ -19,12 +20,6 @@ interface BackupInfo {
   }
   backups: { filename: string; size_kb: number; created: string }[]
   backup_dir: string
-}
-
-async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const r = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts })
-  if (!r.ok) { const e = await r.json().catch(() => ({})) as { detail?: string }; throw new Error(e.detail || '请求失败') }
-  return r.json() as Promise<T>
 }
 
 const TABLE_LABELS: Record<string, { label: string; icon: string; color: string }> = {
@@ -41,12 +36,11 @@ export default function BackupPage() {
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [localBacking, setLocalBacking] = useState(false)
-  const [restoreFile, setRestoreFile] = useState<File | null>(null)
   const [restoring, setRestoring] = useState(false)
   const [confirmRestore, setConfirmRestore] = useState(false)
 
   const loadInfo = async () => {
-    try { setInfo(await req<BackupInfo>('/api/backup/info')) }
+    try { setInfo(await api.getDbInfo()) }
     catch (e: unknown) { show((e as Error).message, 'err') }
     finally { setLoading(false) }
   }
@@ -55,25 +49,14 @@ export default function BackupPage() {
 
   // 下载数据库文件
   const downloadDb = () => {
-    const a = document.createElement('a')
-    a.href = '/api/backup/download'
-    a.click()
+    api.downloadDb().catch((e: unknown) => show((e as Error).message, 'err'))
   }
 
   // 导出 Excel
   const exportExcel = async () => {
     setExporting(true)
     try {
-      const r = await fetch('/api/backup/export-excel')
-      if (!r.ok) throw new Error('导出失败')
-      const blob = await r.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      const ts = new Date().toLocaleDateString('zh-CN').replace(/\//g, '')
-      a.download = `补贴数据导出_${ts}.xlsx`
-      a.click()
-      URL.revokeObjectURL(url)
+      await api.exportExcel()
       show('✓ Excel 导出成功')
     } catch (e: unknown) { show((e as Error).message, 'err') }
     finally { setExporting(false) }
@@ -83,26 +66,26 @@ export default function BackupPage() {
   const createLocalBackup = async () => {
     setLocalBacking(true)
     try {
-      const r = await req<{ message: string; filename: string; size_kb: number }>('/api/backup/auto', { method: 'POST' })
+      const r = await api.createBackup()
       show(`✓ ${r.message}：${r.filename}（${r.size_kb} KB）`)
       loadInfo()
     } catch (e: unknown) { show((e as Error).message, 'err') }
     finally { setLocalBacking(false) }
   }
 
-  // 上传恢复
+  // 恢复数据库（通过文件对话框选择 .db 文件）
   const handleRestore = async () => {
-    if (!restoreFile) return show('请先选择数据库文件', 'err')
     if (!confirmRestore) return show('请勾选确认框后再执行恢复', 'err')
     setRestoring(true)
     try {
-      const fd = new FormData()
-      fd.append('file', restoreFile)
-      const r = await fetch('/api/backup/restore', { method: 'POST', body: fd })
-      const d = await r.json() as { message: string; backup_created: string }
-      if (!r.ok) throw new Error((d as { detail?: string }).detail || '恢复失败')
-      show(`✓ ${d.message}`)
-      setRestoreFile(null); setConfirmRestore(false)
+      const result = await window.electronAPI.invoke('dialog:selectFile', {
+        filters: [{ name: '数据库文件', extensions: ['db'] }]
+      })
+      if (!result || result.canceled) { setRestoring(false); return }
+      const filePath = result.filePath || result[0]
+      const r = await window.electronAPI.invoke('settings:restore', filePath)
+      show('✓ ' + (r.message || '恢复成功'))
+      setConfirmRestore(false)
       setTimeout(loadInfo, 500)
     } catch (e: unknown) { show((e as Error).message, 'err') }
     finally { setRestoring(false) }
@@ -112,7 +95,7 @@ export default function BackupPage() {
   const deleteBackup = async (filename: string) => {
     if (!confirm(`确认删除备份 ${filename}？此操作不可恢复`)) return
     try {
-      await req(`/api/backup/backups/${filename}`, { method: 'DELETE' })
+      await api.deleteBackup(filename)
       show('✓ 已删除'); loadInfo()
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
@@ -229,25 +212,13 @@ export default function BackupPage() {
             </div>
 
             <div className="space-y-3">
-              <div>
-                <label className="block text-xs text-text-muted mb-1">选择数据库文件 (.db)</label>
-                <input type="file" accept=".db"
-                  onChange={e => setRestoreFile(e.target.files?.[0] || null)}
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm" />
-                {restoreFile && (
-                  <p className="text-xs text-primary mt-1">
-                    ✓ 已选择：{restoreFile.name}（{(restoreFile.size / 1024).toFixed(1)} KB）
-                  </p>
-                )}
-              </div>
-
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={confirmRestore} onChange={e => setConfirmRestore(e.target.checked)}
                   className="w-4 h-4" />
                 <span className="text-xs text-text-primary">我已了解风险，确认执行数据库恢复操作</span>
               </label>
 
-              <button onClick={handleRestore} disabled={restoring || !restoreFile || !confirmRestore}
+              <button onClick={handleRestore} disabled={restoring || !confirmRestore}
                 className="w-full py-2.5 bg-red-600  text-sm rounded-btn hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed">
                 {restoring ? '恢复中，请勿关闭…' : '🔄 执行数据库恢复'}
               </button>
@@ -277,10 +248,10 @@ export default function BackupPage() {
                     <td className="px-4 py-2.5 text-sm text-text-muted">{b.size_kb} KB</td>
                     <td className="px-4 py-2.5 text-sm text-text-muted">{b.created}</td>
                     <td className="px-4 py-2.5 flex gap-2">
-                      <a href={`/api/backup/backups/${b.filename}`} download={b.filename}
+                      <button onClick={() => window.electronAPI.invoke('settings:downloadBackup', b.filename)}
                         className="text-xs text-primary border border-primary/20 px-2.5 py-1 rounded-btn hover:bg-primary/5">
                         下载
-                      </a>
+                      </button>
                       <button onClick={() => deleteBackup(b.filename)}
                         className="text-xs text-red-400 border border-red-200 px-2.5 py-1 rounded-btn hover:bg-red-50">
                         删除

@@ -7,6 +7,7 @@ import Modal from '../components/Modal'
 import Tag from '../components/Tag'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
+import * as api from '../api'
 
 interface Rule {
   id: number; subsidy_type_id: number; rule_name: string; rule_desc: string | null
@@ -39,12 +40,6 @@ const LAND_TYPE_OPTS = [
   { val: 'GARDEN', label: '园地' }, { val: 'POND', label: '鱼塘' },
 ]
 
-async function req<T>(url: string, opts?: RequestInit): Promise<T> {
-  const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts })
-  if (!r.ok) { const e = await r.json().catch(() => ({})) as { detail?: string }; throw new Error(e.detail || '请求失败') }
-  return r.json() as Promise<T>
-}
-
 const emptyForm = (): Partial<Rule> => ({
   rule_name: '', rule_desc: '',
   require_farmer_status: 1,
@@ -68,8 +63,8 @@ export default function EligibilityRulePage({ subsidyTypeId, subsidyName }: Prop
     setLoading(true)
     try {
       const [r, t] = await Promise.all([
-        req<Rule[]>(`/api/eligibility/rules?subsidy_type_id=${subsidyTypeId}`),
-        req<RuleTemplate[]>('/api/eligibility/rule-templates'),
+        api.getEligibilityRules(subsidyTypeId),
+        api.getEligibilityRuleTemplates(),
       ])
       setRules(r); setTemplates(t)
     } finally { setLoading(false) }
@@ -92,10 +87,10 @@ export default function EligibilityRulePage({ subsidyTypeId, subsidyName }: Prop
     try {
       const payload = { ...form, subsidy_type_id: subsidyTypeId }
       if (editTarget) {
-        await req(`/api/eligibility/rules/${editTarget.id}`, { method: 'PUT', body: JSON.stringify(payload) })
+        await api.updateEligibilityRule(editTarget.id, payload)
         show('✓ 规则已更新')
       } else {
-        await req('/api/eligibility/rules', { method: 'POST', body: JSON.stringify(payload) })
+        await api.createEligibilityRule(payload)
         show('✓ 规则已创建')
       }
       setEditOpen(false); load()
@@ -104,7 +99,7 @@ export default function EligibilityRulePage({ subsidyTypeId, subsidyName }: Prop
 
   const del = async (id: number) => {
     if (!confirm('确认删除此规则？')) return
-    await req(`/api/eligibility/rules/${id}`, { method: 'DELETE' })
+    await api.deleteEligibilityRule(id)
     show('✓ 已删除'); load()
   }
 

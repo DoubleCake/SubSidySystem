@@ -35,7 +35,7 @@ export default function VillageContactsPage({ embedded }: { embedded?: boolean }
   const load = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/village-contacts').then(r => r.json())
+      const res = await window.electronAPI.invoke('village-contacts:list')
       const vmap: Record<number, string> = {};
       (res.villages || []).forEach((v: Village) => { vmap[v.id] = v.village_name })
       setContacts((res.items || []).map((c: Contact) => ({ ...c, village_name: vmap[c.village_id] || '' })))
@@ -61,9 +61,11 @@ export default function VillageContactsPage({ embedded }: { embedded?: boolean }
       position: form.position, is_agri_lead: form.is_agri_lead, remark: form.remark,
     }
     try {
-      const method = editing ? 'PUT' : 'POST'
-      const url = editing ? `/api/village-contacts/${editing.id}` : '/api/village-contacts'
-      await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      if (editing) {
+        await window.electronAPI.invoke('village-contacts:update', { id: editing.id, ...body })
+      } else {
+        await window.electronAPI.invoke('village-contacts:create', body)
+      }
       show(editing ? '已更新' : '已添加')
       setShowForm(false); resetForm(); load()
     } catch { show('保存失败', 'err') }
@@ -71,19 +73,16 @@ export default function VillageContactsPage({ embedded }: { embedded?: boolean }
 
   const del = async (c: Contact) => {
     if (!confirm(`删除联系人「${c.village_name} - ${c.name}」？`)) return
-    await fetch(`/api/village-contacts/${c.id}`, { method: 'DELETE' })
+    await window.electronAPI.invoke('village-contacts:delete', c.id)
     show('已删除'); load()
   }
 
   const toggleLead = async (c: Contact) => {
     if (c.is_agri_lead) {
-      await fetch(`/api/village-contacts/${c.id}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_agri_lead: false }),
-      })
+      await window.electronAPI.invoke('village-contacts:update', { id: c.id, is_agri_lead: false })
       show(`已取消「${c.name}」的负责人身份`)
     } else {
-      await fetch(`/api/village-contacts/set-lead/${c.id}`, { method: 'POST' })
+      await window.electronAPI.invoke('village-contacts:setLead', c.id)
       show(`已将「${c.name}」设为 ${c.village_name} 农业负责人`)
     }
     load()
@@ -92,10 +91,9 @@ export default function VillageContactsPage({ embedded }: { embedded?: boolean }
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) { show('请选择文件', 'err'); return }
-    const formData = new FormData()
-    formData.append('file', file)
+    const filePath = (file as any).path || file.name
     try {
-      const res = await fetch(`/api/village-contacts/import?overwrite=${overwrite}`, { method: 'POST', body: formData }).then(r => r.json())
+      const res = await window.electronAPI.invoke('village-contacts:import', { overwrite, filePath })
       const parts = [`新增 ${res.created} 条`]
       if (res.updated) parts.push(`更新 ${res.updated} 条`)
       if (res.errors?.length) parts.push(`错误 ${res.errors.length} 条`)

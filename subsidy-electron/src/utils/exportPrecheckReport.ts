@@ -81,31 +81,28 @@ function mapSheetsToBackend(selectedSheets: SheetKey[]): string[] {
  */
 export async function exportPrecheckReport(result: CheckResult, fileName = '预检查报告') {
   try {
-    const response = await fetch('/api/subsidies/applications/precheck/export', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        result,
-        file_name: fileName
-      })
+    const response = await window.electronAPI.invoke('subsidies:exportPrecheck', {
+      result,
+      file_name: fileName
     })
 
-    if (!response.ok) {
+    if (!response || response.code !== 0) {
       throw new Error('导出失败')
     }
 
-    // 从响应头获取文件名
-    const contentDisposition = response.headers.get('Content-Disposition')
-    let downloadFileName = `${fileName}_${new Date().toISOString().slice(0, 10)}.xlsx`
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
-      if (filenameMatch && filenameMatch[1]) {
-        downloadFileName = filenameMatch[1].replace(/['"]/g, '')
-      }
-    }
+    // 从响应数据获取文件名和blob数据
+    const data = response.data
+    const dateStr = new Date().toISOString().slice(0, 10)
+    const downloadFileName = data?.filename || `${fileName}_${dateStr}.xlsx`
 
-    // 创建下载链接
-    const blob = await response.blob()
+    // 创建下载链接（base64数据）
+    const byteCharacters = atob(data?.file_data || '')
+    const byteNumbers = new Array(byteCharacters.length)
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i)
+    }
+    const byteArray = new Uint8Array(byteNumbers)
+    const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -138,37 +135,37 @@ export async function exportPrecheckReportWithOptions(
     // 映射 sheet key 为后端支持的中文名称
     const backendSheets = mapSheetsToBackend(options.selectedSheets)
 
-    const response = await fetch('/api/subsidies/applications/precheck/export-with-options', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        result,
-        file_name: fileName,
-        split_by_village: options.splitByVillage,
-        selected_sheets: backendSheets
-      })
+    const response = await window.electronAPI.invoke('subsidies:exportPrecheckWithOptions', {
+      result,
+      file_name: fileName,
+      split_by_village: options.splitByVillage,
+      selected_sheets: backendSheets
     })
 
-    if (!response.ok) {
+    if (!response || response.code !== 0) {
       throw new Error('导出失败')
     }
 
-    // 从响应头获取文件名
-    const contentDisposition = response.headers.get('Content-Disposition')
+    // 从响应数据获取文件名和blob数据
+    const data = response.data
     const dateStr = new Date().toISOString().slice(0, 10)
-    let downloadFileName = options.splitByVillage
-      ? `${fileName}_${dateStr}.zip`
-      : `${fileName}_${dateStr}.xlsx`
+    const downloadFileName = data?.filename || (
+      options.splitByVillage
+        ? `${fileName}_${dateStr}.zip`
+        : `${fileName}_${dateStr}.xlsx`
+    )
 
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
-      if (filenameMatch && filenameMatch[1]) {
-        downloadFileName = filenameMatch[1].replace(/['"]/g, '')
-      }
+    // 创建下载链接（base64数据）
+    const byteCharacters = atob(data?.file_data || '')
+    const byteNumbers = new Array(byteCharacters.length)
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i)
     }
-
-    // 创建下载链接
-    const blob = await response.blob()
+    const byteArray = new Uint8Array(byteNumbers)
+    const mimeType = options.splitByVillage
+      ? 'application/zip'
+      : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    const blob = new Blob([byteArray], { type: mimeType })
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url

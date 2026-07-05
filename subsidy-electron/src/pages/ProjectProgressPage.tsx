@@ -4,6 +4,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import * as api from '../api'
 import ProjectProgressTab from '../components/ProjectProgressTab'
 
 export default function ProjectProgressPage() {
@@ -16,8 +17,7 @@ export default function ProjectProgressPage() {
   const [projectName, setProjectName] = useState('')
 
   useEffect(() => {
-    fetch('/api/subsidies/types')
-      .then(r => r.json())
+    api.getSubsidyTypes()
       .then(data => {
         const list = Array.isArray(data) ? data : []
         setProjectList(list)

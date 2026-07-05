@@ -32,13 +32,7 @@ export default function PreApplyList(props: Omit<SubsidyListBaseProps, 'config'>
         subsidy_type_id: props.subsidyType.id, year: props.subsidyType.subsidy_year,
         rows: mappedRows.map(r => ({ id_card: String(r.id_card || r['身份证号*'] || r['身份证号'] || ''), real_name: String(r.real_name || r['姓名*'] || r['姓名'] || ''), apply_area: Number(r.apply_area || 0), _row_index: r._row_index })),
       }
-      const chk = await fetch('/api/eligibility/check', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(checkPayload),
-      }).then(r => r.json()) as {
-        passed_list: Array<{ id_card: string; id_card_masked: string; real_name: string; issues: string[]; warnings: string[]; _row_index?: number }>
-        failed_list: Array<{ id_card: string; id_card_masked: string; real_name: string; issues: string[]; _row_index?: number }>
-        warning_list: Array<{ id_card: string; id_card_masked: string; real_name: string; warnings: string[]; _row_index?: number }>
-      }
+      const chk = await api.checkEligibility(checkPayload)
       return {
         passed_rows: (chk.passed_list || []).map(r => r._row_index).filter(i => i != null) as number[],
         failed_rows: (chk.failed_list || []).map(r => ({ index: r._row_index ?? 0, real_name: r.real_name, id_card_masked: r.id_card_masked, issues: r.issues })),
@@ -54,12 +48,7 @@ export default function PreApplyList(props: Omit<SubsidyListBaseProps, 'config'>
         if (!confirm(`将选中 ${selectedIds.length} 条预申请记录转为发放记录？\n\n已存在的发放记录将自动跳过。`)) return
         setConverting(true)
         try {
-          const response = await fetch('/api/subsidies/applications/convert-to-payment', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ application_ids: selectedIds }),
-          })
-          const data = await response.json()
-          if (!response.ok) throw new Error(data.detail || '转换失败')
+          const data = await window.electronAPI.invoke('subsidies:convertToPayment', { application_ids: selectedIds }) as { message: string }
           show(`✓ ${data.message}`)
           props.setSelectedIds([])
           load()

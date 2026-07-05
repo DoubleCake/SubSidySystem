@@ -10,6 +10,7 @@ import Tag from '../components/Tag'
 import Modal from '../components/Modal'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
+import * as api from '../api'
 
 // ── 类型定义 ──
 interface ColumnTemplate {
@@ -55,12 +56,6 @@ const FIELD_TYPE_COLOR: Record<string, string> = {
   phone: 'bg-green-100 text-green-700', status: 'bg-rose-100 text-rose-700',
 }
 
-async function req<T>(url: string, opts?: RequestInit): Promise<T> {
-  const r = await fetch(url, { headers: {'Content-Type':'application/json'}, ...opts })
-  if (!r.ok) { const e = await r.json().catch(()=>({})) as {detail?:string}; throw new Error(e.detail||'请求失败') }
-  return r.json() as Promise<T>
-}
-
 export default function ExcelTemplatePage() {
   const { toast, show } = useToast()
   const [tab, setTab] = useState<'templates'|'detect'|'logs'>('templates')
@@ -82,13 +77,13 @@ export default function ExcelTemplatePage() {
   const [editTarget, setEditTarget] = useState<ColumnTemplate|null>(null)
 
   const loadTemplates = useCallback(async () => {
-    const list = await req<ColumnTemplate[]>('/api/excel-templates').catch(()=>[])
-    setTemplates(list)
+    const list = await api.getExcelTemplates().catch(()=>[])
+    setTemplates(list as ColumnTemplate[])
   }, [])
 
   const loadLogs = useCallback(async () => {
-    const r = await req<{total:number;items:ImportLog[]}>('/api/excel-templates/logs?page_size=30').catch(()=>({total:0,items:[]}))
-    setLogs(r.items); setLogsTotal(r.total)
+    const r = await api.getExcelTemplateLogs({ page_size: 30 }).catch(()=>({total:0,items:[]}))
+    setLogs(r.items as ImportLog[]); setLogsTotal(r.total)
   }, [])
 
   useEffect(() => {
@@ -108,10 +103,21 @@ export default function ExcelTemplatePage() {
         const columns = rows.length > 0 ? Object.keys(rows[0]) : []
         const sampleRows = rows.slice(0, 3)
 
-        const result = await req<DetectResult>('/api/excel-templates/detect-columns', {
-          method: 'POST',
-          body: JSON.stringify({ columns, business_type: 'SUBSIDY', sample_rows: sampleRows }),
-        })
+        const raw = await api.detectExcelColumns(columns, 'SUBSIDY', sampleRows)
+        const result: DetectResult = {
+          columns: raw.columns.map(c => ({
+            excel_column: c.excel_column,
+            suggested_field: c.suggested_field,
+            suggested_confidence: c.confidence,
+            match_type: null,
+            alternatives: c.alternatives,
+            auto_confirm: false,
+          })),
+          recommended_templates: (raw.recommended_templates || []).map(t => ({ ...t, use_count: 0 })),
+          system_fields: [],
+          auto_confirm_count: raw.auto_confirm_count || 0,
+          unrecognized_count: raw.unrecognized_count || 0,
+        }
         setDetectResult(result)
         setMappings(result.columns.map(c => ({
           excel_column: c.excel_column,
@@ -136,12 +142,7 @@ export default function ExcelTemplatePage() {
         const ws = wb.Sheets[wb.SheetNames[0]]
         const rows = XLSX.utils.sheet_to_json(ws, { defval: '' }) as Record<string,unknown>[]
         const columns = rows.length > 0 ? Object.keys(rows[0]) : []
-        const r = await req<{results:{excel_column:string;system_field:string|null;confidence:number;reason:string}[];source:string}>(
-          '/api/excel-templates/ai-detect', {
-            method: 'POST',
-            body: JSON.stringify({ columns, business_type: 'SUBSIDY', sample_rows: rows.slice(0,3) }),
-          }
-        )
+        const r = await api.aiDetectColumns({ columns, business_type: 'SUBSIDY', sample_rows: rows.slice(0,3) })
         // 更新映射
         setMappings(prev => prev.map(m => {
           const aiResult = r.results.find(a => a.excel_column === m.excel_column)
@@ -164,20 +165,17 @@ export default function ExcelTemplatePage() {
       excel_column: m.excel_column, system_field: m.system_field,
       aliases: [m.excel_column], required: false, transform: '',
     }))
-    await req('/api/excel-templates', {
-      method: 'POST',
-      body: JSON.stringify({
-        template_name: saveForm.name, template_year: saveForm.year ? Number(saveForm.year) : null,
-        region_name: saveForm.region || null, business_type: saveForm.btype,
-        column_mapping: mapping,
-      }),
+    await api.saveExcelTemplate({
+      template_name: saveForm.name, template_year: saveForm.year ? Number(saveForm.year) : null,
+      region_name: saveForm.region || null, business_type: saveForm.btype,
+      column_mapping: mapping,
     })
     show('✓ 模板保存成功'); setSaveOpen(false); loadTemplates()
   }
 
   const deleteTemplate = async (id: number) => {
     if (!confirm('确认删除此模板？')) return
-    await req(`/api/excel-templates/${id}`, { method: 'DELETE' })
+    await api.deleteExcelTemplate(id)
     show('✓ 已删除'); loadTemplates()
   }
 
@@ -317,7 +315,7 @@ export default function ExcelTemplatePage() {
                       {detectResult.recommended_templates.map(t => (
                         <button key={t.id}
                           onClick={async () => {
-                            const tmpl = await req<ColumnTemplate>(`/api/excel-templates/${t.id}`)
+                            const tmpl = await api.getExcelTemplate(t.id)
                             setMappings(tmpl.column_mapping.map(m => ({
                               excel_column: m.excel_column, system_field: m.system_field,
                               confidence: 1, auto_confirm: true,

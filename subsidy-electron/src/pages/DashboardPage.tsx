@@ -83,7 +83,7 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
         api.getSummaryByVillage(year),
         api.getSubsidyTypesWithStats(year),
         api.getSummaryBySeason(year),
-        fetch(`/api/subsidies/dashboard/todos?year=${year}`).then(r => r.json()),
+        api.getDashboardTodos(year),
       ]).then(([c, v, s, ss, t]) => {
         if (ctrl.signal.aborted) return
         setCompare(c)

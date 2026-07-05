@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx'
 import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
+import * as api from '../api'
 
 const FIELDS = [
   { field: 'real_name',       label: '姓名', required: true,  type: 'string' },
@@ -46,17 +47,14 @@ export default function HouseholdImportPage() {
   const [villageList, setVillageList] = useState<string[]>([])
 
   useEffect(() => {
-    fetch('/api/settings/villages').then(r => r.json()).then(data => {
+    api.getVillages().then(data => {
       setVillageList((data || []).map((v: any) => v.village_name).filter(Boolean))
     }).catch(() => {})
   }, [])
 
   const preCheck = useCallback(async (rows: Record<string, unknown>[], _mapping?: Record<string, string>) => {
     const importRows = buildRows(rows)
-    const res = await fetch('/api/household-import/preview', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rows: importRows }),
-    }).then(r => r.json())
+    const res = await api.previewHouseholdImport(importRows)
     setPreview(res)
     const conflicts = new Set((res.conflicts || []).map((c: any) => c.row - 1))
     const failed = (res.conflicts || []).map((c: any) => ({
@@ -68,13 +66,7 @@ export default function HouseholdImportPage() {
 
   const handleImport = useCallback(async (rows: Record<string, unknown>[], _mapping?: Record<string, string>, _overwrite?: boolean) => {
     const importRows = buildRows(rows)
-    const body: Record<string, unknown> = { rows: importRows }
-    if (defaultVillage.trim()) body.default_village_name = defaultVillage.trim()
-    if (defaultGroup.trim()) body.default_group_no = defaultGroup.trim()
-    const res = await fetch('/api/household-import/execute', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    }).then(r => r.json())
+    const res = await api.executeHouseholdImport(importRows, defaultVillage.trim() || undefined, defaultGroup.trim() || undefined)
     setResult(res)
     show(`新建户 ${res.created_households} · 合并 ${res.merged_households} · 成员 ${res.created_farmers} · 跳过 ${res.skipped_farmers}`, 'ok')
     return { created: res.created_farmers || 0, skipped: res.skipped_farmers || 0, errors: res.errors || [] }

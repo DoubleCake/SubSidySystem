@@ -62,11 +62,9 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
   const deleteStage = async (stageName: string) => {
     if (!confirm(`确定要删除阶段「${stageName}」？将从所有村中移除。`)) return
     try {
-      const res = await fetch(`/api/project-progress/${projectId}/delete-stage`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stage_name: stageName }),
-      }).then(r => r.json())
-      show(`✓ ${res.message}`)
+      const res = await window.electronAPI.invoke('project-progress:deleteStage', { projectId, stage_name: stageName })
+      const data = res?.data ?? res
+      show(`✓ ${data.message}`)
       loadRecords()
     } catch (e) { show('删除失败: ' + (e as Error).message, 'err') }
   }
@@ -76,12 +74,10 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
     if (!dir) { show('请先在项目卡片中设置扫描源目录', 'err'); return }
     setScanning(stageName)
     try {
-      const res = await fetch(`/api/project-progress/${projectId}/scan-files`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: dir, stage_name: stageName }),
-      }).then(r => r.json())
-      if (res.error) { show(res.error, 'err'); return }
-      show(`✓ ${res.message}`)
+      const res = await window.electronAPI.invoke('project-progress:scanFiles', { projectId, path: dir, stage_name: stageName })
+      const data = res?.data ?? res
+      if (data.error) { show(data.error, 'err'); return }
+      show(`✓ ${data.message}`)
       loadRecords()
     } catch (e) { show('扫描失败: ' + (e as Error).message, 'err') }
     finally { setScanning(null) }
@@ -113,7 +109,8 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
     if (!projectId) return
     setLoading(true)
     try {
-      const r = await fetch(`/api/project-progress/${projectId}`).then(r => r.json())
+      const res = await window.electronAPI.invoke('project-progress:get', projectId)
+      const r = res?.data ?? res
       setRecords(Array.isArray(r) ? r : [])
     } catch { show('加载失败', 'err') }
     finally { setLoading(false) }
@@ -141,25 +138,20 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
   }
 
   const saveRec = async (rec: ProgressRecord) => {
-    await fetch(`/api/project-progress/${projectId}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec),
-    })
+    await window.electronAPI.invoke('project-progress:save', { projectId, ...rec })
   }
 
   const initAllVillages = async () => {
     if (!projectId) return
-    await fetch(`/api/project-progress/${projectId}/batch`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'init' }),
-    })
+    await window.electronAPI.invoke('project-progress:batch', { projectId, action: 'init' })
     show('已初始化所有村'); loadRecords()
   }
 
   const syncLeaders = async () => {
     if (!projectId) return
-    const res = await fetch(`/api/project-progress/${projectId}/batch`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'sync_leaders' }),
-    }).then(r => r.json())
-    if (res.updated > 0) show(`✓ 已同步 ${res.updated} 个村的负责人信息`)
+    const res = await window.electronAPI.invoke('project-progress:batch', { projectId, action: 'sync_leaders' })
+    const data = res?.data ?? res
+    if (data.updated > 0) show(`✓ 已同步 ${data.updated} 个村的负责人信息`)
     else show('所有村负责人已是最新，无需同步')
     loadRecords()
   }
@@ -183,9 +175,10 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
 
   const addStageToAll = async () => {
     if (!newStageName.trim() || !projectId) return
-    await fetch(`/api/project-progress/${projectId}/batch`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'add_stage_to_all', stage: { name: newStageName.trim(), status: 'none', date: '', note: '' } }),
+    await window.electronAPI.invoke('project-progress:batch', {
+      projectId,
+      action: 'add_stage_to_all',
+      stage: { name: newStageName.trim(), status: 'none', date: '', note: '' },
     })
     show('已为所有村添加阶段'); setNewStageName(''); loadRecords()
   }
@@ -193,9 +186,12 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
   const batchSetStageStatus = async (stageName: string, status: StageItem['status']) => {
     if (!projectId) return
     const now = new Date().toISOString()
-    await fetch(`/api/project-progress/${projectId}/batch`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'batch_stage', stage_name: stageName, status, date: now }),
+    await window.electronAPI.invoke('project-progress:batch', {
+      projectId,
+      action: 'batch_stage',
+      stage_name: stageName,
+      status,
+      date: now,
     })
     show(`已将所有村「${stageName}」设为${STATUS_CFG[status].label}`)
     setBatchCol(null)
@@ -221,9 +217,11 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
     const nameA = allStages[fromIdx]
     const nameB = allStages[toIdx]
     if (!nameA || !nameB) { setDragIdx(null); setDropIdx(null); return }
-    await fetch(`/api/project-progress/${projectId}/batch`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'swap_stages', stage_a: nameA, stage_b: nameB }),
+    await window.electronAPI.invoke('project-progress:batch', {
+      projectId,
+      action: 'swap_stages',
+      stage_a: nameA,
+      stage_b: nameB,
     })
     setDragIdx(null)
     setDropIdx(null)

@@ -9,15 +9,6 @@ import Toast from '../components/Toast'
 
 interface UserInfo { id: number; username: string; display_name: string; role: string; is_active: boolean }
 
-async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  const auth = getAuth()
-  if (auth) headers['Authorization'] = `Bearer ${auth.token}`
-  const r = await fetch(path, { headers, ...opts })
-  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || '请求失败') }
-  return r.json() as Promise<T>
-}
-
 export default function UserManagementPage() {
   const { toast, show } = useToast()
   const auth = getAuth()
@@ -28,14 +19,14 @@ export default function UserManagementPage() {
   const [pwdForm, setPwdForm] = useState({ old_password: '', new_password: '' })
 
   const load = async () => {
-    try { setUsers(await req<UserInfo[]>('/api/auth/users')) } catch { /* ignore */ }
+    try { setUsers(await window.electronAPI.invoke('auth:listUsers')) } catch { /* ignore */ }
   }
   useEffect(() => { load() }, [])
 
   const createUser = async () => {
     if (!form.username || !form.password) return show('用户名和密码不能为空', 'err')
     try {
-      await req('/api/auth/users', { method: 'POST', body: JSON.stringify(form) })
+      await window.electronAPI.invoke('auth:createUser', form)
       show('✓ 用户创建成功'); setAddOpen(false)
       setForm({ username: '', password: '', display_name: '', role: 'operator' })
       load()
@@ -44,7 +35,7 @@ export default function UserManagementPage() {
 
   const toggleUser = async (u: UserInfo) => {
     try {
-      await req(`/api/auth/users/${u.id}`, { method: 'PUT', body: JSON.stringify({ is_active: !u.is_active }) })
+      await window.electronAPI.invoke('auth:updateUser', { id: u.id, is_active: !u.is_active })
       load()
     } catch (e) { show((e as Error).message, 'err') }
   }
@@ -52,7 +43,7 @@ export default function UserManagementPage() {
   const changePwd = async () => {
     if (!pwdForm.old_password || !pwdForm.new_password) return show('请填写完整', 'err')
     try {
-      await req('/api/auth/change-password', { method: 'POST', body: JSON.stringify(pwdForm) })
+      await window.electronAPI.invoke('auth:changePassword', pwdForm)
       show('✓ 密码已修改'); setPwdOpen(false)
       setPwdForm({ old_password: '', new_password: '' })
     } catch (e) { show((e as Error).message, 'err') }

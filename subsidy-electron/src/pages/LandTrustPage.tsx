@@ -13,6 +13,7 @@ import Tag from '../components/Tag'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import { fmt } from '../utils'
+import * as api from '../api'
 
 const IDLE_IMPORT_FIELDS = [
   { field: 'owner_name',     label: '流出方姓名*', required: true,  type: 'string' },
@@ -80,12 +81,6 @@ const RELIABILITY_OPTS = [
 const thisYear = new Date().getFullYear()
 const years = Array.from({ length: 6 }, (_, i) => thisYear + 1 - i)
 
-async function req<T>(url: string, opts?: RequestInit): Promise<T> {
-  const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts })
-  if (!r.ok) { const e = await r.json().catch(() => ({})) as { detail?: string }; throw new Error(e.detail || '请求失败') }
-  return r.json() as Promise<T>
-}
-
 const emptyForm = () => ({
   owner_type: 'household',
   owner_household_id: null as number | null,
@@ -150,12 +145,12 @@ export default function LandTrustPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const p = new URLSearchParams({ page: String(page), page_size: '20' })
-      if (yearFilter) p.set('year', String(yearFilter))
-      if (typeFilter) p.set('trust_type', typeFilter)
-      if (searchText) p.set('search', searchText.trim())
+      const params: Record<string, string | number> = { page, page_size: 20 }
+      if (yearFilter) params.year = yearFilter
+      if (typeFilter) params.trust_type = typeFilter
+      if (searchText) params.search = searchText.trim()
 
-      const r = await req<{ total: number; items: Trust[] }>(`/api/land/all-trusts?${p}`)
+      const r = await api.getLandTrusts(params)
       setList(r.items); setTotal(r.total)
     } finally { setLoading(false) }
   }, [page, yearFilter, typeFilter, searchText])
@@ -165,19 +160,19 @@ export default function LandTrustPage() {
   // 家庭户搜索
   const searchHH = async (q: string, setOpts: (v: HHOption[]) => void) => {
     if (q.length < 1) { setOpts([]); return }
-    const r = await req<HHOption[]>(`/api/land/search-household?q=${encodeURIComponent(q)}`).catch(() => [])
+    const r = await api.searchLandHousehold(q).catch(() => [])
     setOpts(r)
   }
 
   const searchVillage = async (q: string, setOpts: (v: {id: number; village_name: string}[]) => void) => {
     if (q.length < 1) { setOpts([]); return }
-    const r = await req<{id: number; village_name: string}[]>(`/api/land/search-village?q=${encodeURIComponent(q)}`).catch(() => [])
+    const r = await api.searchLandVillage(q).catch(() => [])
     setOpts(r)
   }
 
   const searchVillageGroup = async (q: string, setOpts: (v: {id: number; full_name: string}[]) => void) => {
     if (q.length < 1) { setOpts([]); return }
-    const r = await req<{id: number; full_name: string}[]>(`/api/land/search-village-group?q=${encodeURIComponent(q)}`).catch(() => [])
+    const r = await api.searchLandVillageGroup(q).catch(() => [])
     setOpts(r)
   }
 
@@ -191,9 +186,7 @@ export default function LandTrustPage() {
   const resolveIdCard = async (idCard: string, side: 'owner' | 'operator') => {
     if (idCard.length < 15) return
     try {
-      const r = await req<{ found: boolean; farmer_name: string | null; household_id: number | null; household_name: string | null }>(
-        `/api/land/resolve-by-id-card?q=${encodeURIComponent(idCard.trim())}`
-      )
+      const r = await api.resolveLandByIdCard(idCard.trim())
       if (r.found && r.household_id) {
         if (side === 'owner') {
           sf('owner_household_id', r.household_id)
@@ -211,7 +204,7 @@ export default function LandTrustPage() {
   const loadSummary = async (hh: HHOption) => {
     setSummaryHH(hh); setSummary(null); setSummaryLoading(true)
     try {
-      const r = await req<AreaSummary>(`/api/land/area-summary/${hh.id}?year=${yearFilter}`)
+      const r: AreaSummary = await api.getLandAreaSummary(hh.id, yearFilter) as AreaSummary
       setSummary(r)
     } finally { setSummaryLoading(false) }
   }
@@ -224,9 +217,7 @@ export default function LandTrustPage() {
       subsidy_arable: r.subsidy_arable ?? 1,
       note: r.note,
     }))
-    const res = await req<{ created: number; skipped: number; errors: string[] }>('/api/land/trusts/batch-import-idle', {
-      method: 'POST', body: JSON.stringify({ rows: payload }),
-    })
+    const res = await api.batchImportIdleLand(payload)
     if (res.errors?.length) {
       return { created: res.created, skipped: res.skipped, errors: res.errors }
     }
@@ -305,10 +296,10 @@ export default function LandTrustPage() {
     }
     try {
       if (editTarget) {
-        await req(`/api/land/trusts/${editTarget.id}`, { method: 'PUT', body: JSON.stringify(payload) })
+        await api.updateLandTrust(editTarget.id, payload)
         show('✓ 更新成功')
       } else {
-        await req('/api/land/trusts', { method: 'POST', body: JSON.stringify(payload) })
+        await api.createLandTrust(payload)
         show('✓ 记录创建成功')
       }
       setEditOpen(false); load()
@@ -322,7 +313,7 @@ export default function LandTrustPage() {
     setList(prev => prev.filter(t => t.id !== id))
     setTotal(prev => Math.max(0, prev - 1))
     try {
-      await req(`/api/land/trusts/${id}`, { method: 'DELETE' })
+      await api.deleteLandTrust(id)
       show('✓ 已删除')
     } catch (e) {
       show('删除失败，请重试', 'err')
@@ -349,9 +340,7 @@ export default function LandTrustPage() {
     if (selectedIds.size === 0) return show('请先选择要续约的记录', 'err')
     setRenewing(true)
     try {
-      const r = await req<{ created: number }>('/api/land/trusts/batch-renew', {
-        method: 'POST', body: JSON.stringify({ ids: [...selectedIds] }),
-      })
+      const r = await api.batchRenewLandTrusts([...selectedIds])
       show(`✓ 已续约 ${r.created} 条`)
       setSelectedIds(new Set()); load()
     } catch (e) { show((e as Error).message, 'err') }

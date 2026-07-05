@@ -55,9 +55,9 @@ export default function ProxyList({ subsidyType, show }: ProxyListProps) {
       }
       if (search) params.search = search
 
-      const response = await fetch(`/api/subsidies/proxies?${new URLSearchParams(params as Record<string, string>)}`).then(r => r.json())
-      setProxies(response.items || [])
-      setTotal(response.total || 0)
+      const response = await api.getProxies(params)
+      setProxies(response || [])
+      setTotal((response || []).length)
     } catch (error) {
       console.error('加载代领关系失败:', error)
       show('加载代领关系失败', 'err')
@@ -78,8 +78,7 @@ export default function ProxyList({ subsidyType, show }: ProxyListProps) {
 
   const deleteProxy = async (id: number) => {
     try {
-      const response = await fetch(`/api/subsidies/proxies/${id}`, { method: 'DELETE' })
-      if (!response.ok) throw new Error('删除失败')
+      await api.deleteProxy(id)
       show('✓ 代领关系已删除')
       setDeleteId(null)
       loadProxies()
@@ -95,9 +94,7 @@ export default function ProxyList({ subsidyType, show }: ProxyListProps) {
       return
     }
     try {
-      await Promise.all([...selectedIds].map(id =>
-        fetch(`/api/subsidies/proxies/${id}`, { method: 'DELETE' })
-      ))
+      await Promise.all([...selectedIds].map(id => api.deleteProxy(id)))
       show(`✓ 已删除 ${selectedIds.size} 条代领关系`)
       setSelectedIds(new Set())
       setSelectAll(false)

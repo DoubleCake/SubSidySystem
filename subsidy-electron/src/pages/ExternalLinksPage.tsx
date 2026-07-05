@@ -18,12 +18,6 @@ interface Site { id:number; name:string; url:string; site_type:'link'|'query'; d
 interface QRecord { id:number; site_name:string; query_type:string; query_inputs:string[]; query_count:number; result_note:string|null; purpose:string|null; operator:string; tags:string|null; created_at:string|null }
 interface Stats { total_records:number; total_items:number; by_type:{type:string;times:number;total_items:number}[]; by_site:{site:string;times:number}[] }
 
-async function req<T>(path:string, opts:RequestInit={}):Promise<T> {
-  const r = await fetch(path,{headers:{'Content-Type':'application/json'},...opts})
-  if(!r.ok){const e=await r.json().catch(()=>({})) as{detail?:string}; throw new Error(e.detail||'请求失败')}
-  return r.json() as Promise<T>
-}
-
 type AppRow = { id:number; farmer_id:number; farmer_name:string; id_card_masked?:string; village?:string; subsidy_name:string; calc_mode:string; apply_year:number; apply_area:string|null; apply_amount:string|null; actual_amount:string|null; pay_status:number; pay_date:string|null; remark:string|null }
 
 const QUERY_TYPES = ['身份证查询','姓名查询','综合查询','其他']
@@ -87,17 +81,17 @@ export default function ExternalLinksPage() {
   },[])
   useEffect(()=>{ if(tab==='records'){ loadRecords(); loadStats() } },[tab, recPage, recSearch])
 
-  const loadSites = async()=>{ try{ const d=await req<Site[]>('/api/external/sites'); setSites(d) }catch{} }
+  const loadSites = async()=>{ try{ const d=await api.getExternalSites(); setSites(d) }catch{} }
   const loadRecords = async()=>{
     setRecLoading(true)
     try{
-      const p=new URLSearchParams({page:String(recPage),page_size:'20'})
-      if(recSearch) p.set('search',recSearch)
-      const r=await req<{total:number;items:QRecord[]}>(`/api/external/records?${p}`)
-      setRecords(r.items); setRecTotal(r.total)
+      const params: Record<string,string|number> = {page:recPage,page_size:20}
+      if(recSearch) params.search=recSearch
+      const r=await api.getExternalRecords(params)
+      setRecords(r.items as unknown as QRecord[]); setRecTotal(r.total)
     }finally{setRecLoading(false)}
   }
-  const loadStats = async()=>{ try{ const s=await req<Stats>('/api/external/records/stats'); setStats(s) }catch{} }
+  const loadStats = async()=>{ try{ const s=await api.getExternalStats(); setStats(s) }catch{} }
 
   // 系统内搜索
   const doSearch = useCallback(async()=>{
@@ -122,10 +116,10 @@ export default function ExternalLinksPage() {
     if(!inputs.length) return show('请输入查询内容','err')
     const siteName=sites.find(s=>s.id===batchSiteId)?.name||'手动记录'
     try{
-      await req('/api/external/records',{method:'POST',body:JSON.stringify({
+      await api.createExternalRecord({
         site_id:batchSiteId||null,site_name:siteName,query_type:batchType,
         query_inputs:inputs,purpose:batchPurpose||null,operator:batchOperator,tags:batchTags||null
-      })})
+      })
       show(`✓ 已保存 ${inputs.length} 条查询记录`)
       setBatchOpen(false); setBatchText('')
       if(tab==='records'){loadRecords();loadStats()}
@@ -134,28 +128,28 @@ export default function ExternalLinksPage() {
 
   const submitEditRecord = async()=>{
     if(!editRecord) return
-    await req(`/api/external/records/${editRecord.id}`,{method:'PUT',body:JSON.stringify(recForm)})
+    await api.updateExternalRecord(editRecord.id, recForm)
     show('✓ 已更新'); setEditRecord(null); loadRecords()
   }
 
   const deleteRecord = async(id:number)=>{
     if(!confirm('确认删除？')) return
-    await req(`/api/external/records/${id}`,{method:'DELETE'})
+    await api.deleteExternalRecord(id)
     show('✓ 已删除'); loadRecords(); loadStats()
   }
 
   const submitSite = async()=>{
     if(!siteForm.name||!siteForm.url) return show('名称和地址必填','err')
     try{
-      if(editSite?.id) await req(`/api/external/sites/${editSite.id}`,{method:'PUT',body:JSON.stringify(siteForm)})
-      else await req('/api/external/sites',{method:'POST',body:JSON.stringify(siteForm)})
+      if(editSite?.id) await api.updateExternalSite(editSite.id, siteForm)
+      else await api.createExternalSite(siteForm)
       show('✓ 保存成功'); setSiteModal(false); setEditSite(null); setSiteFormMode(false); loadSites()
     }catch(e:unknown){show((e as Error).message,'err')}
   }
 
   const deleteSite = async(id:number)=>{
     if(!confirm('确认删除？')) return
-    await req(`/api/external/sites/${id}`,{method:'DELETE'}); show('✓ 已删除'); loadSites()
+    await api.deleteExternalSite(id); show('✓ 已删除'); loadSites()
   }
 
   // 收藏查询结果
@@ -163,14 +157,14 @@ export default function ExternalLinksPage() {
     if (!favorContext) return
     const siteName = favorContext.source || '系统内查询'
     try {
-      await req('/api/external/records', { method: 'POST', body: JSON.stringify({
+      await api.createExternalRecord({
         site_id: null, site_name: siteName,
         query_type: favorContext.type,
         query_inputs: favorContext.inputs,
         purpose: favorPurpose || null,
         operator: '操作员',
         tags: favorTags || null,
-      })})
+      })
       show('✓ 已收藏到查询记录')
       setFavorOpen(false); setFavorPurpose(''); setFavorTags('')
     } catch (e: unknown) { show((e as Error).message, 'err') }

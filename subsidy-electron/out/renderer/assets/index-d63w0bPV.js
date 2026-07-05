@@ -39700,7 +39700,7 @@ const xlsx = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty
   writeFileXLSX: writeFileSyncXLSX,
   writeXLSX: writeSyncXLSX
 }, Symbol.toStringTag, { value: "Module" }));
-async function req$8(channel, data) {
+async function req$1(channel, data) {
   const result = await window.electronAPI.invoke(channel, data);
   if (result && typeof result === "object" && "code" in result && result.code !== 0) {
     throw new Error(result.message || `请求失败`);
@@ -39710,92 +39710,169 @@ async function req$8(channel, data) {
   }
   return result;
 }
-const getVillageGroups = () => req$8("households:groupOptions");
-const createVillageGroup = (data) => req$8("settings:createVillageGroup", data);
-const getFarmers = (params) => req$8("farmers:list", params);
-const getFarmer = (id2) => req$8("farmers:get", id2);
-const batchLookupFarmers = (idCards) => req$8("farmers:batchLookup", idCards);
-const createFarmer = (data) => req$8("farmers:create", data);
-const batchImportFarmers = (rows, overwrite = false) => req$8(
+const getVillageGroups = () => req$1("households:groupOptions");
+const createVillageGroup = (data) => req$1("settings:createVillageGroup", data);
+const getFarmers = (params) => req$1("farmers:list", params);
+const getFarmer = (id2) => req$1("farmers:get", id2);
+const batchLookupFarmers = (idCards) => req$1("farmers:batchLookup", idCards);
+const createFarmer = (data) => req$1("farmers:create", data);
+const batchImportFarmers = (rows, overwrite = false) => req$1(
   "farmers:batchImport",
   { rows, overwrite }
 );
-const importFamilyRelations = (rows, splitVillages) => req$8("farmers:importRelations", { rows, splitVillages });
-const previewMultiHeadHouseholds = (villageNames, excelRows) => req$8("farmers:multiHeadPreview", { villageNames, excelRows });
-const getSubsidyTypes = (year) => req$8("subsidies:listTypes", year);
-const getSubsidyTypesWithStats = (year) => req$8(
+const importFamilyRelations = (rows, splitVillages) => req$1("farmers:importRelations", { rows, splitVillages });
+const previewMultiHeadHouseholds = (villageNames, excelRows) => req$1("farmers:multiHeadPreview", { villageNames, excelRows });
+const getSubsidyTypes = (year) => req$1("subsidies:listTypes", year);
+const getSubsidyTypesWithStats = (year) => req$1(
   "subsidies:listTypesWithStats",
   year
 );
-const createSubsidyType = (data) => req$8("subsidies:createType", data);
-const updateSubsidyType = (id2, data) => req$8("subsidies:updateType", { id: id2, ...data });
-const searchApplications = (params) => req$8("subsidies:listApplications", params);
-const createApplication = (data) => req$8("subsidies:createApplication", data);
-const updateApplication = (id2, data) => req$8("subsidies:updateApplication", { id: id2, ...data });
-const getProxies = (params) => req$8("subsidies:listProxies", params);
-const createProxy = (data) => req$8("subsidies:createProxy", data);
-const deleteProxy = (id2) => req$8("subsidies:deleteProxy", id2);
-const getYearCompare = (year) => req$8("subsidies:yearCompare", year);
-const getSummaryByVillage = (year) => req$8("subsidies:summaryByVillage", year);
-const getSummaryBySeason = (year) => req$8(
+const createSubsidyType = (data) => req$1("subsidies:createType", data);
+const updateSubsidyType = (id2, data) => req$1("subsidies:updateType", { id: id2, ...data });
+const searchApplications = (params) => req$1("subsidies:listApplications", params);
+const createApplication = (data) => req$1("subsidies:createApplication", data);
+const updateApplication = (id2, data) => req$1("subsidies:updateApplication", { id: id2, ...data });
+const batchImportApplications = (rows) => req$1(
+  "subsidies:batchImportApplications",
+  rows
+);
+const getProxies = (params) => req$1("subsidies:listProxies", params);
+const createProxy = (data) => req$1("subsidies:createProxy", data);
+const deleteProxy = (id2) => req$1("subsidies:deleteProxy", id2);
+const getYearCompare = (year) => req$1("subsidies:yearCompare", year);
+const getSummaryByVillage = (year) => req$1("subsidies:summaryByVillage", year);
+const getSummaryBySeason = (year) => req$1(
   "subsidies:summaryBySeason",
   year
 );
 const getAreaStatsByVillage = (subsidyTypeId, year, dataSource) => {
   const params = { subsidy_type_id: subsidyTypeId, year };
   params.data_source = dataSource;
-  return req$8("subsidies:areaStatsByVillage", params);
+  return req$1("subsidies:areaStatsByVillage", params);
 };
-const aiAnalyze = (data) => req$8("ai:analyze", data);
-const getExcelTemplates = (businessType) => req$8("excel-templates:list", businessType);
-const healthCheck = () => req$8("app:getDbPath");
-const getHouseholds = (params) => req$8("households:list", params);
-const getHouseholdDetail = (id2, year) => req$8("households:get", { id: id2, year });
-const mergeHouseholds = (data) => req$8("households:merge", data);
-const updateHousehold = (id2, data) => req$8("households:update", { id: id2, ...data });
-const createHousehold = (data) => req$8("households:create", data);
-const addHouseholdMember = (householdId, data) => req$8("households:addMember", { householdId, ...data });
-const updateHouseholdMember = (householdId, farmerId, data) => req$8("households:updateMember", { householdId, farmerId, ...data });
-const removeHouseholdMember = (householdId, farmerId) => req$8("households:removeMember", { householdId, farmerId });
-const getHouseholdEvents = (householdId, year) => req$8("households:events", { householdId, year });
-const addHouseholdEvent = (householdId, data) => req$8("households:addEvent", { householdId, ...data });
-const getHouseholdHistoryDates = (householdId) => req$8("households:historyDates", householdId);
-const getHouseholdSnapshotAt = (householdId, date) => req$8("households:snapshotAt", { householdId, date });
-const getHouseholdSnapshotByEvent = (householdId, eventId) => req$8("households:snapshotByEvent", { householdId, eventId });
-const splitHousehold = (householdId, data) => req$8("households:split", { householdId, ...data });
-const batchImportHouseholdMembers = (householdId, rows) => req$8("households:batchImportMembers", { householdId, rows });
-const importConfirmedArea = (rows) => req$8(
+const aiAnalyze = (data) => req$1("ai:analyze", data);
+const getExcelTemplates = (businessType) => req$1("excel-templates:list", businessType);
+const getExcelTemplate = (id2) => req$1("excel-templates:get", id2);
+const detectExcelColumns = (columns, businessType, sampleRows) => req$1("excel-templates:detectColumns", { columns, business_type: businessType, sample_rows: sampleRows });
+const saveExcelTemplate = (data) => req$1("excel-templates:save", data);
+const healthCheck = () => req$1("app:getDbPath");
+const getHouseholds = (params) => req$1("households:list", params);
+const getHouseholdDetail = (id2, year) => req$1("households:get", { id: id2, year });
+const mergeHouseholds = (data) => req$1("households:merge", data);
+const updateHousehold = (id2, data) => req$1("households:update", { id: id2, ...data });
+const createHousehold = (data) => req$1("households:create", data);
+const addHouseholdMember = (householdId, data) => req$1("households:addMember", { householdId, ...data });
+const updateHouseholdMember = (householdId, farmerId, data) => req$1("households:updateMember", { householdId, farmerId, ...data });
+const removeHouseholdMember = (householdId, farmerId) => req$1("households:removeMember", { householdId, farmerId });
+const getHouseholdEvents = (householdId, year) => req$1("households:events", { householdId, year });
+const addHouseholdEvent = (householdId, data) => req$1("households:addEvent", { householdId, ...data });
+const getHouseholdHistoryDates = (householdId) => req$1("households:historyDates", householdId);
+const getHouseholdSnapshotAt = (householdId, date) => req$1("households:snapshotAt", { householdId, date });
+const getHouseholdSnapshotByEvent = (householdId, eventId) => req$1("households:snapshotByEvent", { householdId, eventId });
+const splitHousehold = (householdId, data) => req$1("households:split", { householdId, ...data });
+const batchImportHouseholdMembers = (householdId, rows) => req$1("households:batchImportMembers", { householdId, rows });
+const importConfirmedArea = (rows) => req$1(
   "households:importConfirmedArea",
   rows
 );
 const exportConfirmedAreaDiff = () => window.electronAPI.invoke("households:exportConfirmedAreaDiff");
-const manualConfirmHousehold = (householdId, data) => req$8(
+const manualConfirmHousehold = (householdId, data) => req$1(
   "households:manualConfirm",
   { householdId, ...data }
 );
-const cancelManualConfirm = (householdId, data) => req$8(
+const cancelManualConfirm = (householdId, data) => req$1(
   "households:cancelConfirm",
   { householdId, ...data }
 );
-const batchConfirmHouseholds = (data) => req$8("households:batchConfirm", data);
-const deleteHousehold = (householdId) => req$8("households:delete", householdId);
-const refreshAreaCache = (householdId) => req$8(
+const batchConfirmHouseholds = (data) => req$1("households:batchConfirm", data);
+const deleteHousehold = (householdId) => req$1("households:delete", householdId);
+const refreshAreaCache = (householdId) => req$1(
   "households:refreshAreaCache",
   householdId
 );
-const recalcUnconfirmedContractArea = () => req$8("households:recalcUnconfirmedContractArea");
-const getCheckConfig = (typeId) => req$8("subsidies:getCheckConfig", typeId);
-const updateCheckConfig = (typeId, config) => req$8("subsidies:updateCheckConfig", { typeId, config });
-const restoreSubsidyType = (typeId) => req$8("subsidies:restoreType", typeId);
-const savePrecheckHistory = (subsidy_type_id, year, precheck_result, error_types) => req$8("precheck:saveHistory", { subsidy_type_id, year, precheck_result, error_types });
-const getPrecheckHistory = (params) => req$8("precheck:listHistory", params);
-const getPrecheckHistoryBatches = (subsidy_type_id, year) => req$8("precheck:listBatches", { subsidy_type_id, year });
-const resolvePrecheckHistory = (id2) => req$8("precheck:resolveHistory", id2);
-const unresolvePrecheckHistory = (id2) => req$8("precheck:unresolveHistory", id2);
-const deletePrecheckHistory = (id2) => req$8("precheck:deleteHistory", id2);
-const autoResolvePrecheckHistory = (subsidy_type_id, year) => req$8("precheck:autoResolve", { subsidy_type_id, year });
-const exportApplications = (subsidyTypeId) => req$8("subsidies:exportApplications", subsidyTypeId);
-const exportPayments = (subsidyTypeId) => req$8("subsidies:exportPayments", subsidyTypeId);
+const recalcUnconfirmedContractArea = () => req$1("households:recalcUnconfirmedContractArea");
+const previewHouseholdImport = (rows) => req$1("household-import:preview", rows);
+const executeHouseholdImport = (rows, defaultVillageName, defaultGroupNo) => req$1("household-import:execute", { rows, default_village_name: defaultVillageName, default_group_no: defaultGroupNo });
+const getCheckConfig = (typeId) => req$1("subsidies:getCheckConfig", typeId);
+const updateCheckConfig = (typeId, config) => req$1("subsidies:updateCheckConfig", { typeId, config });
+const restoreSubsidyType = (typeId) => req$1("subsidies:restoreType", typeId);
+const savePrecheckHistory = (subsidy_type_id, year, precheck_result, error_types) => req$1("precheck:saveHistory", { subsidy_type_id, year, precheck_result, error_types });
+const getPrecheckHistory = (params) => req$1("precheck:listHistory", params);
+const getPrecheckHistoryBatches = (subsidy_type_id, year) => req$1("precheck:listBatches", { subsidy_type_id, year });
+const resolvePrecheckHistory = (id2) => req$1("precheck:resolveHistory", id2);
+const unresolvePrecheckHistory = (id2) => req$1("precheck:unresolveHistory", id2);
+const deletePrecheckHistory = (id2) => req$1("precheck:deleteHistory", id2);
+const autoResolvePrecheckHistory = (subsidy_type_id, year) => req$1("precheck:autoResolve", { subsidy_type_id, year });
+const exportApplications = (subsidyTypeId) => req$1("subsidies:exportApplications", subsidyTypeId);
+const exportPayments = (subsidyTypeId) => req$1("subsidies:exportPayments", subsidyTypeId);
+const getDashboardTodos = (year) => req$1(
+  "subsidies:dashboardTodos",
+  { year }
+);
+const getDbInfo = () => req$1("settings:getDbInfo");
+const createBackup = (destPath) => req$1("settings:backup", destPath);
+const deleteBackup = (filename) => req$1("settings:deleteBackup", filename);
+const exportExcel = () => window.electronAPI.invoke("settings:exportExcel");
+const downloadDb = () => window.electronAPI.invoke("settings:downloadDb");
+const getOverdrawnDetail = (year) => req$1("households:overdrawnDetail", { year });
+const getAgriTasks = (params) => req$1("agri-tasks:list", params);
+const getAgriTaskDetail = (id2) => req$1("agri-tasks:get", id2);
+const createAgriTask = (data) => req$1("agri-tasks:create", data);
+const deleteAgriTask = (id2) => req$1("agri-tasks:delete", id2);
+const previewAgriTask = (id2) => req$1(
+  "agri-tasks:preview",
+  id2
+);
+const issueAgriTask = (id2) => req$1("agri-tasks:issue", id2);
+const revokeAgriTask = (id2) => req$1("agri-tasks:revoke", id2);
+const completeAgriTask = (id2) => req$1("agri-tasks:done", id2);
+const getAgriTaskMeta = () => req$1(
+  "agri-tasks:meta"
+);
+const updateAgriTaskAllocation = (taskId, villageId, actualArea) => req$1("agri-tasks:updateAllocation", { taskId, villageId, actual_area: actualArea });
+const checkEligibility = (data) => req$1(
+  "eligibility:check",
+  data
+);
+const getLandTrusts = (params) => req$1("land:list", params);
+const createLandTrust = (data) => req$1("land:create", data);
+const updateLandTrust = (id2, data) => req$1("land:update", { id: id2, ...data });
+const deleteLandTrust = (id2) => req$1("land:delete", id2);
+const searchLandHousehold = (q2) => req$1(
+  "land:searchHousehold",
+  q2
+);
+const searchLandVillage = (q2) => req$1("land:searchVillage", q2);
+const searchLandVillageGroup = (q2) => req$1("land:searchVillageGroup", q2);
+const resolveLandByIdCard = (q2) => req$1(
+  "land:resolveByIdCard",
+  q2
+);
+const getLandAreaSummary = (householdId, year) => req$1("land:areaSummary", { householdId, year });
+const batchRenewLandTrusts = (ids) => req$1("land:batchRenew", ids);
+const batchImportIdleLand = (rows) => req$1("land:batchImportIdle", rows);
+const getExternalSites = () => req$1("external-links:list");
+const createExternalSite = (data) => req$1("external-links:createSite", data);
+const updateExternalSite = (id2, data) => req$1("external-links:updateSite", { id: id2, ...data });
+const deleteExternalSite = (id2) => req$1("external-links:deleteSite", id2);
+const getExternalRecords = (params) => req$1("external-links:listRecords", params);
+const getExternalStats = () => req$1(
+  "external-links:stats"
+);
+const createExternalRecord = (data) => req$1("external-links:createRecord", data);
+const updateExternalRecord = (id2, data) => req$1("external-links:updateRecord", { id: id2, ...data });
+const deleteExternalRecord = (id2) => req$1("external-links:deleteRecord", id2);
+const deleteExcelTemplate = (id2) => req$1("excel-templates:delete", id2);
+const getExcelTemplateLogs = (params) => req$1("excel-templates:logs", params || { page_size: 30 });
+const aiDetectColumns = (data) => req$1(
+  "excel-templates:aiDetect",
+  data
+);
+const verifyNames = (rows) => req$1(
+  "farmers:verifyNames",
+  { rows }
+);
+const getVillages = () => req$1("settings:villages");
 const fmt$2 = (n2) => n2 == null ? "—" : "¥" + Number(n2).toFixed(2);
 const parseIdCardInfo = (id2) => {
   if (id2.length !== 18) return null;
@@ -44145,14 +44222,9 @@ function FarmersPage() {
     if (leftTab === "farmers") loadFarmers();
     return { ...res, errors: allErrors };
   };
-  const detectExcelColumns = async (columns, sampleRows) => {
+  const detectExcelColumns$1 = async (columns, sampleRows) => {
     try {
-      const r2 = await fetch("/api/excel-templates/detect-columns", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ columns, sample_rows: sampleRows, business_type: "FARMER" })
-      });
-      const raw = await r2.json();
+      const raw = await detectExcelColumns(columns, "FARMER", sampleRows);
       const cols = (raw.columns || []).map((d) => ({
         excel_column: d.excel_column,
         suggested_field: d.suggested_field,
@@ -44165,12 +44237,7 @@ function FarmersPage() {
     }
   };
   const saveColumnMappingTemplate = async (data) => {
-    const r2 = await fetch("/api/excel-templates", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, business_type: "FARMER" })
-    });
-    const result = await r2.json();
+    const result = await saveExcelTemplate({ ...data, business_type: "FARMER" });
     getExcelTemplates("FARMER").then(setTemplates).catch(() => {
     });
     return result;
@@ -44222,7 +44289,7 @@ function FarmersPage() {
   };
   const exportOverdrawnDetail = async () => {
     try {
-      const res = await fetch("/api/households/alert/overdrawn?year=" + yearFilter).then((r2) => r2.json());
+      const res = await getOverdrawnDetail(yearFilter);
       if (res.total === 0) {
         show("当前年度无超限家庭户", "err");
         return;
@@ -44931,7 +44998,7 @@ function FarmersPage() {
         open: importOpen,
         templates,
         onClose: () => setImportOpen(false),
-        onDetectColumns: detectExcelColumns,
+        onDetectColumns: detectExcelColumns$1,
         onSaveTemplate: saveColumnMappingTemplate,
         onImport: handleImport,
         onSuccess: () => leftTab === "farmers" ? loadFarmers() : loadHouseholds()
@@ -45612,29 +45679,26 @@ function mapSheetsToBackend(selectedSheets) {
 async function exportPrecheckReportWithOptions(result, options, fileName = "预检查报告") {
   try {
     const backendSheets = mapSheetsToBackend(options.selectedSheets);
-    const response = await fetch("/api/subsidies/applications/precheck/export-with-options", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        result,
-        file_name: fileName,
-        split_by_village: options.splitByVillage,
-        selected_sheets: backendSheets
-      })
+    const response = await window.electronAPI.invoke("subsidies:exportPrecheckWithOptions", {
+      result,
+      file_name: fileName,
+      split_by_village: options.splitByVillage,
+      selected_sheets: backendSheets
     });
-    if (!response.ok) {
+    if (!response || response.code !== 0) {
       throw new Error("导出失败");
     }
-    const contentDisposition = response.headers.get("Content-Disposition");
+    const data = response.data;
     const dateStr = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-    let downloadFileName = options.splitByVillage ? `${fileName}_${dateStr}.zip` : `${fileName}_${dateStr}.xlsx`;
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-      if (filenameMatch && filenameMatch[1]) {
-        downloadFileName = filenameMatch[1].replace(/['"]/g, "");
-      }
+    const downloadFileName = data?.filename || (options.splitByVillage ? `${fileName}_${dateStr}.zip` : `${fileName}_${dateStr}.xlsx`);
+    const byteCharacters = atob(data?.file_data || "");
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
     }
-    const blob = await response.blob();
+    const byteArray = new Uint8Array(byteNumbers);
+    const mimeType = options.splitByVillage ? "application/zip" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    const blob = new Blob([byteArray], { type: mimeType });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -45905,8 +45969,11 @@ function SubsidyListBase({
   };
   const deleteApp = async (id2) => {
     try {
-      const endpoint = config.deleteEndpoint ? config.deleteEndpoint(id2) : `${apiBase}/${id2}`;
-      await fetch(endpoint, { method: "DELETE" });
+      if (config.apiBase.includes("payments")) {
+        await window.electronAPI.invoke("subsidies:deletePayment", id2);
+      } else {
+        await window.electronAPI.invoke("subsidies:deleteApplication", id2);
+      }
       show("✓ 已删除");
       setDeleteId(null);
       load();
@@ -45971,37 +46038,32 @@ function SubsidyListBase({
       toCreate.push(config.buildImportRow ? config.buildImportRow(rowData) : rowData);
     }
     if (errors.length && !toCreate.length) return { created: 0, skipped: 0, errors };
+    const isPayment = config.apiBase.includes("payments");
     try {
-      const chk = await fetch("/api/eligibility/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subsidy_type_id: subsidyType.id, year: subsidyType.subsidy_year, rows: toCreate.map((r2) => ({ id_card: String(r2.id_card || ""), real_name: String(r2.real_name || ""), apply_area: r2.apply_area })) })
-      }).then((r2) => r2.json());
-      if (chk.rules_applied > 0 && chk.failed > 0) {
-        const passedIds = new Set(chk.passed_list.map((p2) => p2.id_card));
-        const passedRows = toCreate.filter((r2) => passedIds.has(String(r2.id_card || "")));
-        if (passedRows.length === 0) return { created: 0, skipped: 0, errors: [`规则检查：全部 ${chk.failed} 条不通过`] };
-        const res2 = await fetch(batchImportEndpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rows: passedRows, overwrite: overwrite || false })
-        }).then((r2) => r2.json());
+      const chk = await checkEligibility({
+        subsidy_type_id: subsidyType.id,
+        year: subsidyType.subsidy_year,
+        rows: toCreate.map((r2, idx) => ({ id_card: String(r2.id_card || ""), real_name: String(r2.real_name || ""), apply_area: Number(r2.apply_area) || 0, _row_index: idx }))
+      });
+      const failedCount = chk.failed_list?.length || 0;
+      const passedCount = chk.passed_list?.length || 0;
+      if (passedCount + failedCount > 0 && failedCount > 0) {
+        const passedIndices = new Set(chk.passed_list?.map((p2) => p2._row_index).filter((i) => i != null) || []);
+        const passedRows = toCreate.filter((_, idx) => passedIndices.has(idx));
+        if (passedRows.length === 0) return { created: 0, skipped: 0, errors: [`规则检查：全部 ${failedCount} 条不通过`] };
+        const res2 = isPayment ? await window.electronAPI.invoke("subsidies:batchImportPayments", { rows: passedRows, overwrite: overwrite || false }) : await batchImportApplications(passedRows);
         const newMsg2 = res2.new_farmers ? `，新建农户 ${res2.new_farmers} 人` : "";
         const updMsg2 = res2.updated ? `，覆盖 ${res2.updated} 条` : "";
-        show(`✓ 通过规则 ${chk.passed} 条，导入 ${res2.created} 条${updMsg2}；规则拒绝 ${chk.failed} 条${newMsg2}`);
+        show(`✓ 通过规则 ${passedCount} 条，导入 ${res2.created || 0} 条${updMsg2}；规则拒绝 ${failedCount} 条${newMsg2}`);
         load();
         return { ...res2, errors: [...errors, ...res2.errors || []] };
       }
     } catch (_) {
     }
-    const res = await fetch(batchImportEndpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rows: toCreate, overwrite: overwrite || false })
-    }).then((r2) => r2.json());
+    const res = isPayment ? await window.electronAPI.invoke("subsidies:batchImportPayments", { rows: toCreate, overwrite: overwrite || false }) : await batchImportApplications(toCreate);
     const newMsg = res.new_farmers ? `，新建农户 ${res.new_farmers} 人` : "";
     const updMsg = res.updated ? `，覆盖 ${res.updated} 条` : "";
-    show(`✓ 导入 ${res.created} 条${updMsg}，跳过 ${res.skipped} 条${newMsg}`);
+    show(`✓ 导入 ${res.created || 0} 条${updMsg}，跳过 ${res.skipped || 0} 条${newMsg}`);
     load();
     return { ...res, errors: [...errors, ...res.errors || []] };
   };
@@ -46042,24 +46104,16 @@ function SubsidyListBase({
     const sample = { id_card: "510123196503154231", real_name: "张国强", actual_amount: 420, contract_area: 2.5, trust_area: 1, village_name: "红星村", group_no: "一组", remark: "", proxy_remark: "" };
     return [m2.excel_column, sample[m2.system_field] ?? ""];
   }))] : [{ "身份证号*": "510123196503154231", "姓名*": "张国强", "计入超限面积": 3.5, "不计入超限面积": 0, "承包地面积(亩)": 2.5, "代耕代种面积(亩)": 1, "不予补贴面积(亩)": 0.5, "所在村": "红星村", "所在组": "一组", "备注": "" }];
-  const detectExcelColumns = async (columns, sampleRows) => {
+  const detectExcelColumns$1 = async (columns, sampleRows) => {
     try {
-      const response = await fetch("/api/excel-templates/detect-columns", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ columns, business_type: "SUBSIDY", sample_rows: sampleRows })
-      });
-      if (!response.ok) throw new Error(`检测失败: ${response.status}`);
-      const raw = await response.json();
+      const raw = await detectExcelColumns(columns, "SUBSIDY", sampleRows);
       return { columns: (raw.columns || []).map((d) => ({ excel_column: d.excel_column, suggested_field: d.suggested_field, confidence: d.confidence ?? 0, alternatives: d.alternatives || [] })), recommended_templates: raw.recommended_templates || [] };
     } catch {
       return { columns: columns.map((col) => ({ excel_column: col, suggested_field: null, confidence: 0, alternatives: [] })) };
     }
   };
   const saveColumnMappingTemplate = async (data) => {
-    const response = await fetch("/api/excel-templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-    if (!response.ok) throw new Error(`保存失败: ${response.status}`);
-    return await response.json();
+    return await saveExcelTemplate(data);
   };
   const importSysFields = importFields || DEFAULT_IMPORT_FIELDS;
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
@@ -46296,7 +46350,7 @@ function SubsidyListBase({
         systemFields: importSysFields,
         templates,
         overwriteOption: true,
-        onDetectColumns: detectExcelColumns,
+        onDetectColumns: detectExcelColumns$1,
         onSaveTemplate: saveColumnMappingTemplate,
         onImport: handleImport,
         onSuccess: load,
@@ -46330,11 +46384,7 @@ function PreApplyList(props) {
         year: props.subsidyType.subsidy_year,
         rows: mappedRows.map((r2) => ({ id_card: String(r2.id_card || r2["身份证号*"] || r2["身份证号"] || ""), real_name: String(r2.real_name || r2["姓名*"] || r2["姓名"] || ""), apply_area: Number(r2.apply_area || 0), _row_index: r2._row_index }))
       };
-      const chk = await fetch("/api/eligibility/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(checkPayload)
-      }).then((r2) => r2.json());
+      const chk = await checkEligibility(checkPayload);
       return {
         passed_rows: (chk.passed_list || []).map((r2) => r2._row_index).filter((i) => i != null),
         failed_rows: (chk.failed_list || []).map((r2) => ({ index: r2._row_index ?? 0, real_name: r2.real_name, id_card_masked: r2.id_card_masked, issues: r2.issues })),
@@ -46350,13 +46400,7 @@ function PreApplyList(props) {
 已存在的发放记录将自动跳过。`)) return;
         setConverting(true);
         try {
-          const response = await fetch("/api/subsidies/applications/convert-to-payment", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ application_ids: selectedIds })
-          });
-          const data = await response.json();
-          if (!response.ok) throw new Error(data.detail || "转换失败");
+          const data = await window.electronAPI.invoke("subsidies:convertToPayment", { application_ids: selectedIds });
           show(`✓ ${data.message}`);
           props.setSelectedIds([]);
           load();
@@ -46409,15 +46453,11 @@ function DisbursementList(props) {
         mapped._row_index = idx;
         return mapped;
       });
-      const chk = await fetch("/api/eligibility/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subsidy_type_id: props.subsidyType.id,
-          year: props.subsidyType.subsidy_year,
-          rows: mappedRows.map((r2) => ({ id_card: String(r2.id_card || ""), real_name: String(r2.real_name || ""), apply_area: Number(r2.apply_area || 0), _row_index: r2._row_index }))
-        })
-      }).then((r2) => r2.json());
+      const chk = await checkEligibility({
+        subsidy_type_id: props.subsidyType.id,
+        year: props.subsidyType.subsidy_year,
+        rows: mappedRows.map((r2) => ({ id_card: String(r2.id_card || ""), real_name: String(r2.real_name || ""), apply_area: Number(r2.apply_area || 0), _row_index: r2._row_index }))
+      });
       const preCheckResult = {
         passed_rows: (chk.passed_list || []).map((r2) => r2._row_index).filter((i) => i != null),
         failed_rows: (chk.failed_list || []).map((r2) => ({ index: r2._row_index ?? 0, real_name: r2.real_name, id_card_masked: r2.id_card_masked, issues: r2.issues })),
@@ -46469,9 +46509,9 @@ function ProxyList({ subsidyType, show }) {
         subsidy_type_id: subsidyType.id
       };
       if (search) params.search = search;
-      const response = await fetch(`/api/subsidies/proxies?${new URLSearchParams(params)}`).then((r2) => r2.json());
-      setProxies(response.items || []);
-      setTotal(response.total || 0);
+      const response = await getProxies(params);
+      setProxies(response || []);
+      setTotal((response || []).length);
     } catch (error) {
       console.error("加载代领关系失败:", error);
       show("加载代领关系失败", "err");
@@ -46486,10 +46526,9 @@ function ProxyList({ subsidyType, show }) {
     setSelectedIds(/* @__PURE__ */ new Set());
     setSelectAll(false);
   }, [page, search]);
-  const deleteProxy2 = async (id2) => {
+  const deleteProxy$1 = async (id2) => {
     try {
-      const response = await fetch(`/api/subsidies/proxies/${id2}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("删除失败");
+      await deleteProxy(id2);
       show("✓ 代领关系已删除");
       setDeleteId(null);
       loadProxies();
@@ -46503,9 +46542,7 @@ function ProxyList({ subsidyType, show }) {
       return;
     }
     try {
-      await Promise.all([...selectedIds].map(
-        (id2) => fetch(`/api/subsidies/proxies/${id2}`, { method: "DELETE" })
-      ));
+      await Promise.all([...selectedIds].map((id2) => deleteProxy(id2)));
       show(`✓ 已删除 ${selectedIds.size} 条代领关系`);
       setSelectedIds(/* @__PURE__ */ new Set());
       setSelectAll(false);
@@ -46625,7 +46662,7 @@ function ProxyList({ subsidyType, show }) {
         open: deleteId !== null,
         title: "确认删除",
         onClose: () => setDeleteId(null),
-        onConfirm: () => deleteId && deleteProxy2(deleteId),
+        onConfirm: () => deleteId && deleteProxy$1(deleteId),
         confirmText: "确认删除",
         children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-text-primary", children: "删除后无法恢复，确认要删除这条代领关系吗？" })
       }
@@ -47116,12 +47153,9 @@ function ProjectProgressTab({ subsidyType }) {
   const deleteStage = async (stageName) => {
     if (!confirm(`确定要删除阶段「${stageName}」？将从所有村中移除。`)) return;
     try {
-      const res = await fetch(`/api/project-progress/${projectId}/delete-stage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage_name: stageName })
-      }).then((r2) => r2.json());
-      show(`✓ ${res.message}`);
+      const res = await window.electronAPI.invoke("project-progress:deleteStage", { projectId, stage_name: stageName });
+      const data = res?.data ?? res;
+      show(`✓ ${data.message}`);
       loadRecords();
     } catch (e) {
       show("删除失败: " + e.message, "err");
@@ -47135,16 +47169,13 @@ function ProjectProgressTab({ subsidyType }) {
     }
     setScanning(stageName);
     try {
-      const res = await fetch(`/api/project-progress/${projectId}/scan-files`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: dir, stage_name: stageName })
-      }).then((r2) => r2.json());
-      if (res.error) {
-        show(res.error, "err");
+      const res = await window.electronAPI.invoke("project-progress:scanFiles", { projectId, path: dir, stage_name: stageName });
+      const data = res?.data ?? res;
+      if (data.error) {
+        show(data.error, "err");
         return;
       }
-      show(`✓ ${res.message}`);
+      show(`✓ ${data.message}`);
       loadRecords();
     } catch (e) {
       show("扫描失败: " + e.message, "err");
@@ -47164,7 +47195,8 @@ function ProjectProgressTab({ subsidyType }) {
     if (!projectId) return;
     setLoading(true);
     try {
-      const r2 = await fetch(`/api/project-progress/${projectId}`).then((r22) => r22.json());
+      const res = await window.electronAPI.invoke("project-progress:get", projectId);
+      const r2 = res?.data ?? res;
       setRecords(Array.isArray(r2) ? r2 : []);
     } catch {
       show("加载失败", "err");
@@ -47192,30 +47224,19 @@ function ProjectProgressTab({ subsidyType }) {
     });
   };
   const saveRec = async (rec) => {
-    await fetch(`/api/project-progress/${projectId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(rec)
-    });
+    await window.electronAPI.invoke("project-progress:save", { projectId, ...rec });
   };
   const initAllVillages = async () => {
     if (!projectId) return;
-    await fetch(`/api/project-progress/${projectId}/batch`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "init" })
-    });
+    await window.electronAPI.invoke("project-progress:batch", { projectId, action: "init" });
     show("已初始化所有村");
     loadRecords();
   };
   const syncLeaders = async () => {
     if (!projectId) return;
-    const res = await fetch(`/api/project-progress/${projectId}/batch`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "sync_leaders" })
-    }).then((r2) => r2.json());
-    if (res.updated > 0) show(`✓ 已同步 ${res.updated} 个村的负责人信息`);
+    const res = await window.electronAPI.invoke("project-progress:batch", { projectId, action: "sync_leaders" });
+    const data = res?.data ?? res;
+    if (data.updated > 0) show(`✓ 已同步 ${data.updated} 个村的负责人信息`);
     else show("所有村负责人已是最新，无需同步");
     loadRecords();
   };
@@ -47236,10 +47257,10 @@ function ProjectProgressTab({ subsidyType }) {
   };
   const addStageToAll = async () => {
     if (!newStageName.trim() || !projectId) return;
-    await fetch(`/api/project-progress/${projectId}/batch`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "add_stage_to_all", stage: { name: newStageName.trim(), status: "none", date: "", note: "" } })
+    await window.electronAPI.invoke("project-progress:batch", {
+      projectId,
+      action: "add_stage_to_all",
+      stage: { name: newStageName.trim(), status: "none", date: "", note: "" }
     });
     show("已为所有村添加阶段");
     setNewStageName("");
@@ -47248,10 +47269,12 @@ function ProjectProgressTab({ subsidyType }) {
   const batchSetStageStatus = async (stageName, status) => {
     if (!projectId) return;
     const now = (/* @__PURE__ */ new Date()).toISOString();
-    await fetch(`/api/project-progress/${projectId}/batch`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "batch_stage", stage_name: stageName, status, date: now })
+    await window.electronAPI.invoke("project-progress:batch", {
+      projectId,
+      action: "batch_stage",
+      stage_name: stageName,
+      status,
+      date: now
     });
     show(`已将所有村「${stageName}」设为${STATUS_CFG[status].label}`);
     setBatchCol(null);
@@ -47285,10 +47308,11 @@ function ProjectProgressTab({ subsidyType }) {
       setDropIdx(null);
       return;
     }
-    await fetch(`/api/project-progress/${projectId}/batch`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "swap_stages", stage_a: nameA, stage_b: nameB })
+    await window.electronAPI.invoke("project-progress:batch", {
+      projectId,
+      action: "swap_stages",
+      stage_a: nameA,
+      stage_b: nameB
     });
     setDragIdx(null);
     setDropIdx(null);
@@ -47298,7 +47322,7 @@ function ProjectProgressTab({ subsidyType }) {
     setDragIdx(null);
     setDropIdx(null);
   };
-  const exportExcel = () => {
+  const exportExcel2 = () => {
     const headers = ["村名", "负责人", "电话", ...allStages];
     const aoa = [];
     aoa.push(headers.map((h) => ({ v: h, s: {
@@ -47452,7 +47476,7 @@ function ProjectProgressTab({ subsidyType }) {
         }
       ),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-6 bg-border" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: exportExcel, className: "px-3 py-1.5 text-xs border border-green-200 text-green-700 rounded-btn hover:bg-green-50", children: "📥 导出 Excel" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: exportExcel2, className: "px-3 py-1.5 text-xs border border-green-200 text-green-700 rounded-btn hover:bg-green-50", children: "📥 导出 Excel" }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
         filtered.length !== records.length ? `${filtered.length}/${records.length}` : records.length,
         " 村"
@@ -47911,8 +47935,8 @@ function SubsidyRecordsPage({ subsidyType, onBack, farmerName }) {
     setCheckingDisbursement(true);
     try {
       const [appRes, payRes] = await Promise.all([
-        fetch(`/api/subsidies/applications/export?subsidy_type_id=${subsidyType.id}&year=${subsidyType.subsidy_year}`).then((r2) => r2.json()),
-        fetch(`/api/subsidies/payments/export?subsidy_type_id=${subsidyType.id}&year=${subsidyType.subsidy_year}`).then((r2) => r2.json())
+        exportApplications(subsidyType.id),
+        exportPayments(subsidyType.id)
       ]);
       const apps2 = appRes.items || [];
       const pays = payRes.items || [];
@@ -48000,13 +48024,10 @@ function SubsidyRecordsPage({ subsidyType, onBack, farmerName }) {
       return;
     }
     try {
-      const endpoint = activeTab === "disbursement" ? "/api/subsidies/payments/batch-delete" : "/api/subsidies/applications/batch-delete";
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: selectedIds })
-      });
-      if (!response.ok) throw new Error("批量删除失败");
+      const endpoint = activeTab === "disbursement" ? "subsidies:batchDeletePayments" : "subsidies:batchDeleteApplications";
+      const response = await window.electronAPI.invoke(endpoint, { ids: selectedIds });
+      const data = response?.data ?? response;
+      if (data?.code !== void 0 && data.code !== 0) throw new Error("批量删除失败");
       show(`✓ 已删除 ${selectedIds.length} 条记录`);
       setSelectedIds([]);
       load();
@@ -48026,14 +48047,9 @@ function SubsidyRecordsPage({ subsidyType, onBack, farmerName }) {
     }
     setDeletingAll(true);
     try {
-      const endpoint = activeTab === "disbursement" ? "/api/subsidies/payments/batch-delete" : "/api/subsidies/applications/batch-delete";
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ delete_all: true, subsidy_type_id: subsidyType.id })
-      });
-      if (!response.ok) throw new Error("删除全部失败");
-      const result = await response.json();
+      const endpoint = activeTab === "disbursement" ? "subsidies:batchDeletePayments" : "subsidies:batchDeleteApplications";
+      const response = await window.electronAPI.invoke(endpoint, { delete_all: true, subsidy_type_id: subsidyType.id });
+      const result = response?.data ?? response;
       show(`✓ 已删除全部 ${result.deleted} 条记录`);
       setSelectedIds([]);
       load();
@@ -48054,16 +48070,8 @@ function SubsidyRecordsPage({ subsidyType, onBack, farmerName }) {
       return;
     }
     try {
-      const beneficiaryResp = await fetch("/api/farmers/batch-lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id_cards: [proxyForm.beneficiary_id_card.trim()] })
-      }).then((r2) => r2.json());
-      const proxyResp = await fetch("/api/farmers/batch-lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id_cards: [proxyForm.proxy_id_card.trim()] })
-      }).then((r2) => r2.json());
+      const beneficiaryResp = await batchLookupFarmers([proxyForm.beneficiary_id_card.trim()]);
+      const proxyResp = await batchLookupFarmers([proxyForm.proxy_id_card.trim()]);
       const beneficiaryId = beneficiaryResp.results?.[proxyForm.beneficiary_id_card.trim()];
       const proxyId = proxyResp.results?.[proxyForm.proxy_id_card.trim()];
       if (!beneficiaryId) {
@@ -48112,11 +48120,7 @@ function SubsidyRecordsPage({ subsidyType, onBack, farmerName }) {
       return { created: 0, skipped: 0, errors };
     }
     const allIdCards = [...new Set(proxies.flatMap((p2) => [p2.beneficiary_id_card, p2.proxy_id_card]))];
-    const lookupResp = await fetch("/api/farmers/batch-lookup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id_cards: allIdCards })
-    }).then((r2) => r2.json());
+    const lookupResp = await batchLookupFarmers(allIdCards);
     const results = lookupResp.results || {};
     let successCount = 0;
     for (const p2 of proxies) {
@@ -48150,13 +48154,11 @@ function SubsidyRecordsPage({ subsidyType, onBack, farmerName }) {
   const loadVillages = reactExports.useCallback(async () => {
     setLoadingVillages(true);
     try {
-      const params = new URLSearchParams({
-        subsidy_type_id: String(subsidyType.id),
-        year: String(subsidyType.subsidy_year)
+      const response = await window.electronAPI.invoke("subsidies:applicationVillages", {
+        subsidy_type_id: subsidyType.id,
+        year: subsidyType.subsidy_year
       });
-      const response = await fetch(`/api/subsidies/applications/villages?${params}`);
-      if (!response.ok) throw new Error("获取村庄列表失败");
-      const data = await response.json();
+      const data = response?.data ?? response;
       setVillages(data.villages || []);
     } catch (error) {
       console.error("加载村庄列表失败:", error);
@@ -48183,8 +48185,9 @@ function SubsidyRecordsPage({ subsidyType, onBack, farmerName }) {
           params2.sort_field = sortField;
           params2.sort_dir = sortDir;
         }
-        const res2 = await fetch(`/api/subsidies/payments?${new URLSearchParams(params2)}`).then((r2) => r2.json());
-        setApps(res2.items.map((p2) => ({
+        const res2 = await window.electronAPI.invoke("subsidies:listPayments", params2);
+        const data = res2?.data ?? res2;
+        setApps(data.items.map((p2) => ({
           id: p2.id,
           farmer_id: p2.farmer_id,
           farmer_name: p2.farmer_name,
@@ -48208,7 +48211,7 @@ function SubsidyRecordsPage({ subsidyType, onBack, farmerName }) {
           proxy_remark: p2.proxy_remark,
           is_proxy: p2.is_proxy
         })));
-        setTotal(res2.total);
+        setTotal(data.total);
         setLoading(false);
         return;
       }
@@ -48249,17 +48252,18 @@ function SubsidyRecordsPage({ subsidyType, onBack, farmerName }) {
     }
     setPreCheckLoading(true);
     try {
-      const params = new URLSearchParams();
-      params.append("subsidy_typeId", String(subsidyType.id));
+      const precheckParams = {
+        subsidy_type_id: subsidyType.id
+      };
       if (filters.payStatus) {
-        params.append("payStatus", String(filters.payStatus));
+        precheckParams.pay_status = filters.payStatus;
       } else {
-        params.append("payStatus", activeTab === "preApply" ? "0" : "1,2");
+        precheckParams.pay_status = activeTab === "preApply" ? "0" : "1,2";
       }
-      if (filters.village) params.append("villageName", filters.village);
-      const response = await fetch(`/api/subsidies/applications/precheck?${params}`, { method: "POST" });
-      if (!response.ok) throw new Error("预检请求失败");
-      const result = await response.json();
+      if (filters.village) precheckParams.village_name = filters.village;
+      const response = await window.electronAPI.invoke("subsidies:precheck", precheckParams);
+      const result = response?.data ?? response;
+      if (response?.code !== void 0 && response.code !== 0) throw new Error("预检请求失败");
       const summary = result.summary || {};
       const okCount = summary.ok_rows || 0;
       const errorCount = summary.error_rows || 0;
@@ -49248,11 +49252,7 @@ function SubsidyProjectsPage() {
       } else {
         const res = await createSubsidyType(payload);
         if (pendingCheckConfig.current) {
-          await fetch(`/api/subsidies/types/${res.id}/check-config`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(pendingCheckConfig.current)
-          });
+          await updateCheckConfig(res.id, pendingCheckConfig.current);
         }
         show("✓ 创建成功");
       }
@@ -49265,8 +49265,7 @@ function SubsidyProjectsPage() {
   const deleteProject = async (type_id) => {
     setDeleting(true);
     try {
-      const response = await fetch(`/api/subsidies/types/${type_id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("删除失败");
+      await window.electronAPI.invoke("subsidies:deleteType", type_id);
       show("✓ 项目已移入回收站");
       loadTypes();
       if (showTrash) loadDeletedTypes();
@@ -49546,7 +49545,7 @@ function DashboardPage({ onGoTab }) {
         getSummaryByVillage(year),
         getSubsidyTypesWithStats(year),
         getSummaryBySeason(year),
-        fetch(`/api/subsidies/dashboard/todos?year=${year}`).then((r2) => r2.json())
+        getDashboardTodos(year)
       ]).then(([c2, v2, s, ss, t2]) => {
         if (ctrl.signal.aborted) return;
         setCompare(c2);
@@ -50065,7 +50064,7 @@ function VillageContactsPage({ embedded }) {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/village-contacts").then((r2) => r2.json());
+      const res = await window.electronAPI.invoke("village-contacts:list");
       const vmap = {};
       (res.villages || []).forEach((v2) => {
         vmap[v2.id] = v2.village_name;
@@ -50112,9 +50111,11 @@ function VillageContactsPage({ embedded }) {
       remark: form.remark
     };
     try {
-      const method = editing ? "PUT" : "POST";
-      const url = editing ? `/api/village-contacts/${editing.id}` : "/api/village-contacts";
-      await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (editing) {
+        await window.electronAPI.invoke("village-contacts:update", { id: editing.id, ...body });
+      } else {
+        await window.electronAPI.invoke("village-contacts:create", body);
+      }
       show(editing ? "已更新" : "已添加");
       setShowForm(false);
       resetForm();
@@ -50125,20 +50126,16 @@ function VillageContactsPage({ embedded }) {
   };
   const del = async (c) => {
     if (!confirm(`删除联系人「${c.village_name} - ${c.name}」？`)) return;
-    await fetch(`/api/village-contacts/${c.id}`, { method: "DELETE" });
+    await window.electronAPI.invoke("village-contacts:delete", c.id);
     show("已删除");
     load();
   };
   const toggleLead = async (c) => {
     if (c.is_agri_lead) {
-      await fetch(`/api/village-contacts/${c.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_agri_lead: false })
-      });
+      await window.electronAPI.invoke("village-contacts:update", { id: c.id, is_agri_lead: false });
       show(`已取消「${c.name}」的负责人身份`);
     } else {
-      await fetch(`/api/village-contacts/set-lead/${c.id}`, { method: "POST" });
+      await window.electronAPI.invoke("village-contacts:setLead", c.id);
       show(`已将「${c.name}」设为 ${c.village_name} 农业负责人`);
     }
     load();
@@ -50149,10 +50146,9 @@ function VillageContactsPage({ embedded }) {
       show("请选择文件", "err");
       return;
     }
-    const formData = new FormData();
-    formData.append("file", file);
+    const filePath = file.path || file.name;
     try {
-      const res = await fetch(`/api/village-contacts/import?overwrite=${overwrite}`, { method: "POST", body: formData }).then((r2) => r2.json());
+      const res = await window.electronAPI.invoke("village-contacts:import", { overwrite, filePath });
       const parts = [`新增 ${res.created} 条`];
       if (res.updated) parts.push(`更新 ${res.updated} 条`);
       if (res.errors?.length) parts.push(`错误 ${res.errors.length} 条`);
@@ -50364,7 +50360,7 @@ function VillageContactsPage({ embedded }) {
   ] });
   return embedded ? inner : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-5 max-w-5xl mx-auto", children: inner });
 }
-async function req$7(path, opts = {}) {
+async function req(path, opts = {}) {
   const r2 = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
   if (!r2.ok) {
     const e = await r2.json().catch(() => ({}));
@@ -50372,7 +50368,7 @@ async function req$7(path, opts = {}) {
   }
   return r2.json();
 }
-const loadGroups = () => req$7("/api/settings/village-groups");
+const loadGroups = () => req("/api/settings/village-groups");
 function groupByVillage(list) {
   const map = /* @__PURE__ */ new Map();
   list.forEach((g) => {
@@ -50426,7 +50422,7 @@ function SettingsPage() {
   }, []);
   const reloadLand = reactExports.useCallback(async () => {
     try {
-      const res = await req$7("/api/agri-tasks/village-land-info");
+      const res = await req("/api/agri-tasks/village-land-info");
       const map = {};
       res.forEach((r2) => {
         map[r2.village_id] = r2;
@@ -50437,7 +50433,7 @@ function SettingsPage() {
   }, []);
   const loadLeaders = reactExports.useCallback(async () => {
     try {
-      const list = await req$7("/api/settings/villages");
+      const list = await req("/api/settings/villages");
       const map = {};
       list.forEach((v2) => {
         map[v2.village_name] = { name: v2.leader_name || "", phone: v2.leader_phone || "", vid: v2.id };
@@ -50457,7 +50453,7 @@ function SettingsPage() {
     setSelectedVillage(villageName);
     setLoadingDetail(true);
     try {
-      const res = await req$7(`/api/settings/villages/${g.village_id}/detail`);
+      const res = await req(`/api/settings/villages/${g.village_id}/detail`);
       setVillageDetail(res);
     } catch (e) {
       show(e.message, "err");
@@ -50469,7 +50465,7 @@ function SettingsPage() {
     const info = villageLeaders[vname];
     if (!info) return;
     try {
-      await req$7(`/api/settings/villages/${info.vid}`, {
+      await req(`/api/settings/villages/${info.vid}`, {
         method: "PUT",
         body: JSON.stringify({ leader_name: editLeaderName, leader_phone: editLeaderPhone })
       });
@@ -50488,7 +50484,7 @@ function SettingsPage() {
   const saveLand = async (vid) => {
     setSavingLand(vid);
     try {
-      await req$7(`/api/agri-tasks/village-land-info/${vid}`, {
+      await req(`/api/agri-tasks/village-land-info/${vid}`, {
         method: "PUT",
         body: JSON.stringify(landEditForm)
       });
@@ -50508,7 +50504,7 @@ function SettingsPage() {
     const gno = addGroupNo.trim();
     if (!vname || !gno) return show("村名和组号不能为空", "err");
     try {
-      await req$7("/api/settings/village-groups", { method: "POST", body: JSON.stringify({ village_name: vname, group_no: gno }) });
+      await req("/api/settings/village-groups", { method: "POST", body: JSON.stringify({ village_name: vname, group_no: gno }) });
       show("✓ 创建成功");
       setAddOpen(false);
       setAddVillageName("");
@@ -50524,7 +50520,7 @@ function SettingsPage() {
     const gnos = batchGroups.split(/[,，\n]/).map((s) => s.trim()).filter(Boolean);
     if (!gnos.length) return show("请填写至少一个组号", "err");
     try {
-      const res = await req$7(
+      const res = await req(
         "/api/settings/village-groups/batch",
         { method: "POST", body: JSON.stringify({ rows: gnos.map((g) => ({ village_name: vname, group_no: g })) }) }
       );
@@ -50541,7 +50537,7 @@ function SettingsPage() {
     const gno = quickGroupNo.trim();
     if (!gno) return;
     try {
-      await req$7("/api/settings/village-groups", { method: "POST", body: JSON.stringify({ village_name: villageName, group_no: gno }) });
+      await req("/api/settings/village-groups", { method: "POST", body: JSON.stringify({ village_name: villageName, group_no: gno }) });
       show(`✓ ${villageName}${gno} 创建成功`);
       setQuickAddVillage(null);
       setQuickGroupNo("");
@@ -50560,7 +50556,7 @@ function SettingsPage() {
   const submitEdit = async () => {
     if (!editTarget) return;
     try {
-      await req$7(`/api/settings/village-groups/${editTarget.id}`, {
+      await req(`/api/settings/village-groups/${editTarget.id}`, {
         method: "PUT",
         body: JSON.stringify({
           leader_name: editLeaderName,
@@ -50583,7 +50579,7 @@ function SettingsPage() {
     }
     const timer = setTimeout(async () => {
       try {
-        const res = await req$7(`/api/farmers?search=${encodeURIComponent(query.trim())}&page_size=5`);
+        const res = await req(`/api/farmers?search=${encodeURIComponent(query.trim())}&page_size=5`);
         setLeaderSearchResults((res.items || []).map((f2) => ({
           id: f2.id,
           real_name: f2.real_name,
@@ -50615,7 +50611,7 @@ function SettingsPage() {
     }
     if (!rows.length) return show("请按格式粘贴：村名	组名	姓名	电话", "err");
     try {
-      await req$7("/api/settings/village-groups/batch-leaders", { method: "POST", body: JSON.stringify({ rows }) });
+      await req("/api/settings/village-groups/batch-leaders", { method: "POST", body: JSON.stringify({ rows }) });
       show(`✓ 已更新 ${rows.length} 个组的负责人`);
       setBatchLeaderOpen(false);
       setBatchLeaderText("");
@@ -50628,7 +50624,7 @@ function SettingsPage() {
     if (g.household_count > 0) return show(`该组下有 ${g.household_count} 户农户，无法删除`, "err");
     if (!confirm(`确认删除「${g.full_name}」？`)) return;
     try {
-      await req$7(`/api/settings/village-groups/${g.id}`, { method: "DELETE" });
+      await req(`/api/settings/village-groups/${g.id}`, { method: "DELETE" });
       show("✓ 已删除");
       reload();
     } catch (e) {
@@ -51181,7 +51177,7 @@ function LandInfoTab({ show }) {
   const load = reactExports.useCallback(async () => {
     setLoading(true);
     try {
-      const res = await req$7("/api/agri-tasks/village-land-info");
+      const res = await req("/api/agri-tasks/village-land-info");
       setInfos(res);
       const forms = {};
       res.forEach((r2) => {
@@ -51200,7 +51196,7 @@ function LandInfoTab({ show }) {
   const handleSave = async (villageId) => {
     setSaving(villageId);
     try {
-      await req$7(`/api/agri-tasks/village-land-info/${villageId}`, {
+      await req(`/api/agri-tasks/village-land-info/${villageId}`, {
         method: "PUT",
         body: JSON.stringify(editForms[villageId] || {})
       });
@@ -51278,7 +51274,7 @@ function LandInfoTab({ show }) {
         if (r2["terrain_type"] !== "") payload["terrain_type"] = TERRAIN_VALID.has(String(r2["terrain_type"])) ? r2["terrain_type"] : null;
         if (r2["soil_quality"] !== "") payload["soil_quality"] = SOIL_VALID.has(String(r2["soil_quality"])) ? r2["soil_quality"] : null;
         try {
-          await req$7(`/api/agri-tasks/village-land-info/${vid}`, { method: "PUT", body: JSON.stringify(payload) });
+          await req(`/api/agri-tasks/village-land-info/${vid}`, { method: "PUT", body: JSON.stringify(payload) });
           ok2++;
         } catch (e2) {
           errors.push(`「${vname}」: ${e2.message}`);
@@ -51414,14 +51410,6 @@ ${errors.slice(0, 3).join("；")}` : ""}`;
     ] }) })
   ] });
 }
-async function req$6(path, opts = {}) {
-  const r2 = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
-  if (!r2.ok) {
-    const e = await r2.json().catch(() => ({}));
-    throw new Error(e.detail || "请求失败");
-  }
-  return r2.json();
-}
 const QUERY_TYPES = ["身份证查询", "姓名查询", "综合查询", "其他"];
 const TAGS_PRESET = ["年度核查", "补贴核验", "重复申领排查", "死亡核查", "迁出核查", "待处理", "已完成", "存疑"];
 function ExternalLinksPage() {
@@ -51477,7 +51465,7 @@ function ExternalLinksPage() {
   }, [tab, recPage, recSearch]);
   const loadSites = async () => {
     try {
-      const d = await req$6("/api/external/sites");
+      const d = await getExternalSites();
       setSites(d);
     } catch {
     }
@@ -51485,9 +51473,9 @@ function ExternalLinksPage() {
   const loadRecords = async () => {
     setRecLoading(true);
     try {
-      const p2 = new URLSearchParams({ page: String(recPage), page_size: "20" });
-      if (recSearch) p2.set("search", recSearch);
-      const r2 = await req$6(`/api/external/records?${p2}`);
+      const params = { page: recPage, page_size: 20 };
+      if (recSearch) params.search = recSearch;
+      const r2 = await getExternalRecords(params);
       setRecords(r2.items);
       setRecTotal(r2.total);
     } finally {
@@ -51496,7 +51484,7 @@ function ExternalLinksPage() {
   };
   const loadStats = async () => {
     try {
-      const s = await req$6("/api/external/records/stats");
+      const s = await getExternalStats();
       setStats(s);
     } catch {
     }
@@ -51525,7 +51513,7 @@ function ExternalLinksPage() {
     if (!inputs.length) return show("请输入查询内容", "err");
     const siteName = sites.find((s) => s.id === batchSiteId)?.name || "手动记录";
     try {
-      await req$6("/api/external/records", { method: "POST", body: JSON.stringify({
+      await createExternalRecord({
         site_id: batchSiteId || null,
         site_name: siteName,
         query_type: batchType,
@@ -51533,7 +51521,7 @@ function ExternalLinksPage() {
         purpose: batchPurpose || null,
         operator: batchOperator,
         tags: batchTags || null
-      }) });
+      });
       show(`✓ 已保存 ${inputs.length} 条查询记录`);
       setBatchOpen(false);
       setBatchText("");
@@ -51547,14 +51535,14 @@ function ExternalLinksPage() {
   };
   const submitEditRecord = async () => {
     if (!editRecord) return;
-    await req$6(`/api/external/records/${editRecord.id}`, { method: "PUT", body: JSON.stringify(recForm) });
+    await updateExternalRecord(editRecord.id, recForm);
     show("✓ 已更新");
     setEditRecord(null);
     loadRecords();
   };
   const deleteRecord = async (id2) => {
     if (!confirm("确认删除？")) return;
-    await req$6(`/api/external/records/${id2}`, { method: "DELETE" });
+    await deleteExternalRecord(id2);
     show("✓ 已删除");
     loadRecords();
     loadStats();
@@ -51562,8 +51550,8 @@ function ExternalLinksPage() {
   const submitSite = async () => {
     if (!siteForm.name || !siteForm.url) return show("名称和地址必填", "err");
     try {
-      if (editSite?.id) await req$6(`/api/external/sites/${editSite.id}`, { method: "PUT", body: JSON.stringify(siteForm) });
-      else await req$6("/api/external/sites", { method: "POST", body: JSON.stringify(siteForm) });
+      if (editSite?.id) await updateExternalSite(editSite.id, siteForm);
+      else await createExternalSite(siteForm);
       show("✓ 保存成功");
       setSiteModal(false);
       setEditSite(null);
@@ -51575,7 +51563,7 @@ function ExternalLinksPage() {
   };
   const deleteSite = async (id2) => {
     if (!confirm("确认删除？")) return;
-    await req$6(`/api/external/sites/${id2}`, { method: "DELETE" });
+    await deleteExternalSite(id2);
     show("✓ 已删除");
     loadSites();
   };
@@ -51583,7 +51571,7 @@ function ExternalLinksPage() {
     if (!favorContext) return;
     const siteName = favorContext.source || "系统内查询";
     try {
-      await req$6("/api/external/records", { method: "POST", body: JSON.stringify({
+      await createExternalRecord({
         site_id: null,
         site_name: siteName,
         query_type: favorContext.type,
@@ -51591,7 +51579,7 @@ function ExternalLinksPage() {
         purpose: favorPurpose || null,
         operator: "操作员",
         tags: favorTags || null
-      }) });
+      });
       show("✓ 已收藏到查询记录");
       setFavorOpen(false);
       setFavorPurpose("");
@@ -52276,14 +52264,6 @@ function ExternalLinksPage() {
     /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { ...toast })
   ] });
 }
-async function req$5(path, opts = {}) {
-  const r2 = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
-  if (!r2.ok) {
-    const e = await r2.json().catch(() => ({}));
-    throw new Error(e.detail || "请求失败");
-  }
-  return r2.json();
-}
 const TABLE_LABELS = {
   farmer_profile: { label: "农户档案", icon: "👤", color: "text-blue-600" },
   family_household: { label: "家庭户", icon: "🏠", color: "text-purple-600" },
@@ -52297,12 +52277,11 @@ function BackupPage() {
   const [loading, setLoading] = reactExports.useState(true);
   const [exporting, setExporting] = reactExports.useState(false);
   const [localBacking, setLocalBacking] = reactExports.useState(false);
-  const [restoreFile, setRestoreFile] = reactExports.useState(null);
   const [restoring, setRestoring] = reactExports.useState(false);
   const [confirmRestore, setConfirmRestore] = reactExports.useState(false);
   const loadInfo = async () => {
     try {
-      setInfo(await req$5("/api/backup/info"));
+      setInfo(await getDbInfo());
     } catch (e) {
       show(e.message, "err");
     } finally {
@@ -52312,24 +52291,13 @@ function BackupPage() {
   reactExports.useEffect(() => {
     loadInfo();
   }, []);
-  const downloadDb = () => {
-    const a = document.createElement("a");
-    a.href = "/api/backup/download";
-    a.click();
+  const downloadDb$1 = () => {
+    downloadDb().catch((e) => show(e.message, "err"));
   };
-  const exportExcel = async () => {
+  const exportExcel$1 = async () => {
     setExporting(true);
     try {
-      const r2 = await fetch("/api/backup/export-excel");
-      if (!r2.ok) throw new Error("导出失败");
-      const blob = await r2.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const ts = (/* @__PURE__ */ new Date()).toLocaleDateString("zh-CN").replace(/\//g, "");
-      a.download = `补贴数据导出_${ts}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await exportExcel();
       show("✓ Excel 导出成功");
     } catch (e) {
       show(e.message, "err");
@@ -52340,7 +52308,7 @@ function BackupPage() {
   const createLocalBackup = async () => {
     setLocalBacking(true);
     try {
-      const r2 = await req$5("/api/backup/auto", { method: "POST" });
+      const r2 = await createBackup();
       show(`✓ ${r2.message}：${r2.filename}（${r2.size_kb} KB）`);
       loadInfo();
     } catch (e) {
@@ -52350,17 +52318,19 @@ function BackupPage() {
     }
   };
   const handleRestore = async () => {
-    if (!restoreFile) return show("请先选择数据库文件", "err");
     if (!confirmRestore) return show("请勾选确认框后再执行恢复", "err");
     setRestoring(true);
     try {
-      const fd2 = new FormData();
-      fd2.append("file", restoreFile);
-      const r2 = await fetch("/api/backup/restore", { method: "POST", body: fd2 });
-      const d = await r2.json();
-      if (!r2.ok) throw new Error(d.detail || "恢复失败");
-      show(`✓ ${d.message}`);
-      setRestoreFile(null);
+      const result = await window.electronAPI.invoke("dialog:selectFile", {
+        filters: [{ name: "数据库文件", extensions: ["db"] }]
+      });
+      if (!result || result.canceled) {
+        setRestoring(false);
+        return;
+      }
+      const filePath = result.filePath || result[0];
+      const r2 = await window.electronAPI.invoke("settings:restore", filePath);
+      show("✓ " + (r2.message || "恢复成功"));
       setConfirmRestore(false);
       setTimeout(loadInfo, 500);
     } catch (e) {
@@ -52369,10 +52339,10 @@ function BackupPage() {
       setRestoring(false);
     }
   };
-  const deleteBackup = async (filename) => {
+  const deleteBackup$1 = async (filename) => {
     if (!confirm(`确认删除备份 ${filename}？此操作不可恢复`)) return;
     try {
-      await req$5(`/api/backup/backups/${filename}`, { method: "DELETE" });
+      await deleteBackup(filename);
       show("✓ 已删除");
       loadInfo();
     } catch (e) {
@@ -52426,7 +52396,7 @@ function BackupPage() {
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "button",
                 {
-                  onClick: downloadDb,
+                  onClick: downloadDb$1,
                   className: "w-full py-2 bg-primary  text-sm rounded-btn hover:bg-primary/90",
                   children: "⬇️ 下载 subsidy.db"
                 }
@@ -52441,7 +52411,7 @@ function BackupPage() {
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "button",
                 {
-                  onClick: exportExcel,
+                  onClick: exportExcel$1,
                   disabled: exporting,
                   className: "w-full py-2 border border-primary/20 text-primary text-sm rounded-btn hover:bg-primary/5 disabled:opacity-60",
                   children: exporting ? "生成中…" : "📊 导出 Excel（5 Sheet）"
@@ -52484,25 +52454,6 @@ function BackupPage() {
             ] })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "选择数据库文件 (.db)" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "input",
-                {
-                  type: "file",
-                  accept: ".db",
-                  onChange: (e) => setRestoreFile(e.target.files?.[0] || null),
-                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm"
-                }
-              ),
-              restoreFile && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-primary mt-1", children: [
-                "✓ 已选择：",
-                restoreFile.name,
-                "（",
-                (restoreFile.size / 1024).toFixed(1),
-                " KB）"
-              ] })
-            ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 cursor-pointer", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "input",
@@ -52519,7 +52470,7 @@ function BackupPage() {
               "button",
               {
                 onClick: handleRestore,
-                disabled: restoring || !restoreFile || !confirmRestore,
+                disabled: restoring || !confirmRestore,
                 className: "w-full py-2.5 bg-red-600  text-sm rounded-btn hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed",
                 children: restoring ? "恢复中，请勿关闭…" : "🔄 执行数据库恢复"
               }
@@ -52544,10 +52495,9 @@ function BackupPage() {
           /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-4 py-2.5 text-sm text-text-muted", children: b.created }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "px-4 py-2.5 flex gap-2", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "a",
+              "button",
               {
-                href: `/api/backup/backups/${b.filename}`,
-                download: b.filename,
+                onClick: () => window.electronAPI.invoke("settings:downloadBackup", b.filename),
                 className: "text-xs text-primary border border-primary/20 px-2.5 py-1 rounded-btn hover:bg-primary/5",
                 children: "下载"
               }
@@ -52555,7 +52505,7 @@ function BackupPage() {
             /* @__PURE__ */ jsxRuntimeExports.jsx(
               "button",
               {
-                onClick: () => deleteBackup(b.filename),
+                onClick: () => deleteBackup$1(b.filename),
                 className: "text-xs text-red-400 border border-red-200 px-2.5 py-1 rounded-btn hover:bg-red-50",
                 children: "删除"
               }
@@ -52598,14 +52548,6 @@ function BackupPage() {
   ] });
 }
 const BT_LABEL = { SUBSIDY: "补贴发放", FARMER: "农户档案", PLANTING: "种植记录" };
-async function req$4(url, opts) {
-  const r2 = await fetch(url, { headers: { "Content-Type": "application/json" }, ...opts });
-  if (!r2.ok) {
-    const e = await r2.json().catch(() => ({}));
-    throw new Error(e.detail || "请求失败");
-  }
-  return r2.json();
-}
 function ExcelTemplatePage() {
   const { toast, show } = useToast();
   const [tab, setTab] = reactExports.useState("templates");
@@ -52622,11 +52564,11 @@ function ExcelTemplatePage() {
   const [editOpen, setEditOpen] = reactExports.useState(false);
   const [editTarget, setEditTarget] = reactExports.useState(null);
   const loadTemplates = reactExports.useCallback(async () => {
-    const list = await req$4("/api/excel-templates").catch(() => []);
+    const list = await getExcelTemplates().catch(() => []);
     setTemplates(list);
   }, []);
   const loadLogs = reactExports.useCallback(async () => {
-    const r2 = await req$4("/api/excel-templates/logs?page_size=30").catch(() => ({ total: 0, items: [] }));
+    const r2 = await getExcelTemplateLogs({ page_size: 30 }).catch(() => ({ total: 0, items: [] }));
     setLogs(r2.items);
     setLogsTotal(r2.total);
   }, []);
@@ -52647,10 +52589,21 @@ function ExcelTemplatePage() {
         const rows = utils.sheet_to_json(ws, { defval: "" });
         const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
         const sampleRows = rows.slice(0, 3);
-        const result = await req$4("/api/excel-templates/detect-columns", {
-          method: "POST",
-          body: JSON.stringify({ columns, business_type: "SUBSIDY", sample_rows: sampleRows })
-        });
+        const raw = await detectExcelColumns(columns, "SUBSIDY", sampleRows);
+        const result = {
+          columns: raw.columns.map((c) => ({
+            excel_column: c.excel_column,
+            suggested_field: c.suggested_field,
+            suggested_confidence: c.confidence,
+            match_type: null,
+            alternatives: c.alternatives,
+            auto_confirm: false
+          })),
+          recommended_templates: (raw.recommended_templates || []).map((t2) => ({ ...t2, use_count: 0 })),
+          system_fields: [],
+          auto_confirm_count: raw.auto_confirm_count || 0,
+          unrecognized_count: raw.unrecognized_count || 0
+        };
         setDetectResult(result);
         setMappings(result.columns.map((c) => ({
           excel_column: c.excel_column,
@@ -52676,13 +52629,7 @@ function ExcelTemplatePage() {
         const ws = wb2.Sheets[wb2.SheetNames[0]];
         const rows = utils.sheet_to_json(ws, { defval: "" });
         const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
-        const r2 = await req$4(
-          "/api/excel-templates/ai-detect",
-          {
-            method: "POST",
-            body: JSON.stringify({ columns, business_type: "SUBSIDY", sample_rows: rows.slice(0, 3) })
-          }
-        );
+        const r2 = await aiDetectColumns({ columns, business_type: "SUBSIDY", sample_rows: rows.slice(0, 3) });
         setMappings((prev) => prev.map((m2) => {
           const aiResult = r2.results.find((a) => a.excel_column === m2.excel_column);
           if (aiResult && aiResult.confidence > (m2.confidence || 0)) {
@@ -52708,15 +52655,12 @@ function ExcelTemplatePage() {
       required: false,
       transform: ""
     }));
-    await req$4("/api/excel-templates", {
-      method: "POST",
-      body: JSON.stringify({
-        template_name: saveForm.name,
-        template_year: saveForm.year ? Number(saveForm.year) : null,
-        region_name: saveForm.region || null,
-        business_type: saveForm.btype,
-        column_mapping: mapping
-      })
+    await saveExcelTemplate({
+      template_name: saveForm.name,
+      template_year: saveForm.year ? Number(saveForm.year) : null,
+      region_name: saveForm.region || null,
+      business_type: saveForm.btype,
+      column_mapping: mapping
     });
     show("✓ 模板保存成功");
     setSaveOpen(false);
@@ -52724,7 +52668,7 @@ function ExcelTemplatePage() {
   };
   const deleteTemplate = async (id2) => {
     if (!confirm("确认删除此模板？")) return;
-    await req$4(`/api/excel-templates/${id2}`, { method: "DELETE" });
+    await deleteExcelTemplate(id2);
     show("✓ 已删除");
     loadTemplates();
   };
@@ -52876,7 +52820,7 @@ function ExcelTemplatePage() {
             "button",
             {
               onClick: async () => {
-                const tmpl = await req$4(`/api/excel-templates/${t2.id}`);
+                const tmpl = await getExcelTemplate(t2.id);
                 setMappings(tmpl.column_mapping.map((m2) => ({
                   excel_column: m2.excel_column,
                   system_field: m2.system_field,
@@ -53072,14 +53016,6 @@ const RELIABILITY_OPTS$1 = [
 ];
 const thisYear$2 = (/* @__PURE__ */ new Date()).getFullYear();
 const years$2 = Array.from({ length: 6 }, (_, i) => thisYear$2 + 1 - i);
-async function req$3(url, opts) {
-  const r2 = await fetch(url, { headers: { "Content-Type": "application/json" }, ...opts });
-  if (!r2.ok) {
-    const e = await r2.json().catch(() => ({}));
-    throw new Error(e.detail || "请求失败");
-  }
-  return r2.json();
-}
 const emptyForm$1 = () => ({
   owner_type: "household",
   owner_household_id: null,
@@ -53136,11 +53072,11 @@ function LandTrustPage() {
   const load = reactExports.useCallback(async () => {
     setLoading(true);
     try {
-      const p2 = new URLSearchParams({ page: String(page), page_size: "20" });
-      if (yearFilter) p2.set("year", String(yearFilter));
-      if (typeFilter) p2.set("trust_type", typeFilter);
-      if (searchText) p2.set("search", searchText.trim());
-      const r2 = await req$3(`/api/land/all-trusts?${p2}`);
+      const params = { page, page_size: 20 };
+      if (yearFilter) params.year = yearFilter;
+      if (typeFilter) params.trust_type = typeFilter;
+      if (searchText) params.search = searchText.trim();
+      const r2 = await getLandTrusts(params);
       setList(r2.items);
       setTotal(r2.total);
     } finally {
@@ -53155,7 +53091,7 @@ function LandTrustPage() {
       setOpts([]);
       return;
     }
-    const r2 = await req$3(`/api/land/search-household?q=${encodeURIComponent(q2)}`).catch(() => []);
+    const r2 = await searchLandHousehold(q2).catch(() => []);
     setOpts(r2);
   };
   const searchVillage = async (q2, setOpts) => {
@@ -53163,7 +53099,7 @@ function LandTrustPage() {
       setOpts([]);
       return;
     }
-    const r2 = await req$3(`/api/land/search-village?q=${encodeURIComponent(q2)}`).catch(() => []);
+    const r2 = await searchLandVillage(q2).catch(() => []);
     setOpts(r2);
   };
   const searchVillageGroup = async (q2, setOpts) => {
@@ -53171,7 +53107,7 @@ function LandTrustPage() {
       setOpts([]);
       return;
     }
-    const r2 = await req$3(`/api/land/search-village-group?q=${encodeURIComponent(q2)}`).catch(() => []);
+    const r2 = await searchLandVillageGroup(q2).catch(() => []);
     setOpts(r2);
   };
   reactExports.useEffect(() => {
@@ -53192,9 +53128,7 @@ function LandTrustPage() {
   const resolveIdCard = async (idCard, side) => {
     if (idCard.length < 15) return;
     try {
-      const r2 = await req$3(
-        `/api/land/resolve-by-id-card?q=${encodeURIComponent(idCard.trim())}`
-      );
+      const r2 = await resolveLandByIdCard(idCard.trim());
       if (r2.found && r2.household_id) {
         if (side === "owner") {
           sf2("owner_household_id", r2.household_id);
@@ -53218,7 +53152,7 @@ function LandTrustPage() {
     setSummary(null);
     setSummaryLoading(true);
     try {
-      const r2 = await req$3(`/api/land/area-summary/${hh2.id}?year=${yearFilter}`);
+      const r2 = await getLandAreaSummary(hh2.id, yearFilter);
       setSummary(r2);
     } finally {
       setSummaryLoading(false);
@@ -53233,10 +53167,7 @@ function LandTrustPage() {
       subsidy_arable: r2.subsidy_arable ?? 1,
       note: r2.note
     }));
-    const res = await req$3("/api/land/trusts/batch-import-idle", {
-      method: "POST",
-      body: JSON.stringify({ rows: payload })
-    });
+    const res = await batchImportIdleLand(payload);
     if (res.errors?.length) {
       return { created: res.created, skipped: res.skipped, errors: res.errors };
     }
@@ -53321,10 +53252,10 @@ function LandTrustPage() {
     };
     try {
       if (editTarget) {
-        await req$3(`/api/land/trusts/${editTarget.id}`, { method: "PUT", body: JSON.stringify(payload) });
+        await updateLandTrust(editTarget.id, payload);
         show("✓ 更新成功");
       } else {
-        await req$3("/api/land/trusts", { method: "POST", body: JSON.stringify(payload) });
+        await createLandTrust(payload);
         show("✓ 记录创建成功");
       }
       setEditOpen(false);
@@ -53339,7 +53270,7 @@ function LandTrustPage() {
     setList((prev) => prev.filter((t2) => t2.id !== id2));
     setTotal((prev) => Math.max(0, prev - 1));
     try {
-      await req$3(`/api/land/trusts/${id2}`, { method: "DELETE" });
+      await deleteLandTrust(id2);
       show("✓ 已删除");
     } catch (e) {
       show("删除失败，请重试", "err");
@@ -53371,10 +53302,7 @@ function LandTrustPage() {
     if (selectedIds.size === 0) return show("请先选择要续约的记录", "err");
     setRenewing(true);
     try {
-      const r2 = await req$3("/api/land/trusts/batch-renew", {
-        method: "POST",
-        body: JSON.stringify({ ids: [...selectedIds] })
-      });
+      const r2 = await batchRenewLandTrusts([...selectedIds]);
       show(`✓ 已续约 ${r2.created} 条`);
       setSelectedIds(/* @__PURE__ */ new Set());
       load();
@@ -54202,18 +54130,14 @@ function HouseholdImportPage() {
   const [defaultGroup, setDefaultGroup] = reactExports.useState("");
   const [villageList, setVillageList] = reactExports.useState([]);
   reactExports.useEffect(() => {
-    fetch("/api/settings/villages").then((r2) => r2.json()).then((data) => {
+    getVillages().then((data) => {
       setVillageList((data || []).map((v2) => v2.village_name).filter(Boolean));
     }).catch(() => {
     });
   }, []);
   const preCheck = reactExports.useCallback(async (rows, _mapping) => {
     const importRows = buildRows(rows);
-    const res = await fetch("/api/household-import/preview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rows: importRows })
-    }).then((r2) => r2.json());
+    const res = await previewHouseholdImport(importRows);
     setPreview(res);
     const conflicts = new Set((res.conflicts || []).map((c) => c.row - 1));
     const failed = (res.conflicts || []).map((c) => ({
@@ -54226,14 +54150,7 @@ function HouseholdImportPage() {
   }, []);
   const handleImport = reactExports.useCallback(async (rows, _mapping, _overwrite) => {
     const importRows = buildRows(rows);
-    const body = { rows: importRows };
-    if (defaultVillage.trim()) body.default_village_name = defaultVillage.trim();
-    if (defaultGroup.trim()) body.default_group_no = defaultGroup.trim();
-    const res = await fetch("/api/household-import/execute", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    }).then((r2) => r2.json());
+    const res = await executeHouseholdImport(importRows, defaultVillage.trim() || void 0, defaultGroup.trim() || void 0);
     setResult(res);
     show(`新建户 ${res.created_households} · 合并 ${res.merged_households} · 成员 ${res.created_farmers} · 跳过 ${res.skipped_farmers}`, "ok");
     return { created: res.created_farmers || 0, skipped: res.skipped_farmers || 0, errors: res.errors || [] };
@@ -54893,14 +54810,6 @@ function ProxyManagePage() {
 const thisYear$1 = (/* @__PURE__ */ new Date()).getFullYear();
 const years$1 = Array.from({ length: 6 }, (_, i) => thisYear$1 + 1 - i);
 const SEASONS = ["大春", "小春"];
-async function req$2(url, opts) {
-  const r2 = await fetch(url, { headers: { "Content-Type": "application/json" }, ...opts });
-  if (!r2.ok) {
-    const e = await r2.json().catch(() => ({}));
-    throw new Error(e.detail || "请求失败");
-  }
-  return r2.json();
-}
 const fmt = (v2, digits = 2) => v2 == null ? "-" : Number(v2).toFixed(digits);
 const pct = (v2) => v2 == null ? "-" : `${Number(v2).toFixed(1)}%`;
 const STATUS_COLOR = {
@@ -54937,17 +54846,17 @@ function AgriTaskPage() {
   const [editActual, setEditActual] = reactExports.useState({});
   const loadMeta = reactExports.useCallback(async () => {
     try {
-      setMeta(await req$2("/api/agri-tasks/meta"));
+      setMeta(await getAgriTaskMeta());
     } catch {
     }
   }, []);
   const loadTasks = reactExports.useCallback(async () => {
     setLoading(true);
     try {
-      const p2 = new URLSearchParams({ page: String(page), page_size: "20" });
-      if (filterYear) p2.set("task_year", String(filterYear));
-      if (filterStatus) p2.set("status", filterStatus);
-      const res = await req$2(`/api/agri-tasks?${p2}`);
+      const params = { page, page_size: 20 };
+      if (filterYear) params.task_year = filterYear;
+      if (filterStatus) params.status = filterStatus;
+      const res = await getAgriTasks(params);
       setTasks(res.items);
       setTotal(res.total);
     } catch (e) {
@@ -54969,7 +54878,7 @@ function AgriTaskPage() {
     }
     setSaving(true);
     try {
-      await req$2("/api/agri-tasks", { method: "POST", body: JSON.stringify(form) });
+      await createAgriTask(form);
       show("创建成功");
       setShowCreate(false);
       setForm(emptyForm());
@@ -54983,7 +54892,7 @@ function AgriTaskPage() {
   const handlePreview = async (taskId) => {
     setPreviewing(true);
     try {
-      setPreview(await req$2(`/api/agri-tasks/${taskId}/preview`));
+      setPreview(await previewAgriTask(taskId));
       setShowPreview(true);
     } catch (e) {
       show(e.message, "err");
@@ -54994,7 +54903,7 @@ function AgriTaskPage() {
   const handleIssue = async (taskId) => {
     if (!confirm("确认下达任务？下达后将保存分配方案。")) return;
     try {
-      const res = await req$2(`/api/agri-tasks/${taskId}/issue`, { method: "POST" });
+      const res = await issueAgriTask(taskId);
       show(`已下达，共分配至 ${res.village_count} 个村`);
       loadTasks();
       if (showDetail) loadDetail(taskId);
@@ -55005,7 +54914,7 @@ function AgriTaskPage() {
   const handleRevoke = async (taskId) => {
     if (!confirm("确认撤回任务？将清除已保存的分配方案。")) return;
     try {
-      await req$2(`/api/agri-tasks/${taskId}/revoke`, { method: "POST" });
+      await revokeAgriTask(taskId);
       show("已撤回");
       loadTasks();
       if (showDetail) loadDetail(taskId);
@@ -55016,7 +54925,7 @@ function AgriTaskPage() {
   const handleDone = async (taskId) => {
     if (!confirm("确认标记为完成？")) return;
     try {
-      await req$2(`/api/agri-tasks/${taskId}/done`, { method: "PUT" });
+      await completeAgriTask(taskId);
       show("已标记完成");
       loadTasks();
       if (showDetail) loadDetail(taskId);
@@ -55027,7 +54936,7 @@ function AgriTaskPage() {
   const handleDelete = async (taskId) => {
     if (!confirm("确认删除该任务？")) return;
     try {
-      await req$2(`/api/agri-tasks/${taskId}`, { method: "DELETE" });
+      await deleteAgriTask(taskId);
       show("已删除");
       loadTasks();
     } catch (e) {
@@ -55036,7 +54945,7 @@ function AgriTaskPage() {
   };
   const loadDetail = async (taskId) => {
     try {
-      const d = await req$2(`/api/agri-tasks/${taskId}`);
+      const d = await getAgriTaskDetail(taskId);
       setDetail(d);
       const init = {};
       d.allocations.forEach((a) => {
@@ -55050,10 +54959,7 @@ function AgriTaskPage() {
   };
   const handleSaveActual = async (taskId, villageId) => {
     try {
-      await req$2(`/api/agri-tasks/${taskId}/allocations/${villageId}/actual`, {
-        method: "PUT",
-        body: JSON.stringify({ actual_area: editActual[villageId] === "" ? null : Number(editActual[villageId]) })
-      });
+      await updateAgriTaskAllocation(taskId, villageId, editActual[villageId] === "" ? null : Number(editActual[villageId]));
       show("保存成功");
       loadDetail(taskId);
     } catch (e) {
@@ -55417,14 +55323,6 @@ const RELIABILITY_OPTS = [
 ];
 const thisYear = (/* @__PURE__ */ new Date()).getFullYear();
 const years = Array.from({ length: 6 }, (_, i) => thisYear + 1 - i);
-async function req$1(url, opts) {
-  const r2 = await fetch(url, { headers: { "Content-Type": "application/json" }, ...opts });
-  if (!r2.ok) {
-    const e = await r2.json().catch(() => ({}));
-    throw new Error(e.detail || "请求失败");
-  }
-  return r2.json();
-}
 const emptyFarmerForm = () => ({
   operator_name: "",
   operator_type: "FAMILY_FARM",
@@ -55494,7 +55392,7 @@ function LargeFarmersPage() {
   const [ownerOpts, setOwnerOpts] = reactExports.useState([]);
   const loadVillages = reactExports.useCallback(async () => {
     try {
-      const r2 = await req$1("/api/settings/villages");
+      const r2 = await window.electronAPI.invoke("settings:listVillages");
       setVillages(r2);
     } catch (e) {
       console.error("加载村组失败", e);
@@ -55503,11 +55401,11 @@ function LargeFarmersPage() {
   const loadList = reactExports.useCallback(async () => {
     setLoading(true);
     try {
-      const p2 = new URLSearchParams({ page: String(page), page_size: "20" });
-      if (villageFilter) p2.set("village_id", String(villageFilter));
-      if (typeFilter) p2.set("operator_type", typeFilter);
-      if (keywordFilter) p2.set("keyword", keywordFilter);
-      const r2 = await req$1(`/api/large-farmers?${p2}`);
+      const params = { page, page_size: 20 };
+      if (villageFilter) params.village_id = villageFilter;
+      if (typeFilter) params.operator_type = typeFilter;
+      if (keywordFilter) params.keyword = keywordFilter;
+      const r2 = await window.electronAPI.invoke("land:listLargeFarmers", params);
       setList(r2.items);
       setTotal(r2.total);
     } finally {
@@ -55518,7 +55416,7 @@ function LargeFarmersPage() {
     setSelectedFarmer(farmer);
     setDetailLoading(true);
     try {
-      const r2 = await req$1(`/api/large-farmers/${farmer.id}/trusts?year=${trustYear}`);
+      const r2 = await window.electronAPI.invoke("land:listLargeFarmerTrusts", { id: farmer.id, year: trustYear });
       setTrustList(r2.items);
     } finally {
       setDetailLoading(false);
@@ -55538,7 +55436,7 @@ function LargeFarmersPage() {
       setOwnerOpts([]);
       return;
     }
-    const r2 = await req$1(`/api/land/search-household?q=${encodeURIComponent(q2)}`).catch(() => []);
+    const r2 = await window.electronAPI.invoke("land:searchHousehold", { q: q2 }).catch(() => []);
     setOwnerOpts(r2);
   };
   reactExports.useEffect(() => {
@@ -55584,10 +55482,10 @@ function LargeFarmersPage() {
     };
     try {
       if (editTarget) {
-        await req$1(`/api/large-farmers/${editTarget.id}`, { method: "PUT", body: JSON.stringify(payload) });
+        await window.electronAPI.invoke("land:updateLargeFarmer", { id: editTarget.id, ...payload });
         show("✓ 更新成功");
       } else {
-        await req$1("/api/large-farmers", { method: "POST", body: JSON.stringify(payload) });
+        await window.electronAPI.invoke("land:createLargeFarmer", payload);
         show("✓ 创建成功");
       }
       setEditOpen(false);
@@ -55598,7 +55496,7 @@ function LargeFarmersPage() {
   };
   const deleteFarmer = async (id2) => {
     if (!confirm("确认删除此大户信息？")) return;
-    await req$1(`/api/large-farmers/${id2}`, { method: "DELETE" });
+    await window.electronAPI.invoke("land:deleteLargeFarmer", id2);
     show("✓ 已删除");
     loadList();
     if (selectedFarmer?.id === id2) setSelectedFarmer(null);
@@ -55667,10 +55565,10 @@ function LargeFarmersPage() {
     };
     try {
       if (trustEditTarget) {
-        await req$1(`/api/large-farmers/${selectedFarmer.id}/trusts/${trustEditTarget.id}`, { method: "PUT", body: JSON.stringify(payload) });
+        await window.electronAPI.invoke("land:updateLargeFarmerTrust", { id: trustEditTarget.id, large_farmer_id: selectedFarmer.id, ...payload });
         show("✓ 更新成功");
       } else {
-        await req$1(`/api/large-farmers/${selectedFarmer.id}/trusts`, { method: "POST", body: JSON.stringify(payload) });
+        await window.electronAPI.invoke("land:createLargeFarmerTrust", { large_farmer_id: selectedFarmer.id, ...payload });
         show("✓ 创建成功");
       }
       setTrustEditOpen(false);
@@ -55682,7 +55580,7 @@ function LargeFarmersPage() {
   };
   const deleteTrust = async (id2) => {
     if (!selectedFarmer || !confirm("确认删除此代耕代种关联？")) return;
-    await req$1(`/api/large-farmers/${selectedFarmer.id}/trusts/${id2}`, { method: "DELETE" });
+    await window.electronAPI.invoke("land:deleteLargeFarmerTrust", id2);
     show("✓ 已删除");
     loadFarmerDetail(selectedFarmer);
     loadList();
@@ -56380,7 +56278,7 @@ function ProjectProgressPage() {
   const [projectList, setProjectList] = reactExports.useState([]);
   const [projectName, setProjectName] = reactExports.useState("");
   reactExports.useEffect(() => {
-    fetch("/api/subsidies/types").then((r2) => r2.json()).then((data) => {
+    getSubsidyTypes().then((data) => {
       const list = Array.isArray(data) ? data : [];
       setProjectList(list);
       if (urlProjectId) {
@@ -56901,11 +56799,7 @@ function DataVerifyPage() {
     const toVerify = rows.filter((_, i) => localResults[i]?.match === "ok");
     if (toVerify.length > 0) {
       try {
-        const res = await fetch("/api/farmers/verify-names", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rows: toVerify })
-        }).then((r2) => r2.json());
+        const res = await verifyNames(toVerify);
         let vi2 = 0;
         for (let i = 0; i < localResults.length; i++) {
           if (localResults[i].match === "ok") {
@@ -56946,7 +56840,7 @@ function DataVerifyPage() {
     duplicate: { label: "重复", color: "purple" },
     bad_format: { label: "格式有误", color: "blue" }
   };
-  const exportExcel = () => {
+  const exportExcel2 = () => {
     const wb2 = utils.book_new();
     const headers = ["行号", "输入姓名", "输入身份证", "DB姓名", "DB村组", "详情", "验证结果"];
     const COLS = [
@@ -57067,7 +56961,7 @@ function DataVerifyPage() {
         results.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
           {
-            onClick: exportExcel,
+            onClick: exportExcel2,
             className: "px-4 py-2.5 border-2 border-emerald-500 bg-emerald-500 text-white rounded-btn hover:bg-emerald-600 hover:border-emerald-600 shadow-sm transition-all font-medium text-sm flex items-center gap-1.5",
             children: "📥 导出 Excel"
           }
@@ -57226,17 +57120,6 @@ function LoginPage() {
     ] })
   ] }) });
 }
-async function req(path, opts = {}) {
-  const headers = { "Content-Type": "application/json" };
-  const auth = getAuth();
-  if (auth) headers["Authorization"] = `Bearer ${auth.token}`;
-  const r2 = await fetch(path, { headers, ...opts });
-  if (!r2.ok) {
-    const e = await r2.json().catch(() => ({}));
-    throw new Error(e.detail || "请求失败");
-  }
-  return r2.json();
-}
 function UserManagementPage() {
   const { toast, show } = useToast();
   const auth = getAuth();
@@ -57247,7 +57130,7 @@ function UserManagementPage() {
   const [pwdForm, setPwdForm] = reactExports.useState({ old_password: "", new_password: "" });
   const load = async () => {
     try {
-      setUsers(await req("/api/auth/users"));
+      setUsers(await window.electronAPI.invoke("auth:listUsers"));
     } catch {
     }
   };
@@ -57257,7 +57140,7 @@ function UserManagementPage() {
   const createUser = async () => {
     if (!form.username || !form.password) return show("用户名和密码不能为空", "err");
     try {
-      await req("/api/auth/users", { method: "POST", body: JSON.stringify(form) });
+      await window.electronAPI.invoke("auth:createUser", form);
       show("✓ 用户创建成功");
       setAddOpen(false);
       setForm({ username: "", password: "", display_name: "", role: "operator" });
@@ -57268,7 +57151,7 @@ function UserManagementPage() {
   };
   const toggleUser = async (u2) => {
     try {
-      await req(`/api/auth/users/${u2.id}`, { method: "PUT", body: JSON.stringify({ is_active: !u2.is_active }) });
+      await window.electronAPI.invoke("auth:updateUser", { id: u2.id, is_active: !u2.is_active });
       load();
     } catch (e) {
       show(e.message, "err");
@@ -57277,7 +57160,7 @@ function UserManagementPage() {
   const changePwd = async () => {
     if (!pwdForm.old_password || !pwdForm.new_password) return show("请填写完整", "err");
     try {
-      await req("/api/auth/change-password", { method: "POST", body: JSON.stringify(pwdForm) });
+      await window.electronAPI.invoke("auth:changePassword", pwdForm);
       show("✓ 密码已修改");
       setPwdOpen(false);
       setPwdForm({ old_password: "", new_password: "" });
@@ -57901,6 +57784,66 @@ function Layout() {
 function App() {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(HashRouter, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Layout, {}) });
 }
+const _originalFetch = window.fetch.bind(window);
+window.fetch = async function(input, init) {
+  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  if (!url.includes("/api/")) {
+    return _originalFetch(input, init);
+  }
+  const method = (init?.method || "GET").toUpperCase();
+  let body = void 0;
+  if (init?.body) {
+    try {
+      body = JSON.parse(init.body);
+    } catch {
+      body = init.body;
+    }
+  }
+  try {
+    const urlObj = new URL(url, "http://localhost");
+    const path = urlObj.pathname;
+    const query = {};
+    urlObj.searchParams.forEach((v2, k2) => {
+      query[k2] = v2;
+    });
+    const segments = path.replace(/^\/api\//, "").split("/");
+    const channel = segments.map((s, i) => i === 0 ? s : s.replace(/-(\d+)$/, ":get")).join(":");
+    let data = body;
+    if (method === "GET") {
+      data = Object.keys(query).length > 0 ? query : void 0;
+    } else if (method === "DELETE") {
+      data = body || (segments.length > 1 ? { id: parseInt(segments[segments.length - 1]) } : void 0);
+    }
+    const result = await window.electronAPI.invoke(channel, data);
+    const responseBody = result && typeof result === "object" && "code" in result ? result.data ?? result : result;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => responseBody,
+      text: async () => JSON.stringify(responseBody),
+      blob: async () => new Blob([JSON.stringify(responseBody)]),
+      headers: new Headers(),
+      redirected: false,
+      statusText: "OK",
+      type: "basic",
+      url
+    };
+  } catch (err) {
+    console.error(`[IPC fetch] ${method} ${url} 失败:`, err);
+    return {
+      ok: false,
+      status: 500,
+      json: async () => ({ detail: String(err) }),
+      text: async () => String(err),
+      blob: async () => new Blob([String(err)]),
+      headers: new Headers(),
+      redirected: false,
+      statusText: "Internal Error",
+      type: "basic",
+      url
+    };
+  }
+};
 createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) })
 );

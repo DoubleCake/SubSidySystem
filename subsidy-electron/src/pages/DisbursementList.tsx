@@ -38,13 +38,11 @@ export default function DisbursementList(props: Omit<SubsidyListBaseProps, 'conf
         mapped._row_index = idx
         return mapped
       })
-      const chk = await fetch('/api/eligibility/check', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subsidy_type_id: props.subsidyType.id, year: props.subsidyType.subsidy_year,
-          rows: mappedRows.map(r => ({ id_card: String(r.id_card || ''), real_name: String(r.real_name || ''), apply_area: Number(r.apply_area || 0), _row_index: r._row_index })),
-        }),
-      }).then(r => r.json()) as any
+      const chk = await api.checkEligibility({
+        subsidy_type_id: props.subsidyType.id,
+        year: props.subsidyType.subsidy_year,
+        rows: mappedRows.map(r => ({ id_card: String(r.id_card || ''), real_name: String(r.real_name || ''), apply_area: Number(r.apply_area || 0), _row_index: r._row_index })),
+      }) as any
 
       const preCheckResult = {
         passed_rows: (chk.passed_list || []).map((r: any) => r._row_index).filter((i: any) => i != null) as number[],

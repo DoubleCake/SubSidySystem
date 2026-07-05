@@ -102,12 +102,6 @@ const RELIABILITY_OPTS = [
 const thisYear = new Date().getFullYear()
 const years = Array.from({ length: 6 }, (_, i) => thisYear + 1 - i)
 
-async function req<T>(url: string, opts?: RequestInit): Promise<T> {
-  const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts })
-  if (!r.ok) { const e = await r.json().catch(() => ({})) as { detail?: string }; throw new Error(e.detail || '请求失败') }
-  return r.json() as Promise<T>
-}
-
 const emptyFarmerForm = () => ({
   operator_name: '',
   operator_type: 'FAMILY_FARM' as const,
@@ -192,7 +186,7 @@ export default function LargeFarmersPage() {
 
   const loadVillages = useCallback(async () => {
     try {
-      const r = await req<{ id: number; village_name: string }[]>('/api/settings/villages')
+      const r = await window.electronAPI.invoke('settings:listVillages')
       setVillages(r)
     } catch (e) {
       console.error('加载村组失败', e)
@@ -202,11 +196,11 @@ export default function LargeFarmersPage() {
   const loadList = useCallback(async () => {
     setLoading(true)
     try {
-      const p = new URLSearchParams({ page: String(page), page_size: '20' })
-      if (villageFilter) p.set('village_id', String(villageFilter))
-      if (typeFilter) p.set('operator_type', typeFilter)
-      if (keywordFilter) p.set('keyword', keywordFilter)
-      const r = await req<{ total: number; items: LargeFarmer[] }>(`/api/large-farmers?${p}`)
+      const params: Record<string, unknown> = { page, page_size: 20 }
+      if (villageFilter) params.village_id = villageFilter
+      if (typeFilter) params.operator_type = typeFilter
+      if (keywordFilter) params.keyword = keywordFilter
+      const r = await window.electronAPI.invoke('land:listLargeFarmers', params)
       setList(r.items); setTotal(r.total)
     } finally { setLoading(false) }
   }, [page, villageFilter, typeFilter, keywordFilter])
@@ -215,7 +209,7 @@ export default function LargeFarmersPage() {
     setSelectedFarmer(farmer)
     setDetailLoading(true)
     try {
-      const r = await req<{ items: LargeFarmerTrust[] }>(`/api/large-farmers/${farmer.id}/trusts?year=${trustYear}`)
+      const r = await window.electronAPI.invoke('land:listLargeFarmerTrusts', { id: farmer.id, year: trustYear })
       setTrustList(r.items)
     } finally { setDetailLoading(false) }
   }, [trustYear])
@@ -227,7 +221,7 @@ export default function LargeFarmersPage() {
   // 家庭户搜索
   const searchHH = async (q: string) => {
     if (q.length < 1) { setOwnerOpts([]); return }
-    const r = await req<HHOption[]>(`/api/land/search-household?q=${encodeURIComponent(q)}`).catch(() => [])
+    const r = await window.electronAPI.invoke('land:searchHousehold', { q }).catch(() => [])
     setOwnerOpts(r)
   }
   useEffect(() => { searchHH(ownerSearch) }, [ownerSearch])
@@ -272,10 +266,10 @@ export default function LargeFarmersPage() {
     }
     try {
       if (editTarget) {
-        await req(`/api/large-farmers/${editTarget.id}`, { method: 'PUT', body: JSON.stringify(payload) })
+        await window.electronAPI.invoke('land:updateLargeFarmer', { id: editTarget.id, ...payload })
         show('✓ 更新成功')
       } else {
-        await req('/api/large-farmers', { method: 'POST', body: JSON.stringify(payload) })
+        await window.electronAPI.invoke('land:createLargeFarmer', payload)
         show('✓ 创建成功')
       }
       setEditOpen(false); loadList()
@@ -283,7 +277,7 @@ export default function LargeFarmersPage() {
   }
   const deleteFarmer = async (id: number) => {
     if (!confirm('确认删除此大户信息？')) return
-    await req(`/api/large-farmers/${id}`, { method: 'DELETE' })
+    await window.electronAPI.invoke('land:deleteLargeFarmer', id)
     show('✓ 已删除'); loadList()
     if (selectedFarmer?.id === id) setSelectedFarmer(null)
   }
@@ -350,10 +344,10 @@ export default function LargeFarmersPage() {
     }
     try {
       if (trustEditTarget) {
-        await req(`/api/large-farmers/${selectedFarmer.id}/trusts/${trustEditTarget.id}`, { method: 'PUT', body: JSON.stringify(payload) })
+        await window.electronAPI.invoke('land:updateLargeFarmerTrust', { id: trustEditTarget.id, large_farmer_id: selectedFarmer.id, ...payload })
         show('✓ 更新成功')
       } else {
-        await req(`/api/large-farmers/${selectedFarmer.id}/trusts`, { method: 'POST', body: JSON.stringify(payload) })
+        await window.electronAPI.invoke('land:createLargeFarmerTrust', { large_farmer_id: selectedFarmer.id, ...payload })
         show('✓ 创建成功')
       }
       setTrustEditOpen(false); loadFarmerDetail(selectedFarmer); loadList()
@@ -361,7 +355,7 @@ export default function LargeFarmersPage() {
   }
   const deleteTrust = async (id: number) => {
     if (!selectedFarmer || !confirm('确认删除此代耕代种关联？')) return
-    await req(`/api/large-farmers/${selectedFarmer.id}/trusts/${id}`, { method: 'DELETE' })
+    await window.electronAPI.invoke('land:deleteLargeFarmerTrust', id)
     show('✓ 已删除'); loadFarmerDetail(selectedFarmer); loadList()
   }
 
