@@ -39700,7 +39700,7 @@ const xlsx = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty
   writeFileXLSX: writeFileSyncXLSX,
   writeXLSX: writeSyncXLSX
 }, Symbol.toStringTag, { value: "Module" }));
-async function req$1(channel, data) {
+async function req(channel, data) {
   const result = await window.electronAPI.invoke(channel, data);
   if (result && typeof result === "object" && "code" in result && result.code !== 0) {
     throw new Error(result.message || `请求失败`);
@@ -39710,169 +39710,170 @@ async function req$1(channel, data) {
   }
   return result;
 }
-const getVillageGroups = () => req$1("households:groupOptions");
-const createVillageGroup = (data) => req$1("settings:createVillageGroup", data);
-const getFarmers = (params) => req$1("farmers:list", params);
-const getFarmer = (id2) => req$1("farmers:get", id2);
-const batchLookupFarmers = (idCards) => req$1("farmers:batchLookup", idCards);
-const createFarmer = (data) => req$1("farmers:create", data);
-const batchImportFarmers = (rows, overwrite = false) => req$1(
+const getVillageGroups = () => req("households:groupOptions");
+const createVillageGroup = (data) => req("settings:createVillageGroup", data);
+const getFarmers = (params) => req("farmers:list", params);
+const getFarmer = (id2) => req("farmers:get", id2);
+const batchLookupFarmers = (idCards) => req("farmers:batchLookup", idCards);
+const createFarmer = (data) => req("farmers:create", data);
+const batchImportFarmers = (rows, overwrite = false) => req(
   "farmers:batchImport",
   { rows, overwrite }
 );
-const importFamilyRelations = (rows, splitVillages) => req$1("farmers:importRelations", { rows, splitVillages });
-const previewMultiHeadHouseholds = (villageNames, excelRows) => req$1("farmers:multiHeadPreview", { villageNames, excelRows });
-const getSubsidyTypes = (year) => req$1("subsidies:listTypes", year);
-const getSubsidyTypesWithStats = (year) => req$1(
+const importFamilyRelations = (rows, splitVillages) => req("farmers:importRelations", { rows, splitVillages });
+const previewMultiHeadHouseholds = (villageNames, excelRows) => req("farmers:multiHeadPreview", { villageNames, excelRows });
+const getSubsidyTypes = (year) => req("subsidies:listTypes", year);
+const getSubsidyTypesWithStats = (year) => req(
   "subsidies:listTypesWithStats",
   year
 );
-const createSubsidyType = (data) => req$1("subsidies:createType", data);
-const updateSubsidyType = (id2, data) => req$1("subsidies:updateType", { id: id2, ...data });
-const searchApplications = (params) => req$1("subsidies:listApplications", params);
-const createApplication = (data) => req$1("subsidies:createApplication", data);
-const updateApplication = (id2, data) => req$1("subsidies:updateApplication", { id: id2, ...data });
-const batchImportApplications = (rows) => req$1(
+const createSubsidyType = (data) => req("subsidies:createType", data);
+const updateSubsidyType = (id2, data) => req("subsidies:updateType", { id: id2, ...data });
+const searchApplications = (params) => req("subsidies:listApplications", params);
+const createApplication = (data) => req("subsidies:createApplication", data);
+const updateApplication = (id2, data) => req("subsidies:updateApplication", { id: id2, ...data });
+const batchImportApplications = (rows) => req(
   "subsidies:batchImportApplications",
   rows
 );
-const getProxies = (params) => req$1("subsidies:listProxies", params);
-const createProxy = (data) => req$1("subsidies:createProxy", data);
-const deleteProxy = (id2) => req$1("subsidies:deleteProxy", id2);
-const getYearCompare = (year) => req$1("subsidies:yearCompare", year);
-const getSummaryByVillage = (year) => req$1("subsidies:summaryByVillage", year);
-const getSummaryBySeason = (year) => req$1(
+const getProxies = (params) => req("subsidies:listProxies", params);
+const createProxy = (data) => req("subsidies:createProxy", data);
+const deleteProxy = (id2) => req("subsidies:deleteProxy", id2);
+const getYearCompare = (year) => req("subsidies:yearCompare", year);
+const getSummaryByVillage = (year) => req("subsidies:summaryByVillage", year);
+const getSummaryBySeason = (year) => req(
   "subsidies:summaryBySeason",
   year
 );
 const getAreaStatsByVillage = (subsidyTypeId, year, dataSource) => {
   const params = { subsidy_type_id: subsidyTypeId, year };
   params.data_source = dataSource;
-  return req$1("subsidies:areaStatsByVillage", params);
+  return req("subsidies:areaStatsByVillage", params);
 };
-const aiAnalyze = (data) => req$1("ai:analyze", data);
-const getExcelTemplates = (businessType) => req$1("excel-templates:list", businessType);
-const getExcelTemplate = (id2) => req$1("excel-templates:get", id2);
-const detectExcelColumns = (columns, businessType, sampleRows) => req$1("excel-templates:detectColumns", { columns, business_type: businessType, sample_rows: sampleRows });
-const saveExcelTemplate = (data) => req$1("excel-templates:save", data);
-const healthCheck = () => req$1("app:getDbPath");
-const getHouseholds = (params) => req$1("households:list", params);
-const getHouseholdDetail = (id2, year) => req$1("households:get", { id: id2, year });
-const mergeHouseholds = (data) => req$1("households:merge", data);
-const updateHousehold = (id2, data) => req$1("households:update", { id: id2, ...data });
-const createHousehold = (data) => req$1("households:create", data);
-const addHouseholdMember = (householdId, data) => req$1("households:addMember", { householdId, ...data });
-const updateHouseholdMember = (householdId, farmerId, data) => req$1("households:updateMember", { householdId, farmerId, ...data });
-const removeHouseholdMember = (householdId, farmerId) => req$1("households:removeMember", { householdId, farmerId });
-const getHouseholdEvents = (householdId, year) => req$1("households:events", { householdId, year });
-const addHouseholdEvent = (householdId, data) => req$1("households:addEvent", { householdId, ...data });
-const getHouseholdHistoryDates = (householdId) => req$1("households:historyDates", householdId);
-const getHouseholdSnapshotAt = (householdId, date) => req$1("households:snapshotAt", { householdId, date });
-const getHouseholdSnapshotByEvent = (householdId, eventId) => req$1("households:snapshotByEvent", { householdId, eventId });
-const splitHousehold = (householdId, data) => req$1("households:split", { householdId, ...data });
-const batchImportHouseholdMembers = (householdId, rows) => req$1("households:batchImportMembers", { householdId, rows });
-const importConfirmedArea = (rows) => req$1(
+const aiAnalyze = (data) => req("ai:analyze", data);
+const getExcelTemplates = (businessType) => req("excel-templates:list", businessType);
+const getExcelTemplate = (id2) => req("excel-templates:get", id2);
+const detectExcelColumns = (columns, businessType, sampleRows) => req("excel-templates:detectColumns", { columns, business_type: businessType, sample_rows: sampleRows });
+const saveExcelTemplate = (data) => req("excel-templates:save", data);
+const healthCheck = () => req("app:getDbPath");
+const getHouseholds = (params) => req("households:list", params);
+const getHouseholdDetail = (id2, year) => req("households:get", { id: id2, year });
+const mergeHouseholds = (data) => req("households:merge", data);
+const updateHousehold = (id2, data) => req("households:update", { id: id2, ...data });
+const createHousehold = (data) => req("households:create", data);
+const addHouseholdMember = (householdId, data) => req("households:addMember", { householdId, ...data });
+const updateHouseholdMember = (householdId, farmerId, data) => req("households:updateMember", { householdId, farmerId, ...data });
+const removeHouseholdMember = (householdId, farmerId) => req("households:removeMember", { householdId, farmerId });
+const getHouseholdEvents = (householdId, year) => req("households:events", { householdId, year });
+const addHouseholdEvent = (householdId, data) => req("households:addEvent", { householdId, ...data });
+const getHouseholdHistoryDates = (householdId) => req("households:historyDates", householdId);
+const getHouseholdSnapshotAt = (householdId, date) => req("households:snapshotAt", { householdId, date });
+const getHouseholdSnapshotByEvent = (householdId, eventId) => req("households:snapshotByEvent", { householdId, eventId });
+const splitHousehold = (householdId, data) => req("households:split", { householdId, ...data });
+const batchImportHouseholdMembers = (householdId, rows) => req("households:batchImportMembers", { householdId, rows });
+const importConfirmedArea = (rows) => req(
   "households:importConfirmedArea",
   rows
 );
 const exportConfirmedAreaDiff = () => window.electronAPI.invoke("households:exportConfirmedAreaDiff");
-const manualConfirmHousehold = (householdId, data) => req$1(
+const manualConfirmHousehold = (householdId, data) => req(
   "households:manualConfirm",
   { householdId, ...data }
 );
-const cancelManualConfirm = (householdId, data) => req$1(
+const cancelManualConfirm = (householdId, data) => req(
   "households:cancelConfirm",
   { householdId, ...data }
 );
-const batchConfirmHouseholds = (data) => req$1("households:batchConfirm", data);
-const deleteHousehold = (householdId) => req$1("households:delete", householdId);
-const refreshAreaCache = (householdId) => req$1(
+const batchConfirmHouseholds = (data) => req("households:batchConfirm", data);
+const deleteHousehold = (householdId) => req("households:delete", householdId);
+const refreshAreaCache = (householdId) => req(
   "households:refreshAreaCache",
   householdId
 );
-const recalcUnconfirmedContractArea = () => req$1("households:recalcUnconfirmedContractArea");
-const previewHouseholdImport = (rows) => req$1("household-import:preview", rows);
-const executeHouseholdImport = (rows, defaultVillageName, defaultGroupNo) => req$1("household-import:execute", { rows, default_village_name: defaultVillageName, default_group_no: defaultGroupNo });
-const getCheckConfig = (typeId) => req$1("subsidies:getCheckConfig", typeId);
-const updateCheckConfig = (typeId, config) => req$1("subsidies:updateCheckConfig", { typeId, config });
-const restoreSubsidyType = (typeId) => req$1("subsidies:restoreType", typeId);
-const savePrecheckHistory = (subsidy_type_id, year, precheck_result, error_types) => req$1("precheck:saveHistory", { subsidy_type_id, year, precheck_result, error_types });
-const getPrecheckHistory = (params) => req$1("precheck:listHistory", params);
-const getPrecheckHistoryBatches = (subsidy_type_id, year) => req$1("precheck:listBatches", { subsidy_type_id, year });
-const resolvePrecheckHistory = (id2) => req$1("precheck:resolveHistory", id2);
-const unresolvePrecheckHistory = (id2) => req$1("precheck:unresolveHistory", id2);
-const deletePrecheckHistory = (id2) => req$1("precheck:deleteHistory", id2);
-const autoResolvePrecheckHistory = (subsidy_type_id, year) => req$1("precheck:autoResolve", { subsidy_type_id, year });
-const exportApplications = (subsidyTypeId) => req$1("subsidies:exportApplications", subsidyTypeId);
-const exportPayments = (subsidyTypeId) => req$1("subsidies:exportPayments", subsidyTypeId);
-const getDashboardTodos = (year) => req$1(
+const recalcUnconfirmedContractArea = () => req("households:recalcUnconfirmedContractArea");
+const previewHouseholdImport = (rows) => req("household-import:preview", rows);
+const executeHouseholdImport = (rows, defaultVillageName, defaultGroupNo) => req("household-import:execute", { rows, default_village_name: defaultVillageName, default_group_no: defaultGroupNo });
+const getCheckConfig = (typeId) => req("subsidies:getCheckConfig", typeId);
+const updateCheckConfig = (typeId, config) => req("subsidies:updateCheckConfig", { typeId, config });
+const restoreSubsidyType = (typeId) => req("subsidies:restoreType", typeId);
+const savePrecheckHistory = (subsidy_type_id, year, precheck_result, error_types) => req("precheck:saveHistory", { subsidy_type_id, year, precheck_result, error_types });
+const getPrecheckHistory = (params) => req("precheck:listHistory", params);
+const getPrecheckHistoryBatches = (subsidy_type_id, year) => req("precheck:listBatches", { subsidy_type_id, year });
+const resolvePrecheckHistory = (id2) => req("precheck:resolveHistory", id2);
+const unresolvePrecheckHistory = (id2) => req("precheck:unresolveHistory", id2);
+const deletePrecheckHistory = (id2) => req("precheck:deleteHistory", id2);
+const autoResolvePrecheckHistory = (subsidy_type_id, year) => req("precheck:autoResolve", { subsidy_type_id, year });
+const exportApplications = (subsidyTypeId) => req("subsidies:exportApplications", subsidyTypeId);
+const exportPayments = (subsidyTypeId) => req("subsidies:exportPayments", subsidyTypeId);
+const getDashboardTodos = (year) => req(
   "subsidies:dashboardTodos",
   { year }
 );
-const getDbInfo = () => req$1("settings:getDbInfo");
-const createBackup = (destPath) => req$1("settings:backup", destPath);
-const deleteBackup = (filename) => req$1("settings:deleteBackup", filename);
+const getDbInfo = () => req("settings:getDbInfo");
+const createBackup = (destPath) => req("settings:backup", destPath);
+const deleteBackup = (filename) => req("settings:deleteBackup", filename);
 const exportExcel = () => window.electronAPI.invoke("settings:exportExcel");
 const downloadDb = () => window.electronAPI.invoke("settings:downloadDb");
-const getOverdrawnDetail = (year) => req$1("households:overdrawnDetail", { year });
-const getAgriTasks = (params) => req$1("agri-tasks:list", params);
-const getAgriTaskDetail = (id2) => req$1("agri-tasks:get", id2);
-const createAgriTask = (data) => req$1("agri-tasks:create", data);
-const deleteAgriTask = (id2) => req$1("agri-tasks:delete", id2);
-const previewAgriTask = (id2) => req$1(
+const getOverdrawnDetail = (year) => req("households:overdrawnDetail", { year });
+const getAgriTasks = (params) => req("agri-tasks:list", params);
+const getAgriTaskDetail = (id2) => req("agri-tasks:get", id2);
+const createAgriTask = (data) => req("agri-tasks:create", data);
+const deleteAgriTask = (id2) => req("agri-tasks:delete", id2);
+const previewAgriTask = (id2) => req(
   "agri-tasks:preview",
   id2
 );
-const issueAgriTask = (id2) => req$1("agri-tasks:issue", id2);
-const revokeAgriTask = (id2) => req$1("agri-tasks:revoke", id2);
-const completeAgriTask = (id2) => req$1("agri-tasks:done", id2);
-const getAgriTaskMeta = () => req$1(
+const issueAgriTask = (id2) => req("agri-tasks:issue", id2);
+const revokeAgriTask = (id2) => req("agri-tasks:revoke", id2);
+const completeAgriTask = (id2) => req("agri-tasks:done", id2);
+const getAgriTaskMeta = () => req(
   "agri-tasks:meta"
 );
-const updateAgriTaskAllocation = (taskId, villageId, actualArea) => req$1("agri-tasks:updateAllocation", { taskId, villageId, actual_area: actualArea });
-const checkEligibility = (data) => req$1(
+const updateAgriTaskAllocation = (taskId, villageId, actualArea) => req("agri-tasks:updateAllocation", { taskId, villageId, actual_area: actualArea });
+const checkEligibility = (data) => req(
   "eligibility:check",
   data
 );
-const getLandTrusts = (params) => req$1("land:list", params);
-const createLandTrust = (data) => req$1("land:create", data);
-const updateLandTrust = (id2, data) => req$1("land:update", { id: id2, ...data });
-const deleteLandTrust = (id2) => req$1("land:delete", id2);
-const searchLandHousehold = (q2) => req$1(
+const getLandTrusts = (params) => req("land:list", params);
+const createLandTrust = (data) => req("land:create", data);
+const updateLandTrust = (id2, data) => req("land:update", { id: id2, ...data });
+const deleteLandTrust = (id2) => req("land:delete", id2);
+const searchLandHousehold = (q2) => req(
   "land:searchHousehold",
   q2
 );
-const searchLandVillage = (q2) => req$1("land:searchVillage", q2);
-const searchLandVillageGroup = (q2) => req$1("land:searchVillageGroup", q2);
-const resolveLandByIdCard = (q2) => req$1(
+const searchLandVillage = (q2) => req("land:searchVillage", q2);
+const searchLandVillageGroup = (q2) => req("land:searchVillageGroup", q2);
+const resolveLandByIdCard = (q2) => req(
   "land:resolveByIdCard",
   q2
 );
-const getLandAreaSummary = (householdId, year) => req$1("land:areaSummary", { householdId, year });
-const batchRenewLandTrusts = (ids) => req$1("land:batchRenew", ids);
-const batchImportIdleLand = (rows) => req$1("land:batchImportIdle", rows);
-const getExternalSites = () => req$1("external-links:list");
-const createExternalSite = (data) => req$1("external-links:createSite", data);
-const updateExternalSite = (id2, data) => req$1("external-links:updateSite", { id: id2, ...data });
-const deleteExternalSite = (id2) => req$1("external-links:deleteSite", id2);
-const getExternalRecords = (params) => req$1("external-links:listRecords", params);
-const getExternalStats = () => req$1(
+const getLandAreaSummary = (householdId, year) => req("land:areaSummary", { householdId, year });
+const batchRenewLandTrusts = (ids) => req("land:batchRenew", ids);
+const batchImportIdleLand = (rows) => req("land:batchImportIdle", rows);
+const getExternalSites = () => req("external-links:list");
+const createExternalSite = (data) => req("external-links:createSite", data);
+const updateExternalSite = (id2, data) => req("external-links:updateSite", { id: id2, ...data });
+const deleteExternalSite = (id2) => req("external-links:deleteSite", id2);
+const getExternalRecords = (params) => req("external-links:listRecords", params);
+const getExternalStats = () => req(
   "external-links:stats"
 );
-const createExternalRecord = (data) => req$1("external-links:createRecord", data);
-const updateExternalRecord = (id2, data) => req$1("external-links:updateRecord", { id: id2, ...data });
-const deleteExternalRecord = (id2) => req$1("external-links:deleteRecord", id2);
-const deleteExcelTemplate = (id2) => req$1("excel-templates:delete", id2);
-const getExcelTemplateLogs = (params) => req$1("excel-templates:logs", params || { page_size: 30 });
-const aiDetectColumns = (data) => req$1(
+const createExternalRecord = (data) => req("external-links:createRecord", data);
+const updateExternalRecord = (id2, data) => req("external-links:updateRecord", { id: id2, ...data });
+const deleteExternalRecord = (id2) => req("external-links:deleteRecord", id2);
+const deleteExcelTemplate = (id2) => req("excel-templates:delete", id2);
+const getExcelTemplateLogs = (params) => req("excel-templates:logs", params || { page_size: 30 });
+const aiDetectColumns = (data) => req(
   "excel-templates:aiDetect",
   data
 );
-const verifyNames = (rows) => req$1(
+const verifyNames = (rows) => req(
   "farmers:verifyNames",
   { rows }
 );
-const getVillages = () => req$1("settings:villages");
+const matchPeople = (rows) => req("farmers:matchPeople", { rows });
+const getVillages = () => req("settings:villages");
 const fmt$2 = (n2) => n2 == null ? "—" : "¥" + Number(n2).toFixed(2);
 const parseIdCardInfo = (id2) => {
   if (id2.length !== 18) return null;
@@ -48313,9 +48314,11 @@ function SubsidyRecordsPage({ subsidyType, onBack, farmerName }) {
   const loadComparableTypes = reactExports.useCallback(async () => {
     if (!subsidyType.category) return;
     try {
-      const response = await fetch(`/api/subsidies/types/comparable?category=${encodeURIComponent(subsidyType.category)}&current_type_id=${subsidyType.id}`);
-      if (!response.ok) throw new Error("获取可对比项目失败");
-      const data = await response.json();
+      const response = await window.electronAPI.invoke("subsidies:comparableTypes", {
+        category: subsidyType.category,
+        current_type_id: subsidyType.id
+      });
+      const data = response?.data ?? response;
       setComparableTypes(data);
     } catch (error) {
       console.error("加载可对比项目失败:", error);
@@ -48324,16 +48327,15 @@ function SubsidyRecordsPage({ subsidyType, onBack, farmerName }) {
   const loadStats = reactExports.useCallback(async () => {
     setLoadingStats(true);
     try {
-      const params = new URLSearchParams({
-        subsidy_type_id: String(subsidyType.id),
-        year: String(subsidyType.subsidy_year)
-      });
+      const statsParams = {
+        subsidy_type_id: subsidyType.id,
+        year: subsidyType.subsidy_year
+      };
       if (selectedCompareType) {
-        params.append("compare_type_id", String(selectedCompareType));
+        statsParams.compare_type_id = selectedCompareType;
       }
-      const response = await fetch(`/api/subsidies/applications/stats?${params}`);
-      if (!response.ok) throw new Error("获取统计数据失败");
-      const data = await response.json();
+      const response = await window.electronAPI.invoke("subsidies:applicationStats", statsParams);
+      const data = response?.data ?? response;
       setStats(data);
     } catch (error) {
       console.error("加载统计数据失败:", error);
@@ -50360,15 +50362,6 @@ function VillageContactsPage({ embedded }) {
   ] });
   return embedded ? inner : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-5 max-w-5xl mx-auto", children: inner });
 }
-async function req(path, opts = {}) {
-  const r2 = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
-  if (!r2.ok) {
-    const e = await r2.json().catch(() => ({}));
-    throw new Error(e.detail || "请求失败");
-  }
-  return r2.json();
-}
-const loadGroups = () => req("/api/settings/village-groups");
 function groupByVillage(list) {
   const map = /* @__PURE__ */ new Map();
   list.forEach((g) => {
@@ -50415,14 +50408,14 @@ function SettingsPage() {
   const reload = reactExports.useCallback(async () => {
     setLoading(true);
     try {
-      setGroups(await loadGroups());
+      setGroups(await getVillageGroups());
     } finally {
       setLoading(false);
     }
   }, []);
   const reloadLand = reactExports.useCallback(async () => {
     try {
-      const res = await req("/api/agri-tasks/village-land-info");
+      const res = await window.electronAPI.invoke("agri-tasks:listVillageLandInfo");
       const map = {};
       res.forEach((r2) => {
         map[r2.village_id] = r2;
@@ -50433,7 +50426,7 @@ function SettingsPage() {
   }, []);
   const loadLeaders = reactExports.useCallback(async () => {
     try {
-      const list = await req("/api/settings/villages");
+      const list = await window.electronAPI.invoke("settings:listVillages");
       const map = {};
       list.forEach((v2) => {
         map[v2.village_name] = { name: v2.leader_name || "", phone: v2.leader_phone || "", vid: v2.id };
@@ -50453,7 +50446,7 @@ function SettingsPage() {
     setSelectedVillage(villageName);
     setLoadingDetail(true);
     try {
-      const res = await req(`/api/settings/villages/${g.village_id}/detail`);
+      const res = await window.electronAPI.invoke("settings:villageDetail", g.village_id);
       setVillageDetail(res);
     } catch (e) {
       show(e.message, "err");
@@ -50465,9 +50458,10 @@ function SettingsPage() {
     const info = villageLeaders[vname];
     if (!info) return;
     try {
-      await req(`/api/settings/villages/${info.vid}`, {
-        method: "PUT",
-        body: JSON.stringify({ leader_name: editLeaderName, leader_phone: editLeaderPhone })
+      await window.electronAPI.invoke("settings:updateVillage", {
+        id: info.vid,
+        leader_name: editLeaderName,
+        leader_phone: editLeaderPhone
       });
       show("✓ 负责人已更新");
       setEditLeaderVillage(null);
@@ -50484,9 +50478,9 @@ function SettingsPage() {
   const saveLand = async (vid) => {
     setSavingLand(vid);
     try {
-      await req(`/api/agri-tasks/village-land-info/${vid}`, {
-        method: "PUT",
-        body: JSON.stringify(landEditForm)
+      await window.electronAPI.invoke("agri-tasks:updateVillageLandInfo", {
+        village_id: vid,
+        ...landEditForm
       });
       show("✓ 耕地信息已保存");
       setEditingLandId(null);
@@ -50504,7 +50498,7 @@ function SettingsPage() {
     const gno = addGroupNo.trim();
     if (!vname || !gno) return show("村名和组号不能为空", "err");
     try {
-      await req("/api/settings/village-groups", { method: "POST", body: JSON.stringify({ village_name: vname, group_no: gno }) });
+      await createVillageGroup({ village_name: vname, group_no: gno });
       show("✓ 创建成功");
       setAddOpen(false);
       setAddVillageName("");
@@ -50520,9 +50514,9 @@ function SettingsPage() {
     const gnos = batchGroups.split(/[,，\n]/).map((s) => s.trim()).filter(Boolean);
     if (!gnos.length) return show("请填写至少一个组号", "err");
     try {
-      const res = await req(
-        "/api/settings/village-groups/batch",
-        { method: "POST", body: JSON.stringify({ rows: gnos.map((g) => ({ village_name: vname, group_no: g })) }) }
+      const res = await window.electronAPI.invoke(
+        "settings:batchCreateVillageGroups",
+        { rows: gnos.map((g) => ({ village_name: vname, group_no: g })) }
       );
       show(`✓ 新增 ${res.created} 个组，跳过 ${res.skipped} 个（重复）`);
       setAddOpen(false);
@@ -50537,7 +50531,7 @@ function SettingsPage() {
     const gno = quickGroupNo.trim();
     if (!gno) return;
     try {
-      await req("/api/settings/village-groups", { method: "POST", body: JSON.stringify({ village_name: villageName, group_no: gno }) });
+      await createVillageGroup({ village_name: villageName, group_no: gno });
       show(`✓ ${villageName}${gno} 创建成功`);
       setQuickAddVillage(null);
       setQuickGroupNo("");
@@ -50556,12 +50550,10 @@ function SettingsPage() {
   const submitEdit = async () => {
     if (!editTarget) return;
     try {
-      await req(`/api/settings/village-groups/${editTarget.id}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          leader_name: editLeaderName,
-          leader_phone: editLeaderPhone
-        })
+      await window.electronAPI.invoke("settings:updateVillageGroup", {
+        id: editTarget.id,
+        leader_name: editLeaderName,
+        leader_phone: editLeaderPhone
       });
       show("✓ 组长已更新");
       setEditTarget(null);
@@ -50579,7 +50571,7 @@ function SettingsPage() {
     }
     const timer = setTimeout(async () => {
       try {
-        const res = await req(`/api/farmers?search=${encodeURIComponent(query.trim())}&page_size=5`);
+        const res = await window.electronAPI.invoke("farmers:search", { search: query.trim(), page_size: 5 });
         setLeaderSearchResults((res.items || []).map((f2) => ({
           id: f2.id,
           real_name: f2.real_name,
@@ -50611,7 +50603,7 @@ function SettingsPage() {
     }
     if (!rows.length) return show("请按格式粘贴：村名	组名	姓名	电话", "err");
     try {
-      await req("/api/settings/village-groups/batch-leaders", { method: "POST", body: JSON.stringify({ rows }) });
+      await window.electronAPI.invoke("settings:batchUpdateLeaders", { rows });
       show(`✓ 已更新 ${rows.length} 个组的负责人`);
       setBatchLeaderOpen(false);
       setBatchLeaderText("");
@@ -50624,7 +50616,7 @@ function SettingsPage() {
     if (g.household_count > 0) return show(`该组下有 ${g.household_count} 户农户，无法删除`, "err");
     if (!confirm(`确认删除「${g.full_name}」？`)) return;
     try {
-      await req(`/api/settings/village-groups/${g.id}`, { method: "DELETE" });
+      await window.electronAPI.invoke("settings:deleteVillageGroup", g.id);
       show("✓ 已删除");
       reload();
     } catch (e) {
@@ -51167,7 +51159,7 @@ function LandInfoTab({ show }) {
   const [refModal, setRefModal] = reactExports.useState(null);
   const checkVillageRefs = async (vid, vname) => {
     try {
-      const res = await fetch(`/api/settings/villages/${vid}/references`).then((r2) => r2.json());
+      const res = await window.electronAPI.invoke("settings:villageReferences", vid);
       setRefModal({ name: vname, refs: res.references, total: res.total });
     } catch (e) {
       show("查询失败: " + e.message, "err");
@@ -51177,7 +51169,7 @@ function LandInfoTab({ show }) {
   const load = reactExports.useCallback(async () => {
     setLoading(true);
     try {
-      const res = await req("/api/agri-tasks/village-land-info");
+      const res = await window.electronAPI.invoke("agri-tasks:listVillageLandInfo");
       setInfos(res);
       const forms = {};
       res.forEach((r2) => {
@@ -51196,9 +51188,9 @@ function LandInfoTab({ show }) {
   const handleSave = async (villageId) => {
     setSaving(villageId);
     try {
-      await req(`/api/agri-tasks/village-land-info/${villageId}`, {
-        method: "PUT",
-        body: JSON.stringify(editForms[villageId] || {})
+      await window.electronAPI.invoke("agri-tasks:updateVillageLandInfo", {
+        village_id: villageId,
+        ...editForms[villageId] || {}
       });
       show("✓ 保存成功");
       setEditing(null);
@@ -51274,7 +51266,10 @@ function LandInfoTab({ show }) {
         if (r2["terrain_type"] !== "") payload["terrain_type"] = TERRAIN_VALID.has(String(r2["terrain_type"])) ? r2["terrain_type"] : null;
         if (r2["soil_quality"] !== "") payload["soil_quality"] = SOIL_VALID.has(String(r2["soil_quality"])) ? r2["soil_quality"] : null;
         try {
-          await req(`/api/agri-tasks/village-land-info/${vid}`, { method: "PUT", body: JSON.stringify(payload) });
+          await window.electronAPI.invoke("agri-tasks:updateVillageLandInfo", {
+            village_id: vid,
+            ...payload
+          });
           ok2++;
         } catch (e2) {
           errors.push(`「${vname}」: ${e2.message}`);
@@ -57320,13 +57315,7 @@ function PeopleMatchPage() {
     }
     setLoading(true);
     try {
-      const r2 = await fetch("/api/farmers/match-people", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows })
-      });
-      if (!r2.ok) throw new Error("匹配请求失败");
-      const data = await r2.json();
+      const data = await matchPeople(rows);
       setResult(data);
     } catch (e) {
       setError(e.message);
