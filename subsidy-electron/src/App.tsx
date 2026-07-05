@@ -103,7 +103,7 @@ function Layout() {
       {/* 顶部图片横幅 */}
       <header
         style={{
-          backgroundImage: 'url(/images/head.png)',
+          backgroundImage: 'url(images/head.png)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
@@ -112,7 +112,7 @@ function Layout() {
           {/* Logo */}
           <div className="shrink-0 cursor-pointer flex items-center"
             onClick={() => navigate('/')}>
-            <img src="/images/Logo.png" alt="Logo"
+            <img src="images/Logo.png" alt="Logo"
               className="h-14 w-auto"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
             <span className="font-bold text-base tracking-wider text-primary ml-2.5"
@@ -297,7 +297,7 @@ function Layout() {
       <footer>
         <div className="w-full py-5 text-[#2A4B3C]"
           style={{
-            backgroundImage: 'url(/images/foot.png)',
+            backgroundImage: 'url(images/foot.png)',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',

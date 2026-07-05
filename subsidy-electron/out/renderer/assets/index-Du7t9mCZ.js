@@ -57578,7 +57578,7 @@ function Layout() {
       "header",
       {
         style: {
-          backgroundImage: "url(/images/head.png)",
+          backgroundImage: "url(images/head.png)",
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat"
@@ -57592,7 +57592,7 @@ function Layout() {
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "img",
                 {
-                  src: "/images/Logo.png",
+                  src: "images/Logo.png",
                   alt: "Logo",
                   className: "h-14 w-auto",
                   onError: (e) => {
@@ -57804,7 +57804,7 @@ function Layout() {
       {
         className: "w-full py-5 text-[#2A4B3C]",
         style: {
-          backgroundImage: "url(/images/foot.png)",
+          backgroundImage: "url(images/foot.png)",
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat"
