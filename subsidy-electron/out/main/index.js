@@ -3034,6 +3034,39 @@ function registerEligibilityHandlers() {
     }
   });
 }
+const LOCAL_USERS = {
+  admin: { password: "admin123", display_name: "管理员", role: "admin" }
+};
+let authEnabled = true;
+let tokenCounter = 1;
+function registerAuthHandlers() {
+  electron.ipcMain.handle("auth:status", () => {
+    try {
+      return success({ auth_enabled: authEnabled });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("auth:login", (_e, payload) => {
+    try {
+      const { username, password } = payload;
+      const user = LOCAL_USERS[username];
+      if (!user || user.password !== password) {
+        return errorResponse("用户名或密码错误", 401);
+      }
+      const token = `local_token_${tokenCounter++}_${Date.now()}`;
+      return success({
+        token,
+        user_id: 1,
+        username,
+        display_name: user.display_name,
+        role: user.role
+      });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+}
 function registerAllIpcHandlers() {
   electron.ipcMain.handle("dialog:selectFile", async (_e, options) => {
     const result = await electron.dialog.showOpenDialog({
@@ -3069,6 +3102,7 @@ function registerAllIpcHandlers() {
   registerAgriTaskHandlers();
   registerExternalLinksHandlers();
   registerEligibilityHandlers();
+  registerAuthHandlers();
 }
 let mainWindow = null;
 function createWindow() {

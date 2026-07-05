@@ -13,6 +13,7 @@ import { registerHouseholdImportHandlers } from './household-import'
 import { registerAgriTaskHandlers } from './agri-tasks'
 import { registerExternalLinksHandlers } from './external-links'
 import { registerEligibilityHandlers } from './eligibility'
+import { registerAuthHandlers } from './auth'
 import { getDbPath } from '../database/connection'
 
 /**
@@ -61,4 +62,5 @@ export function registerAllIpcHandlers(): void {
   registerAgriTaskHandlers()
   registerExternalLinksHandlers()
   registerEligibilityHandlers()
+  registerAuthHandlers()
 }

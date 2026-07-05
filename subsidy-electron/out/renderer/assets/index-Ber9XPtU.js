@@ -57054,17 +57054,16 @@ function clearAuth() {
 }
 function LoginPage() {
   const navigate = useNavigate();
-  const [username, setUsername] = reactExports.useState("");
-  const [password, setPassword] = reactExports.useState("");
+  const [username, setUsername] = reactExports.useState("admin");
+  const [password, setPassword] = reactExports.useState("admin123");
   const [error, setError] = reactExports.useState("");
   const [loading, setLoading] = reactExports.useState(false);
   const [authDisabled, setAuthDisabledLocal] = reactExports.useState(false);
   reactExports.useEffect(() => {
-    fetch("/api/auth/status").then((r2) => r2.json()).then((data) => {
-      const disabled = !data.auth_enabled;
+    window.electronAPI.invoke("auth:status").then((result) => {
+      const disabled = !result?.data?.auth_enabled;
       setAuthDisabled(disabled);
       setAuthDisabledLocal(disabled);
-      if (disabled) return;
     }).catch(() => {
     });
   }, []);
@@ -57077,17 +57076,14 @@ function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const r2 = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim(), password })
-      });
-      if (!r2.ok) {
-        const d = await r2.json().catch(() => ({}));
-        throw new Error(d.detail || "登录失败");
+      const result = await window.electronAPI.invoke(
+        "auth:login",
+        { username: username.trim(), password }
+      );
+      if (result.code !== 0) {
+        throw new Error(result.message || "登录失败");
       }
-      const data = await r2.json();
-      saveAuth(data);
+      saveAuth(result.data);
       navigate("/", { replace: true });
     } catch (e2) {
       setError(e2.message);
@@ -57141,10 +57137,11 @@ function LoginPage() {
         {
           type: "submit",
           disabled: loading,
-          className: "w-full py-2.5 bg-primary  rounded-btn font-medium hover:bg-primary/90 disabled:opacity-50",
+          className: "w-full py-2.5 bg-primary text-white rounded-btn font-medium hover:bg-primary/90 disabled:opacity-50",
           children: loading ? "登录中…" : "登 录"
         }
-      )
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted text-center mt-2", children: "默认账号: admin / admin123" })
     ] })
   ] }) });
 }
