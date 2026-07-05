@@ -160,8 +160,8 @@ export async function initDatabase(dbPath?: string): Promise<void> {
   const dir = require('path').dirname(resolvedPath)
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
 
-  // 动态导入 sql.js
-  const initSqlJs = (await import('sql.js')).default
+  // 使用 require 加载 sql.js（CJS 兼容）
+  const initSqlJs = require('sql.js')
   const SQL = await initSqlJs()
 
   let sqliteDb: SqlJsDatabase

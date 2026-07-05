@@ -1,12 +1,8 @@
 import { app, BrowserWindow, shell } from 'electron'
-import { join, dirname } from 'path'
-import { fileURLToPath } from 'url'
+import { join } from 'path'
 import { initDatabase } from './database/connection'
 import { runMigrations } from './database/migrate'
 import { registerAllIpcHandlers } from './ipc/index'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
 
 let mainWindow: BrowserWindow | null = null
 
@@ -18,7 +14,7 @@ function createWindow(): void {
     minHeight: 680,
     title: '农户补贴管理系统',
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false

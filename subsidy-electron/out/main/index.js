@@ -1,11 +1,7 @@
-import { app, ipcMain, dialog, BrowserWindow, shell } from "electron";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
-import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync } from "fs";
-import __cjs_mod__ from "node:module";
-const __filename = import.meta.filename;
-const __dirname = import.meta.dirname;
-const require2 = __cjs_mod__.createRequire(import.meta.url);
+"use strict";
+const electron = require("electron");
+const path = require("path");
+const fs = require("fs");
 class SqlJsWrapper {
   db;
   dbPath;
@@ -91,7 +87,7 @@ class SqlJsWrapper {
     try {
       const data = this.db.export();
       const buffer = Buffer.from(data);
-      writeFileSync(this.dbPath, buffer);
+      fs.writeFileSync(this.dbPath, buffer);
     } catch (e) {
       console.error("保存数据库失败:", e);
     }
@@ -113,14 +109,14 @@ class SqlJsWrapper {
 }
 let db = null;
 async function initDatabase(dbPath) {
-  const resolvedPath = join(app.getPath("userData"), "subsidy.db");
-  const dir = require2("path").dirname(resolvedPath);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  const initSqlJs = (await import("sql.js")).default;
+  const resolvedPath = path.join(electron.app.getPath("userData"), "subsidy.db");
+  const dir = require("path").dirname(resolvedPath);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const initSqlJs = require("sql.js");
   const SQL = await initSqlJs();
   let sqliteDb;
-  if (existsSync(resolvedPath)) {
-    const fileBuffer = readFileSync(resolvedPath);
+  if (fs.existsSync(resolvedPath)) {
+    const fileBuffer = fs.readFileSync(resolvedPath);
     sqliteDb = new SQL.Database(fileBuffer);
   } else {
     sqliteDb = new SQL.Database();
@@ -133,7 +129,7 @@ function getDb() {
   return db;
 }
 function getDbPath() {
-  return join(app.getPath("userData"), "subsidy.db");
+  return path.join(electron.app.getPath("userData"), "subsidy.db");
 }
 function runMigrations() {
   const db2 = getDb();
@@ -696,7 +692,7 @@ function parsePagination(params) {
 }
 function registerFarmerHandlers() {
   const db2 = () => getDb();
-  ipcMain.handle("farmers:list", (_e, params = {}) => {
+  electron.ipcMain.handle("farmers:list", (_e, params = {}) => {
     try {
       const { page, pageSize, offset } = parsePagination(params);
       const search = params.search || "";
@@ -753,7 +749,7 @@ function registerFarmerHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("farmers:get", (_e, id) => {
+  electron.ipcMain.handle("farmers:get", (_e, id) => {
     try {
       const row = db2().getRaw(
         `SELECT fp.*, hh.household_code, hh.household_name,
@@ -770,7 +766,7 @@ function registerFarmerHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("farmers:create", (_e, data) => {
+  electron.ipcMain.handle("farmers:create", (_e, data) => {
     try {
       const idCard = data.id_card;
       if (idCard) {
@@ -786,7 +782,7 @@ function registerFarmerHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("farmers:update", (_e, id, data) => {
+  electron.ipcMain.handle("farmers:update", (_e, id, data) => {
     try {
       const keys = Object.keys(data).filter((k) => data[k] !== void 0 && k !== "id");
       if (!keys.length) return errorResponse("无更新数据");
@@ -798,7 +794,7 @@ function registerFarmerHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("farmers:deactivate", (_e, id, status = 2) => {
+  electron.ipcMain.handle("farmers:deactivate", (_e, id, status = 2) => {
     try {
       db2().runRaw(`UPDATE farmer_profile SET farmer_status = ?, updated_at = datetime('now','localtime') WHERE id = ?`, status, id);
       return success(null, "操作成功");
@@ -806,7 +802,7 @@ function registerFarmerHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("farmers:batchImport", (_e, rows, overwrite = false) => {
+  electron.ipcMain.handle("farmers:batchImport", (_e, rows, overwrite = false) => {
     try {
       let created = 0, updated = 0, skipped = 0;
       const errors = [];
@@ -848,7 +844,7 @@ function registerFarmerHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("farmers:batchLookup", (_e, idCards) => {
+  electron.ipcMain.handle("farmers:batchLookup", (_e, idCards) => {
     try {
       const results = {};
       for (const card of idCards) {
@@ -860,7 +856,7 @@ function registerFarmerHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("farmers:batchGetIdCards", (_e, farmerIds) => {
+  electron.ipcMain.handle("farmers:batchGetIdCards", (_e, farmerIds) => {
     try {
       const results = {};
       for (const fid of farmerIds) {
@@ -872,7 +868,7 @@ function registerFarmerHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("farmers:bulkComplete", (_e, rows) => {
+  electron.ipcMain.handle("farmers:bulkComplete", (_e, rows) => {
     try {
       let updated = 0;
       const errors = [];
@@ -902,7 +898,7 @@ function registerFarmerHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("farmers:importRelations", (_e, rows, splitVillages) => {
+  electron.ipcMain.handle("farmers:importRelations", (_e, rows, splitVillages) => {
     try {
       let updated = 0;
       const notFound = [];
@@ -925,7 +921,7 @@ function registerFarmerHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("farmers:multiHeadPreview", (_e, data) => {
+  electron.ipcMain.handle("farmers:multiHeadPreview", (_e, data) => {
     try {
       const villageNames = data?.villageNames || [];
       let query = `
@@ -969,7 +965,7 @@ function formatGroupNo(n) {
 }
 function registerHouseholdHandlers() {
   const db2 = () => getDb();
-  ipcMain.handle("households:list", (_e, params = {}) => {
+  electron.ipcMain.handle("households:list", (_e, params = {}) => {
     try {
       const { page, pageSize, offset } = parsePagination(params);
       const search = params.search || "";
@@ -1013,7 +1009,7 @@ function registerHouseholdHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("households:get", (_e, id, year) => {
+  electron.ipcMain.handle("households:get", (_e, id, year) => {
     try {
       const hh = db2().getRaw(`
         SELECT hh.*, v.village_name,
@@ -1040,7 +1036,7 @@ function registerHouseholdHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("households:create", (_e, data) => {
+  electron.ipcMain.handle("households:create", (_e, data) => {
     try {
       const result = db2().runRaw(`
         INSERT INTO family_household (household_code, household_name, village_id, group_no, address, contract_area, confirmed_area, status, remark)
@@ -1053,7 +1049,7 @@ function registerHouseholdHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("households:update", (_e, id, data) => {
+  electron.ipcMain.handle("households:update", (_e, id, data) => {
     try {
       const keys = Object.keys(data).filter((k) => data[k] !== void 0);
       if (keys.length === 0) return errorResponse("无更新数据");
@@ -1065,7 +1061,7 @@ function registerHouseholdHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("households:delete", (_e, id) => {
+  electron.ipcMain.handle("households:delete", (_e, id) => {
     try {
       const memberCount = db2().getRaw("SELECT COUNT(*) as cnt FROM farmer_profile WHERE household_id = ?", id)?.cnt ?? 0;
       if (memberCount > 0) {
@@ -1077,7 +1073,7 @@ function registerHouseholdHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("households:addMember", (_e, householdId, data) => {
+  electron.ipcMain.handle("households:addMember", (_e, householdId, data) => {
     try {
       const result = db2().runRaw(`
         INSERT INTO farmer_profile (household_id, real_name, gender, id_card, phone, bank_card, bank_name, relation, farmer_status)
@@ -1088,7 +1084,7 @@ function registerHouseholdHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("households:updateMember", (_e, householdId, farmerId, data) => {
+  electron.ipcMain.handle("households:updateMember", (_e, householdId, farmerId, data) => {
     try {
       const keys = Object.keys(data).filter((k) => data[k] !== void 0);
       if (keys.length === 0) return errorResponse("无更新数据");
@@ -1100,7 +1096,7 @@ function registerHouseholdHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("households:removeMember", (_e, householdId, farmerId) => {
+  electron.ipcMain.handle("households:removeMember", (_e, householdId, farmerId) => {
     try {
       db2().runRaw("UPDATE farmer_profile SET household_id = NULL, updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?", farmerId, householdId);
       return success(null, "移出成功");
@@ -1108,7 +1104,7 @@ function registerHouseholdHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("households:merge", (_e, sourceId, targetId, operator) => {
+  electron.ipcMain.handle("households:merge", (_e, sourceId, targetId, operator) => {
     try {
       db2().runRaw("UPDATE farmer_profile SET household_id = ?, updated_at = datetime('now','localtime') WHERE household_id = ?", targetId, sourceId);
       db2().runRaw("DELETE FROM family_household WHERE id = ?", sourceId);
@@ -1117,7 +1113,7 @@ function registerHouseholdHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("households:groupOptions", () => {
+  electron.ipcMain.handle("households:groupOptions", () => {
     try {
       const rows = db2().allRaw(`
         SELECT DISTINCT v.village_name, vg.group_no
@@ -1133,7 +1129,7 @@ function registerHouseholdHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("households:refreshAreaCache", (_e, householdId) => {
+  electron.ipcMain.handle("households:refreshAreaCache", (_e, householdId) => {
     try {
       return success({ message: "面积缓存刷新功能待实现" });
     } catch (e) {
@@ -1143,7 +1139,7 @@ function registerHouseholdHandlers() {
 }
 function registerSubsidyHandlers() {
   const db2 = () => getDb();
-  ipcMain.handle("subsidies:listTypes", (_e, year) => {
+  electron.ipcMain.handle("subsidies:listTypes", (_e, year) => {
     try {
       let query = "SELECT * FROM subsidy_type";
       const params = [];
@@ -1157,7 +1153,7 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("subsidies:listTypesWithStats", (_e, year) => {
+  electron.ipcMain.handle("subsidies:listTypesWithStats", (_e, year) => {
     try {
       const params = [];
       let yearCondition = "";
@@ -1181,7 +1177,7 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("subsidies:createType", (_e, data) => {
+  electron.ipcMain.handle("subsidies:createType", (_e, data) => {
     try {
       const cols = Object.keys(data).join(", ");
       const placeholders = Object.keys(data).map(() => "?").join(", ");
@@ -1192,7 +1188,7 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("subsidies:updateType", (_e, id, data) => {
+  electron.ipcMain.handle("subsidies:updateType", (_e, id, data) => {
     try {
       const keys = Object.keys(data).filter((k) => data[k] !== void 0);
       if (keys.length === 0) return errorResponse("无更新数据");
@@ -1204,7 +1200,7 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("subsidies:listApplications", (_e, params = {}) => {
+  electron.ipcMain.handle("subsidies:listApplications", (_e, params = {}) => {
     try {
       const { page, pageSize, offset } = parsePagination(params);
       const year = params.year ? Number(params.year) : null;
@@ -1259,7 +1255,7 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("subsidies:createApplication", (_e, data) => {
+  electron.ipcMain.handle("subsidies:createApplication", (_e, data) => {
     try {
       const cols = Object.keys(data).join(", ");
       const placeholders = Object.keys(data).map(() => "?").join(", ");
@@ -1270,7 +1266,7 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("subsidies:updateApplication", (_e, id, data) => {
+  electron.ipcMain.handle("subsidies:updateApplication", (_e, id, data) => {
     try {
       const keys = Object.keys(data).filter((k) => data[k] !== void 0);
       if (keys.length === 0) return errorResponse("无更新数据");
@@ -1282,7 +1278,7 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("subsidies:listProxies", (_e, params = {}) => {
+  electron.ipcMain.handle("subsidies:listProxies", (_e, params = {}) => {
     try {
       const rows = db2().allRaw(`
         SELECT sp.*,
@@ -1297,7 +1293,7 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("subsidies:createProxy", (_e, data) => {
+  electron.ipcMain.handle("subsidies:createProxy", (_e, data) => {
     try {
       const result = db2().runRaw(`
         INSERT INTO subsidy_proxy (subsidy_type_id, beneficiary_farmer_id, proxy_farmer_id, proxy_type, remark)
@@ -1308,7 +1304,7 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("subsidies:deleteProxy", (_e, id) => {
+  electron.ipcMain.handle("subsidies:deleteProxy", (_e, id) => {
     try {
       db2().runRaw("DELETE FROM subsidy_proxy WHERE id = ?", id);
       return success(null, "删除成功");
@@ -1316,7 +1312,7 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("subsidies:yearCompare", (_e, year) => {
+  electron.ipcMain.handle("subsidies:yearCompare", (_e, year) => {
     try {
       const current = db2().getRaw(`
         SELECT COALESCE(SUM(actual_amount), 0) as total_amount,
@@ -1335,7 +1331,7 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("subsidies:summaryByVillage", (_e, year) => {
+  electron.ipcMain.handle("subsidies:summaryByVillage", (_e, year) => {
     try {
       const rows = db2().allRaw(`
         SELECT v.village_name,
@@ -1356,7 +1352,7 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("subsidies:summaryBySeason", (_e, year) => {
+  electron.ipcMain.handle("subsidies:summaryBySeason", (_e, year) => {
     try {
       const rows = db2().allRaw(`
         SELECT st.season,
@@ -1378,7 +1374,7 @@ function registerSubsidyHandlers() {
 }
 function registerAiHandlers() {
   const db2 = () => getDb();
-  ipcMain.handle("ai:analyze", async (_e, data) => {
+  electron.ipcMain.handle("ai:analyze", async (_e, data) => {
     try {
       const { year, village_name, question } = data;
       let appsQuery = `
@@ -1426,7 +1422,7 @@ function registerAiHandlers() {
       aiResult += `总金额：${stats.total_amount.toFixed(2)}元
 `;
       try {
-        const Anthropic = require2("@anthropic-ai/sdk").default;
+        const Anthropic = require("@anthropic-ai/sdk").default;
         const apiKey = process.env.ANTHROPIC_API_KEY;
         if (apiKey) {
           const client = new Anthropic({ apiKey });
@@ -1464,7 +1460,7 @@ ${JSON.stringify({ statistics: stats, records: desensitizedApps.slice(0, 50) }, 
 }
 function registerLandHandlers() {
   const db2 = () => getDb();
-  ipcMain.handle("land:list", (_e, params = {}) => {
+  electron.ipcMain.handle("land:list", (_e, params = {}) => {
     try {
       const { page, pageSize, offset } = parsePagination(params);
       const countRow = db2().getRaw("SELECT COUNT(*) as cnt FROM land_trust");
@@ -1474,7 +1470,7 @@ function registerLandHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("land:create", (_e, data) => {
+  electron.ipcMain.handle("land:create", (_e, data) => {
     try {
       const cols = Object.keys(data).join(", ");
       const placeholders = Object.keys(data).map(() => "?").join(", ");
@@ -1485,7 +1481,7 @@ function registerLandHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("land:update", (_e, id, data) => {
+  electron.ipcMain.handle("land:update", (_e, id, data) => {
     try {
       const keys = Object.keys(data).filter((k) => data[k] !== void 0);
       if (keys.length === 0) return errorResponse("无更新数据");
@@ -1497,7 +1493,7 @@ function registerLandHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("land:listLargeFarmers", (_e, params = {}) => {
+  electron.ipcMain.handle("land:listLargeFarmers", (_e, params = {}) => {
     try {
       const { page, pageSize, offset } = parsePagination(params);
       const countRow = db2().getRaw("SELECT COUNT(*) as cnt FROM large_farmer");
@@ -1510,7 +1506,7 @@ function registerLandHandlers() {
 }
 function registerSettingsHandlers() {
   const db2 = () => getDb();
-  ipcMain.handle("settings:listVillageGroups", () => {
+  electron.ipcMain.handle("settings:listVillageGroups", () => {
     try {
       const rows = db2().allRaw(`
         SELECT vg.*, v.village_name FROM village_group vg
@@ -1522,7 +1518,7 @@ function registerSettingsHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("settings:createVillageGroup", (_e, data) => {
+  electron.ipcMain.handle("settings:createVillageGroup", (_e, data) => {
     try {
       let village = db2().getRaw("SELECT id FROM village WHERE village_name = ?", data.village_name);
       if (!village) {
@@ -1535,18 +1531,18 @@ function registerSettingsHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("settings:backup", (_e, destPath) => {
+  electron.ipcMain.handle("settings:backup", (_e, destPath) => {
     try {
       const srcPath = getDbPath();
-      copyFileSync(srcPath, destPath);
+      fs.copyFileSync(srcPath, destPath);
       return success({ message: "备份成功", path: destPath });
     } catch (e) {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("settings:getDbInfo", () => {
+  electron.ipcMain.handle("settings:getDbInfo", () => {
     try {
-      const path = getDbPath();
+      const path2 = getDbPath();
       const tables = db2().allRaw("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
       const counts = {};
       for (const t of tables) {
@@ -1556,14 +1552,14 @@ function registerSettingsHandlers() {
         } catch {
         }
       }
-      return success({ path, tables: tables.map((t) => t.name), counts });
+      return success({ path: path2, tables: tables.map((t) => t.name), counts });
     } catch (e) {
       return errorResponse(String(e));
     }
   });
 }
 function registerPrecheckHandlers() {
-  ipcMain.handle("precheck:run", (_e, data) => {
+  electron.ipcMain.handle("precheck:run", (_e, data) => {
     try {
       return success({ message: "预检功能开发中", results: [] });
     } catch (e) {
@@ -1573,7 +1569,7 @@ function registerPrecheckHandlers() {
 }
 function registerExcelTemplateHandlers() {
   const db2 = () => getDb();
-  ipcMain.handle("excel-templates:list", (_e, businessType) => {
+  electron.ipcMain.handle("excel-templates:list", (_e, businessType) => {
     try {
       let query = "SELECT * FROM excel_column_template WHERE is_active = 1";
       const params = [];
@@ -1587,7 +1583,7 @@ function registerExcelTemplateHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("excel-templates:get", (_e, id) => {
+  electron.ipcMain.handle("excel-templates:get", (_e, id) => {
     try {
       const row = db2().getRaw("SELECT * FROM excel_column_template WHERE id = ?", id);
       return success(row);
@@ -1595,7 +1591,7 @@ function registerExcelTemplateHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("excel-templates:save", (_e, data) => {
+  electron.ipcMain.handle("excel-templates:save", (_e, data) => {
     try {
       const cols = Object.keys(data).join(", ");
       const placeholders = Object.keys(data).map(() => "?").join(", ");
@@ -1609,7 +1605,7 @@ function registerExcelTemplateHandlers() {
 }
 function registerErrorLibraryHandlers() {
   const db2 = () => getDb();
-  ipcMain.handle("error-library:list", (_e, params = {}) => {
+  electron.ipcMain.handle("error-library:list", (_e, params = {}) => {
     try {
       const { page, pageSize, offset } = parsePagination(params);
       const countRow = db2().getRaw("SELECT COUNT(*) as cnt FROM error_library");
@@ -1619,7 +1615,7 @@ function registerErrorLibraryHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("error-library:create", (_e, data) => {
+  electron.ipcMain.handle("error-library:create", (_e, data) => {
     try {
       const cols = Object.keys(data).join(", ");
       const placeholders = Object.keys(data).map(() => "?").join(", ");
@@ -1630,7 +1626,7 @@ function registerErrorLibraryHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("error-library:update", (_e, id, data) => {
+  electron.ipcMain.handle("error-library:update", (_e, id, data) => {
     try {
       const keys = Object.keys(data).filter((k) => data[k] !== void 0);
       if (keys.length === 0) return errorResponse("无更新数据");
@@ -1642,7 +1638,7 @@ function registerErrorLibraryHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("error-library:delete", (_e, id) => {
+  electron.ipcMain.handle("error-library:delete", (_e, id) => {
     try {
       db2().runRaw("DELETE FROM error_library WHERE id = ?", id);
       return success(null);
@@ -1650,7 +1646,7 @@ function registerErrorLibraryHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("error-library:batchDelete", (_e, ids) => {
+  electron.ipcMain.handle("error-library:batchDelete", (_e, ids) => {
     try {
       for (const id of ids) {
         db2().runRaw("DELETE FROM error_library WHERE id = ?", id);
@@ -1662,14 +1658,14 @@ function registerErrorLibraryHandlers() {
   });
 }
 function registerHouseholdImportHandlers() {
-  ipcMain.handle("household-import:preview", (_e, rows) => {
+  electron.ipcMain.handle("household-import:preview", (_e, rows) => {
     try {
       return success({ message: "家庭户批量导入预览功能开发中", groups: [], row_errors: [], summary: { total_rows: 0, total_groups: 0, new_households: 0, merge_single: 0, merge_multi: 0, error_rows: 0 } });
     } catch (e) {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("household-import:execute", (_e, rows) => {
+  electron.ipcMain.handle("household-import:execute", (_e, rows) => {
     try {
       return success({ message: "家庭户批量导入执行功能开发中", created_households: 0, merged_households: 0, created_farmers: 0, skipped_farmers: 0, errors: [] });
     } catch (e) {
@@ -1679,7 +1675,7 @@ function registerHouseholdImportHandlers() {
 }
 function registerAgriTaskHandlers() {
   const db2 = () => getDb();
-  ipcMain.handle("agri-tasks:list", (_e, params = {}) => {
+  electron.ipcMain.handle("agri-tasks:list", (_e, params = {}) => {
     try {
       const { page, pageSize, offset } = parsePagination(params);
       const countRow = db2().getRaw("SELECT COUNT(*) as cnt FROM agri_task");
@@ -1689,7 +1685,7 @@ function registerAgriTaskHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("agri-tasks:getAllocations", (_e, taskId) => {
+  electron.ipcMain.handle("agri-tasks:getAllocations", (_e, taskId) => {
     try {
       const rows = db2().allRaw("SELECT * FROM agri_task_allocation WHERE task_id = ?", taskId);
       return success(rows);
@@ -1711,7 +1707,7 @@ function registerExternalLinksHandlers() {
       is_active INTEGER DEFAULT 1
     )
   `);
-  ipcMain.handle("external-links:list", () => {
+  electron.ipcMain.handle("external-links:list", () => {
     try {
       const rows = db2().allRaw("SELECT * FROM external_site WHERE is_active = 1 ORDER BY sort_order");
       return success(rows);
@@ -1722,7 +1718,7 @@ function registerExternalLinksHandlers() {
 }
 function registerEligibilityHandlers() {
   const db2 = () => getDb();
-  ipcMain.handle("eligibility:list", (_e, subsidyTypeId) => {
+  electron.ipcMain.handle("eligibility:list", (_e, subsidyTypeId) => {
     try {
       let query = "SELECT * FROM subsidy_eligibility_rule WHERE is_active = 1";
       const params = [];
@@ -1736,7 +1732,7 @@ function registerEligibilityHandlers() {
       return errorResponse(String(e));
     }
   });
-  ipcMain.handle("eligibility:create", (_e, data) => {
+  electron.ipcMain.handle("eligibility:create", (_e, data) => {
     try {
       const cols = Object.keys(data).join(", ");
       const placeholders = Object.keys(data).map(() => "?").join(", ");
@@ -1749,26 +1745,26 @@ function registerEligibilityHandlers() {
   });
 }
 function registerAllIpcHandlers() {
-  ipcMain.handle("dialog:selectFile", async (_e, options) => {
-    const result = await dialog.showOpenDialog({
+  electron.ipcMain.handle("dialog:selectFile", async (_e, options) => {
+    const result = await electron.dialog.showOpenDialog({
       title: options?.title || "选择文件",
       filters: options?.filters || [{ name: "Excel文件", extensions: ["xlsx", "xls"] }],
       properties: ["openFile"]
     });
     return result.canceled ? null : result.filePaths[0];
   });
-  ipcMain.handle("dialog:saveFile", async (_e, options) => {
-    const result = await dialog.showSaveDialog({
+  electron.ipcMain.handle("dialog:saveFile", async (_e, options) => {
+    const result = await electron.dialog.showSaveDialog({
       title: options?.title || "保存文件",
       defaultPath: options?.defaultPath,
       filters: options?.filters || [{ name: "Excel文件", extensions: ["xlsx"] }]
     });
     return result.canceled ? null : result.filePath || null;
   });
-  ipcMain.handle("app:getUserDataPath", () => app.getPath("userData"));
-  ipcMain.handle("app:getDbPath", () => getDbPath());
-  ipcMain.handle("fs:copyFile", (_e, { src, dest }) => {
-    copyFileSync(src, dest);
+  electron.ipcMain.handle("app:getUserDataPath", () => electron.app.getPath("userData"));
+  electron.ipcMain.handle("app:getDbPath", () => getDbPath());
+  electron.ipcMain.handle("fs:copyFile", (_e, { src, dest }) => {
+    fs.copyFileSync(src, dest);
   });
   registerFarmerHandlers();
   registerHouseholdHandlers();
@@ -1784,46 +1780,44 @@ function registerAllIpcHandlers() {
   registerExternalLinksHandlers();
   registerEligibilityHandlers();
 }
-const __filename$1 = fileURLToPath(import.meta.url);
-const __dirname$1 = dirname(__filename$1);
 let mainWindow = null;
 function createWindow() {
-  mainWindow = new BrowserWindow({
+  mainWindow = new electron.BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1024,
     minHeight: 680,
     title: "农户补贴管理系统",
     webPreferences: {
-      preload: join(__dirname$1, "../preload/index.mjs"),
+      preload: path.join(__dirname, "../preload/index.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false
     }
   });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    electron.shell.openExternal(url);
     return { action: "deny" };
   });
   if (process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
-    mainWindow.loadFile(join(__dirname$1, "../renderer/index.html"));
+    mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
 }
-app.whenReady().then(async () => {
+electron.app.whenReady().then(async () => {
   await initDatabase();
   runMigrations();
   registerAllIpcHandlers();
   createWindow();
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
+  electron.app.on("activate", () => {
+    if (electron.BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
 });
-app.on("window-all-closed", () => {
+electron.app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
-    app.quit();
+    electron.app.quit();
   }
 });
