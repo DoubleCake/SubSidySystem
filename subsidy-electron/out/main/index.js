@@ -782,8 +782,9 @@ function registerFarmerHandlers() {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("farmers:update", (_e, id, data) => {
+  electron.ipcMain.handle("farmers:update", (_e, payload) => {
     try {
+      const { id, ...data } = payload;
       const keys = Object.keys(data).filter((k) => data[k] !== void 0 && k !== "id");
       if (!keys.length) return errorResponse("无更新数据");
       const sets = keys.map((k) => `${k} = ?`).join(", ");
@@ -794,16 +795,18 @@ function registerFarmerHandlers() {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("farmers:deactivate", (_e, id, status = 2) => {
+  electron.ipcMain.handle("farmers:deactivate", (_e, payload) => {
     try {
+      const { id, status = 2 } = payload;
       db2().runRaw(`UPDATE farmer_profile SET farmer_status = ?, updated_at = datetime('now','localtime') WHERE id = ?`, status, id);
       return success(null, "操作成功");
     } catch (e) {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("farmers:batchImport", (_e, rows, overwrite = false) => {
+  electron.ipcMain.handle("farmers:batchImport", (_e, payload) => {
     try {
+      const { rows, overwrite = false } = payload;
       let created = 0, updated = 0, skipped = 0;
       const errors = [];
       for (let i = 0; i < rows.length; i++) {
@@ -898,8 +901,9 @@ function registerFarmerHandlers() {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("farmers:importRelations", (_e, rows, splitVillages) => {
+  electron.ipcMain.handle("farmers:importRelations", (_e, payload) => {
     try {
+      const { rows, split_villages: splitVillages } = payload;
       let updated = 0;
       const notFound = [];
       const relationErrors = [];
@@ -921,9 +925,9 @@ function registerFarmerHandlers() {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("farmers:multiHeadPreview", (_e, data) => {
+  electron.ipcMain.handle("farmers:multiHeadPreview", (_e, payload) => {
     try {
-      const villageNames = data?.villageNames || [];
+      const villageNames = Array.isArray(payload) ? payload : payload?.villageNames || [];
       let query = `
         SELECT hh.id as household_id, hh.household_name,
                v.village_name,
@@ -1009,8 +1013,9 @@ function registerHouseholdHandlers() {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("households:get", (_e, id, year) => {
+  electron.ipcMain.handle("households:get", (_e, payload) => {
     try {
+      const { id, year } = payload;
       const hh = db2().getRaw(`
         SELECT hh.*, v.village_name,
                (SELECT real_name FROM farmer_profile WHERE id = hh.head_farmer_id) as head_name
@@ -1049,8 +1054,9 @@ function registerHouseholdHandlers() {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("households:update", (_e, id, data) => {
+  electron.ipcMain.handle("households:update", (_e, payload) => {
     try {
+      const { id, ...data } = payload;
       const keys = Object.keys(data).filter((k) => data[k] !== void 0);
       if (keys.length === 0) return errorResponse("无更新数据");
       const sets = keys.map((k) => `${k} = ?`).join(", ");
@@ -1073,8 +1079,9 @@ function registerHouseholdHandlers() {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("households:addMember", (_e, householdId, data) => {
+  electron.ipcMain.handle("households:addMember", (_e, payload) => {
     try {
+      const { householdId, ...data } = payload;
       const result = db2().runRaw(`
         INSERT INTO farmer_profile (household_id, real_name, gender, id_card, phone, bank_card, bank_name, relation, farmer_status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
@@ -1084,8 +1091,9 @@ function registerHouseholdHandlers() {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("households:updateMember", (_e, householdId, farmerId, data) => {
+  electron.ipcMain.handle("households:updateMember", (_e, payload) => {
     try {
+      const { householdId, farmerId, ...data } = payload;
       const keys = Object.keys(data).filter((k) => data[k] !== void 0);
       if (keys.length === 0) return errorResponse("无更新数据");
       const sets = keys.map((k) => `${k} = ?`).join(", ");
@@ -1096,16 +1104,18 @@ function registerHouseholdHandlers() {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("households:removeMember", (_e, householdId, farmerId) => {
+  electron.ipcMain.handle("households:removeMember", (_e, payload) => {
     try {
+      const { householdId, farmerId } = payload;
       db2().runRaw("UPDATE farmer_profile SET household_id = NULL, updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?", farmerId, householdId);
       return success(null, "移出成功");
     } catch (e) {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("households:merge", (_e, sourceId, targetId, operator) => {
+  electron.ipcMain.handle("households:merge", (_e, payload) => {
     try {
+      const { source_household_id: sourceId, target_household_id: targetId, operator } = payload;
       db2().runRaw("UPDATE farmer_profile SET household_id = ?, updated_at = datetime('now','localtime') WHERE household_id = ?", targetId, sourceId);
       db2().runRaw("DELETE FROM family_household WHERE id = ?", sourceId);
       return success({ message: "合并成功" });
@@ -1132,6 +1142,397 @@ function registerHouseholdHandlers() {
   electron.ipcMain.handle("households:refreshAreaCache", (_e, householdId) => {
     try {
       return success({ message: "面积缓存刷新功能待实现" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:overdrawn", () => {
+    try {
+      const rows = db2().allRaw(`
+        SELECT hh.*, v.village_name,
+               (SELECT COUNT(*) FROM farmer_profile WHERE household_id = hh.id) as member_count,
+               COALESCE((SELECT SUM(sa.apply_area) FROM subsidy_application sa
+                         JOIN farmer_profile fp2 ON sa.beneficiary_id = fp2.id
+                         WHERE fp2.household_id = hh.id), 0) as total_subsidy_area
+        FROM family_household hh
+        LEFT JOIN village v ON hh.village_id = v.id
+        WHERE hh.contract_area IS NOT NULL
+          AND (SELECT COALESCE(SUM(sa.apply_area), 0) FROM subsidy_application sa
+               JOIN farmer_profile fp2 ON sa.beneficiary_id = fp2.id
+               WHERE fp2.household_id = hh.id) > hh.contract_area
+        ORDER BY total_subsidy_area DESC
+      `);
+      return success(rows.map((r) => ({ ...r, group_display: formatGroupNo(r.group_no) })));
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:moveMember", (_e, payload) => {
+    try {
+      const { householdId, farmerId, targetHouseholdId } = payload;
+      db2().runRaw(
+        "UPDATE farmer_profile SET household_id = ?, updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?",
+        targetHouseholdId,
+        farmerId,
+        householdId
+      );
+      db2().runRaw(
+        "INSERT INTO household_event (household_id, event_type, event_year, description, event_date) VALUES (?, 'MEMBER_REMOVE', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",
+        householdId,
+        `农户ID ${farmerId} 迁出至家庭户 ${targetHouseholdId}`
+      );
+      db2().runRaw(
+        "INSERT INTO household_event (household_id, event_type, event_year, description, event_date) VALUES (?, 'MEMBER_ADD', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",
+        targetHouseholdId,
+        `农户ID ${farmerId} 从家庭户 ${householdId} 迁入`
+      );
+      return success(null, "迁移成功");
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:members", (_e, payload) => {
+    try {
+      const { householdId } = payload;
+      const members = db2().allRaw(`
+        SELECT fp.*
+        FROM farmer_profile fp
+        WHERE fp.household_id = ?
+        ORDER BY CASE WHEN fp.relation = '本人' THEN 0 ELSE 1 END, fp.id
+      `, householdId);
+      return success(members);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:areaByYear", (_e, payload) => {
+    try {
+      const { householdId } = payload;
+      const rows = db2().allRaw(`
+        SELECT sa.apply_year,
+               COUNT(DISTINCT sa.beneficiary_id) as beneficiary_count,
+               COALESCE(SUM(sa.apply_area), 0) as total_area,
+               COALESCE(SUM(sa.contract_area), 0) as total_contract_area,
+               COALESCE(SUM(sa.trust_area), 0) as total_trust_area,
+               COALESCE(SUM(sa.actual_amount), 0) as total_amount
+        FROM subsidy_application sa
+        JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
+        WHERE fp.household_id = ?
+        GROUP BY sa.apply_year
+        ORDER BY sa.apply_year DESC
+      `, householdId);
+      return success(rows);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:events", (_e, payload) => {
+    try {
+      const { householdId, year } = payload;
+      let query = "SELECT * FROM household_event WHERE household_id = ?";
+      const params = [householdId];
+      if (year) {
+        query += " AND event_year = ?";
+        params.push(year);
+      }
+      query += " ORDER BY event_date DESC, id DESC";
+      const rows = db2().allRaw(query, ...params);
+      return success(rows);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:addEvent", (_e, payload) => {
+    try {
+      const { householdId, event_type, event_year, description, event_date, related_hh_id, operator } = payload;
+      const result = db2().runRaw(`
+        INSERT INTO household_event (household_id, event_type, event_year, description, event_date, related_hh_id, date_accuracy)
+        VALUES (?, ?, ?, ?, ?, ?, 'YEAR')
+      `, householdId, event_type, event_year, description || "", event_date || null, related_hh_id || null);
+      return success({ id: result.lastInsertRowid });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:undoEvent", (_e, payload) => {
+    try {
+      const { householdId, eventId } = payload;
+      db2().runRaw("DELETE FROM household_event WHERE id = ? AND household_id = ?", eventId, householdId);
+      return success(null, "撤销成功");
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:historyDates", (_e, payload) => {
+    try {
+      const { householdId } = payload;
+      const rows = db2().allRaw(`
+        SELECT DISTINCT event_date FROM household_event WHERE household_id = ? AND event_date IS NOT NULL ORDER BY event_date DESC
+      `, householdId);
+      return success(rows.map((r) => r.event_date));
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:snapshotAt", (_e, payload) => {
+    try {
+      const { householdId, date } = payload;
+      const events = db2().allRaw(`
+        SELECT * FROM household_event WHERE household_id = ? AND event_date = ? ORDER BY id
+      `, householdId, date);
+      return success(events);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:snapshotByEvent", (_e, payload) => {
+    try {
+      const { householdId, eventId } = payload;
+      const event = db2().getRaw(
+        "SELECT * FROM household_event WHERE id = ?",
+        eventId
+      );
+      return success(event || null);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:historyYears", (_e, payload) => {
+    try {
+      const { householdId } = payload;
+      const rows = db2().allRaw(`
+        SELECT DISTINCT event_year FROM household_event WHERE household_id = ? ORDER BY event_year DESC
+      `, householdId);
+      return success(rows.map((r) => r.event_year));
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:history", (_e, payload) => {
+    try {
+      const { householdId, year } = payload;
+      const rows = db2().allRaw(`
+        SELECT * FROM household_event WHERE household_id = ? AND event_year = ? ORDER BY event_date DESC, id DESC
+      `, householdId, year);
+      return success(rows);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:split", (_e, payload) => {
+    try {
+      const { householdId, newHouseholdName, villageId, groupNo, memberIds, operator } = payload;
+      const code = `HH_SPLIT_${Date.now()}`;
+      const result = db2().runRaw(`
+        INSERT INTO family_household (household_code, household_name, village_id, group_no, address, contract_area, status, remark)
+        VALUES (?, ?, ?, ?, '', 0, 1, ?)
+      `, code, newHouseholdName, villageId, groupNo, `从家庭户 ${householdId} 分出`);
+      const newHouseholdId = result.lastInsertRowid;
+      const newCode = `HH${String(newHouseholdId).padStart(4, "0")}`;
+      db2().runRaw("UPDATE family_household SET household_code = ? WHERE id = ?", newCode, newHouseholdId);
+      if (memberIds && Array.isArray(memberIds)) {
+        for (const farmerId of memberIds) {
+          db2().runRaw(
+            "UPDATE farmer_profile SET household_id = ?, updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?",
+            newHouseholdId,
+            farmerId,
+            householdId
+          );
+        }
+      }
+      db2().runRaw(
+        "INSERT INTO household_event (household_id, related_hh_id, event_type, event_year, description, event_date) VALUES (?, ?, 'SPLIT', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",
+        householdId,
+        newHouseholdId,
+        `分户：分出家庭户 ${newHouseholdName} (${newCode})，分出成员 ${memberIds?.length || 0} 人`
+      );
+      db2().runRaw(
+        "INSERT INTO household_event (household_id, related_hh_id, event_type, event_year, description, event_date) VALUES (?, ?, 'FOUND', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",
+        newHouseholdId,
+        householdId,
+        `由家庭户 ${householdId} 分出，自动建档`
+      );
+      return success({ new_household_id: newHouseholdId, new_household_code: newCode });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:batchBuild", (_e, payload) => {
+    try {
+      const { rows } = payload;
+      const created = [];
+      const errors = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        try {
+          const result = db2().runRaw(
+            `
+            INSERT INTO family_household (household_code, household_name, village_id, group_no, address, contract_area, confirmed_area, status, remark)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+            row.household_code || `HH_TEMP_${Date.now()}_${i}`,
+            row.household_name || "",
+            row.village_id || null,
+            row.group_no || 1,
+            row.address || "",
+            row.contract_area || null,
+            row.confirmed_area || null,
+            row.status != null ? row.status : 1,
+            row.remark || ""
+          );
+          const id = result.lastInsertRowid;
+          const code = `HH${String(id).padStart(4, "0")}`;
+          db2().runRaw("UPDATE family_household SET household_code = ? WHERE id = ?", code, id);
+          created.push(id);
+        } catch (rowErr) {
+          errors.push({ row: i + 1, message: String(rowErr) });
+        }
+      }
+      return success({ created, total: rows.length, created_count: created.length, error_count: errors.length, errors });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:batchImportMembers", (_e, payload) => {
+    try {
+      const { householdId, rows } = payload;
+      const created = [];
+      const errors = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        try {
+          const result = db2().runRaw(
+            `
+            INSERT INTO farmer_profile (household_id, real_name, gender, id_card, phone, bank_card, bank_name, relation, farmer_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+          `,
+            householdId,
+            row.real_name || "",
+            row.gender || 1,
+            row.id_card || "",
+            row.phone || null,
+            row.bank_card || null,
+            row.bank_name || null,
+            row.relation || "成员"
+          );
+          created.push(result.lastInsertRowid);
+        } catch (rowErr) {
+          errors.push({ row: i + 1, message: String(rowErr) });
+        }
+      }
+      return success({ created, total: rows.length, created_count: created.length, error_count: errors.length, errors });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:importConfirmedArea", (_e, payload) => {
+    try {
+      const rows = payload;
+      const updated = [];
+      const errors = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        try {
+          const farmer = db2().getRaw(
+            "SELECT id, household_id FROM farmer_profile WHERE real_name = ? AND id_card = ?",
+            row.real_name,
+            row.id_card
+          );
+          if (!farmer || !farmer.household_id) {
+            errors.push({ row: i + 1, message: `未找到匹配的农户：${row.real_name} ${row.id_card}` });
+            continue;
+          }
+          db2().runRaw(
+            "UPDATE family_household SET confirmed_area = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+            row.confirmed_area,
+            farmer.household_id
+          );
+          updated.push(farmer.household_id);
+        } catch (rowErr) {
+          errors.push({ row: i + 1, message: String(rowErr) });
+        }
+      }
+      return success({ updated_count: updated.length, error_count: errors.length, errors });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:manualConfirm", (_e, payload) => {
+    try {
+      const { householdId, operator, remark } = payload;
+      db2().runRaw(
+        "UPDATE family_household SET is_manually_confirmed = 1, manually_confirmed_at = datetime('now','localtime'), manually_confirmed_by = ? WHERE id = ?",
+        operator || null,
+        householdId
+      );
+      db2().runRaw(
+        "INSERT INTO household_event (household_id, event_type, event_year, description, event_date) VALUES (?, 'MANUAL_CONFIRM', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",
+        householdId,
+        remark || `人工确认（操作人：${operator || "未知"}）`
+      );
+      return success(null, "确认成功");
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:cancelConfirm", (_e, payload) => {
+    try {
+      const { householdId, operator, remark } = payload;
+      db2().runRaw("UPDATE family_household SET is_manually_confirmed = 0 WHERE id = ?", householdId);
+      db2().runRaw(
+        "INSERT INTO household_event (household_id, event_type, event_year, description, event_date) VALUES (?, 'MANUAL_CONFIRM', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",
+        householdId,
+        remark || `取消确认（操作人：${operator || "未知"}）`
+      );
+      return success(null, "已取消确认");
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:batchConfirm", (_e, payload) => {
+    try {
+      const { household_ids, operator, remark } = payload;
+      if (!household_ids || !Array.isArray(household_ids)) {
+        return errorResponse("household_ids 必须为数组");
+      }
+      for (const hid of household_ids) {
+        db2().runRaw(
+          "UPDATE family_household SET is_manually_confirmed = 1, manually_confirmed_at = datetime('now','localtime'), manually_confirmed_by = ? WHERE id = ?",
+          operator || null,
+          hid
+        );
+        db2().runRaw(
+          "INSERT INTO household_event (household_id, event_type, event_year, description, event_date) VALUES (?, 'MANUAL_CONFIRM', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",
+          hid,
+          remark || `批量确认（操作人：${operator || "未知"}）`
+        );
+      }
+      return success({ confirmed_count: household_ids.length });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("households:recalcUnconfirmedContractArea", () => {
+    try {
+      const unconfirmed = db2().allRaw(`
+        SELECT id FROM family_household WHERE is_manually_confirmed = 0
+      `);
+      let updated = 0;
+      for (const hh of unconfirmed) {
+        const areaRow = db2().getRaw(`
+          SELECT COALESCE(SUM(sa.contract_area), 0) as total_area
+          FROM subsidy_application sa
+          JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
+          WHERE fp.household_id = ?
+          AND sa.apply_year = CAST(strftime('%Y','now') AS INTEGER)
+        `, hh.id);
+        const area = areaRow?.total_area ?? 0;
+        if (area > 0) {
+          db2().runRaw("UPDATE family_household SET contract_area = ? WHERE id = ?", area, hh.id);
+          updated++;
+        }
+      }
+      return success({ total_unconfirmed: unconfirmed.length, updated });
     } catch (e) {
       return errorResponse(String(e));
     }
@@ -1188,8 +1589,9 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("subsidies:updateType", (_e, id, data) => {
+  electron.ipcMain.handle("subsidies:updateType", (_e, payload) => {
     try {
+      const { id, ...data } = payload;
       const keys = Object.keys(data).filter((k) => data[k] !== void 0);
       if (keys.length === 0) return errorResponse("无更新数据");
       const sets = keys.map((k) => `${k} = ?`).join(", ");
@@ -1266,8 +1668,9 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("subsidies:updateApplication", (_e, id, data) => {
+  electron.ipcMain.handle("subsidies:updateApplication", (_e, payload) => {
     try {
+      const { id, ...data } = payload;
       const keys = Object.keys(data).filter((k) => data[k] !== void 0);
       if (keys.length === 0) return errorResponse("无更新数据");
       const sets = keys.map((k) => `${k} = ?`).join(", ");
@@ -1367,6 +1770,90 @@ function registerSubsidyHandlers() {
         GROUP BY st.season
       `, year);
       return success(rows);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:batchImportApplications", (_e, payload) => {
+    try {
+      const { rows } = payload;
+      const inserted = [];
+      const updated = [];
+      const errors = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        try {
+          const existing = db2().getRaw(`
+            SELECT id FROM subsidy_application
+            WHERE apply_year = ? AND subsidy_type_id = ? AND beneficiary_id = ?
+          `, row.apply_year, row.subsidy_type_id, row.beneficiary_id);
+          if (existing) {
+            const keys = Object.keys(row).filter((k) => row[k] !== void 0 && k !== "id");
+            const sets = keys.map((k) => `${k} = ?`).join(", ");
+            const values = keys.map((k) => row[k]);
+            db2().runRaw(`UPDATE subsidy_application SET ${sets}, updated_at = datetime('now','localtime') WHERE id = ?`, ...values, existing.id);
+            updated.push(existing.id);
+          } else {
+            const cols = Object.keys(row).join(", ");
+            const placeholders = Object.keys(row).map(() => "?").join(", ");
+            const values = Object.keys(row).map((k) => row[k]);
+            const result = db2().runRaw(`INSERT INTO subsidy_application (${cols}) VALUES (${placeholders})`, ...values);
+            inserted.push(result.lastInsertRowid);
+          }
+        } catch (rowErr) {
+          errors.push({ row: i + 1, message: String(rowErr) });
+        }
+      }
+      return success({
+        total: rows.length,
+        inserted_count: inserted.length,
+        updated_count: updated.length,
+        error_count: errors.length,
+        errors
+      });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:areaStatsByVillage", (_e, payload) => {
+    try {
+      const { subsidy_type_id, year, data_source } = payload;
+      const tableName = data_source === "payment" ? "subsidy_payment" : "subsidy_application";
+      let query = `
+        SELECT v.id as village_id, v.village_name,
+               COUNT(DISTINCT sa.beneficiary_id) as beneficiary_count,
+               COUNT(*) as application_count,
+               COALESCE(SUM(sa.apply_area), 0) as total_area,
+               COALESCE(SUM(sa.actual_amount), 0) as total_amount
+        FROM ${tableName} sa
+        LEFT JOIN farmer_profile fp ON sa.farmer_id = fp.id
+        LEFT JOIN family_household hh ON fp.household_id = hh.id
+        LEFT JOIN village v ON hh.village_id = v.id
+        WHERE 1=1
+      `;
+      const values = [];
+      if (subsidy_type_id) {
+        query += " AND sa.subsidy_type_id = ?";
+        values.push(subsidy_type_id);
+      }
+      if (year) {
+        query += " AND sa.apply_year = ?";
+        values.push(year);
+      }
+      try {
+        const rows = db2().allRaw(
+          query + " GROUP BY v.id ORDER BY total_area DESC",
+          ...values
+        );
+        return success(rows);
+      } catch {
+        const fallbackQuery = query.replace(tableName, "subsidy_application");
+        const rows = db2().allRaw(
+          fallbackQuery + " GROUP BY v.id ORDER BY total_area DESC",
+          ...values
+        );
+        return success(rows);
+      }
     } catch (e) {
       return errorResponse(String(e));
     }
@@ -1481,8 +1968,9 @@ function registerLandHandlers() {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("land:update", (_e, id, data) => {
+  electron.ipcMain.handle("land:update", (_e, payload) => {
     try {
+      const { id, ...data } = payload;
       const keys = Object.keys(data).filter((k) => data[k] !== void 0);
       if (keys.length === 0) return errorResponse("无更新数据");
       const sets = keys.map((k) => `${k} = ?`).join(", ");
@@ -1602,6 +2090,72 @@ function registerExcelTemplateHandlers() {
       return errorResponse(String(e));
     }
   });
+  electron.ipcMain.handle("excel-templates:detectColumns", (_e, payload) => {
+    try {
+      const { columns, business_type, sample_rows } = payload;
+      if (!columns || !Array.isArray(columns)) {
+        return errorResponse("columns 必须为字符串数组");
+      }
+      const keywordMap = {
+        household_name: ["户名", "家庭名称", "家庭户名称", "户主姓名"],
+        real_name: ["姓名", "农户姓名", "姓名/名称"],
+        id_card: ["身份证", "身份证号", "身份证号码", "公民身份号码"],
+        phone: ["手机", "手机号", "联系电话", "电话"],
+        gender: ["性别"],
+        bank_card: ["银行卡", "银行卡号", "银行账号", "账号"],
+        bank_name: ["开户行", "银行名称", "开户银行"],
+        relation: ["与户主关系", "关系", "家庭关系"],
+        household_code: ["户编码", "户号", "家庭编号"],
+        address: ["地址", "家庭地址", "居住地址", "户籍地址"],
+        village_name: ["村", "村名", "所属村", "行政村"],
+        group_no: ["组", "组别", "村组", "小组"],
+        contract_area: ["承包面积", "承包地面积", "地亩数"],
+        confirmed_area: ["确权面积", "确权地亩"],
+        remark: ["备注", "说明", "备注信息"],
+        farmer_status: ["状态", "农户状态"],
+        apply_year: ["年度", "年份", "补贴年度"],
+        apply_area: ["补贴面积", "申请面积"],
+        apply_amount: ["补贴金额", "补贴标准", "单价", "申请金额"],
+        subsidy_name: ["补贴名称", "补贴项目", "补贴类型"]
+      };
+      const mapping = {};
+      const unmatched = [];
+      for (const col of columns) {
+        let bestField = "";
+        let bestConfidence = 0;
+        for (const [field, keywords] of Object.entries(keywordMap)) {
+          for (const kw of keywords) {
+            if (col === kw) {
+              if (bestConfidence < 100) {
+                bestField = field;
+                bestConfidence = 100;
+              }
+            } else if (col.includes(kw) || kw.includes(col)) {
+              const score = 70;
+              if (score > bestConfidence) {
+                bestField = field;
+                bestConfidence = score;
+              }
+            }
+          }
+        }
+        if (bestConfidence >= 70) {
+          mapping[col] = { column: bestField, confidence: bestConfidence };
+        } else {
+          unmatched.push(col);
+        }
+      }
+      return success({
+        business_type,
+        detected_count: Object.keys(mapping).length,
+        unmatched_count: unmatched.length,
+        mapping,
+        unmatched
+      });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
 }
 function registerErrorLibraryHandlers() {
   const db2 = () => getDb();
@@ -1626,8 +2180,9 @@ function registerErrorLibraryHandlers() {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("error-library:update", (_e, id, data) => {
+  electron.ipcMain.handle("error-library:update", (_e, payload) => {
     try {
+      const { id, ...data } = payload;
       const keys = Object.keys(data).filter((k) => data[k] !== void 0);
       if (keys.length === 0) return errorResponse("无更新数据");
       const sets = keys.map((k) => `${k} = ?`).join(", ");
@@ -1656,18 +2211,227 @@ function registerErrorLibraryHandlers() {
       return errorResponse(String(e));
     }
   });
-}
-function registerHouseholdImportHandlers() {
-  electron.ipcMain.handle("household-import:preview", (_e, rows) => {
+  electron.ipcMain.handle("error-library:stats", () => {
     try {
-      return success({ message: "家庭户批量导入预览功能开发中", groups: [], row_errors: [], summary: { total_rows: 0, total_groups: 0, new_households: 0, merge_single: 0, merge_multi: 0, error_rows: 0 } });
+      const rows = db2().allRaw(`
+        SELECT error_type, COUNT(*) as count
+        FROM error_library
+        GROUP BY error_type
+        ORDER BY count DESC
+      `);
+      const total = db2().getRaw("SELECT COUNT(*) as cnt FROM error_library");
+      return success({ total: total?.cnt ?? 0, by_type: rows });
     } catch (e) {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("household-import:execute", (_e, rows) => {
+  electron.ipcMain.handle("error-library:batchImport", (_e, payload) => {
     try {
-      return success({ message: "家庭户批量导入执行功能开发中", created_households: 0, merged_households: 0, created_farmers: 0, skipped_farmers: 0, errors: [] });
+      const { rows } = payload;
+      const inserted = [];
+      const errors = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        try {
+          const cols = Object.keys(row).join(", ");
+          const placeholders = Object.keys(row).map(() => "?").join(", ");
+          const values = Object.keys(row).map((k) => row[k]);
+          const result = db2().runRaw(`INSERT INTO error_library (${cols}) VALUES (${placeholders})`, ...values);
+          inserted.push(result.lastInsertRowid);
+        } catch (rowErr) {
+          errors.push({ row: i + 1, message: String(rowErr) });
+        }
+      }
+      return success({
+        total: rows.length,
+        inserted_count: inserted.length,
+        error_count: errors.length,
+        errors
+      });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+}
+function registerHouseholdImportHandlers() {
+  const db2 = () => getDb();
+  electron.ipcMain.handle("household-import:preview", (_e, payload) => {
+    try {
+      const rows = payload;
+      if (!rows || rows.length === 0) {
+        return errorResponse("没有可导入的数据");
+      }
+      const groupMap = /* @__PURE__ */ new Map();
+      for (const row of rows) {
+        const key = row.household_code || row.household_name || `__orphan__${groupMap.size}`;
+        if (!groupMap.has(key)) {
+          groupMap.set(key, {
+            rows: [],
+            household_name: row.household_name || key
+          });
+        }
+        groupMap.get(key).rows.push(row);
+      }
+      const groups = [];
+      const rowErrors = [];
+      let newHouseholds = 0;
+      let mergeSingle = 0;
+      let mergeMulti = 0;
+      let errorRows = 0;
+      let rowIndex = 0;
+      for (const [key, group] of groupMap) {
+        rowIndex++;
+        try {
+          const existing = db2().getRaw(
+            "SELECT id, household_name FROM family_household WHERE household_name = ? OR household_code = ?",
+            group.household_name,
+            key
+          );
+          if (existing) {
+            const memberCount = db2().getRaw(
+              "SELECT COUNT(*) as cnt FROM farmer_profile WHERE household_id = ?",
+              existing.id
+            )?.cnt ?? 0;
+            if (memberCount === 0) {
+              mergeSingle++;
+            } else {
+              mergeMulti++;
+            }
+            groups.push({
+              key,
+              household_name: group.household_name,
+              member_count: group.rows.length,
+              existing_household_id: existing.id,
+              existing_household_name: existing.household_name,
+              status: "merge",
+              existing_member_count: memberCount
+            });
+          } else {
+            newHouseholds++;
+            groups.push({
+              key,
+              household_name: group.household_name,
+              member_count: group.rows.length,
+              status: "new"
+            });
+          }
+        } catch (e) {
+          errorRows++;
+          rowErrors.push({ row: rowIndex, message: String(e) });
+        }
+      }
+      return success({
+        groups,
+        row_errors: rowErrors,
+        summary: {
+          total_rows: rows.length,
+          total_groups: groupMap.size,
+          new_households: newHouseholds,
+          merge_single: mergeSingle,
+          merge_multi: mergeMulti,
+          error_rows: errorRows
+        }
+      });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("household-import:execute", (_e, payload) => {
+    try {
+      const rows = payload;
+      if (!rows || rows.length === 0) {
+        return errorResponse("没有可导入的数据");
+      }
+      const groupMap = /* @__PURE__ */ new Map();
+      for (const row of rows) {
+        const key = row.household_code || row.household_name || `__orphan__${groupMap.size}`;
+        if (!groupMap.has(key)) {
+          groupMap.set(key, {
+            rows: [],
+            household_name: row.household_name || key
+          });
+        }
+        groupMap.get(key).rows.push(row);
+      }
+      let createdHouseholds = 0;
+      let mergedHouseholds = 0;
+      let createdFarmers = 0;
+      let skippedFarmers = 0;
+      const errors = [];
+      for (const [key, group] of groupMap) {
+        try {
+          let householdId;
+          const existing = db2().getRaw(
+            "SELECT id FROM family_household WHERE household_name = ? OR household_code = ?",
+            group.household_name,
+            key
+          );
+          if (existing) {
+            householdId = existing.id;
+            mergedHouseholds++;
+          } else {
+            const code = `HH_IMP_${Date.now()}_${createdHouseholds}`;
+            const villageId = group.rows[0]?.village_id || null;
+            const groupNo = group.rows[0]?.group_no || 1;
+            const address = group.rows[0]?.address || "";
+            const contractArea = group.rows[0]?.contract_area || null;
+            const confirmedArea = group.rows[0]?.confirmed_area || null;
+            const result = db2().runRaw(`
+              INSERT INTO family_household (household_code, household_name, village_id, group_no, address, contract_area, confirmed_area, status, remark)
+              VALUES (?, ?, ?, ?, ?, ?, ?, 1, '批量导入')
+            `, code, group.household_name, villageId, groupNo, address, contractArea, confirmedArea);
+            householdId = result.lastInsertRowid;
+            const newCode = `HH${String(householdId).padStart(4, "0")}`;
+            db2().runRaw("UPDATE family_household SET household_code = ? WHERE id = ?", newCode, householdId);
+            createdHouseholds++;
+          }
+          for (const row of group.rows) {
+            try {
+              if (row.id_card) {
+                const existingFarmer = db2().getRaw(
+                  "SELECT id FROM farmer_profile WHERE id_card = ?",
+                  row.id_card
+                );
+                if (existingFarmer) {
+                  db2().runRaw(
+                    "UPDATE farmer_profile SET household_id = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+                    householdId,
+                    existingFarmer.id
+                  );
+                  skippedFarmers++;
+                  continue;
+                }
+              }
+              db2().runRaw(
+                `
+                INSERT INTO farmer_profile (household_id, real_name, gender, id_card, phone, bank_card, bank_name, relation, farmer_status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+              `,
+                householdId,
+                row.real_name || "",
+                row.gender || 1,
+                row.id_card || "",
+                row.phone || null,
+                row.bank_card || null,
+                row.bank_name || null,
+                row.relation || "成员"
+              );
+              createdFarmers++;
+            } catch (memberErr) {
+              errors.push({ group: group.household_name, message: `成员导入失败: ${String(memberErr)}` });
+            }
+          }
+        } catch (groupErr) {
+          errors.push({ group: group.household_name, message: String(groupErr) });
+        }
+      }
+      return success({
+        created_households: createdHouseholds,
+        merged_households: mergedHouseholds,
+        created_farmers: createdFarmers,
+        skipped_farmers: skippedFarmers,
+        errors
+      });
     } catch (e) {
       return errorResponse(String(e));
     }

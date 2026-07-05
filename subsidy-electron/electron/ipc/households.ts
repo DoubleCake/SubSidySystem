@@ -60,8 +60,9 @@ export function registerHouseholdHandlers(): void {
   })
 
   // ── 详情 ──
-  ipcMain.handle('households:get', (_e, id: number, year?: number) => {
+  ipcMain.handle('households:get', (_e, payload: any) => {
     try {
+      const { id, year } = payload
       const hh = db().getRaw<Record<string, unknown>>(`
         SELECT hh.*, v.village_name,
                (SELECT real_name FROM farmer_profile WHERE id = hh.head_farmer_id) as head_name
@@ -109,8 +110,9 @@ export function registerHouseholdHandlers(): void {
   })
 
   // ── 修改 ──
-  ipcMain.handle('households:update', (_e, id: number, data: Record<string, unknown>) => {
+  ipcMain.handle('households:update', (_e, payload: any) => {
     try {
+      const { id, ...data } = payload
       const keys = Object.keys(data).filter(k => data[k] !== undefined)
       if (keys.length === 0) return errorResponse('无更新数据')
       const sets = keys.map(k => `${k} = ?`).join(', ')
@@ -137,8 +139,9 @@ export function registerHouseholdHandlers(): void {
   })
 
   // ── 成员管理 ──
-  ipcMain.handle('households:addMember', (_e, householdId: number, data: Record<string, unknown>) => {
+  ipcMain.handle('households:addMember', (_e, payload: any) => {
     try {
+      const { householdId, ...data } = payload
       const result = db().runRaw(`
         INSERT INTO farmer_profile (household_id, real_name, gender, id_card, phone, bank_card, bank_name, relation, farmer_status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
@@ -149,8 +152,9 @@ export function registerHouseholdHandlers(): void {
     }
   })
 
-  ipcMain.handle('households:updateMember', (_e, householdId: number, farmerId: number, data: Record<string, unknown>) => {
+  ipcMain.handle('households:updateMember', (_e, payload: any) => {
     try {
+      const { householdId, farmerId, ...data } = payload
       const keys = Object.keys(data).filter(k => data[k] !== undefined)
       if (keys.length === 0) return errorResponse('无更新数据')
       const sets = keys.map(k => `${k} = ?`).join(', ')
@@ -162,8 +166,9 @@ export function registerHouseholdHandlers(): void {
     }
   })
 
-  ipcMain.handle('households:removeMember', (_e, householdId: number, farmerId: number) => {
+  ipcMain.handle('households:removeMember', (_e, payload: any) => {
     try {
+      const { householdId, farmerId } = payload
       db().runRaw("UPDATE farmer_profile SET household_id = NULL, updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?", farmerId, householdId)
       return success(null, '移出成功')
     } catch (e) {
@@ -172,8 +177,9 @@ export function registerHouseholdHandlers(): void {
   })
 
   // ── 合并家庭户 ──
-  ipcMain.handle('households:merge', (_e, sourceId: number, targetId: number, operator?: string) => {
+  ipcMain.handle('households:merge', (_e, payload: any) => {
     try {
+      const { source_household_id: sourceId, target_household_id: targetId, operator } = payload
       db().runRaw("UPDATE farmer_profile SET household_id = ?, updated_at = datetime('now','localtime') WHERE household_id = ?", targetId, sourceId)
       db().runRaw('DELETE FROM family_household WHERE id = ?', sourceId)
       return success({ message: '合并成功' })
@@ -205,6 +211,439 @@ export function registerHouseholdHandlers(): void {
   ipcMain.handle('households:refreshAreaCache', (_e, householdId?: number) => {
     try {
       return success({ message: '面积缓存刷新功能待实现' })
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 超面积预警 ──
+  ipcMain.handle('households:overdrawn', () => {
+    try {
+      const rows = db().allRaw<Record<string, unknown>>(`
+        SELECT hh.*, v.village_name,
+               (SELECT COUNT(*) FROM farmer_profile WHERE household_id = hh.id) as member_count,
+               COALESCE((SELECT SUM(sa.apply_area) FROM subsidy_application sa
+                         JOIN farmer_profile fp2 ON sa.beneficiary_id = fp2.id
+                         WHERE fp2.household_id = hh.id), 0) as total_subsidy_area
+        FROM family_household hh
+        LEFT JOIN village v ON hh.village_id = v.id
+        WHERE hh.contract_area IS NOT NULL
+          AND (SELECT COALESCE(SUM(sa.apply_area), 0) FROM subsidy_application sa
+               JOIN farmer_profile fp2 ON sa.beneficiary_id = fp2.id
+               WHERE fp2.household_id = hh.id) > hh.contract_area
+        ORDER BY total_subsidy_area DESC
+      `)
+      return success(rows.map(r => ({ ...r, group_display: formatGroupNo(r.group_no as number) })))
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 成员迁移（从一个家庭户移到另一个） ──
+  ipcMain.handle('households:moveMember', (_e, payload: any) => {
+    try {
+      const { householdId, farmerId, targetHouseholdId } = payload
+      db().runRaw(
+        "UPDATE farmer_profile SET household_id = ?, updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?",
+        targetHouseholdId, farmerId, householdId
+      )
+      // 记录事件：从原户移出
+      db().runRaw(
+        "INSERT INTO household_event (household_id, event_type, event_year, description, event_date) VALUES (?, 'MEMBER_REMOVE', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",
+        householdId, `农户ID ${farmerId} 迁出至家庭户 ${targetHouseholdId}`
+      )
+      // 记录事件：迁入目标户
+      db().runRaw(
+        "INSERT INTO household_event (household_id, event_type, event_year, description, event_date) VALUES (?, 'MEMBER_ADD', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",
+        targetHouseholdId, `农户ID ${farmerId} 从家庭户 ${householdId} 迁入`
+      )
+      return success(null, '迁移成功')
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 获取家庭成员 ──
+  ipcMain.handle('households:members', (_e, payload: any) => {
+    try {
+      const { householdId } = payload
+      const members = db().allRaw<Record<string, unknown>>(`
+        SELECT fp.*
+        FROM farmer_profile fp
+        WHERE fp.household_id = ?
+        ORDER BY CASE WHEN fp.relation = '本人' THEN 0 ELSE 1 END, fp.id
+      `, householdId)
+      return success(members)
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 按年度统计面积 ──
+  ipcMain.handle('households:areaByYear', (_e, payload: any) => {
+    try {
+      const { householdId } = payload
+      const rows = db().allRaw<Record<string, unknown>>(`
+        SELECT sa.apply_year,
+               COUNT(DISTINCT sa.beneficiary_id) as beneficiary_count,
+               COALESCE(SUM(sa.apply_area), 0) as total_area,
+               COALESCE(SUM(sa.contract_area), 0) as total_contract_area,
+               COALESCE(SUM(sa.trust_area), 0) as total_trust_area,
+               COALESCE(SUM(sa.actual_amount), 0) as total_amount
+        FROM subsidy_application sa
+        JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
+        WHERE fp.household_id = ?
+        GROUP BY sa.apply_year
+        ORDER BY sa.apply_year DESC
+      `, householdId)
+      return success(rows)
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 家庭户事件列表 ──
+  ipcMain.handle('households:events', (_e, payload: any) => {
+    try {
+      const { householdId, year } = payload
+      let query = 'SELECT * FROM household_event WHERE household_id = ?'
+      const params: unknown[] = [householdId]
+      if (year) {
+        query += ' AND event_year = ?'
+        params.push(year)
+      }
+      query += ' ORDER BY event_date DESC, id DESC'
+      const rows = db().allRaw<Record<string, unknown>>(query, ...params)
+      return success(rows)
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 新增事件 ──
+  ipcMain.handle('households:addEvent', (_e, payload: any) => {
+    try {
+      const { householdId, event_type, event_year, description, event_date, related_hh_id, operator } = payload
+      const result = db().runRaw(`
+        INSERT INTO household_event (household_id, event_type, event_year, description, event_date, related_hh_id, date_accuracy)
+        VALUES (?, ?, ?, ?, ?, ?, 'YEAR')
+      `, householdId, event_type, event_year, description || '', event_date || null, related_hh_id || null)
+      return success({ id: result.lastInsertRowid })
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 撤销事件 ──
+  ipcMain.handle('households:undoEvent', (_e, payload: any) => {
+    try {
+      const { householdId, eventId } = payload
+      db().runRaw('DELETE FROM household_event WHERE id = ? AND household_id = ?', eventId, householdId)
+      return success(null, '撤销成功')
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 历史日期列表 ──
+  ipcMain.handle('households:historyDates', (_e, payload: any) => {
+    try {
+      const { householdId } = payload
+      const rows = db().allRaw<Record<string, unknown>>(`
+        SELECT DISTINCT event_date FROM household_event WHERE household_id = ? AND event_date IS NOT NULL ORDER BY event_date DESC
+      `, householdId)
+      return success(rows.map(r => r.event_date))
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 按日期查看快照 ──
+  ipcMain.handle('households:snapshotAt', (_e, payload: any) => {
+    try {
+      const { householdId, date } = payload
+      const events = db().allRaw<Record<string, unknown>>(`
+        SELECT * FROM household_event WHERE household_id = ? AND event_date = ? ORDER BY id
+      `, householdId, date)
+      return success(events)
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 按事件ID查看快照 ──
+  ipcMain.handle('households:snapshotByEvent', (_e, payload: any) => {
+    try {
+      const { householdId, eventId } = payload
+      const event = db().getRaw<Record<string, unknown>>(
+        'SELECT * FROM household_event WHERE id = ?', eventId
+      )
+      return success(event || null)
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 历史年度列表 ──
+  ipcMain.handle('households:historyYears', (_e, payload: any) => {
+    try {
+      const { householdId } = payload
+      const rows = db().allRaw<Record<string, unknown>>(`
+        SELECT DISTINCT event_year FROM household_event WHERE household_id = ? ORDER BY event_year DESC
+      `, householdId)
+      return success(rows.map(r => r.event_year))
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 按年度查看历史 ──
+  ipcMain.handle('households:history', (_e, payload: any) => {
+    try {
+      const { householdId, year } = payload
+      const rows = db().allRaw<Record<string, unknown>>(`
+        SELECT * FROM household_event WHERE household_id = ? AND event_year = ? ORDER BY event_date DESC, id DESC
+      `, householdId, year)
+      return success(rows)
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 分户 ──
+  ipcMain.handle('households:split', (_e, payload: any) => {
+    try {
+      const { householdId, newHouseholdName, villageId, groupNo, memberIds, operator } = payload
+
+      // 1. 创建新家庭户
+      const code = `HH_SPLIT_${Date.now()}`
+      const result = db().runRaw(`
+        INSERT INTO family_household (household_code, household_name, village_id, group_no, address, contract_area, status, remark)
+        VALUES (?, ?, ?, ?, '', 0, 1, ?)
+      `, code, newHouseholdName, villageId, groupNo, `从家庭户 ${householdId} 分出`)
+
+      const newHouseholdId = result.lastInsertRowid
+      const newCode = `HH${String(newHouseholdId).padStart(4, '0')}`
+      db().runRaw('UPDATE family_household SET household_code = ? WHERE id = ?', newCode, newHouseholdId)
+
+      // 2. 迁移成员
+      if (memberIds && Array.isArray(memberIds)) {
+        for (const farmerId of memberIds) {
+          db().runRaw(
+            "UPDATE farmer_profile SET household_id = ?, updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?",
+            newHouseholdId, farmerId, householdId
+          )
+        }
+      }
+
+      // 3. 记录事件（原户）
+      db().runRaw(
+        "INSERT INTO household_event (household_id, related_hh_id, event_type, event_year, description, event_date) VALUES (?, ?, 'SPLIT', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",
+        householdId, newHouseholdId, `分户：分出家庭户 ${newHouseholdName} (${newCode})，分出成员 ${memberIds?.length || 0} 人`
+      )
+
+      // 4. 记录事件（新户）
+      db().runRaw(
+        "INSERT INTO household_event (household_id, related_hh_id, event_type, event_year, description, event_date) VALUES (?, ?, 'FOUND', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",
+        newHouseholdId, householdId, `由家庭户 ${householdId} 分出，自动建档`
+      )
+
+      return success({ new_household_id: newHouseholdId, new_household_code: newCode })
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 批量创建家庭户 ──
+  ipcMain.handle('households:batchBuild', (_e, payload: any) => {
+    try {
+      const { rows } = payload
+      const created: number[] = []
+      const errors: { row: number; message: string }[] = []
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i]
+        try {
+          const result = db().runRaw(`
+            INSERT INTO family_household (household_code, household_name, village_id, group_no, address, contract_area, confirmed_area, status, remark)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+            row.household_code || `HH_TEMP_${Date.now()}_${i}`,
+            row.household_name || '',
+            row.village_id || null,
+            row.group_no || 1,
+            row.address || '',
+            row.contract_area || null,
+            row.confirmed_area || null,
+            row.status != null ? row.status : 1,
+            row.remark || ''
+          )
+          const id = result.lastInsertRowid
+          const code = `HH${String(id).padStart(4, '0')}`
+          db().runRaw('UPDATE family_household SET household_code = ? WHERE id = ?', code, id)
+          created.push(id)
+        } catch (rowErr) {
+          errors.push({ row: i + 1, message: String(rowErr) })
+        }
+      }
+
+      return success({ created, total: rows.length, created_count: created.length, error_count: errors.length, errors })
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 批量导入成员 ──
+  ipcMain.handle('households:batchImportMembers', (_e, payload: any) => {
+    try {
+      const { householdId, rows } = payload
+      const created: number[] = []
+      const errors: { row: number; message: string }[] = []
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i]
+        try {
+          const result = db().runRaw(`
+            INSERT INTO farmer_profile (household_id, real_name, gender, id_card, phone, bank_card, bank_name, relation, farmer_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+          `,
+            householdId,
+            row.real_name || '',
+            row.gender || 1,
+            row.id_card || '',
+            row.phone || null,
+            row.bank_card || null,
+            row.bank_name || null,
+            row.relation || '成员'
+          )
+          created.push(result.lastInsertRowid)
+        } catch (rowErr) {
+          errors.push({ row: i + 1, message: String(rowErr) })
+        }
+      }
+
+      return success({ created, total: rows.length, created_count: created.length, error_count: errors.length, errors })
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 导入确权面积 ──
+  ipcMain.handle('households:importConfirmedArea', (_e, payload: any) => {
+    try {
+      const rows = payload as Array<{ real_name: string; id_card: string; confirmed_area: number }>
+      const updated: number[] = []
+      const errors: { row: number; message: string }[] = []
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i]
+        try {
+          const farmer = db().getRaw<Record<string, unknown>>(
+            'SELECT id, household_id FROM farmer_profile WHERE real_name = ? AND id_card = ?',
+            row.real_name, row.id_card
+          )
+          if (!farmer || !farmer.household_id) {
+            errors.push({ row: i + 1, message: `未找到匹配的农户：${row.real_name} ${row.id_card}` })
+            continue
+          }
+          db().runRaw(
+            "UPDATE family_household SET confirmed_area = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+            row.confirmed_area, farmer.household_id
+          )
+          updated.push(farmer.household_id as number)
+        } catch (rowErr) {
+          errors.push({ row: i + 1, message: String(rowErr) })
+        }
+      }
+
+      return success({ updated_count: updated.length, error_count: errors.length, errors })
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 人工确认 ──
+  ipcMain.handle('households:manualConfirm', (_e, payload: any) => {
+    try {
+      const { householdId, operator, remark } = payload
+      db().runRaw(
+        "UPDATE family_household SET is_manually_confirmed = 1, manually_confirmed_at = datetime('now','localtime'), manually_confirmed_by = ? WHERE id = ?",
+        operator || null, householdId
+      )
+      // 记录事件
+      db().runRaw(
+        "INSERT INTO household_event (household_id, event_type, event_year, description, event_date) VALUES (?, 'MANUAL_CONFIRM', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",
+        householdId, remark || `人工确认（操作人：${operator || '未知'}）`
+      )
+      return success(null, '确认成功')
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 取消确认 ──
+  ipcMain.handle('households:cancelConfirm', (_e, payload: any) => {
+    try {
+      const { householdId, operator, remark } = payload
+      db().runRaw('UPDATE family_household SET is_manually_confirmed = 0 WHERE id = ?', householdId)
+      // 记录事件
+      db().runRaw(
+        "INSERT INTO household_event (household_id, event_type, event_year, description, event_date) VALUES (?, 'MANUAL_CONFIRM', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",
+        householdId, remark || `取消确认（操作人：${operator || '未知'}）`
+      )
+      return success(null, '已取消确认')
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 批量确认 ──
+  ipcMain.handle('households:batchConfirm', (_e, payload: any) => {
+    try {
+      const { household_ids, operator, remark } = payload
+      if (!household_ids || !Array.isArray(household_ids)) {
+        return errorResponse('household_ids 必须为数组')
+      }
+      for (const hid of household_ids) {
+        db().runRaw(
+          "UPDATE family_household SET is_manually_confirmed = 1, manually_confirmed_at = datetime('now','localtime'), manually_confirmed_by = ? WHERE id = ?",
+          operator || null, hid
+        )
+        db().runRaw(
+          "INSERT INTO household_event (household_id, event_type, event_year, description, event_date) VALUES (?, 'MANUAL_CONFIRM', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",
+          hid, remark || `批量确认（操作人：${operator || '未知'}）`
+        )
+      }
+      return success({ confirmed_count: household_ids.length })
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 重新计算未确认户的承包面积 ──
+  ipcMain.handle('households:recalcUnconfirmedContractArea', () => {
+    try {
+      const unconfirmed = db().allRaw<Record<string, unknown>>(`
+        SELECT id FROM family_household WHERE is_manually_confirmed = 0
+      `)
+
+      let updated = 0
+      for (const hh of unconfirmed) {
+        const areaRow = db().getRaw<{ total_area: number }>(`
+          SELECT COALESCE(SUM(sa.contract_area), 0) as total_area
+          FROM subsidy_application sa
+          JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
+          WHERE fp.household_id = ?
+          AND sa.apply_year = CAST(strftime('%Y','now') AS INTEGER)
+        `, hh.id)
+        const area = areaRow?.total_area ?? 0
+        if (area > 0) {
+          db().runRaw('UPDATE family_household SET contract_area = ? WHERE id = ?', area, hh.id)
+          updated++
+        }
+      }
+
+      return success({ total_unconfirmed: unconfirmed.length, updated })
     } catch (e) {
       return errorResponse(String(e))
     }

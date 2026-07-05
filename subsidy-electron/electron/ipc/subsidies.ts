@@ -54,8 +54,9 @@ export function registerSubsidyHandlers(): void {
     }
   })
 
-  ipcMain.handle('subsidies:updateType', (_e, id: number, data: Record<string, unknown>) => {
+  ipcMain.handle('subsidies:updateType', (_e, payload: any) => {
     try {
+      const { id, ...data } = payload
       const keys = Object.keys(data).filter(k => data[k] !== undefined)
       if (keys.length === 0) return errorResponse('无更新数据')
       const sets = keys.map(k => `${k} = ?`).join(', ')
@@ -134,8 +135,9 @@ export function registerSubsidyHandlers(): void {
     }
   })
 
-  ipcMain.handle('subsidies:updateApplication', (_e, id: number, data: Record<string, unknown>) => {
+  ipcMain.handle('subsidies:updateApplication', (_e, payload: any) => {
     try {
+      const { id, ...data } = payload
       const keys = Object.keys(data).filter(k => data[k] !== undefined)
       if (keys.length === 0) return errorResponse('无更新数据')
       const sets = keys.map(k => `${k} = ?`).join(', ')
@@ -247,6 +249,107 @@ export function registerSubsidyHandlers(): void {
         GROUP BY st.season
       `, year)
       return success(rows)
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ═══════════════════ 批量导入申请 ═══════════════════
+
+  ipcMain.handle('subsidies:batchImportApplications', (_e, payload: any) => {
+    try {
+      const { rows } = payload
+      const inserted: number[] = []
+      const updated: number[] = []
+      const errors: { row: number; message: string }[] = []
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i]
+        try {
+          // 检查是否已存在：同一年度、同一补贴类型、同一受益人
+          const existing = db().getRaw<Record<string, unknown>>(`
+            SELECT id FROM subsidy_application
+            WHERE apply_year = ? AND subsidy_type_id = ? AND beneficiary_id = ?
+          `, row.apply_year, row.subsidy_type_id, row.beneficiary_id)
+
+          if (existing) {
+            // UPDATE
+            const keys = Object.keys(row).filter(k => row[k] !== undefined && k !== 'id')
+            const sets = keys.map(k => `${k} = ?`).join(', ')
+            const values = keys.map(k => row[k])
+            db().runRaw(`UPDATE subsidy_application SET ${sets}, updated_at = datetime('now','localtime') WHERE id = ?`, ...values, existing.id)
+            updated.push(existing.id as number)
+          } else {
+            // INSERT
+            const cols = Object.keys(row).join(', ')
+            const placeholders = Object.keys(row).map(() => '?').join(', ')
+            const values = Object.keys(row).map(k => row[k])
+            const result = db().runRaw(`INSERT INTO subsidy_application (${cols}) VALUES (${placeholders})`, ...values)
+            inserted.push(result.lastInsertRowid)
+          }
+        } catch (rowErr) {
+          errors.push({ row: i + 1, message: String(rowErr) })
+        }
+      }
+
+      return success({
+        total: rows.length,
+        inserted_count: inserted.length,
+        updated_count: updated.length,
+        error_count: errors.length,
+        errors,
+      })
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ═══════════════════ 按村统计面积 ═══════════════════
+
+  ipcMain.handle('subsidies:areaStatsByVillage', (_e, payload: any) => {
+    try {
+      const { subsidy_type_id, year, data_source } = payload
+      const tableName = data_source === 'payment' ? 'subsidy_payment' : 'subsidy_application'
+
+      let query = `
+        SELECT v.id as village_id, v.village_name,
+               COUNT(DISTINCT sa.beneficiary_id) as beneficiary_count,
+               COUNT(*) as application_count,
+               COALESCE(SUM(sa.apply_area), 0) as total_area,
+               COALESCE(SUM(sa.actual_amount), 0) as total_amount
+        FROM ${tableName} sa
+        LEFT JOIN farmer_profile fp ON sa.farmer_id = fp.id
+        LEFT JOIN family_household hh ON fp.household_id = hh.id
+        LEFT JOIN village v ON hh.village_id = v.id
+        WHERE 1=1
+      `
+      const values: unknown[] = []
+
+      if (subsidy_type_id) {
+        query += ' AND sa.subsidy_type_id = ?'
+        values.push(subsidy_type_id)
+      }
+      if (year) {
+        query += ' AND sa.apply_year = ?'
+        values.push(year)
+      }
+
+      // 如果查询 subsidy_payment 表但表不存在，回退到 subsidy_application
+      try {
+        const rows = db().allRaw<Record<string, unknown>>(
+          query + ' GROUP BY v.id ORDER BY total_area DESC',
+          ...values
+        )
+        return success(rows)
+      } catch {
+        // 回退到 subsidy_application
+        const fallbackQuery = query.replace(tableName, 'subsidy_application')
+        const rows = db().allRaw<Record<string, unknown>>(
+          fallbackQuery + ' GROUP BY v.id ORDER BY total_area DESC',
+          ...values
+        )
+        return success(rows)
+      }
     } catch (e) {
       return errorResponse(String(e))
     }

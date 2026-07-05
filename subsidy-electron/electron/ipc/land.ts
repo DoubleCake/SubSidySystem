@@ -24,8 +24,9 @@ export function registerLandHandlers(): void {
     } catch (e) { return errorResponse(String(e)) }
   })
 
-  ipcMain.handle('land:update', (_e, id: number, data: Record<string, unknown>) => {
+  ipcMain.handle('land:update', (_e, payload: any) => {
     try {
+      const { id, ...data } = payload
       const keys = Object.keys(data).filter(k => data[k] !== undefined)
       if (keys.length === 0) return errorResponse('无更新数据')
       const sets = keys.map(k => `${k} = ?`).join(', ')

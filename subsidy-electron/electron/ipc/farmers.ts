@@ -108,8 +108,9 @@ export function registerFarmerHandlers(): void {
   })
 
   // ── 修改 ──
-  ipcMain.handle('farmers:update', (_e, id: number, data: Record<string, unknown>) => {
+  ipcMain.handle('farmers:update', (_e, payload: any) => {
     try {
+      const { id, ...data } = payload
       const keys = Object.keys(data).filter(k => data[k] !== undefined && k !== 'id')
       if (!keys.length) return errorResponse('无更新数据')
       const sets = keys.map(k => `${k} = ?`).join(', ')
@@ -122,8 +123,9 @@ export function registerFarmerHandlers(): void {
   })
 
   // ── 注销 ──
-  ipcMain.handle('farmers:deactivate', (_e, id: number, status: number = 2) => {
+  ipcMain.handle('farmers:deactivate', (_e, payload: any) => {
     try {
+      const { id, status = 2 } = payload
       db().runRaw(`UPDATE farmer_profile SET farmer_status = ?, updated_at = datetime('now','localtime') WHERE id = ?`, status, id)
       return success(null, '操作成功')
     } catch (e) {
@@ -132,8 +134,9 @@ export function registerFarmerHandlers(): void {
   })
 
   // ── 批量导入 ──
-  ipcMain.handle('farmers:batchImport', (_e, rows: Record<string, unknown>[], overwrite: boolean = false) => {
+  ipcMain.handle('farmers:batchImport', (_e, payload: any) => {
     try {
+      const { rows, overwrite = false } = payload
       let created = 0, updated = 0, skipped = 0
       const errors: string[] = []
 
@@ -230,8 +233,9 @@ export function registerFarmerHandlers(): void {
   })
 
   // ── 家庭关系导入 ──
-  ipcMain.handle('farmers:importRelations', (_e, rows: Record<string, unknown>[], splitVillages?: string[]) => {
+  ipcMain.handle('farmers:importRelations', (_e, payload: any) => {
     try {
+      const { rows, split_villages: splitVillages } = payload
       let updated = 0
       const notFound: string[] = []
       const relationErrors: string[] = []
@@ -253,9 +257,10 @@ export function registerFarmerHandlers(): void {
   })
 
   // ── 多户主预览 ──
-  ipcMain.handle('farmers:multiHeadPreview', (_e, data: { villageNames?: string[]; excelRows?: Record<string, unknown>[] }) => {
+  ipcMain.handle('farmers:multiHeadPreview', (_e, payload: any) => {
     try {
-      const villageNames = data?.villageNames || []
+      // Handle both cases: payload can be an array (villageNames only) or an object { villageNames, excelRows }
+      const villageNames: string[] = Array.isArray(payload) ? payload : (payload?.villageNames || [])
       let query = `
         SELECT hh.id as household_id, hh.household_name,
                v.village_name,

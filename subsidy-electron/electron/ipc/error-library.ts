@@ -24,8 +24,9 @@ export function registerErrorLibraryHandlers(): void {
     } catch (e) { return errorResponse(String(e)) }
   })
 
-  ipcMain.handle('error-library:update', (_e, id: number, data: Record<string, unknown>) => {
+  ipcMain.handle('error-library:update', (_e, payload: any) => {
     try {
+      const { id, ...data } = payload
       const keys = Object.keys(data).filter(k => data[k] !== undefined)
       if (keys.length === 0) return errorResponse('无更新数据')
       const sets = keys.map(k => `${k} = ?`).join(', ')
@@ -49,5 +50,52 @@ export function registerErrorLibraryHandlers(): void {
       }
       return success({ deleted: ids.length })
     } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 错误统计 ──
+  ipcMain.handle('error-library:stats', () => {
+    try {
+      const rows = db().allRaw<Record<string, unknown>>(`
+        SELECT error_type, COUNT(*) as count
+        FROM error_library
+        GROUP BY error_type
+        ORDER BY count DESC
+      `)
+      const total = db().getRaw<{ cnt: number }>('SELECT COUNT(*) as cnt FROM error_library')
+      return success({ total: total?.cnt ?? 0, by_type: rows })
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 批量导入 ──
+  ipcMain.handle('error-library:batchImport', (_e, payload: any) => {
+    try {
+      const { rows } = payload
+      const inserted: number[] = []
+      const errors: { row: number; message: string }[] = []
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i]
+        try {
+          const cols = Object.keys(row).join(', ')
+          const placeholders = Object.keys(row).map(() => '?').join(', ')
+          const values = Object.keys(row).map(k => row[k])
+          const result = db().runRaw(`INSERT INTO error_library (${cols}) VALUES (${placeholders})`, ...values)
+          inserted.push(result.lastInsertRowid)
+        } catch (rowErr) {
+          errors.push({ row: i + 1, message: String(rowErr) })
+        }
+      }
+
+      return success({
+        total: rows.length,
+        inserted_count: inserted.length,
+        error_count: errors.length,
+        errors,
+      })
+    } catch (e) {
+      return errorResponse(String(e))
+    }
   })
 }
