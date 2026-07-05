@@ -8,7 +8,7 @@ import Icon from '../components/Icon'
 const thisYear = new Date().getFullYear()
 const years = Array.from({ length: 8 }, (_, i) => thisYear + 1 - i)
 
-type Tab = 'dashboard' | 'farmers' | 'projects' | 'precheck' | 'links' | 'ai' | 'village-groups' | 'households'
+type Tab = 'dashboard' | 'farmers' | 'projects' | 'links' | 'ai' | 'village-groups' | 'households'
 
 type StatsType = {
   id: number; subsidy_name: string; subsidy_year: number; season: string | null
@@ -43,15 +43,15 @@ const PS_CFG: Record<number, { label: string; cls: string; bar: string }> = {
 const SEASON_CFG: Record<string, { icon: string; color: string; bg: string; border: string; tag: string }> = {
   '大春':   { icon: '🌾', color: 'text-primary', bg: 'bg-primary/5',  border: 'border-primary/20', tag: '主粮季' },
   '小春':   { icon: '🌿', color: 'text-[#5B8C5A]',    bg: 'bg-green-50',     border: 'border-green-200',    tag: '冬作物' },
-  '全年单补': { icon: '📅', color: 'text-blue-700',   bg: 'bg-blue-50',     border: 'border-blue-200',    tag: '全年' },
+  '耕地地力保护': { icon: '📅', color: 'text-blue-700',   bg: 'bg-blue-50',     border: 'border-blue-200',    tag: '全年' },
   '临时':   { icon: '⚡', color: 'text-orange-tag',   bg: 'bg-amber-50',    border: 'border-amber-200',   tag: '临时专项' },
 }
 
 function groupBySeasonOrder(stats: StatsType[]) {
-  const order = ['大春', '小春', '全年单补', '临时']
+  const order = ['大春', '小春', '耕地地力保护', '临时']
   const groups: Record<string, StatsType[]> = {}
   for (const s of stats) {
-    const key = s.season || '全年单补'
+    const key = s.season || '耕地地力保护'
     if (!groups[key]) groups[key] = []
     groups[key].push(s)
   }
@@ -108,7 +108,7 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
     { key: 'incomplete_projects', icon: 'tasks', label: `${year}年有未完成项目`, val: todos.incomplete_projects, color: 'amber' as const, tab: 'projects' as Tab, hide: todos.incomplete_projects === 0 },
     { key: 'pending_records',     icon: 'money', label: '补贴记录待发放',        val: todos.pending_records,      color: 'amber' as const, tab: 'projects' as Tab, hide: todos.pending_records === 0 },
     { key: 'overdrawn',           icon: 'warning', label: '家庭户超领预警',         val: todos.overdrawn_households, color: 'red' as const,   tab: 'households' as Tab, hide: todos.overdrawn_households === 0 },
-    { key: 'id_errors',           icon: 'error', label: '身份证格式异常',         val: todos.id_card_errors,       color: 'red' as const,   tab: 'precheck' as Tab, hide: todos.id_card_errors === 0 },
+    { key: 'id_errors',           icon: 'error', label: '身份证格式异常',         val: todos.id_card_errors,       color: 'red' as const,   tab: 'farmers' as Tab, hide: todos.id_card_errors === 0 },
   ].filter(t => !t.hide) : []
 
   return (

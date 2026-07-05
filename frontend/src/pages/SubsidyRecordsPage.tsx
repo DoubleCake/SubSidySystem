@@ -3,7 +3,7 @@
  * 包含预申请/发放/代领三个Tab
  */
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+
 import Tag from '../components/Tag'
 import Modal from '../components/Modal'
 import ResultTable from '../components/ResultTable'
@@ -19,6 +19,8 @@ import { exportAreaStatsToExcel } from '../utils/exportAreaStats'
 import PreApplyList from './PreApplyList'
 import DisbursementList from './DisbursementList'
 import ProxyList from './ProxyList'
+import PrecheckHistoryTab from '../components/PrecheckHistoryTab'
+import ProjectProgressTab from '../components/ProjectProgressTab'
 
 // 代领导入字段配置
 const PROXY_IMPORT_FIELDS = [
@@ -32,6 +34,7 @@ type StatsType = {
   id: number
   subsidy_name: string
   subsidy_year: number
+  season: string | null
   calc_mode: 'fixed' | 'per_mu' | undefined
   standard_amount: string | null
   standard_unit: string | null
@@ -46,25 +49,38 @@ type StatsType = {
 interface SubsidyRecordsPageProps {
   subsidyType: StatsType
   onBack: () => void
+  farmerName?: string
 }
 
-export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecordsPageProps) {
+export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: SubsidyRecordsPageProps) {
   const { toast, show } = useToast()
-  const navigate = useNavigate()
 
   // Tab状态管理
-  const [activeTab, setActiveTab] = useState<'preApply' | 'disbursement' | 'proxy'>('preApply')
-  const switchTab = (tab: 'preApply' | 'disbursement' | 'proxy') => {
+  const [activeTab, setActiveTab] = useState<'preApply' | 'disbursement' | 'proxy' | 'precheckHistory' | 'projectProgress'>('preApply')
+  const switchTab = (tab: 'preApply' | 'disbursement' | 'proxy' | 'precheckHistory' | 'projectProgress') => {
     setActiveTab(tab)
-    setPage(1)
-    setSelectedIds([])
-    // 切换tab时清空面积统计，下次展开时会重新加载对应数据源
-    setAreaStats(null)
+    if (tab !== 'precheckHistory' && tab !== 'projectProgress') {
+      setPage(1)
+      setSelectedIds([])
+    }
   }
 
   // 两个列表分别维护独立的搜索和筛选状态
-  const [searchPreApply, setSearchPreApply] = useState('')
+  const [searchPreApply, setSearchPreApply] = useState(farmerName || '')
   const [searchDisbursement, setSearchDisbursement] = useState('')
+
+  // 搜索触发计数器 — 搜索按钮点击时递增，强制 load 重新触发
+  const [searchTrigger, setSearchTrigger] = useState(0)
+
+  // 外部传入 farmerName 时，初始化搜索框内容
+  useEffect(() => {
+    if (farmerName) {
+      setSearchPreApply(farmerName)
+      setActiveTab('preApply')
+      setPage(1)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [farmerName])
   const [filtersPreApply, setFiltersPreApply] = useState({
     village: '',
     payStatus: '',
@@ -121,9 +137,60 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
     remark: string
   }>({ beneficiary_id_card: '', proxy_id_card: '', proxy_type: '代领', remark: '' })
 
+  // 排序
+  const [sortField, setSortField] = useState('')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const handleSortChange = (field: string) => {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field); setSortDir('desc')
+    }
+    setPage(1)
+  }
+
   // 预检相关
   const [preCheckLoading, setPreCheckLoading] = useState(false)
   const [preCheckResults, setPreCheckResults] = useState<CheckResult | null>(null)
+
+  // 发放 vs 预申请比对
+  const [checkingDisbursement, setCheckingDisbursement] = useState(false)
+  const [disbCompareResult, setDisbCompareResult] = useState<{
+    missing: { id_card: string; real_name: string; village?: string; apply_area?: number }[]
+    extra: { id_card: string; real_name: string; village?: string; apply_area?: number }[]
+    areaDiff: { id_card: string; real_name: string; app_area: number; pay_area: number; diff: number }[]
+  } | null>(null)
+  const [disbCompareOpen, setDisbCompareOpen] = useState(false)
+
+  const runDisbursementCheck = async () => {
+    if (!subsidyType) return
+    setCheckingDisbursement(true)
+    try {
+      const [appRes, payRes] = await Promise.all([
+        fetch(`/api/subsidies/applications/export?subsidy_type_id=${subsidyType.id}&year=${subsidyType.subsidy_year}`).then(r => r.json()),
+        fetch(`/api/subsidies/payments/export?subsidy_type_id=${subsidyType.id}&year=${subsidyType.subsidy_year}`).then(r => r.json()),
+      ])
+      const apps = appRes.items || []
+      const pays = payRes.items || []
+
+      const appMap: Record<string, any> = {}
+      for (const a of apps) { const ic = a.id_card || ''; if (ic) appMap[ic] = { real_name: a.farmer_name, village: a.village, apply_area: Number(a.apply_area || 0) } }
+      const payMap: Record<string, any> = {}
+      for (const p of pays) { const ic = p.id_card || ''; if (ic) payMap[ic] = { real_name: p.farmer_name, village: p.village, apply_area: Number(p.apply_area || 0) } }
+
+      const appIds = new Set(Object.keys(appMap)), payIds = new Set(Object.keys(payMap))
+      setDisbCompareResult({
+        missing: [...appIds].filter(ic => !payIds.has(ic)).map(ic => ({ id_card: ic, ...appMap[ic] })),
+        extra: [...payIds].filter(ic => !appIds.has(ic)).map(ic => ({ id_card: ic, ...payMap[ic] })),
+        areaDiff: [...appIds].filter(ic => payIds.has(ic)).map(ic => ({ id_card: ic, real_name: appMap[ic].real_name, app_area: appMap[ic].apply_area, pay_area: payMap[ic].apply_area, diff: payMap[ic].apply_area - appMap[ic].apply_area })).filter((a: any) => Math.abs(a.diff) > 0.001),
+      })
+      setDisbCompareOpen(true)
+    } catch (e) {
+      show('比对失败: ' + (e as Error).message, 'err')
+    } finally {
+      setCheckingDisbursement(false)
+    }
+  }
 
   // 导出选项状态
   const [exportModalOpen, setExportModalOpen] = useState(false)
@@ -167,6 +234,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
   const [areaStats, setAreaStats] = useState<api.AreaStatsResponse | null>(null)
   const [loadingAreaStats, setLoadingAreaStats] = useState(false)
   const [areaStatsExpanded, setAreaStatsExpanded] = useState(false)
+  const [areaStatsGroupBy, setAreaStatsGroupBy] = useState<'excel' | 'database'>('excel')
 
   // 当 subsidyType 改变时重置状态
   useEffect(() => {
@@ -237,7 +305,10 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
       return
     }
     try {
-      const response = await fetch('/api/subsidies/applications/batch-delete', {
+      const endpoint = activeTab === 'disbursement'
+        ? '/api/subsidies/payments/batch-delete'
+        : '/api/subsidies/applications/batch-delete'
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: selectedIds })
@@ -249,6 +320,39 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
     } catch (error) {
       console.error('批量删除失败:', error)
       show('批量删除失败: ' + (error as Error).message, 'err')
+    }
+  }
+
+  // 删除全部记录
+  const [deletingAll, setDeletingAll] = useState(false)
+  const deleteAll = async () => {
+    if (!apps || apps.length === 0) {
+      show('没有可删除的记录', 'err')
+      return
+    }
+    if (!confirm(`⚠️ 确定要删除全部 ${total} 条记录吗？此操作不可恢复。`)) {
+      return
+    }
+    setDeletingAll(true)
+    try {
+      const endpoint = activeTab === 'disbursement'
+        ? '/api/subsidies/payments/batch-delete'
+        : '/api/subsidies/applications/batch-delete'
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delete_all: true, subsidy_type_id: subsidyType.id })
+      })
+      if (!response.ok) throw new Error('删除全部失败')
+      const result = await response.json()
+      show(`✓ 已删除全部 ${result.deleted} 条记录`)
+      setSelectedIds([])
+      load()
+    } catch (error) {
+      console.error('删除全部失败:', error)
+      show('删除全部失败: ' + (error as Error).message, 'err')
+    } finally {
+      setDeletingAll(false)
     }
   }
 
@@ -411,12 +515,15 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
         if (filters.village) params.village_name = filters.village
         if (filters.dateFrom) params.date_from = filters.dateFrom
         if (filters.dateTo) params.date_to = filters.dateTo
+        if (sortField) { params.sort_field = sortField; params.sort_dir = sortDir }
 
         const res = await fetch(`/api/subsidies/payments?${new URLSearchParams(params as Record<string, string>)}`).then(r => r.json())
         setApps(res.items.map((p: any) => ({
           id: p.id,
           farmer_id: p.farmer_id,
           farmer_name: p.farmer_name,
+          id_card: p.id_card,
+          id_card_masked: p.id_card_masked || p.id_card,
           village: p.village_name,
           group_no: p.group_no,
           subsidy_type_id: p.subsidy_type_id,
@@ -448,11 +555,12 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
       }
       if (search) params.search = search
       if (filters.payStatus) params.pay_status = filters.payStatus
-      if (filters.village) params.village = filters.village
+      if (filters.village) params.village_name = filters.village
       if (filters.minAmount) params.min_amount = filters.minAmount
       if (filters.maxAmount) params.max_amount = filters.maxAmount
       if (filters.dateFrom) params.date_from = filters.dateFrom
       if (filters.dateTo) params.date_to = filters.dateTo
+      if (sortField) { params.sort_field = sortField; params.sort_dir = sortDir }
 
       const res = await api.searchApplications(params)
       setApps(res.items)
@@ -462,7 +570,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
     } finally {
       setLoading(false)
     }
-  }, [page, search, filters, subsidyType.id, subsidyType.subsidy_year, activeTab])
+  }, [page, search, filters, subsidyType.id, subsidyType.subsidy_year, activeTab, searchTrigger, sortField, sortDir])
 
   useEffect(() => {
     load()
@@ -560,6 +668,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
 
   // 获取全部统计数据
   const loadStats = useCallback(async () => {
+    setLoadingStats(true)
     try {
       const params = new URLSearchParams({
         subsidy_type_id: String(subsidyType.id),
@@ -575,16 +684,17 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
     } catch (error) {
       console.error('加载统计数据失败:', error)
       show('加载统计数据失败', 'err')
+    } finally {
+      setLoadingStats(false)
     }
   }, [subsidyType.id, subsidyType.subsidy_year, selectedCompareType])
 
   // 加载面积统计数据
   const loadAreaStats = useCallback(async () => {
-    if (!areaStatsExpanded) return
     setLoadingAreaStats(true)
     try {
       const dataSource = activeTab === 'disbursement' ? 'payment' : 'application'
-      const data = await api.getAreaStatsByVillage(subsidyType.id, subsidyType.subsidy_year, dataSource)
+      const data = await api.getAreaStatsByVillage(subsidyType.id, subsidyType.subsidy_year, dataSource, areaStatsGroupBy)
       setAreaStats(data)
     } catch (error) {
       console.error('加载面积统计失败:', error)
@@ -592,7 +702,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
     } finally {
       setLoadingAreaStats(false)
     }
-  }, [subsidyType.id, subsidyType.subsidy_year, areaStatsExpanded, activeTab, show])
+  }, [subsidyType.id, subsidyType.subsidy_year, activeTab, areaStatsGroupBy, show])
 
   // 导出面积统计Excel
   const handleExportAreaStats = () => {
@@ -607,12 +717,14 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
 
   useEffect(() => {
     if (areaStatsExpanded) {
+      setAreaStats(null)
       loadAreaStats()
     }
-  }, [areaStatsExpanded, loadAreaStats])
+  }, [areaStatsExpanded, activeTab, areaStatsGroupBy, loadAreaStats])
 
   // 数据概览展开/收起状态
   const [statsExpanded, setStatsExpanded] = useState(false)
+  const [loadingStats, setLoadingStats] = useState(false)
 
   return (
     <div>
@@ -631,11 +743,12 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
       {/* 数据概览 - 可折叠下拉框 */}
       <div className="mb-4 bg-white border border-border rounded-card shadow-card overflow-hidden">
         <button
-          onClick={() => setStatsExpanded(!statsExpanded)}
+          onClick={() => setStatsExpanded(prev => !prev)}
           className="w-full flex items-center justify-between px-4 py-3 hover:bg-warm/30 transition-colors"
         >
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-text-primary">📊 数据概览</span>
+            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">预申请</span>
             {statsExpanded && (
               <span className="text-xs text-text-muted">发放总额 ¥{stats.totalAmount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })} · {stats.totalFarmers}人 · 总面积 {stats.totalArea}亩 · {stats.villageDistribution.length}个村</span>
             )}
@@ -645,6 +758,15 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
 
         {statsExpanded && (
           <div className="px-4 pb-4 border-t border-border/50">
+            {loadingStats ? (
+              <div className="py-10 text-center">
+                <div className="inline-flex items-center gap-2 text-text-muted/60">
+                  <span className="w-5 h-5 border-2 border-stone-300 border-t-primary rounded-full animate-spin" />
+                  <span className="text-sm">正在加载统计数据…</span>
+                </div>
+              </div>
+            ) : (
+              <>
             <div className="flex items-center justify-end gap-2 pt-3 mb-4">
               {subsidyType.category && (
                 <select
@@ -678,6 +800,8 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
                 <div className="text-sm text-purple-600 mt-2">补贴面积合计</div>
               </div>
             </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -685,11 +809,41 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
       {/* 面积统计 - 可折叠下拉框 */}
       <div className="mb-4 bg-white border border-border rounded-card shadow-card overflow-hidden">
         <button
-          onClick={() => setAreaStatsExpanded(!areaStatsExpanded)}
+          onClick={() => setAreaStatsExpanded(prev => !prev)}
           className="w-full flex items-center justify-between px-4 py-3 hover:bg-warm/30 transition-colors"
         >
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-text-primary">📐 面积统计</span>
+            {activeTab === 'disbursement' ? (
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">发放</span>
+            ) : activeTab === 'preApply' ? (
+              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">预申请</span>
+            ) : (
+              <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">预申请</span>
+            )}
+            {/* 分村依据切换 */}
+            <div className="flex items-center gap-0.5 bg-warm/30 rounded-btn p-0.5" onClick={e => e.stopPropagation()}>
+              <button
+                onClick={() => setAreaStatsGroupBy('excel')}
+                className={`px-2 py-0.5 text-[11px] rounded transition-all ${
+                  areaStatsGroupBy === 'excel'
+                    ? 'bg-white shadow-sm text-text-primary font-medium'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                📄 Excel
+              </button>
+              <button
+                onClick={() => setAreaStatsGroupBy('database')}
+                className={`px-2 py-0.5 text-[11px] rounded transition-all ${
+                  areaStatsGroupBy === 'database'
+                    ? 'bg-white shadow-sm text-text-primary font-medium'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                🗄️ 数据库
+              </button>
+            </div>
             {areaStatsExpanded && areaStats && (
               <span className="text-xs text-text-muted">
                 合计：{areaStats.total.total_apply_area}亩 / {areaStats.by_village.length}个村
@@ -703,7 +857,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
                   e.stopPropagation()
                   handleExportAreaStats()
                 }}
-                className="px-3 py-1 text-xs bg-primary text-white rounded-btn hover:bg-primary/90"
+                className="px-3 py-1 text-xs bg-primary  rounded-btn hover:bg-primary/90"
               >
                 ↓ 导出Excel
               </button>
@@ -715,54 +869,83 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
         {areaStatsExpanded && (
           <div className="px-4 pb-4 border-t border-border/50">
             {loadingAreaStats ? (
-              <div className="py-8 text-center text-text-muted">
-                <span className="animate-spin inline-block w-4 h-4 border-2 border-stone-300 border-t-emerald-500 rounded-full mr-2" />
-                加载中...
+              <div className="py-10 text-center">
+                <div className="inline-flex items-center gap-2 text-text-muted/60">
+                  <span className="w-5 h-5 border-2 border-stone-300 border-t-emerald-500 rounded-full animate-spin" />
+                  <span className="text-sm">正在计算面积统计…</span>
+                </div>
               </div>
             ) : areaStats ? (
               <div className="overflow-x-auto mt-4">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-warm/30 border-b border-border">
-                      <th className="px-3 py-2 text-left font-medium text-text-primary">村名</th>
-                      <th className="px-3 py-2 text-right font-medium text-text-primary">农户数</th>
-                      <th className="px-3 py-2 text-right font-medium text-text-primary">记录数</th>
-                      <th className="px-3 py-2 text-right font-medium text-text-primary">实际补贴面积(亩)</th>
-                      <th className="px-3 py-2 text-right font-medium text-text-primary">承包地面积(亩)</th>
-                      <th className="px-3 py-2 text-right font-medium text-text-primary">代耕代种面积(亩)</th>
-                      <th className="px-3 py-2 text-right font-medium text-text-primary">不予补贴面积(亩)</th>
-                      <th className="px-3 py-2 text-right font-medium text-text-primary">补贴金额(元)</th>
+                      <th className="px-3 py-2 text-left font-medium text-text-primary text-sm">村名</th>
+                      <th className="px-1.5 py-2 text-right font-medium text-text-primary text-sm">农户数</th>
+                      <th className="px-1.5 py-2 text-right font-medium text-text-primary text-sm">记录数</th>
+                      <th className="px-1.5 py-2 text-center font-medium text-text-primary text-[11px] leading-tight max-w-[60px]">计入超限<br/>面积(亩)</th>
+                      <th className="px-1.5 py-2 text-center font-medium text-text-primary text-[11px] leading-tight max-w-[60px]">不计超限<br/>面积(亩)</th>
+                      <th className="px-1.5 py-2 text-center font-medium text-text-primary text-[11px] leading-tight max-w-[60px]">承包地<br/>面积(亩)</th>
+                      <th className="px-1.5 py-2 text-center font-medium text-text-primary text-[11px] leading-tight max-w-[60px]">代耕代种<br/>面积(亩)</th>
+                      <th className="px-1.5 py-2 text-center font-medium text-text-primary text-[11px] leading-tight max-w-[60px]">不予补贴<br/>面积(亩)</th>
+                      <th className="px-1.5 py-2 text-right font-medium text-text-primary text-sm">金额(元)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100">
                     {areaStats.by_village.map((row, idx) => (
                       <tr key={idx} className="hover:bg-warm/30">
                         <td className="px-3 py-2 text-text-primary">{row.village}</td>
-                        <td className="px-3 py-2 text-right text-text-primary">{row.farmer_count}</td>
-                        <td className="px-3 py-2 text-right text-text-primary">{row.record_count}</td>
-                        <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_apply_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_contract_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_trust_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right font-mono text-text-primary">{row.total_no_subsidy_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right font-mono text-primary">¥{row.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-1.5 py-2 text-right text-text-primary">{row.farmer_count}</td>
+                        <td className="px-1.5 py-2 text-right text-text-primary">{row.record_count}</td>
+                        <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{row.total_apply_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{row.total_apply_area_no_calc.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{row.total_contract_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{row.total_trust_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{row.total_no_subsidy_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                        <td className="px-1.5 py-2 text-right font-mono text-primary text-xs">¥{row.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
                       </tr>
                     ))}
                     <tr className="bg-warm/30 font-semibold">
                       <td className="px-3 py-2 text-text-primary">{areaStats.total.village}</td>
-                      <td className="px-3 py-2 text-right text-text-primary">{areaStats.total.farmer_count}</td>
-                      <td className="px-3 py-2 text-right text-text-primary">{areaStats.total.record_count}</td>
-                      <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_apply_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                      <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_contract_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                      <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_trust_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                      <td className="px-3 py-2 text-right font-mono text-text-primary">{areaStats.total.total_no_subsidy_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
-                      <td className="px-3 py-2 text-right font-mono text-primary">¥{areaStats.total.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-1.5 py-2 text-right text-text-primary">{areaStats.total.farmer_count}</td>
+                      <td className="px-1.5 py-2 text-right text-text-primary">{areaStats.total.record_count}</td>
+                      <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{areaStats.total.total_apply_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{areaStats.total.total_apply_area_no_calc.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{areaStats.total.total_contract_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{areaStats.total.total_trust_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{areaStats.total.total_no_subsidy_area.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
+                      <td className="px-1.5 py-2 text-right font-mono text-primary text-xs">¥{areaStats.total.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</td>
                     </tr>
                   </tbody>
                 </table>
-                <div className="mt-2 text-xs text-text-muted">
-                  数据来源：{areaStats.data_source === 'payment' ? '发放记录' : '预申请记录'}
-                  {areaStats.by_village.length > 0 && ' · 代领记录已去重，仅统计受益人'}
+                <div className="mt-2 text-xs text-text-muted flex items-center gap-2 flex-wrap">
+                  <span className={`px-2 py-0.5 rounded-full font-medium text-xs ${areaStats.data_source === 'payment' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                    {areaStats.data_source === 'payment' ? '发放数据' : '预申请数据'}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full font-medium text-xs ${
+                    areaStats.group_by === 'database' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {areaStats.group_by === 'database' ? '按数据库分村' : '按Excel分村'}
+                  </span>
+                  {areaStats.by_village.length > 0 && '· 代领记录已去重，仅统计受益人'}
                 </div>
+                {areaStats.villages_without_data && areaStats.villages_without_data.length > 0 && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-card">
+                    <div className="text-xs font-medium text-amber-700 mb-1.5">
+                      ⚠️ 以下村无 {areaStats.data_source === 'payment' ? '发放' : '预申请'}数据
+                      <span className="ml-1 font-normal text-amber-500">
+                        ({areaStats.group_by === 'database' ? '按数据库分村' : '按Excel分村'})
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {areaStats.villages_without_data.map(v => (
+                        <span key={v} className="px-2 py-0.5 bg-white border border-amber-200 rounded text-xs text-amber-700">
+                          {v}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="py-8 text-center text-text-muted">暂无数据</div>
@@ -797,6 +980,22 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
         >
           👥 代领关系
         </button>
+        <button
+          onClick={() => switchTab('projectProgress')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'projectProgress' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text-primary'
+          }`}
+        >
+          📊 项目管理
+        </button>
+        <button
+          onClick={() => switchTab('precheckHistory')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'precheckHistory' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text-primary'
+          }`}
+        >
+          📋 预检历史
+        </button>
         <div className="ml-auto flex items-center gap-2">
           {activeTab === 'preApply' && (
             <button
@@ -818,24 +1017,33 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
                 ↑ Excel导入
               </button>
               <button onClick={() => setProxyAddOpen(true)}
-                className="px-3 py-1.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
+                className="px-3 py-1.5 text-sm bg-primary  rounded-btn hover:bg-primary/90">
                 ＋ 新增代领
               </button>
             </>
           )}
-          {activeTab !== 'proxy' && (
-            <>
+          {activeTab !== 'proxy' && activeTab !== 'precheckHistory' && (<>
               <span className="text-xs text-text-muted">共 {total} 条</span>
               <div className="flex gap-2 items-center">
                 {selectedIds.length > 0 && (
                   <button onClick={batchDelete}
-                    className="px-3 py-2 text-sm bg-red-600 text-white rounded-btn hover:bg-red-700 flex items-center gap-1.5">
+                    className="px-3 py-2 text-sm bg-red-600  rounded-btn hover:bg-red-700 flex items-center gap-1.5">
                     🗑️ 删除选中 ({selectedIds.length})
                   </button>
                 )}
+                {activeTab === 'disbursement' && (
+                  <button onClick={runDisbursementCheck} disabled={checkingDisbursement}
+                    className="px-3 py-2 text-sm border-2 border-amber-300 bg-amber-50 text-amber-700 rounded-btn hover:bg-amber-100 hover:border-amber-400 transition-all font-medium whitespace-nowrap disabled:opacity-50 flex items-center gap-1.5">
+                    {checkingDisbursement ? '⏳' : '🔍'} 检查
+                  </button>
+                )}
+                <button onClick={deleteAll} disabled={deletingAll}
+                  className={`px-3 py-2 text-sm rounded-btn flex items-center gap-1.5 ${deletingAll ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600/80 hover:bg-red-700'}`}>
+                  {deletingAll ? '⏳ 删除中...' : '🗑️ 删除全部'}
+                </button>
                 <button onClick={() => setAddOpen(true)}
-                  className="px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
-                  ＋ 新增一条
+                  className="px-3 py-2 text-sm border-2 border-green-500 bg-green-500 text-white rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-medium">
+                  ＋ 批量导入
                 </button>
               </div>
             </>
@@ -883,9 +1091,11 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
           setVillages={setVillages}
           show={show}
           load={load}
+          onSearch={() => { setPage(1); setSearchTrigger(n => n + 1) }}
           handleFilterChange={handleFilterChange}
           handleSearchChange={handleSearchChange}
           clearFilters={clearFilters}
+          sortField={sortField} sortDir={sortDir} onSortChange={handleSortChange}
         />
       )}
 
@@ -928,14 +1138,27 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
           setVillages={setVillages}
           show={show}
           load={load}
+          onSearch={() => { setPage(1); setSearchTrigger(n => n + 1) }}
           handleFilterChange={handleFilterChange}
           handleSearchChange={handleSearchChange}
           clearFilters={clearFilters}
+          sortField={sortField} sortDir={sortDir} onSortChange={handleSortChange}
         />
       )}
 
       {activeTab === 'proxy' && (
         <ProxyList key={proxyRefreshKey} subsidyType={subsidyType} show={show} />
+      )}
+
+      {activeTab === 'precheckHistory' && (
+        <PrecheckHistoryTab
+          subsidyType={subsidyType}
+          preCheckResults={preCheckResults}
+        />
+      )}
+
+      {activeTab === 'projectProgress' && (
+        <ProjectProgressTab subsidyType={subsidyType} />
       )}
 
       {/* 预检结果展示 */}
@@ -945,7 +1168,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
             <span className="font-semibold text-text-primary text-sm">🔍 数据预检结果</span>
             <div className="flex gap-2 items-center">
               <button onClick={() => { setSelectedSheets(getDefaultSelectedSheets(preCheckResults)); setExportModalOpen(true) }}
-                className="px-3 py-1.5 text-xs bg-primary text-white rounded-btn hover:bg-primary/90">↓ 导出报告 Excel</button>
+                className="px-3 py-1.5 text-xs bg-primary  rounded-btn hover:bg-primary/90">↓ 导出报告 Excel</button>
               <button onClick={() => setPreCheckResults(null)} className="text-xs text-text-muted hover:text-text-primary">✕ 关闭</button>
             </div>
           </div>
@@ -973,7 +1196,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
               </div>
             </div>
 
-            {getPrecheckTableConfigs().map(config => {
+            {getPrecheckTableConfigs(subsidyType.season).map(config => {
               const data = preCheckResults[config.field] as any[]
               if (!data || data.length === 0) return null
               return (
@@ -1049,7 +1272,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
             <div className="px-6 py-4 border-t border-border flex justify-end gap-3">
               <button onClick={() => setExportModalOpen(false)} className="px-4 py-2 text-sm border border-border rounded-btn bg-white text-text-primary hover:bg-warm/30">取消</button>
               <button onClick={handleExportWithOptions} disabled={isExporting || selectedSheets.length === 0}
-                className="px-4 py-2 text-sm bg-blue-700 text-white rounded-btn hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                className="px-4 py-2 text-sm bg-blue-700  rounded-btn hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                 {isExporting ? (<><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>导出中...</>) : '导出'}
               </button>
             </div>
@@ -1122,6 +1345,72 @@ export default function SubsidyRecordsPage({ subsidyType, onBack }: SubsidyRecor
       />
 
       {toast && <Toast msg={toast.msg} type={toast.type} />}
+
+      {/* 发放 vs 预申请比对弹窗 */}
+      <Modal open={disbCompareOpen} title={`🔍 发放 vs 预申请比对 · ${subsidyType?.subsidy_name || ''}`}
+        onClose={() => setDisbCompareOpen(false)} confirmText="关闭" onConfirm={() => setDisbCompareOpen(false)}>
+        {disbCompareResult && (
+          <div className="space-y-3 text-sm">
+            <div className="grid grid-cols-3 gap-3">
+              <div className={`rounded-card p-3 text-center ${disbCompareResult.missing.length > 0 ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}`}>
+                <div className={`text-xl font-bold ${disbCompareResult.missing.length > 0 ? 'text-red-600' : 'text-green-600'}`}>{disbCompareResult.missing.length}</div>
+                <div className="text-xs text-text-muted">预申请有·发放无</div>
+              </div>
+              <div className={`rounded-card p-3 text-center ${disbCompareResult.extra.length > 0 ? 'bg-blue-50 border border-blue-200' : 'bg-green-50 border border-green-200'}`}>
+                <div className={`text-xl font-bold ${disbCompareResult.extra.length > 0 ? 'text-blue-600' : 'text-green-600'}`}>{disbCompareResult.extra.length}</div>
+                <div className="text-xs text-text-muted">发放有·预申请无</div>
+              </div>
+              <div className={`rounded-card p-3 text-center ${disbCompareResult.areaDiff.length > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-green-50 border border-green-200'}`}>
+                <div className={`text-xl font-bold ${disbCompareResult.areaDiff.length > 0 ? 'text-amber-600' : 'text-green-600'}`}>{disbCompareResult.areaDiff.length}</div>
+                <div className="text-xs text-text-muted">面积变化</div>
+              </div>
+            </div>
+            {disbCompareResult.missing.length > 0 && (
+              <div>
+                <div className="font-semibold text-red-700 mb-1 text-xs">⚠ 预申请有但发放无 ({disbCompareResult.missing.length}人)</div>
+                <div className="bg-red-50 border border-red-200 rounded-btn p-2 max-h-40 overflow-y-auto text-xs space-y-0.5">
+                  {disbCompareResult.missing.map((m, i) => (
+                    <div key={i} className="text-red-700">{m.real_name} <span className="text-red-400 font-mono">({m.id_card.slice(-4)})</span> {m.village && <span className="text-red-400">{m.village}</span>} {m.apply_area ? `${m.apply_area}亩` : ''}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {disbCompareResult.extra.length > 0 && (
+              <div>
+                <div className="font-semibold text-blue-700 mb-1 text-xs">＋ 发放有但预申请无 ({disbCompareResult.extra.length}人)</div>
+                <div className="bg-blue-50 border border-blue-200 rounded-btn p-2 max-h-40 overflow-y-auto text-xs space-y-0.5">
+                  {disbCompareResult.extra.map((m, i) => (
+                    <div key={i} className="text-blue-700">{m.real_name} <span className="text-blue-400 font-mono">({m.id_card.slice(-4)})</span> {m.village && <span className="text-blue-400">{m.village}</span>} {m.apply_area ? `${m.apply_area}亩` : ''}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {disbCompareResult.areaDiff.length > 0 && (
+              <div>
+                <div className="font-semibold text-amber-700 mb-1 text-xs">📐 面积变化 ({disbCompareResult.areaDiff.length}人)</div>
+                <div className="bg-amber-50 border border-amber-200 rounded-btn p-2 max-h-40 overflow-y-auto text-xs">
+                  <table className="w-full">
+                    <thead><tr className="text-amber-600"><th className="text-left py-1">姓名</th><th className="text-right py-1">预申请</th><th className="text-right py-1">发放</th><th className="text-right py-1">差额</th></tr></thead>
+                    <tbody>
+                      {disbCompareResult.areaDiff.map((m, i) => (
+                        <tr key={i} className="border-t border-amber-200">
+                          <td className="py-1 text-amber-800">{m.real_name} <span className="text-amber-500 font-mono text-xs">({m.id_card.slice(-4)})</span></td>
+                          <td className="text-right font-mono">{m.app_area.toFixed(2)}</td>
+                          <td className="text-right font-mono">{m.pay_area.toFixed(2)}</td>
+                          <td className={`text-right font-mono font-semibold ${m.diff > 0 ? 'text-red-500' : m.diff < 0 ? 'text-green-500' : 'text-text-muted'}`}>{m.diff > 0 ? '+' : ''}{m.diff.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {disbCompareResult.missing.length === 0 && disbCompareResult.extra.length === 0 && disbCompareResult.areaDiff.length === 0 && (
+              <div className="text-center py-6 text-green-600 font-medium">✅ 发放与预申请完全一致，无差异</div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

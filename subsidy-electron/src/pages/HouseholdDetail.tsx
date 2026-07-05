@@ -3,7 +3,7 @@
  */
 import Tag from '../components/Tag'
 import { EVENT_TYPE_CFG } from './FarmerConstants'
-import { FARMER_STATUS, PAY_STATUS, fmt } from '../utils'
+import { FARMER_STATUS, PAY_STATUS, RESTRICTED_IDENTITY, fmt } from '../utils'
 import type { HHDetail, HistoryDateEvent, SnapshotAtResponse, HHEvent, HHMember, SnapshotMember } from '../types'
 
 // ── 家庭户详情组件 Props ──
@@ -31,6 +31,7 @@ export interface HouseholdDetailContentProps {
   onOpenManualConfirm: () => void
   onOpenCancelConfirm: () => void
   onDelete: () => void
+  onNavigateToProject?: (subsidyTypeId: number, farmerName: string) => void
   onRefreshCache: (householdId: number) => void
   refreshingCache: boolean
 }
@@ -60,6 +61,7 @@ export function HouseholdDetailContent({
   onOpenManualConfirm,
   onOpenCancelConfirm,
   onDelete,
+  onNavigateToProject,
   onRefreshCache,
   refreshingCache,
 }: HouseholdDetailContentProps) {
@@ -68,11 +70,19 @@ export function HouseholdDetailContent({
     if (!appsByYear[a.apply_year]) appsByYear[a.apply_year] = []
     appsByYear[a.apply_year].push(a)
   })
+  // 统计不计入超限面积（apply_area_no_calc）按年度汇总
+  const noCalcByYear: Record<number, number> = {}
+  detail.app_summary.forEach(a => {
+    const area = Number(a.apply_area_no_calc || 0)
+    if (area > 0) noCalcByYear[a.apply_year] = (noCalcByYear[a.apply_year] || 0) + area
+  })
   const displayMembers = historyDate !== null && snapshotData?.snapshot ? snapshotData.snapshot.members : detail.members
   const defaultAreaUsage = {
     contracted_area: detail.contracted_area || 0,
     trust_out_area: 0,
     trust_in_area: 0,
+    trust_in_arable_area: 0,
+    trust_in_cash_crop_area: 0,
     cultivable_area: detail.contracted_area || 0,
     used_area: 0,
     remaining_area: detail.contracted_area || 0,
@@ -80,11 +90,14 @@ export function HouseholdDetailContent({
     overdraw_amount: 0,
     has_trust_data: false,
     subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[],
+    season_reference: {} as Record<string, number>,
     season_breakdown: {} as Record<string, any>,
-    year_totals: {} as Record<string, Record<string, number>>
+    year_totals: {} as Record<string, Record<string, number>>,
+    year_apply_totals: {} as Record<string, Record<string, number>>,
+    year_payment_totals: {} as Record<string, Record<string, number>>
   }
   const areaUsage = historyDate !== null && snapshotData?.snapshot
-    ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_breakdown: {} as Record<string, any>, year_totals: {} as Record<string, Record<string, number>> }
+    ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, trust_in_arable_area: 0, trust_in_cash_crop_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [] as { subsidy_name: string; apply_area: number; calc_mode: string }[], season_reference: {} as Record<string, number>, season_breakdown: {} as Record<string, any>, year_totals: {} as Record<string, Record<string, number>>, year_apply_totals: {} as Record<string, Record<string, number>>, year_payment_totals: {} as Record<string, Record<string, number>> }
     : (detail.area_usage || defaultAreaUsage)
 
   // 不同季节不跨季累加，取单季最大面积作为概览
@@ -95,17 +108,17 @@ export function HouseholdDetailContent({
   const effectiveUsedArea = areaYear > 0 && areaUsage.year_totals?.[String(areaYear)]
     ? calcSeasonMax(areaUsage.year_totals[String(areaYear)])
     : areaUsage.used_area
-  const effectiveRemainingArea = Math.max(0, areaUsage.contracted_area - effectiveUsedArea)
+  const effectiveRemainingArea = Math.max(0, (areaUsage.cultivable_area ?? areaUsage.contracted_area) - effectiveUsedArea)
   // 任一季节超面积即超领
   const effectiveIsOverdrawn = areaYear > 0 && areaUsage.year_totals?.[String(areaYear)]
-    ? Object.values(areaUsage.year_totals[String(areaYear)]).some(v => areaUsage.contracted_area > 0 && v > areaUsage.contracted_area)
+    ? Object.values(areaUsage.year_totals[String(areaYear)]).some(v => (areaUsage.cultivable_area ?? areaUsage.contracted_area) > 0 && v > (areaUsage.cultivable_area ?? areaUsage.contracted_area) + 0.001)
     : areaUsage.is_overdrawn
-  const effectiveOverdrawAmount = Math.max(0, effectiveUsedArea - areaUsage.contracted_area)
+  const effectiveOverdrawAmount = Math.max(0, effectiveUsedArea - (areaUsage.cultivable_area ?? areaUsage.contracted_area))
 
   return (
     <div className="flex-1 min-w-0 flex flex-col">
       {/* 顶部卡片 */}
-      <div className="bg-white border border-border rounded-card overflow-hidden shadow-card mb-3 shrink-0">
+      <div className="bg-main border border-border rounded-card overflow-hidden shadow-card mb-3 shrink-0">
         <div className="px-5 py-3.5 flex items-center gap-4 relative border-b border-emerald-100"
           style={{
             backgroundImage: 'url(/images/household.png)',
@@ -118,9 +131,9 @@ export function HouseholdDetailContent({
             <div className="flex items-center gap-4 mb-0.5 flex-wrap">
               <span className="text-base font-bold text-primary-50">{detail.household_name}</span>
               <span className="text-text-muted text-xs font-mono">{detail.household_code}</span>
-              {detail.is_manually_confirmed === 1 && <span className="text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded">✓ 已确认</span>}
-              {effectiveIsOverdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">⚠️ 超领</span>}
-              {historyDate !== null && <span className="text-xs bg-amber-500/80 text-white px-1.5 py-0.5 rounded">⏳ 快照</span>}
+              {detail.is_manually_confirmed === 1 && <span className="text-xs bg-blue-500  px-1.5 py-0.5 rounded">✓ 已确认</span>}
+              {effectiveIsOverdrawn && <span className="text-xs bg-red-500  px-1.5 py-0.5 rounded">⚠️ 超领</span>}
+              {historyDate !== null && <span className="text-xs bg-amber-500/80  px-1.5 py-0.5 rounded">⏳ 快照</span>}
             </div>
             <div className="text-text-muted text-xs">📍 {detail.village_full_name}
               {detail.address && <span className="ml-1 text-text-muted">{detail.address}</span>}
@@ -137,24 +150,28 @@ export function HouseholdDetailContent({
           {historyDateIsNull && (
             <div className="flex flex-col gap-1.5 shrink-0">
               <button onClick={onOpenEdit}
-                className="text-xs bg-[#DAA550] text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">✏️ 编辑</button>
+                className="text-xs bg-[#DAA550]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">✏️ 编辑</button>
               {detail.is_manually_confirmed === 1 ? (
                 <button onClick={onOpenCancelConfirm}
                   className="text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-1.5 rounded-btn font-medium transition-colors">↩️ 取消确认</button>
               ) : (
                 <button onClick={onOpenManualConfirm}
-                  className="text-xs bg-[#2E7A60] text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">✓ 人工确认</button>
+                  className="text-xs bg-[#2E7A60]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">✓ 人工确认</button>
               )}
               {canSplit && (
                 <button onClick={onOpenSplit}
                   className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1.5 rounded-btn font-medium transition-colors">🔀 分户</button>
               )}
+              <a href={`/api/households/${detail.id}/export-subsidies`}
+                className="text-xs bg-blue-500 text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">
+                📥 导出补贴
+              </a>
               <button onClick={() => onRefreshCache(detail.id)} disabled={refreshingCache}
-                className="text-xs bg-[#4FA080] text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                className="text-xs bg-[#4FA080]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 {refreshingCache ? '⏳' : '🔄'} 刷新缓存
               </button>
               <button onClick={onDelete}
-                className="text-xs bg-[#C04848] text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">🗑️ 删除</button>
+                className="text-xs bg-[#C04848]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">🗑️ 删除</button>
             </div>
           )}
         </div>
@@ -200,8 +217,14 @@ export function HouseholdDetailContent({
             <div className="flex items-center gap-2">
               <span className="text-2xl">📐</span>
               <div>
-                <div className="text-lg font-bold font-mono text-text-primary">{areaUsage.contracted_area} 亩</div>
-                <div className="text-xs text-text-muted">承包面积</div>
+                <div className="text-lg font-bold font-mono text-text-primary">{areaUsage.contracted_area} 亩
+                  {(areaUsage.trust_in_area ?? 0) > 0 && <span className="text-orange-500 text-sm ml-1">+{(areaUsage.trust_in_area ?? 0).toFixed(2)}亩</span>}
+                  {(areaUsage.trust_out_area ?? 0) > 0 && <span className="text-orange-400 text-sm ml-1">-{(areaUsage.trust_out_area ?? 0).toFixed(2)}亩</span>}
+                </div>
+                <div className="text-xs text-text-muted">{areaUsage.cultivable_area != null && areaUsage.cultivable_area !== areaUsage.contracted_area
+                  ? `可耕${areaUsage.cultivable_area.toFixed(2)}亩`
+                  : '承包面积'}
+                </div>
               </div>
             </div>
 
@@ -272,6 +295,30 @@ export function HouseholdDetailContent({
           </div>
         </div>
 
+        {/* 流转面积明细 */}
+        {areaUsage && ((areaUsage.trust_out_area ?? 0) > 0 || (areaUsage.trust_in_area ?? 0) > 0) && (
+          <div className="bg-main border-b border-border px-4 py-2">
+            <div className="flex items-center gap-4 text-xs flex-wrap">
+              <span className="text-text-muted font-medium">🔄 流转面积</span>
+              {(areaUsage.trust_out_area ?? 0) > 0 && (
+                <span className="text-orange-500">
+                  流出: <span className="font-mono font-bold">-{(areaUsage.trust_out_area ?? 0).toFixed(2)}亩</span>
+                </span>
+              )}
+              {(areaUsage.trust_in_area ?? 0) > 0 && (
+                <span className="text-orange-500">
+                  流入: <span className="font-mono font-bold">+{(areaUsage.trust_in_area ?? 0).toFixed(2)}亩</span>
+                </span>
+              )}
+              {areaUsage.cultivable_area != null && (
+                <span className="text-text-muted">
+                  可耕种: <span className="font-mono font-bold">{areaUsage.cultivable_area.toFixed(2)}亩</span>
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* 人工确认信息 */}
         {detail.is_manually_confirmed === 1 && (
           <div className="bg-blue-50 border-b border-blue-100 px-4 py-2.5">
@@ -292,7 +339,7 @@ export function HouseholdDetailContent({
 
         {/* 补贴面积使用情况 - 大春小春等直接展示 */}
         {areaUsage && areaUsage.season_breakdown && Object.keys(areaUsage.season_breakdown).length > 0 && (
-          <div className="bg-white border-b border-border px-4 py-3">
+          <div className="bg-main border-b border-border px-4 py-3">
             {/* 年份选择器 - 从 app_summary 获取年份 */}
             {(() => {
               const allYears = [...new Set(
@@ -305,7 +352,7 @@ export function HouseholdDetailContent({
                     <select
                       value={areaYear}
                       onChange={e => setAreaYear(Number(e.target.value))}
-                      className="border border-border rounded-btn px-2 py-1 text-xs outline-none focus:border-primary bg-white"
+                      className="border border-border rounded-btn px-2 py-1 text-xs outline-none focus:border-primary bg-main"
                     >
                       <option value={0}>全部年份</option>
                       {allYears.map(y => (
@@ -321,6 +368,8 @@ export function HouseholdDetailContent({
             })()}
             <div className="space-y-2">
               {Object.entries(areaUsage.season_breakdown).map(([season, usage]) => {
+                // 跳过"临时"（改为由下方的独立卡片显示不占用补贴面积数据）
+                if (season === '临时') return null
                 // 计算该季节在该年度的使用面积
                 let yearUsedArea = 0
                 let yearApplyArea = 0  // 预申请面积
@@ -333,28 +382,29 @@ export function HouseholdDetailContent({
                 } else {
                   // 指定年份：从 year_totals 中获取
                   yearUsedArea = areaUsage.year_totals?.[String(areaYear)]?.[season] || 0
-                  // 注意：这里我们需要从 season_breakdown 中获取 apply_area 和 payment_area
-                  yearApplyArea = usage.apply_area || 0
-                  yearPaymentArea = usage.payment_area || 0
+                  yearApplyArea = areaUsage.year_apply_totals?.[String(areaYear)]?.[season] || 0
+                  yearPaymentArea = areaUsage.year_payment_totals?.[String(areaYear)]?.[season] || 0
                 }
-                const pct = areaUsage.contracted_area > 0 ? Math.round(yearUsedArea / areaUsage.contracted_area * 100) : 0
-                const paymentPct = areaUsage.contracted_area > 0 ? Math.round(yearPaymentArea / areaUsage.contracted_area * 100) : 0
-                const applyPct = areaUsage.contracted_area > 0 ? Math.round((yearApplyArea - yearPaymentArea) / areaUsage.contracted_area * 100) : 0
-                const isOverdrawn = yearUsedArea > areaUsage.contracted_area
+                const seasonRef = usage.reference_area ?? (areaUsage.season_reference?.[season]) ?? areaUsage.cultivable_area ?? areaUsage.contracted_area
+                const pct = seasonRef > 0 ? Math.round(yearUsedArea / seasonRef * 100) : 0
+                const paymentPct = seasonRef > 0 ? Math.round(yearPaymentArea / seasonRef * 100) : 0
+                const applyPct = seasonRef > 0 ? Math.round((yearApplyArea - yearPaymentArea) / seasonRef * 100) : 0
+                const isOverdrawn = yearUsedArea > seasonRef + 0.001
                 return (
                   <div key={season} className="border border-border rounded-btn overflow-hidden">
                     <div className={"flex items-center justify-between px-3 py-2 " + (isOverdrawn ? 'bg-red-50' : 'bg-warm/30')}>
                       <div className="flex items-center gap-2">
                         <span className={"text-sm font-bold " + (isOverdrawn ? 'text-red-600' : 'text-text-primary')}>{season}</span>
-                        {isOverdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">超 {(yearUsedArea - areaUsage.contracted_area).toFixed(2)} 亩</span>}
+                        {isOverdrawn && <span className="text-xs bg-red-500  px-1.5 py-0.5 rounded">超 {(yearUsedArea - seasonRef).toFixed(2)} 亩</span>}
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={"text-sm font-mono font-bold " + (isOverdrawn ? 'text-red-500' : 'text-primary')}>{yearUsedArea.toFixed(2)} 亩</span>
-                        <span className="text-xs text-text-muted">/ {areaUsage.contracted_area} 亩</span>
+                        <span className="text-xs text-text-muted">/ {seasonRef.toFixed(2)} 亩</span>
                         <span className="text-xs text-text-muted">({pct}%)</span>
+                        {(areaUsage.trust_in_area ?? 0) > 0 && <span className="text-orange-500 text-sm font-mono font-bold pl-2 border-l border-border/50"></span>}
                       </div>
                     </div>
-                    <div className="px-3 py-1.5 bg-white">
+                    <div className="px-3 py-1.5 bg-main">
                       <div className="bg-warm/30 rounded-full h-1.5 overflow-hidden flex">
                         {/* 已发布面积用绿色 */}
                         {yearPaymentArea > 0 && (
@@ -389,7 +439,52 @@ export function HouseholdDetailContent({
                   </div>
                 )
               })}
+              {/* 不占用补贴面积卡片 - 独立于 season_breakdown 渲染 */}
+              {(() => {
+                const hasNoCalc = Object.keys(noCalcByYear).length > 0
+                if (!hasNoCalc) return null
+                const noCalcTotal = areaYear === 0
+                  ? Object.values(noCalcByYear).reduce((s, v) => s + v, 0)
+                  : (noCalcByYear[areaYear] || 0)
+                if (noCalcTotal <= 0) return null
+                return (
+                  <div className="border border-border rounded-btn overflow-hidden opacity-70">
+                    <div className="flex items-center justify-between px-3 py-2 bg-warm/30">
+                      <span className="text-sm font-bold text-text-muted">不占用补贴面积</span>
+                      <span className="text-sm font-mono text-text-muted">{noCalcTotal.toFixed(2)} 亩</span>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
+          </div>
+        )}
+
+        {/* 流转记录 */}
+        {(detail.trust_records && detail.trust_records.length > 0) && (
+          <div className="bg-main border-b border-border px-4 py-3">
+            <details open>
+              <summary className="text-xs text-text-muted font-medium cursor-pointer mb-2">
+                🔄 流转记录 ({detail.trust_records.length}条)
+              </summary>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {detail.trust_records.map((t, i) => (
+                  <div key={t.id || i} className="flex items-center gap-2 text-xs py-1 border-b border-border/20 last:border-0">
+                    <span className={`font-bold shrink-0 ${t.direction === '流入' ? 'text-emerald-600' : 'text-orange-500'}`}>
+                      {t.direction === '流入' ? '＋流入' : '－流出'}
+                    </span>
+                    <span className="text-text-muted shrink-0">{t.counterparty || '—'}</span>
+                    <span className="text-text-primary font-mono shrink-0">{t.area?.toFixed(2)}亩</span>
+                    <span className="text-text-muted/50 shrink-0">{t.trust_type}</span>
+                    <span className="text-text-muted/50 shrink-0">{t.trust_year}年</span>
+                    {t.subsidy_arable === 1 && <span className="text-emerald-600 shrink-0">耕地✓</span>}
+                    {t.subsidy_cash_crop === 1 && <span className="text-blue-600 shrink-0">作物✓</span>}
+                    {t.end_date && <span className="text-text-muted/50 shrink-0">至{t.end_date}</span>}
+                    {t.note && <span className="text-text-muted/40 truncate">{t.note}</span>}
+                  </div>
+                ))}
+              </div>
+            </details>
           </div>
         )}
 
@@ -401,7 +496,7 @@ export function HouseholdDetailContent({
           ] as { id: typeof detailTab; label: string }[]).map(t => (
             <button key={t.id} onClick={() => setDetailTab(t.id)}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
-                ${detailTab === t.id ? 'border-emerald-600 text-primary bg-white' : 'border-transparent text-text-muted hover:text-text-primary'}`}>
+                ${detailTab === t.id ? 'border-emerald-600 text-primary bg-main' : 'border-transparent text-text-muted hover:text-text-primary'}`}>
               {t.label}
             </button>
           ))}
@@ -409,8 +504,8 @@ export function HouseholdDetailContent({
             <div className="ml-auto px-2 flex gap-1.5">
               {detailTab === 'members' && (
                 <>
-                  <button onClick={onOpenMemberImport} className="text-xs border border-primary/20 text-primary px-2.5 py-1.5 rounded-btn hover:bg-primary/5 transition-colors">↑ 批量导入</button>
-                  <button onClick={onOpenMemberAdd} className="text-xs bg-primary text-white px-2.5 py-1.5 rounded-btn hover:bg-primary/90 transition-colors">＋ 成员</button>
+                  <button onClick={onOpenMemberImport} className="text-xs border-2 border-green-500 bg-green-500 text-white px-2.5 py-1.5 rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-medium">↑ 批量导入</button>
+                  <button onClick={onOpenMemberAdd} className="text-xs bg-primary  px-2.5 py-1.5 rounded-btn hover:bg-primary/90 transition-colors">＋ 成员</button>
                   <button onClick={onOpenEvent} className="text-xs border border-border text-text-primary px-2.5 py-1.5 rounded-btn hover:bg-warm/30 transition-colors">＋ 补录</button>
                 </>
               )}
@@ -420,17 +515,17 @@ export function HouseholdDetailContent({
       </div>
 
       {/* Tab 内容 */}
-      <div className="flex-1 bg-white border border-border rounded-card overflow-hidden shadow-card">
+      <div className="flex-1 bg-main border border-border rounded-card overflow-hidden shadow-card">
         {/* 成员 */}
         {detailTab === 'members' && (
           <div className="p-4 grid gap-2">
             {displayMembers.length === 0 && <div className="text-center py-8 text-text-muted/50 text-sm">暂无成员记录</div>}
             {displayMembers.map(m => (
               <div key={m.id} className={`flex items-center gap-3 rounded-card px-4 py-3 border transition-all
-                ${m.is_head ? 'bg-primary/5 border-primary/20' : 'bg-white border-border hover:border-border hover:bg-warm/30'}
+                ${m.is_head ? 'bg-primary/5 border-primary/20' : 'bg-main border-border hover:border-border hover:bg-warm/30'}
                 ${m.farmer_status !== 1 ? 'opacity-60' : ''}`}>
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0
-                  ${m.is_head ? 'bg-primary/90 text-white' : 'bg-warm/30 text-text-muted'}`}>
+                  ${m.is_head ? 'bg-primary/90 ' : 'bg-warm/30 text-text-muted'}`}>
                   {m.real_name.slice(-1)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -439,10 +534,11 @@ export function HouseholdDetailContent({
                     {m.is_head === 1 && <Tag label="户主" color="green" />}
                     {m.relation && <Tag label={m.relation} color="gray" />}
                     {m.farmer_status !== 1 && <Tag label={FARMER_STATUS[m.farmer_status]?.label ?? '异常'} color="red" />}
+                    {m.restricted_identity === 1 && <Tag label={RESTRICTED_IDENTITY[1]?.label} color="red" />}
                   </div>
                   <div className="text-xs text-text-muted mt-0.5">
                     {m.gender === 1 ? '男' : '女'}
-                    {m.phone_masked && <span className="ml-2">{m.phone_masked}</span>}
+                    <span className="ml-2">{m.phone_masked || '—'}</span>
                     <span className="ml-2 font-mono">{m.id_card || m.id_card_masked}</span>
                   </div>
                 </div>
@@ -502,7 +598,7 @@ export function HouseholdDetailContent({
                               {labelType}
                             </span>
                           </button>
-                          <div className="left-0 top-full mt-1 bg-stone-800 text-white text-xs px-2 py-1.5 rounded-btn shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                          <div className="left-0 top-full mt-1   text-xs px-2 py-1.5 rounded-btn shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                             {labelType === '受益'
                               ? <>受益人: {proxy.beneficiary_name} → 代领人: {proxy.proxy_name}</>
                               : <>代领人: {proxy.proxy_name} → 受益人: {proxy.beneficiary_name}</>}
@@ -514,9 +610,20 @@ export function HouseholdDetailContent({
                         </span>
                       )
                     })()}
-                    {a.apply_area && <span className="text-xs text-text-muted font-mono">{a.apply_area}亩</span>}
+                    {(a.apply_area != null || a.apply_area_no_calc != null) && (
+                      <span className="text-xs text-text-muted font-mono" title={`计入超限 ${a.apply_area || 0}亩 / 不计超限 ${a.apply_area_no_calc || 0}亩`}>
+                        <span>{Number(a.apply_area || 0).toFixed(2)}</span>
+                        {a.apply_area_no_calc ? <span className="text-text-muted/50">+{Number(a.apply_area_no_calc).toFixed(2)}</span> : null}亩
+                      </span>
+                    )}
                     <span className="text-sm font-mono font-bold text-primary">{a.actual_amount ? fmt(a.actual_amount) : '—'}</span>
                     <Tag label={PAY_STATUS[a.pay_status]?.label || '—'} color={PAY_STATUS[a.pay_status]?.color as 'green'} />
+                    {onNavigateToProject && a.subsidy_type_id && (
+                      <button onClick={() => onNavigateToProject(a.subsidy_type_id!, a.farmer_name)}
+                        className="text-xs text-blue-600 border border-blue-200 px-2 py-1 rounded-btn hover:bg-blue-50 whitespace-nowrap shrink-0">
+                        ↗ 查看明细
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

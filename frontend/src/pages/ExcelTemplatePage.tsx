@@ -196,9 +196,9 @@ export default function ExcelTemplatePage() {
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id as typeof tab)}
             className={`flex items-center gap-1.5 px-4 py-2 text-sm rounded-btn border transition-colors
-              ${tab === t.id ? 'bg-primary text-white border-emerald-700' : 'bg-white border-border text-text-primary hover:border-border'}`}>
+              ${tab === t.id ? 'bg-primary  border-emerald-700' : 'bg-white border-border text-text-primary hover:border-border'}`}>
             {t.label}
-            {t.count !== null && <span className={`text-xs px-1.5 py-0.5 rounded font-mono ${tab===t.id?'bg-white/20 text-white':'bg-warm/30 text-text-muted'}`}>{t.count}</span>}
+            {t.count !== null && <span className={`text-xs px-1.5 py-0.5 rounded font-mono ${tab===t.id?'bg-white/20 ':'bg-warm/30 text-text-muted'}`}>{t.count}</span>}
           </button>
         ))}
       </div>
@@ -299,7 +299,7 @@ export default function ExcelTemplatePage() {
                       {aiLoading ? '🤖 AI识别中…' : '🤖 AI辅助识别'}
                     </button>
                     <button onClick={() => setSaveOpen(true)}
-                      className="text-xs bg-primary text-white px-3 py-1.5 rounded-btn hover:bg-primary/90">
+                      className="text-xs bg-primary  px-3 py-1.5 rounded-btn hover:bg-primary/90">
                       💾 保存为模板
                     </button>
                     <button onClick={() => { setDetectResult(null); setMappings([]); setDetectFile(null) }}

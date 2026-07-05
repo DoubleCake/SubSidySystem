@@ -4,9 +4,10 @@
  * - FarmerHouseholdDetail: 农户所属家庭户详情卡片
  * - HistorySidebar: 历史记录侧边栏
  */
+import { useState, useEffect } from 'react'
 import Tag from '../components/Tag'
 import { EVENT_TYPE_CFG, GENDER, calcAge } from './FarmerConstants'
-import { FARMER_STATUS, PAY_STATUS, fmt } from '../utils'
+import { FARMER_STATUS, PAY_STATUS, RESTRICTED_IDENTITY, fmt } from '../utils'
 import type { FarmerDetail, HHDetail, HistoryDateEvent, SnapshotAtResponse, HHMember, SnapshotMember, VillageGroup } from '../types'
 
 // ── 农户详情卡片 Props ──
@@ -16,15 +17,51 @@ export interface FarmerDetailProps {
   showAppSummary?: boolean
   /** app_summary数据（showAppSummary=true时使用） */
   appSummary?: {
-    apply_year: number; farmer_id: number; farmer_name: string; subsidy_name: string
-    calc_mode: string; apply_area: number | null; apply_amount: number | null; actual_amount: number | null
+    apply_year: number; farmer_id: number; farmer_name: string; subsidy_name: string; subsidy_type_id?: number
+    calc_mode: string; apply_area: number | null; apply_area_no_calc?: number | null; apply_amount: number | null; actual_amount: number | null
     pay_status: number; apply_village_name: string; apply_group_display: string; is_proxy: number
     proxy_info?: { type: string; proxy_name?: string; beneficiary_name?: string; proxy_farmer_id?: number; beneficiary_farmer_id?: number; remark?: string } | null
   }[]
+  groups?: VillageGroup[]
+  onUpdate?: () => void
+  onNavigateToProject?: (subsidyTypeId: number, farmerName: string) => void
+}
+
+// ── 通用编辑字段渲染 ──
+function EditField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-text-muted w-20 shrink-0">{label}</span>
+      {children}
+    </div>
+  )
 }
 
 // ── 农户详情卡片 ──
-export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: FarmerDetailProps) {
+export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary, groups, onUpdate, onNavigateToProject }: FarmerDetailProps) {
+  const [editMode, setEditMode] = useState(false)
+  const [editForm, setEditForm] = useState<Record<string, string>>({})
+  const [saving, setSaving] = useState(false)
+  const [confirmChange, setConfirmChange] = useState<{ field: string; oldVal: string; newVal: string; message: string } | null>(null)
+  // 编辑开始时初始化表单
+  useEffect(() => {
+    if (editMode && selectedFarmer) {
+      setEditForm({
+        real_name: selectedFarmer.real_name || '',
+        gender: String(selectedFarmer.gender),
+        id_card: selectedFarmer.id_card || selectedFarmer.id_card_masked || '',
+        phone: selectedFarmer.phone || selectedFarmer.phone_masked || '',
+        bank_card: selectedFarmer.bank_card || selectedFarmer.bank_card_masked || '',
+        bank_name: selectedFarmer.bank_name || '',
+        farmer_status: String(selectedFarmer.farmer_status),
+        restricted_identity: String(selectedFarmer.restricted_identity ?? 0),
+        death_date: selectedFarmer.death_date || '',
+        restrict_date: selectedFarmer.restrict_date || '',
+        remark: selectedFarmer.remark || '',
+      })
+    }
+  }, [editMode, selectedFarmer])
+
   if (!selectedFarmer) return null
   const fd = selectedFarmer
   const apps: any[] = showAppSummary && appSummary
@@ -33,8 +70,100 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
   const totalAmt = apps.reduce((s: number, a: any) => s + Number(a.actual_amount || 0), 0)
   const age = calcAge(fd.birth_date)
 
+  const startEdit = () => setEditMode(true)
+  const cancelEdit = () => setEditMode(false)
+
+  const handleSave = async () => {
+    if (!selectedFarmer) return
+    // 比对变更
+    const changes: Record<string, string> = {}
+    const orig = {
+      real_name: fd.real_name,
+      gender: String(fd.gender),
+      id_card: fd.id_card || fd.id_card_masked || '',
+      phone: fd.phone || '',
+      bank_card: fd.bank_card || '',
+      bank_name: fd.bank_name || '',
+      farmer_status: String(fd.farmer_status),
+      restricted_identity: String(fd.restricted_identity ?? 0),
+      death_date: fd.death_date || '',
+      restrict_date: fd.restrict_date || '',
+      remark: fd.remark || '',
+    }
+    for (const k of Object.keys(editForm)) {
+      if (editForm[k as keyof typeof editForm] !== orig[k as keyof typeof orig]) {
+        changes[k] = editForm[k as keyof typeof editForm]
+      }
+    }
+    if (Object.keys(changes).length === 0) { setEditMode(false); return }
+
+    // id_card 变更需确认
+    if (changes.id_card && changes.id_card !== orig.id_card) {
+      setConfirmChange({
+        field: 'id_card',
+        oldVal: orig.id_card,
+        newVal: changes.id_card,
+        message: '修改身份证号后，后续补贴导入将使用新身份证号匹配，不影响已有申请记录。确认修改？',
+      })
+      return
+    }
+
+    await doSave(changes)
+  }
+
+  const doSave = async (changes: Record<string, string>) => {
+    if (!selectedFarmer) return
+    setSaving(true)
+    try {
+      const { updateFarmer } = await import('../api')
+      const body: Record<string, unknown> = {}
+      if (changes.real_name) body.real_name = changes.real_name
+      if (changes.gender) body.gender = Number(changes.gender)
+      if (changes.id_card) body.id_card = changes.id_card
+      if (changes.phone) body.phone = changes.phone
+      if (changes.bank_card) body.bank_card = changes.bank_card
+      if (changes.bank_name) body.bank_name = changes.bank_name
+      if (changes.farmer_status) body.farmer_status = Number(changes.farmer_status)
+      if (changes.restricted_identity) body.restricted_identity = Number(changes.restricted_identity)
+      if (changes.death_date) body.death_date = changes.death_date || null
+      if (changes.restrict_date) body.restrict_date = changes.restrict_date || null
+      if (changes.remark !== undefined) body.remark = changes.remark
+      await updateFarmer(fd.id, body as any)
+      setEditMode(false)
+      onUpdate?.()
+    } catch (e: unknown) {
+      alert('保存失败：' + ((e as Error).message || '未知错误'))
+    } finally {
+      setSaving(false)
+      setConfirmChange(null)
+    }
+  }
+
+  const ef = (field: string) => editForm[field] ?? ''
+
+  // input class 复用
+  const ic = 'border border-border rounded-btn px-2.5 py-1.5 text-sm outline-none focus:border-primary bg-white flex-1 max-w-[220px]'
+  const sel = 'border border-border rounded-btn px-2.5 py-1.5 text-sm outline-none focus:border-primary bg-white flex-1 max-w-[220px]'
+
   return (
     <div className="bg-white border border-border rounded-card overflow-hidden shadow-card mb-4">
+      {confirmChange && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-card shadow-xl max-w-md w-full p-6">
+            <h3 className="font-bold text-text-primary mb-3">⚠️ 确认修改</h3>
+            <p className="text-sm text-text-muted mb-4">{confirmChange.message}</p>
+            <div className="bg-amber-50 border border-amber-200 rounded-btn px-3 py-2 mb-4 text-sm">
+              <span className="text-text-muted">{confirmChange.field}: </span>
+              <span className="line-through text-red-500 mr-2">{confirmChange.oldVal}</span>
+              <span className="text-primary font-semibold">{confirmChange.newVal}</span>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmChange(null)} className="px-4 py-2 text-sm border border-border rounded-btn bg-white text-text-primary hover:bg-warm/30">取消</button>
+              <button onClick={() => doSave({ [confirmChange.field]: confirmChange.newVal })} className="px-4 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">确认修改</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="bg-gradient-to-r from-emerald-50 to-emerald-100/70 border-b border-emerald-100 px-6 py-5 flex items-center gap-5">
         <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary shrink-0">
           {fd.real_name.slice(-1)}
@@ -49,45 +178,128 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
           </div>
           <div className="text-text-muted text-sm">📍 {fd.village_full_name}</div>
         </div>
-        <div className="text-right shrink-0">
-          <div className="text-2xl font-bold font-mono text-primary">¥{totalAmt.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
-          <div className="text-text-muted text-xs mt-0.5">累计获得补贴</div>
+        <div className="flex flex-col gap-2 shrink-0 items-end">
+          <div className="text-right">
+            <div className="text-2xl font-bold font-mono text-primary">¥{totalAmt.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
+            <div className="text-text-muted text-xs mt-0.5">累计获得补贴</div>
+          </div>
+          {!editMode ? (
+            <div className="flex gap-1.5">
+              <a href={`/api/households/farmer/${fd.id}/export-subsidies`}
+                className="text-xs bg-blue-500 text-white px-3 py-1 rounded-btn hover:brightness-95 transition-all font-medium">
+                📥 导出补贴
+              </a>
+              <button onClick={startEdit} className="text-xs border border-primary/30 text-primary px-3 py-1 rounded-btn hover:bg-primary/5 transition-colors">✏️ 编辑</button>
+            </div>
+          ) : (
+            <div className="flex gap-1.5">
+              <button onClick={cancelEdit} className="text-xs border border-border text-text-muted px-3 py-1 rounded-btn hover:bg-warm/30 transition-colors">取消</button>
+              <button onClick={handleSave} disabled={saving} className="text-xs bg-primary text-white px-3 py-1 rounded-btn hover:bg-primary/90 transition-colors disabled:opacity-50">
+                {saving ? '保存中…' : '💾 保存'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-0 divide-x divide-stone-100">
         <div className="p-5">
           <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">个人信息</h3>
           <div className="space-y-3">
-            {[
-              ['姓名', fd.real_name],
-              ['性别', GENDER(fd.gender)],
-              ['年龄', age ? `${age} 岁` : '—'],
-              ['身份证号', <span key="id" className="font-mono text-amber-600 text-xs select-all">{fd.id_card || fd.id_card_masked}</span>],
-              ['手机号', <span key="ph" className="font-mono text-xs">{fd.phone || fd.phone_masked || '—'}</span>],
-              ['所在村组', fd.village_full_name],
-            ].map(([k, v], i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-xs text-text-muted w-20 shrink-0">{k}</span>
-                <span className="text-sm text-text-primary">{v as React.ReactNode}</span>
-              </div>
-            ))}
+            {editMode ? (
+              <>
+                <EditField label="姓名">
+                  <input value={ef('real_name')} onChange={e => setEditForm(f => ({ ...f, real_name: e.target.value }))} className={ic} />
+                </EditField>
+                <EditField label="性别">
+                  <select value={ef('gender')} onChange={e => setEditForm(f => ({ ...f, gender: e.target.value }))} className={sel}>
+                    <option value="1">男</option>
+                    <option value="2">女</option>
+                  </select>
+                </EditField>
+                <EditField label="身份证号">
+                  <input value={ef('id_card')} onChange={e => setEditForm(f => ({ ...f, id_card: e.target.value }))} className={`${ic} font-mono text-amber-600`} />
+                </EditField>
+                <EditField label="手机号">
+                  <input value={ef('phone')} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className={ic} />
+                </EditField>
+              </>
+            ) : (
+              <>
+                {[
+                  ['姓名', fd.real_name],
+                  ['性别', GENDER(fd.gender)],
+                  ['年龄', age ? `${age} 岁` : '—'],
+                  ['身份证号', <span key="id" className="font-mono text-amber-600 text-xs select-all">{fd.id_card || fd.id_card_masked}</span>],
+                  ['手机号', <span key="ph" className="font-mono text-xs">{fd.phone || fd.phone_masked || '—'}</span>],
+                  ['所在村组', fd.village_full_name],
+                ].map(([k, v], i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs text-text-muted w-20 shrink-0">{k}</span>
+                    <span className="text-sm text-text-primary">{v as React.ReactNode}</span>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         </div>
         <div className="p-5">
           <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">银行 & 其他</h3>
           <div className="space-y-3">
-            {[
-              ['银行卡号', <span key="bc" className="font-mono text-xs text-amber-600 select-all">{fd.bank_card || fd.bank_card_masked || '—'}</span>],
-              ['开户行', fd.bank_name || '—'],
-              ['农户状态', <Tag key="st" label={FARMER_STATUS[fd.farmer_status]?.label ?? '未知'} color={FARMER_STATUS[fd.farmer_status]?.color as 'green'} />],
-              ['备注', fd.remark || '—'],
-              ['录入时间', fd.created_at ? fd.created_at.slice(0, 10) : '—'],
-            ].map(([k, v], i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-xs text-text-muted w-20 shrink-0">{k}</span>
-                <span className="text-sm text-text-primary">{v as React.ReactNode}</span>
-              </div>
-            ))}
+            {editMode ? (
+              <>
+                <EditField label="银行卡号">
+                  <input value={ef('bank_card')} onChange={e => setEditForm(f => ({ ...f, bank_card: e.target.value }))} className={`${ic} font-mono`} />
+                </EditField>
+                <EditField label="开户行">
+                  <input value={ef('bank_name')} onChange={e => setEditForm(f => ({ ...f, bank_name: e.target.value }))} className={ic} />
+                </EditField>
+                <EditField label="农户状态">
+                  <select value={ef('farmer_status')} onChange={e => setEditForm(f => ({ ...f, farmer_status: e.target.value }))} className={sel}>
+                    <option value="1">在册</option>
+                    <option value="2">注销</option>
+                    <option value="3">迁出</option>
+                    <option value="4">死亡</option>
+                  </select>
+                </EditField>
+                <EditField label="受限身份">
+                  <select value={ef('restricted_identity')} onChange={e => setEditForm(f => ({ ...f, restricted_identity: e.target.value }))} className={sel}>
+                    <option value="0">无限制</option>
+                    <option value="1">受限制</option>
+                  </select>
+                </EditField>
+                {ef('farmer_status') === '4' && (
+                  <EditField label="死亡日期">
+                    <input type="date" value={ef('death_date')} onChange={e => setEditForm(f => ({ ...f, death_date: e.target.value }))} className={ic} />
+                  </EditField>
+                )}
+                {ef('restricted_identity') === '1' && (
+                  <EditField label="受限日期">
+                    <input type="date" value={ef('restrict_date')} onChange={e => setEditForm(f => ({ ...f, restrict_date: e.target.value }))} className={ic} />
+                  </EditField>
+                )}
+                <EditField label="备注">
+                  <textarea value={ef('remark')} onChange={e => setEditForm(f => ({ ...f, remark: e.target.value }))} className={`${ic} min-h-[60px] resize-y`} />
+                </EditField>
+              </>
+            ) : (
+              <>
+                {[
+                  ['银行卡号', <span key="bc" className="font-mono text-xs text-amber-600 select-all">{fd.bank_card || fd.bank_card_masked || '—'}</span>],
+                  ['开户行', fd.bank_name || '—'],
+                  ['农户状态', <Tag key="st" label={FARMER_STATUS[fd.farmer_status]?.label ?? '未知'} color={FARMER_STATUS[fd.farmer_status]?.color as 'green'} />],
+                  ...(fd.farmer_status === 4 ? [['死亡日期', fd.death_date ? fd.death_date.slice(0, 10) : '—']] as const : []),
+                  ['受限身份', <Tag key="ri" label={RESTRICTED_IDENTITY[fd.restricted_identity ?? 0]?.label ?? '无限制'} color={(RESTRICTED_IDENTITY[fd.restricted_identity ?? 0]?.color ?? 'green') as 'green' | 'red'} />],
+                  ...(fd.restricted_identity === 1 ? [['受限日期', fd.restrict_date ? fd.restrict_date.slice(0, 10) : '—']] as const : []),
+                  ['备注', fd.remark || '—'],
+                  ['录入时间', fd.created_at ? fd.created_at.slice(0, 10) : '—'],
+                ].map(([k, v], i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs text-text-muted w-20 shrink-0">{k}</span>
+                    <span className="text-sm text-text-primary">{v as React.ReactNode}</span>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -100,7 +312,7 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead><tr className="bg-warm/30 border-b border-border">
-                {['年度', '补贴项目', '面积', '申请金额', '实发金额', '状态'].map(h => (
+                {['年度', '补贴项目', '面积(计入+不计)', '申请金额', '实发金额', '状态', '操作'].map(h => (
                   <th key={h} className="px-4 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
                 ))}
               </tr></thead>
@@ -109,12 +321,31 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
                   <tr key={a.id ?? `app-${a.farmer_id}-${a.apply_year}-${a.subsidy_name}`} className="border-b border-border/50 hover:bg-warm/30 transition-colors">
                     <td className="px-4 py-2 text-sm font-bold text-primary">{a.apply_year}</td>
                     <td className="px-4 py-2 text-sm">{a.subsidy_name}</td>
-                    <td className="px-4 py-2 text-sm font-mono">{a.apply_area ? `${a.apply_area}亩` : '—'}</td>
+                    <td className="px-4 py-2 text-sm font-mono" title={`计入超限 ${a.apply_area || 0}亩 / 不计入超限 ${a.apply_area_no_calc || 0}亩`}>
+                      {a.apply_area != null
+                        ? <><span>{Number(a.apply_area).toFixed(2)}</span>{a.apply_area_no_calc ? <span className="text-text-muted/50">+{Number(a.apply_area_no_calc).toFixed(2)}</span> : null}亩</>
+                        : '—'}
+                    </td>
                     <td className="px-4 py-2 text-sm font-mono text-text-muted">{fmt(a.apply_amount)}</td>
                     <td className="px-4 py-2 text-sm font-mono font-bold" style={{ color: a.actual_amount ? '#059669' : '#d97706' }}>
                       {a.actual_amount ? fmt(a.actual_amount) : '待发放'}
                     </td>
                     <td className="px-4 py-2"><Tag label={PAY_STATUS[a.pay_status]?.label} color={PAY_STATUS[a.pay_status]?.color as 'green'} /></td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-1">
+                        {a.proxy_info ? (
+                          <Tag label={a.proxy_info.type} color={a.proxy_info.type === '代领' ? 'amber' : 'green'} />
+                        ) : (
+                          <span className="text-xs text-text-muted/50">—</span>
+                        )}
+                        {onNavigateToProject && (a as any).subsidy_type_id && (
+                          <button onClick={() => onNavigateToProject((a as any).subsidy_type_id!, a.farmer_name)}
+                            className="text-xs text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded hover:bg-blue-50 whitespace-nowrap">
+                            ↗ 查看明细
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -159,6 +390,7 @@ export interface FarmerHouseholdDetailProps {
     bank_card: string
     bank_name: string
     farmer_status: string
+    restricted_identity: string
     event_date: string
     village_id: number
     group_no: number
@@ -175,6 +407,7 @@ export interface FarmerHouseholdDetailProps {
     bank_card: string
     bank_name: string
     farmer_status: string
+    restricted_identity: string
     event_date: string
     village_id: number
     group_no: number
@@ -253,20 +486,26 @@ export function FarmerHouseholdDetail({
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <span className="text-base font-bold text-text-primary">{hh.household_name}</span>
             <span className="text-text-muted text-xs font-mono">{hh.household_code}</span>
-            {areaUsage?.is_overdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">⚠️ 超领</span>}
-            {historyEventId !== null && <span className="text-xs bg-amber-500/80 text-white px-1.5 py-0.5 rounded">⏳ 快照</span>}
+            {areaUsage?.is_overdrawn && <span className="text-xs bg-red-500  px-1.5 py-0.5 rounded">⚠️ 超领</span>}
+            {historyEventId !== null && <span className="text-xs bg-amber-500/80  px-1.5 py-0.5 rounded">⏳ 快照</span>}
           </div>
           <div className="text-text-muted text-xs">📍 {hh.village_full_name}
             {hh.address && <span className="ml-1 text-text-muted">{hh.address}</span>}
           </div>
         </div>
-        <div className="text-right shrink-0 mr-2">
-          <div className="text-lg font-bold font-mono text-primary-100">
-            {historyEventId !== null && snapshotData?.snapshot
-              ? (snapshotData.snapshot.contract_area > 0 ? `${snapshotData.snapshot.contract_area}亩` : '未设置')
-              : (hh.contracted_area > 0 ? `${hh.contracted_area}亩` : '未设置')}
+        <div className="text-right shrink-0 mr-2 flex items-center gap-2">
+          <a href={`/api/households/${hh.id}/export-subsidies`}
+            className="text-xs bg-blue-500 text-white px-3 py-1.5 rounded-btn hover:brightness-95 transition-all font-medium">
+            📥 导出补贴
+          </a>
+          <div>
+            <div className="text-lg font-bold font-mono text-primary-100">
+              {historyEventId !== null && snapshotData?.snapshot
+                ? (snapshotData.snapshot.contract_area > 0 ? `${snapshotData.snapshot.contract_area}亩` : '未设置')
+                : (hh.contracted_area > 0 ? `${hh.contracted_area}亩` : '未设置')}
+            </div>
+            <div className="text-text-muted text-xs">承包面积</div>
           </div>
-          <div className="text-text-muted text-xs">承包面积</div>
         </div>
       </div>
 
@@ -309,11 +548,11 @@ export function FarmerHouseholdDetail({
           <div className="ml-auto px-2 flex gap-1.5">
             {detailTab === 'members' && (
               <>
-                <button onClick={onOpenMemberImport} className="text-xs border border-primary/20 text-primary px-2.5 py-1 rounded-btn hover:bg-primary/5 transition-colors">↑ 批量导入</button>
+                <button onClick={onOpenMemberImport} className="text-xs border-2 border-green-500 bg-green-500 text-white px-2.5 py-1 rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-medium">↑ 批量导入</button>
                 <button onClick={() => {
                   onOpenMemberAdd()
                 }}
-                  className="text-xs bg-primary text-white px-2.5 py-1 rounded-btn hover:bg-primary/90 transition-colors">＋ 成员</button>
+                  className="text-xs bg-primary  px-2.5 py-1 rounded-btn hover:bg-primary/90 transition-colors">＋ 成员</button>
                 <button onClick={onOpenEvent} className="text-xs border border-border text-text-primary px-2.5 py-1 rounded-btn hover:bg-warm/30 transition-colors">＋ 补录</button>
               </>
             )}
@@ -332,7 +571,7 @@ export function FarmerHouseholdDetail({
                 ${m.is_head ? 'bg-primary/5 border-primary/20' : 'bg-white border-border hover:border-border hover:bg-warm/30'}
                 ${m.farmer_status !== 1 ? 'opacity-60' : ''}`}>
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0
-                  ${m.is_head ? 'bg-primary/90 text-white' : 'bg-warm/30 text-text-muted'}`}>
+                  ${m.is_head ? 'bg-primary/90 ' : 'bg-warm/30 text-text-muted'}`}>
                   {m.real_name.slice(-1)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -341,10 +580,11 @@ export function FarmerHouseholdDetail({
                     {m.is_head === 1 && <Tag label="户主" color="green" />}
                     {m.relation && <Tag label={m.relation} color="gray" />}
                     {m.farmer_status !== 1 && <Tag label={FARMER_STATUS[m.farmer_status]?.label ?? '异常'} color="red" />}
+                    {m.restricted_identity === 1 && <Tag label={RESTRICTED_IDENTITY[1]?.label} color="red" />}
                   </div>
                   <div className="text-xs text-text-muted mt-0.5">
                     {m.gender === 1 ? '男' : '女'}
-                    {m.phone_masked && <span className="ml-2">{m.phone_masked}</span>}
+                    <span className="ml-2">{m.phone_masked || '—'}</span>
                     <span className="ml-2 font-mono">{m.id_card_masked}</span>
                   </div>
                 </div>
@@ -403,15 +643,21 @@ export interface HistorySidebarProps {
 export function HistorySidebar({ householdId, historyEventId, historyDates, expandedYears, onExitHistory, onToggleYear, onLoadSnapshotAt }: HistorySidebarProps) {
   const hhId = householdId
   return (
-    <div className="w-48 shrink-0">
-      <div className="bg-white border border-border rounded-card shadow-card">
+    <div className="w-48 shrink-0"
+      style={{
+        backgroundImage: 'linear-gradient(to bottom, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.55) 100%), url(/images/timecheckpoint.png)',
+        backgroundPosition: 'bottom center',
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: 'cover'
+      }}>
+      <div className="border border-border rounded-card shadow-card overflow-hidden bg-transparent">
         <div className="px-3 py-2 border-b border-border/50 bg-warm/30">
           <div className="text-xs font-semibold text-text-primary">历史记录</div>
         </div>
         <div className="py-2 px-2 space-y-1 max-h-[50vh] overflow-y-auto">
           <button onClick={onExitHistory}
             className={`w-full py-2.5 rounded-btn text-xs font-medium transition-all text-left px-3
-              ${historyEventId === null ? 'bg-primary/90 text-white shadow-card' : 'text-text-muted hover:bg-warm/30'}`}>
+              ${historyEventId === null ? 'bg-primary/90  shadow-card' : 'text-text-muted hover:bg-warm/30'}`}>
             当前
           </button>
           {(() => {

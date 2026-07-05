@@ -56,6 +56,7 @@ export interface MemberFormProps {
     bank_card: string
     bank_name: string
     farmer_status: string
+    restricted_identity: string
     event_date: string
     village_id: number
     group_no: number
@@ -72,6 +73,7 @@ export interface MemberFormProps {
     bank_card: string
     bank_name: string
     farmer_status: string
+    restricted_identity: string
     event_date: string
     village_id: number
     group_no: number
@@ -275,7 +277,7 @@ export function MergeConfirmForm({ open, mergeSelectedHouseholds, mergeConfirmFo
             {mergeSelectedHouseholds.map((h, i) => (
               <div key={h.id} className={`flex items-center gap-2 text-sm ${i === 0 ? 'text-primary font-medium' : 'text-text-primary'}`}>
                 {i === 0
-                  ? <span className="text-xs bg-primary/90 text-white px-1.5 py-0.5 rounded">目标户</span>
+                  ? <span className="text-xs bg-primary/90  px-1.5 py-0.5 rounded">目标户</span>
                   : <span className="text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">被合并</span>}
                 <span>{h.household_name}</span>
                 <span className="text-xs text-text-muted">({h.head_name || '无户主'} · {h.member_count ?? '?'}人 · {h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'})</span>
@@ -315,6 +317,11 @@ export function MemberForm({ open, memberEditTarget, memberForm, setMemberForm, 
           <select value={memberForm.farmer_status} onChange={e => setMemberForm(f => ({ ...f, farmer_status: e.target.value }))}
             className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
             <option value="1">在册</option><option value="2">注销</option><option value="3">迁出</option><option value="4">死亡</option>
+          </select></div>
+        <div><label className="block text-xs text-text-muted mb-1">受限身份</label>
+          <select value={memberForm.restricted_identity ?? '0'} onChange={e => setMemberForm(f => ({ ...f, restricted_identity: e.target.value }))}
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
+            <option value="0">无限制</option><option value="1">受限制（公务员/事业人员）</option>
           </select></div>
         <div><label className="block text-xs text-text-muted mb-1">个人所在村
             <span className="ml-1 text-text-muted/50 font-normal">（出嫁/迁居等，与户不同时填）</span>
@@ -440,7 +447,7 @@ export function SplitWizardForm({ open, splitStep, splitSelected, splitNewHead, 
             <div key={i} className="flex items-center gap-1.5">
               {i > 0 && <div className={`w-8 h-px ${i < splitStep ? 'bg-emerald-400' : 'bg-stone-200'}`} />}
               <div className={`flex items-center gap-1.5 text-xs font-medium ${splitStep === i + 1 ? 'text-primary' : i + 1 < splitStep ? 'text-text-muted' : 'text-text-muted/50'}`}>
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${splitStep === i + 1 ? 'bg-primary text-white' : i + 1 < splitStep ? 'bg-emerald-100 text-primary' : 'bg-warm/30 text-text-muted/50'}`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${splitStep === i + 1 ? 'bg-primary ' : i + 1 < splitStep ? 'bg-emerald-100 text-primary' : 'bg-warm/30 text-text-muted/50'}`}>
                   {i + 1 < splitStep ? '✓' : i + 1}
                 </div>
                 {label}
@@ -673,7 +680,7 @@ export function DeleteConfirmForm({ open, deleteTarget, loading, onSubmit, onClo
             取消
           </button>
           <button onClick={onSubmit} disabled={loading}
-            className="px-4 py-2 text-sm bg-red-600 text-white rounded-btn hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+            className="px-4 py-2 text-sm bg-red-600  rounded-btn hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
             {loading ? <><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>删除中...</> : '确认删除'}
           </button>
         </div>
@@ -776,7 +783,7 @@ export function ConfirmedAreaImport({ open, confirmedAreaRows, setConfirmedAreaR
           </button>
           {!confirmedAreaImportResult && (
             <button onClick={onSubmit} disabled={confirmedAreaRows.length === 0 || confirmedAreaImporting}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-btn hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+              className="px-4 py-2 text-sm bg-blue-600  rounded-btn hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
               {confirmedAreaImporting ? '导入中…' : `确认导入 ${confirmedAreaRows.length} 条`}
             </button>
           )}
@@ -787,7 +794,7 @@ export function ConfirmedAreaImport({ open, confirmedAreaRows, setConfirmedAreaR
               const url = URL.createObjectURL(blob)
               const a = document.createElement('a'); a.href = url; a.download = '确权面积对比.xlsx'; a.click()
               URL.revokeObjectURL(url)
-            }} className="px-4 py-2 text-sm bg-primary/90 text-white rounded-btn hover:bg-primary/50">
+            }} className="px-4 py-2 text-sm bg-primary/90  rounded-btn hover:bg-primary/50">
               导出对比报告
             </button>
           )}
@@ -801,15 +808,14 @@ export function ConfirmedAreaImport({ open, confirmedAreaRows, setConfirmedAreaR
 export interface FarmerImportProps {
   open: boolean
   templates: ExcelColumnTemplate[]
-  importOverwrite: boolean
   onClose: () => void
   onDetectColumns: (columns: string[], sampleRows: Record<string, unknown>[]) => Promise<{ columns: Array<{ excel_column: string; suggested_field: string | null; confidence: number; alternatives: Array<{ field: string; confidence: number }> }>; recommended_templates: any[] }>
   onSaveTemplate: (data: Record<string, unknown>) => Promise<any>
-  onImport: (rows: Record<string, unknown>[]) => Promise<{ created: number; skipped: number; errors: string[] }>
+  onImport: (rows: Record<string, unknown>[], mapping?: Record<string, string>, overwrite?: boolean) => Promise<{ created: number; skipped: number; errors: string[] }>
   onSuccess: () => void
 }
 
-export function FarmerImport({ open, templates, importOverwrite, onClose, onDetectColumns, onSaveTemplate, onImport, onSuccess }: FarmerImportProps) {
+export function FarmerImport({ open, templates, onClose, onDetectColumns, onSaveTemplate, onImport, onSuccess }: FarmerImportProps) {
   return (
     <ExcelImportWithMapping open={open} onClose={onClose} title="农户信息导入"
       templateHeaders={FARMER_TEMPLATE_HEADERS} templateExample={FARMER_TEMPLATE_EXAMPLE}
@@ -823,6 +829,7 @@ export function FarmerImport({ open, templates, importOverwrite, onClose, onDete
           required: m.required,
         })),
       }))}
+      overwriteOption={true}
       onDetectColumns={onDetectColumns} onSaveTemplate={onSaveTemplate}
       onImport={onImport} onSuccess={onSuccess} />
   )

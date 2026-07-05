@@ -54,6 +54,30 @@ interface Props {
   }) => Promise<{ id: number }>
   onImport: (rows: Record<string, unknown>[], mapping?: Record<string, string>, overwrite?: boolean) => Promise<{ created: number; updated?: number; skipped: number; errors: string[] }>
   onSuccess: () => void
+  preCheck?: (rows: Record<string, unknown>[], mapping?: Record<string, string>) => Promise<{
+    passed_rows: number[]
+    failed_rows: Array<{ index: number; real_name: string; id_card_masked: string; issues: string[] }>
+    warning_rows: Array<{ index: number; real_name: string; id_card_masked: string; warnings: string[] }>
+    comparison?: {
+      missing_from_import: Array<{ id_card: string; real_name: string; village?: string; apply_area?: number }>
+      new_in_import: Array<{ id_card: string; real_name: string; village?: string; apply_area?: number }>
+      area_changed: Array<{ id_card: string; real_name: string; app_area: number; import_area: number; diff: number }>
+    }
+  }>
+}
+
+type PreCheckStatus = {
+  result: 'checking' | 'done' | 'error'
+  failedIndices: Set<number>
+  warningIndices: Set<number>
+  failedRows: Array<{ index: number; real_name: string; id_card_masked: string; issues: string[] }>
+  warningRows: Array<{ index: number; real_name: string; id_card_masked: string; warnings: string[] }>
+  comparison?: {
+    missing_from_import: Array<{ id_card: string; real_name: string; village?: string; apply_area?: number }>
+    new_in_import: Array<{ id_card: string; real_name: string; village?: string; apply_area?: number }>
+    area_changed: Array<{ id_card: string; real_name: string; app_area: number; import_area: number; diff: number }>
+  }
+  errorMsg?: string
 }
 
 type Step = 'upload' | 'mapping' | 'preview' | 'importing' | 'result'
@@ -64,7 +88,7 @@ export default function ExcelImportWithMapping({
   systemFields, templates = [],
   overwriteOption = false,
   onDetectColumns, onSaveTemplate,
-  onImport, onSuccess
+  onImport, onSuccess, preCheck
 }: Props) {
   const [step, setStep] = useState<Step>('upload')
   const [rows, setRows] = useState<Record<string, unknown>[]>([])
@@ -76,6 +100,15 @@ export default function ExcelImportWithMapping({
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([])
   const [detecting, setDetecting] = useState(false)
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false)
+
+  // 预检查状态
+  const [preCheckStatus, setPreCheckStatus] = useState<PreCheckStatus | null>(null)
+
+  // 多 Sheet 状态
+  const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null)
+  const [sheetNames, setSheetNames] = useState<string[]>([])
+  const [selectedSheet, setSelectedSheet] = useState<string>('')
+
   const [saveTemplateForm, setSaveTemplateForm] = useState({
     name: '',
     year: new Date().getFullYear().toString(),
@@ -97,6 +130,9 @@ export default function ExcelImportWithMapping({
     setProgressMsg('')
     setSelectedTemplateId('')
     setSaveTemplateOpen(false)
+    setWorkbook(null)
+    setSheetNames([])
+    setSelectedSheet('')
   }
 
   const handleClose = () => { reset(); onClose() }
@@ -106,58 +142,76 @@ export default function ExcelImportWithMapping({
     reader.onload = async e => {
       try {
         const wb = XLSX.read(e.target?.result, { type: 'array' })
-        const ws = wb.Sheets[wb.SheetNames[0]]
-        const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' })
+        const names = wb.SheetNames
 
-        if (data.length === 0) {
-          alert('Excel文件为空或格式不正确')
-          return
+        // 多 Sheet 时先让用户选择
+        if (names.length > 1) {
+          setWorkbook(wb)
+          setSheetNames(names)
+          setSelectedSheet('')
+          return // 等待用户选择 Sheet
         }
 
-        const fileColumns = Object.keys(data[0])
-        setRows(data)
-
-        // 先创建空映射并进入映射步骤
-        const baseMappings: ColumnMapping[] = fileColumns.map(col => ({
-          excel_column: col,
-          system_field: null,
-          system_field_options: systemFields,
-          sample_value: data[0]?.[col] ? String(data[0][col]).substring(0, 20) : ''
-        }))
-        setColumnMappings(baseMappings)
-        setStep('mapping')
-
-        // 后台智能检测列名
-        if (onDetectColumns) {
-          setDetecting(true)
-          try {
-            const sampleRows = data.slice(0, 3)
-            const result = await onDetectColumns(fileColumns, sampleRows)
-
-            const mappings: ColumnMapping[] = fileColumns.map(col => {
-              const detected = (result as { columns?: Array<{ excel_column: string; suggested_field?: string | null; confidence?: number }> }).columns?.find(d => d.excel_column === col)
-              const sampleValue = data[0]?.[col] ? String(data[0][col]).substring(0, 20) : ''
-              return {
-                excel_column: col,
-                system_field: detected?.suggested_field || null,
-                system_field_options: systemFields,
-                sample_value: sampleValue,
-                confidence: detected?.confidence ?? 0
-              }
-            })
-            setColumnMappings(mappings)
-          } catch (error) {
-            console.error('检测列名失败:', error)
-          } finally {
-            setDetecting(false)
-          }
-        }
+        // 仅一个 Sheet，直接解析
+        parseSheet(wb, names[0])
       } catch (error) {
         console.error('解析文件失败:', error)
         alert('解析Excel文件失败，请检查文件格式')
       }
     }
     reader.readAsArrayBuffer(file)
+  }
+
+  // 解析指定 Sheet 的数据
+  const parseSheet = async (wb: XLSX.WorkBook, sheetName: string) => {
+    const ws = wb.Sheets[sheetName]
+    const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' })
+
+    if (data.length === 0) {
+      alert(`Sheet「${sheetName}」为空或格式不正确`)
+      return
+    }
+
+    const fileColumns = Object.keys(data[0])
+    setRows(data)
+    setWorkbook(null)
+    setSheetNames([])
+
+    // 先创建空映射并进入映射步骤
+    const baseMappings: ColumnMapping[] = fileColumns.map(col => ({
+      excel_column: col,
+      system_field: null,
+      system_field_options: systemFields,
+      sample_value: data[0]?.[col] ? String(data[0][col]).substring(0, 20) : ''
+    }))
+    setColumnMappings(baseMappings)
+    setStep('mapping')
+
+    // 后台智能检测列名
+    if (onDetectColumns) {
+      setDetecting(true)
+      try {
+        const sampleRows = data.slice(0, 3)
+        const result = await onDetectColumns(fileColumns, sampleRows)
+
+        const mappings: ColumnMapping[] = fileColumns.map(col => {
+          const detected = (result as { columns?: Array<{ excel_column: string; suggested_field?: string | null; confidence?: number }> }).columns?.find(d => d.excel_column === col)
+          const sampleValue = data[0]?.[col] ? String(data[0][col]).substring(0, 20) : ''
+          return {
+            excel_column: col,
+            system_field: detected?.suggested_field || null,
+            system_field_options: systemFields,
+            sample_value: sampleValue,
+            confidence: detected?.confidence ?? 0
+          }
+        })
+        setColumnMappings(mappings)
+      } catch (error) {
+        console.error('检测列名失败:', error)
+      } finally {
+        setDetecting(false)
+      }
+    }
   }
 
   const onDrop = useCallback((e: React.DragEvent) => {
@@ -203,57 +257,175 @@ export default function ExcelImportWithMapping({
     }
     
     setStep('preview')
+    setPreCheckStatus(null) // 重置预检查状态
+  }
+
+  // 预检查
+  const handlePreCheck = async () => {
+    if (!preCheck) return
+    setPreCheckStatus({ result: 'checking', failedIndices: new Set(), warningIndices: new Set(), failedRows: [], warningRows: [] })
+    try {
+      const mapping: Record<string, string> = {}
+      columnMappings.forEach(m => { if (m.system_field) mapping[m.excel_column] = m.system_field })
+      const res = await preCheck(rows, mapping)
+      setPreCheckStatus({
+        result: 'done',
+        failedIndices: new Set(res.failed_rows.map(r => r.index)),
+        warningIndices: new Set(res.warning_rows.map(r => r.index)),
+        failedRows: res.failed_rows,
+        warningRows: res.warning_rows,
+        comparison: res.comparison,
+      })
+    } catch (e) {
+      setPreCheckStatus({ result: 'error', errorMsg: String(e), failedIndices: new Set(), warningIndices: new Set(), failedRows: [], warningRows: [] })
+    }
+  }
+
+  // 删除所有检查失败的行
+  const handleDeleteFailed = () => {
+    if (!preCheckStatus) return
+    const failedSet = preCheckStatus.failedIndices
+    setRows(prev => prev.filter((_, i) => !failedSet.has(i)))
+    setPreCheckStatus(null)
   }
 
   const handleImportConfirm = async () => {
     setStep('importing')
-    setProgress(5)
+    setProgress(0)
     setProgressMsg(`准备导入 ${rows.length} 条记录…`)
 
-    // 模拟进度
-    let fake = 5
-    const ticker = setInterval(() => {
-      fake = Math.min(fake + (90 - fake) * 0.08, 88)
-      setProgress(Math.round(fake))
-      if (fake < 30) setProgressMsg(`正在校验数据…`)
-      else if (fake < 60) setProgressMsg(`正在写入数据库…`)
-      else setProgressMsg(`即将完成，请稍候…`)
-    }, 200)
-
-    try {
-      // 根据映射转换数据
-      const mapping: Record<string, string> = {}
-      const dataToImport = rows.map(row => {
-        const mappedRow: Record<string, unknown> = {}
-        columnMappings.forEach(cm => {
-          if (cm.system_field && row[cm.excel_column] !== undefined) {
-            mappedRow[cm.system_field] = row[cm.excel_column]
+    // 根据映射转换数据（多列映射同一字段时数值累加）
+    const mapping: Record<string, string> = {}
+    const dataToImport = rows.map(row => {
+      const mappedRow: Record<string, unknown> = {}
+      columnMappings.forEach(cm => {
+        if (cm.system_field && row[cm.excel_column] !== undefined) {
+          const existing = mappedRow[cm.system_field]
+          const newVal = row[cm.excel_column]
+          if (existing !== undefined) {
+            // 多列映射同一字段：数值累加，字符串拼接
+            const eNum = Number(existing), nNum = Number(newVal)
+            if (!isNaN(eNum) && !isNaN(nNum)) {
+              mappedRow[cm.system_field] = eNum + nNum
+            } else {
+              mappedRow[cm.system_field] = String(existing) + String(newVal)
+            }
+          } else {
+            mappedRow[cm.system_field] = newVal
           }
-        })
-        return mappedRow
-      })
-
-      columnMappings.forEach(m => {
-        if (m.system_field) {
-          mapping[m.excel_column] = m.system_field
         }
       })
+      return mappedRow
+    })
+    columnMappings.forEach(m => {
+      if (m.system_field) mapping[m.excel_column] = m.system_field
+    })
 
-      const res = await onImport(dataToImport, mapping, overwrite)
-      clearInterval(ticker)
-      setProgress(100)
-      setProgressMsg('导入完成！')
-      await new Promise(r => setTimeout(r, 400))
-      setResult(res)
-      setStep('result')
-      if (res.created > 0 || (res.updated ?? 0) > 0) onSuccess()
-    } catch (e: unknown) {
-      clearInterval(ticker)
-      const err = e as Error
-      setResult({ created: 0, updated: 0, skipped: 0, errors: [err.message] })
-      setStep('result')
+    // 分批导入，每批 200 行
+    const BATCH_SIZE = 200
+    const totalBatches = Math.ceil(dataToImport.length / BATCH_SIZE)
+    let totalCreated = 0, totalSkipped = 0, totalUpdated = 0
+    const allErrors: string[] = []
+
+    for (let i = 0; i < dataToImport.length; i += BATCH_SIZE) {
+      const batch = dataToImport.slice(i, i + BATCH_SIZE)
+      const batchNum = Math.floor(i / BATCH_SIZE) + 1
+      const pct = Math.round((i / dataToImport.length) * 90)
+      setProgress(pct)
+      setProgressMsg(`正在导入第 ${batchNum}/${totalBatches} 批（${i + 1}-${Math.min(i + BATCH_SIZE, dataToImport.length)}/${dataToImport.length}）…`)
+
+      try {
+        const res = await onImport(batch, mapping, overwrite)
+        totalCreated += res.created || 0
+        totalSkipped += res.skipped || 0
+        totalUpdated += res.updated || 0
+        if (res.errors?.length) {
+          // 将批次内行号转换为原始 Excel 行号（i 为批次偏移量）
+          const adjusted = res.errors.map(e => e.replace(/^第(\d+)行/, (_, n) => `第${parseInt(n) + i}行`))
+          allErrors.push(...adjusted)
+        }
+      } catch (e: unknown) {
+        const err = e as Error
+        allErrors.push(`第${batchNum}批导入失败: ${err.message}`)
+      }
     }
+
+    setProgress(100)
+    setProgressMsg('导入完成！')
+    await new Promise(r => setTimeout(r, 400))
+    setResult({ created: totalCreated, updated: totalUpdated, skipped: totalSkipped, errors: allErrors })
+    setStep('result')
+    if (totalCreated > 0 || totalUpdated > 0) onSuccess()
   }
+
+  // ── 导出导入异常数据为 Excel ──
+  const handleExportErrors = useCallback(() => {
+    if (!result || result.errors.length === 0 || rows.length === 0) return
+
+    const rowIndexRegex = /^第(\d+)行/
+    const errorsByRow = new Map<number, string[]>()
+    const unparsableErrors: string[] = []
+
+    for (const err of result.errors) {
+      const match = err.match(rowIndexRegex)
+      if (match) {
+        const excelRowNum = parseInt(match[1], 10)
+        const rowIndex = excelRowNum - 2 // 第3行 → rows[1]
+        if (rowIndex >= 0 && rowIndex < rows.length) {
+          const existing = errorsByRow.get(rowIndex) || []
+          existing.push(err)
+          errorsByRow.set(rowIndex, existing)
+        } else {
+          unparsableErrors.push(err)
+        }
+      } else {
+        unparsableErrors.push(err)
+      }
+    }
+
+    const wb = XLSX.utils.book_new()
+    const originalColumns = rows.length > 0 ? Object.keys(rows[0] as object) : []
+
+    // Sheet 1: 有行号映射的错误行
+    if (errorsByRow.size > 0) {
+      const sortedRowIndices = Array.from(errorsByRow.keys()).sort((a, b) => a - b)
+      const exportData: Record<string, unknown>[] = []
+
+      for (const rowIndex of sortedRowIndices) {
+        const row = rows[rowIndex] as Record<string, unknown> | undefined
+        if (!row) continue
+        const exportRow: Record<string, unknown> = {}
+        for (const col of originalColumns) {
+          exportRow[col] = row[col] ?? ''
+        }
+        const errorMessages = errorsByRow.get(rowIndex)!
+        const cleanErrors = errorMessages.map(e =>
+          e.replace(/^第\d+行(\s*\S+)?[:：]?\s*/, '')
+        )
+        exportRow['错误原因'] = cleanErrors.join('; ')
+        exportData.push(exportRow)
+      }
+
+      const ws = XLSX.utils.json_to_sheet(exportData, { header: [...originalColumns, '错误原因'] })
+      ws['!cols'] = [
+        ...originalColumns.map(() => ({ wch: 18 })),
+        { wch: 50 }
+      ]
+      XLSX.utils.book_append_sheet(wb, ws, '异常数据')
+    }
+
+    // Sheet 2: 无行号的后端错误
+    if (unparsableErrors.length > 0) {
+      const errorData = unparsableErrors.map(err => ({ '错误信息': err }))
+      const ws2 = XLSX.utils.json_to_sheet(errorData)
+      ws2['!cols'] = [{ wch: 60 }]
+      XLSX.utils.book_append_sheet(wb, ws2, '其他错误')
+    }
+
+    const dateStr = new Date().toISOString().slice(0, 10)
+    const fileName = `${title}_导入异常数据_${dateStr}.xlsx`
+    XLSX.writeFile(wb, fileName)
+  }, [result, rows, title])
 
   const handleSaveTemplate = async () => {
     if (!onSaveTemplate) {
@@ -331,8 +503,7 @@ export default function ExcelImportWithMapping({
 
   return (
     <Modal open={open} title={`Excel批量导入 · ${title}`} onClose={handleClose} width={800}
-      onConfirm={handleConfirm}
-      confirmText={confirmText}>
+      onConfirm={handleConfirm} confirmText={confirmText}>
 
       {/* 步骤指示 */}
       <div className="flex items-center gap-2 mb-5 overflow-x-auto">
@@ -346,7 +517,7 @@ export default function ExcelImportWithMapping({
               <div className={`flex items-center gap-1.5 text-xs font-medium transition-colors
                 ${isCur ? 'text-primary' : isPast ? 'text-text-muted' : 'text-text-muted/50'}`}>
                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs transition-colors
-                  ${isCur ? 'bg-primary text-white' : isPast ? 'bg-emerald-100 text-primary' : 'bg-warm/30 text-text-muted/50'}`}>
+                  ${isCur ? 'bg-primary ' : isPast ? 'bg-emerald-100 text-primary' : 'bg-warm/30 text-text-muted/50'}`}>
                   {isPast ? '✓' : i + 1}
                 </div>
                 {s.label}
@@ -356,41 +527,69 @@ export default function ExcelImportWithMapping({
         })}
       </div>
 
-      {/* Step 1: 上传 */}
+      {/* Step 1: 上传 / 选择Sheet */}
       {step === 'upload' && (
         <div>
-          <div className="flex justify-between items-center mb-3">
-            <p className="text-sm text-text-muted">请按模板格式准备 Excel 文件（.xlsx / .xls）</p>
-            <button onClick={downloadTemplate}
-              className="text-xs text-primary border border-primary/20 px-3 py-1.5 rounded-btn hover:bg-primary/5 flex items-center gap-1">
-              ↓ 下载模板
-            </button>
-          </div>
-          {templateHeaders.length > 0 && (
-            <div className="bg-warm/30 border border-border/50 rounded-btn p-3 mb-4">
-              <p className="text-xs text-text-muted mb-2 font-medium">模板列（标 * 为必填）：</p>
-              <div className="flex flex-wrap gap-1.5">
-                {templateHeaders.map(h => (
-                  <span key={h} className={`text-xs border px-2 py-0.5 rounded font-mono
-                    ${h.includes('*') ? 'bg-primary/5 border-primary/20 text-primary' : 'bg-white border-border text-text-muted'}`}>
-                    {h}
-                  </span>
+          {workbook && sheetNames.length > 0 ? (
+            /* 多Sheet选择 */
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-2xl">📑</span>
+                <div>
+                  <h3 className="font-semibold text-text-primary">选择工作表</h3>
+                  <p className="text-xs text-text-muted">该Excel文件包含 {sheetNames.length} 个工作表，请选择要导入的Sheet</p>
+                </div>
+              </div>
+              <div className="space-y-1">
+                {sheetNames.map(name => (
+                  <button key={name} onClick={() => parseSheet(workbook, name)}
+                    className="w-full text-left px-4 py-3 border border-border rounded-btn hover:border-primary/40 hover:bg-primary/5 transition-colors flex items-center gap-3">
+                    <span className="text-lg text-text-muted">📄</span>
+                    <span className="text-sm text-text-primary font-medium">{name}</span>
+                  </button>
                 ))}
+              </div>
+              <button onClick={() => { setWorkbook(null); setSheetNames([]) }}
+                className="mt-4 text-xs text-text-muted hover:text-text-primary border border-border px-3 py-1.5 rounded-btn">
+                ← 重新选择文件
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <p className="text-sm text-text-muted">请按模板格式准备 Excel 文件（.xlsx / .xls）</p>
+                <button onClick={downloadTemplate}
+                  className="text-xs text-primary border border-primary/20 px-3 py-1.5 rounded-btn hover:bg-primary/5 flex items-center gap-1">
+                  ↓ 下载模板
+                </button>
+              </div>
+              {templateHeaders.length > 0 && (
+                <div className="bg-warm/30 border border-border/50 rounded-btn p-3 mb-4">
+                  <p className="text-xs text-text-muted mb-2 font-medium">模板列（标 * 为必填）：</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {templateHeaders.map(h => (
+                      <span key={h} className={`text-xs border px-2 py-0.5 rounded font-mono
+                        ${h.includes('*') ? 'bg-primary/5 border-primary/20 text-primary' : 'bg-white border-border text-text-muted'}`}>
+                        {h}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div
+                className={`border-2 border-dashed rounded-card p-10 text-center cursor-pointer transition-colors
+                  ${dragOver ? 'border-emerald-400 bg-primary/5' : 'border-border hover:border-border hover:bg-warm/30'}`}
+                onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={onDrop}
+                onClick={() => document.getElementById('xlsx-input')?.click()}>
+                <div className="text-4xl mb-3">📊</div>
+                <p className="text-text-muted text-sm">拖拽 Excel 文件到这里，或点击选择文件</p>
+                <p className="text-text-muted/50 text-xs mt-1">支持 .xlsx / .xls，系统将自动识别列名</p>
+                <input id="xlsx-input" type="file" accept=".xlsx,.xls" className="hidden" onChange={onFile} />
               </div>
             </div>
           )}
-          <div
-            className={`border-2 border-dashed rounded-card p-10 text-center cursor-pointer transition-colors
-              ${dragOver ? 'border-emerald-400 bg-primary/5' : 'border-border hover:border-border hover:bg-warm/30'}`}
-            onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={onDrop}
-            onClick={() => document.getElementById('xlsx-input')?.click()}>
-            <div className="text-4xl mb-3">📊</div>
-            <p className="text-text-muted text-sm">拖拽 Excel 文件到这里，或点击选择文件</p>
-            <p className="text-text-muted/50 text-xs mt-1">支持 .xlsx / .xls，系统将自动识别列名</p>
-            <input id="xlsx-input" type="file" accept=".xlsx,.xls" className="hidden" onChange={onFile} />
-          </div>
         </div>
       )}
 
@@ -408,7 +607,7 @@ export default function ExcelImportWithMapping({
                 💾 保存为模板
               </button>
               <button onClick={() => setStep('upload')}
-                className="text-xs border border-border text-text-muted px-3 py-1.5 rounded-btn hover:bg-warm/30">
+                className="text-xs border bg-danger-200 border-border text-white text-text-muted px-3 py-1.5 rounded-btn hover:bg-warm/30">
                 重新上传
               </button>
             </div>
@@ -534,6 +733,101 @@ export default function ExcelImportWithMapping({
               ← 修改映射
             </button>
           </div>
+          {/* 预检查区域 */}
+          {preCheck && (
+            <div className="mb-3">
+              {!preCheckStatus && (
+                <button onClick={handlePreCheck}
+                  className="text-xs border border-primary/30 text-primary px-3 py-1.5 rounded-btn hover:bg-primary/5 transition-colors">
+                  🔍 预检查
+                </button>
+              )}
+              {preCheckStatus?.result === 'checking' && (
+                <div className="flex items-center gap-2 text-xs text-text-muted">
+                  <span className="inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  正在预检查…
+                </div>
+              )}
+              {preCheckStatus?.result === 'error' && (
+                <div className="bg-red-50 border border-red-200 rounded-btn px-3 py-2 text-xs text-red-600">
+                  预检查出错：{preCheckStatus.errorMsg}
+                </div>
+              )}
+              {preCheckStatus?.result === 'done' && (
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="text-emerald-600 font-medium">✓ {rows.length - preCheckStatus.failedRows.length} 条通过</span>
+                    {preCheckStatus.failedRows.length > 0 && (
+                      <span className="text-red-500 font-medium">✗ {preCheckStatus.failedRows.length} 条失败</span>
+                    )}
+                    {preCheckStatus.warningRows.length > 0 && (
+                      <span className="text-amber-600 font-medium">! {preCheckStatus.warningRows.length} 条警告</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {preCheckStatus.failedRows.length > 0 && (
+                      <button onClick={handleDeleteFailed}
+                        className="text-xs border border-red-200 text-red-600 px-3 py-1.5 rounded-btn hover:bg-red-50 transition-colors">
+                        🗑 删除 {preCheckStatus.failedRows.length} 条失败行
+                      </button>
+                    )}
+                    <button onClick={handlePreCheck}
+                      className="text-xs border border-border text-text-muted px-3 py-1.5 rounded-btn hover:bg-warm/30 transition-colors">
+                      重新检查
+                    </button>
+                  </div>
+                </div>
+              )}
+              {preCheckStatus?.result === 'done' && preCheckStatus.failedRows.length > 0 && (
+                <div className="mt-2 bg-red-50 border border-red-200 rounded-btn px-3 py-2 max-h-24 overflow-y-auto">
+                  {preCheckStatus.failedRows.map((r, i) => (
+                    <p key={i} className="text-xs text-red-600 mb-0.5">
+                      第{r.index + 2}行 · {r.real_name}（{r.id_card_masked}）：{r.issues.join('；')}
+                    </p>
+                  ))}
+                </div>
+              )}
+              {/* 与预申请数据比对 */}
+              {preCheckStatus?.result === 'done' && preCheckStatus.comparison && (
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                  {preCheckStatus.comparison.missing_from_import.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-btn p-2">
+                      <div className="font-semibold text-red-700 mb-1">⚠ 申请有但导入无 ({preCheckStatus.comparison.missing_from_import.length}人)</div>
+                      <div className="max-h-20 overflow-y-auto space-y-0.5">
+                        {preCheckStatus.comparison.missing_from_import.map((m, i) => (
+                          <div key={i} className="text-red-600">{m.real_name} <span className="text-red-400">({m.id_card.slice(-4)})</span> {m.apply_area ? `${m.apply_area}亩` : ''}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {preCheckStatus.comparison.new_in_import.length > 0 && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-btn p-2">
+                      <div className="font-semibold text-blue-700 mb-1">＋ 导入新增 ({preCheckStatus.comparison.new_in_import.length}人)</div>
+                      <div className="max-h-20 overflow-y-auto space-y-0.5">
+                        {preCheckStatus.comparison.new_in_import.map((m, i) => (
+                          <div key={i} className="text-blue-600">{m.real_name} <span className="text-blue-400">({m.id_card.slice(-4)})</span> {m.apply_area ? `${m.apply_area}亩` : ''}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {preCheckStatus.comparison.area_changed.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-btn p-2">
+                      <div className="font-semibold text-amber-700 mb-1">📐 面积变化 ({preCheckStatus.comparison.area_changed.length}人)</div>
+                      <div className="max-h-20 overflow-y-auto space-y-0.5">
+                        {preCheckStatus.comparison.area_changed.map((m, i) => (
+                          <div key={i} className="text-amber-700">{m.real_name}: {m.app_area}→{m.import_area}亩
+                            <span className={m.diff > 0 ? 'text-red-500 ml-1' : m.diff < 0 ? 'text-green-500 ml-1' : 'text-text-muted ml-1'}>
+                              ({m.diff > 0 ? '+' : ''}{m.diff.toFixed(2)})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           {overwriteOption && (
             <div className="mb-3 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-btn px-4 py-2.5">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -557,7 +851,10 @@ export default function ExcelImportWithMapping({
             <table className="w-full text-xs border-collapse">
               <thead className="bg-warm/30 sticky top-0">
                 <tr>
-                  {Object.keys(rows[0] || {}).slice(0, 8).map(k => (
+                  {preCheckStatus?.result === 'done' && (
+                    <th className="px-1 py-2 text-center text-xs text-text-muted font-semibold border-b border-border w-6">检</th>
+                  )}
+                  {Object.keys(rows[0] || {}).slice(0, preCheckStatus?.result === 'done' ? 7 : 8).map(k => (
                     <th key={k} className="px-3 py-2 text-left text-text-muted font-semibold border-b border-border whitespace-nowrap">
                       {k}
                       {columnMappings.find(m => m.excel_column === k)?.system_field && (
@@ -570,13 +867,27 @@ export default function ExcelImportWithMapping({
                 </tr>
               </thead>
               <tbody>
-                {rows.slice(0, 30).map((row, i) => (
-                  <tr key={i} className="border-b border-border/50 hover:bg-warm/30">
-                    {Object.values(row).slice(0, 8).map((v, j) => (
-                      <td key={j} className="px-3 py-1.5 text-text-primary whitespace-nowrap font-mono">{String(v ?? '')}</td>
-                    ))}
-                  </tr>
-                ))}
+                {rows.slice(0, 30).map((row, i) => {
+                  const rowBg = preCheckStatus?.result === 'done'
+                    ? preCheckStatus.failedIndices.has(i) ? 'bg-red-50'
+                    : preCheckStatus.warningIndices.has(i) ? 'bg-amber-50'
+                    : 'bg-emerald-50/30'
+                    : ''
+                  return (
+                    <tr key={i} className={`border-b border-border/50 hover:bg-warm/30 ${rowBg}`}>
+                      {preCheckStatus?.result === 'done' && (
+                        <td className="px-1 py-1.5 text-center text-xs">
+                          {preCheckStatus.failedIndices.has(i) ? <span className="text-red-500">✗</span>
+                          : preCheckStatus.warningIndices.has(i) ? <span className="text-amber-500">!</span>
+                          : <span className="text-emerald-500">✓</span>}
+                        </td>
+                      )}
+                      {Object.values(row).slice(0, preCheckStatus?.result === 'done' ? 7 : 8).map((v, j) => (
+                        <td key={j} className="px-3 py-1.5 text-text-primary whitespace-nowrap font-mono">{String(v ?? '')}</td>
+                      ))}
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -656,7 +967,15 @@ export default function ExcelImportWithMapping({
               ))}
             </div>
           )}
-          <button onClick={handleClose} className="px-6 py-2 bg-primary text-white rounded-btn text-sm hover:bg-primary/90">
+          {result.errors.length > 0 && (
+            <div className="mb-4">
+              <button onClick={handleExportErrors}
+                className="px-4 py-2 bg-red-50 border border-red-200 text-red-700 rounded-btn text-sm hover:bg-red-100">
+                ↓ 导出异常数据
+              </button>
+            </div>
+          )}
+          <button onClick={handleClose} className="px-6 py-2 bg-primary  rounded-btn text-sm hover:bg-primary/90">
             完成
           </button>
         </div>

@@ -39700,7 +39700,7 @@ const xlsx = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty
   writeFileXLSX: writeFileSyncXLSX,
   writeXLSX: writeSyncXLSX
 }, Symbol.toStringTag, { value: "Module" }));
-async function req$7(channel, data) {
+async function req$8(channel, data) {
   const result = await window.electronAPI.invoke(channel, data);
   if (result && typeof result === "object" && "code" in result && result.code !== 0) {
     throw new Error(result.message || `请求失败`);
@@ -39710,81 +39710,92 @@ async function req$7(channel, data) {
   }
   return result;
 }
-const getVillageGroups = () => req$7("households:groupOptions");
-const createVillageGroup = (data) => req$7("settings:createVillageGroup", data);
-const getFarmers = (params) => req$7("farmers:list", params);
-const getFarmer = (id2) => req$7("farmers:get", id2);
-const batchLookupFarmers = (idCards) => req$7("farmers:batchLookup", idCards);
-const createFarmer = (data) => req$7("farmers:create", data);
-const batchImportFarmers = (rows, overwrite = false) => req$7(
+const getVillageGroups = () => req$8("households:groupOptions");
+const createVillageGroup = (data) => req$8("settings:createVillageGroup", data);
+const getFarmers = (params) => req$8("farmers:list", params);
+const getFarmer = (id2) => req$8("farmers:get", id2);
+const batchLookupFarmers = (idCards) => req$8("farmers:batchLookup", idCards);
+const createFarmer = (data) => req$8("farmers:create", data);
+const batchImportFarmers = (rows, overwrite = false) => req$8(
   "farmers:batchImport",
   { rows, overwrite }
 );
-const importFamilyRelations = (rows, splitVillages) => req$7("farmers:importRelations", { rows, splitVillages });
-const previewMultiHeadHouseholds = (villageNames, excelRows) => req$7("farmers:multiHeadPreview", { villageNames, excelRows });
-const getSubsidyTypesWithStats = (year) => req$7(
+const importFamilyRelations = (rows, splitVillages) => req$8("farmers:importRelations", { rows, splitVillages });
+const previewMultiHeadHouseholds = (villageNames, excelRows) => req$8("farmers:multiHeadPreview", { villageNames, excelRows });
+const getSubsidyTypes = (year) => req$8("subsidies:listTypes", year);
+const getSubsidyTypesWithStats = (year) => req$8(
   "subsidies:listTypesWithStats",
   year
 );
-const createSubsidyType = (data) => req$7("subsidies:createType", data);
-const updateSubsidyType = (id2, data) => req$7("subsidies:updateType", { id: id2, ...data });
-const searchApplications = (params) => req$7("subsidies:listApplications", params);
-const createApplication = (data) => req$7("subsidies:createApplication", data);
-const updateApplication = (id2, data) => req$7("subsidies:updateApplication", { id: id2, ...data });
-const getProxies = (params) => req$7("subsidies:listProxies", params);
-const createProxy = (data) => req$7("subsidies:createProxy", data);
-const deleteProxy = (id2) => req$7("subsidies:deleteProxy", id2);
-const getYearCompare = (year) => req$7("subsidies:yearCompare", year);
-const getSummaryByVillage = (year) => req$7("subsidies:summaryByVillage", year);
-const getSummaryBySeason = (year) => req$7(
+const createSubsidyType = (data) => req$8("subsidies:createType", data);
+const updateSubsidyType = (id2, data) => req$8("subsidies:updateType", { id: id2, ...data });
+const searchApplications = (params) => req$8("subsidies:listApplications", params);
+const createApplication = (data) => req$8("subsidies:createApplication", data);
+const updateApplication = (id2, data) => req$8("subsidies:updateApplication", { id: id2, ...data });
+const getProxies = (params) => req$8("subsidies:listProxies", params);
+const createProxy = (data) => req$8("subsidies:createProxy", data);
+const deleteProxy = (id2) => req$8("subsidies:deleteProxy", id2);
+const getYearCompare = (year) => req$8("subsidies:yearCompare", year);
+const getSummaryByVillage = (year) => req$8("subsidies:summaryByVillage", year);
+const getSummaryBySeason = (year) => req$8(
   "subsidies:summaryBySeason",
   year
 );
 const getAreaStatsByVillage = (subsidyTypeId, year, dataSource) => {
   const params = { subsidy_type_id: subsidyTypeId, year };
   params.data_source = dataSource;
-  return req$7("subsidies:areaStatsByVillage", params);
+  return req$8("subsidies:areaStatsByVillage", params);
 };
-const aiAnalyze = (data) => req$7("ai:analyze", data);
-const getExcelTemplates = (businessType) => req$7("excel-templates:list", businessType);
-const healthCheck = () => req$7("app:getDbPath");
-const getHouseholds = (params) => req$7("households:list", params);
-const getHouseholdDetail = (id2, year) => req$7("households:get", { id: id2, year });
-const mergeHouseholds = (data) => req$7("households:merge", data);
-const updateHousehold = (id2, data) => req$7("households:update", { id: id2, ...data });
-const createHousehold = (data) => req$7("households:create", data);
-const addHouseholdMember = (householdId, data) => req$7("households:addMember", { householdId, ...data });
-const updateHouseholdMember = (householdId, farmerId, data) => req$7("households:updateMember", { householdId, farmerId, ...data });
-const removeHouseholdMember = (householdId, farmerId) => req$7("households:removeMember", { householdId, farmerId });
-const getHouseholdEvents = (householdId, year) => req$7("households:events", { householdId, year });
-const addHouseholdEvent = (householdId, data) => req$7("households:addEvent", { householdId, ...data });
-const getHouseholdHistoryDates = (householdId) => req$7("households:historyDates", householdId);
-const getHouseholdSnapshotAt = (householdId, date) => req$7("households:snapshotAt", { householdId, date });
-const getHouseholdSnapshotByEvent = (householdId, eventId) => req$7("households:snapshotByEvent", { householdId, eventId });
-const splitHousehold = (householdId, data) => req$7("households:split", { householdId, ...data });
-const batchImportHouseholdMembers = (householdId, rows) => req$7("households:batchImportMembers", { householdId, rows });
-const importConfirmedArea = (rows) => req$7(
+const aiAnalyze = (data) => req$8("ai:analyze", data);
+const getExcelTemplates = (businessType) => req$8("excel-templates:list", businessType);
+const healthCheck = () => req$8("app:getDbPath");
+const getHouseholds = (params) => req$8("households:list", params);
+const getHouseholdDetail = (id2, year) => req$8("households:get", { id: id2, year });
+const mergeHouseholds = (data) => req$8("households:merge", data);
+const updateHousehold = (id2, data) => req$8("households:update", { id: id2, ...data });
+const createHousehold = (data) => req$8("households:create", data);
+const addHouseholdMember = (householdId, data) => req$8("households:addMember", { householdId, ...data });
+const updateHouseholdMember = (householdId, farmerId, data) => req$8("households:updateMember", { householdId, farmerId, ...data });
+const removeHouseholdMember = (householdId, farmerId) => req$8("households:removeMember", { householdId, farmerId });
+const getHouseholdEvents = (householdId, year) => req$8("households:events", { householdId, year });
+const addHouseholdEvent = (householdId, data) => req$8("households:addEvent", { householdId, ...data });
+const getHouseholdHistoryDates = (householdId) => req$8("households:historyDates", householdId);
+const getHouseholdSnapshotAt = (householdId, date) => req$8("households:snapshotAt", { householdId, date });
+const getHouseholdSnapshotByEvent = (householdId, eventId) => req$8("households:snapshotByEvent", { householdId, eventId });
+const splitHousehold = (householdId, data) => req$8("households:split", { householdId, ...data });
+const batchImportHouseholdMembers = (householdId, rows) => req$8("households:batchImportMembers", { householdId, rows });
+const importConfirmedArea = (rows) => req$8(
   "households:importConfirmedArea",
   rows
 );
 const exportConfirmedAreaDiff = () => window.electronAPI.invoke("households:exportConfirmedAreaDiff");
-const manualConfirmHousehold = (householdId, data) => req$7(
+const manualConfirmHousehold = (householdId, data) => req$8(
   "households:manualConfirm",
   { householdId, ...data }
 );
-const cancelManualConfirm = (householdId, data) => req$7(
+const cancelManualConfirm = (householdId, data) => req$8(
   "households:cancelConfirm",
   { householdId, ...data }
 );
-const batchConfirmHouseholds = (data) => req$7("households:batchConfirm", data);
-const deleteHousehold = (householdId) => req$7("households:delete", householdId);
-const refreshAreaCache = (householdId) => req$7(
+const batchConfirmHouseholds = (data) => req$8("households:batchConfirm", data);
+const deleteHousehold = (householdId) => req$8("households:delete", householdId);
+const refreshAreaCache = (householdId) => req$8(
   "households:refreshAreaCache",
   householdId
 );
-const recalcUnconfirmedContractArea = () => req$7("households:recalcUnconfirmedContractArea");
-const previewHouseholdImport = (rows) => req$7("household-import:preview", rows);
-const executeHouseholdImport = (rows, defaultVillageName, defaultGroupNo) => req$7("household-import:execute", { rows, default_village_name: defaultVillageName, default_group_no: defaultGroupNo });
+const recalcUnconfirmedContractArea = () => req$8("households:recalcUnconfirmedContractArea");
+const getCheckConfig = (typeId) => req$8("subsidies:getCheckConfig", typeId);
+const updateCheckConfig = (typeId, config) => req$8("subsidies:updateCheckConfig", { typeId, config });
+const restoreSubsidyType = (typeId) => req$8("subsidies:restoreType", typeId);
+const savePrecheckHistory = (subsidy_type_id, year, precheck_result, error_types) => req$8("precheck:saveHistory", { subsidy_type_id, year, precheck_result, error_types });
+const getPrecheckHistory = (params) => req$8("precheck:listHistory", params);
+const getPrecheckHistoryBatches = (subsidy_type_id, year) => req$8("precheck:listBatches", { subsidy_type_id, year });
+const resolvePrecheckHistory = (id2) => req$8("precheck:resolveHistory", id2);
+const unresolvePrecheckHistory = (id2) => req$8("precheck:unresolveHistory", id2);
+const deletePrecheckHistory = (id2) => req$8("precheck:deleteHistory", id2);
+const autoResolvePrecheckHistory = (subsidy_type_id, year) => req$8("precheck:autoResolve", { subsidy_type_id, year });
+const exportApplications = (subsidyTypeId) => req$8("subsidies:exportApplications", subsidyTypeId);
+const exportPayments = (subsidyTypeId) => req$8("subsidies:exportPayments", subsidyTypeId);
 const fmt$2 = (n2) => n2 == null ? "—" : "¥" + Number(n2).toFixed(2);
 const parseIdCardInfo = (id2) => {
   if (id2.length !== 18) return null;
@@ -39795,6 +39806,9 @@ const parseIdCardInfo = (id2) => {
   } catch {
     return null;
   }
+};
+const RESTRICTED_IDENTITY = {
+  1: { label: "受限制" }
 };
 const FARMER_STATUS = {
   1: { label: "在册", color: "green" },
@@ -39893,7 +39907,7 @@ function useToast() {
 }
 function Toast({ msg, type }) {
   if (!msg) return null;
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-card shadow-card text-body text-white transition-all
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-card shadow-card text-body  transition-all
       ${type === "err" ? "bg-danger" : "bg-primary"}`, children: msg });
 }
 function r(e) {
@@ -40509,6 +40523,7 @@ function HouseholdDetailContent({
   onOpenManualConfirm,
   onOpenCancelConfirm,
   onDelete,
+  onNavigateToProject,
   onRefreshCache,
   refreshingCache
 }) {
@@ -40517,11 +40532,18 @@ function HouseholdDetailContent({
     if (!appsByYear[a.apply_year]) appsByYear[a.apply_year] = [];
     appsByYear[a.apply_year].push(a);
   });
+  const noCalcByYear = {};
+  detail.app_summary.forEach((a) => {
+    const area = Number(a.apply_area_no_calc || 0);
+    if (area > 0) noCalcByYear[a.apply_year] = (noCalcByYear[a.apply_year] || 0) + area;
+  });
   const displayMembers = historyDate !== null && snapshotData?.snapshot ? snapshotData.snapshot.members : detail.members;
   const defaultAreaUsage = {
     contracted_area: detail.contracted_area || 0,
     trust_out_area: 0,
     trust_in_area: 0,
+    trust_in_arable_area: 0,
+    trust_in_cash_crop_area: 0,
     cultivable_area: detail.contracted_area || 0,
     used_area: 0,
     remaining_area: detail.contracted_area || 0,
@@ -40529,20 +40551,23 @@ function HouseholdDetailContent({
     overdraw_amount: 0,
     has_trust_data: false,
     subsidy_breakdown: [],
+    season_reference: {},
     season_breakdown: {},
-    year_totals: {}
+    year_totals: {},
+    year_apply_totals: {},
+    year_payment_totals: {}
   };
-  const areaUsage = historyDate !== null && snapshotData?.snapshot ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [], season_breakdown: {}, year_totals: {} } : detail.area_usage || defaultAreaUsage;
+  const areaUsage = historyDate !== null && snapshotData?.snapshot ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, trust_in_arable_area: 0, trust_in_cash_crop_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [], season_reference: {}, season_breakdown: {}, year_totals: {}, year_apply_totals: {}, year_payment_totals: {} } : detail.area_usage || defaultAreaUsage;
   const calcSeasonMax = (yt) => {
     if (!yt || Object.keys(yt).length === 0) return 0;
     return Math.max(...Object.values(yt).filter((v2) => v2 > 0), 0);
   };
   const effectiveUsedArea = areaYear > 0 && areaUsage.year_totals?.[String(areaYear)] ? calcSeasonMax(areaUsage.year_totals[String(areaYear)]) : areaUsage.used_area;
-  const effectiveRemainingArea = Math.max(0, areaUsage.contracted_area - effectiveUsedArea);
-  const effectiveIsOverdrawn = areaYear > 0 && areaUsage.year_totals?.[String(areaYear)] ? Object.values(areaUsage.year_totals[String(areaYear)]).some((v2) => areaUsage.contracted_area > 0 && v2 > areaUsage.contracted_area) : areaUsage.is_overdrawn;
-  const effectiveOverdrawAmount = Math.max(0, effectiveUsedArea - areaUsage.contracted_area);
+  const effectiveRemainingArea = Math.max(0, (areaUsage.cultivable_area ?? areaUsage.contracted_area) - effectiveUsedArea);
+  const effectiveIsOverdrawn = areaYear > 0 && areaUsage.year_totals?.[String(areaYear)] ? Object.values(areaUsage.year_totals[String(areaYear)]).some((v2) => (areaUsage.cultivable_area ?? areaUsage.contracted_area) > 0 && v2 > (areaUsage.cultivable_area ?? areaUsage.contracted_area) + 1e-3) : areaUsage.is_overdrawn;
+  const effectiveOverdrawAmount = Math.max(0, effectiveUsedArea - (areaUsage.cultivable_area ?? areaUsage.contracted_area));
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0 flex flex-col", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card overflow-hidden shadow-card mb-3 shrink-0", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-main border border-border rounded-card overflow-hidden shadow-card mb-3 shrink-0", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs(
         "div",
         {
@@ -40559,9 +40584,9 @@ function HouseholdDetailContent({
               /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 mb-0.5 flex-wrap", children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-base font-bold text-primary-50", children: detail.household_name }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted text-xs font-mono", children: detail.household_code }),
-                detail.is_manually_confirmed === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded", children: "✓ 已确认" }),
-                effectiveIsOverdrawn && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-red-500 text-white px-1.5 py-0.5 rounded", children: "⚠️ 超领" }),
-                historyDate !== null && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-amber-500/80 text-white px-1.5 py-0.5 rounded", children: "⏳ 快照" })
+                detail.is_manually_confirmed === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-blue-500  px-1.5 py-0.5 rounded", children: "✓ 已确认" }),
+                effectiveIsOverdrawn && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-red-500  px-1.5 py-0.5 rounded", children: "⚠️ 超领" }),
+                historyDate !== null && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-amber-500/80  px-1.5 py-0.5 rounded", children: "⏳ 快照" })
               ] }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-text-muted text-xs", children: [
                 "📍 ",
@@ -40578,7 +40603,7 @@ function HouseholdDetailContent({
                 "button",
                 {
                   onClick: onOpenEdit,
-                  className: "text-xs bg-[#DAA550] text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
+                  className: "text-xs bg-[#DAA550]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
                   children: "✏️ 编辑"
                 }
               ),
@@ -40593,7 +40618,7 @@ function HouseholdDetailContent({
                 "button",
                 {
                   onClick: onOpenManualConfirm,
-                  className: "text-xs bg-[#2E7A60] text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
+                  className: "text-xs bg-[#2E7A60]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
                   children: "✓ 人工确认"
                 }
               ),
@@ -40605,12 +40630,20 @@ function HouseholdDetailContent({
                   children: "🔀 分户"
                 }
               ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "a",
+                {
+                  href: `/api/households/${detail.id}/export-subsidies`,
+                  className: "text-xs bg-blue-500 text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
+                  children: "📥 导出补贴"
+                }
+              ),
               /* @__PURE__ */ jsxRuntimeExports.jsxs(
                 "button",
                 {
                   onClick: () => onRefreshCache(detail.id),
                   disabled: refreshingCache,
-                  className: "text-xs bg-[#4FA080] text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+                  className: "text-xs bg-[#4FA080]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
                   children: [
                     refreshingCache ? "⏳" : "🔄",
                     " 刷新缓存"
@@ -40621,7 +40654,7 @@ function HouseholdDetailContent({
                 "button",
                 {
                   onClick: onDelete,
-                  className: "text-xs bg-[#C04848] text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
+                  className: "text-xs bg-[#C04848]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
                   children: "🗑️ 删除"
                 }
               )
@@ -40660,9 +40693,19 @@ function HouseholdDetailContent({
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-lg font-bold font-mono text-text-primary", children: [
               areaUsage.contracted_area,
-              " 亩"
+              " 亩",
+              (areaUsage.trust_in_area ?? 0) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-orange-500 text-sm ml-1", children: [
+                "+",
+                (areaUsage.trust_in_area ?? 0).toFixed(2),
+                "亩"
+              ] }),
+              (areaUsage.trust_out_area ?? 0) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-orange-400 text-sm ml-1", children: [
+                "-",
+                (areaUsage.trust_out_area ?? 0).toFixed(2),
+                "亩"
+              ] })
             ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: "承包面积" })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: areaUsage.cultivable_area != null && areaUsage.cultivable_area !== areaUsage.contracted_area ? `可耕${areaUsage.cultivable_area.toFixed(2)}亩` : "承包面积" })
           ] })
         ] }),
         detail.confirmed_area != null && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
@@ -40723,6 +40766,32 @@ function HouseholdDetailContent({
           ] })
         ] })
       ] }) }),
+      areaUsage && ((areaUsage.trust_out_area ?? 0) > 0 || (areaUsage.trust_in_area ?? 0) > 0) && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-main border-b border-border px-4 py-2", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 text-xs flex-wrap", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted font-medium", children: "🔄 流转面积" }),
+        (areaUsage.trust_out_area ?? 0) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-orange-500", children: [
+          "流出: ",
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono font-bold", children: [
+            "-",
+            (areaUsage.trust_out_area ?? 0).toFixed(2),
+            "亩"
+          ] })
+        ] }),
+        (areaUsage.trust_in_area ?? 0) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-orange-500", children: [
+          "流入: ",
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono font-bold", children: [
+            "+",
+            (areaUsage.trust_in_area ?? 0).toFixed(2),
+            "亩"
+          ] })
+        ] }),
+        areaUsage.cultivable_area != null && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-muted", children: [
+          "可耕种: ",
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono font-bold", children: [
+            areaUsage.cultivable_area.toFixed(2),
+            "亩"
+          ] })
+        ] })
+      ] }) }),
       detail.is_manually_confirmed === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-blue-50 border-b border-blue-100 px-4 py-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 text-xs text-blue-700", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-lg", children: "✅" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", children: "已人工确认" }),
@@ -40735,7 +40804,7 @@ function HouseholdDetailContent({
           detail.manually_confirmed_by
         ] })
       ] }) }),
-      areaUsage && areaUsage.season_breakdown && Object.keys(areaUsage.season_breakdown).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border-b border-border px-4 py-3", children: [
+      areaUsage && areaUsage.season_breakdown && Object.keys(areaUsage.season_breakdown).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-main border-b border-border px-4 py-3", children: [
         (() => {
           const allYears = [...new Set(
             (detail.app_summary || []).map((a) => a.apply_year)
@@ -40747,7 +40816,7 @@ function HouseholdDetailContent({
               {
                 value: areaYear,
                 onChange: (e) => setAreaYear(Number(e.target.value)),
-                className: "border border-border rounded-btn px-2 py-1 text-xs outline-none focus:border-primary bg-white",
+                className: "border border-border rounded-btn px-2 py-1 text-xs outline-none focus:border-primary bg-main",
                 children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 0, children: "全部年份" }),
                   allYears.map((y2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: y2, children: y2 }, y2))
@@ -40761,85 +40830,130 @@ function HouseholdDetailContent({
             ] })
           ] });
         })(),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-2", children: Object.entries(areaUsage.season_breakdown).map(([season, usage]) => {
-          let yearUsedArea = 0;
-          let yearApplyArea = 0;
-          let yearPaymentArea = 0;
-          if (areaYear === 0) {
-            yearUsedArea = usage.used_area || 0;
-            yearApplyArea = usage.apply_area || 0;
-            yearPaymentArea = usage.payment_area || 0;
-          } else {
-            yearUsedArea = areaUsage.year_totals?.[String(areaYear)]?.[season] || 0;
-            yearApplyArea = usage.apply_area || 0;
-            yearPaymentArea = usage.payment_area || 0;
-          }
-          const pct2 = areaUsage.contracted_area > 0 ? Math.round(yearUsedArea / areaUsage.contracted_area * 100) : 0;
-          const paymentPct = areaUsage.contracted_area > 0 ? Math.round(yearPaymentArea / areaUsage.contracted_area * 100) : 0;
-          const applyPct = areaUsage.contracted_area > 0 ? Math.round((yearApplyArea - yearPaymentArea) / areaUsage.contracted_area * 100) : 0;
-          const isOverdrawn = yearUsedArea > areaUsage.contracted_area;
-          return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-border rounded-btn overflow-hidden", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between px-3 py-2 " + (isOverdrawn ? "bg-red-50" : "bg-warm/30"), children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-bold " + (isOverdrawn ? "text-red-600" : "text-text-primary"), children: season }),
-                isOverdrawn && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs bg-red-500 text-white px-1.5 py-0.5 rounded", children: [
-                  "超 ",
-                  (yearUsedArea - areaUsage.contracted_area).toFixed(2),
-                  " 亩"
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
+          Object.entries(areaUsage.season_breakdown).map(([season, usage]) => {
+            if (season === "临时") return null;
+            let yearUsedArea = 0;
+            let yearApplyArea = 0;
+            let yearPaymentArea = 0;
+            if (areaYear === 0) {
+              yearUsedArea = usage.used_area || 0;
+              yearApplyArea = usage.apply_area || 0;
+              yearPaymentArea = usage.payment_area || 0;
+            } else {
+              yearUsedArea = areaUsage.year_totals?.[String(areaYear)]?.[season] || 0;
+              yearApplyArea = areaUsage.year_apply_totals?.[String(areaYear)]?.[season] || 0;
+              yearPaymentArea = areaUsage.year_payment_totals?.[String(areaYear)]?.[season] || 0;
+            }
+            const seasonRef = usage.reference_area ?? areaUsage.season_reference?.[season] ?? areaUsage.cultivable_area ?? areaUsage.contracted_area;
+            const pct2 = seasonRef > 0 ? Math.round(yearUsedArea / seasonRef * 100) : 0;
+            const paymentPct = seasonRef > 0 ? Math.round(yearPaymentArea / seasonRef * 100) : 0;
+            const applyPct = seasonRef > 0 ? Math.round((yearApplyArea - yearPaymentArea) / seasonRef * 100) : 0;
+            const isOverdrawn = yearUsedArea > seasonRef + 1e-3;
+            return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-border rounded-btn overflow-hidden", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between px-3 py-2 " + (isOverdrawn ? "bg-red-50" : "bg-warm/30"), children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-bold " + (isOverdrawn ? "text-red-600" : "text-text-primary"), children: season }),
+                  isOverdrawn && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs bg-red-500  px-1.5 py-0.5 rounded", children: [
+                    "超 ",
+                    (yearUsedArea - seasonRef).toFixed(2),
+                    " 亩"
+                  ] })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-sm font-mono font-bold " + (isOverdrawn ? "text-red-500" : "text-primary"), children: [
+                    yearUsedArea.toFixed(2),
+                    " 亩"
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
+                    "/ ",
+                    seasonRef.toFixed(2),
+                    " 亩"
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
+                    "(",
+                    pct2,
+                    "%)"
+                  ] }),
+                  (areaUsage.trust_in_area ?? 0) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-orange-500 text-sm font-mono font-bold pl-2 border-l border-border/50" })
                 ] })
               ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-sm font-mono font-bold " + (isOverdrawn ? "text-red-500" : "text-primary"), children: [
-                  yearUsedArea.toFixed(2),
-                  " 亩"
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-3 py-1.5 bg-main", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-warm/30 rounded-full h-1.5 overflow-hidden flex", children: [
+                  yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "div",
+                    {
+                      className: "h-full bg-emerald-400",
+                      style: { width: Math.min(100, paymentPct) + "%" }
+                    }
+                  ),
+                  yearApplyArea - yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "div",
+                    {
+                      className: "h-full bg-blue-400",
+                      style: { width: Math.min(100 - paymentPct, applyPct) + "%" }
+                    }
+                  )
                 ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
-                  "/ ",
-                  areaUsage.contracted_area,
-                  " 亩"
-                ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
-                  "(",
-                  pct2,
-                  "%)"
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3 mt-1 text-xs text-text-muted", children: [
+                  yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-1", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-2 h-2 bg-emerald-400 rounded-full" }),
+                    "已发布 ",
+                    yearPaymentArea.toFixed(2),
+                    " 亩"
+                  ] }),
+                  yearApplyArea - yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-1", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-2 h-2 bg-blue-400 rounded-full" }),
+                    "预申请 ",
+                    (yearApplyArea - yearPaymentArea).toFixed(2),
+                    " 亩"
+                  ] })
                 ] })
               ] })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-3 py-1.5 bg-white", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-warm/30 rounded-full h-1.5 overflow-hidden flex", children: [
-                yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
-                  "div",
-                  {
-                    className: "h-full bg-emerald-400",
-                    style: { width: Math.min(100, paymentPct) + "%" }
-                  }
-                ),
-                yearApplyArea - yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
-                  "div",
-                  {
-                    className: "h-full bg-blue-400",
-                    style: { width: Math.min(100 - paymentPct, applyPct) + "%" }
-                  }
-                )
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3 mt-1 text-xs text-text-muted", children: [
-                yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-1", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-2 h-2 bg-emerald-400 rounded-full" }),
-                  "已发布 ",
-                  yearPaymentArea.toFixed(2),
-                  " 亩"
-                ] }),
-                yearApplyArea - yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-1", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-2 h-2 bg-blue-400 rounded-full" }),
-                  "预申请 ",
-                  (yearApplyArea - yearPaymentArea).toFixed(2),
-                  " 亩"
-                ] })
+            ] }, season);
+          }),
+          (() => {
+            const hasNoCalc = Object.keys(noCalcByYear).length > 0;
+            if (!hasNoCalc) return null;
+            const noCalcTotal = areaYear === 0 ? Object.values(noCalcByYear).reduce((s, v2) => s + v2, 0) : noCalcByYear[areaYear] || 0;
+            if (noCalcTotal <= 0) return null;
+            return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "border border-border rounded-btn overflow-hidden opacity-70", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between px-3 py-2 bg-warm/30", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-bold text-text-muted", children: "不占用补贴面积" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-sm font-mono text-text-muted", children: [
+                noCalcTotal.toFixed(2),
+                " 亩"
               ] })
-            ] })
-          ] }, season);
-        }) })
+            ] }) });
+          })()
+        ] })
       ] }),
+      detail.trust_records && detail.trust_records.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-main border-b border-border px-4 py-3", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { open: true, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("summary", { className: "text-xs text-text-muted font-medium cursor-pointer mb-2", children: [
+          "🔄 流转记录 (",
+          detail.trust_records.length,
+          "条)"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-1.5 max-h-48 overflow-y-auto", children: detail.trust_records.map((t2, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 text-xs py-1 border-b border-border/20 last:border-0", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `font-bold shrink-0 ${t2.direction === "流入" ? "text-emerald-600" : "text-orange-500"}`, children: t2.direction === "流入" ? "＋流入" : "－流出" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted shrink-0", children: t2.counterparty || "—" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-primary font-mono shrink-0", children: [
+            t2.area?.toFixed(2),
+            "亩"
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50 shrink-0", children: t2.trust_type }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-muted/50 shrink-0", children: [
+            t2.trust_year,
+            "年"
+          ] }),
+          t2.subsidy_arable === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-emerald-600 shrink-0", children: "耕地✓" }),
+          t2.subsidy_cash_crop === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-blue-600 shrink-0", children: "作物✓" }),
+          t2.end_date && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-muted/50 shrink-0", children: [
+            "至",
+            t2.end_date
+          ] }),
+          t2.note && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/40 truncate", children: t2.note })
+        ] }, t2.id || i)) })
+      ] }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex border-b border-border bg-warm/30 items-center", children: [
         [
           { id: "members", label: `👥 成员 (${displayMembers.length})` },
@@ -40849,36 +40963,37 @@ function HouseholdDetailContent({
           {
             onClick: () => setDetailTab(t2.id),
             className: `px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
-                ${detailTab === t2.id ? "border-emerald-600 text-primary bg-white" : "border-transparent text-text-muted hover:text-text-primary"}`,
+                ${detailTab === t2.id ? "border-emerald-600 text-primary bg-main" : "border-transparent text-text-muted hover:text-text-primary"}`,
             children: t2.label
           },
           t2.id
         )),
         historyDateIsNull && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "ml-auto px-2 flex gap-1.5", children: detailTab === "members" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onOpenMemberImport, className: "text-xs border border-primary/20 text-primary px-2.5 py-1.5 rounded-btn hover:bg-primary/5 transition-colors", children: "↑ 批量导入" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onOpenMemberAdd, className: "text-xs bg-primary text-white px-2.5 py-1.5 rounded-btn hover:bg-primary/90 transition-colors", children: "＋ 成员" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onOpenMemberImport, className: "text-xs border-2 border-green-500 bg-green-500 text-white px-2.5 py-1.5 rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-medium", children: "↑ 批量导入" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onOpenMemberAdd, className: "text-xs bg-primary  px-2.5 py-1.5 rounded-btn hover:bg-primary/90 transition-colors", children: "＋ 成员" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onOpenEvent, className: "text-xs border border-border text-text-primary px-2.5 py-1.5 rounded-btn hover:bg-warm/30 transition-colors", children: "＋ 补录" })
         ] }) })
       ] })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 bg-white border border-border rounded-card overflow-hidden shadow-card", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 bg-main border border-border rounded-card overflow-hidden shadow-card", children: [
       detailTab === "members" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 grid gap-2", children: [
         displayMembers.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center py-8 text-text-muted/50 text-sm", children: "暂无成员记录" }),
         displayMembers.map((m2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `flex items-center gap-3 rounded-card px-4 py-3 border transition-all
-                ${m2.is_head ? "bg-primary/5 border-primary/20" : "bg-white border-border hover:border-border hover:bg-warm/30"}
+                ${m2.is_head ? "bg-primary/5 border-primary/20" : "bg-main border-border hover:border-border hover:bg-warm/30"}
                 ${m2.farmer_status !== 1 ? "opacity-60" : ""}`, children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0
-                  ${m2.is_head ? "bg-primary/90 text-white" : "bg-warm/30 text-text-muted"}`, children: m2.real_name.slice(-1) }),
+                  ${m2.is_head ? "bg-primary/90 " : "bg-warm/30 text-text-muted"}`, children: m2.real_name.slice(-1) }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 flex-wrap", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold text-text-primary", children: m2.real_name }),
               m2.is_head === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: "户主", color: "green" }),
               m2.relation && /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: m2.relation, color: "gray" }),
-              m2.farmer_status !== 1 && /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: FARMER_STATUS[m2.farmer_status]?.label ?? "异常", color: "red" })
+              m2.farmer_status !== 1 && /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: FARMER_STATUS[m2.farmer_status]?.label ?? "异常", color: "red" }),
+              m2.restricted_identity === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: RESTRICTED_IDENTITY[1]?.label, color: "red" })
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs text-text-muted mt-0.5", children: [
               m2.gender === 1 ? "男" : "女",
-              m2.phone_masked && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-2", children: m2.phone_masked }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-2", children: m2.phone_masked || "—" }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-2 font-mono", children: m2.id_card || m2.id_card_masked })
             ] })
           ] }),
@@ -40923,7 +41038,7 @@ function HouseholdDetailContent({
                     children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded border border-amber-200", children: labelType })
                   }
                 ),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "left-0 top-full mt-1 bg-stone-800 text-white text-xs px-2 py-1.5 rounded-btn shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "left-0 top-full mt-1   text-xs px-2 py-1.5 rounded-btn shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10", children: [
                   labelType === "受益" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
                     "受益人: ",
                     proxy.beneficiary_name,
@@ -40940,12 +41055,24 @@ function HouseholdDetailContent({
                 ] })
               ] });
             })(),
-            a.apply_area && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted font-mono", children: [
-              a.apply_area,
+            (a.apply_area != null || a.apply_area_no_calc != null) && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted font-mono", title: `计入超限 ${a.apply_area || 0}亩 / 不计超限 ${a.apply_area_no_calc || 0}亩`, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: Number(a.apply_area || 0).toFixed(2) }),
+              a.apply_area_no_calc ? /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-muted/50", children: [
+                "+",
+                Number(a.apply_area_no_calc).toFixed(2)
+              ] }) : null,
               "亩"
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-mono font-bold text-primary", children: a.actual_amount ? fmt$2(a.actual_amount) : "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: PAY_STATUS[a.pay_status]?.label || "—", color: PAY_STATUS[a.pay_status]?.color })
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: PAY_STATUS[a.pay_status]?.label || "—", color: PAY_STATUS[a.pay_status]?.color }),
+            onNavigateToProject && a.subsidy_type_id && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                onClick: () => onNavigateToProject(a.subsidy_type_id, a.farmer_name),
+                className: "text-xs text-blue-600 border border-blue-200 px-2 py-1 rounded-btn hover:bg-blue-50 whitespace-nowrap shrink-0",
+                children: "↗ 查看明细"
+              }
+            )
           ] }, i))
         ] }, yr))
       ] })
@@ -40961,50 +41088,48 @@ function Modal({ open, title, onClose, onConfirm, confirmText = "保存", width 
     return () => document.removeEventListener("keydown", handler);
   }, [open, onClose]);
   if (!open) return null;
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-16 px-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
     "div",
     {
-      className: "fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-16 px-4",
-      onClick: (e) => {
-        if (e.target === e.currentTarget) onClose();
-      },
-      children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "div",
-        {
-          className: "bg-white rounded-card shadow-card flex flex-col max-h-[80vh] overflow-hidden",
-          style: { width: Math.min(width, window.innerWidth - 32) },
-          children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between px-5 py-4 border-b border-border shrink-0", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-bold text-text-primary text-card-title", children: title }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onClose, className: "text-text-muted hover:text-text-primary transition-colors", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "close", size: 18 }) })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "overflow-y-auto p-5 flex-1", children }),
-            onConfirm && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-end gap-3 px-5 py-3 border-t border-border shrink-0", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  onClick: onClose,
-                  className: "px-4 py-1.5 text-body border border-border rounded-btn text-text-primary hover:bg-warm/40 transition-colors",
-                  children: "取消"
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                "button",
-                {
-                  onClick: onConfirm,
-                  className: "px-4 py-1.5 text-body bg-primary text-white rounded-btn hover:bg-primary/90 transition-colors flex items-center gap-1.5",
-                  children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "confirm", size: 14 }),
-                    confirmText
-                  ]
-                }
-              )
-            ] })
-          ]
-        }
-      )
+      className: "bg-white rounded-card shadow-card flex flex-col max-h-[80vh] overflow-hidden",
+      style: { width: Math.min(width, window.innerWidth - 32) },
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between px-5 py-4 border-b border-border shrink-0", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-bold text-text-primary text-card-title", children: title }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: onClose,
+              className: "w-7 h-7 flex items-center justify-center rounded-md border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-all",
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "close", size: 18 })
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "overflow-y-auto p-5 flex-1", children }),
+        onConfirm && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-end gap-3 px-5 py-3 border-t border-border shrink-0", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: onClose,
+              className: "px-4 py-1.5 text-body border-2 border-red-200 rounded-btn text-red-600 hover:bg-red-50 hover:border-red-300 transition-all font-medium",
+              children: "取消"
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              onClick: onConfirm,
+              className: "px-4 py-1.5 text-body bg-primary-500 text-white rounded-btn hover:bg-primary-400 transition-all flex items-center gap-1.5 font-medium shadow-sm",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "confirm", size: 14 }),
+                confirmText
+              ]
+            }
+          )
+        ] })
+      ]
     }
-  );
+  ) });
 }
 function ExcelImportWithMapping({
   open,
@@ -41018,7 +41143,8 @@ function ExcelImportWithMapping({
   onDetectColumns,
   onSaveTemplate,
   onImport,
-  onSuccess
+  onSuccess,
+  preCheck
 }) {
   const [step, setStep] = reactExports.useState("upload");
   const [rows, setRows] = reactExports.useState([]);
@@ -41028,6 +41154,10 @@ function ExcelImportWithMapping({
   const [columnMappings, setColumnMappings] = reactExports.useState([]);
   const [detecting, setDetecting] = reactExports.useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = reactExports.useState(false);
+  const [preCheckStatus, setPreCheckStatus] = reactExports.useState(null);
+  const [workbook, setWorkbook] = reactExports.useState(null);
+  const [sheetNames, setSheetNames] = reactExports.useState([]);
+  const [selectedSheet, setSelectedSheet] = reactExports.useState("");
   const [saveTemplateForm, setSaveTemplateForm] = reactExports.useState({
     name: "",
     year: (/* @__PURE__ */ new Date()).getFullYear().toString(),
@@ -41046,6 +41176,9 @@ function ExcelImportWithMapping({
     setProgressMsg("");
     setSelectedTemplateId("");
     setSaveTemplateOpen(false);
+    setWorkbook(null);
+    setSheetNames([]);
+    setSelectedSheet("");
   };
   const handleClose = () => {
     reset();
@@ -41056,51 +41189,63 @@ function ExcelImportWithMapping({
     reader.onload = async (e) => {
       try {
         const wb2 = readSync(e.target?.result, { type: "array" });
-        const ws = wb2.Sheets[wb2.SheetNames[0]];
-        const data = utils.sheet_to_json(ws, { defval: "" });
-        if (data.length === 0) {
-          alert("Excel文件为空或格式不正确");
+        const names = wb2.SheetNames;
+        if (names.length > 1) {
+          setWorkbook(wb2);
+          setSheetNames(names);
+          setSelectedSheet("");
           return;
         }
-        const fileColumns = Object.keys(data[0]);
-        setRows(data);
-        const baseMappings = fileColumns.map((col) => ({
-          excel_column: col,
-          system_field: null,
-          system_field_options: systemFields,
-          sample_value: data[0]?.[col] ? String(data[0][col]).substring(0, 20) : ""
-        }));
-        setColumnMappings(baseMappings);
-        setStep("mapping");
-        if (onDetectColumns) {
-          setDetecting(true);
-          try {
-            const sampleRows = data.slice(0, 3);
-            const result2 = await onDetectColumns(fileColumns, sampleRows);
-            const mappings = fileColumns.map((col) => {
-              const detected = result2.columns?.find((d) => d.excel_column === col);
-              const sampleValue = data[0]?.[col] ? String(data[0][col]).substring(0, 20) : "";
-              return {
-                excel_column: col,
-                system_field: detected?.suggested_field || null,
-                system_field_options: systemFields,
-                sample_value: sampleValue,
-                confidence: detected?.confidence ?? 0
-              };
-            });
-            setColumnMappings(mappings);
-          } catch (error) {
-            console.error("检测列名失败:", error);
-          } finally {
-            setDetecting(false);
-          }
-        }
+        parseSheet(wb2, names[0]);
       } catch (error) {
         console.error("解析文件失败:", error);
         alert("解析Excel文件失败，请检查文件格式");
       }
     };
     reader.readAsArrayBuffer(file);
+  };
+  const parseSheet = async (wb2, sheetName) => {
+    const ws = wb2.Sheets[sheetName];
+    const data = utils.sheet_to_json(ws, { defval: "" });
+    if (data.length === 0) {
+      alert(`Sheet「${sheetName}」为空或格式不正确`);
+      return;
+    }
+    const fileColumns = Object.keys(data[0]);
+    setRows(data);
+    setWorkbook(null);
+    setSheetNames([]);
+    const baseMappings = fileColumns.map((col) => ({
+      excel_column: col,
+      system_field: null,
+      system_field_options: systemFields,
+      sample_value: data[0]?.[col] ? String(data[0][col]).substring(0, 20) : ""
+    }));
+    setColumnMappings(baseMappings);
+    setStep("mapping");
+    if (onDetectColumns) {
+      setDetecting(true);
+      try {
+        const sampleRows = data.slice(0, 3);
+        const result2 = await onDetectColumns(fileColumns, sampleRows);
+        const mappings = fileColumns.map((col) => {
+          const detected = result2.columns?.find((d) => d.excel_column === col);
+          const sampleValue = data[0]?.[col] ? String(data[0][col]).substring(0, 20) : "";
+          return {
+            excel_column: col,
+            system_field: detected?.suggested_field || null,
+            system_field_options: systemFields,
+            sample_value: sampleValue,
+            confidence: detected?.confidence ?? 0
+          };
+        });
+        setColumnMappings(mappings);
+      } catch (error) {
+        console.error("检测列名失败:", error);
+      } finally {
+        setDetecting(false);
+      }
+    }
   };
   const onDrop = reactExports.useCallback((e) => {
     e.preventDefault();
@@ -41136,50 +41281,151 @@ function ExcelImportWithMapping({
       return;
     }
     setStep("preview");
+    setPreCheckStatus(null);
+  };
+  const handlePreCheck = async () => {
+    if (!preCheck) return;
+    setPreCheckStatus({ result: "checking", failedIndices: /* @__PURE__ */ new Set(), warningIndices: /* @__PURE__ */ new Set(), failedRows: [], warningRows: [] });
+    try {
+      const mapping = {};
+      columnMappings.forEach((m2) => {
+        if (m2.system_field) mapping[m2.excel_column] = m2.system_field;
+      });
+      const res = await preCheck(rows, mapping);
+      setPreCheckStatus({
+        result: "done",
+        failedIndices: new Set(res.failed_rows.map((r2) => r2.index)),
+        warningIndices: new Set(res.warning_rows.map((r2) => r2.index)),
+        failedRows: res.failed_rows,
+        warningRows: res.warning_rows,
+        comparison: res.comparison
+      });
+    } catch (e) {
+      setPreCheckStatus({ result: "error", errorMsg: String(e), failedIndices: /* @__PURE__ */ new Set(), warningIndices: /* @__PURE__ */ new Set(), failedRows: [], warningRows: [] });
+    }
+  };
+  const handleDeleteFailed = () => {
+    if (!preCheckStatus) return;
+    const failedSet = preCheckStatus.failedIndices;
+    setRows((prev) => prev.filter((_, i) => !failedSet.has(i)));
+    setPreCheckStatus(null);
   };
   const handleImportConfirm = async () => {
     setStep("importing");
-    setProgress(5);
+    setProgress(0);
     setProgressMsg(`准备导入 ${rows.length} 条记录…`);
-    let fake = 5;
-    const ticker = setInterval(() => {
-      fake = Math.min(fake + (90 - fake) * 0.08, 88);
-      setProgress(Math.round(fake));
-      if (fake < 30) setProgressMsg(`正在校验数据…`);
-      else if (fake < 60) setProgressMsg(`正在写入数据库…`);
-      else setProgressMsg(`即将完成，请稍候…`);
-    }, 200);
-    try {
-      const mapping = {};
-      const dataToImport = rows.map((row) => {
-        const mappedRow = {};
-        columnMappings.forEach((cm) => {
-          if (cm.system_field && row[cm.excel_column] !== void 0) {
-            mappedRow[cm.system_field] = row[cm.excel_column];
+    const mapping = {};
+    const dataToImport = rows.map((row) => {
+      const mappedRow = {};
+      columnMappings.forEach((cm) => {
+        if (cm.system_field && row[cm.excel_column] !== void 0) {
+          const existing = mappedRow[cm.system_field];
+          const newVal = row[cm.excel_column];
+          if (existing !== void 0) {
+            const eNum = Number(existing), nNum = Number(newVal);
+            if (!isNaN(eNum) && !isNaN(nNum)) {
+              mappedRow[cm.system_field] = eNum + nNum;
+            } else {
+              mappedRow[cm.system_field] = String(existing) + String(newVal);
+            }
+          } else {
+            mappedRow[cm.system_field] = newVal;
           }
-        });
-        return mappedRow;
-      });
-      columnMappings.forEach((m2) => {
-        if (m2.system_field) {
-          mapping[m2.excel_column] = m2.system_field;
         }
       });
-      const res = await onImport(dataToImport, mapping, overwrite);
-      clearInterval(ticker);
-      setProgress(100);
-      setProgressMsg("导入完成！");
-      await new Promise((r2) => setTimeout(r2, 400));
-      setResult(res);
-      setStep("result");
-      if (res.created > 0 || (res.updated ?? 0) > 0) onSuccess();
-    } catch (e) {
-      clearInterval(ticker);
-      const err = e;
-      setResult({ created: 0, updated: 0, skipped: 0, errors: [err.message] });
-      setStep("result");
+      return mappedRow;
+    });
+    columnMappings.forEach((m2) => {
+      if (m2.system_field) mapping[m2.excel_column] = m2.system_field;
+    });
+    const BATCH_SIZE = 200;
+    const totalBatches = Math.ceil(dataToImport.length / BATCH_SIZE);
+    let totalCreated = 0, totalSkipped = 0, totalUpdated = 0;
+    const allErrors = [];
+    for (let i = 0; i < dataToImport.length; i += BATCH_SIZE) {
+      const batch = dataToImport.slice(i, i + BATCH_SIZE);
+      const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+      const pct2 = Math.round(i / dataToImport.length * 90);
+      setProgress(pct2);
+      setProgressMsg(`正在导入第 ${batchNum}/${totalBatches} 批（${i + 1}-${Math.min(i + BATCH_SIZE, dataToImport.length)}/${dataToImport.length}）…`);
+      try {
+        const res = await onImport(batch, mapping, overwrite);
+        totalCreated += res.created || 0;
+        totalSkipped += res.skipped || 0;
+        totalUpdated += res.updated || 0;
+        if (res.errors?.length) {
+          const adjusted = res.errors.map((e) => e.replace(/^第(\d+)行/, (_, n2) => `第${parseInt(n2) + i}行`));
+          allErrors.push(...adjusted);
+        }
+      } catch (e) {
+        const err = e;
+        allErrors.push(`第${batchNum}批导入失败: ${err.message}`);
+      }
     }
+    setProgress(100);
+    setProgressMsg("导入完成！");
+    await new Promise((r2) => setTimeout(r2, 400));
+    setResult({ created: totalCreated, updated: totalUpdated, skipped: totalSkipped, errors: allErrors });
+    setStep("result");
+    if (totalCreated > 0 || totalUpdated > 0) onSuccess();
   };
+  const handleExportErrors = reactExports.useCallback(() => {
+    if (!result || result.errors.length === 0 || rows.length === 0) return;
+    const rowIndexRegex = /^第(\d+)行/;
+    const errorsByRow = /* @__PURE__ */ new Map();
+    const unparsableErrors = [];
+    for (const err of result.errors) {
+      const match = err.match(rowIndexRegex);
+      if (match) {
+        const excelRowNum = parseInt(match[1], 10);
+        const rowIndex = excelRowNum - 2;
+        if (rowIndex >= 0 && rowIndex < rows.length) {
+          const existing = errorsByRow.get(rowIndex) || [];
+          existing.push(err);
+          errorsByRow.set(rowIndex, existing);
+        } else {
+          unparsableErrors.push(err);
+        }
+      } else {
+        unparsableErrors.push(err);
+      }
+    }
+    const wb2 = utils.book_new();
+    const originalColumns = rows.length > 0 ? Object.keys(rows[0]) : [];
+    if (errorsByRow.size > 0) {
+      const sortedRowIndices = Array.from(errorsByRow.keys()).sort((a, b) => a - b);
+      const exportData = [];
+      for (const rowIndex of sortedRowIndices) {
+        const row = rows[rowIndex];
+        if (!row) continue;
+        const exportRow = {};
+        for (const col of originalColumns) {
+          exportRow[col] = row[col] ?? "";
+        }
+        const errorMessages = errorsByRow.get(rowIndex);
+        const cleanErrors = errorMessages.map(
+          (e) => e.replace(/^第\d+行(\s*\S+)?[:：]?\s*/, "")
+        );
+        exportRow["错误原因"] = cleanErrors.join("; ");
+        exportData.push(exportRow);
+      }
+      const ws = utils.json_to_sheet(exportData, { header: [...originalColumns, "错误原因"] });
+      ws["!cols"] = [
+        ...originalColumns.map(() => ({ wch: 18 })),
+        { wch: 50 }
+      ];
+      utils.book_append_sheet(wb2, ws, "异常数据");
+    }
+    if (unparsableErrors.length > 0) {
+      const errorData = unparsableErrors.map((err) => ({ "错误信息": err }));
+      const ws2 = utils.json_to_sheet(errorData);
+      ws2["!cols"] = [{ wch: 60 }];
+      utils.book_append_sheet(wb2, ws2, "其他错误");
+    }
+    const dateStr = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    const fileName = `${title}_导入异常数据_${dateStr}.xlsx`;
+    writeFileSync(wb2, fileName);
+  }, [result, rows, title]);
   const handleSaveTemplate = async () => {
     if (!onSaveTemplate) {
       alert("保存模板功能未配置");
@@ -41252,12 +41498,50 @@ function ExcelImportWithMapping({
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `flex items-center gap-1.5 text-xs font-medium transition-colors
                 ${isCur ? "text-primary" : isPast ? "text-text-muted" : "text-text-muted/50"}`, children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-5 h-5 rounded-full flex items-center justify-center text-xs transition-colors
-                  ${isCur ? "bg-primary text-white" : isPast ? "bg-emerald-100 text-primary" : "bg-warm/30 text-text-muted/50"}`, children: isPast ? "✓" : i + 1 }),
+                  ${isCur ? "bg-primary " : isPast ? "bg-emerald-100 text-primary" : "bg-warm/30 text-text-muted/50"}`, children: isPast ? "✓" : i + 1 }),
               s.label
             ] })
           ] }, s.key);
         }) }),
-        step === "upload" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        step === "upload" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: workbook && sheetNames.length > 0 ? (
+          /* 多Sheet选择 */
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-4", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-2xl", children: "📑" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-semibold text-text-primary", children: "选择工作表" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-text-muted", children: [
+                  "该Excel文件包含 ",
+                  sheetNames.length,
+                  " 个工作表，请选择要导入的Sheet"
+                ] })
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-1", children: sheetNames.map((name) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                onClick: () => parseSheet(workbook, name),
+                className: "w-full text-left px-4 py-3 border border-border rounded-btn hover:border-primary/40 hover:bg-primary/5 transition-colors flex items-center gap-3",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-lg text-text-muted", children: "📄" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm text-text-primary font-medium", children: name })
+                ]
+              },
+              name
+            )) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                onClick: () => {
+                  setWorkbook(null);
+                  setSheetNames([]);
+                },
+                className: "mt-4 text-xs text-text-muted hover:text-text-primary border border-border px-3 py-1.5 rounded-btn",
+                children: "← 重新选择文件"
+              }
+            )
+          ] })
+        ) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-between items-center mb-3", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-text-muted", children: "请按模板格式准备 Excel 文件（.xlsx / .xls）" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -41272,13 +41556,13 @@ function ExcelImportWithMapping({
           templateHeaders.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-warm/30 border border-border/50 rounded-btn p-3 mb-4", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted mb-2 font-medium", children: "模板列（标 * 为必填）：" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-1.5", children: templateHeaders.map((h) => /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs border px-2 py-0.5 rounded font-mono
-                    ${h.includes("*") ? "bg-primary/5 border-primary/20 text-primary" : "bg-white border-border text-text-muted"}`, children: h }, h)) })
+                        ${h.includes("*") ? "bg-primary/5 border-primary/20 text-primary" : "bg-white border-border text-text-muted"}`, children: h }, h)) })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs(
             "div",
             {
               className: `border-2 border-dashed rounded-card p-10 text-center cursor-pointer transition-colors
-              ${dragOver ? "border-emerald-400 bg-primary/5" : "border-border hover:border-border hover:bg-warm/30"}`,
+                  ${dragOver ? "border-emerald-400 bg-primary/5" : "border-border hover:border-border hover:bg-warm/30"}`,
               onDragOver: (e) => {
                 e.preventDefault();
                 setDragOver(true);
@@ -41294,7 +41578,7 @@ function ExcelImportWithMapping({
               ]
             }
           )
-        ] }),
+        ] }) }),
         step === "mapping" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-between items-center mb-4", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
@@ -41314,7 +41598,7 @@ function ExcelImportWithMapping({
                 "button",
                 {
                   onClick: () => setStep("upload"),
-                  className: "text-xs border border-border text-text-muted px-3 py-1.5 rounded-btn hover:bg-warm/30",
+                  className: "text-xs border bg-danger-200 border-border text-white text-text-muted px-3 py-1.5 rounded-btn hover:bg-warm/30",
                   children: "重新上传"
                 }
               )
@@ -41436,6 +41720,134 @@ function ExcelImportWithMapping({
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setStep("mapping"), className: "text-xs text-text-muted hover:text-text-primary", children: "← 修改映射" })
           ] }),
+          preCheck && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-3", children: [
+            !preCheckStatus && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                onClick: handlePreCheck,
+                className: "text-xs border border-primary/30 text-primary px-3 py-1.5 rounded-btn hover:bg-primary/5 transition-colors",
+                children: "🔍 预检查"
+              }
+            ),
+            preCheckStatus?.result === "checking" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 text-xs text-text-muted", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" }),
+              "正在预检查…"
+            ] }),
+            preCheckStatus?.result === "error" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-red-50 border border-red-200 rounded-btn px-3 py-2 text-xs text-red-600", children: [
+              "预检查出错：",
+              preCheckStatus.errorMsg
+            ] }),
+            preCheckStatus?.result === "done" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between flex-wrap gap-2", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 text-xs", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-emerald-600 font-medium", children: [
+                  "✓ ",
+                  rows.length - preCheckStatus.failedRows.length,
+                  " 条通过"
+                ] }),
+                preCheckStatus.failedRows.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-red-500 font-medium", children: [
+                  "✗ ",
+                  preCheckStatus.failedRows.length,
+                  " 条失败"
+                ] }),
+                preCheckStatus.warningRows.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-amber-600 font-medium", children: [
+                  "! ",
+                  preCheckStatus.warningRows.length,
+                  " 条警告"
+                ] })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+                preCheckStatus.failedRows.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "button",
+                  {
+                    onClick: handleDeleteFailed,
+                    className: "text-xs border border-red-200 text-red-600 px-3 py-1.5 rounded-btn hover:bg-red-50 transition-colors",
+                    children: [
+                      "🗑 删除 ",
+                      preCheckStatus.failedRows.length,
+                      " 条失败行"
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    onClick: handlePreCheck,
+                    className: "text-xs border border-border text-text-muted px-3 py-1.5 rounded-btn hover:bg-warm/30 transition-colors",
+                    children: "重新检查"
+                  }
+                )
+              ] })
+            ] }),
+            preCheckStatus?.result === "done" && preCheckStatus.failedRows.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-2 bg-red-50 border border-red-200 rounded-btn px-3 py-2 max-h-24 overflow-y-auto", children: preCheckStatus.failedRows.map((r2, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-red-600 mb-0.5", children: [
+              "第",
+              r2.index + 2,
+              "行 · ",
+              r2.real_name,
+              "（",
+              r2.id_card_masked,
+              "）：",
+              r2.issues.join("；")
+            ] }, i)) }),
+            preCheckStatus?.result === "done" && preCheckStatus.comparison && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 grid grid-cols-3 gap-2 text-xs", children: [
+              preCheckStatus.comparison.missing_from_import.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-red-50 border border-red-200 rounded-btn p-2", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "font-semibold text-red-700 mb-1", children: [
+                  "⚠ 申请有但导入无 (",
+                  preCheckStatus.comparison.missing_from_import.length,
+                  "人)"
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-h-20 overflow-y-auto space-y-0.5", children: preCheckStatus.comparison.missing_from_import.map((m2, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-red-600", children: [
+                  m2.real_name,
+                  " ",
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-red-400", children: [
+                    "(",
+                    m2.id_card.slice(-4),
+                    ")"
+                  ] }),
+                  " ",
+                  m2.apply_area ? `${m2.apply_area}亩` : ""
+                ] }, i)) })
+              ] }),
+              preCheckStatus.comparison.new_in_import.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-blue-50 border border-blue-200 rounded-btn p-2", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "font-semibold text-blue-700 mb-1", children: [
+                  "＋ 导入新增 (",
+                  preCheckStatus.comparison.new_in_import.length,
+                  "人)"
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-h-20 overflow-y-auto space-y-0.5", children: preCheckStatus.comparison.new_in_import.map((m2, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-blue-600", children: [
+                  m2.real_name,
+                  " ",
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-blue-400", children: [
+                    "(",
+                    m2.id_card.slice(-4),
+                    ")"
+                  ] }),
+                  " ",
+                  m2.apply_area ? `${m2.apply_area}亩` : ""
+                ] }, i)) })
+              ] }),
+              preCheckStatus.comparison.area_changed.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-amber-50 border border-amber-200 rounded-btn p-2", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "font-semibold text-amber-700 mb-1", children: [
+                  "📐 面积变化 (",
+                  preCheckStatus.comparison.area_changed.length,
+                  "人)"
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-h-20 overflow-y-auto space-y-0.5", children: preCheckStatus.comparison.area_changed.map((m2, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-amber-700", children: [
+                  m2.real_name,
+                  ": ",
+                  m2.app_area,
+                  "→",
+                  m2.import_area,
+                  "亩",
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: m2.diff > 0 ? "text-red-500 ml-1" : m2.diff < 0 ? "text-green-500 ml-1" : "text-text-muted ml-1", children: [
+                    "(",
+                    m2.diff > 0 ? "+" : "",
+                    m2.diff.toFixed(2),
+                    ")"
+                  ] })
+                ] }, i)) })
+              ] })
+            ] })
+          ] }),
           overwriteOption && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-3 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-btn px-4 py-2.5", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 cursor-pointer", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -41459,14 +41871,23 @@ function ExcelImportWithMapping({
             " 秒，请耐心等待"
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "border border-border rounded-btn overflow-auto max-h-64", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full text-xs border-collapse", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { className: "bg-warm/30 sticky top-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: Object.keys(rows[0] || {}).slice(0, 8).map((k2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("th", { className: "px-3 py-2 text-left text-text-muted font-semibold border-b border-border whitespace-nowrap", children: [
-              k2,
-              columnMappings.find((m2) => m2.excel_column === k2)?.system_field && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "ml-1 text-primary text-xs", children: [
-                "→ ",
-                columnMappings.find((m2) => m2.excel_column === k2)?.system_field
-              ] })
-            ] }, k2)) }) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: rows.slice(0, 30).map((row, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { className: "border-b border-border/50 hover:bg-warm/30", children: Object.values(row).slice(0, 8).map((v2, j) => /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-1.5 text-text-primary whitespace-nowrap font-mono", children: String(v2 ?? "") }, j)) }, i)) })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { className: "bg-warm/30 sticky top-0", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
+              preCheckStatus?.result === "done" && /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-1 py-2 text-center text-xs text-text-muted font-semibold border-b border-border w-6", children: "检" }),
+              Object.keys(rows[0] || {}).slice(0, preCheckStatus?.result === "done" ? 7 : 8).map((k2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("th", { className: "px-3 py-2 text-left text-text-muted font-semibold border-b border-border whitespace-nowrap", children: [
+                k2,
+                columnMappings.find((m2) => m2.excel_column === k2)?.system_field && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "ml-1 text-primary text-xs", children: [
+                  "→ ",
+                  columnMappings.find((m2) => m2.excel_column === k2)?.system_field
+                ] })
+              ] }, k2))
+            ] }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: rows.slice(0, 30).map((row, i) => {
+              const rowBg = preCheckStatus?.result === "done" ? preCheckStatus.failedIndices.has(i) ? "bg-red-50" : preCheckStatus.warningIndices.has(i) ? "bg-amber-50" : "bg-emerald-50/30" : "";
+              return /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: `border-b border-border/50 hover:bg-warm/30 ${rowBg}`, children: [
+                preCheckStatus?.result === "done" && /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1 py-1.5 text-center text-xs", children: preCheckStatus.failedIndices.has(i) ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-red-500", children: "✗" }) : preCheckStatus.warningIndices.has(i) ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-amber-500", children: "!" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-emerald-500", children: "✓" }) }),
+                Object.values(row).slice(0, preCheckStatus?.result === "done" ? 7 : 8).map((v2, j) => /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-1.5 text-text-primary whitespace-nowrap font-mono", children: String(v2 ?? "") }, j))
+              ] }, i);
+            }) })
           ] }) }),
           rows.length > 30 && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-text-muted mt-2", children: [
             "预览前30行，共",
@@ -41536,7 +41957,15 @@ function ExcelImportWithMapping({
               e
             ] }, i))
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: handleClose, className: "px-6 py-2 bg-primary text-white rounded-btn text-sm hover:bg-primary/90", children: "完成" })
+          result.errors.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mb-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: handleExportErrors,
+              className: "px-4 py-2 bg-red-50 border border-red-200 text-red-700 rounded-btn text-sm hover:bg-red-100",
+              children: "↓ 导出异常数据"
+            }
+          ) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: handleClose, className: "px-6 py-2 bg-primary  rounded-btn text-sm hover:bg-primary/90", children: "完成" })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(Modal, { open: saveTemplateOpen, title: "保存字段映射模板", onClose: () => setSaveTemplateOpen(false), onConfirm: handleSaveTemplate, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-primary/5 border border-primary/10 rounded-card p-3 text-xs text-primary", children: [
@@ -41704,7 +42133,7 @@ function ExcelImport({ open, onClose, title, templateHeaders, templateExample, o
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `flex items-center gap-1.5 text-xs font-medium transition-colors
                 ${isCur ? "text-primary" : isPast ? "text-text-muted" : "text-text-muted/50"}`, children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-5 h-5 rounded-full flex items-center justify-center text-xs transition-colors
-                  ${isCur ? "bg-primary text-white" : isPast ? "bg-emerald-100 text-primary" : "bg-warm/30 text-text-muted/50"}`, children: isPast ? "✓" : i + 1 }),
+                  ${isCur ? "bg-primary " : isPast ? "bg-emerald-100 text-primary" : "bg-warm/30 text-text-muted/50"}`, children: isPast ? "✓" : i + 1 }),
               s.label
             ] })
           ] }, s.key);
@@ -41831,7 +42260,7 @@ function ExcelImport({ open, onClose, title, templateHeaders, templateExample, o
               e
             ] }, i))
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: handleClose, className: "px-6 py-2 bg-primary text-white rounded-btn text-sm hover:bg-primary/90", children: "完成" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: handleClose, className: "px-6 py-2 bg-primary  rounded-btn text-sm hover:bg-primary/90", children: "完成" })
         ] })
       ]
     }
@@ -42025,7 +42454,7 @@ function MergeConfirmForm({ open, mergeSelectedHouseholds, mergeConfirmForm, set
         " 个家庭户合并："
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-1", children: mergeSelectedHouseholds.map((h, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `flex items-center gap-2 text-sm ${i === 0 ? "text-primary font-medium" : "text-text-primary"}`, children: [
-        i === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-primary/90 text-white px-1.5 py-0.5 rounded", children: "目标户" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded", children: "被合并" }),
+        i === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-primary/90  px-1.5 py-0.5 rounded", children: "目标户" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded", children: "被合并" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: h.household_name }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
           "(",
@@ -42109,6 +42538,21 @@ function MemberForm({ open, memberEditTarget, memberForm, setMemberForm, groups,
                 /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "2", children: "注销" }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "3", children: "迁出" }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "4", children: "死亡" })
+              ]
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "受限身份" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              value: memberForm.restricted_identity ?? "0",
+              onChange: (e) => setMemberForm((f2) => ({ ...f2, restricted_identity: e.target.value })),
+              className: "w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "0", children: "无限制" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "1", children: "受限制（公务员/事业人员）" })
               ]
             }
           )
@@ -42269,7 +42713,7 @@ function SplitWizardForm({ open, splitStep, splitSelected, splitNewHead, splitFo
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-2 mb-5", children: ["选择分出成员", "填写新户信息", "确认分户"].map((label, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5", children: [
           i > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-8 h-px ${i < splitStep ? "bg-emerald-400" : "bg-stone-200"}` }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `flex items-center gap-1.5 text-xs font-medium ${splitStep === i + 1 ? "text-primary" : i + 1 < splitStep ? "text-text-muted" : "text-text-muted/50"}`, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-5 h-5 rounded-full flex items-center justify-center text-xs ${splitStep === i + 1 ? "bg-primary text-white" : i + 1 < splitStep ? "bg-emerald-100 text-primary" : "bg-warm/30 text-text-muted/50"}`, children: i + 1 < splitStep ? "✓" : i + 1 }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-5 h-5 rounded-full flex items-center justify-center text-xs ${splitStep === i + 1 ? "bg-primary " : i + 1 < splitStep ? "bg-emerald-100 text-primary" : "bg-warm/30 text-text-muted/50"}`, children: i + 1 < splitStep ? "✓" : i + 1 }),
             label
           ] })
         ] }, i)) }),
@@ -42646,7 +43090,7 @@ function DeleteConfirmForm({ open, deleteTarget, loading, onSubmit, onClose }) {
         {
           onClick: onSubmit,
           disabled: loading,
-          className: "px-4 py-2 text-sm bg-red-600 text-white rounded-btn hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2",
+          className: "px-4 py-2 text-sm bg-red-600  rounded-btn hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2",
           children: loading ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "animate-spin rounded-full h-4 w-4 border-b-2 border-white" }),
             "删除中..."
@@ -42777,7 +43221,7 @@ function ConfirmedAreaImport({ open, confirmedAreaRows, setConfirmedAreaRows, co
         {
           onClick: onSubmit,
           disabled: confirmedAreaRows.length === 0 || confirmedAreaImporting,
-          className: "px-4 py-2 text-sm bg-blue-600 text-white rounded-btn hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed",
+          className: "px-4 py-2 text-sm bg-blue-600  rounded-btn hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed",
           children: confirmedAreaImporting ? "导入中…" : `确认导入 ${confirmedAreaRows.length} 条`
         }
       ),
@@ -42790,11 +43234,11 @@ function ConfirmedAreaImport({ open, confirmedAreaRows, setConfirmedAreaRows, co
         a.download = "确权面积对比.xlsx";
         a.click();
         URL.revokeObjectURL(url);
-      }, className: "px-4 py-2 text-sm bg-primary/90 text-white rounded-btn hover:bg-primary/50", children: "导出对比报告" })
+      }, className: "px-4 py-2 text-sm bg-primary/90  rounded-btn hover:bg-primary/50", children: "导出对比报告" })
     ] })
   ] }) });
 }
-function FarmerImport({ open, templates, importOverwrite, onClose, onDetectColumns, onSaveTemplate, onImport, onSuccess }) {
+function FarmerImport({ open, templates, onClose, onDetectColumns, onSaveTemplate, onImport, onSuccess }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(
     ExcelImportWithMapping,
     {
@@ -42813,6 +43257,7 @@ function FarmerImport({ open, templates, importOverwrite, onClose, onDetectColum
           required: m2.required
         }))
       })),
+      overwriteOption: true,
       onDetectColumns,
       onSaveTemplate,
       onImport,
@@ -42925,6 +43370,7 @@ function EditHouseholdForm({ open, editForm, groups, onSubmit, onClose, setEditF
 function FarmersPage() {
   const { toast, show } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const getInitialLeftTab = () => {
     const tab = searchParams.get("tab");
     return tab === "farmers" ? "farmers" : "households";
@@ -42936,6 +43382,10 @@ function FarmersPage() {
   const getInitialHouseholdId = () => {
     const id2 = searchParams.get("householdId");
     return id2 ? Number(id2) : null;
+  };
+  const getInitialYear = () => {
+    const y2 = searchParams.get("year");
+    return y2 ? Number(y2) : (/* @__PURE__ */ new Date()).getFullYear();
   };
   const [leftTab, setLeftTab] = reactExports.useState(getInitialLeftTab);
   const [farmerList, setFarmerList] = reactExports.useState([]);
@@ -42953,8 +43403,7 @@ function FarmersPage() {
   const [overdrawnOnly, setOverdrawnOnly] = reactExports.useState(false);
   const [confirmedFilter, setConfirmedFilter] = reactExports.useState("");
   const [statusFilter, setStatusFilter] = reactExports.useState("1");
-  const [highSubsidyOnly, setHighSubsidyOnly] = reactExports.useState(false);
-  const yearFilter = (/* @__PURE__ */ new Date()).getFullYear();
+  const [yearFilter, setYearFilter] = reactExports.useState(getInitialYear);
   const [batchConfirmMode, setBatchConfirmMode] = reactExports.useState(false);
   const [batchSelected, setBatchSelected] = reactExports.useState([]);
   const [batchSelectedHouseholds, setBatchSelectedHouseholds] = reactExports.useState([]);
@@ -42963,9 +43412,8 @@ function FarmersPage() {
   const [deleteTarget, setDeleteTarget] = reactExports.useState(null);
   const [deleteLoading, setDeleteLoading] = reactExports.useState(false);
   const [detail, setDetail] = reactExports.useState(null);
-  const detailYear = (/* @__PURE__ */ new Date()).getFullYear();
   const [detailTab, setDetailTab] = reactExports.useState("members");
-  const [areaYear, setAreaYear] = reactExports.useState(detailYear);
+  const [areaYear, setAreaYear] = reactExports.useState(yearFilter);
   const [events, setEvents] = reactExports.useState([]);
   const [historyEventId, setHistoryEventId] = reactExports.useState(null);
   const [historyDates, setHistoryDates] = reactExports.useState([]);
@@ -42985,6 +43433,7 @@ function FarmersPage() {
   const [villages, setVillages] = reactExports.useState([]);
   const [createHhOpen, setCreateHhOpen] = reactExports.useState(false);
   const [createHhForm, setCreateHhForm] = reactExports.useState({ household_name: "", village_group_id: 0, contract_area: "", address: "", remark: "" });
+  const [showToolbar, setShowToolbar] = reactExports.useState(true);
   const [mergeMode, setMergeMode] = reactExports.useState(false);
   const [mergeSelected, setMergeSelected] = reactExports.useState([]);
   const [mergeSelectedHouseholds, setMergeSelectedHouseholds] = reactExports.useState([]);
@@ -43068,7 +43517,7 @@ function FarmersPage() {
   const [editForm, setEditForm] = reactExports.useState({ household_name: "", contract_area: "", village_id: 0, group_no: 1, address: "", remark: "" });
   const [memberAddOpen, setMemberAddOpen] = reactExports.useState(false);
   const [memberEditTarget, setMemberEditTarget] = reactExports.useState(null);
-  const [memberForm, setMemberForm] = reactExports.useState({ real_name: "", id_card: "", gender: "1", relation: "成员", is_head: false, phone: "", bank_card: "", bank_name: "", farmer_status: "1", event_date: "", village_id: 0, group_no: 1, village_name: "", group_name: "" });
+  const [memberForm, setMemberForm] = reactExports.useState({ real_name: "", id_card: "", gender: "1", relation: "成员", is_head: false, phone: "", bank_card: "", bank_name: "", farmer_status: "1", restricted_identity: "0", event_date: "", village_id: 0, group_no: 1, village_name: "", group_name: "" });
   const [memberImportOpen, setMemberImportOpen] = reactExports.useState(false);
   const [splitOpen, setSplitOpen] = reactExports.useState(false);
   const [splitStep, setSplitStep] = reactExports.useState(1);
@@ -43078,7 +43527,6 @@ function FarmersPage() {
   const [eventOpen, setEventOpen] = reactExports.useState(false);
   const [eventForm, setEventForm] = reactExports.useState({ event_type: "REMARK", event_year: String((/* @__PURE__ */ new Date()).getFullYear()), event_date: "", description: "", evidence_type: "NONE", evidence_note: "" });
   const [importOpen, setImportOpen] = reactExports.useState(false);
-  const [importOverwrite, setImportOverwrite] = reactExports.useState(false);
   const [templates, setTemplates] = reactExports.useState([]);
   const [confirmedAreaImportOpen, setConfirmedAreaImportOpen] = reactExports.useState(false);
   const [manualConfirmOpen, setManualConfirmOpen] = reactExports.useState(false);
@@ -43109,14 +43557,13 @@ function FarmersPage() {
       if (overdrawnOnly) p2.overdrawn_only = "1";
       if (confirmedFilter) p2.confirmed_only = confirmedFilter;
       if (statusFilter) p2.status = statusFilter;
-      if (highSubsidyOnly) p2.min_app_count = 4;
       const r2 = await getHouseholds(p2);
       setHhList(r2.items);
       setHhTotal(r2.total);
     } finally {
       setHhLoading(false);
     }
-  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter, highSubsidyOnly]);
+  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter]);
   reactExports.useEffect(() => {
     if (leftTab === "farmers") loadFarmers();
     else loadHouseholds();
@@ -43166,6 +43613,9 @@ function FarmersPage() {
         newParams.delete("householdId");
       }
     }
+    if (params.year !== void 0) {
+      newParams.set("year", String(params.year));
+    }
     setSearchParams(newParams, { replace: true });
   }, [searchParams, setSearchParams]);
   const loadHouseholdHistoryDates = reactExports.useCallback(async (householdId) => {
@@ -43194,7 +43644,7 @@ function FarmersPage() {
       setBatchSelectedHouseholds([]);
       if (f2.household_id) {
         try {
-          const hh2 = await getHouseholdDetail(f2.household_id);
+          const hh2 = await getHouseholdDetail(f2.household_id, yearFilter);
           setSelectedFarmerHousehold(hh2);
           await loadHouseholdHistoryDates(f2.household_id);
         } catch {
@@ -43213,7 +43663,8 @@ function FarmersPage() {
     }
   };
   const openDetail = async (id2, skipUrlUpdate = false) => {
-    const d = await getHouseholdDetail(id2);
+    setAreaYear(yearFilter);
+    const d = await getHouseholdDetail(id2, yearFilter);
     setDetail(d);
     setDetailTab("members");
     setEvents([]);
@@ -43268,12 +43719,12 @@ function FarmersPage() {
   };
   const refreshDetail = async () => {
     if (detail) {
-      const d = await getHouseholdDetail(detail.id);
+      const d = await getHouseholdDetail(detail.id, yearFilter);
       setDetail(d);
     }
     if (selectedFarmer?.household_id) {
       try {
-        const hh2 = await getHouseholdDetail(selectedFarmer.household_id);
+        const hh2 = await getHouseholdDetail(selectedFarmer.household_id, yearFilter);
         setSelectedFarmerHousehold(hh2);
       } catch {
         setSelectedFarmerHousehold(null);
@@ -43348,6 +43799,16 @@ function FarmersPage() {
   reactExports.useEffect(() => {
     if (detail || selectedFarmerHousehold) loadEvents();
   }, [detail?.id, selectedFarmerHousehold?.id, loadEvents]);
+  reactExports.useEffect(() => {
+    setAreaYear(yearFilter);
+  }, [yearFilter]);
+  reactExports.useEffect(() => {
+    if (!detail || historyEventId !== null) return;
+    const currentId = detail.id;
+    getHouseholdDetail(currentId, areaYear > 0 ? areaYear : void 0).then((d) => {
+      if (d.id === currentId) setDetail(d);
+    });
+  }, [areaYear]);
   const handleTabChange = (tab) => {
     setLeftTab(tab);
     setSelectedFarmer(null);
@@ -43419,8 +43880,10 @@ function FarmersPage() {
     setMergeConfirmOpen(true);
   };
   const confirmMerge = async () => {
-    const targetId = mergeSelected[0];
-    const sourceIds = mergeSelected.slice(1);
+    if (mergeSelectedHouseholds.length < 2) return show("请至少选择 2 个家庭户", "err");
+    const targetId = mergeSelectedHouseholds[0].id;
+    const sourceIds = mergeSelectedHouseholds.slice(1).map((h) => h.id).filter((id2) => id2 !== targetId);
+    if (sourceIds.length === 0) return show("目标户不能与被合并户相同", "err");
     setMergeLoading(true);
     try {
       for (const srcId of sourceIds) {
@@ -43487,6 +43950,7 @@ function FarmersPage() {
           bank_card: memberForm.bank_card || void 0,
           bank_name: memberForm.bank_name || void 0,
           farmer_status: Number(memberForm.farmer_status),
+          restricted_identity: Number(memberForm.restricted_identity) || 0,
           event_date: memberForm.event_date || void 0,
           village_id: memberForm.village_id || void 0,
           group_no: memberForm.group_no || void 0
@@ -43502,7 +43966,8 @@ function FarmersPage() {
           phone: memberForm.phone || void 0,
           bank_card: memberForm.bank_card || void 0,
           bank_name: memberForm.bank_name || void 0,
-          farmer_status: 1
+          farmer_status: 1,
+          restricted_identity: Number(memberForm.restricted_identity) || 0
         });
         show("✓ 成员已添加");
       }
@@ -43545,6 +44010,7 @@ function FarmersPage() {
       bank_card: "",
       bank_name: "",
       farmer_status: String(m2.farmer_status),
+      restricted_identity: String(m2.restricted_identity ?? 0),
       event_date: "",
       village_id: effVid ?? 0,
       group_no: effGno ?? 1,
@@ -43635,7 +44101,7 @@ function FarmersPage() {
     setEventOpen(false);
     loadEvents();
   };
-  const handleImport = async (rows) => {
+  const handleImport = async (rows, _mapping, overwrite) => {
     const toCreate = [];
     const formatErrors = [];
     rows.forEach((row, i) => {
@@ -43669,7 +44135,7 @@ function FarmersPage() {
       });
     });
     if (formatErrors.length > 0 && toCreate.length === 0) return { created: 0, skipped: 0, errors: formatErrors };
-    const res = await batchImportFarmers(toCreate, importOverwrite);
+    const res = await batchImportFarmers(toCreate, overwrite ?? false);
     getVillageGroups().then((g) => {
       setGroups(g);
       setVillages([...new Set(g.map((v2) => v2.village_name))]);
@@ -43754,6 +44220,39 @@ function FarmersPage() {
       show(`✓ 已导出 ${rows.length} 条记录`);
     }
   };
+  const exportOverdrawnDetail = async () => {
+    try {
+      const res = await fetch("/api/households/alert/overdrawn?year=" + yearFilter).then((r2) => r2.json());
+      if (res.total === 0) {
+        show("当前年度无超限家庭户", "err");
+        return;
+      }
+      const rows = res.items.map((h) => {
+        const row = {
+          "户名": h.household_name,
+          "户主": h.head_name,
+          "所在村组": h.village,
+          "承包面积(亩)": h.contracted_area,
+          "可耕种面积(亩)": h.cultivable_area,
+          "已使用面积(亩)": h.used_area,
+          "超限面积(亩)": h.overdraw_amount
+        };
+        for (const [season, breakdown] of Object.entries(h.season_breakdown)) {
+          row[`${season}使用面积`] = breakdown.used_area;
+          row[`${season}超限面积`] = breakdown.overdraw_amount;
+        }
+        return row;
+      });
+      const ws = utils.json_to_sheet(rows);
+      ws["!cols"] = Object.keys(rows[0] || {}).map(() => ({ wch: 14 }));
+      const wb2 = utils.book_new();
+      utils.book_append_sheet(wb2, ws, "超限明细");
+      writeFileSync(wb2, `超限明细_${yearFilter}年_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.xlsx`);
+      show(`✓ 已导出 ${res.total} 户超限明细`);
+    } catch (e) {
+      show("导出超限明细失败：" + e.message, "err");
+    }
+  };
   const toggleYear = (yr) => {
     setExpandedYears((prev) => {
       const next = new Set(prev);
@@ -43796,7 +44295,7 @@ function FarmersPage() {
           {
             value: search,
             onChange: (e) => setSearch(e.target.value),
-            placeholder: leftTab === "farmers" ? "搜索农户姓名或身份证…" : "搜索户名或户主…",
+            placeholder: leftTab === "farmers" ? "搜索农户姓名或身份证…" : "搜索户名、户号或户主…",
             className: "flex-1 min-w-32 border border-border rounded-btn px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white shadow-card transition-all"
           }
         ),
@@ -43816,6 +44315,22 @@ function FarmersPage() {
           }
         ),
         leftTab === "households" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "select",
+            {
+              value: yearFilter,
+              onChange: (e) => {
+                setYearFilter(Number(e.target.value));
+                setHhPage(1);
+                updateUrl({ year: Number(e.target.value) });
+              },
+              className: "border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all",
+              children: Array.from({ length: 21 }, (_, i) => (/* @__PURE__ */ new Date()).getFullYear() - 10 + i).map((y2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: y2, children: [
+                y2,
+                "年"
+              ] }, y2))
+            }
+          ),
           /* @__PURE__ */ jsxRuntimeExports.jsxs(
             "select",
             {
@@ -43851,107 +44366,125 @@ function FarmersPage() {
           )
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-2 mb-3 flex-wrap", children: leftTab === "households" && !mergeMode && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 flex-wrap", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => setCreateHhOpen(true), className: "px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "create", size: 14, className: "inline mr-1" }),
-            "创建新家庭户"
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-3", children: [
+        leftTab === "households" && !mergeMode && !batchConfirmMode && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            onClick: () => setShowToolbar((v2) => !v2),
+            className: "flex items-center gap-2 text-sm text-text-muted hover:text-text-primary transition-colors mb-2 w-full",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `inline-block transition-transform text-xs ${showToolbar ? "rotate-90" : ""}`, children: "▸" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", children: "操作工具" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted/60 ml-2", children: showToolbar ? "点击收起" : "点击展开" })
+            ]
+          }
+        ),
+        showToolbar && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-2 flex-wrap", children: leftTab === "households" && !mergeMode && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 flex-wrap", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => setCreateHhOpen(true), className: "px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "create", size: 14, className: "inline mr-1" }),
+              "创建新家庭户"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                onClick: () => {
+                  setMergeMode(true);
+                  setMergeSelected([]);
+                  setMergeSelectedHouseholds([]);
+                  setBatchConfirmMode(false);
+                  setBatchSelected([]);
+                  setBatchSelectedHouseholds([]);
+                  setHhPage(1);
+                },
+                className: "px-3 py-2 text-sm border border-orange-tag/30  bg-[#f7edd8] text-[#B8860B] rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium bg-orange-tag/5",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "merge", size: 14, className: "inline mr-1" }),
+                  "合并家庭户"
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: exportCurrentList, className: "px-3 py-2 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30 shadow-card hover:shadow-card-hover transition-all font-medium", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "export", size: 14, className: "inline mr-1" }),
+              "导出"
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 flex-wrap", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                onClick: () => {
+                  setConfirmedAreaRows([]);
+                  setConfirmedAreaImportResult(null);
+                  setConfirmedAreaImportOpen(true);
+                },
+                className: "px-3 py-2 text-sm border border-blue-200 text-blue-700 rounded-btn hover:bg-blue-50 shadow-card hover:shadow-card-hover transition-all font-medium",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "upload", size: 14, className: "inline mr-1" }),
+                  "导入确权面积"
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                onClick: () => {
+                  setBatchConfirmMode(true);
+                  setBatchSelected([]);
+                  setBatchSelectedHouseholds([]);
+                  setMergeMode(false);
+                  setMergeSelected([]);
+                  setMergeSelectedHouseholds([]);
+                },
+                className: "px-3 py-2 text-sm border border-primary/20 text-primary bg-[#e3e7ec] rounded-btn hover:bg-primary/5 shadow-card hover:shadow-card-hover transition-all font-medium bg-primary/[0.02]",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "confirm", size: 14, className: "inline mr-1" }),
+                  "批量确认"
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                onClick: () => handleRefreshCache(),
+                disabled: refreshingCache,
+                className: "px-3 py-2 bg-[#edeaed]  hover:brightness-95 text-sm border-2 border-danger/30 text-danger bg-danger/5 rounded-btn hover:bg-danger/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-purple-700 ",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "refresh", size: 14, className: "inline mr-1" }),
+                  refreshingCache ? "刷新中…" : "刷新缓存"
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                onClick: handleRecalcUnconfirmedArea,
+                disabled: recalculatingArea,
+                className: "px-3 py-2 text-sm border-2 border-orange-tag/30 text-[#B8860B] bg-orange-tag/5 rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "area", size: 14, className: "inline mr-1" }),
+                  recalculatingArea ? "计算中…" : "重算未确认户承包面积"
+                ]
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 text-sm text-text-muted cursor-pointer bg-warm/30  px-3 py-2 rounded-btn border border-border shadow-card hover:bg-warm/50 transition-all", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: overdrawnOnly, onChange: (e) => setOverdrawnOnly(e.target.checked), className: "w-4 h-4 text-primary rounded" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", children: "仅看超领" })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs(
             "button",
             {
-              onClick: () => {
-                setMergeMode(true);
-                setMergeSelected([]);
-                setMergeSelectedHouseholds([]);
-                setBatchConfirmMode(false);
-                setBatchSelected([]);
-                setBatchSelectedHouseholds([]);
-                setHhPage(1);
-              },
-              className: "px-3 py-2 text-sm border border-orange-tag/30  bg-[#f7edd8] text-[#B8860B] rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium bg-orange-tag/5",
+              onClick: exportOverdrawnDetail,
+              className: "px-3 py-2 text-sm border border-orange-tag/30 text-[#B8860B] bg-orange-tag/5 rounded-btn hover:bg-orange-tag/10 shadow-card hover:shadow-card-hover transition-all font-medium whitespace-nowrap",
               children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "merge", size: 14, className: "inline mr-1" }),
-                "合并家庭户"
-              ]
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: exportCurrentList, className: "px-3 py-2 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30 shadow-card hover:shadow-card-hover transition-all font-medium", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "export", size: 14, className: "inline mr-1" }),
-            "导出"
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 flex-wrap", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "button",
-            {
-              onClick: () => {
-                setConfirmedAreaRows([]);
-                setConfirmedAreaImportResult(null);
-                setConfirmedAreaImportOpen(true);
-              },
-              className: "px-3 py-2 text-sm border border-blue-200 text-blue-700 rounded-btn hover:bg-blue-50 shadow-card hover:shadow-card-hover transition-all font-medium",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "upload", size: 14, className: "inline mr-1" }),
-                "导入确权面积"
-              ]
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "button",
-            {
-              onClick: () => {
-                setBatchConfirmMode(true);
-                setBatchSelected([]);
-                setBatchSelectedHouseholds([]);
-                setMergeMode(false);
-                setMergeSelected([]);
-                setMergeSelectedHouseholds([]);
-              },
-              className: "px-3 py-2 text-sm border border-primary/20 text-primary bg-[#e3e7ec] rounded-btn hover:bg-primary/5 shadow-card hover:shadow-card-hover transition-all font-medium bg-primary/[0.02]",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "confirm", size: 14, className: "inline mr-1" }),
-                "批量确认"
-              ]
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "button",
-            {
-              onClick: () => handleRefreshCache(),
-              disabled: refreshingCache,
-              className: "px-3 py-2 bg-[#edeaed]  hover:brightness-95 text-sm border-2 border-danger/30 text-danger bg-danger/5 rounded-btn hover:bg-danger/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-purple-700 ",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "refresh", size: 14, className: "inline mr-1" }),
-                refreshingCache ? "刷新中…" : "刷新缓存"
-              ]
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "button",
-            {
-              onClick: handleRecalcUnconfirmedArea,
-              disabled: recalculatingArea,
-              className: "px-3 py-2 text-sm border-2 border-orange-tag/30 text-[#B8860B] bg-orange-tag/5 rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "area", size: 14, className: "inline mr-1" }),
-                recalculatingArea ? "计算中…" : "重算未确认户承包面积"
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "export", size: 14, className: "inline mr-1" }),
+                "导出超限明细"
               ]
             }
           )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 text-sm text-text-muted cursor-pointer bg-warm/30  px-3 py-2 rounded-btn border border-border shadow-card hover:bg-warm/50 transition-all", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: overdrawnOnly, onChange: (e) => setOverdrawnOnly(e.target.checked), className: "w-4 h-4 text-primary rounded" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", children: "仅看超领" })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 text-sm text-text-muted cursor-pointer bg-warm/30 px-3 py-2 rounded-btn border border-border shadow-card hover:bg-warm/50 transition-all", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: highSubsidyOnly, onChange: (e) => {
-            setHighSubsidyOnly(e.target.checked);
-            setHhPage(1);
-          }, className: "w-4 h-4 text-primary rounded" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", children: "补贴≥4条" })
-        ] })
-      ] }) }),
+        ] }) })
+      ] }),
       leftTab === "households" && !mergeMode && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-primary/5 border border-primary/10 rounded-card px-4 py-2.5 mb-3 flex items-center gap-3 text-sm", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "info", size: 16, className: "text-primary/60 shrink-0" }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-primary", children: [
@@ -43986,7 +44519,7 @@ function FarmersPage() {
           {
             onClick: handleMergeConfirm,
             disabled: mergeSelectedHouseholds.length < 2,
-            className: "ml-auto px-4 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium",
+            className: "ml-auto px-4 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium",
             children: "确认合并"
           }
         )
@@ -44015,7 +44548,7 @@ function FarmersPage() {
           {
             onClick: handleBatchConfirm,
             disabled: batchSelected.length === 0 || batchConfirmLoading,
-            className: "ml-auto px-4 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2",
+            className: "ml-auto px-4 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2",
             children: batchConfirmLoading ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "animate-spin rounded-full h-4 w-4 border-b-2 border-white" }),
               "确认中..."
@@ -44023,34 +44556,21 @@ function FarmersPage() {
           }
         )
       ] }),
-      leftTab === "farmers" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+      leftTab === "farmers" && /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => setCreateFarmerOpen(true), className: "px-4 py-2.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "create", size: 14, className: "inline mr-1" }),
           "新建农户"
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-0 border border-border rounded-btn shadow-card overflow-hidden", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => setImportOpen(true), className: "px-4 py-2.5 text-sm text-text-primary hover:bg-warm/30 transition-all font-medium", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "import", size: 14, className: "inline mr-1" }),
-            "导入农户"
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "label",
-            {
-              className: `flex items-center gap-1.5 px-3 py-2.5 text-meta cursor-pointer border-l border-border transition-colors select-none ${importOverwrite ? "bg-orange-tag/10 text-[#B8860B]" : "text-text-muted hover:bg-warm/30"}`,
-              title: "开启后，重复身份证的记录将被 Excel 中的数据覆盖更新",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: importOverwrite, onChange: (e) => setImportOverwrite(e.target.checked), className: "accent-orange-tag w-3 h-3" }),
-                "覆盖重复"
-              ]
-            }
-          )
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => setImportOpen(true), className: "px-4 py-2.5 text-sm border border-primary/30 text-primary bg-primary/[0.03] rounded-btn hover:bg-primary/10 shadow-card hover:shadow-card-hover transition-all font-medium", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "import", size: 14, className: "inline mr-1" }),
+          "导入农户"
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: exportCurrentList, className: "px-4 py-2.5 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30 shadow-card hover:shadow-card-hover transition-all font-medium", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "export", size: 14, className: "inline mr-1" }),
           "导出"
         ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 bg-white border border-border rounded-card overflow-hidden shadow-card flex flex-col min-h-0", children: [
+      ] }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 bg-warm-100 border border-border rounded-card overflow-hidden shadow-card flex flex-col min-h-0", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 overflow-y-auto", children: [
           leftTab === "farmers" && /* @__PURE__ */ jsxRuntimeExports.jsx(
             FarmerList,
@@ -44112,7 +44632,10 @@ function FarmersPage() {
           {
             selectedFarmer,
             showAppSummary: true,
-            appSummary: selectedFarmerHousehold?.app_summary
+            appSummary: selectedFarmerHousehold?.app_summary?.filter((a) => a.farmer_id === selectedFarmer.id),
+            groups,
+            onUpdate: () => openFarmer(selectedFarmer.id),
+            onNavigateToProject: (typeId, farmerName) => navigate(`/projects?subsidy_type_id=${typeId}&farmer_name=${encodeURIComponent(farmerName)}`)
           }
         ),
         selectedFarmerHousehold && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-4 flex-1 min-h-0", children: [
@@ -44147,7 +44670,7 @@ function FarmersPage() {
               onOpenMemberAdd: () => {
                 const v2 = groups.find((g2) => g2.village_id === detail?.village_id);
                 const g = groups.find((g2) => g2.village_id === detail?.village_id && g2.group_no === detail?.group_no);
-                setMemberForm({ real_name: "", id_card: "", gender: "1", relation: "成员", is_head: false, phone: "", bank_card: "", bank_name: "", farmer_status: "1", event_date: "", village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v2?.village_name ?? "", group_name: g ? g.full_name.replace(g.village_name, "").replace("村", "") : `第${detail?.group_no ?? 1}组` });
+                setMemberForm({ real_name: "", id_card: "", gender: "1", relation: "成员", is_head: false, phone: "", bank_card: "", bank_name: "", farmer_status: "1", restricted_identity: "0", event_date: "", village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v2?.village_name ?? "", group_name: g ? g.full_name.replace(g.village_name, "").replace("村", "") : `第${detail?.group_no ?? 1}组` });
                 setMemberAddOpen(true);
               },
               onOpenMemberImport: () => setMemberImportOpen(true),
@@ -44197,7 +44720,7 @@ function FarmersPage() {
             onOpenMemberAdd: () => {
               const v2 = groups.find((g2) => g2.village_id === detail?.village_id);
               const g = groups.find((g2) => g2.village_id === detail?.village_id && g2.group_no === detail?.group_no);
-              setMemberForm({ real_name: "", id_card: "", gender: "1", relation: "成员", is_head: false, phone: "", bank_card: "", bank_name: "", farmer_status: "1", event_date: "", village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v2?.village_name ?? "", group_name: g ? g.full_name.replace(g.village_name, "").replace("村", "") : `第${detail?.group_no ?? 1}组` });
+              setMemberForm({ real_name: "", id_card: "", gender: "1", relation: "成员", is_head: false, phone: "", bank_card: "", bank_name: "", farmer_status: "1", restricted_identity: "0", event_date: "", village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v2?.village_name ?? "", group_name: g ? g.full_name.replace(g.village_name, "").replace("村", "") : `第${detail?.group_no ?? 1}组` });
               setMemberAddOpen(true);
             },
             onOpenEvent: () => setEventOpen(true),
@@ -44228,6 +44751,7 @@ function FarmersPage() {
               setDeleteTarget(detail);
               setDeleteConfirmOpen(true);
             },
+            onNavigateToProject: (typeId, farmerName) => navigate(`/projects?subsidy_type_id=${typeId}&farmer_name=${encodeURIComponent(farmerName)}`),
             onRefreshCache: handleRefreshCache,
             refreshingCache
           }
@@ -44406,7 +44930,6 @@ function FarmersPage() {
       {
         open: importOpen,
         templates,
-        importOverwrite,
         onClose: () => setImportOpen(false),
         onDetectColumns: detectExcelColumns,
         onSaveTemplate: saveColumnMappingTemplate,
@@ -44417,8 +44940,37 @@ function FarmersPage() {
     /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { ...toast })
   ] });
 }
-const FUND_SOURCES = ["中央", "省级", "市级", "县级", "镇级"];
 const UNITS = ["元/亩", "元/人", "元/户"];
+const CHECK_ITEMS = [
+  { key: "format", label: "格式检查", desc: "姓名/身份证/手机号合法性" },
+  { key: "village", label: "村组存在性", desc: "检查村组在数据库中是否存在" },
+  { key: "duplicate", label: "身份证重复", desc: "Excel 内部重复身份证号" },
+  { key: "gender", label: "性别一致性", desc: "Excel性别与身份证是否一致" },
+  { key: "error_library", label: "错误库命中", desc: "与历史错误记录交叉比对" },
+  { key: "area_anomaly", label: "面积异常", desc: "面积超限/逻辑校验" },
+  { key: "check_trust_deduction", label: "流转出扣减", desc: "流转出+不补贴面积是否超过承包地" },
+  { key: "db_compare", label: "数据库比对", desc: "新增/减少/变更农户" },
+  { key: "year_compare", label: "年度对比", desc: "与指定年度的历史补贴数据对比" }
+];
+const AREA_MODES = [
+  { val: "disabled", label: "不检查", desc: "固定金额类" },
+  { val: "seasonal", label: "按季节累计", desc: "大春/小春类" },
+  { val: "standalone", label: "单独计算", desc: "耕地地力保护/临时" }
+];
+const DEFAULT_CHECK_CONFIG = {
+  checks: {
+    format: true,
+    village: true,
+    duplicate: true,
+    gender: true,
+    error_library: true,
+    area_anomaly: true,
+    db_compare: true,
+    year_compare: false
+  },
+  area_mode: "disabled",
+  check_trust_deduction: false
+};
 function SubsidyForms({
   open,
   editing,
@@ -44426,26 +44978,67 @@ function SubsidyForms({
   onFormChange,
   onSubmit,
   onClose,
-  thisYear: thisYear2
+  thisYear: thisYear2,
+  onCheckConfigChange
 }) {
-  const submitType = async () => {
+  const [checkConfig, setCheckConfig] = reactExports.useState(DEFAULT_CHECK_CONFIG);
+  const [loadingConfig, setLoadingConfig] = reactExports.useState(false);
+  reactExports.useEffect(() => {
+    if (!open) return;
+    if (editing) {
+      setLoadingConfig(true);
+      getCheckConfig(editing.id).then((res) => setCheckConfig(res.check_config)).catch(() => setCheckConfig(DEFAULT_CHECK_CONFIG)).finally(() => setLoadingConfig(false));
+    } else {
+      setCheckConfig(genDefaultConfig(form.season ?? "耕地地力保护", form.category, form.calc_mode ?? "fixed"));
+    }
+  }, [open, editing?.id]);
+  reactExports.useEffect(() => {
+    onCheckConfigChange?.(checkConfig);
+  }, [checkConfig]);
+  reactExports.useEffect(() => {
+    if (editing || !open) return;
+    setCheckConfig(genDefaultConfig(form.season ?? "耕地地力保护", form.category, form.calc_mode ?? "fixed"));
+  }, [form.season, form.calc_mode, form.category]);
+  const toggleCheck = (key) => {
+    setCheckConfig((prev) => {
+      if (key === "check_trust_deduction") {
+        return { ...prev, check_trust_deduction: !prev.check_trust_deduction };
+      }
+      return {
+        ...prev,
+        checks: { ...prev.checks, [key]: !prev.checks[key] }
+      };
+    });
+  };
+  const handleConfirm = async () => {
+    if (editing) {
+      try {
+        await updateCheckConfig(editing.id, checkConfig);
+      } catch {
+      }
+    }
     onSubmit();
   };
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(Modal, { open, title: editing ? "编辑补贴项目" : "新增补贴项目", onClose, onConfirm: submitType, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+  const isChecked = (key) => {
+    if (key === "check_trust_deduction") return checkConfig.check_trust_deduction;
+    return checkConfig.checks[key] ?? true;
+  };
+  const isPerMu = form.calc_mode === "per_mu";
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(Modal, { open, title: editing ? "编辑补贴项目" : "新增补贴项目", onClose, onConfirm: handleConfirm, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "block text-xs text-text-muted mb-1.5", children: [
         "补贴季节 ",
         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50", children: "（同季面积累加判断是否超承包面积）" })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-2", children: [["大春", "🌻"], ["小春", "🌾"], ["全年单补", "📅"], ["临时", "📌"]].map(([s, icon]) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-2", children: [["大春", "🌻"], ["小春", "🌾"], ["耕地地力保护", "📅"], ["临时", "📌"]].map(([s, icon]) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
         "div",
         {
           onClick: () => onFormChange({ ...form, season: s }),
           className: `flex-1 border-2 rounded-btn p-2.5 cursor-pointer transition-colors text-center
-                  ${(form.season ?? "全年单补") === s ? "border-primary bg-primary/5" : "border-border hover:border-border"}`,
+                  ${(form.season ?? "耕地地力保护") === s ? "border-primary bg-emerald-50" : "border-border hover:border-border"}`,
           children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-base mb-0.5", children: icon }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs font-medium", children: s })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `text-xs font-medium ${(form.season ?? "耕地地力保护") === s ? "text-primary" : ""}`, children: s })
           ]
         },
         s
@@ -44459,10 +45052,10 @@ function SubsidyForms({
       {
         onClick: () => onFormChange({ ...form, calc_mode: opt.val }),
         className: `border-2 rounded-card p-3 cursor-pointer transition-colors
-                ${form.calc_mode === opt.val ? "border-primary bg-primary/5" : "border-border hover:border-border"}`,
+                ${form.calc_mode === opt.val ? "border-primary bg-emerald-50" : "border-border hover:border-border"}`,
         children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xl mb-1", children: opt.icon }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold text-sm", children: opt.title }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `font-semibold text-sm ${form.calc_mode === opt.val ? "text-primary" : ""}`, children: opt.title }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: opt.desc })
         ]
       },
@@ -44493,26 +45086,6 @@ function SubsidyForms({
         )
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "项目分类" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "select",
-          {
-            value: form.category ?? "",
-            onChange: (e) => onFormChange({ ...form, category: e.target.value || void 0 }),
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white",
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "不分类" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "耕地保护", children: "耕地保护补贴" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "大豆", children: "大豆补贴" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "玉米", children: "玉米补贴" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "稻谷", children: "稻谷补贴" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "油菜", children: "油菜补贴" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "其他", children: "其他补贴" })
-            ]
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: form.calc_mode === "per_mu" ? "每亩金额(元)" : "标准金额(元)" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           "input",
@@ -44538,34 +45111,7 @@ function SubsidyForms({
         )
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "资金来源" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "select",
-          {
-            value: form.fund_source ?? "",
-            onChange: (e) => onFormChange({ ...form, fund_source: e.target.value || void 0 }),
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white",
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "不限" }),
-              FUND_SOURCES.map((s) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: s, children: s }, s))
-            ]
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "申请截止日期" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            type: "date",
-            value: form.apply_deadline ?? "",
-            onChange: (e) => onFormChange({ ...form, apply_deadline: e.target.value || void 0 }),
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "计入承包面积" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "是否计入当季补贴面积累计" }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs(
           "select",
           {
@@ -44573,8 +45119,8 @@ function SubsidyForms({
             onChange: (e) => onFormChange({ ...form, count_toward_area: Number(e.target.value) }),
             className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white",
             children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 1, children: "是（按亩补贴累计入承包面积）" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 0, children: "否（固定金额类不占用面积）" })
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 1, children: "是" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 0, children: "否（一般不考虑面积类补贴不需计入）" })
             ]
           }
         ),
@@ -44592,8 +45138,97 @@ function SubsidyForms({
           }
         )
       ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("hr", { className: "border-border/50" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h4", { className: "font-semibold text-text-primary text-sm mb-1", children: "🛡 预检查方案" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted/50 mb-3", children: "点击切换需要检查的项目，自动关联到补贴类型" }),
+      loadingConfig ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted/50 py-2", children: "加载配置中…" }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        CHECK_ITEMS.filter((item) => isChecked(item.key)).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-3", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1.5", children: "已启用" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-1.5", children: CHECK_ITEMS.filter((item) => isChecked(item.key)).map((item) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "span",
+            {
+              className: "inline-flex items-center gap-1 px-3 py-1.5 rounded-btn text-xs font-medium bg-primary-400 shadow-sm hover:bg-white/20",
+              children: [
+                item.label,
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    type: "button",
+                    onClick: () => toggleCheck(item.key),
+                    className: "ml-0.5 w-4 h-4 rounded-full hover:bg-white/20 flex items-center justify-center leading-none text-sm font-bold",
+                    children: "×"
+                  }
+                )
+              ]
+            },
+            item.key
+          )) })
+        ] }),
+        CHECK_ITEMS.filter((item) => !isChecked(item.key)).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-3", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1.5", children: "备选检查项" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-1.5", children: CHECK_ITEMS.filter((item) => !isChecked(item.key)).map((item) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "span",
+            {
+              onClick: () => toggleCheck(item.key),
+              title: item.desc,
+              className: "px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer select-none transition-all\n                          bg-white text-text-muted border border-border hover:border-primary/40 hover:text-text-primary",
+              children: [
+                "+ ",
+                item.label
+              ]
+            },
+            item.key
+          )) })
+        ] }),
+        isPerMu && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1.5", children: "面积检查模式" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-2", children: AREA_MODES.map((opt) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "div",
+            {
+              onClick: () => setCheckConfig((prev) => ({ ...prev, area_mode: opt.val })),
+              title: opt.desc,
+              className: `px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer select-none transition-all
+                          ${checkConfig.area_mode === opt.val ? "bg-blue-600 text-white shadow-sm" : "bg-white text-text-muted border border-border hover:border-blue-400 hover:text-text-primary"}`,
+              children: [
+                checkConfig.area_mode === opt.val ? "◉ " : "○ ",
+                opt.label
+              ]
+            },
+            opt.val
+          )) })
+        ] })
+      ] })
     ] })
   ] }) });
+}
+function genDefaultConfig(season, category, calcMode) {
+  const config = {
+    checks: {
+      format: true,
+      village: true,
+      duplicate: true,
+      gender: true,
+      error_library: true,
+      area_anomaly: true,
+      db_compare: true,
+      year_compare: false
+    },
+    area_mode: "disabled",
+    check_trust_deduction: false
+  };
+  if (calcMode === "fixed") {
+    config.checks.area_anomaly = false;
+    return config;
+  }
+  if (season === "耕地地力保护") {
+    config.area_mode = "standalone";
+    if (category === "耕地保护") config.check_trust_deduction = true;
+  } else if (season === "大春" || season === "小春") {
+    config.area_mode = "seasonal";
+  }
+  return config;
 }
 function ResultTable({ title, headers, rows, empty = false, emptyText }) {
   if (empty && !rows.length) {
@@ -44672,21 +45307,6 @@ const PRECHECK_TABLE_CONFIGS = {
       r2.id_card,
       r2.village || "-",
       r2.group || "-",
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-amber-600 text-xs", children: r2.error }, "e")
-    ]
-  },
-  // 数据库已有申请记录重复
-  db_duplicate_apps: {
-    field: "db_duplicate_apps",
-    title: (count) => `⚠️ 数据库已有申请记录（${count}条）— 该人员本年度本季已有申请`,
-    headers: ["行号", "姓名", "身份证号", "所在村", "所在组", "已有申请记录", "说明"],
-    rowMapper: (r2) => [
-      r2.row,
-      r2.name,
-      r2.id_card,
-      r2.village || "-",
-      r2.group || "-",
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-primary", children: r2.existing_apps }, "ea"),
       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-amber-600 text-xs", children: r2.error }, "e")
     ]
   },
@@ -44802,6 +45422,21 @@ const PRECHECK_TABLE_CONFIGS = {
   deceased_farmers: {
     field: "deceased_farmers",
     title: (count) => `🚫 死亡农户（${count}条）— 该农户已标记为离世，不应出现在补贴名单中`,
+    headers: ["行号", "姓名", "身份证号", "所在村", "所在组", "死亡日期", "说明"],
+    rowMapper: (r2) => [
+      r2.row,
+      r2.name,
+      r2.id_card,
+      r2.village,
+      r2.group,
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted text-xs", children: r2.death_date || "—" }, "dd"),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-red-600 text-xs", children: r2.error }, "e")
+    ]
+  },
+  // 受限身份
+  restricted_farmers: {
+    field: "restricted_farmers",
+    title: (count) => `🚫 受限身份农户（${count}条）— 该农户标记为受限身份（公务员/事业人员等），不可享受补贴`,
     headers: ["行号", "姓名", "身份证号", "所在村", "所在组", "说明"],
     rowMapper: (r2) => [
       r2.row,
@@ -44874,35 +45509,63 @@ const PRECHECK_TABLE_CONFIGS = {
     ]
   }
 };
-const getPrecheckTableConfigs = () => [
-  PRECHECK_TABLE_CONFIGS.error_library_hits,
-  PRECHECK_TABLE_CONFIGS.format_errors,
-  PRECHECK_TABLE_CONFIGS.village_errors,
-  PRECHECK_TABLE_CONFIGS.duplicate_errors,
-  PRECHECK_TABLE_CONFIGS.db_duplicate_apps,
-  PRECHECK_TABLE_CONFIGS.gender_mismatch,
-  PRECHECK_TABLE_CONFIGS.area_anomalies,
-  PRECHECK_TABLE_CONFIGS.area_missing,
-  PRECHECK_TABLE_CONFIGS.age_anomaly,
-  PRECHECK_TABLE_CONFIGS.deceased_farmers,
-  PRECHECK_TABLE_CONFIGS.household_duplicates,
-  // 同一家庭多成员申请
-  PRECHECK_TABLE_CONFIGS.new_farmers,
-  PRECHECK_TABLE_CONFIGS.removed_farmers,
-  PRECHECK_TABLE_CONFIGS.changed_farmers
-];
+const getPrecheckTableConfigs = (season) => {
+  const isSpringSeason = season === "大春" || season === "小春";
+  const areaAnomalyConfig = isSpringSeason ? {
+    field: "area_anomalies",
+    title: (count) => `⚠️ 面积异常（${count}条）— 请逐条核实`,
+    headers: ["行号", "姓名", "身份证号", "所在村", "所在组", "异常详情", "超额(亩)", "本补贴申报面积(亩)", "可申报面积(亩)"],
+    rowMapper: (r2) => [
+      r2.row,
+      r2.name,
+      r2.id_card,
+      r2.village,
+      r2.group,
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-primary", children: r2.anomaly_details }, "ed"),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-red-600 font-semibold", children: [
+        "+",
+        r2.exceed_amount
+      ] }, "ex"),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-primary font-mono", children: r2.actual_subsidy_area }, "as"),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-blue-600 font-mono", children: [
+        r2.reference_area,
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted ml-1", children: [
+          "(",
+          r2.area_source,
+          ")"
+        ] })
+      ] }, "ref")
+    ]
+  } : PRECHECK_TABLE_CONFIGS.area_anomalies;
+  return [
+    PRECHECK_TABLE_CONFIGS.error_library_hits,
+    PRECHECK_TABLE_CONFIGS.format_errors,
+    PRECHECK_TABLE_CONFIGS.village_errors,
+    PRECHECK_TABLE_CONFIGS.duplicate_errors,
+    PRECHECK_TABLE_CONFIGS.gender_mismatch,
+    areaAnomalyConfig,
+    PRECHECK_TABLE_CONFIGS.area_missing,
+    PRECHECK_TABLE_CONFIGS.age_anomaly,
+    PRECHECK_TABLE_CONFIGS.deceased_farmers,
+    PRECHECK_TABLE_CONFIGS.restricted_farmers,
+    PRECHECK_TABLE_CONFIGS.household_duplicates,
+    PRECHECK_TABLE_CONFIGS.new_farmers,
+    PRECHECK_TABLE_CONFIGS.removed_farmers,
+    PRECHECK_TABLE_CONFIGS.changed_farmers
+  ];
+};
 const PRECHECK_SHEET_OPTIONS = [
   { key: "summary", label: "汇总", hasCount: false },
   { key: "format_errors", label: "格式错误", hasCount: true },
   { key: "village_errors", label: "村组不存在", hasCount: true },
   { key: "duplicate_errors", label: "重复身份证", hasCount: true },
-  { key: "db_duplicate_apps", label: "数据库已有申请记录", hasCount: true },
   { key: "gender_mismatch", label: "性别不符", hasCount: true },
   { key: "error_library_hits", label: "错误库命中", hasCount: true },
   { key: "area_anomalies", label: "面积异常", hasCount: true },
   { key: "area_missing", label: "承包面积缺失", hasCount: true },
   { key: "age_anomaly", label: "年龄异常", hasCount: true },
   { key: "deceased_farmers", label: "死亡农户", hasCount: true },
+  { key: "restricted_farmers", label: "受限身份农户", hasCount: true },
   { key: "household_duplicates", label: "同一家庭多成员申请", hasCount: true },
   { key: "new_farmers", label: "新增农户", hasCount: true },
   { key: "removed_farmers", label: "减少农户", hasCount: true },
@@ -44913,13 +45576,13 @@ const SHEET_KEY_TO_NAME = {
   format_errors: "格式错误",
   village_errors: "村组不存在",
   duplicate_errors: "重复身份证",
-  db_duplicate_apps: "数据库已有申请记录",
   gender_mismatch: "性别不符",
   error_library_hits: "错误库命中",
   area_anomalies: "面积异常",
   area_missing: "承包面积缺失",
   age_anomaly: "年龄异常",
   deceased_farmers: "死亡农户",
+  restricted_farmers: "受限身份农户",
   household_duplicates: "同一家庭多成员申请",
   new_farmers: "新增农户",
   removed_farmers: "减少农户",
@@ -44931,12 +45594,12 @@ const BACKEND_SUPPORTED_SHEETS = /* @__PURE__ */ new Set([
   "格式错误",
   "村组不存在",
   "重复身份证",
-  "数据库已有申请记录",
   "性别不符",
   "面积异常",
   "承包面积缺失",
   "年龄异常",
   "死亡农户",
+  "受限身份农户",
   "同一家庭多成员申请",
   "新增农户",
   "减少农户",
@@ -44946,45 +45609,10 @@ function mapSheetsToBackend(selectedSheets) {
   const mapped = selectedSheets.map((key) => SHEET_KEY_TO_NAME[key]).filter((name) => BACKEND_SUPPORTED_SHEETS.has(name));
   return mapped.length > 0 ? mapped : ["汇总"];
 }
-async function exportPrecheckReport(result, fileName = "预检查报告") {
-  try {
-    const response = await fetch("/api/precheck/export", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        result,
-        file_name: fileName
-      })
-    });
-    if (!response.ok) {
-      throw new Error("导出失败");
-    }
-    const contentDisposition = response.headers.get("Content-Disposition");
-    let downloadFileName = `${fileName}_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.xlsx`;
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-      if (filenameMatch && filenameMatch[1]) {
-        downloadFileName = filenameMatch[1].replace(/['"]/g, "");
-      }
-    }
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = downloadFileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("导出失败:", error);
-    alert("导出失败，请重试");
-  }
-}
 async function exportPrecheckReportWithOptions(result, options, fileName = "预检查报告") {
   try {
     const backendSheets = mapSheetsToBackend(options.selectedSheets);
-    const response = await fetch("/api/precheck/export-with-options", {
+    const response = await fetch("/api/subsidies/applications/precheck/export-with-options", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -45037,6 +45665,7 @@ function getVillagesFromResult(result) {
   collectFromArray(result.area_missing);
   collectFromArray(result.age_anomaly);
   collectFromArray(result.deceased_farmers);
+  collectFromArray(result.restricted_farmers);
   collectFromArray(result.household_duplicates);
   collectFromArray(result.new_farmers);
   collectFromArray(result.removed_farmers);
@@ -45064,7 +45693,8 @@ function exportAreaStatsToExcel(data, subsidyName, year) {
     "村名": row.village,
     "农户数": row.farmer_count,
     "记录数": row.record_count,
-    "实际补贴面积(亩)": row.total_apply_area,
+    "计入超限面积(亩)": row.total_apply_area,
+    "不计超限面积(亩)": row.total_apply_area_no_calc,
     "承包地面积(亩)": row.total_contract_area,
     "代耕代种面积(亩)": row.total_trust_area,
     "不予补贴面积(亩)": row.total_no_subsidy_area,
@@ -45079,7 +45709,9 @@ function exportAreaStatsToExcel(data, subsidyName, year) {
     { wch: 8 },
     // 记录数
     { wch: 15 },
-    // 实际补贴面积
+    // 计入超限面积
+    { wch: 15 },
+    // 不计超限面积
     { wch: 15 },
     // 承包地面积
     { wch: 15 },
@@ -45094,10 +45726,11 @@ function exportAreaStatsToExcel(data, subsidyName, year) {
   const fileName = `${subsidyName}_${year}年_面积统计.xlsx`;
   writeFileSync(wb2, fileName);
 }
-const SUBSIDY_IMPORT_FIELDS$1 = [
+const DEFAULT_IMPORT_FIELDS = [
   { field: "id_card", label: "身份证号", required: true, type: "id_card" },
   { field: "real_name", label: "姓名", required: true, type: "string" },
-  { field: "apply_area", label: "种植面积", required: false, type: "decimal" },
+  { field: "apply_area", label: "计入超限计算的补贴面积", required: false, type: "decimal" },
+  { field: "apply_area_no_calc", label: "不计入超限计算的补贴面积", required: false, type: "decimal" },
   { field: "contract_area", label: "承包地面积", required: false, type: "decimal" },
   { field: "trust_area", label: "代耕代种面积", required: false, type: "decimal" },
   { field: "no_subsidy_area", label: "不予补贴面积", required: false, type: "decimal" },
@@ -45106,7 +45739,18 @@ const SUBSIDY_IMPORT_FIELDS$1 = [
   { field: "remark", label: "备注", required: false, type: "string" },
   { field: "proxy_remark", label: "代领备注", required: false, type: "string" }
 ];
-function PreApplyList({
+const SORTABLE_COLS = {
+  "计入超限面积": "apply_area",
+  "不计超限面积": "apply_area_no_calc",
+  "承包地面积": "contract_area",
+  "代耕代种面积": "trust_area",
+  "不予补贴面积": "no_subsidy_area",
+  "申请金额": "apply_amount",
+  "发放金额": "actual_amount"
+};
+const NARROW_COLS = /* @__PURE__ */ new Set(["计入超限面积", "不计超限面积", "承包地面积", "代耕代种面积", "不予补贴面积", "申请金额", "发放金额"]);
+const HEADERS = ["姓名", "身份证", "手机号", "所在村", "所在组", "计入超限面积", "不计超限面积", "承包地面积", "代耕代种面积", "不予补贴面积", "申请金额", "发放金额", "状态", "打款日期", "备注", "代领备注", "操作"];
+function SubsidyListBase({
   subsidyType,
   apps,
   total,
@@ -45144,11 +45788,17 @@ function PreApplyList({
   setVillages,
   show,
   load,
+  onSearch,
   handleFilterChange,
   handleSearchChange,
-  clearFilters
+  clearFilters,
+  sortField,
+  sortDir,
+  onSortChange,
+  config
 }) {
   const navigate = useNavigate();
+  const { apiBase, importTitle, exportPrefix, batchImportEndpoint, onExport, extraToolbar, preCheck, importFields } = config;
   reactExports.useEffect(() => {
     getExcelTemplates("SUBSIDY").then(setTemplates).catch(() => {
     });
@@ -45173,11 +45823,21 @@ function PreApplyList({
     return () => clearTimeout(t2);
   }, [idInput, setFarmerHint, setFarmerId]);
   reactExports.useEffect(() => {
-    if (subsidyType.calc_mode !== "per_mu" || !form.apply_area) return;
-    const amt = Number(subsidyType.standard_amount || 0) * Number(form.apply_area);
+    if (subsidyType.calc_mode !== "per_mu") return;
+    const totalArea = Number(form.apply_area || 0) + Number(form.apply_area_no_calc || 0);
+    if (totalArea <= 0) return;
+    const amt = Number(subsidyType.standard_amount || 0) * totalArea;
     setForm((f2) => ({ ...f2, apply_amount: Math.round(amt * 100) / 100, actual_amount: Math.round(amt * 100) / 100 }));
-  }, [form.apply_area, subsidyType, setForm]);
+  }, [form.apply_area, form.apply_area_no_calc, subsidyType, setForm]);
   const submitAdd = async () => {
+    if (config.onSubmitAdd) {
+      const ok2 = await config.onSubmitAdd();
+      if (ok2) {
+        setAddOpen(false);
+        load();
+      }
+      return;
+    }
     if (!farmerId) return show("请输入有效身份证号", "err");
     try {
       await createApplication({ ...form, farmer_id: farmerId });
@@ -45189,11 +45849,16 @@ function PreApplyList({
     }
   };
   const submitEdit = async () => {
+    if (config.onSubmitEdit) {
+      await config.onSubmitEdit();
+      return;
+    }
     if (!editTarget) return;
     try {
       await updateApplication(editTarget.id, {
         actual_amount: form.actual_amount,
         apply_area: form.apply_area,
+        apply_area_no_calc: form.apply_area_no_calc,
         contract_area: form.contract_area,
         trust_area: form.trust_area,
         no_subsidy_area: form.no_subsidy_area,
@@ -45240,7 +45905,8 @@ function PreApplyList({
   };
   const deleteApp = async (id2) => {
     try {
-      await fetch(`/api/subsidies/applications/${id2}`, { method: "DELETE" });
+      const endpoint = config.deleteEndpoint ? config.deleteEndpoint(id2) : `${apiBase}/${id2}`;
+      await fetch(endpoint, { method: "DELETE" });
       show("✓ 已删除");
       setDeleteId(null);
       load();
@@ -45248,21 +45914,11 @@ function PreApplyList({
       show(e.message, "err");
     }
   };
-  const toggleSelectAll = () => {
-    if (selectedIds.length === apps.length) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(apps.map((a) => a.id));
-    }
-  };
+  const toggleSelectAll = () => setSelectedIds(selectedIds.length === apps.length ? [] : apps.map((a) => a.id));
   const toggleSelect = (id2) => {
-    if (selectedIds.includes(id2)) {
-      setSelectedIds(selectedIds.filter((selectedId) => selectedId !== id2));
-    } else {
-      setSelectedIds([...selectedIds, id2]);
-    }
+    setSelectedIds(selectedIds.includes(id2) ? selectedIds.filter((x2) => x2 !== id2) : [...selectedIds, id2]);
   };
-  const handleImport = async (rows, mapping) => {
+  const handleImport = async (rows, mapping, overwrite) => {
     const toCreate = [];
     const errors = [];
     const allIdCards = rows.map((r2) => String(r2["身份证号*"] || r2["身份证号"] || "").trim()).filter(Boolean);
@@ -45278,8 +45934,6 @@ function PreApplyList({
       const row = rows[i];
       const idCard = String(row["id_card"] || row["身份证号*"] || row["身份证号"] || "").trim();
       const realName = String(row["real_name"] || row["姓名*"] || row["姓名"] || "").trim();
-      const villageName = String(row["village_name"] || row["所在村"] || "").trim();
-      const groupNo = String(row["group_no"] || row["所在组"] || "").trim();
       if (!idCard) {
         errors.push(`第${i + 2}行：缺少身份证号`);
         continue;
@@ -45292,88 +45946,102 @@ function PreApplyList({
       const contractArea = Number(row["contract_area"] || row["承包地面积(亩)"]) || 0;
       const trustArea = Number(row["trust_area"] || row["代耕代种面积(亩)"]) || 0;
       const noSubsidyArea = Number(row["no_subsidy_area"] || row["不予补贴面积"]) || void 0;
-      const applyAreaExplicit = Number(row["apply_area"] || row["种植面积"] || row["面积(亩)"]) || 0;
+      const applyAreaExplicit = Number(row["apply_area"] || row["计入超限面积"] || row["实际补贴面积"] || row["面积(亩)"]) || 0;
+      const applyAreaNoCalc = Number(row["apply_area_no_calc"] || row["不计入超限面积"] || 0) || void 0;
+      const totalArea = applyAreaExplicit + (applyAreaNoCalc || 0);
       const area = applyAreaExplicit || (contractArea + trustArea || void 0);
-      const amount = Number(row["actual_amount"] || row["实发金额"]) || (area ? area * Number(subsidyType.standard_amount || 0) : void 0);
-      toCreate.push({
+      const amount = Number(row["actual_amount"] || row["实发金额"]) || (totalArea ? totalArea * Number(subsidyType.standard_amount || 0) : void 0);
+      const common = {
         farmer_id: farmerId2,
         id_card: idCard,
         real_name: realName,
-        village_name: villageName || void 0,
-        group_no: groupNo || void 0,
+        village_name: String(row["village_name"] || row["所在村"] || "").trim() || void 0,
+        group_no: String(row["group_no"] || row["所在组"] || "").trim() || void 0,
         subsidy_type_id: subsidyType.id,
         apply_year: subsidyType.subsidy_year,
         apply_area: area,
+        apply_area_no_calc: applyAreaNoCalc,
         contract_area: contractArea || void 0,
         trust_area: trustArea || void 0,
         no_subsidy_area: noSubsidyArea,
-        apply_amount: amount,
-        actual_amount: void 0,
-        pay_status: 0,
-        pay_date: void 0,
         remark: String(row["remark"] || row["备注"] || "").trim() || void 0,
         proxy_remark: String(row["proxy_remark"] || row["代领备注"] || "").trim() || void 0
-      });
+      };
+      const rowData = { ...common, apply_amount: amount, actual_amount: void 0, pay_status: 0, pay_date: void 0 };
+      toCreate.push(config.buildImportRow ? config.buildImportRow(rowData) : rowData);
     }
     if (errors.length && !toCreate.length) return { created: 0, skipped: 0, errors };
     try {
-      const checkPayload = {
-        subsidy_type_id: subsidyType.id,
-        year: subsidyType.subsidy_year,
-        rows: toCreate.map((r2) => ({
-          id_card: String(r2.id_card || ""),
-          real_name: String(r2.real_name || ""),
-          apply_area: r2.apply_area
-        }))
-      };
       const chk = await fetch("/api/eligibility/check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(checkPayload)
+        body: JSON.stringify({ subsidy_type_id: subsidyType.id, year: subsidyType.subsidy_year, rows: toCreate.map((r2) => ({ id_card: String(r2.id_card || ""), real_name: String(r2.real_name || ""), apply_area: r2.apply_area })) })
       }).then((r2) => r2.json());
-      if (chk.rules_applied > 0 && (chk.failed > 0 || chk.warning > 0)) {
+      if (chk.rules_applied > 0 && chk.failed > 0) {
         const passedIds = new Set(chk.passed_list.map((p2) => p2.id_card));
         const passedRows = toCreate.filter((r2) => passedIds.has(String(r2.id_card || "")));
         if (passedRows.length === 0) return { created: 0, skipped: 0, errors: [`规则检查：全部 ${chk.failed} 条不通过`] };
-        const res2 = await fetch("/api/subsidies/applications/batch-import", {
+        const res2 = await fetch(batchImportEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rows: passedRows })
+          body: JSON.stringify({ rows: passedRows, overwrite: overwrite || false })
         }).then((r2) => r2.json());
         const newMsg2 = res2.new_farmers ? `，新建农户 ${res2.new_farmers} 人` : "";
-        show(`✓ 通过规则 ${chk.passed} 条，导入 ${res2.created} 条；规则拒绝 ${chk.failed} 条${newMsg2}`);
+        const updMsg2 = res2.updated ? `，覆盖 ${res2.updated} 条` : "";
+        show(`✓ 通过规则 ${chk.passed} 条，导入 ${res2.created} 条${updMsg2}；规则拒绝 ${chk.failed} 条${newMsg2}`);
         load();
         return { ...res2, errors: [...errors, ...res2.errors || []] };
       }
     } catch (_) {
     }
-    const res = await fetch("/api/subsidies/applications/batch-import", {
+    const res = await fetch(batchImportEndpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rows: toCreate })
+      body: JSON.stringify({ rows: toCreate, overwrite: overwrite || false })
     }).then((r2) => r2.json());
     const newMsg = res.new_farmers ? `，新建农户 ${res.new_farmers} 人` : "";
-    show(`✓ 导入 ${res.created} 条，跳过 ${res.skipped} 条${newMsg}`);
+    const updMsg = res.updated ? `，覆盖 ${res.updated} 条` : "";
+    show(`✓ 导入 ${res.created} 条${updMsg}，跳过 ${res.skipped} 条${newMsg}`);
     load();
     return { ...res, errors: [...errors, ...res.errors || []] };
   };
+  const handleExport = async () => {
+    try {
+      const res = await onExport(subsidyType.id);
+      const rows = res.items.map((a) => ({
+        "姓名": a.farmer_name + (a.is_proxy === 1 ? "（代领）" : ""),
+        "身份证": a.id_card || a.id_card_masked || "",
+        "手机号": a.phone || "",
+        "所在村": a.village || "",
+        "所在组": a.group_no || "",
+        "计入超限面积": a.apply_area ?? "",
+        "不计超限面积": a.apply_area_no_calc ?? "",
+        "承包地面积": a.contract_area ?? "",
+        "代耕代种面积": a.trust_area ?? "",
+        "不予补贴面积": a.no_subsidy_area ?? "",
+        "申请金额": a.apply_amount ? Number(a.apply_amount).toFixed(2) : "",
+        "发放金额": a.actual_amount ? Number(a.actual_amount).toFixed(2) : "",
+        "状态": PAY_STATUS[a.pay_status]?.label || "",
+        "打款日期": a.pay_date ?? "",
+        "备注": a.remark || "",
+        "代领备注": a.proxy_remark || ""
+      }));
+      const ws = utils.json_to_sheet(rows);
+      ws["!cols"] = Object.keys(rows[0] || {}).map(() => ({ wch: 14 }));
+      const wb2 = utils.book_new();
+      utils.book_append_sheet(wb2, ws, exportPrefix);
+      writeFileSync(wb2, `${exportPrefix}_${subsidyType.subsidy_name}_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.xlsx`);
+    } catch (e) {
+      show("导出失败：" + e.message, "err");
+    }
+  };
   const totalAmt = apps.reduce((s, a) => s + Number(a.actual_amount || 0), 0);
   const selectedTmpl = templates.find((t2) => t2.id) || null;
-  const IMPORT_HEADERS2 = selectedTmpl ? selectedTmpl.column_mapping.filter((m2) => m2.system_field).map((m2) => m2.excel_column + (m2.required ? "*" : "")) : ["身份证号*", "姓名*", "种植面积", "承包地面积(亩)", "代耕代种面积(亩)", "不予补贴面积(亩)", "所在村", "所在组", "备注"];
-  const IMPORT_EXAMPLE2 = selectedTmpl ? [Object.fromEntries(selectedTmpl.column_mapping.filter((m2) => m2.system_field).map((m2) => {
-    const sample = {
-      id_card: "510123196503154231",
-      real_name: "张国强",
-      actual_amount: 420,
-      contract_area: 2.5,
-      trust_area: 1,
-      village_name: "红星村",
-      group_no: "一组",
-      remark: "",
-      proxy_remark: ""
-    };
+  const IMPORT_HEADERS = selectedTmpl ? selectedTmpl.column_mapping.filter((m2) => m2.system_field).map((m2) => m2.excel_column + (m2.required ? "*" : "")) : ["身份证号*", "姓名*", "计入超限面积", "不计入超限面积", "承包地面积(亩)", "代耕代种面积(亩)", "不予补贴面积(亩)", "所在村", "所在组", "备注"];
+  const IMPORT_EXAMPLE = selectedTmpl ? [Object.fromEntries(selectedTmpl.column_mapping.filter((m2) => m2.system_field).map((m2) => {
+    const sample = { id_card: "510123196503154231", real_name: "张国强", actual_amount: 420, contract_area: 2.5, trust_area: 1, village_name: "红星村", group_no: "一组", remark: "", proxy_remark: "" };
     return [m2.excel_column, sample[m2.system_field] ?? ""];
-  }))] : [{ "身份证号*": "510123196503154231", "姓名*": "张国强", "种植面积": 3.5, "承包地面积(亩)": 2.5, "代耕代种面积(亩)": 1, "不予补贴面积(亩)": 0.5, "所在村": "红星村", "所在组": "一组", "备注": "" }];
+  }))] : [{ "身份证号*": "510123196503154231", "姓名*": "张国强", "计入超限面积": 3.5, "不计入超限面积": 0, "承包地面积(亩)": 2.5, "代耕代种面积(亩)": 1, "不予补贴面积(亩)": 0.5, "所在村": "红星村", "所在组": "一组", "备注": "" }];
   const detectExcelColumns = async (columns, sampleRows) => {
     try {
       const response = await fetch("/api/excel-templates/detect-columns", {
@@ -45383,164 +46051,88 @@ function PreApplyList({
       });
       if (!response.ok) throw new Error(`检测失败: ${response.status}`);
       const raw = await response.json();
-      return {
-        columns: (raw.columns || []).map((d) => ({
-          excel_column: d.excel_column,
-          suggested_field: d.suggested_field,
-          confidence: d.confidence ?? 0,
-          alternatives: d.alternatives || []
-        })),
-        recommended_templates: raw.recommended_templates || []
-      };
-    } catch (error) {
+      return { columns: (raw.columns || []).map((d) => ({ excel_column: d.excel_column, suggested_field: d.suggested_field, confidence: d.confidence ?? 0, alternatives: d.alternatives || [] })), recommended_templates: raw.recommended_templates || [] };
+    } catch {
       return { columns: columns.map((col) => ({ excel_column: col, suggested_field: null, confidence: 0, alternatives: [] })) };
     }
   };
   const saveColumnMappingTemplate = async (data) => {
-    const response = await fetch("/api/excel-templates", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data)
-    });
+    const response = await fetch("/api/excel-templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
     if (!response.ok) throw new Error(`保存失败: ${response.status}`);
     return await response.json();
   };
+  const importSysFields = importFields || DEFAULT_IMPORT_FIELDS;
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card overflow-x-auto shadow-card", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-3 border-b border-border bg-warm/10 flex flex-wrap items-center gap-3", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: "筛选：" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "select",
-          {
-            value: filters.village,
-            onChange: (e) => handleFilterChange("village", e.target.value),
-            className: "border border-border rounded-btn px-2 py-1.5 text-xs bg-white outline-none",
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部村庄" }),
-              loadingVillages ? /* @__PURE__ */ jsxRuntimeExports.jsx("option", { disabled: true, children: "加载中..." }) : villages.map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v2, children: v2 }, v2))
-            ]
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "select",
-          {
-            value: filters.payStatus,
-            onChange: (e) => handleFilterChange("payStatus", e.target.value),
-            className: "border border-border rounded-btn px-2 py-1.5 text-xs bg-white outline-none",
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部状态" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "0", children: "待发放" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "1", children: "发放中" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "2", children: "已完成" })
-            ]
-          }
-        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: filters.village, onChange: (e) => handleFilterChange("village", e.target.value), className: "border border-border rounded-btn px-2 py-1.5 text-xs bg-white outline-none", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部村庄" }),
+          loadingVillages ? /* @__PURE__ */ jsxRuntimeExports.jsx("option", { disabled: true, children: "加载中..." }) : villages.map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v2, children: v2 }, v2))
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: filters.payStatus, onChange: (e) => handleFilterChange("payStatus", e.target.value), className: "border border-border rounded-btn px-2 py-1.5 text-xs bg-white outline-none", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部状态" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "0", children: "待发放" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "1", children: "发放中" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "2", children: "已完成" })
+        ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 text-xs", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted", children: "金额:" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "number",
-              value: filters.minAmount,
-              onChange: (e) => handleFilterChange("minAmount", e.target.value),
-              placeholder: "最低",
-              className: "w-16 border border-border rounded px-1.5 py-1 text-xs outline-none"
-            }
-          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", value: filters.minAmount, onChange: (e) => handleFilterChange("minAmount", e.target.value), placeholder: "最低", className: "w-16 border border-border rounded px-1.5 py-1 text-xs outline-none" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50", children: "-" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "number",
-              value: filters.maxAmount,
-              onChange: (e) => handleFilterChange("maxAmount", e.target.value),
-              placeholder: "最高",
-              className: "w-16 border border-border rounded px-1.5 py-1 text-xs outline-none"
-            }
-          )
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", value: filters.maxAmount, onChange: (e) => handleFilterChange("maxAmount", e.target.value), placeholder: "最高", className: "w-16 border border-border rounded px-1.5 py-1 text-xs outline-none" })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 text-xs", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted", children: "日期:" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "date",
-              value: filters.dateFrom,
-              onChange: (e) => handleFilterChange("dateFrom", e.target.value),
-              className: "border border-border rounded px-1.5 py-1 text-xs outline-none"
-            }
-          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "date", value: filters.dateFrom, onChange: (e) => handleFilterChange("dateFrom", e.target.value), className: "border border-border rounded px-1.5 py-1 text-xs outline-none" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50", children: "-" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "date",
-              value: filters.dateTo,
-              onChange: (e) => handleFilterChange("dateTo", e.target.value),
-              className: "border border-border rounded px-1.5 py-1 text-xs outline-none"
-            }
-          )
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "date", value: filters.dateTo, onChange: (e) => handleFilterChange("dateTo", e.target.value), className: "border border-border rounded px-1.5 py-1 text-xs outline-none" })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 flex-1 min-w-[200px] max-w-[300px]", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "text",
-              value: search,
-              onChange: (e) => handleSearchChange(e.target.value),
-              placeholder: "姓名/身份证",
-              className: "flex-1 border border-border rounded-btn px-2 py-1.5 text-xs outline-none"
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setPage(1), className: "px-2 py-1 text-xs bg-primary text-white rounded-btn hover:bg-primary/90", children: "搜索" })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "text", value: search, onChange: (e) => handleSearchChange(e.target.value), placeholder: "姓名/身份证", className: "flex-1 border border-border rounded-btn px-2 py-1.5 text-xs outline-none" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => onSearch ? onSearch() : setPage(1), className: "px-2 py-1 text-xs bg-primary rounded-btn hover:bg-primary/90 text-white", children: "搜索" })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            onClick: clearFilters,
-            className: "text-xs text-text-muted hover:text-text-primary border border-border px-2 py-1 rounded",
-            disabled: Object.values(filters).every((v2) => !v2) && !search,
-            children: "清除"
-          }
-        )
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: clearFilters, className: "text-xs text-text-muted hover:text-text-primary border border-border px-2 py-1 rounded", disabled: Object.values(filters).every((v2) => !v2) && !search, children: "清除" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: handleExport, className: "text-xs border border-emerald-300 text-emerald-700 px-2.5 py-1 rounded hover:bg-emerald-50 font-medium whitespace-nowrap", children: "导出" }),
+        extraToolbar?.({ selectedIds, load, show })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full border-collapse min-w-[950px]", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "bg-warm/30 border-b-2 border-border", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-2 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              onClick: toggleSelectAll,
-              className: `w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${apps.length > 0 && selectedIds.length === apps.length ? "bg-primary/90 border-emerald-600 text-white" : "border-stone-300 hover:border-emerald-400"}`,
-              children: apps.length > 0 && selectedIds.length === apps.length && /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { className: "w-3 h-3", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: "3", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M5 13l4 4L19 7" }) })
-            }
-          ) }),
-          ["姓名", "身份证", "手机号", "所在村", "所在组", "实际补贴面积", "承包地面积", "代耕代种面积", "不予补贴面积", "申请金额", "发放金额", "状态", "打款日期", "备注", "代领备注", "操作"].map((h) => /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-2 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap", children: h }, h))
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-2 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap", children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: toggleSelectAll, className: `w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${apps.length > 0 && selectedIds.length === apps.length ? "bg-primary/90 border-emerald-600 text-white" : "border-stone-300 hover:border-emerald-400"}`, children: apps.length > 0 && selectedIds.length === apps.length && /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { className: "w-3 h-3", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: "3", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M5 13l4 4L19 7" }) }) }) }),
+          HEADERS.map((h) => {
+            const field = SORTABLE_COLS[h];
+            const isNarrow = NARROW_COLS.has(h);
+            return /* @__PURE__ */ jsxRuntimeExports.jsxs("th", { className: `px-1.5 py-2 text-center text-[11px] font-semibold leading-tight ${isNarrow ? "max-w-[55px]" : "text-left whitespace-nowrap"} ${field ? "cursor-pointer select-none hover:text-text-primary" : "text-text-muted"}`, onClick: field ? () => onSortChange(field) : void 0, children: [
+              h,
+              field && sortField === field && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-1 text-[10px]", children: sortDir === "desc" ? "▼" : "▲" }),
+              field && sortField !== field && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-1 text-[10px] text-text-muted/20", children: "⇅" })
+            ] }, h);
+          })
         ] }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("tbody", { children: [
-          loading && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 16, className: "text-center py-10 text-text-muted/50", children: "加载中…" }) }),
+          loading && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 16, className: "text-center py-10", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "inline-flex items-center gap-2 text-text-muted/60", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-5 h-5 border-2 border-stone-300 border-t-primary rounded-full animate-spin" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm", children: "加载中…" })
+          ] }) }) }),
           !loading && (!apps || apps.length === 0) && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 16, className: "text-center py-10 text-text-muted/50 text-sm", children: "暂无记录，通过「Excel 导入」或「＋ 新增一条」添加" }) }),
           !loading && apps && apps.map((a) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: `border-b border-border/50 hover:bg-warm/30 ${a.pay_status === 0 ? "bg-amber-50/30" : ""}`, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                onClick: () => toggleSelect(a.id),
-                className: `w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${selectedIds.includes(a.id) ? "bg-primary/90 border-emerald-600 text-white" : "border-stone-300 hover:border-emerald-400"}`,
-                children: selectedIds.includes(a.id) && /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { className: "w-3 h-3", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: "3", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M5 13l4 4L19 7" }) })
-              }
-            ) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => toggleSelect(a.id), className: `w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${selectedIds.includes(a.id) ? "bg-primary/90 border-emerald-600 text-white" : "border-stone-300 hover:border-emerald-400"}`, children: selectedIds.includes(a.id) && /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { className: "w-3 h-3", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: "3", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M5 13l4 4L19 7" }) }) }) }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-sm font-semibold whitespace-nowrap", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
-              a.farmer_name,
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "cursor-pointer hover:text-primary/80 hover:underline decoration-dotted underline-offset-2", title: "点击查看家庭户详情", onClick: () => {
+                if (a.household_id) navigate(`/farmers?tab=households&householdId=${a.household_id}`);
+              }, children: a.farmer_name }),
               a.is_proxy === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded", children: "代领" })
             ] }) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap", children: a.id_card_masked || "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap", children: a.id_card || a.id_card_masked || "—" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap", children: a.phone || "—" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs text-text-muted whitespace-nowrap", children: a.village || "—" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs text-text-muted whitespace-nowrap", children: a.group_no || "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono font-bold text-text-primary", children: a.apply_area ? `${a.apply_area}` : "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono text-text-muted", children: a.contract_area || "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono text-text-muted", children: a.trust_area || "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono text-red-400", children: a.no_subsidy_area || "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono text-text-muted", children: a.apply_amount ? `¥${fmt$2(a.apply_amount)}` : "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-xs font-mono font-bold text-text-primary text-right max-w-[55px]", children: a.apply_area ? `${a.apply_area}` : "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-xs font-mono text-text-muted text-right max-w-[55px]", children: a.apply_area_no_calc || "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-xs font-mono text-text-muted text-right max-w-[55px]", children: a.contract_area || "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-xs font-mono text-text-muted text-right max-w-[55px]", children: a.trust_area || "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-xs font-mono text-red-400 text-right max-w-[55px]", children: a.no_subsidy_area || "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-xs font-mono text-text-muted text-right max-w-[55px]", children: a.apply_amount ? `¥${fmt$2(a.apply_amount)}` : "—" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-sm font-mono font-bold text-primary whitespace-nowrap", children: a.actual_amount ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { title: a.apply_amount && a.apply_amount !== a.actual_amount ? `申请：${fmt$2(a.apply_amount)}` : "", children: fmt$2(a.actual_amount) }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-amber-500 font-normal text-xs", children: "待发放" }) }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: PAY_STATUS[a.pay_status]?.label || "—", color: PAY_STATUS[a.pay_status]?.color }) }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap", children: a.pay_date ?? "—" }),
@@ -45548,14 +46140,7 @@ function PreApplyList({
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs text-text-muted max-w-[120px] truncate", title: a.proxy_remark || "", children: a.proxy_remark || "—" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => openEdit(a), className: "text-xs text-text-muted border border-border px-2 py-1 rounded hover:text-primary hover:border-primary/20", children: "编辑" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  onClick: () => navigate(`/proxy/application/${a.id}`, { state: { beneficiaryFarmerId: a.farmer_id, beneficiaryFarmerName: a.farmer_name } }),
-                  className: `text-xs px-2 py-1 rounded border ${a.is_proxy === 1 ? "text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100" : "text-text-muted border-border hover:text-text-primary hover:border-border"}`,
-                  children: a.is_proxy === 1 ? "代领中" : "代领"
-                }
-              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => navigate(`/proxy/application/${a.id}`, { state: { beneficiaryFarmerId: a.farmer_id, beneficiaryFarmerName: a.farmer_name } }), className: `text-xs px-2 py-1 rounded border ${a.is_proxy === 1 ? "text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100" : "text-text-muted border-border hover:text-text-primary hover:border-border"}`, children: a.is_proxy === 1 ? "代领中" : "代领" }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setDeleteId(a.id), className: "text-xs text-red-400 border border-red-100 px-2 py-1 rounded hover:bg-red-50", children: "删" })
             ] }) })
           ] }, a.id))
@@ -45587,1043 +46172,284 @@ function PreApplyList({
     /* @__PURE__ */ jsxRuntimeExports.jsx(Modal, { open: addOpen, title: `新增 · ${subsidyType.subsidy_name}`, onClose: () => setAddOpen(false), onConfirm: submitAdd, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "农户身份证号 *" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            value: idInput,
-            onChange: (e) => setIdInput(e.target.value),
-            placeholder: "输入身份证号自动查找农户",
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-          }
-        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: idInput, onChange: (e) => setIdInput(e.target.value), placeholder: "输入身份证号自动查找农户", className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" }),
         farmerHint && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs mt-1", style: { color: farmerId ? "#15803d" : "#dc2626" }, children: farmerHint })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
         subsidyType.calc_mode === "per_mu" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "承包地面积(亩)" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "number",
-                step: "0.01",
-                value: form.contract_area ?? "",
-                onChange: (e) => {
-                  const ca2 = Number(e.target.value) || void 0;
-                  setForm((f2) => ({ ...f2, contract_area: ca2, apply_area: (ca2 || 0) + (f2.trust_area || 0) || void 0 }));
-                },
-                className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-              }
-            )
+            /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", step: "0.01", value: form.contract_area ?? "", onChange: (e) => {
+              const ca2 = Number(e.target.value) || void 0;
+              setForm((f2) => ({ ...f2, contract_area: ca2, apply_area: (ca2 || 0) + (f2.trust_area || 0) || void 0 }));
+            }, className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "代耕代种面积(亩)" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "number",
-                step: "0.01",
-                value: form.trust_area ?? "",
-                onChange: (e) => {
-                  const ta2 = Number(e.target.value) || void 0;
-                  setForm((f2) => ({ ...f2, trust_area: ta2, apply_area: (f2.contract_area || 0) + (ta2 || 0) || void 0 }));
-                },
-                className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-              }
-            )
+            /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", step: "0.01", value: form.trust_area ?? "", onChange: (e) => {
+              const ta2 = Number(e.target.value) || void 0;
+              setForm((f2) => ({ ...f2, trust_area: ta2, apply_area: (f2.contract_area || 0) + (ta2 || 0) || void 0 }));
+            }, className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "col-span-2", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "block text-xs text-text-muted mb-1", children: [
-              "实际补贴面积(亩) ",
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50", children: "— 可手动填写" })
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "col-span-2 grid grid-cols-2 gap-3", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "block text-xs text-text-muted mb-1", children: [
+                "计入超限计算的补贴面积(亩) ",
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50", children: "— 可手动填写" })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", step: "0.01", value: form.apply_area ?? "", onChange: (e) => setForm((f2) => ({ ...f2, apply_area: Number(e.target.value) || void 0 })), className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
             ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "number",
-                step: "0.01",
-                value: form.apply_area ?? "",
-                onChange: (e) => setForm((f2) => ({ ...f2, apply_area: Number(e.target.value) || void 0 })),
-                className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-              }
-            )
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "不计入超限计算的补贴面积(亩)" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", step: "0.01", value: form.apply_area_no_calc ?? "", onChange: (e) => setForm((f2) => ({ ...f2, apply_area_no_calc: Number(e.target.value) || void 0 })), className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
+            ] })
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "不予补贴面积(亩)" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "number",
-              step: "0.01",
-              value: form.no_subsidy_area ?? "",
-              onChange: (e) => setForm((f2) => ({ ...f2, no_subsidy_area: Number(e.target.value) || void 0 })),
-              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-            }
-          )
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", step: "0.01", value: form.no_subsidy_area ?? "", onChange: (e) => setForm((f2) => ({ ...f2, no_subsidy_area: Number(e.target.value) || void 0 })), className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "实发金额(元)" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "number",
-              step: "0.01",
-              value: form.actual_amount ?? "",
-              onChange: (e) => setForm((f2) => ({ ...f2, actual_amount: Number(e.target.value) || void 0 })),
-              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-            }
-          )
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", step: "0.01", value: form.actual_amount ?? "", onChange: (e) => setForm((f2) => ({ ...f2, actual_amount: Number(e.target.value) || void 0 })), className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "打款日期" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "date",
-              value: form.pay_date ?? "",
-              onChange: (e) => setForm((f2) => ({ ...f2, pay_date: e.target.value || void 0 })),
-              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-            }
-          )
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "date", value: form.pay_date ?? "", onChange: (e) => setForm((f2) => ({ ...f2, pay_date: e.target.value || void 0 })), className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "备注" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              value: form.remark ?? "",
-              onChange: (e) => setForm((f2) => ({ ...f2, remark: e.target.value || void 0 })),
-              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-            }
-          )
-        ] })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: form.remark ?? "", onChange: (e) => setForm((f2) => ({ ...f2, remark: e.target.value || void 0 })), className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
+        ] }),
+        config.renderAddFields?.()
       ] })
     ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Modal, { open: !!editTarget, title: `编辑 · ${editTarget?.farmer_name}`, onClose: () => setEditTarget(null), onConfirm: submitEdit, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
       subsidyType.calc_mode === "per_mu" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "承包地面积(亩)" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "number",
-              step: "0.01",
-              value: form.contract_area ?? "",
-              onChange: (e) => {
-                const ca2 = Number(e.target.value) || void 0;
-                setForm((f2) => ({ ...f2, contract_area: ca2, apply_area: (ca2 || 0) + (f2.trust_area || 0) || void 0 }));
-              },
-              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-            }
-          )
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", step: "0.01", value: form.contract_area ?? "", onChange: (e) => {
+            const ca2 = Number(e.target.value) || void 0;
+            setForm((f2) => ({ ...f2, contract_area: ca2, apply_area: (ca2 || 0) + (f2.trust_area || 0) || void 0 }));
+          }, className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "代耕代种面积(亩)" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "number",
-              step: "0.01",
-              value: form.trust_area ?? "",
-              onChange: (e) => {
-                const ta2 = Number(e.target.value) || void 0;
-                setForm((f2) => ({ ...f2, trust_area: ta2, apply_area: (f2.contract_area || 0) + (ta2 || 0) || void 0 }));
-              },
-              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-            }
-          )
+          /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", step: "0.01", value: form.trust_area ?? "", onChange: (e) => {
+            const ta2 = Number(e.target.value) || void 0;
+            setForm((f2) => ({ ...f2, trust_area: ta2, apply_area: (f2.contract_area || 0) + (ta2 || 0) || void 0 }));
+          }, className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "col-span-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "block text-xs text-text-muted mb-1", children: [
-            "实际补贴面积(亩) ",
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50", children: "— 可手动填写" })
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "col-span-2 grid grid-cols-2 gap-3", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "block text-xs text-text-muted mb-1", children: [
+              "计入超限计算的补贴面积(亩) ",
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50", children: "— 可手动填写" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", step: "0.01", value: form.apply_area ?? "", onChange: (e) => setForm((f2) => ({ ...f2, apply_area: Number(e.target.value) || void 0 })), className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "number",
-              step: "0.01",
-              value: form.apply_area ?? "",
-              onChange: (e) => setForm((f2) => ({ ...f2, apply_area: Number(e.target.value) || void 0 })),
-              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-            }
-          )
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "不计入超限计算的补贴面积(亩)" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", step: "0.01", value: form.apply_area_no_calc ?? "", onChange: (e) => setForm((f2) => ({ ...f2, apply_area_no_calc: Number(e.target.value) || void 0 })), className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
+          ] })
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "不予补贴面积(亩)" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            type: "number",
-            step: "0.01",
-            value: form.no_subsidy_area ?? "",
-            onChange: (e) => setForm((f2) => ({ ...f2, no_subsidy_area: Number(e.target.value) || void 0 })),
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-          }
-        )
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", step: "0.01", value: form.no_subsidy_area ?? "", onChange: (e) => setForm((f2) => ({ ...f2, no_subsidy_area: Number(e.target.value) || void 0 })), className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "实发金额(元)" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            type: "number",
-            step: "0.01",
-            value: form.actual_amount ?? "",
-            onChange: (e) => setForm((f2) => ({ ...f2, actual_amount: Number(e.target.value) || void 0 })),
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-          }
-        )
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", step: "0.01", value: form.actual_amount ?? "", onChange: (e) => setForm((f2) => ({ ...f2, actual_amount: Number(e.target.value) || void 0 })), className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "发放状态" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "select",
-          {
-            value: form.pay_status ?? 0,
-            onChange: (e) => setForm((f2) => ({ ...f2, pay_status: Number(e.target.value) })),
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none",
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 0, children: "待发放" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 1, children: "部分发放" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 2, children: "已发放" })
-            ]
-          }
-        )
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: form.pay_status ?? 0, onChange: (e) => setForm((f2) => ({ ...f2, pay_status: Number(e.target.value) })), className: "w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 0, children: "待发放" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 1, children: "部分发放" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 2, children: "已发放" })
+        ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "打款日期" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            type: "date",
-            value: form.pay_date ?? "",
-            onChange: (e) => setForm((f2) => ({ ...f2, pay_date: e.target.value || void 0 })),
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-          }
-        )
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "date", value: form.pay_date ?? "", onChange: (e) => setForm((f2) => ({ ...f2, pay_date: e.target.value || void 0 })), className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "col-span-2", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "备注" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            value: form.remark ?? "",
-            onChange: (e) => setForm((f2) => ({ ...f2, remark: e.target.value || void 0 })),
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-          }
-        )
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: form.remark ?? "", onChange: (e) => setForm((f2) => ({ ...f2, remark: e.target.value || void 0 })), className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "col-span-2", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "代领备注" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            value: form.proxy_remark ?? "",
-            onChange: (e) => setForm((f2) => ({ ...f2, proxy_remark: e.target.value || void 0 })),
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-          }
-        )
-      ] })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: form.proxy_remark ?? "", onChange: (e) => setForm((f2) => ({ ...f2, proxy_remark: e.target.value || void 0 })), className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" })
+      ] }),
+      config.renderEditFields?.()
     ] }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      Modal,
-      {
-        open: deleteId !== null,
-        title: "确认删除",
-        onClose: () => setDeleteId(null),
-        onConfirm: () => deleteApp(deleteId),
-        confirmText: "确认删除",
-        children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-text-primary", children: "删除后无法恢复，确认要删除这条补贴记录吗？" })
-      }
-    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Modal, { open: deleteId !== null, title: "确认删除", onClose: () => setDeleteId(null), onConfirm: () => deleteApp(deleteId), confirmText: "确认删除", children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-text-primary", children: "删除后无法恢复，确认要删除这条补贴记录吗？" }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(
       ExcelImportWithMapping,
       {
         open: addOpen,
         onClose: () => setAddOpen(false),
-        title: `导入预申请 · ${subsidyType.subsidy_name}`,
-        templateHeaders: IMPORT_HEADERS2,
-        templateExample: IMPORT_EXAMPLE2,
-        systemFields: SUBSIDY_IMPORT_FIELDS$1,
+        title: `${importTitle} · ${subsidyType.subsidy_name}`,
+        templateHeaders: IMPORT_HEADERS,
+        templateExample: IMPORT_EXAMPLE,
+        systemFields: importSysFields,
         templates,
+        overwriteOption: true,
         onDetectColumns: detectExcelColumns,
         onSaveTemplate: saveColumnMappingTemplate,
         onImport: handleImport,
-        onSuccess: load
+        onSuccess: load,
+        preCheck
       }
     )
   ] });
 }
-const SUBSIDY_IMPORT_FIELDS = [
-  { field: "id_card", label: "身份证号", required: true, type: "id_card" },
-  { field: "real_name", label: "姓名", required: true, type: "string" },
-  { field: "apply_area", label: "种植面积", required: false, type: "decimal" },
-  { field: "contract_area", label: "承包地面积", required: false, type: "decimal" },
-  { field: "trust_area", label: "代耕代种面积", required: false, type: "decimal" },
-  { field: "no_subsidy_area", label: "不予补贴面积", required: false, type: "decimal" },
-  { field: "village_name", label: "所在村", required: false, type: "string" },
-  { field: "group_no", label: "所在组", required: false, type: "string" },
-  { field: "remark", label: "备注", required: false, type: "string" },
-  { field: "proxy_remark", label: "代领备注", required: false, type: "string" }
-];
-function DisbursementList({
-  subsidyType,
-  apps,
-  total,
-  page,
-  loading,
-  selectedIds,
-  search,
-  filters,
-  villages,
-  loadingVillages,
-  templates,
-  addOpen,
-  editTarget,
-  deleteId,
-  form,
-  idInput,
-  farmerHint,
-  farmerId,
-  setApps,
-  setTotal,
-  setPage,
-  setLoading,
-  setSelectedIds,
-  setSearch,
-  setFilters,
-  setAddOpen,
-  setEditTarget,
-  setDeleteId,
-  setForm,
-  setIdInput,
-  setFarmerHint,
-  setFarmerId,
-  setTemplates,
-  setLoadingVillages,
-  setVillages,
-  show,
-  load,
-  handleFilterChange,
-  handleSearchChange,
-  clearFilters
-}) {
-  useNavigate();
-  reactExports.useEffect(() => {
-    getExcelTemplates("DISBURSEMENT").then(setTemplates).catch(() => {
-    });
-  }, [setTemplates]);
-  reactExports.useEffect(() => {
-    if (idInput.length < 6) {
-      setFarmerHint("");
-      setFarmerId(null);
-      return;
+function PreApplyList(props) {
+  const [converting, setConverting] = reactExports.useState(false);
+  const config = {
+    apiBase: "/api/subsidies/applications",
+    importTitle: "导入预申请",
+    exportPrefix: "预申请列表",
+    batchImportEndpoint: "/api/subsidies/applications/batch-import",
+    onExport: (id2) => exportApplications(id2),
+    // 预检回调
+    preCheck: async (rows, mapping) => {
+      const mappedRows = rows.map((row, idx) => {
+        const mapped = { ...row };
+        if (mapping) {
+          for (const [excelCol, systemField] of Object.entries(mapping)) {
+            if (row[excelCol] !== void 0) mapped[systemField] = row[excelCol];
+          }
+        }
+        mapped._row_index = idx;
+        return mapped;
+      });
+      const checkPayload = {
+        subsidy_type_id: props.subsidyType.id,
+        year: props.subsidyType.subsidy_year,
+        rows: mappedRows.map((r2) => ({ id_card: String(r2.id_card || r2["身份证号*"] || r2["身份证号"] || ""), real_name: String(r2.real_name || r2["姓名*"] || r2["姓名"] || ""), apply_area: Number(r2.apply_area || 0), _row_index: r2._row_index }))
+      };
+      const chk = await fetch("/api/eligibility/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(checkPayload)
+      }).then((r2) => r2.json());
+      return {
+        passed_rows: (chk.passed_list || []).map((r2) => r2._row_index).filter((i) => i != null),
+        failed_rows: (chk.failed_list || []).map((r2) => ({ index: r2._row_index ?? 0, real_name: r2.real_name, id_card_masked: r2.id_card_masked, issues: r2.issues })),
+        warning_rows: (chk.warning_list || []).map((r2) => ({ index: r2._row_index ?? 0, real_name: r2.real_name, id_card_masked: r2.id_card_masked, warnings: r2.warnings }))
+      };
+    },
+    // 转为发放按钮
+    extraToolbar: ({ selectedIds, load, show }) => {
+      if (selectedIds.length === 0) return null;
+      const batchConvertToPayment = async () => {
+        if (!confirm(`将选中 ${selectedIds.length} 条预申请记录转为发放记录？
+
+已存在的发放记录将自动跳过。`)) return;
+        setConverting(true);
+        try {
+          const response = await fetch("/api/subsidies/applications/convert-to-payment", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ application_ids: selectedIds })
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || "转换失败");
+          show(`✓ ${data.message}`);
+          props.setSelectedIds([]);
+          load();
+        } catch (error) {
+          show("转换失败: " + error.message, "err");
+        } finally {
+          setConverting(false);
+        }
+      };
+      return /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          onClick: batchConvertToPayment,
+          disabled: converting,
+          className: "text-xs border-2 border-green-500 bg-green-500 text-white px-2.5 py-1 rounded hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-medium whitespace-nowrap disabled:opacity-50",
+          children: converting ? "转换中…" : `→ 转为发放 (${selectedIds.length})`
+        }
+      );
     }
-    const t2 = setTimeout(async () => {
-      const res = await getFarmers({ search: idInput, page_size: 1 });
-      if (res.items.length) {
-        const f2 = res.items[0];
-        setFarmerHint(`✓ ${f2.real_name} · ${f2.village_full_name}`);
-        setFarmerId(f2.id);
-      } else {
-        setFarmerHint("未找到该农户");
-        setFarmerId(null);
-      }
-    }, 400);
-    return () => clearTimeout(t2);
-  }, [idInput, setFarmerHint, setFarmerId]);
-  reactExports.useEffect(() => {
-    if (subsidyType.calc_mode !== "per_mu" || !form.apply_area) return;
-    const amt = Number(subsidyType.standard_amount || 0) * Number(form.apply_area);
-    setForm((f2) => ({ ...f2, apply_amount: Math.round(amt * 100) / 100, actual_amount: Math.round(amt * 100) / 100 }));
-  }, [form.apply_area, subsidyType, setForm]);
-  const submitAdd = async () => {
-    if (!farmerId) return show("请输入有效身份证号", "err");
-    try {
-      const res = await fetch("/api/subsidies/payments", {
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(SubsidyListBase, { ...props, config });
+}
+function DisbursementList(props) {
+  const config = {
+    apiBase: "/api/subsidies/payments",
+    importTitle: "导入发放",
+    exportPrefix: "发放列表",
+    batchImportEndpoint: "/api/subsidies/payments/batch-import",
+    onExport: (id2) => exportPayments(id2),
+    // 导入字段名映射（application → payment）
+    buildImportRow: (common) => ({
+      ...common,
+      payment_year: common.apply_year,
+      amount: common.apply_amount,
+      pay_status: 2,
+      apply_amount: void 0,
+      actual_amount: void 0,
+      apply_year: void 0,
+      pay_date: void 0
+    }),
+    // 导入预检 + 与预申请比对
+    preCheck: async (rows, mapping) => {
+      const mappedRows = rows.map((row, idx) => {
+        const mapped = { ...row };
+        if (mapping) {
+          for (const [excelCol, systemField] of Object.entries(mapping)) {
+            if (row[excelCol] !== void 0) mapped[systemField] = row[excelCol];
+          }
+        }
+        mapped._row_index = idx;
+        return mapped;
+      });
+      const chk = await fetch("/api/eligibility/check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          farmer_id: farmerId,
-          subsidy_type_id: subsidyType.id,
-          payment_year: subsidyType.subsidy_year,
-          amount: form.actual_amount,
-          apply_area: form.apply_area,
-          contract_area: form.contract_area,
-          trust_area: form.trust_area,
-          no_subsidy_area: form.no_subsidy_area,
-          payment_date: form.pay_date,
-          remark: form.remark,
-          proxy_remark: form.proxy_remark
+          subsidy_type_id: props.subsidyType.id,
+          year: props.subsidyType.subsidy_year,
+          rows: mappedRows.map((r2) => ({ id_card: String(r2.id_card || ""), real_name: String(r2.real_name || ""), apply_area: Number(r2.apply_area || 0), _row_index: r2._row_index }))
         })
       }).then((r2) => r2.json());
-      show(`✓ 记录创建成功`);
-      setAddOpen(false);
-      load();
-    } catch (e) {
-      show(e.message, "err");
-    }
-  };
-  const submitEdit = async () => {
-    if (!editTarget) return;
-    try {
-      await fetch(`/api/subsidies/payments/${editTarget.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: form.actual_amount,
-          apply_area: form.apply_area,
-          contract_area: form.contract_area,
-          trust_area: form.trust_area,
-          no_subsidy_area: form.no_subsidy_area,
-          payment_date: form.pay_date,
-          remark: form.remark,
-          proxy_remark: form.proxy_remark
-        })
-      });
-      show("✓ 更新成功");
-      setEditTarget(null);
-      load();
-    } catch (e) {
-      show(e.message, "err");
-    }
-  };
-  const openEdit = (a) => {
-    const appOut = {
-      id: a.id,
-      farmer_id: a.farmer_id,
-      farmer_name: a.farmer_name,
-      village: a.village,
-      subsidy_type_id: a.subsidy_type_id,
-      subsidy_name: a.subsidy_name,
-      calc_mode: a.calc_mode,
-      apply_year: a.apply_year,
-      apply_amount: a.apply_amount,
-      actual_amount: a.actual_amount,
-      apply_area: a.apply_area,
-      pay_status: a.pay_status,
-      pay_date: a.pay_date,
-      remark: a.remark
-    };
-    setEditTarget(appOut);
-    setForm({
-      pay_status: a.pay_status,
-      actual_amount: a.actual_amount ? Number(a.actual_amount) : void 0,
-      apply_area: a.apply_area ? Number(a.apply_area) : void 0,
-      contract_area: a.contract_area ? Number(a.contract_area) : void 0,
-      trust_area: a.trust_area ? Number(a.trust_area) : void 0,
-      no_subsidy_area: a.no_subsidy_area ? Number(a.no_subsidy_area) : void 0,
-      pay_date: a.pay_date ?? void 0,
-      remark: a.remark ?? void 0,
-      proxy_remark: a.proxy_remark ?? void 0
-    });
-  };
-  const deleteApp = async (id2) => {
-    try {
-      await fetch(`/api/subsidies/applications/${id2}`, { method: "DELETE" });
-      show("✓ 已删除");
-      setDeleteId(null);
-      load();
-    } catch (e) {
-      show(e.message, "err");
-    }
-  };
-  const toggleSelectAll = () => {
-    if (selectedIds.length === apps.length) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(apps.map((a) => a.id));
-    }
-  };
-  const toggleSelect = (id2) => {
-    if (selectedIds.includes(id2)) {
-      setSelectedIds(selectedIds.filter((selectedId) => selectedId !== id2));
-    } else {
-      setSelectedIds([...selectedIds, id2]);
-    }
-  };
-  const handleImport = async (rows, mapping) => {
-    const toCreate = [];
-    const errors = [];
-    const allIdCards = rows.map((r2) => String(r2["身份证号*"] || r2["身份证号"] || "").trim()).filter(Boolean);
-    let farmerMap = {};
-    if (allIdCards.length) {
-      try {
-        const res2 = await batchLookupFarmers(allIdCards);
-        farmerMap = res2.results;
-      } catch {
-      }
-    }
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      const idCard = String(row["id_card"] || row["身份证号*"] || row["身份证号"] || "").trim();
-      const realName = String(row["real_name"] || row["姓名*"] || row["姓名"] || "").trim();
-      const villageName = String(row["village_name"] || row["所在村"] || "").trim();
-      const groupNo = String(row["group_no"] || row["所在组"] || "").trim();
-      if (!idCard) {
-        errors.push(`第${i + 2}行：缺少身份证号`);
-        continue;
-      }
-      if (!realName) {
-        errors.push(`第${i + 2}行：缺少姓名`);
-        continue;
-      }
-      const farmerId2 = farmerMap[idCard] || 0;
-      const contractArea = Number(row["contract_area"] || row["承包地面积(亩)"]) || 0;
-      const trustArea = Number(row["trust_area"] || row["代耕代种面积(亩)"]) || 0;
-      const noSubsidyArea = Number(row["no_subsidy_area"] || row["不予补贴面积"]) || void 0;
-      const applyAreaExplicit = Number(row["apply_area"] || row["种植面积"] || row["面积(亩)"]) || 0;
-      const area = applyAreaExplicit || (contractArea + trustArea || void 0);
-      const amount = Number(row["actual_amount"] || row["实发金额"]) || (area ? area * Number(subsidyType.standard_amount || 0) : void 0);
-      toCreate.push({
-        farmer_id: farmerId2,
-        id_card: idCard,
-        real_name: realName,
-        village_name: villageName || void 0,
-        group_no: groupNo || void 0,
-        subsidy_type_id: subsidyType.id,
-        payment_year: subsidyType.subsidy_year,
-        apply_area: area,
-        contract_area: contractArea || void 0,
-        trust_area: trustArea || void 0,
-        no_subsidy_area: noSubsidyArea,
-        amount,
-        payment_date: String(row["pay_date"] || row["打款日期"] || "").trim() || void 0,
-        remark: String(row["remark"] || row["备注"] || "").trim() || void 0,
-        proxy_remark: String(row["proxy_remark"] || row["代领备注"] || "").trim() || void 0
-      });
-    }
-    if (errors.length && !toCreate.length) return { created: 0, skipped: 0, errors };
-    const paymentRows = toCreate.map((r2) => ({
-      farmer_id: r2.farmer_id,
-      id_card: r2.id_card,
-      real_name: r2.real_name,
-      subsidy_type_id: r2.subsidy_type_id,
-      payment_year: subsidyType.subsidy_year,
-      amount: r2.amount,
-      payment_date: r2.payment_date,
-      apply_area: r2.apply_area,
-      contract_area: r2.contract_area,
-      trust_area: r2.trust_area,
-      no_subsidy_area: r2.no_subsidy_area,
-      remark: r2.remark,
-      proxy_remark: r2.proxy_remark
-    }));
-    const res = await fetch("/api/subsidies/payments/batch-import", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rows: paymentRows })
-    }).then((r2) => r2.json());
-    show(`✓ 导入 ${res.created} 条发放记录，跳过 ${res.skipped} 条`);
-    load();
-    return { ...res, errors: [...errors, ...res.errors || []] };
-  };
-  const totalAmt = apps.reduce((s, a) => s + Number(a.actual_amount || 0), 0);
-  const selectedTmpl = templates.find((t2) => t2.id) || null;
-  const IMPORT_HEADERS2 = selectedTmpl ? selectedTmpl.column_mapping.filter((m2) => m2.system_field).map((m2) => m2.excel_column + (m2.required ? "*" : "")) : ["身份证号*", "姓名*", "实发金额", "承包地面积(亩)", "代耕代种面积(亩)", "不予补贴面积(亩)", "打款日期", "所在村", "所在组", "备注", "代领备注"];
-  const IMPORT_EXAMPLE2 = selectedTmpl ? [Object.fromEntries(selectedTmpl.column_mapping.filter((m2) => m2.system_field).map((m2) => {
-    const sample = {
-      id_card: "510123196503154231",
-      real_name: "张国强",
-      actual_amount: 420,
-      contract_area: 2.5,
-      trust_area: 1,
-      pay_date: `${subsidyType.subsidy_year}-07-15`,
-      village_name: "红星村",
-      group_no: "一组",
-      remark: "",
-      proxy_remark: ""
-    };
-    return [m2.excel_column, sample[m2.system_field] ?? ""];
-  }))] : [{ "身份证号*": "510123196503154231", "姓名*": "张国强", "实发金额": 420, "承包地面积(亩)": 2.5, "代耕代种面积(亩)": 1, "不予补贴面积(亩)": 0.5, "打款日期": `${subsidyType.subsidy_year}-07-15`, "所在村": "红星村", "所在组": "一组", "备注": "", "代领备注": "" }];
-  const detectExcelColumns = async (columns, sampleRows) => {
-    try {
-      const response = await fetch("/api/excel-templates/detect-columns", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ columns, business_type: "DISBURSEMENT", sample_rows: sampleRows })
-      });
-      if (!response.ok) throw new Error(`检测失败: ${response.status}`);
-      const raw = await response.json();
-      return {
-        columns: (raw.columns || []).map((d) => ({
-          excel_column: d.excel_column,
-          suggested_field: d.suggested_field,
-          confidence: d.confidence ?? 0,
-          alternatives: d.alternatives || []
-        })),
-        recommended_templates: raw.recommended_templates || []
+      const preCheckResult = {
+        passed_rows: (chk.passed_list || []).map((r2) => r2._row_index).filter((i) => i != null),
+        failed_rows: (chk.failed_list || []).map((r2) => ({ index: r2._row_index ?? 0, real_name: r2.real_name, id_card_masked: r2.id_card_masked, issues: r2.issues })),
+        warning_rows: (chk.warning_list || []).map((r2) => ({ index: r2._row_index ?? 0, real_name: r2.real_name, id_card_masked: r2.id_card_masked, warnings: r2.warnings }))
       };
-    } catch (error) {
-      return { columns: columns.map((col) => ({ excel_column: col, suggested_field: null, confidence: 0, alternatives: [] })) };
+      try {
+        const appData = await exportApplications(props.subsidyType.id);
+        const appMap = {};
+        for (const a of appData.items || []) {
+          const ic2 = a.id_card || "";
+          if (ic2) appMap[ic2] = { real_name: a.farmer_name, village: a.village, apply_area: Number(a.apply_area || 0) };
+        }
+        const impMap = {};
+        for (const r2 of mappedRows) {
+          const ic2 = String(r2.id_card || "").trim();
+          if (ic2) impMap[ic2] = { real_name: String(r2.real_name || ""), apply_area: Number(r2.apply_area || 0) };
+        }
+        const appIds = new Set(Object.keys(appMap)), impIds = new Set(Object.keys(impMap));
+        return {
+          ...preCheckResult,
+          comparison: {
+            missing_from_import: [...appIds].filter((ic2) => !impIds.has(ic2)).map((ic2) => ({ id_card: ic2, ...appMap[ic2] })),
+            new_in_import: [...impIds].filter((ic2) => !appIds.has(ic2)).map((ic2) => ({ id_card: ic2, ...impMap[ic2] })),
+            area_changed: [...appIds].filter((ic2) => impIds.has(ic2)).map((ic2) => ({ id_card: ic2, real_name: appMap[ic2].real_name, app_area: appMap[ic2].apply_area, import_area: impMap[ic2].apply_area, diff: impMap[ic2].apply_area - appMap[ic2].apply_area })).filter((a) => Math.abs(a.diff) > 1e-3)
+          }
+        };
+      } catch {
+        return preCheckResult;
+      }
     }
   };
-  const saveColumnMappingTemplate = async (data) => {
-    const response = await fetch("/api/excel-templates", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data)
-    });
-    if (!response.ok) throw new Error(`保存失败: ${response.status}`);
-    return await response.json();
-  };
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card overflow-x-auto shadow-card", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-3 border-b border-border bg-warm/10 flex flex-wrap items-center gap-3", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: "筛选：" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "select",
-          {
-            value: filters.village,
-            onChange: (e) => handleFilterChange("village", e.target.value),
-            className: "border border-border rounded-btn px-2 py-1.5 text-xs bg-white outline-none",
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部村庄" }),
-              loadingVillages ? /* @__PURE__ */ jsxRuntimeExports.jsx("option", { disabled: true, children: "加载中..." }) : villages.map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v2, children: v2 }, v2))
-            ]
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "select",
-          {
-            value: filters.payStatus,
-            onChange: (e) => handleFilterChange("payStatus", e.target.value),
-            className: "border border-border rounded-btn px-2 py-1.5 text-xs bg-white outline-none",
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部状态" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "0", children: "待发放" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "1", children: "发放中" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "2", children: "已完成" })
-            ]
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 text-xs", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted", children: "金额:" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "number",
-              value: filters.minAmount,
-              onChange: (e) => handleFilterChange("minAmount", e.target.value),
-              placeholder: "最低",
-              className: "w-16 border border-border rounded px-1.5 py-1 text-xs outline-none"
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50", children: "-" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "number",
-              value: filters.maxAmount,
-              onChange: (e) => handleFilterChange("maxAmount", e.target.value),
-              placeholder: "最高",
-              className: "w-16 border border-border rounded px-1.5 py-1 text-xs outline-none"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 text-xs", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted", children: "日期:" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "date",
-              value: filters.dateFrom,
-              onChange: (e) => handleFilterChange("dateFrom", e.target.value),
-              className: "border border-border rounded px-1.5 py-1 text-xs outline-none"
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50", children: "-" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "date",
-              value: filters.dateTo,
-              onChange: (e) => handleFilterChange("dateTo", e.target.value),
-              className: "border border-border rounded px-1.5 py-1 text-xs outline-none"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 flex-1 min-w-[200px] max-w-[300px]", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "text",
-              value: search,
-              onChange: (e) => handleSearchChange(e.target.value),
-              placeholder: "姓名/身份证",
-              className: "flex-1 border border-border rounded-btn px-2 py-1.5 text-xs outline-none"
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setPage(1), className: "px-2 py-1 text-xs bg-primary text-white rounded-btn hover:bg-primary/90", children: "搜索" })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            onClick: clearFilters,
-            className: "text-xs text-text-muted hover:text-text-primary border border-border px-2 py-1 rounded",
-            disabled: Object.values(filters).every((v2) => !v2) && !search,
-            children: "清除"
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full border-collapse min-w-[950px]", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "bg-warm/30 border-b-2 border-border", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-2 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              onClick: toggleSelectAll,
-              className: `w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${apps.length > 0 && selectedIds.length === apps.length ? "bg-primary/90 border-emerald-600 text-white" : "border-stone-300 hover:border-emerald-400"}`,
-              children: apps.length > 0 && selectedIds.length === apps.length && /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { className: "w-3 h-3", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: "3", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M5 13l4 4L19 7" }) })
-            }
-          ) }),
-          ["姓名", "身份证", "手机号", "所在村", "所在组", "实际补贴面积", "承包地面积", "代耕代种面积", "不予补贴面积", "申请金额", "发放金额", "状态", "打款日期", "备注", "代领备注", "操作"].map((h) => /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-2 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap", children: h }, h))
-        ] }) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("tbody", { children: [
-          loading && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 16, className: "text-center py-10 text-text-muted/50", children: "加载中…" }) }),
-          !loading && (!apps || apps.length === 0) && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 16, className: "text-center py-10 text-text-muted/50 text-sm", children: "暂无记录，通过「Excel 导入」或「＋ 新增一条」添加" }) }),
-          !loading && apps && apps.map((a) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: `border-b border-border/50 hover:bg-warm/30 ${a.pay_status === 0 ? "bg-amber-50/30" : ""}`, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                onClick: () => toggleSelect(a.id),
-                className: `w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${selectedIds.includes(a.id) ? "bg-primary/90 border-emerald-600 text-white" : "border-stone-300 hover:border-emerald-400"}`,
-                children: selectedIds.includes(a.id) && /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { className: "w-3 h-3", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: "3", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M5 13l4 4L19 7" }) })
-              }
-            ) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-sm font-semibold whitespace-nowrap", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
-              a.farmer_name,
-              a.is_proxy === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded", children: "代领" })
-            ] }) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap", children: a.id_card_masked || "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap", children: a.phone || "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs text-text-muted whitespace-nowrap", children: a.village || "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs text-text-muted whitespace-nowrap", children: a.group_no || "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono font-bold text-text-primary", children: a.apply_area ? `${a.apply_area}` : "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono text-text-muted", children: a.contract_area || "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono text-text-muted", children: a.trust_area || "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono text-red-400", children: a.no_subsidy_area || "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono text-text-muted", children: a.apply_amount ? `¥${fmt$2(a.apply_amount)}` : "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-sm font-mono font-bold text-primary whitespace-nowrap", children: a.actual_amount ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { title: a.apply_amount && a.apply_amount !== a.actual_amount ? `申请：${fmt$2(a.apply_amount)}` : "", children: fmt$2(a.actual_amount) }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-amber-500 font-normal text-xs", children: "待发放" }) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: PAY_STATUS[a.pay_status]?.label || "—", color: PAY_STATUS[a.pay_status]?.color }) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap", children: a.pay_date ?? "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs text-text-muted max-w-[120px] truncate", title: a.remark || "", children: a.remark || "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2 text-xs text-text-muted max-w-[120px] truncate", title: a.proxy_remark || "", children: a.proxy_remark || "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-2", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => openEdit(a), className: "text-xs text-text-muted border border-border px-2 py-1 rounded hover:text-primary hover:border-primary/20", children: "编辑" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setDeleteId(a.id), className: "text-xs text-red-400 border border-red-100 px-2 py-1 rounded hover:bg-red-50", children: "删" })
-            ] }) })
-          ] }, a.id))
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-2 border-t border-border/50 bg-warm/10 flex justify-between text-xs text-text-muted", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-          "共",
-          total,
-          "条"
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono font-bold text-primary", children: [
-          "实发合计 ¥",
-          totalAmt.toFixed(2)
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: page <= 1, onClick: () => setPage((p2) => p2 - 1), className: "px-2.5 py-1 border border-border rounded disabled:opacity-40", children: "‹" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "px-2 py-1", children: [
-            "第",
-            page,
-            "/",
-            Math.max(1, Math.ceil(total / 20)),
-            "页"
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: page * 20 >= total, onClick: () => setPage((p2) => p2 + 1), className: "px-2.5 py-1 border border-border rounded disabled:opacity-40", children: "›" })
-        ] })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(Modal, { open: addOpen, title: `新增 · ${subsidyType.subsidy_name}`, onClose: () => setAddOpen(false), onConfirm: submitAdd, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "农户身份证号 *" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            value: idInput,
-            onChange: (e) => setIdInput(e.target.value),
-            placeholder: "输入身份证号自动查找农户",
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-          }
-        ),
-        farmerHint && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs mt-1", style: { color: farmerId ? "#15803d" : "#dc2626" }, children: farmerHint })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
-        subsidyType.calc_mode === "per_mu" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "承包地面积(亩)" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "number",
-                step: "0.01",
-                value: form.contract_area ?? "",
-                onChange: (e) => {
-                  const ca2 = Number(e.target.value) || void 0;
-                  setForm((f2) => ({ ...f2, contract_area: ca2, apply_area: (ca2 || 0) + (f2.trust_area || 0) || void 0 }));
-                },
-                className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "代耕代种面积(亩)" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "number",
-                step: "0.01",
-                value: form.trust_area ?? "",
-                onChange: (e) => {
-                  const ta2 = Number(e.target.value) || void 0;
-                  setForm((f2) => ({ ...f2, trust_area: ta2, apply_area: (f2.contract_area || 0) + (ta2 || 0) || void 0 }));
-                },
-                className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "col-span-2", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "block text-xs text-text-muted mb-1", children: [
-              "实际补贴面积(亩) ",
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50", children: "— 可手动填写" })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "number",
-                step: "0.01",
-                value: form.apply_area ?? "",
-                onChange: (e) => setForm((f2) => ({ ...f2, apply_amount: Number(e.target.value) || void 0 })),
-                className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-              }
-            )
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "不予补贴面积(亩)" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "number",
-              step: "0.01",
-              value: form.no_subsidy_area ?? "",
-              onChange: (e) => setForm((f2) => ({ ...f2, no_subsidy_area: Number(e.target.value) || void 0 })),
-              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "实发金额(元)" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "number",
-              step: "0.01",
-              value: form.actual_amount ?? "",
-              onChange: (e) => setForm((f2) => ({ ...f2, actual_amount: Number(e.target.value) || void 0 })),
-              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "打款日期" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "date",
-              value: form.pay_date ?? "",
-              onChange: (e) => setForm((f2) => ({ ...f2, pay_date: e.target.value || void 0 })),
-              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "备注" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              value: form.remark ?? "",
-              onChange: (e) => setForm((f2) => ({ ...f2, remark: e.target.value || void 0 })),
-              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "代领备注" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              value: form.proxy_remark ?? "",
-              onChange: (e) => setForm((f2) => ({ ...f2, proxy_remark: e.target.value || void 0 })),
-              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-            }
-          )
-        ] })
-      ] })
-    ] }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(Modal, { open: !!editTarget, title: `编辑 · ${editTarget?.farmer_name}`, onClose: () => setEditTarget(null), onConfirm: submitEdit, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
-      subsidyType.calc_mode === "per_mu" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "承包地面积(亩)" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "number",
-              step: "0.01",
-              value: form.contract_area ?? "",
-              onChange: (e) => {
-                const ca2 = Number(e.target.value) || void 0;
-                setForm((f2) => ({ ...f2, contract_area: ca2, apply_area: (ca2 || 0) + (f2.trust_area || 0) || void 0 }));
-              },
-              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "代耕代种面积(亩)" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "number",
-              step: "0.01",
-              value: form.trust_area ?? "",
-              onChange: (e) => {
-                const ta2 = Number(e.target.value) || void 0;
-                setForm((f2) => ({ ...f2, trust_area: ta2, apply_area: (f2.contract_area || 0) + (ta2 || 0) || void 0 }));
-              },
-              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "col-span-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "block text-xs text-text-muted mb-1", children: [
-            "实际补贴面积(亩) ",
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50", children: "— 可手动填写" })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "input",
-            {
-              type: "number",
-              step: "0.01",
-              value: form.apply_area ?? "",
-              onChange: (e) => setForm((f2) => ({ ...f2, apply_area: Number(e.target.value) || void 0 })),
-              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-            }
-          )
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "不予补贴面积(亩)" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            type: "number",
-            step: "0.01",
-            value: form.no_subsidy_area ?? "",
-            onChange: (e) => setForm((f2) => ({ ...f2, no_subsidy_area: Number(e.target.value) || void 0 })),
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "实发金额(元)" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            type: "number",
-            step: "0.01",
-            value: form.actual_amount ?? "",
-            onChange: (e) => setForm((f2) => ({ ...f2, actual_amount: Number(e.target.value) || void 0 })),
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "发放状态" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "select",
-          {
-            value: form.pay_status ?? 0,
-            onChange: (e) => setForm((f2) => ({ ...f2, pay_status: Number(e.target.value) })),
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none",
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 0, children: "待发放" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 1, children: "部分发放" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 2, children: "已发放" })
-            ]
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "打款日期" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            type: "date",
-            value: form.pay_date ?? "",
-            onChange: (e) => setForm((f2) => ({ ...f2, pay_date: e.target.value || void 0 })),
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "col-span-2", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "备注" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            value: form.remark ?? "",
-            onChange: (e) => setForm((f2) => ({ ...f2, remark: e.target.value || void 0 })),
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "col-span-2", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "代领备注" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "input",
-          {
-            value: form.proxy_remark ?? "",
-            onChange: (e) => setForm((f2) => ({ ...f2, proxy_remark: e.target.value || void 0 })),
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-          }
-        )
-      ] })
-    ] }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      Modal,
-      {
-        open: deleteId !== null,
-        title: "确认删除",
-        onClose: () => setDeleteId(null),
-        onConfirm: () => deleteApp(deleteId),
-        confirmText: "确认删除",
-        children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-text-primary", children: "删除后无法恢复，确认要删除这条补贴记录吗？" })
-      }
-    ),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      ExcelImportWithMapping,
-      {
-        open: addOpen,
-        onClose: () => setAddOpen(false),
-        title: `导入发放 · ${subsidyType.subsidy_name}`,
-        templateHeaders: IMPORT_HEADERS2,
-        templateExample: IMPORT_EXAMPLE2,
-        systemFields: SUBSIDY_IMPORT_FIELDS,
-        templates,
-        onDetectColumns: detectExcelColumns,
-        onSaveTemplate: saveColumnMappingTemplate,
-        onImport: handleImport,
-        onSuccess: load
-      }
-    )
-  ] });
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(SubsidyListBase, { ...props, config });
 }
 function ProxyList({ subsidyType, show }) {
   const [proxies, setProxies] = reactExports.useState([]);
@@ -46718,7 +46544,7 @@ function ProxyList({ subsidyType, show }) {
             className: "flex-1 border border-border rounded-btn px-2 py-1.5 text-xs outline-none"
           }
         ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setPage(1), className: "px-2 py-1 text-xs bg-primary text-white rounded-btn hover:bg-primary/90", children: "搜索" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setPage(1), className: "px-2 py-1 text-xs bg-primary  rounded-btn hover:bg-primary/90", children: "搜索" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
         "共 ",
@@ -46729,7 +46555,7 @@ function ProxyList({ subsidyType, show }) {
         "button",
         {
           onClick: batchDelete,
-          className: "px-3 py-1.5 text-xs bg-red-600 text-white rounded-btn hover:bg-red-500",
+          className: "px-3 py-1.5 text-xs bg-red-600  rounded-btn hover:bg-red-500",
           children: [
             "批量删除 (",
             selectedIds.size,
@@ -46806,24 +46632,1222 @@ function ProxyList({ subsidyType, show }) {
     )
   ] });
 }
+const ERROR_TYPE_COLORS = {
+  format_errors: "bg-red-100 text-red-700 border-red-200",
+  village_errors: "bg-red-100 text-red-700 border-red-200",
+  duplicate_errors: "bg-red-100 text-red-700 border-red-200",
+  gender_mismatch: "bg-amber-100 text-amber-700 border-amber-200",
+  error_library_hits: "bg-red-100 text-red-700 border-red-200",
+  area_anomalies: "bg-orange-100 text-orange-700 border-orange-200",
+  area_missing: "bg-orange-100 text-orange-700 border-orange-200",
+  age_anomaly: "bg-amber-100 text-amber-700 border-amber-200",
+  deceased_farmers: "bg-red-100 text-red-700 border-red-200",
+  restricted_farmers: "bg-red-100 text-red-700 border-red-200",
+  household_duplicates: "bg-amber-100 text-amber-700 border-amber-200",
+  new_farmers: "bg-blue-100 text-blue-700 border-blue-200",
+  removed_farmers: "bg-blue-100 text-blue-700 border-blue-200",
+  changed_farmers: "bg-purple-100 text-purple-700 border-purple-200"
+};
+const ERROR_TYPE_LABELS = {
+  format_errors: "格式错误",
+  village_errors: "村庄不存在",
+  duplicate_errors: "重复身份证",
+  gender_mismatch: "性别不符",
+  error_library_hits: "错误库命中",
+  area_anomalies: "面积异常",
+  area_missing: "承包面积缺失",
+  age_anomaly: "年龄异常",
+  deceased_farmers: "已故农户",
+  restricted_farmers: "受限身份",
+  household_duplicates: "家庭重复申请",
+  new_farmers: "新增农户",
+  removed_farmers: "减少农户",
+  changed_farmers: "字段变更"
+};
+function PrecheckHistoryTab({ subsidyType, preCheckResults }) {
+  const { toast, show } = useToast();
+  const [items, setItems] = reactExports.useState([]);
+  const [batches, setBatches] = reactExports.useState([]);
+  const [total, setTotal] = reactExports.useState(0);
+  const [page, setPage] = reactExports.useState(1);
+  const [loading, setLoading] = reactExports.useState(false);
+  const [selectedBatch, setSelectedBatch] = reactExports.useState(null);
+  const [statusFilter, setStatusFilter] = reactExports.useState("");
+  const [saving, setSaving] = reactExports.useState(false);
+  const [autoResolving, setAutoResolving] = reactExports.useState(false);
+  const [errorTypeFilter, setErrorTypeFilter] = reactExports.useState("");
+  const [showSaveModal, setShowSaveModal] = reactExports.useState(false);
+  const [selectedErrorTypes, setSelectedErrorTypes] = reactExports.useState([]);
+  const pageSize = 30;
+  const loadBatches = reactExports.useCallback(async () => {
+    try {
+      const data = await getPrecheckHistoryBatches(subsidyType.id, subsidyType.subsidy_year);
+      setBatches(data.batches);
+    } catch {
+    }
+  }, [subsidyType.id, subsidyType.subsidy_year]);
+  const load = reactExports.useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = {
+        subsidy_type_id: subsidyType.id,
+        year: subsidyType.subsidy_year,
+        page,
+        page_size: pageSize
+      };
+      if (selectedBatch) params.batch_key = selectedBatch;
+      if (statusFilter) params.status = statusFilter;
+      if (errorTypeFilter) params.error_type = errorTypeFilter;
+      const data = await getPrecheckHistory(params);
+      setItems(data.items);
+      setTotal(data.total);
+    } catch {
+      show("加载历史记录失败", "err");
+    } finally {
+      setLoading(false);
+    }
+  }, [subsidyType.id, subsidyType.subsidy_year, page, selectedBatch, statusFilter, errorTypeFilter, show]);
+  reactExports.useEffect(() => {
+    load();
+  }, [load]);
+  reactExports.useEffect(() => {
+    loadBatches();
+  }, [loadBatches]);
+  const openSaveModal = () => {
+    if (!preCheckResults) {
+      show("请先执行数据预检", "err");
+      return;
+    }
+    const available = Object.keys(ERROR_TYPE_LABELS).filter(
+      (k2) => Array.isArray(preCheckResults[k2]) && preCheckResults[k2].length > 0
+    );
+    setSelectedErrorTypes(available);
+    setShowSaveModal(true);
+  };
+  const handleSave = async () => {
+    if (!preCheckResults) return;
+    if (selectedErrorTypes.length === 0) {
+      show("请至少选择一种错误类型", "err");
+      return;
+    }
+    setSaving(true);
+    setShowSaveModal(false);
+    try {
+      const res = await savePrecheckHistory(
+        subsidyType.id,
+        subsidyType.subsidy_year,
+        preCheckResults,
+        selectedErrorTypes
+      );
+      show(`✓ 已保存 ${res.saved} 条错误记录`);
+      loadBatches();
+      setSelectedBatch(res.batch_key);
+      setPage(1);
+      load();
+    } catch {
+      show("保存失败", "err");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const handleResolve = async (id2) => {
+    try {
+      await resolvePrecheckHistory(id2);
+      load();
+      loadBatches();
+    } catch {
+      show("操作失败", "err");
+    }
+  };
+  const handleUnresolve = async (id2) => {
+    try {
+      await unresolvePrecheckHistory(id2);
+      load();
+      loadBatches();
+    } catch {
+      show("操作失败", "err");
+    }
+  };
+  const handleDelete = async (id2) => {
+    if (!confirm("确定要删除这条记录吗？")) return;
+    try {
+      await deletePrecheckHistory(id2);
+      load();
+      loadBatches();
+    } catch {
+      show("删除失败", "err");
+    }
+  };
+  const handleAutoResolve = async () => {
+    setAutoResolving(true);
+    try {
+      const res = await autoResolvePrecheckHistory(subsidyType.id, subsidyType.subsidy_year);
+      show(`✓ 自动比对完成，已解决 ${res.resolved_count} 条（共 ${res.total} 条待处理）`);
+      loadBatches();
+      load();
+    } catch {
+      show("自动比对失败", "err");
+    } finally {
+      setAutoResolving(false);
+    }
+  };
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 mb-4 flex-wrap", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          onClick: openSaveModal,
+          disabled: saving || !preCheckResults,
+          className: `px-3 py-1.5 text-sm rounded-btn flex items-center gap-1.5 ${saving ? "bg-blue-100 text-blue-600" : "bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100"} disabled:opacity-50 disabled:cursor-not-allowed`,
+          children: saving ? "⏳ 保存中..." : "💾 保存当前预检结果"
+        }
+      ),
+      preCheckResults && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
+        "(当前预检结果：",
+        preCheckResults.summary?.error_rows || 0,
+        " 条错误)"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          onClick: handleAutoResolve,
+          disabled: autoResolving,
+          className: `px-3 py-1.5 text-sm rounded-btn flex items-center gap-1.5 ${autoResolving ? "bg-green-100 text-green-600" : "bg-green-50 border border-green-200 text-green-700 hover:bg-green-100"} disabled:opacity-50 disabled:cursor-not-allowed`,
+          children: autoResolving ? "⏳ 比对中..." : "🔄 自动比对"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ml-auto flex items-center gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "select",
+          {
+            value: selectedBatch || "",
+            onChange: (e) => {
+              setSelectedBatch(e.target.value || null);
+              setPage(1);
+            },
+            className: "border border-border rounded-btn px-2 py-1.5 text-xs bg-white outline-none",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部批次" }),
+              batches.map((b) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: b.batch_key, children: [
+                b.batch_key,
+                " (",
+                b.resolved_count,
+                "/",
+                b.total,
+                ")"
+              ] }, b.batch_key))
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-0.5 bg-white border border-border rounded-btn overflow-hidden text-xs", children: ["", "active", "resolved"].map((s) => {
+          const labels = { "": "全部", active: "待处理", resolved: "已解决" };
+          const colors = {
+            "": "text-text-muted hover:text-text-primary",
+            active: "text-amber-700 hover:bg-amber-50",
+            resolved: "text-green-700 hover:bg-green-50"
+          };
+          const activeColors = {
+            "": "bg-warm/40 text-text-primary",
+            active: "bg-amber-100 text-amber-800",
+            resolved: "bg-green-100 text-green-800"
+          };
+          return /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: () => {
+                setStatusFilter(s);
+                setPage(1);
+              },
+              className: `px-2.5 py-1.5 font-medium transition-colors ${statusFilter === s ? activeColors[s] : colors[s]}`,
+              children: labels[s]
+            },
+            s
+          );
+        }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "select",
+          {
+            value: errorTypeFilter,
+            onChange: (e) => {
+              setErrorTypeFilter(e.target.value);
+              setPage(1);
+            },
+            className: "border border-border rounded-btn px-2 py-1.5 text-xs bg-white outline-none",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部类型" }),
+              Object.entries(ERROR_TYPE_LABELS).map(([key, label]) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: key, children: label }, key))
+            ]
+          }
+        )
+      ] })
+    ] }),
+    batches.length > 0 && !selectedBatch && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-2 mb-4", children: batches.map((b) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "px-3 py-2 bg-white border border-border rounded-card text-xs cursor-pointer hover:border-primary/30",
+        onClick: () => {
+          setSelectedBatch(b.batch_key);
+          setPage(1);
+        },
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-medium text-text-primary mb-1", children: b.batch_key }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-text-muted", children: [
+            "共 ",
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-bold text-text-primary", children: b.total }),
+            " 条， 已解决 ",
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-bold text-green-600", children: b.resolved_count }),
+            " 条"
+          ] })
+        ]
+      },
+      b.batch_key
+    )) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card overflow-hidden shadow-card", children: [
+      loading && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center py-12 text-text-muted/50", children: "加载中…" }),
+      !loading && items.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center py-12 text-text-muted/50 text-sm", children: batches.length === 0 ? "暂无预检历史记录，请先执行数据预检并点击「保存当前预检结果」" : "当前筛选条件下无记录" }),
+      !loading && items.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full border-collapse", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "bg-warm/30 border-b-2 border-border", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs text-text-muted font-semibold", children: "错误类型" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs text-text-muted font-semibold", children: "姓名" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs text-text-muted font-semibold", children: "身份证" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs text-text-muted font-semibold", children: "村组" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs text-text-muted font-semibold", children: "错误描述" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs text-text-muted font-semibold", children: "批次" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs text-text-muted font-semibold", children: "状态" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-center text-xs text-text-muted font-semibold", children: "操作" })
+        ] }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { className: "divide-y divide-border/50", children: items.map((item) => {
+          const isResolved = item.status === "resolved";
+          const colorClass = ERROR_TYPE_COLORS[item.error_type] || "bg-gray-100 text-gray-700 border-gray-200";
+          const label = ERROR_TYPE_LABELS[item.error_type] || item.error_type;
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: `hover:bg-warm/30 ${isResolved ? "opacity-60" : ""}`, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `inline-block px-2 py-0.5 text-xs rounded border ${colorClass}`, children: label }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: `px-3 py-2 text-sm font-medium ${isResolved ? "line-through text-text-muted" : "text-text-primary"}`, children: item.farmer_name || "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: `px-3 py-2 text-xs font-mono ${isResolved ? "line-through text-text-muted" : "text-text-muted"}`, children: item.id_card || "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: `px-3 py-2 text-xs ${isResolved ? "line-through text-text-muted" : "text-text-muted"}`, children: [item.village, item.group_no].filter(Boolean).join(" ") || "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "td",
+              {
+                className: `px-3 py-2 text-xs max-w-[260px] truncate ${isResolved ? "line-through text-text-muted" : "text-text-primary"}`,
+                title: item.error_message,
+                children: item.error_message
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-xs text-text-muted", children: item.batch_key }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2", children: isResolved ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "span",
+              {
+                onClick: () => handleUnresolve(item.id),
+                className: "text-xs text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded cursor-pointer hover:brightness-95 inline-block",
+                children: "已解决"
+              }
+            ) : /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "span",
+              {
+                onClick: () => handleResolve(item.id),
+                className: "text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded cursor-pointer hover:brightness-95 inline-block",
+                children: "待处理"
+              }
+            ) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1 justify-center", children: [
+              isResolved ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: () => handleUnresolve(item.id),
+                  className: "text-xs border border-border px-2 py-1 rounded text-text-muted hover:text-primary hover:border-primary/20",
+                  children: "取消"
+                }
+              ) : /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: () => handleResolve(item.id),
+                  className: "text-xs border border-green-200 px-2 py-1 rounded text-green-700 hover:bg-green-50",
+                  children: "✓ 已解决"
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: () => handleDelete(item.id),
+                  className: "text-xs text-red-400 border border-red-100 px-2 py-1 rounded hover:bg-red-50",
+                  children: "删"
+                }
+              )
+            ] }) })
+          ] }, item.id);
+        }) })
+      ] }),
+      total > pageSize && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-2 border-t border-border/50 bg-warm/10 flex justify-between text-xs text-text-muted", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+          "共 ",
+          total,
+          " 条"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              disabled: page <= 1,
+              onClick: () => setPage((p2) => p2 - 1),
+              className: "px-2.5 py-1 border border-border rounded disabled:opacity-40",
+              children: "‹"
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "px-2 py-1", children: [
+            "第 ",
+            page,
+            "/",
+            totalPages,
+            " 页"
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              disabled: page * pageSize >= total,
+              onClick: () => setPage((p2) => p2 + 1),
+              className: "px-2.5 py-1 border border-border rounded disabled:opacity-40",
+              children: "›"
+            }
+          )
+        ] })
+      ] })
+    ] }),
+    showSaveModal && /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        className: "fixed inset-0 z-50 flex items-center justify-center bg-black/30",
+        onClick: () => setShowSaveModal(false),
+        children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            className: "bg-white rounded-card shadow-xl border border-border p-5 w-[420px] max-h-[80vh] overflow-y-auto",
+            onClick: (e) => e.stopPropagation(),
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "text-sm font-bold text-text-primary mb-1", children: "选择要保存的错误类型" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-text-muted mb-4", children: [
+                "当前预检结果共 ",
+                selectedErrorTypes.reduce((s, k2) => s + (preCheckResults[k2]?.length || 0), 0),
+                " 条错误"
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-2", children: Object.entries(ERROR_TYPE_LABELS).map(([key, label]) => {
+                const count = preCheckResults[key]?.length || 0;
+                if (count === 0) return null;
+                return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "label",
+                  {
+                    className: `flex items-center gap-2.5 px-3 py-2 rounded border cursor-pointer text-sm
+                      ${selectedErrorTypes.includes(key) ? "border-primary/40 bg-primary/5" : "border-border"}`,
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        "input",
+                        {
+                          type: "checkbox",
+                          checked: selectedErrorTypes.includes(key),
+                          onChange: () => setSelectedErrorTypes(
+                            (prev) => prev.includes(key) ? prev.filter((x2) => x2 !== key) : [...prev, key]
+                          ),
+                          className: "accent-primary"
+                        }
+                      ),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "flex-1", children: label }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
+                        count,
+                        " 条"
+                      ] })
+                    ]
+                  },
+                  key
+                );
+              }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 mt-5 justify-end", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    onClick: () => setShowSaveModal(false),
+                    className: "px-4 py-1.5 text-sm border border-border rounded-btn text-text-muted hover:bg-warm/30",
+                    children: "取消"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "button",
+                  {
+                    onClick: handleSave,
+                    disabled: selectedErrorTypes.length === 0,
+                    className: "px-4 py-1.5 text-sm bg-primary rounded-btn hover:bg-primary/90 disabled:opacity-50",
+                    children: [
+                      "确定保存 (",
+                      selectedErrorTypes.reduce((s, k2) => s + (preCheckResults[k2]?.length || 0), 0),
+                      " 条)"
+                    ]
+                  }
+                )
+              ] })
+            ]
+          }
+        )
+      }
+    ),
+    toast && /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { msg: toast.msg, type: toast.type })
+  ] });
+}
+const STATUS_CFG = {
+  none: { label: "未开始", square: "#c2c3c5", pillBg: "#e8e8e8", pillText: "#6b6b6b", border: "border-gray-200", dot: "○" },
+  in_progress: { label: "进行中", square: "#f4c076", pillBg: "#f9f0d6", pillText: "#6a5f44", border: "border-amber-200", dot: "◐" },
+  done: { label: "已完成", square: "#5EBd9A", pillBg: "#def1e6", pillText: "#457557", border: "border-emerald-300", dot: "●" },
+  reminded: { label: "已提醒", square: "#f09c78", pillBg: "#fbe3df", pillText: "#d56652", border: "border-orange-200", dot: "△" },
+  urged: { label: "已催缴", square: "#e07060", pillBg: "#fbe3df", pillText: "#b83a2a", border: "border-red-300", dot: "▲" }
+};
+const STATUS_ORDER = ["none", "in_progress", "done", "reminded", "urged"];
+function fmtDateTime(iso) {
+  return iso ? iso.slice(0, 16).replace("T", " ") : "";
+}
+function ProjectProgressTab({ subsidyType }) {
+  const { toast, show } = useToast();
+  const projectId = subsidyType.id;
+  const projectName = `${subsidyType.subsidy_name}（${subsidyType.subsidy_year}年）`;
+  const [records, setRecords] = reactExports.useState([]);
+  const [loading, setLoading] = reactExports.useState(false);
+  const [newStageName, setNewStageName] = reactExports.useState("");
+  const [searchVillage, setSearchVillage] = reactExports.useState("");
+  const [statusFilter, setStatusFilter] = reactExports.useState("all");
+  const [scanning, setScanning] = reactExports.useState(null);
+  const scanPath = localStorage.getItem(`scan_${projectId}`) || "";
+  const deleteStage = async (stageName) => {
+    if (!confirm(`确定要删除阶段「${stageName}」？将从所有村中移除。`)) return;
+    try {
+      const res = await fetch(`/api/project-progress/${projectId}/delete-stage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage_name: stageName })
+      }).then((r2) => r2.json());
+      show(`✓ ${res.message}`);
+      loadRecords();
+    } catch (e) {
+      show("删除失败: " + e.message, "err");
+    }
+  };
+  const scanFiles = async (stageName) => {
+    const dir = localStorage.getItem(`scan_${projectId}`);
+    if (!dir) {
+      show("请先在项目卡片中设置扫描源目录", "err");
+      return;
+    }
+    setScanning(stageName);
+    try {
+      const res = await fetch(`/api/project-progress/${projectId}/scan-files`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: dir, stage_name: stageName })
+      }).then((r2) => r2.json());
+      if (res.error) {
+        show(res.error, "err");
+        return;
+      }
+      show(`✓ ${res.message}`);
+      loadRecords();
+    } catch (e) {
+      show("扫描失败: " + e.message, "err");
+    } finally {
+      setScanning(null);
+    }
+  };
+  const [expandedSet, setExpandedSet] = reactExports.useState(/* @__PURE__ */ new Set());
+  const [editNoteModal, setEditNoteModal] = reactExports.useState(null);
+  const [openDropdown, setOpenDropdown] = reactExports.useState(null);
+  const dropdownRef = reactExports.useRef(null);
+  const [dragIdx, setDragIdx] = reactExports.useState(null);
+  const [dropIdx, setDropIdx] = reactExports.useState(null);
+  const [batchCol, setBatchCol] = reactExports.useState(null);
+  const batchRef = reactExports.useRef(null);
+  const loadRecords = reactExports.useCallback(async () => {
+    if (!projectId) return;
+    setLoading(true);
+    try {
+      const r2 = await fetch(`/api/project-progress/${projectId}`).then((r22) => r22.json());
+      setRecords(Array.isArray(r2) ? r2 : []);
+    } catch {
+      show("加载失败", "err");
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId, show]);
+  reactExports.useEffect(() => {
+    loadRecords();
+  }, [loadRecords]);
+  reactExports.useEffect(() => {
+    const h = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setOpenDropdown(null);
+      if (batchRef.current && !batchRef.current.contains(e.target)) setBatchCol(null);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const toggleExpand = (villageId) => {
+    setExpandedSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(villageId)) next.delete(villageId);
+      else next.add(villageId);
+      return next;
+    });
+  };
+  const saveRec = async (rec) => {
+    await fetch(`/api/project-progress/${projectId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rec)
+    });
+  };
+  const initAllVillages = async () => {
+    if (!projectId) return;
+    await fetch(`/api/project-progress/${projectId}/batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "init" })
+    });
+    show("已初始化所有村");
+    loadRecords();
+  };
+  const syncLeaders = async () => {
+    if (!projectId) return;
+    const res = await fetch(`/api/project-progress/${projectId}/batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "sync_leaders" })
+    }).then((r2) => r2.json());
+    if (res.updated > 0) show(`✓ 已同步 ${res.updated} 个村的负责人信息`);
+    else show("所有村负责人已是最新，无需同步");
+    loadRecords();
+  };
+  const setStageStatus = async (rec, stageIdx, status) => {
+    const stages = [...rec.stages];
+    stages[stageIdx] = { ...stages[stageIdx], status, date: (/* @__PURE__ */ new Date()).toISOString() };
+    const updated = { ...rec, stages };
+    setRecords((prev) => prev.map((p2) => p2.village_id === rec.village_id ? updated : p2));
+    await saveRec(updated);
+    setOpenDropdown(null);
+  };
+  const updateNote = async (rec, stageIdx, note) => {
+    const stages = [...rec.stages];
+    stages[stageIdx] = { ...stages[stageIdx], note };
+    const updated = { ...rec, stages };
+    setRecords((prev) => prev.map((p2) => p2.village_id === rec.village_id ? updated : p2));
+    await saveRec(updated);
+  };
+  const addStageToAll = async () => {
+    if (!newStageName.trim() || !projectId) return;
+    await fetch(`/api/project-progress/${projectId}/batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "add_stage_to_all", stage: { name: newStageName.trim(), status: "none", date: "", note: "" } })
+    });
+    show("已为所有村添加阶段");
+    setNewStageName("");
+    loadRecords();
+  };
+  const batchSetStageStatus = async (stageName, status) => {
+    if (!projectId) return;
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    await fetch(`/api/project-progress/${projectId}/batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "batch_stage", stage_name: stageName, status, date: now })
+    });
+    show(`已将所有村「${stageName}」设为${STATUS_CFG[status].label}`);
+    setBatchCol(null);
+    loadRecords();
+  };
+  const handleDragStart = (e, idx) => {
+    setDragIdx(idx);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(idx));
+  };
+  const handleDragOver = (e, idx) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDropIdx(idx);
+  };
+  const handleDragLeave = () => {
+    setDropIdx(null);
+  };
+  const handleDrop = async (e, toIdx) => {
+    e.preventDefault();
+    const fromIdx = dragIdx;
+    if (fromIdx === null || fromIdx === toIdx) {
+      setDragIdx(null);
+      setDropIdx(null);
+      return;
+    }
+    const nameA = allStages[fromIdx];
+    const nameB = allStages[toIdx];
+    if (!nameA || !nameB) {
+      setDragIdx(null);
+      setDropIdx(null);
+      return;
+    }
+    await fetch(`/api/project-progress/${projectId}/batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "swap_stages", stage_a: nameA, stage_b: nameB })
+    });
+    setDragIdx(null);
+    setDropIdx(null);
+    loadRecords();
+  };
+  const handleDragEnd = () => {
+    setDragIdx(null);
+    setDropIdx(null);
+  };
+  const exportExcel = () => {
+    const headers = ["村名", "负责人", "电话", ...allStages];
+    const aoa = [];
+    aoa.push(headers.map((h) => ({ v: h, s: {
+      font: { bold: true, sz: 11 },
+      fill: { fgColor: { rgb: "F5F0EB" } },
+      border: {
+        bottom: { style: "medium", color: { rgb: "D1C7BD" } }
+      },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true }
+    } })));
+    for (const rec of filtered) {
+      const row = [
+        { v: rec.village_name, s: { font: { bold: true, sz: 10.5 }, alignment: { vertical: "center" } } },
+        { v: rec.person_name || "", s: { font: { sz: 10 }, alignment: { vertical: "center" } } },
+        { v: rec.phone || "", s: { font: { sz: 10 }, alignment: { vertical: "center" } } }
+      ];
+      for (const sn of allStages) {
+        const s = rec.stages.find((st) => st.name === sn);
+        const statusKey = s?.status || "none";
+        const cfg = STATUS_CFG[statusKey];
+        const text = s ? `${cfg.label}${s.date ? " " + fmtDateTime(s.date) : ""}${s.note ? " " + s.note : ""}` : "-";
+        const isDone = statusKey === "done";
+        const cellStyle = {
+          font: { sz: 9.5, color: { rgb: isDone ? "2D5A3D" : "333333" } },
+          alignment: { horizontal: "center", vertical: "center", wrapText: true }
+        };
+        if (isDone) {
+          cellStyle.fill = { fgColor: { rgb: "C6EFCE" } };
+        } else if (statusKey === "urged") {
+          cellStyle.fill = { fgColor: { rgb: "FFC7CE" } };
+          cellStyle.font.color = { rgb: "9C0006" };
+        } else if (statusKey === "reminded") {
+          cellStyle.fill = { fgColor: { rgb: "FFEBC8" } };
+        }
+        row.push({ v: text, s: cellStyle });
+      }
+      aoa.push(row);
+    }
+    const ws = utils.aoa_to_sheet(aoa);
+    ws["!cols"] = headers.map((_h, i) => {
+      if (i === 0) return { wch: 14 };
+      if (i === 1) return { wch: 8 };
+      if (i === 2) return { wch: 14 };
+      return { wch: 18 };
+    });
+    ws["!rows"] = [
+      { hpx: 28 },
+      // 表头
+      ...aoa.slice(1).map(() => ({ hpx: 22 }))
+      // 数据行
+    ];
+    const wb2 = utils.book_new();
+    utils.book_append_sheet(wb2, ws, "项目进度");
+    writeFileSync(wb2, `${projectName || "进度表"}.xlsx`);
+  };
+  const copyStageSummary = async (stageName) => {
+    const groups = {};
+    for (const rec of records) {
+      const s = rec.stages.find((st) => st.name === stageName);
+      const label = s ? STATUS_CFG[s.status].label : "无此阶段";
+      if (!groups[label]) groups[label] = [];
+      groups[label].push(rec.village_name);
+    }
+    const order = ["已完成", "已提醒", "已催缴", "进行中", "未开始"];
+    const lines = [`${projectName || ""} · ${stageName}`.trim()];
+    for (const label of order) {
+      if (groups[label]?.length) {
+        lines.push(`${label}：${groups[label].join("、")}`);
+      }
+    }
+    for (const [label, villages] of Object.entries(groups)) {
+      if (!order.includes(label)) lines.push(`${label}：${villages.join("、")}`);
+    }
+    const text = lines.join("\n");
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta2 = document.createElement("textarea");
+        ta2.value = text;
+        ta2.style.position = "fixed";
+        ta2.style.left = "-9999px";
+        ta2.style.top = "-9999px";
+        document.body.appendChild(ta2);
+        ta2.focus();
+        ta2.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta2);
+      }
+      show(`✓ 已复制「${stageName}」进度到剪贴板`);
+    } catch {
+      show("复制失败，请手动选中文字复制", "err");
+    }
+  };
+  const allStages = [];
+  for (const r2 of records) for (const s of r2.stages) {
+    if (!allStages.includes(s.name)) allStages.push(s.name);
+  }
+  const stageStats = {};
+  for (const sn of allStages) {
+    let done = 0, total = 0;
+    for (const r2 of records) {
+      const s = r2.stages.find((st) => st.name === sn);
+      if (s) {
+        total++;
+        if (s.status === "done") done++;
+      }
+    }
+    stageStats[sn] = { done, total };
+  }
+  const totalDone = Object.values(stageStats).reduce((s, v2) => s + v2.done, 0);
+  const totalCells = Object.values(stageStats).reduce((s, v2) => s + v2.total, 0);
+  const filtered = records.filter((r2) => {
+    if (searchVillage && !r2.village_name.includes(searchVillage)) return false;
+    if (statusFilter === "done" && r2.stages.some((s) => s.status !== "done")) return false;
+    if (statusFilter === "undone" && r2.stages.every((s) => s.status === "done")) return false;
+    return true;
+  });
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-full", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card p-3 mb-3 flex items-center gap-3 flex-wrap shadow-sm", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: initAllVillages, className: "px-3 py-1.5 text-xs border border-border rounded-btn hover:bg-warm/30", children: "🔄 初始化全部村" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: syncLeaders, className: "px-3 py-1.5 text-xs border border-amber-200 text-amber-700 rounded-btn hover:bg-amber-50", children: "👤 同步负责人" }),
+      scanPath && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-[11px] text-text-muted font-mono truncate max-w-[200px]", title: scanPath, children: [
+        "📁 ",
+        scanPath
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-6 bg-border" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "select",
+        {
+          value: searchVillage,
+          onChange: (e) => setSearchVillage(e.target.value),
+          className: "border border-border rounded-btn px-2 py-1 text-[11px] outline-none bg-white",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部村" }),
+            [...new Set(records.map((r2) => r2.village_name))].map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v2, children: v2 }, v2))
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "select",
+        {
+          value: statusFilter,
+          onChange: (e) => setStatusFilter(e.target.value),
+          className: "border border-border rounded-btn px-2 py-1 text-[11px] outline-none",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "all", children: "全部状态" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "undone", children: "有未完成" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "done", children: "全部完成" })
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-6 bg-border" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: exportExcel, className: "px-3 py-1.5 text-xs border border-green-200 text-green-700 rounded-btn hover:bg-green-50", children: "📥 导出 Excel" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
+        filtered.length !== records.length ? `${filtered.length}/${records.length}` : records.length,
+        " 村"
+      ] }),
+      (searchVillage || statusFilter !== "all") && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => {
+        setSearchVillage("");
+        setStatusFilter("all");
+      }, className: "text-xs text-blue-500", children: "清除筛选" }),
+      allStages.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "relative", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              onClick: () => setBatchCol(batchCol ? null : "___all___"),
+              className: `px-3 py-1.5 text-xs rounded-lg border transition-all duration-200
+                  ${batchCol === "___all___" ? "bg-orange-600 text-white border-orange-600 shadow ring-2 ring-orange-300 ring-offset-1" : "bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:border-orange-600 hover:shadow active:scale-95"}`,
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "inline-flex items-center justify-center w-4 h-4 rounded-md bg-white/20 text-[10px] mr-1", children: "⊞" }),
+                "阶段状态管理"
+              ]
+            }
+          ),
+          batchCol === "___all___" && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "div",
+            {
+              ref: batchRef,
+              className: "absolute top-full left-0 mt-1.5 z-50 bg-white border border-border rounded-card shadow-xl py-2 min-w-[520px] overflow-hidden",
+              onClick: (e) => e.stopPropagation(),
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-2 text-xs text-text-muted border-b border-border/30 flex items-center justify-between", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "⠿ 拖动排序 · 点击按钮批量设置状态 · 📋 复制进度" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setBatchCol(null), className: "text-text-muted/40 hover:text-text-primary", children: "✕" })
+                ] }),
+                allStages.map((sn, i) => {
+                  const st = stageStats[sn];
+                  const allDone = st.done === st.total && st.total > 0;
+                  return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                    "div",
+                    {
+                      draggable: true,
+                      onDragStart: (e) => handleDragStart(e, i),
+                      onDragOver: (e) => handleDragOver(e, i),
+                      onDragLeave: handleDragLeave,
+                      onDrop: (e) => handleDrop(e, i),
+                      onDragEnd: handleDragEnd,
+                      className: `flex items-center gap-3 px-4 py-3 border-b border-border/30 last:border-0
+                          ${dragIdx === i ? "opacity-40" : ""}
+                          ${dropIdx === i && dragIdx !== null && dropIdx !== dragIdx ? "bg-primary/5 ring-1 ring-primary/30" : ""}
+                          hover:bg-warm/20 transition-all`,
+                      children: [
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/20 cursor-grab select-none text-xs", title: "拖拽排序", children: "⠿" }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "min-w-[80px]", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs font-bold text-text-primary", children: sn }) }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 flex items-center gap-2", children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 h-2 bg-warm/30 rounded-full overflow-hidden", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                            "div",
+                            {
+                              className: `h-full rounded-full transition-all ${allDone ? "bg-emerald-400" : "bg-primary/50"}`,
+                              style: { width: st.total > 0 ? Math.round(st.done / st.total * 100) + "%" : "0%" }
+                            }
+                          ) }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: `font-mono font-bold text-[11px] min-w-[36px] text-right ${allDone ? "text-emerald-600" : "text-text-muted"}`, children: [
+                            st.done,
+                            "/",
+                            st.total
+                          ] })
+                        ] }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1", children: STATUS_ORDER.map((stt) => {
+                          const cfg = STATUS_CFG[stt];
+                          const lightBg = stt === "none" || stt === "in_progress" || stt === "reminded";
+                          return /* @__PURE__ */ jsxRuntimeExports.jsx(
+                            "button",
+                            {
+                              onClick: () => batchSetStageStatus(sn, stt),
+                              className: "px-2 py-0.5 text-[9px] font-bold rounded border transition-all duration-150 hover:shadow-md hover:scale-110 active:scale-90",
+                              style: {
+                                backgroundColor: cfg.square,
+                                borderColor: cfg.square,
+                                color: lightBg ? "#374151" : "#ffffff"
+                              },
+                              title: `全部设为${cfg.label}`,
+                              children: cfg.label
+                            },
+                            stt
+                          );
+                        }) }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                          "button",
+                          {
+                            onClick: () => scanFiles(sn),
+                            disabled: scanning === sn,
+                            className: "shrink-0 px-2 py-1 text-[10px] border-2 border-green-500 bg-green-500 text-white rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-bold disabled:opacity-50",
+                            title: "扫描目录中的村名文件，自动标记已完成",
+                            children: [
+                              scanning === sn ? "⏳" : "🔍",
+                              " 扫描"
+                            ]
+                          }
+                        ),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx(
+                          "button",
+                          {
+                            onClick: () => copyStageSummary(sn),
+                            className: "shrink-0 px-2 py-1 text-[10px] border border-border rounded-btn text-text-muted hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all",
+                            title: "复制完成情况到剪贴板",
+                            children: "📋 复制"
+                          }
+                        ),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx(
+                          "button",
+                          {
+                            onClick: () => deleteStage(sn),
+                            className: "shrink-0 px-2 py-1 text-[10px] border border-red-200 text-red-500 rounded-btn hover:bg-red-50 hover:border-red-300 transition-all",
+                            title: "删除此阶段",
+                            children: "🗑"
+                          }
+                        )
+                      ]
+                    },
+                    sn
+                  );
+                }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 px-4 py-3 border-t border-border/30 bg-warm/10", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: "＋ 添加阶段：" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "input",
+                    {
+                      value: newStageName,
+                      onChange: (e) => setNewStageName(e.target.value),
+                      placeholder: "新阶段名称",
+                      className: "flex-1 border border-border rounded-btn px-2 py-1 text-[11px] outline-none"
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: addStageToAll, className: "px-4 py-1.5 text-xs border-2 border-green-500 bg-green-500 text-white rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-bold", children: "添加" })
+                ] })
+              ]
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 text-[11px] text-text-muted", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", children: "总进度" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-20 h-2 bg-warm/30 rounded-full overflow-hidden", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full bg-emerald-400 rounded-full", style: { width: Math.round(totalDone / Math.max(1, totalCells) * 100) + "%" } }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono font-bold text-emerald-600", children: [
+            totalDone,
+            "/",
+            totalCells
+          ] })
+        ] })
+      ] })
+    ] }),
+    loading ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center text-text-muted py-8", children: "加载中…" }) : records.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center text-text-muted py-16 text-sm", children: [
+      "暂无该项目的进度记录，",
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: initAllVillages, className: "text-primary underline ml-1", children: "点击初始化全部村" })
+    ] }) : filtered.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center text-text-muted py-16 text-sm", children: [
+      "没有匹配的村，",
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => {
+        setSearchVillage("");
+        setStatusFilter("all");
+      }, className: "text-primary underline ml-1", children: "清除筛选" })
+    ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-2", children: filtered.map((rec) => {
+      const isExpanded = expandedSet.has(rec.village_id);
+      const allDone = rec.stages.every((s) => s.status === "done");
+      const hasUrged = rec.stages.some((s) => s.status === "urged");
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: `bg-white border rounded-card shadow-sm transition-all ${isExpanded ? "border-primary/30" : "border-border hover:border-primary/20"} ${allDone ? "bg-emerald-50/20" : ""} ${hasUrged ? "ring-1 ring-amber-400" : ""}`,
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "div",
+              {
+                className: "flex items-center gap-3 px-4 py-2.5 cursor-pointer select-none",
+                onClick: () => toggleExpand(rec.village_id),
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-text-muted/50 text-xs transition-transform ${isExpanded ? "rotate-90" : ""}`, children: "▶" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-[100px]", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `font-semibold text-sm ${allDone ? "text-emerald-700" : "text-text-primary"}`, children: rec.village_name }),
+                    allDone && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-1.5 text-emerald-500 text-xs", children: "✓" })
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted/60 min-w-[120px]", children: /* @__PURE__ */ jsxRuntimeExports.jsx(EditablePerson, { rec, villageId: rec.village_id, setRecords, saveRec }) }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-1.5 flex-1", children: allStages.map((sn) => {
+                    const s = rec.stages.find((st) => st.name === sn);
+                    const cfg = s ? STATUS_CFG[s.status] : STATUS_CFG.none;
+                    return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                      "div",
+                      {
+                        className: "flex items-center gap-1 group/tip relative",
+                        title: `${sn}: ${cfg.label}${s?.note ? " — " + s.note : ""}`,
+                        children: [
+                          /* @__PURE__ */ jsxRuntimeExports.jsx(
+                            "span",
+                            {
+                              className: "w-3 h-3 rounded-sm inline-block",
+                              style: { backgroundColor: cfg.square }
+                            }
+                          ),
+                          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/80 text-[10px] hidden sm:inline font-medium", children: sn }),
+                          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover/tip:block z-10\n                            bg-gray-800 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap shadow-lg pointer-events-none", children: [
+                            sn,
+                            ": ",
+                            cfg.label,
+                            s?.date ? ` · ${fmtDateTime(s.date)}` : ""
+                          ] })
+                        ]
+                      },
+                      sn
+                    );
+                  }) }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-right text-xs font-mono text-text-muted/40 whitespace-nowrap", children: [
+                    rec.stages.filter((s) => s.status === "done").length,
+                    "/",
+                    rec.stages.length
+                  ] })
+                ]
+              }
+            ),
+            isExpanded && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "border-t border-border/50 px-3 py-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-2", children: allStages.map((sn) => {
+              const si2 = rec.stages.findIndex((s2) => s2.name === sn);
+              if (si2 === -1) return null;
+              const s = rec.stages[si2];
+              const cfg = STATUS_CFG[s.status];
+              const ddKey = `${rec.village_id}-${si2}`;
+              return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "div",
+                {
+                  className: "rounded-lg p-2.5 transition-all hover:shadow-sm group/card",
+                  style: { backgroundImage: "url(/images/progress_change.png)", backgroundSize: "cover", backgroundPosition: "center" },
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5 mb-2", children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-1.5 h-1.5 rounded-full shrink-0", style: { backgroundColor: cfg.square } }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs font-bold text-text-primary truncate", children: sn })
+                    ] }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                        "button",
+                        {
+                          onClick: () => setOpenDropdown(openDropdown === ddKey ? null : ddKey),
+                          className: "w-[85%]  px-2 py-1 rounded-md text-[11px] font-semibold border flex items-center justify-center gap-1.5 hover:brightness-95 transition-all",
+                          style: { backgroundImage: "url(/images/stateChange.png)", backgroundSize: "cover", backgroundPosition: "center", color: cfg.pillText, borderColor: cfg.square + "40" },
+                          children: [
+                            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-1.5 h-1.5 rounded-sm shrink-0", style: { backgroundColor: cfg.square } }),
+                            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: cfg.label }),
+                            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-auto text-text-muted/40 text-[10px]  ml-[15%]", children: "▾" })
+                          ]
+                        }
+                      ),
+                      openDropdown === ddKey && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                        "div",
+                        {
+                          ref: dropdownRef,
+                          className: "absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-border rounded-lg shadow-lg py-0.5 overflow-hidden",
+                          children: STATUS_ORDER.map((st) => {
+                            const c = STATUS_CFG[st];
+                            return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                              "button",
+                              {
+                                onClick: () => setStageStatus(rec, si2, st),
+                                className: `w-full text-left px-2.5 py-1.5 text-xs flex items-center gap-2 hover:bg-warm/30 ${st === s.status ? "font-bold" : ""}`,
+                                children: [
+                                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-2 h-2 rounded-sm shrink-0", style: { backgroundColor: c.square } }),
+                                  c.label,
+                                  st === s.status && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-auto text-primary text-[10px]", children: "✓" })
+                                ]
+                              },
+                              st
+                            );
+                          })
+                        }
+                      )
+                    ] }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1.5 text-[10px] text-text-muted/60 text-right", children: s.date ? fmtDateTime(s.date) : "—" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-0.5", children: editNoteModal?.villageId === rec.village_id && editNoteModal?.stageIdx === si2 ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "input",
+                      {
+                        autoFocus: true,
+                        value: editNoteModal.note,
+                        onChange: (e) => setEditNoteModal((p2) => p2 ? { ...p2, note: e.target.value } : null),
+                        onBlur: () => {
+                          if (editNoteModal) {
+                            updateNote(rec, si2, editNoteModal.note);
+                            setEditNoteModal(null);
+                          }
+                        },
+                        onKeyDown: (e) => {
+                          if (e.key === "Enter") {
+                            updateNote(rec, si2, e.target.value);
+                            setEditNoteModal(null);
+                          }
+                        },
+                        placeholder: "备注…",
+                        className: "w-full border border-border rounded px-1.5 py-0.5 text-[10px] outline-none focus:border-primary bg-white"
+                      }
+                    ) : /* @__PURE__ */ jsxRuntimeExports.jsx(
+                      "div",
+                      {
+                        onClick: () => setEditNoteModal({ villageId: rec.village_id, stageIdx: si2, note: s.note || "" }),
+                        className: "px-1.5 py-0.5 rounded cursor-text border border-transparent hover:border-border/50 text-text-muted/50 text-[10px] min-h-[20px]",
+                        children: s.note || /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "italic opacity-30", children: "备注…" })
+                      }
+                    ) })
+                  ]
+                },
+                sn
+              );
+            }) }) })
+          ]
+        },
+        rec.village_id
+      );
+    }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { ...toast })
+  ] });
+}
+function EditablePerson({
+  rec,
+  villageId,
+  setRecords,
+  saveRec
+}) {
+  const [editing, setEditing] = reactExports.useState(false);
+  const [name, setName] = reactExports.useState(rec.person_name);
+  const [phone2, setPhone] = reactExports.useState(rec.phone);
+  if (!editing) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "span",
+      {
+        onClick: () => {
+          setName(rec.person_name);
+          setPhone(rec.phone);
+          setEditing(true);
+        },
+        className: "cursor-pointer hover:text-text-primary",
+        children: [
+          rec.person_name || "—",
+          rec.phone && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+            " · ",
+            rec.phone
+          ] })
+        ]
+      }
+    );
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "input",
+      {
+        value: name,
+        onChange: (e) => setName(e.target.value),
+        className: "w-16 border border-border rounded px-1 py-0.5 text-[11px] outline-none",
+        placeholder: "姓名"
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "input",
+      {
+        value: phone2,
+        onChange: (e) => setPhone(e.target.value),
+        className: "w-20 border border-border rounded px-1 py-0.5 text-[11px] outline-none",
+        placeholder: "电话"
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: async () => {
+      const updated = { ...rec, person_name: name, phone: phone2 };
+      setRecords((prev) => prev.map((p2) => p2.village_id === villageId ? updated : p2));
+      setEditing(false);
+      await saveRec(updated);
+    }, className: "text-primary text-xs", children: "✓" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setEditing(false), className: "text-text-muted text-xs", children: "✕" })
+  ] });
+}
 const PROXY_IMPORT_FIELDS = [
   { field: "beneficiary_id_card", label: "被代领人身份证", required: true, type: "id_card" },
   { field: "proxy_id_card", label: "代领人身份证", required: true, type: "id_card" },
   { field: "proxy_type", label: "代领类型", required: false, type: "string" },
   { field: "remark", label: "备注", required: false, type: "string" }
 ];
-function SubsidyRecordsPage({ subsidyType, onBack }) {
+function SubsidyRecordsPage({ subsidyType, onBack, farmerName }) {
   const { toast, show } = useToast();
-  useNavigate();
   const [activeTab, setActiveTab] = reactExports.useState("preApply");
   const switchTab = (tab) => {
     setActiveTab(tab);
-    setPage(1);
-    setSelectedIds([]);
-    setAreaStats(null);
+    if (tab !== "precheckHistory" && tab !== "projectProgress") {
+      setPage(1);
+      setSelectedIds([]);
+    }
   };
-  const [searchPreApply, setSearchPreApply] = reactExports.useState("");
+  const [searchPreApply, setSearchPreApply] = reactExports.useState(farmerName || "");
   const [searchDisbursement, setSearchDisbursement] = reactExports.useState("");
+  const [searchTrigger, setSearchTrigger] = reactExports.useState(0);
+  reactExports.useEffect(() => {
+    if (farmerName) {
+      setSearchPreApply(farmerName);
+      setActiveTab("preApply");
+      setPage(1);
+    }
+  }, [farmerName]);
   const [filtersPreApply, setFiltersPreApply] = reactExports.useState({
     village: "",
     payStatus: "",
@@ -46866,8 +47890,55 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
   const [proxyImportOpen, setProxyImportOpen] = reactExports.useState(false);
   const [proxyRefreshKey, setProxyRefreshKey] = reactExports.useState(0);
   const [proxyForm, setProxyForm] = reactExports.useState({ beneficiary_id_card: "", proxy_id_card: "", proxy_type: "代领", remark: "" });
+  const [sortField, setSortField] = reactExports.useState("");
+  const [sortDir, setSortDir] = reactExports.useState("desc");
+  const handleSortChange = (field) => {
+    if (sortField === field) {
+      setSortDir((d) => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDir("desc");
+    }
+    setPage(1);
+  };
   const [preCheckLoading, setPreCheckLoading] = reactExports.useState(false);
   const [preCheckResults, setPreCheckResults] = reactExports.useState(null);
+  const [checkingDisbursement, setCheckingDisbursement] = reactExports.useState(false);
+  const [disbCompareResult, setDisbCompareResult] = reactExports.useState(null);
+  const [disbCompareOpen, setDisbCompareOpen] = reactExports.useState(false);
+  const runDisbursementCheck = async () => {
+    if (!subsidyType) return;
+    setCheckingDisbursement(true);
+    try {
+      const [appRes, payRes] = await Promise.all([
+        fetch(`/api/subsidies/applications/export?subsidy_type_id=${subsidyType.id}&year=${subsidyType.subsidy_year}`).then((r2) => r2.json()),
+        fetch(`/api/subsidies/payments/export?subsidy_type_id=${subsidyType.id}&year=${subsidyType.subsidy_year}`).then((r2) => r2.json())
+      ]);
+      const apps2 = appRes.items || [];
+      const pays = payRes.items || [];
+      const appMap = {};
+      for (const a of apps2) {
+        const ic2 = a.id_card || "";
+        if (ic2) appMap[ic2] = { real_name: a.farmer_name, village: a.village, apply_area: Number(a.apply_area || 0) };
+      }
+      const payMap = {};
+      for (const p2 of pays) {
+        const ic2 = p2.id_card || "";
+        if (ic2) payMap[ic2] = { real_name: p2.farmer_name, village: p2.village, apply_area: Number(p2.apply_area || 0) };
+      }
+      const appIds = new Set(Object.keys(appMap)), payIds = new Set(Object.keys(payMap));
+      setDisbCompareResult({
+        missing: [...appIds].filter((ic2) => !payIds.has(ic2)).map((ic2) => ({ id_card: ic2, ...appMap[ic2] })),
+        extra: [...payIds].filter((ic2) => !appIds.has(ic2)).map((ic2) => ({ id_card: ic2, ...payMap[ic2] })),
+        areaDiff: [...appIds].filter((ic2) => payIds.has(ic2)).map((ic2) => ({ id_card: ic2, real_name: appMap[ic2].real_name, app_area: appMap[ic2].apply_area, pay_area: payMap[ic2].apply_area, diff: payMap[ic2].apply_area - appMap[ic2].apply_area })).filter((a) => Math.abs(a.diff) > 1e-3)
+      });
+      setDisbCompareOpen(true);
+    } catch (e) {
+      show("比对失败: " + e.message, "err");
+    } finally {
+      setCheckingDisbursement(false);
+    }
+  };
   const [exportModalOpen, setExportModalOpen] = reactExports.useState(false);
   const [splitByVillage, setSplitByVillage] = reactExports.useState(false);
   const [selectedSheets, setSelectedSheets] = reactExports.useState(["summary"]);
@@ -46885,6 +47956,7 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
   const [areaStats, setAreaStats] = reactExports.useState(null);
   const [loadingAreaStats, setLoadingAreaStats] = reactExports.useState(false);
   const [areaStatsExpanded, setAreaStatsExpanded] = reactExports.useState(false);
+  const [areaStatsGroupBy, setAreaStatsGroupBy] = reactExports.useState("excel");
   reactExports.useEffect(() => {
     setApps([]);
     setTotal(0);
@@ -46928,7 +48000,8 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
       return;
     }
     try {
-      const response = await fetch("/api/subsidies/applications/batch-delete", {
+      const endpoint = activeTab === "disbursement" ? "/api/subsidies/payments/batch-delete" : "/api/subsidies/applications/batch-delete";
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: selectedIds })
@@ -46940,6 +48013,35 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
     } catch (error) {
       console.error("批量删除失败:", error);
       show("批量删除失败: " + error.message, "err");
+    }
+  };
+  const [deletingAll, setDeletingAll] = reactExports.useState(false);
+  const deleteAll = async () => {
+    if (!apps || apps.length === 0) {
+      show("没有可删除的记录", "err");
+      return;
+    }
+    if (!confirm(`⚠️ 确定要删除全部 ${total} 条记录吗？此操作不可恢复。`)) {
+      return;
+    }
+    setDeletingAll(true);
+    try {
+      const endpoint = activeTab === "disbursement" ? "/api/subsidies/payments/batch-delete" : "/api/subsidies/applications/batch-delete";
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ delete_all: true, subsidy_type_id: subsidyType.id })
+      });
+      if (!response.ok) throw new Error("删除全部失败");
+      const result = await response.json();
+      show(`✓ 已删除全部 ${result.deleted} 条记录`);
+      setSelectedIds([]);
+      load();
+    } catch (error) {
+      console.error("删除全部失败:", error);
+      show("删除全部失败: " + error.message, "err");
+    } finally {
+      setDeletingAll(false);
     }
   };
   const handleProxyAdd = async () => {
@@ -47077,11 +48179,17 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
         if (filters.village) params2.village_name = filters.village;
         if (filters.dateFrom) params2.date_from = filters.dateFrom;
         if (filters.dateTo) params2.date_to = filters.dateTo;
+        if (sortField) {
+          params2.sort_field = sortField;
+          params2.sort_dir = sortDir;
+        }
         const res2 = await fetch(`/api/subsidies/payments?${new URLSearchParams(params2)}`).then((r2) => r2.json());
         setApps(res2.items.map((p2) => ({
           id: p2.id,
           farmer_id: p2.farmer_id,
           farmer_name: p2.farmer_name,
+          id_card: p2.id_card,
+          id_card_masked: p2.id_card_masked || p2.id_card,
           village: p2.village_name,
           group_no: p2.group_no,
           subsidy_type_id: p2.subsidy_type_id,
@@ -47112,11 +48220,15 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
       };
       if (search) params.search = search;
       if (filters.payStatus) params.pay_status = filters.payStatus;
-      if (filters.village) params.village = filters.village;
+      if (filters.village) params.village_name = filters.village;
       if (filters.minAmount) params.min_amount = filters.minAmount;
       if (filters.maxAmount) params.max_amount = filters.maxAmount;
       if (filters.dateFrom) params.date_from = filters.dateFrom;
       if (filters.dateTo) params.date_to = filters.dateTo;
+      if (sortField) {
+        params.sort_field = sortField;
+        params.sort_dir = sortDir;
+      }
       const res = await searchApplications(params);
       setApps(res.items);
       setTotal(res.total);
@@ -47125,7 +48237,7 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
     } finally {
       setLoading(false);
     }
-  }, [page, search, filters, subsidyType.id, subsidyType.subsidy_year, activeTab]);
+  }, [page, search, filters, subsidyType.id, subsidyType.subsidy_year, activeTab, searchTrigger, sortField, sortDir]);
   reactExports.useEffect(() => {
     load();
     loadVillages();
@@ -47206,6 +48318,7 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
     }
   }, [subsidyType.category, subsidyType.id]);
   const loadStats = reactExports.useCallback(async () => {
+    setLoadingStats(true);
     try {
       const params = new URLSearchParams({
         subsidy_type_id: String(subsidyType.id),
@@ -47221,14 +48334,15 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
     } catch (error) {
       console.error("加载统计数据失败:", error);
       show("加载统计数据失败", "err");
+    } finally {
+      setLoadingStats(false);
     }
   }, [subsidyType.id, subsidyType.subsidy_year, selectedCompareType]);
   const loadAreaStats = reactExports.useCallback(async () => {
-    if (!areaStatsExpanded) return;
     setLoadingAreaStats(true);
     try {
       const dataSource = activeTab === "disbursement" ? "payment" : "application";
-      const data = await getAreaStatsByVillage(subsidyType.id, subsidyType.subsidy_year, dataSource);
+      const data = await getAreaStatsByVillage(subsidyType.id, subsidyType.subsidy_year, dataSource, areaStatsGroupBy);
       setAreaStats(data);
     } catch (error) {
       console.error("加载面积统计失败:", error);
@@ -47236,7 +48350,7 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
     } finally {
       setLoadingAreaStats(false);
     }
-  }, [subsidyType.id, subsidyType.subsidy_year, areaStatsExpanded, activeTab, show]);
+  }, [subsidyType.id, subsidyType.subsidy_year, activeTab, areaStatsGroupBy, show]);
   const handleExportAreaStats = () => {
     if (!areaStats) return;
     exportAreaStatsToExcel(areaStats, subsidyType.subsidy_name, subsidyType.subsidy_year);
@@ -47247,10 +48361,12 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
   }, [loadStats, loadComparableTypes]);
   reactExports.useEffect(() => {
     if (areaStatsExpanded) {
+      setAreaStats(null);
       loadAreaStats();
     }
-  }, [areaStatsExpanded, loadAreaStats]);
+  }, [areaStatsExpanded, activeTab, areaStatsGroupBy, loadAreaStats]);
   const [statsExpanded, setStatsExpanded] = reactExports.useState(false);
+  const [loadingStats, setLoadingStats] = reactExports.useState(false);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 mb-4 flex-wrap", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onBack, className: "text-sm text-primary hover:underline", children: "← 返回项目列表" }),
@@ -47268,11 +48384,12 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
       /* @__PURE__ */ jsxRuntimeExports.jsxs(
         "button",
         {
-          onClick: () => setStatsExpanded(!statsExpanded),
+          onClick: () => setStatsExpanded((prev) => !prev),
           className: "w-full flex items-center justify-between px-4 py-3 hover:bg-warm/30 transition-colors",
           children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-semibold text-text-primary", children: "📊 数据概览" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium", children: "预申请" }),
               statsExpanded && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
                 "发放总额 ¥",
                 stats.totalAmount.toLocaleString("zh-CN", { maximumFractionDigits: 0 }),
@@ -47289,7 +48406,10 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
           ]
         }
       ),
-      statsExpanded && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 pb-4 border-t border-border/50", children: [
+      statsExpanded && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-4 pb-4 border-t border-border/50", children: loadingStats ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "py-10 text-center", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "inline-flex items-center gap-2 text-text-muted/60", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-5 h-5 border-2 border-stone-300 border-t-primary rounded-full animate-spin" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm", children: "正在加载统计数据…" })
+      ] }) }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-end gap-2 pt-3 mb-4", children: [
           subsidyType.category && /* @__PURE__ */ jsxRuntimeExports.jsxs(
             "select",
@@ -47336,17 +48456,36 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
             /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm text-purple-600 mt-2", children: "补贴面积合计" })
           ] })
         ] })
-      ] })
+      ] }) })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-4 bg-white border border-border rounded-card shadow-card overflow-hidden", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs(
         "button",
         {
-          onClick: () => setAreaStatsExpanded(!areaStatsExpanded),
+          onClick: () => setAreaStatsExpanded((prev) => !prev),
           className: "w-full flex items-center justify-between px-4 py-3 hover:bg-warm/30 transition-colors",
           children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-semibold text-text-primary", children: "📐 面积统计" }),
+              activeTab === "disbursement" ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium", children: "发放" }) : activeTab === "preApply" ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium", children: "预申请" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium", children: "预申请" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-0.5 bg-warm/30 rounded-btn p-0.5", onClick: (e) => e.stopPropagation(), children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    onClick: () => setAreaStatsGroupBy("excel"),
+                    className: `px-2 py-0.5 text-[11px] rounded transition-all ${areaStatsGroupBy === "excel" ? "bg-white shadow-sm text-text-primary font-medium" : "text-text-muted hover:text-text-primary"}`,
+                    children: "📄 Excel"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    onClick: () => setAreaStatsGroupBy("database"),
+                    className: `px-2 py-0.5 text-[11px] rounded transition-all ${areaStatsGroupBy === "database" ? "bg-white shadow-sm text-text-primary font-medium" : "text-text-muted hover:text-text-primary"}`,
+                    children: "🗄️ 数据库"
+                  }
+                )
+              ] }),
               areaStatsExpanded && areaStats && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
                 "合计：",
                 areaStats.total.total_apply_area,
@@ -47363,7 +48502,7 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
                     e.stopPropagation();
                     handleExportAreaStats();
                   },
-                  className: "px-3 py-1 text-xs bg-primary text-white rounded-btn hover:bg-primary/90",
+                  className: "px-3 py-1 text-xs bg-primary  rounded-btn hover:bg-primary/90",
                   children: "↓ 导出Excel"
                 }
               ),
@@ -47372,54 +48511,90 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
           ]
         }
       ),
-      areaStatsExpanded && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-4 pb-4 border-t border-border/50", children: loadingAreaStats ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "py-8 text-center text-text-muted", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "animate-spin inline-block w-4 h-4 border-2 border-stone-300 border-t-emerald-500 rounded-full mr-2" }),
-        "加载中..."
-      ] }) : areaStats ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "overflow-x-auto mt-4", children: [
+      areaStatsExpanded && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-4 pb-4 border-t border-border/50", children: loadingAreaStats ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "py-10 text-center", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "inline-flex items-center gap-2 text-text-muted/60", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-5 h-5 border-2 border-stone-300 border-t-emerald-500 rounded-full animate-spin" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm", children: "正在计算面积统计…" })
+      ] }) }) : areaStats ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "overflow-x-auto mt-4", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full text-sm", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "bg-warm/30 border-b border-border", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left font-medium text-text-primary", children: "村名" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-right font-medium text-text-primary", children: "农户数" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-right font-medium text-text-primary", children: "记录数" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-right font-medium text-text-primary", children: "实际补贴面积(亩)" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-right font-medium text-text-primary", children: "承包地面积(亩)" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-right font-medium text-text-primary", children: "代耕代种面积(亩)" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-right font-medium text-text-primary", children: "不予补贴面积(亩)" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-right font-medium text-text-primary", children: "补贴金额(元)" })
+            /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left font-medium text-text-primary text-sm", children: "村名" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-1.5 py-2 text-right font-medium text-text-primary text-sm", children: "农户数" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-1.5 py-2 text-right font-medium text-text-primary text-sm", children: "记录数" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("th", { className: "px-1.5 py-2 text-center font-medium text-text-primary text-[11px] leading-tight max-w-[60px]", children: [
+              "计入超限",
+              /* @__PURE__ */ jsxRuntimeExports.jsx("br", {}),
+              "面积(亩)"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("th", { className: "px-1.5 py-2 text-center font-medium text-text-primary text-[11px] leading-tight max-w-[60px]", children: [
+              "不计超限",
+              /* @__PURE__ */ jsxRuntimeExports.jsx("br", {}),
+              "面积(亩)"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("th", { className: "px-1.5 py-2 text-center font-medium text-text-primary text-[11px] leading-tight max-w-[60px]", children: [
+              "承包地",
+              /* @__PURE__ */ jsxRuntimeExports.jsx("br", {}),
+              "面积(亩)"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("th", { className: "px-1.5 py-2 text-center font-medium text-text-primary text-[11px] leading-tight max-w-[60px]", children: [
+              "代耕代种",
+              /* @__PURE__ */ jsxRuntimeExports.jsx("br", {}),
+              "面积(亩)"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("th", { className: "px-1.5 py-2 text-center font-medium text-text-primary text-[11px] leading-tight max-w-[60px]", children: [
+              "不予补贴",
+              /* @__PURE__ */ jsxRuntimeExports.jsx("br", {}),
+              "面积(亩)"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-1.5 py-2 text-right font-medium text-text-primary text-sm", children: "金额(元)" })
           ] }) }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("tbody", { className: "divide-y divide-stone-100", children: [
             areaStats.by_village.map((row, idx) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "hover:bg-warm/30", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-text-primary", children: row.village }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-right text-text-primary", children: row.farmer_count }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-right text-text-primary", children: row.record_count }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-right font-mono text-text-primary", children: row.total_apply_area.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-right font-mono text-text-primary", children: row.total_contract_area.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-right font-mono text-text-primary", children: row.total_trust_area.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-right font-mono text-text-primary", children: row.total_no_subsidy_area.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "px-3 py-2 text-right font-mono text-primary", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-right text-text-primary", children: row.farmer_count }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-right text-text-primary", children: row.record_count }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-right font-mono text-text-primary text-xs", children: row.total_apply_area.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-right font-mono text-text-primary text-xs", children: row.total_apply_area_no_calc.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-right font-mono text-text-primary text-xs", children: row.total_contract_area.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-right font-mono text-text-primary text-xs", children: row.total_trust_area.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-right font-mono text-text-primary text-xs", children: row.total_no_subsidy_area.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "px-1.5 py-2 text-right font-mono text-primary text-xs", children: [
                 "¥",
                 row.total_amount.toLocaleString("zh-CN", { maximumFractionDigits: 2 })
               ] })
             ] }, idx)),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "bg-warm/30 font-semibold", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-text-primary", children: areaStats.total.village }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-right text-text-primary", children: areaStats.total.farmer_count }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-right text-text-primary", children: areaStats.total.record_count }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-right font-mono text-text-primary", children: areaStats.total.total_apply_area.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-right font-mono text-text-primary", children: areaStats.total.total_contract_area.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-right font-mono text-text-primary", children: areaStats.total.total_trust_area.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-right font-mono text-text-primary", children: areaStats.total.total_no_subsidy_area.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "px-3 py-2 text-right font-mono text-primary", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-right text-text-primary", children: areaStats.total.farmer_count }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-right text-text-primary", children: areaStats.total.record_count }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-right font-mono text-text-primary text-xs", children: areaStats.total.total_apply_area.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-right font-mono text-text-primary text-xs", children: areaStats.total.total_apply_area_no_calc.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-right font-mono text-text-primary text-xs", children: areaStats.total.total_contract_area.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-right font-mono text-text-primary text-xs", children: areaStats.total.total_trust_area.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-1.5 py-2 text-right font-mono text-text-primary text-xs", children: areaStats.total.total_no_subsidy_area.toLocaleString("zh-CN", { maximumFractionDigits: 2 }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "px-1.5 py-2 text-right font-mono text-primary text-xs", children: [
                 "¥",
                 areaStats.total.total_amount.toLocaleString("zh-CN", { maximumFractionDigits: 2 })
               ] })
             ] })
           ] })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-2 text-xs text-text-muted", children: [
-          "数据来源：",
-          areaStats.data_source === "payment" ? "发放记录" : "预申请记录",
-          areaStats.by_village.length > 0 && " · 代领记录已去重，仅统计受益人"
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-2 text-xs text-text-muted flex items-center gap-2 flex-wrap", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `px-2 py-0.5 rounded-full font-medium text-xs ${areaStats.data_source === "payment" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`, children: areaStats.data_source === "payment" ? "发放数据" : "预申请数据" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `px-2 py-0.5 rounded-full font-medium text-xs ${areaStats.group_by === "database" ? "bg-purple-100 text-purple-700" : "bg-amber-100 text-amber-700"}`, children: areaStats.group_by === "database" ? "按数据库分村" : "按Excel分村" }),
+          areaStats.by_village.length > 0 && "· 代领记录已去重，仅统计受益人"
+        ] }),
+        areaStats.villages_without_data && areaStats.villages_without_data.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 p-3 bg-amber-50 border border-amber-200 rounded-card", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs font-medium text-amber-700 mb-1.5", children: [
+            "⚠️ 以下村无 ",
+            areaStats.data_source === "payment" ? "发放" : "预申请",
+            "数据",
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "ml-1 font-normal text-amber-500", children: [
+              "(",
+              areaStats.group_by === "database" ? "按数据库分村" : "按Excel分村",
+              ")"
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-1.5", children: areaStats.villages_without_data.map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "px-2 py-0.5 bg-white border border-amber-200 rounded text-xs text-amber-700", children: v2 }, v2)) })
         ] })
       ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "py-8 text-center text-text-muted", children: "暂无数据" }) })
     ] }),
@@ -47448,6 +48623,22 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
           children: "👥 代领关系"
         }
       ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          onClick: () => switchTab("projectProgress"),
+          className: `px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "projectProgress" ? "border-primary text-primary" : "border-transparent text-text-muted hover:text-text-primary"}`,
+          children: "📊 项目管理"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          onClick: () => switchTab("precheckHistory"),
+          className: `px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "precheckHistory" ? "border-primary text-primary" : "border-transparent text-text-muted hover:text-text-primary"}`,
+          children: "📋 预检历史"
+        }
+      ),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ml-auto flex items-center gap-2", children: [
         activeTab === "preApply" && /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
@@ -47474,12 +48665,12 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
             "button",
             {
               onClick: () => setProxyAddOpen(true),
-              className: "px-3 py-1.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90",
+              className: "px-3 py-1.5 text-sm bg-primary  rounded-btn hover:bg-primary/90",
               children: "＋ 新增代领"
             }
           )
         ] }),
-        activeTab !== "proxy" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        activeTab !== "proxy" && activeTab !== "precheckHistory" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
             "共 ",
             total,
@@ -47490,7 +48681,7 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
               "button",
               {
                 onClick: batchDelete,
-                className: "px-3 py-2 text-sm bg-red-600 text-white rounded-btn hover:bg-red-700 flex items-center gap-1.5",
+                className: "px-3 py-2 text-sm bg-red-600  rounded-btn hover:bg-red-700 flex items-center gap-1.5",
                 children: [
                   "🗑️ 删除选中 (",
                   selectedIds.length,
@@ -47498,12 +48689,33 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
                 ]
               }
             ),
+            activeTab === "disbursement" && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                onClick: runDisbursementCheck,
+                disabled: checkingDisbursement,
+                className: "px-3 py-2 text-sm border-2 border-amber-300 bg-amber-50 text-amber-700 rounded-btn hover:bg-amber-100 hover:border-amber-400 transition-all font-medium whitespace-nowrap disabled:opacity-50 flex items-center gap-1.5",
+                children: [
+                  checkingDisbursement ? "⏳" : "🔍",
+                  " 检查"
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                onClick: deleteAll,
+                disabled: deletingAll,
+                className: `px-3 py-2 text-sm rounded-btn flex items-center gap-1.5 ${deletingAll ? "bg-gray-400 cursor-not-allowed" : "bg-red-600/80 hover:bg-red-700"}`,
+                children: deletingAll ? "⏳ 删除中..." : "🗑️ 删除全部"
+              }
+            ),
             /* @__PURE__ */ jsxRuntimeExports.jsx(
               "button",
               {
                 onClick: () => setAddOpen(true),
-                className: "px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90",
-                children: "＋ 新增一条"
+                className: "px-3 py-2 text-sm border-2 border-green-500 bg-green-500 text-white rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-medium",
+                children: "＋ 批量导入"
               }
             )
           ] })
@@ -47550,9 +48762,16 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
         setVillages,
         show,
         load,
+        onSearch: () => {
+          setPage(1);
+          setSearchTrigger((n2) => n2 + 1);
+        },
         handleFilterChange,
         handleSearchChange,
-        clearFilters
+        clearFilters,
+        sortField,
+        sortDir,
+        onSortChange: handleSortChange
       }
     ),
     activeTab === "disbursement" && /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -47595,12 +48814,27 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
         setVillages,
         show,
         load,
+        onSearch: () => {
+          setPage(1);
+          setSearchTrigger((n2) => n2 + 1);
+        },
         handleFilterChange,
         handleSearchChange,
-        clearFilters
+        clearFilters,
+        sortField,
+        sortDir,
+        onSortChange: handleSortChange
       }
     ),
     activeTab === "proxy" && /* @__PURE__ */ jsxRuntimeExports.jsx(ProxyList, { subsidyType, show }, proxyRefreshKey),
+    activeTab === "precheckHistory" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+      PrecheckHistoryTab,
+      {
+        subsidyType,
+        preCheckResults
+      }
+    ),
+    activeTab === "projectProgress" && /* @__PURE__ */ jsxRuntimeExports.jsx(ProjectProgressTab, { subsidyType }),
     preCheckResults && activeTab === "preApply" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-4 bg-white border border-border rounded-card overflow-hidden shadow-card", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-3 border-b border-border/50 bg-warm/30 flex justify-between items-center", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold text-text-primary text-sm", children: "🔍 数据预检结果" }),
@@ -47612,7 +48846,7 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
                 setSelectedSheets(getDefaultSelectedSheets(preCheckResults));
                 setExportModalOpen(true);
               },
-              className: "px-3 py-1.5 text-xs bg-primary text-white rounded-btn hover:bg-primary/90",
+              className: "px-3 py-1.5 text-xs bg-primary  rounded-btn hover:bg-primary/90",
               children: "↓ 导出报告 Excel"
             }
           ),
@@ -47642,7 +48876,7 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
             /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: "字段变更" })
           ] })
         ] }),
-        getPrecheckTableConfigs().map((config) => {
+        getPrecheckTableConfigs(subsidyType.season).map((config) => {
           const data = preCheckResults[config.field];
           if (!data || data.length === 0) return null;
           return /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -47706,7 +48940,7 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
           {
             onClick: handleExportWithOptions,
             disabled: isExporting || selectedSheets.length === 0,
-            className: "px-4 py-2 text-sm bg-blue-700 text-white rounded-btn hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2",
+            className: "px-4 py-2 text-sm bg-blue-700  rounded-btn hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2",
             children: isExporting ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "animate-spin rounded-full h-4 w-4 border-b-2 border-white" }),
               "导出中..."
@@ -47808,7 +49042,106 @@ function SubsidyRecordsPage({ subsidyType, onBack }) {
         onSuccess: () => setProxyRefreshKey((prev) => prev + 1)
       }
     ),
-    toast && /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { msg: toast.msg, type: toast.type })
+    toast && /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { msg: toast.msg, type: toast.type }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      Modal,
+      {
+        open: disbCompareOpen,
+        title: `🔍 发放 vs 预申请比对 · ${subsidyType?.subsidy_name || ""}`,
+        onClose: () => setDisbCompareOpen(false),
+        confirmText: "关闭",
+        onConfirm: () => setDisbCompareOpen(false),
+        children: disbCompareResult && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3 text-sm", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-3 gap-3", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `rounded-card p-3 text-center ${disbCompareResult.missing.length > 0 ? "bg-red-50 border border-red-200" : "bg-green-50 border border-green-200"}`, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `text-xl font-bold ${disbCompareResult.missing.length > 0 ? "text-red-600" : "text-green-600"}`, children: disbCompareResult.missing.length }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: "预申请有·发放无" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `rounded-card p-3 text-center ${disbCompareResult.extra.length > 0 ? "bg-blue-50 border border-blue-200" : "bg-green-50 border border-green-200"}`, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `text-xl font-bold ${disbCompareResult.extra.length > 0 ? "text-blue-600" : "text-green-600"}`, children: disbCompareResult.extra.length }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: "发放有·预申请无" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `rounded-card p-3 text-center ${disbCompareResult.areaDiff.length > 0 ? "bg-amber-50 border border-amber-200" : "bg-green-50 border border-green-200"}`, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `text-xl font-bold ${disbCompareResult.areaDiff.length > 0 ? "text-amber-600" : "text-green-600"}`, children: disbCompareResult.areaDiff.length }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: "面积变化" })
+            ] })
+          ] }),
+          disbCompareResult.missing.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "font-semibold text-red-700 mb-1 text-xs", children: [
+              "⚠ 预申请有但发放无 (",
+              disbCompareResult.missing.length,
+              "人)"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-red-50 border border-red-200 rounded-btn p-2 max-h-40 overflow-y-auto text-xs space-y-0.5", children: disbCompareResult.missing.map((m2, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-red-700", children: [
+              m2.real_name,
+              " ",
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-red-400 font-mono", children: [
+                "(",
+                m2.id_card.slice(-4),
+                ")"
+              ] }),
+              " ",
+              m2.village && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-red-400", children: m2.village }),
+              " ",
+              m2.apply_area ? `${m2.apply_area}亩` : ""
+            ] }, i)) })
+          ] }),
+          disbCompareResult.extra.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "font-semibold text-blue-700 mb-1 text-xs", children: [
+              "＋ 发放有但预申请无 (",
+              disbCompareResult.extra.length,
+              "人)"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-blue-50 border border-blue-200 rounded-btn p-2 max-h-40 overflow-y-auto text-xs space-y-0.5", children: disbCompareResult.extra.map((m2, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-blue-700", children: [
+              m2.real_name,
+              " ",
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-blue-400 font-mono", children: [
+                "(",
+                m2.id_card.slice(-4),
+                ")"
+              ] }),
+              " ",
+              m2.village && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-blue-400", children: m2.village }),
+              " ",
+              m2.apply_area ? `${m2.apply_area}亩` : ""
+            ] }, i)) })
+          ] }),
+          disbCompareResult.areaDiff.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "font-semibold text-amber-700 mb-1 text-xs", children: [
+              "📐 面积变化 (",
+              disbCompareResult.areaDiff.length,
+              "人)"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-amber-50 border border-amber-200 rounded-btn p-2 max-h-40 overflow-y-auto text-xs", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "text-amber-600", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "text-left py-1", children: "姓名" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "text-right py-1", children: "预申请" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "text-right py-1", children: "发放" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "text-right py-1", children: "差额" })
+              ] }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: disbCompareResult.areaDiff.map((m2, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "border-t border-amber-200", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "py-1 text-amber-800", children: [
+                  m2.real_name,
+                  " ",
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-amber-500 font-mono text-xs", children: [
+                    "(",
+                    m2.id_card.slice(-4),
+                    ")"
+                  ] })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "text-right font-mono", children: m2.app_area.toFixed(2) }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "text-right font-mono", children: m2.pay_area.toFixed(2) }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: `text-right font-mono font-semibold ${m2.diff > 0 ? "text-red-500" : m2.diff < 0 ? "text-green-500" : "text-text-muted"}`, children: [
+                  m2.diff > 0 ? "+" : "",
+                  m2.diff.toFixed(2)
+                ] })
+              ] }, i)) })
+            ] }) })
+          ] }),
+          disbCompareResult.missing.length === 0 && disbCompareResult.extra.length === 0 && disbCompareResult.areaDiff.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center py-6 text-green-600 font-medium", children: "✅ 发放与预申请完全一致，无差异" })
+        ] })
+      }
+    )
   ] });
 }
 function SubsidyProjectsPage() {
@@ -47819,13 +49152,19 @@ function SubsidyProjectsPage() {
   const searchParams = new URLSearchParams(location.search);
   const urlYear = searchParams.get("year");
   const initialYear = urlYear ? parseInt(urlYear, 10) : thisYear2;
+  const urlFarmerName = searchParams.get("farmer_name") || void 0;
   const [yearFilter, setYearFilter] = reactExports.useState(initialYear);
   const [types, setTypes] = reactExports.useState([]);
   const [loading, setLoading] = reactExports.useState(false);
+  const [deleting, setDeleting] = reactExports.useState(false);
+  const [showTrash, setShowTrash] = reactExports.useState(false);
+  const [deletedTypes, setDeletedTypes] = reactExports.useState([]);
+  const [restoring, setRestoring] = reactExports.useState(null);
   const [activeType, setActiveType] = reactExports.useState(null);
   const [editOpen, setEditOpen] = reactExports.useState(false);
   const [editing, setEditing] = reactExports.useState(null);
   const [form, setForm] = reactExports.useState({ subsidy_year: thisYear2, calc_mode: "fixed" });
+  const pendingCheckConfig = reactExports.useRef(null);
   const handleYearChange = (year) => {
     setYearFilter(year);
     const params = new URLSearchParams(location.search);
@@ -47849,23 +49188,36 @@ function SubsidyProjectsPage() {
       setLoading(false);
     }
   }, [yearFilter]);
+  const loadDeletedTypes = async () => {
+    try {
+      setDeletedTypes(await getSubsidyTypes(yearFilter, 0));
+    } catch {
+    }
+  };
   reactExports.useEffect(() => {
     loadTypes();
   }, [loadTypes]);
   reactExports.useEffect(() => {
     const params = new URLSearchParams(location.search);
     const typeIdParam = params.get("subsidy_type_id");
-    if (typeIdParam && types.length > 0) {
-      const typeId = parseInt(typeIdParam, 10);
-      const found = types.find((t2) => t2.id === typeId);
-      if (found) {
-        setActiveType(found);
-      }
+    if (!typeIdParam) return;
+    const typeId = parseInt(typeIdParam, 10);
+    const found = types.find((t2) => t2.id === typeId);
+    if (found) {
+      setActiveType(found);
+      return;
+    }
+    if (types.length > 0) {
+      getSubsidyTypesWithStats().then((allTypes) => {
+        const crossYear = allTypes.find((t2) => t2.id === typeId);
+        if (crossYear) setActiveType(crossYear);
+      }).catch(() => {
+      });
     }
   }, [types, location.search]);
   const openAdd = () => {
     setEditing(null);
-    setForm({ subsidy_year: yearFilter, calc_mode: "fixed", season: "全年单补" });
+    setForm({ subsidy_year: yearFilter, calc_mode: "fixed", season: "耕地地力保护" });
     setEditOpen(true);
   };
   const openEdit = (t2) => {
@@ -47894,7 +49246,14 @@ function SubsidyProjectsPage() {
         await updateSubsidyType(editing.id, payload);
         show("✓ 更新成功");
       } else {
-        await createSubsidyType(payload);
+        const res = await createSubsidyType(payload);
+        if (pendingCheckConfig.current) {
+          await fetch(`/api/subsidies/types/${res.id}/check-config`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(pendingCheckConfig.current)
+          });
+        }
         show("✓ 创建成功");
       }
       setEditOpen(false);
@@ -47904,21 +49263,43 @@ function SubsidyProjectsPage() {
     }
   };
   const deleteProject = async (type_id) => {
+    setDeleting(true);
     try {
       const response = await fetch(`/api/subsidies/types/${type_id}`, { method: "DELETE" });
       if (!response.ok) throw new Error("删除失败");
-      show("✓ 项目删除成功");
+      show("✓ 项目已移入回收站");
       loadTypes();
+      if (showTrash) loadDeletedTypes();
     } catch (error) {
       show("删除失败：" + error.message, "err");
+    } finally {
+      setDeleting(false);
     }
+  };
+  const restoreProject = async (type_id) => {
+    setRestoring(type_id);
+    try {
+      await restoreSubsidyType(type_id);
+      show("✓ 项目已恢复");
+      loadDeletedTypes();
+      loadTypes();
+    } catch (error) {
+      show("恢复失败：" + error.message, "err");
+    } finally {
+      setRestoring(null);
+    }
+  };
+  const toggleTrash = () => {
+    const next = !showTrash;
+    setShowTrash(next);
+    if (next) loadDeletedTypes();
   };
   if (activeType) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx(SubsidyRecordsPage, { subsidyType: activeType, onBack: () => {
       setActiveType(null);
       updateUrlType(null);
       loadTypes();
-    } });
+    }, farmerName: urlFarmerName });
   }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-4 flex-wrap", children: [
@@ -47939,7 +49320,22 @@ function SubsidyProjectsPage() {
         types.length,
         " 个项目"
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: openAdd, className: "ml-auto px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90", children: "＋ 新增项目" })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: openAdd, className: "px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary/90 transition-all", children: "＋ 新增项目" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: toggleTrash,
+          className: `px-3 py-2 text-sm border rounded-btn transition-all ${showTrash ? "bg-amber-50 border-amber-300 text-amber-700" : "border-border text-text-muted hover:bg-warm/30"}`,
+          children: [
+            "🗑️ 回收站",
+            deletedTypes.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "ml-1 text-amber-600", children: [
+              "(",
+              deletedTypes.length,
+              ")"
+            ] })
+          ]
+        }
+      )
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-blue-50 border border-blue-100 rounded-card px-4 py-3 mb-4 text-xs text-blue-700", children: "先在此维护补贴项目，再点「查看人员」进入补贴发放记录。" }),
     loading && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center py-12 text-text-muted/50", children: "加载中…" }),
@@ -47985,7 +49381,8 @@ function SubsidyProjectsPage() {
           t2.apply_deadline && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-text-muted/50 mt-1.5", children: [
             "截止：",
             t2.apply_deadline
-          ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(ScanDirInput, { projectId: t2.id })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-2 shrink-0", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -48002,6 +49399,14 @@ function SubsidyProjectsPage() {
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "button",
             {
+              onClick: () => navigate(`/project-progress?subsidy_type_id=${t2.id}`),
+              className: "px-3 py-1.5 text-xs border border-blue-200 text-blue-700 rounded-btn hover:bg-blue-50 whitespace-nowrap",
+              children: "📋 管理进度"
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
               onClick: () => openEdit(t2),
               className: "px-3 py-1.5 text-xs border border-border text-text-muted rounded-btn hover:border-border text-center",
               children: "编辑项目"
@@ -48013,7 +49418,7 @@ function SubsidyProjectsPage() {
               onClick: () => {
                 if (confirm(`确定要删除项目「${t2.subsidy_name}」吗？
 
-⚠️ 警告：此操作会同时删除该项目下的所有补贴申请记录，且无法恢复！`)) {
+删除后项目将移入回收站，关联的申请记录会被保留。可在回收站中恢复。`)) {
                   deleteProject(t2.id);
                 }
               },
@@ -48033,10 +49438,65 @@ function SubsidyProjectsPage() {
         onFormChange: setForm,
         onSubmit: submitType,
         onClose: () => setEditOpen(false),
-        thisYear: thisYear2
+        thisYear: thisYear2,
+        onCheckConfigChange: (cfg) => {
+          pendingCheckConfig.current = cfg;
+        }
       }
     ),
+    showTrash && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-6", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-bold text-text-primary", children: "🗑️ 回收站" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: "已删除项目（关联数据已保留）" })
+      ] }),
+      deletedTypes.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center py-8 bg-white border border-border rounded-card text-text-muted/50 text-sm", children: "回收站为空" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid gap-2", children: deletedTypes.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-amber-50/50 border border-amber-200 rounded-card px-4 py-3 flex items-center gap-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 min-w-0", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 flex-wrap", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium text-text-muted line-through", children: t2.subsidy_name }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: `${t2.subsidy_year}年`, color: "gray" }),
+          t2.season && /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: t2.season, color: "gray" })
+        ] }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => restoreProject(t2.id),
+            disabled: restoring === t2.id,
+            className: "px-3 py-1.5 text-xs bg-emerald-500 text-white rounded-btn hover:bg-emerald-600 disabled:opacity-50 transition-all whitespace-nowrap",
+            children: restoring === t2.id ? "恢复中…" : "↩ 恢复项目"
+          }
+        )
+      ] }, t2.id)) })
+    ] }),
+    deleting && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/20", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-card shadow-xl border border-border px-8 py-6 flex flex-col items-center gap-3", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm text-text-muted", children: "删除项目中，请稍候…" })
+    ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { ...toast })
+  ] });
+}
+function ScanDirInput({ projectId }) {
+  const [path, setPath] = reactExports.useState(() => localStorage.getItem(`scan_${projectId}`) || "");
+  const updatePath = (v2) => {
+    setPath(v2);
+    localStorage.setItem(`scan_${projectId}`, v2);
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-2 pt-2 border-t border-border/30 text-xs", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted shrink-0", children: "📁 项目本地路径:" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "input",
+        {
+          value: path,
+          onChange: (e) => updatePath(e.target.value),
+          placeholder: "D:\\材料\\2024耕地补贴",
+          className: "flex-1 border border-border/50 rounded px-1.5 py-0.5 text-[10px] outline-none focus:border-primary/40"
+        }
+      ),
+      path && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => updatePath(""), className: "text-[9px] text-red-400 hover:text-red-600 shrink-0", children: "✕" })
+    ] }),
+    path && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-[10px] text-green-600 font-mono mt-1 truncate", title: path, children: [
+      "📂 ",
+      path
+    ] })
   ] });
 }
 const thisYear$3 = (/* @__PURE__ */ new Date()).getFullYear();
@@ -48049,14 +49509,14 @@ const PS_CFG = {
 const SEASON_CFG = {
   "大春": { icon: "🌾", color: "text-primary", bg: "bg-primary/5", border: "border-primary/20", tag: "主粮季" },
   "小春": { icon: "🌿", color: "text-[#5B8C5A]", bg: "bg-green-50", border: "border-green-200", tag: "冬作物" },
-  "全年单补": { icon: "📅", color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200", tag: "全年" },
+  "耕地地力保护": { icon: "📅", color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200", tag: "全年" },
   "临时": { icon: "⚡", color: "text-orange-tag", bg: "bg-amber-50", border: "border-amber-200", tag: "临时专项" }
 };
 function groupBySeasonOrder(stats) {
-  const order = ["大春", "小春", "全年单补", "临时"];
+  const order = ["大春", "小春", "耕地地力保护", "临时"];
   const groups = {};
   for (const s of stats) {
-    const key = s.season || "全年单补";
+    const key = s.season || "耕地地力保护";
     if (!groups[key]) groups[key] = [];
     groups[key].push(s);
   }
@@ -48115,7 +49575,7 @@ function DashboardPage({ onGoTab }) {
     { key: "incomplete_projects", icon: "tasks", label: `${year}年有未完成项目`, val: todos.incomplete_projects, color: "amber", tab: "projects", hide: todos.incomplete_projects === 0 },
     { key: "pending_records", icon: "money", label: "补贴记录待发放", val: todos.pending_records, color: "amber", tab: "projects", hide: todos.pending_records === 0 },
     { key: "overdrawn", icon: "warning", label: "家庭户超领预警", val: todos.overdrawn_households, color: "red", tab: "households", hide: todos.overdrawn_households === 0 },
-    { key: "id_errors", icon: "error", label: "身份证格式异常", val: todos.id_card_errors, color: "red", tab: "precheck", hide: todos.id_card_errors === 0 }
+    { key: "id_errors", icon: "error", label: "身份证格式异常", val: todos.id_card_errors, color: "red", tab: "farmers", hide: todos.id_card_errors === 0 }
   ].filter((t2) => !t2.hide) : [];
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-4", children: [
@@ -48587,7 +50047,324 @@ const __vitePreload = function preload(baseModule, deps, importerUrl) {
     return baseModule().catch(handlePreloadError);
   });
 };
-async function req$6(path, opts = {}) {
+const POSITIONS = ["书记", "副书记", "副主任", "文书", "其他"];
+const POS_ORDER = { 书记: 1, 副书记: 2, 副主任: 3, 文书: 4, 其他: 5 };
+function VillageContactsPage({ embedded }) {
+  const { toast, show } = useToast();
+  const fileRef = reactExports.useRef(null);
+  const [contacts, setContacts] = reactExports.useState([]);
+  const [villages, setVillages] = reactExports.useState([]);
+  const [loading, setLoading] = reactExports.useState(false);
+  const [overwrite, setOverwrite] = reactExports.useState(false);
+  const [filterPos, setFilterPos] = reactExports.useState("");
+  const [sortMode, setSortMode] = reactExports.useState("village");
+  const [searchText, setSearchText] = reactExports.useState("");
+  const [editing, setEditing] = reactExports.useState(null);
+  const [form, setForm] = reactExports.useState({ village_id: 0, name: "", phone: "", position: "", is_agri_lead: false, remark: "" });
+  const [showForm, setShowForm] = reactExports.useState(false);
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/village-contacts").then((r2) => r2.json());
+      const vmap = {};
+      (res.villages || []).forEach((v2) => {
+        vmap[v2.id] = v2.village_name;
+      });
+      setContacts((res.items || []).map((c) => ({ ...c, village_name: vmap[c.village_id] || "" })));
+      if (!villages.length) setVillages(res.villages || []);
+    } catch {
+      show("加载失败", "err");
+    } finally {
+      setLoading(false);
+    }
+  };
+  reactExports.useEffect(() => {
+    load();
+  }, []);
+  const resetForm = () => {
+    setForm({ village_id: villages[0]?.id || 0, name: "", phone: "", position: "", is_agri_lead: false, remark: "" });
+    setEditing(null);
+  };
+  const openAdd = () => {
+    resetForm();
+    setShowForm(true);
+  };
+  const openEdit = (c) => {
+    setForm({ village_id: c.village_id, name: c.name, phone: c.phone, position: c.position, is_agri_lead: c.is_agri_lead, remark: c.remark });
+    setEditing(c);
+    setShowForm(true);
+  };
+  const submit = async () => {
+    if (!form.name.trim()) {
+      show("请输入姓名", "err");
+      return;
+    }
+    if (!form.village_id) {
+      show("请选择村", "err");
+      return;
+    }
+    const body = {
+      village_id: form.village_id,
+      name: form.name.trim(),
+      phone: form.phone.trim(),
+      position: form.position,
+      is_agri_lead: form.is_agri_lead,
+      remark: form.remark
+    };
+    try {
+      const method = editing ? "PUT" : "POST";
+      const url = editing ? `/api/village-contacts/${editing.id}` : "/api/village-contacts";
+      await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      show(editing ? "已更新" : "已添加");
+      setShowForm(false);
+      resetForm();
+      load();
+    } catch {
+      show("保存失败", "err");
+    }
+  };
+  const del = async (c) => {
+    if (!confirm(`删除联系人「${c.village_name} - ${c.name}」？`)) return;
+    await fetch(`/api/village-contacts/${c.id}`, { method: "DELETE" });
+    show("已删除");
+    load();
+  };
+  const toggleLead = async (c) => {
+    if (c.is_agri_lead) {
+      await fetch(`/api/village-contacts/${c.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_agri_lead: false })
+      });
+      show(`已取消「${c.name}」的负责人身份`);
+    } else {
+      await fetch(`/api/village-contacts/set-lead/${c.id}`, { method: "POST" });
+      show(`已将「${c.name}」设为 ${c.village_name} 农业负责人`);
+    }
+    load();
+  };
+  const handleImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      show("请选择文件", "err");
+      return;
+    }
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch(`/api/village-contacts/import?overwrite=${overwrite}`, { method: "POST", body: formData }).then((r2) => r2.json());
+      const parts = [`新增 ${res.created} 条`];
+      if (res.updated) parts.push(`更新 ${res.updated} 条`);
+      if (res.errors?.length) parts.push(`错误 ${res.errors.length} 条`);
+      show(parts.join("，"));
+      load();
+    } catch {
+      show("导入失败", "err");
+    }
+    if (fileRef.current) fileRef.current.value = "";
+  };
+  let display = contacts;
+  if (filterPos) display = display.filter((c) => c.position === filterPos);
+  if (searchText) {
+    const s = searchText.toLowerCase();
+    display = display.filter((c) => c.name.includes(s) || (c.village_name || "").includes(s) || c.phone.includes(s));
+  }
+  const sortFn = {
+    village: (a, b) => (a.village_name || "").localeCompare(b.village_name || "", "zh") || (POS_ORDER[a.position || "其他"] || 99) - (POS_ORDER[b.position || "其他"] || 99),
+    position: (a, b) => (POS_ORDER[a.position || "其他"] || 99) - (POS_ORDER[b.position || "其他"] || 99),
+    name: (a, b) => a.name.localeCompare(b.name, "zh")
+  };
+  display = [...display].sort(sortFn[sortMode]);
+  const inner = /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    !embedded && /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-xl font-bold mb-4", children: "📋 村联系人管理" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card p-3 mb-4 flex items-center gap-3 flex-wrap", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: openAdd, className: "px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90", children: "＋ 新增" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => fileRef.current?.click(), className: "px-3 py-2 text-sm border border-border rounded-btn hover:bg-warm/20", children: "📥 导入" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("input", { ref: fileRef, type: "file", accept: ".xlsx,.xls", onChange: handleImport, className: "hidden" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-1 text-sm text-text-muted cursor-pointer select-none", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: overwrite, onChange: (e) => setOverwrite(e.target.checked) }),
+        "覆盖同名"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "a",
+        {
+          href: "/api/village-contacts/template",
+          download: true,
+          className: "px-3 py-2 text-sm border border-blue-200 text-blue-600 rounded-btn hover:bg-blue-50",
+          children: "📥 下载模板"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "a",
+        {
+          href: "/api/village-contacts/export",
+          target: "_blank",
+          className: "px-3 py-2 text-sm border border-green-200 text-green-700 rounded-btn hover:bg-green-50",
+          children: "📤 导出"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-6 bg-border" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "input",
+        {
+          value: searchText,
+          onChange: (e) => setSearchText(e.target.value),
+          placeholder: "🔍 搜索姓名/村名/电话",
+          className: "border border-border rounded-btn px-2 py-2 text-sm outline-none w-44"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "select",
+        {
+          value: filterPos,
+          onChange: (e) => setFilterPos(e.target.value),
+          className: "border border-border rounded-btn px-2 py-2 text-sm outline-none bg-white",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部职务" }),
+            POSITIONS.map((p2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: p2, children: p2 }, p2))
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-0 bg-warm/20 rounded-btn text-sm", children: ["village", "position", "name"].map((m2) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: () => setSortMode(m2),
+          className: `px-3 py-1.5 rounded-btn transition-colors ${sortMode === m2 ? "bg-white shadow-sm font-medium" : "text-text-muted hover:text-text-primary"}`,
+          children: [
+            "按",
+            m2 === "village" ? "村" : m2 === "position" ? "职务" : "姓名"
+          ]
+        },
+        m2
+      )) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-sm text-text-muted ml-auto", children: [
+        display.length,
+        " 人"
+      ] })
+    ] }),
+    loading ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center text-text-muted py-10", children: "加载中…" }) : display.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center text-text-muted py-12 text-sm", children: contacts.length === 0 ? "暂无联系人，请新增或导入" : "无匹配结果" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-white border border-border rounded-card overflow-hidden shadow-sm", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full border-collapse text-sm", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "bg-warm/30 border-b-2 border-border", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "text-left px-3 py-2.5 whitespace-nowrap", children: "村名" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "text-left px-3 py-2.5 whitespace-nowrap", children: "姓名" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "text-left px-3 py-2.5 whitespace-nowrap", children: "电话" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "text-left px-3 py-2.5 whitespace-nowrap", children: "职务" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "text-center px-3 py-2.5 whitespace-nowrap", children: "农业负责人" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "text-left px-3 py-2.5 whitespace-nowrap", children: "备注" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "text-right px-3 py-2.5 whitespace-nowrap w-40", children: "操作" })
+      ] }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: display.map((c) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: `border-b border-border/30 hover:bg-warm/10 ${c.is_agri_lead ? "bg-emerald-50/30" : ""}`, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 font-medium", children: c.village_name }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 font-bold", children: c.name }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 font-mono", children: c.phone ? /* @__PURE__ */ jsxRuntimeExports.jsx("a", { href: `tel:${c.phone}`, className: "text-blue-600 hover:underline", children: c.phone }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50", children: "—" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2", children: c.position || "—" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => toggleLead(c),
+            className: `px-2 py-1 text-xs rounded-btn border transition-colors ${c.is_agri_lead ? "bg-amber-50 border-amber-300 text-amber-600 hover:bg-red-50 hover:border-red-200 hover:text-red-400" : "border-transparent text-text-muted/30 hover:border-amber-200 hover:text-amber-500"}`,
+            title: c.is_agri_lead ? `取消「${c.name}」的负责人` : `设为${c.village_name}负责人`,
+            children: "⭐ 负责人"
+          }
+        ) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-text-muted max-w-[120px] truncate", title: c.remark, children: c.remark || "—" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-right", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1 justify-end", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => openEdit(c), className: "px-2 py-1 text-xs border border-border rounded hover:bg-warm/20", children: "编辑" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => del(c), className: "px-2 py-1 text-xs border border-red-100 text-red-400 rounded hover:bg-red-50", children: "删" })
+        ] }) })
+      ] }, c.id)) })
+    ] }) }),
+    showForm && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "fixed inset-0 z-50 flex items-center justify-center bg-black/30", onClick: () => setShowForm(false), children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-card shadow-xl p-6 w-full max-w-md mx-4", onClick: (e) => e.stopPropagation(), children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-lg font-bold mb-4", children: editing ? "编辑联系人" : "新增联系人" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm text-text-muted mb-1", children: "所属村 *" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              value: form.village_id || "",
+              onChange: (e) => setForm((f2) => ({ ...f2, village_id: Number(e.target.value) })),
+              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "请选择" }),
+                villages.map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v2.id, children: v2.village_name }, v2.id))
+              ]
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm text-text-muted mb-1", children: "姓名 *" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              value: form.name,
+              onChange: (e) => setForm((f2) => ({ ...f2, name: e.target.value })),
+              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary",
+              placeholder: "姓名"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm text-text-muted mb-1", children: "电话" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              value: form.phone,
+              onChange: (e) => setForm((f2) => ({ ...f2, phone: e.target.value })),
+              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary",
+              placeholder: "手机号"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm text-text-muted mb-1", children: "职务" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              value: form.position,
+              onChange: (e) => setForm((f2) => ({ ...f2, position: e.target.value })),
+              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "请选择" }),
+                POSITIONS.map((p2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: p2, children: p2 }, p2))
+              ]
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              type: "checkbox",
+              id: "is_lead_cb2",
+              checked: form.is_agri_lead,
+              onChange: (e) => setForm((f2) => ({ ...f2, is_agri_lead: e.target.checked }))
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { htmlFor: "is_lead_cb2", className: "text-sm text-text-muted", children: "设为农业负责人（同村只允许一个）" })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-sm text-text-muted mb-1", children: "备注" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              value: form.remark,
+              onChange: (e) => setForm((f2) => ({ ...f2, remark: e.target.value })),
+              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary",
+              placeholder: "备注信息"
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-end gap-2 mt-5", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setShowForm(false), className: "px-4 py-2 text-sm border border-border rounded-btn hover:bg-warm/20", children: "取消" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: submit, className: "px-4 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90", children: "保存" })
+      ] })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { ...toast })
+  ] });
+  return embedded ? inner : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-5 max-w-5xl mx-auto", children: inner });
+}
+async function req$7(path, opts = {}) {
   const r2 = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
   if (!r2.ok) {
     const e = await r2.json().catch(() => ({}));
@@ -48595,7 +50372,7 @@ async function req$6(path, opts = {}) {
   }
   return r2.json();
 }
-const loadGroups = () => req$6("/api/settings/village-groups");
+const loadGroups = () => req$7("/api/settings/village-groups");
 function groupByVillage(list) {
   const map = /* @__PURE__ */ new Map();
   list.forEach((g) => {
@@ -48611,6 +50388,7 @@ const SOIL_OPTS = ["优", "良", "一般", "差"];
 function SettingsPage() {
   const [tab, setTab] = reactExports.useState("groups");
   const { toast, show } = useToast();
+  const navigate = useNavigate();
   const [groups, setGroups] = reactExports.useState([]);
   const [loading, setLoading] = reactExports.useState(false);
   const [addOpen, setAddOpen] = reactExports.useState(false);
@@ -48620,14 +50398,24 @@ function SettingsPage() {
   const [batchVillage, setBatchVillage] = reactExports.useState("");
   const [batchGroups, setBatchGroups] = reactExports.useState("");
   const [editTarget, setEditTarget] = reactExports.useState(null);
-  const [editVillage, setEditVillage] = reactExports.useState("");
-  const [editGroup, setEditGroup] = reactExports.useState("");
+  const [editLeaderName, setEditLeaderName] = reactExports.useState("");
+  const [editLeaderPhone, setEditLeaderPhone] = reactExports.useState("");
+  const [leaderSearchResults, setLeaderSearchResults] = reactExports.useState([]);
+  const [leaderSearchTimer, setLeaderSearchTimer] = reactExports.useState(null);
+  const [leaderDropdownOpen, setLeaderDropdownOpen] = reactExports.useState(false);
   const [quickAddVillage, setQuickAddVillage] = reactExports.useState(null);
   const [quickGroupNo, setQuickGroupNo] = reactExports.useState("");
+  const [editLeaderVillage, setEditLeaderVillage] = reactExports.useState(null);
+  const [villageLeaders, setVillageLeaders] = reactExports.useState({});
   const [landInfoMap, setLandInfoMap] = reactExports.useState({});
   const [editingLandId, setEditingLandId] = reactExports.useState(null);
   const [landEditForm, setLandEditForm] = reactExports.useState({});
   const [savingLand, setSavingLand] = reactExports.useState(null);
+  const [batchLeaderOpen, setBatchLeaderOpen] = reactExports.useState(false);
+  const [batchLeaderText, setBatchLeaderText] = reactExports.useState("");
+  const [selectedVillage, setSelectedVillage] = reactExports.useState(null);
+  const [villageDetail, setVillageDetail] = reactExports.useState(null);
+  const [loadingDetail, setLoadingDetail] = reactExports.useState(false);
   const reload = reactExports.useCallback(async () => {
     setLoading(true);
     try {
@@ -48638,7 +50426,7 @@ function SettingsPage() {
   }, []);
   const reloadLand = reactExports.useCallback(async () => {
     try {
-      const res = await req$6("/api/agri-tasks/village-land-info");
+      const res = await req$7("/api/agri-tasks/village-land-info");
       const map = {};
       res.forEach((r2) => {
         map[r2.village_id] = r2;
@@ -48647,10 +50435,51 @@ function SettingsPage() {
     } catch {
     }
   }, []);
+  const loadLeaders = reactExports.useCallback(async () => {
+    try {
+      const list = await req$7("/api/settings/villages");
+      const map = {};
+      list.forEach((v2) => {
+        map[v2.village_name] = { name: v2.leader_name || "", phone: v2.leader_phone || "", vid: v2.id };
+      });
+      setVillageLeaders(map);
+    } catch {
+    }
+  }, []);
   reactExports.useEffect(() => {
     reload();
     reloadLand();
-  }, [reload, reloadLand]);
+    loadLeaders();
+  }, [reload, reloadLand, loadLeaders]);
+  const loadVillageDetail = async (villageName) => {
+    const g = groups.find((gr) => gr.village_name === villageName);
+    if (!g) return;
+    setSelectedVillage(villageName);
+    setLoadingDetail(true);
+    try {
+      const res = await req$7(`/api/settings/villages/${g.village_id}/detail`);
+      setVillageDetail(res);
+    } catch (e) {
+      show(e.message, "err");
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+  const saveLeader = async (vname) => {
+    const info = villageLeaders[vname];
+    if (!info) return;
+    try {
+      await req$7(`/api/settings/villages/${info.vid}`, {
+        method: "PUT",
+        body: JSON.stringify({ leader_name: editLeaderName, leader_phone: editLeaderPhone })
+      });
+      show("✓ 负责人已更新");
+      setEditLeaderVillage(null);
+      loadLeaders();
+    } catch (e) {
+      show(e.message, "err");
+    }
+  };
   const openLandEdit = (vid) => {
     const info = landInfoMap[vid] || { village_id: vid };
     setLandEditForm({ ...info });
@@ -48659,7 +50488,7 @@ function SettingsPage() {
   const saveLand = async (vid) => {
     setSavingLand(vid);
     try {
-      await req$6(`/api/agri-tasks/village-land-info/${vid}`, {
+      await req$7(`/api/agri-tasks/village-land-info/${vid}`, {
         method: "PUT",
         body: JSON.stringify(landEditForm)
       });
@@ -48679,7 +50508,7 @@ function SettingsPage() {
     const gno = addGroupNo.trim();
     if (!vname || !gno) return show("村名和组号不能为空", "err");
     try {
-      await req$6("/api/settings/village-groups", { method: "POST", body: JSON.stringify({ village_name: vname, group_no: gno }) });
+      await req$7("/api/settings/village-groups", { method: "POST", body: JSON.stringify({ village_name: vname, group_no: gno }) });
       show("✓ 创建成功");
       setAddOpen(false);
       setAddVillageName("");
@@ -48695,7 +50524,7 @@ function SettingsPage() {
     const gnos = batchGroups.split(/[,，\n]/).map((s) => s.trim()).filter(Boolean);
     if (!gnos.length) return show("请填写至少一个组号", "err");
     try {
-      const res = await req$6(
+      const res = await req$7(
         "/api/settings/village-groups/batch",
         { method: "POST", body: JSON.stringify({ rows: gnos.map((g) => ({ village_name: vname, group_no: g })) }) }
       );
@@ -48712,7 +50541,7 @@ function SettingsPage() {
     const gno = quickGroupNo.trim();
     if (!gno) return;
     try {
-      await req$6("/api/settings/village-groups", { method: "POST", body: JSON.stringify({ village_name: villageName, group_no: gno }) });
+      await req$7("/api/settings/village-groups", { method: "POST", body: JSON.stringify({ village_name: villageName, group_no: gno }) });
       show(`✓ ${villageName}${gno} 创建成功`);
       setQuickAddVillage(null);
       setQuickGroupNo("");
@@ -48723,18 +50552,73 @@ function SettingsPage() {
   };
   const openEdit = (g) => {
     setEditTarget(g);
-    setEditVillage(g.village_name);
-    setEditGroup(g.group_no);
+    setEditLeaderName(g.leader_name || "");
+    setEditLeaderPhone(g.leader_phone || "");
+    setLeaderSearchResults([]);
+    setLeaderDropdownOpen(false);
   };
   const submitEdit = async () => {
     if (!editTarget) return;
     try {
-      await req$6(`/api/settings/village-groups/${editTarget.id}`, {
+      await req$7(`/api/settings/village-groups/${editTarget.id}`, {
         method: "PUT",
-        body: JSON.stringify({ village_name: editVillage, group_no: editGroup })
+        body: JSON.stringify({
+          leader_name: editLeaderName,
+          leader_phone: editLeaderPhone
+        })
       });
-      show("✓ 更新成功");
+      show("✓ 组长已更新");
       setEditTarget(null);
+      reload();
+    } catch (e) {
+      show(e.message, "err");
+    }
+  };
+  const searchFarmers = (query) => {
+    if (leaderSearchTimer) clearTimeout(leaderSearchTimer);
+    if (!query.trim()) {
+      setLeaderSearchResults([]);
+      setLeaderDropdownOpen(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await req$7(`/api/farmers?search=${encodeURIComponent(query.trim())}&page_size=5`);
+        setLeaderSearchResults((res.items || []).map((f2) => ({
+          id: f2.id,
+          real_name: f2.real_name,
+          id_card: f2.id_card || "",
+          phone: f2.phone || "",
+          village_name: f2.village_name || ""
+        })));
+        setLeaderDropdownOpen(true);
+      } catch {
+        setLeaderSearchResults([]);
+      }
+    }, 300);
+    setLeaderSearchTimer(timer);
+  };
+  const selectLeader = (f2) => {
+    setEditLeaderName(f2.real_name);
+    if (f2.phone) setEditLeaderPhone(f2.phone);
+    setLeaderSearchResults([]);
+    setLeaderDropdownOpen(false);
+  };
+  const submitBatchLeaders = async () => {
+    const lines = batchLeaderText.split("\n").filter((l2) => l2.trim());
+    const rows = [];
+    for (const line of lines) {
+      const parts = line.split("	");
+      if (parts.length >= 3) {
+        rows.push({ village_name: parts[0].trim(), group_no: parts[1].trim(), leader_name: parts[2].trim(), leader_phone: (parts[3] || "").trim() });
+      }
+    }
+    if (!rows.length) return show("请按格式粘贴：村名	组名	姓名	电话", "err");
+    try {
+      await req$7("/api/settings/village-groups/batch-leaders", { method: "POST", body: JSON.stringify({ rows }) });
+      show(`✓ 已更新 ${rows.length} 个组的负责人`);
+      setBatchLeaderOpen(false);
+      setBatchLeaderText("");
       reload();
     } catch (e) {
       show(e.message, "err");
@@ -48744,7 +50628,7 @@ function SettingsPage() {
     if (g.household_count > 0) return show(`该组下有 ${g.household_count} 户农户，无法删除`, "err");
     if (!confirm(`确认删除「${g.full_name}」？`)) return;
     try {
-      await req$6(`/api/settings/village-groups/${g.id}`, { method: "DELETE" });
+      await req$7(`/api/settings/village-groups/${g.id}`, { method: "DELETE" });
       show("✓ 已删除");
       reload();
     } catch (e) {
@@ -48754,7 +50638,7 @@ function SettingsPage() {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 mb-5", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-xl font-bold text-text-primary", children: "村组管理" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1 bg-warm/30 p-1 rounded-btn text-sm", children: [["groups", "村组结构"], ["land", "土地基础信息"]].map(([t2, label]) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1 bg-warm/30 p-1 rounded-btn text-sm", children: [["groups", "村组结构"], ["land", "土地基础信息"], ["contacts", "村组联系人"]].map(([t2, label]) => /* @__PURE__ */ jsxRuntimeExports.jsx(
         "button",
         {
           onClick: () => setTab(t2),
@@ -48765,207 +50649,47 @@ function SettingsPage() {
       )) })
     ] }),
     tab === "groups" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-3 gap-3 mb-5", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card p-4 shadow-card", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-2xl font-bold font-mono text-primary", children: villages.length }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted mt-1", children: "村庄总数" })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card p-4 shadow-card", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-2xl font-bold font-mono text-blue-600", children: groups.length }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted mt-1", children: "村组总数" })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card p-4 shadow-card", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-2xl font-bold font-mono text-amber-600", children: groups.reduce((s, g) => s + g.household_count, 0) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted mt-1", children: "关联农户数" })
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-between items-center mb-4", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-text-muted", children: "点击村名右侧「＋组」可快速添加该村新组" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            onClick: () => {
-              setAddMode("single");
-              setAddOpen(true);
-            },
-            className: "px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90",
-            children: "＋ 新增村 / 组"
-          }
-        )
-      ] }),
-      loading && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center py-16 text-text-muted/50", children: "加载中…" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
-        villages.map((vname) => {
-          const glist = villageMap.get(vname) ?? [];
-          return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card overflow-hidden shadow-card", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between px-5 py-3 bg-warm/30 border-b border-border/50", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-bold text-text-primary", children: vname }),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted font-mono", children: [
-                  glist.length,
-                  " 个组"
-                ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted/50", children: "·" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
-                  glist.reduce((s, g) => s + g.household_count, 0),
-                  " 户"
-                ] })
-              ] }),
-              quickAddVillage === vname ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(
-                  "input",
-                  {
-                    autoFocus: true,
-                    value: quickGroupNo,
-                    onChange: (e) => setQuickGroupNo(e.target.value),
-                    onKeyDown: (e) => {
-                      if (e.key === "Enter") submitQuickAdd(vname);
-                      if (e.key === "Escape") setQuickAddVillage(null);
-                    },
-                    placeholder: "组号，如：一组",
-                    className: "border border-primary/30 rounded-btn px-3 py-1 text-sm w-32 outline-none"
-                  }
-                ),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => submitQuickAdd(vname), className: "px-3 py-1 text-xs bg-primary text-white rounded-btn", children: "确认" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setQuickAddVillage(null), className: "px-3 py-1 text-xs border border-border rounded-btn text-text-muted", children: "取消" })
-              ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  onClick: () => {
-                    setQuickAddVillage(vname);
-                    setQuickGroupNo("");
-                  },
-                  className: "text-xs text-primary border border-primary/20 px-3 py-1 rounded-btn hover:bg-primary/5",
-                  children: "＋ 加组"
-                }
-              )
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-2 px-5 py-3", children: glist.sort((a, b) => a.group_no.localeCompare(b.group_no, "zh")).map((g) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "div",
-              {
-                className: "flex items-center gap-2 bg-warm/30 border border-border rounded-btn px-3 py-1.5 group hover:border-border transition-colors",
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm text-text-primary", children: g.group_no }),
-                  g.household_count > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted font-mono", children: [
-                    g.household_count,
-                    "户"
-                  ] }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "hidden group-hover:flex items-center gap-1 ml-1", children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => openEdit(g), className: "text-xs text-blue-500 hover:text-blue-700 px-1", children: "改" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(
-                      "button",
-                      {
-                        onClick: () => handleDelete(g),
-                        className: `text-xs px-1 ${g.household_count > 0 ? "text-text-muted/50 cursor-not-allowed" : "text-red-400 hover:text-red-600"}`,
-                        children: "删"
-                      }
-                    )
-                  ] })
-                ]
-              },
-              g.id
-            )) }),
-            (() => {
-              const vid = glist[0]?.village_id;
-              if (!vid) return null;
-              const li2 = landInfoMap[vid];
-              const isEditing = editingLandId === vid;
-              return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "border-t border-border/50 px-5 py-2.5 bg-warm/10", children: isEditing ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 sm:grid-cols-4 gap-2", children: [
-                [
-                  ["paddy_area", "水田面积(亩)"],
-                  ["dry_land_area", "旱地面积(亩)"],
-                  ["arable_area", "可耕种面积(亩)"]
-                ].map(([field, label]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted mb-0.5", children: label }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(
-                    "input",
-                    {
-                      type: "number",
-                      min: "0",
-                      step: "0.01",
-                      value: landEditForm[field] ?? "",
-                      onChange: (e) => setLandEditForm((f2) => ({ ...f2, [field]: e.target.value === "" ? null : Number(e.target.value) })),
-                      className: "w-full border border-border rounded px-2 py-1 text-xs font-mono"
-                    }
-                  )
-                ] }, field)),
-                [
-                  ["irrigation_level", "灌溉条件", IRRIGATION_OPTS],
-                  ["terrain_type", "地形", TERRAIN_OPTS],
-                  ["soil_quality", "土壤质量", SOIL_OPTS]
-                ].map(([field, label, opts]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted mb-0.5", children: label }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                    "select",
-                    {
-                      value: landEditForm[field] ?? "",
-                      onChange: (e) => setLandEditForm((f2) => ({ ...f2, [field]: e.target.value || null })),
-                      className: "w-full border border-border rounded px-2 py-1 text-xs bg-white",
-                      children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "-" }),
-                        opts.map((o) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: o }, o))
-                      ]
-                    }
-                  )
-                ] }, field)),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "col-span-2 sm:col-span-4 flex gap-2 mt-1", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(
-                    "button",
-                    {
-                      onClick: () => saveLand(vid),
-                      disabled: savingLand === vid,
-                      className: "text-xs bg-primary/90 text-white px-3 py-1 rounded hover:bg-primary disabled:opacity-50",
-                      children: savingLand === vid ? "保存中..." : "保存"
-                    }
-                  ),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(
-                    "button",
-                    {
-                      onClick: () => setEditingLandId(null),
-                      className: "text-xs text-text-muted border border-border px-2 py-1 rounded hover:bg-warm/30",
-                      children: "取消"
-                    }
-                  )
-                ] })
-              ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 flex-wrap", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: "耕地：" }),
-                li2?.paddy_area != null ? /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-primary", children: [
-                  "水田 ",
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("b", { className: "font-mono", children: fmt$1(li2.paddy_area) }),
-                  " 亩"
-                ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted/50", children: "水田 -" }),
-                li2?.dry_land_area != null ? /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-primary", children: [
-                  "旱地 ",
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("b", { className: "font-mono", children: fmt$1(li2.dry_land_area) }),
-                  " 亩"
-                ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted/50", children: "旱地 -" }),
-                li2?.arable_area != null ? /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-primary", children: [
-                  "可耕 ",
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("b", { className: "font-mono", children: fmt$1(li2.arable_area) }),
-                  " 亩"
-                ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted/50", children: "可耕 -" }),
-                li2?.irrigation_level && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
-                  "灌溉:",
-                  li2.irrigation_level
-                ] }),
-                li2?.terrain_type && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: li2.terrain_type }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx(
-                  "button",
-                  {
-                    onClick: () => openLandEdit(vid),
-                    className: "ml-auto text-xs text-blue-500 hover:underline",
-                    children: li2?.paddy_area != null || li2?.arable_area != null ? "编辑耕地信息" : "录入耕地信息"
-                  }
-                )
-              ] }) });
-            })()
-          ] }, vname);
-        }),
-        !loading && villages.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center py-16 text-text-muted/50 bg-white border border-border rounded-card", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-4xl mb-3", children: "🏘️" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm", children: "暂无村组信息，点击右上角新增" })
-        ] })
-      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        VillageGroupsLayout,
+        {
+          villages,
+          villageMap,
+          groups,
+          landInfoMap,
+          villageLeaders,
+          selectedVillage,
+          villageDetail,
+          loadingDetail,
+          loading,
+          show,
+          navigate,
+          onSelectVillage: loadVillageDetail,
+          onSaveLeader: saveLeader,
+          editLeaderVillage,
+          setEditLeaderVillage,
+          editLeaderName,
+          setEditLeaderName,
+          editLeaderPhone,
+          setEditLeaderPhone,
+          quickAddVillage,
+          setQuickAddVillage,
+          quickGroupNo,
+          setQuickGroupNo,
+          submitQuickAdd,
+          setAddMode,
+          setAddOpen,
+          setBatchLeaderOpen,
+          openEdit,
+          handleDelete,
+          editLandForm: landEditForm,
+          setEditLandForm: setLandEditForm,
+          editingLandId,
+          setEditingLandId,
+          saveLand,
+          savingLand,
+          openLandEdit
+        }
+      ),
       /* @__PURE__ */ jsxRuntimeExports.jsxs(
         Modal,
         {
@@ -48980,7 +50704,7 @@ function SettingsPage() {
               {
                 onClick: () => setAddMode(m2.id),
                 className: `flex-1 py-2 text-sm rounded-btn border transition-colors
-                    ${addMode === m2.id ? "bg-primary text-white border-emerald-700" : "bg-white border-border text-text-muted hover:border-border"}`,
+                    ${addMode === m2.id ? "bg-primary  border-emerald-700" : "bg-white border-border text-text-muted hover:border-border"}`,
                 children: m2.label
               },
               m2.id
@@ -49065,45 +50789,376 @@ function SettingsPage() {
         Modal,
         {
           open: !!editTarget,
-          title: `编辑村组 · ${editTarget?.full_name}`,
+          title: `设置组长 · ${editTarget?.village_name || ""}${editTarget?.group_no || ""}`,
           onClose: () => setEditTarget(null),
           onConfirm: submitEdit,
-          children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "村名" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "input",
-                {
-                  value: editVillage,
-                  onChange: (e) => setEditVillage(e.target.value),
-                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-                }
-              )
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "组号" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "input",
-                {
-                  value: editGroup,
-                  onChange: (e) => setEditGroup(e.target.value),
-                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-                }
-              )
-            ] }),
-            editTarget && (editVillage !== editTarget.village_name || editGroup !== editTarget.group_no) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "col-span-2 bg-amber-50 border border-amber-100 rounded-btn px-4 py-2.5 text-sm text-amber-700", children: [
-              "⚠️ 修改后：",
+          confirmText: "保存",
+          children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-blue-50 border border-blue-100 rounded-btn px-3 py-2 text-xs text-blue-700", children: [
+              "为「",
               /* @__PURE__ */ jsxRuntimeExports.jsxs("strong", { children: [
-                editVillage,
-                editGroup
+                editTarget?.village_name,
+                editTarget?.group_no
               ] }),
-              editTarget.household_count > 0 && `，关联的 ${editTarget.household_count} 户农户会自动更新显示`
+              "」设置组长，输入姓名或身份证号从农户表匹配。"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "👤 组长姓名（输入姓名/身份证号搜索）" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  value: editLeaderName,
+                  onChange: (e) => {
+                    setEditLeaderName(e.target.value);
+                    searchFarmers(e.target.value);
+                  },
+                  onFocus: () => {
+                    if (leaderSearchResults.length > 0) setLeaderDropdownOpen(true);
+                  },
+                  onBlur: () => setTimeout(() => setLeaderDropdownOpen(false), 200),
+                  placeholder: "输入姓名或身份证号自动匹配农户…",
+                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+                }
+              ),
+              leaderDropdownOpen && leaderSearchResults.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute z-50 top-full left-0 right-0 bg-white border border-border rounded-card shadow-xl mt-1 max-h-48 overflow-y-auto", children: leaderSearchResults.map((f2) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "button",
+                {
+                  onMouseDown: () => selectLeader(f2),
+                  className: "w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/30 last:border-0 flex items-center gap-2",
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold text-text-primary", children: f2.real_name }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted font-mono", children: f2.id_card.slice(-6) }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-blue-500 ml-auto", children: f2.village_name })
+                  ]
+                },
+                f2.id
+              )) })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "📞 电话（匹配后自动填入，可手动修改）" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  value: editLeaderPhone,
+                  onChange: (e) => setEditLeaderPhone(e.target.value),
+                  placeholder: "手机号",
+                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+                }
+              )
             ] })
           ] })
         }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        Modal,
+        {
+          open: batchLeaderOpen,
+          title: "批量导入村组负责人",
+          onClose: () => setBatchLeaderOpen(false),
+          onConfirm: submitBatchLeaders,
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-text-muted mb-2", children: [
+              "每行一个组，用 ",
+              /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "Tab" }),
+              " 分隔：村名 → 组名 → 负责人姓名 → 电话"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "textarea",
+              {
+                rows: 12,
+                value: batchLeaderText,
+                onChange: (e) => setBatchLeaderText(e.target.value),
+                placeholder: `XX村	一组	张三	138xxxx
+XX村	二组	李四	139xxxx`,
+                className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none font-mono"
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-text-muted mt-1", children: [
+              "共 ",
+              /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: batchLeaderText.split("\n").filter((l2) => l2.trim()).length }),
+              " 行"
+            ] })
+          ]
+        }
       )
-    ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx(LandInfoTab, { show }),
+    ] }) : tab === "contacts" ? /* @__PURE__ */ jsxRuntimeExports.jsx(VillageContactsPage, { embedded: true }) : /* @__PURE__ */ jsxRuntimeExports.jsx(LandInfoTab, { show }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { ...toast })
+  ] });
+}
+function VillageGroupsLayout(props) {
+  const {
+    villages,
+    villageDetail,
+    loadingDetail,
+    loading,
+    selectedVillage,
+    show,
+    navigate,
+    onSelectVillage
+  } = props;
+  const [searchVillage, setSearchVillage] = reactExports.useState("");
+  const filteredVillages = villages.filter(
+    (v2) => !searchVillage || v2.includes(searchVillage)
+  );
+  const totalGroups = props.groups.length;
+  const totalHouseholds = props.groups.reduce((s, g) => s + g.household_count, 0);
+  const totalLand = props.groups.reduce((s, g) => s + (g.total_land ?? 0), 0);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-4", style: { minHeight: "calc(100vh - 200px)" }, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-56 shrink-0 bg-white border border-border rounded-card shadow-card flex flex-col", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "p-3 border-b border-border", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "input",
+        {
+          value: searchVillage,
+          onChange: (e) => setSearchVillage(e.target.value),
+          placeholder: "🔍 搜索村名…",
+          className: "w-full border border-border rounded px-2 py-1.5 text-xs outline-none focus:border-primary/40"
+        }
+      ) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-3 py-2 border-b border-border/30 bg-warm/20", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between text-[10px] text-text-muted", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+          filteredVillages.length,
+          "村"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+          totalGroups,
+          "组"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+          totalHouseholds,
+          "户"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono", children: [
+          totalLand.toFixed(0),
+          "亩"
+        ] })
+      ] }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 overflow-y-auto", children: [
+        loading && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "py-8 text-center text-text-muted/50 text-xs", children: "加载中…" }),
+        filteredVillages.map((vname) => {
+          const glist = props.villageMap.get(vname) ?? [];
+          const isSelected = selectedVillage === vname;
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              onClick: () => onSelectVillage(vname),
+              className: `w-full text-left px-3 py-2.5 text-sm flex items-center justify-between border-b border-border/20 transition-colors
+                  ${isSelected ? "bg-primary/10 text-primary font-semibold border-l-[3px] border-l-primary" : "hover:bg-warm/20 border-l-[3px] border-l-transparent"}`,
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "truncate", children: vname }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted/50 ml-1 shrink-0", children: [
+                  glist.length,
+                  "组"
+                ] })
+              ]
+            },
+            vname
+          );
+        })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-2 border-t border-border flex gap-1.5", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => {
+              props.setAddMode("single");
+              props.setAddOpen(true);
+            },
+            className: "flex-1 text-xs bg-primary text-white rounded px-2 py-1.5 hover:bg-primary/90",
+            children: "＋ 新增"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => props.setBatchLeaderOpen(true),
+            className: "text-xs border border-blue-200 text-blue-700 rounded px-2 py-1.5 hover:bg-blue-50",
+            children: "📥"
+          }
+        )
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 min-w-0", children: !selectedVillage ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-white border border-border rounded-card shadow-card flex items-center justify-center py-20", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center text-text-muted/50", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-5xl mb-4", children: "🏘️" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm", children: "请从左侧选择一个村庄查看详情" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs mt-1", children: "包含村干部、各组信息、土地数据" })
+    ] }) }) : loadingDetail ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-white border border-border rounded-card shadow-card flex items-center justify-center py-20", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "inline-flex items-center gap-2 text-text-muted/60", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-5 h-5 border-2 border-stone-300 border-t-primary rounded-full animate-spin" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm", children: "加载中…" })
+    ] }) }) : villageDetail ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-white border border-border rounded-card shadow-card p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-lg font-bold text-text-primary", children: villageDetail.village_name }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full", children: [
+          villageDetail.groups.length,
+          "个组"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full", children: [
+          villageDetail.household_count,
+          "户"
+        ] })
+      ] }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card shadow-card p-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("h3", { className: "text-sm font-bold text-text-primary mb-3 flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "📋" }),
+          " 村干部"
+        ] }),
+        villageDetail.contacts.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted/50", children: "暂未设置村干部，请在「村组联系人」tab中添加" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-2 gap-2", children: villageDetail.contacts.map((c) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            className: "flex items-center gap-2 bg-warm/20 border border-border/50 rounded-btn px-3 py-2",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs font-medium px-1.5 py-0.5 rounded ${c.position === "书记" ? "bg-red-100 text-red-700" : c.position === "副书记" ? "bg-orange-100 text-orange-700" : c.position === "副主任" ? "bg-blue-100 text-blue-700" : c.position === "文书" ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-600"}`, children: c.position || "干部" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-semibold text-text-primary", children: c.name }),
+              c.phone && /* @__PURE__ */ jsxRuntimeExports.jsxs("a", { href: `tel:${c.phone}`, className: "text-xs text-blue-500 font-mono hover:underline", children: [
+                "📞",
+                c.phone
+              ] }),
+              c.farmer_id ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: () => navigate(`/farmers?id=${c.farmer_id}`),
+                  className: "ml-auto text-xs text-primary border border-primary/20 px-2 py-0.5 rounded hover:bg-primary/5",
+                  title: "查看农户详情",
+                  children: "👤 农户"
+                }
+              ) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-auto text-xs text-text-muted/40", children: "未关联" }),
+              c.is_agri_lead && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[9px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full", children: "⭐ 农业负责人" })
+            ]
+          },
+          c.id
+        )) })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card shadow-card p-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("h3", { className: "text-sm font-bold text-text-primary mb-3 flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "📐" }),
+          " 村组信息"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-2 gap-2", children: villageDetail.groups.map((g) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            className: "bg-warm/20 border border-border/50 rounded-card p-3 hover:border-primary/20 transition-colors",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-2", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-bold text-text-primary", children: g.group_no }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs bg-white border border-border/50 rounded-full px-2 py-0.5 font-medium", children: [
+                  g.household_count,
+                  "户"
+                ] }),
+                g.population > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
+                  g.population,
+                  "人"
+                ] })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap gap-x-3 gap-y-1 mb-2 text-xs", children: [
+                g.contract_area > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-muted", children: [
+                  "📐 承包地",
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-emerald-600 font-semibold ml-0.5", children: [
+                    g.contract_area.toFixed(1),
+                    "亩"
+                  ] })
+                ] }),
+                g.retained_land > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-muted", children: [
+                  "🏛 集体地",
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-amber-600 font-semibold ml-0.5", children: [
+                    g.retained_land.toFixed(1),
+                    "亩"
+                  ] })
+                ] }),
+                g.total_apply_area > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-muted", children: [
+                  "📋 申报面积",
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-blue-600 font-semibold ml-0.5", children: [
+                    g.total_apply_area.toFixed(1),
+                    "亩"
+                  ] })
+                ] })
+              ] }),
+              g.latest_year && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white/60 border border-border/30 rounded px-2 py-1 mb-2 text-xs", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-muted", children: [
+                  g.latest_year,
+                  "年度："
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-primary font-medium", children: [
+                  g.subsidy_hh_count,
+                  "户受益"
+                ] }),
+                g.total_amount > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-primary font-semibold ml-2", children: [
+                  "¥",
+                  g.total_amount.toLocaleString("zh-CN", { maximumFractionDigits: 0 })
+                ] })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border-t border-border/30 pt-2 flex items-center gap-2", children: [
+                g.leader_name ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                  g.leader_farmer_id ? /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                    "button",
+                    {
+                      onClick: () => navigate(`/farmers?id=${g.leader_farmer_id}`),
+                      className: "text-xs text-primary font-medium hover:underline",
+                      title: "点击查看农户详情",
+                      children: [
+                        "👤 ",
+                        g.leader_name
+                      ]
+                    }
+                  ) : /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-primary font-medium", children: [
+                    "👤 ",
+                    g.leader_name
+                  ] }),
+                  g.leader_phone && /* @__PURE__ */ jsxRuntimeExports.jsx("a", { href: `tel:${g.leader_phone}`, className: "text-xs text-blue-500 font-mono", children: g.leader_phone }),
+                  g.leader_farmer_id ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-auto text-[10px] text-emerald-500", children: "✓ 已关联" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-auto text-[10px] text-text-muted/40", children: "未关联" })
+                ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted/40", children: "暂未设置组长" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    onClick: () => props.openEdit(g),
+                    className: "text-[10px] text-blue-500 hover:text-blue-700 px-1",
+                    children: "✏️"
+                  }
+                )
+              ] })
+            ]
+          },
+          g.id
+        )) }),
+        villageDetail.groups.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted/50", children: "暂未创建村组" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card shadow-card p-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("h3", { className: "text-sm font-bold text-text-primary mb-3 flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "🌾" }),
+          " 土地基础信息"
+        ] }),
+        villageDetail.land_info ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 flex-wrap text-sm", children: [
+            villageDetail.land_info.paddy_area != null && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+              "水田 ",
+              /* @__PURE__ */ jsxRuntimeExports.jsx("b", { className: "font-mono text-emerald-600", children: villageDetail.land_info.paddy_area.toFixed(2) }),
+              " 亩"
+            ] }),
+            villageDetail.land_info.dry_land_area != null && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+              "旱地 ",
+              /* @__PURE__ */ jsxRuntimeExports.jsx("b", { className: "font-mono text-amber-600", children: villageDetail.land_info.dry_land_area.toFixed(2) }),
+              " 亩"
+            ] }),
+            villageDetail.land_info.arable_area != null && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+              "可耕种 ",
+              /* @__PURE__ */ jsxRuntimeExports.jsx("b", { className: "font-mono text-blue-600", children: villageDetail.land_info.arable_area.toFixed(2) }),
+              " 亩"
+            ] }),
+            villageDetail.land_info.irrigation_level && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs bg-gray-100 px-2 py-0.5 rounded", children: [
+              "灌溉: ",
+              villageDetail.land_info.irrigation_level
+            ] }),
+            villageDetail.land_info.terrain_type && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-gray-100 px-2 py-0.5 rounded", children: villageDetail.land_info.terrain_type }),
+            villageDetail.land_info.soil_quality && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs bg-gray-100 px-2 py-0.5 rounded", children: [
+              "土壤: ",
+              villageDetail.land_info.soil_quality
+            ] })
+          ] }),
+          villageDetail.land_info.remark && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-text-muted mt-2", children: [
+            "📝 ",
+            villageDetail.land_info.remark
+          ] })
+        ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted/50", children: "暂未录入土地基础信息" })
+      ] })
+    ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-white border border-border rounded-card shadow-card flex items-center justify-center py-20", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center text-text-muted/50 text-sm", children: "加载失败，请重试" }) }) })
   ] });
 }
 function LandInfoTab({ show }) {
@@ -49113,11 +51168,20 @@ function LandInfoTab({ show }) {
   const [editForms, setEditForms] = reactExports.useState({});
   const [saving, setSaving] = reactExports.useState(null);
   const [importing, setImporting] = reactExports.useState(false);
+  const [refModal, setRefModal] = reactExports.useState(null);
+  const checkVillageRefs = async (vid, vname) => {
+    try {
+      const res = await fetch(`/api/settings/villages/${vid}/references`).then((r2) => r2.json());
+      setRefModal({ name: vname, refs: res.references, total: res.total });
+    } catch (e) {
+      show("查询失败: " + e.message, "err");
+    }
+  };
   const fileRef = reactExports.useRef(null);
   const load = reactExports.useCallback(async () => {
     setLoading(true);
     try {
-      const res = await req$6("/api/agri-tasks/village-land-info");
+      const res = await req$7("/api/agri-tasks/village-land-info");
       setInfos(res);
       const forms = {};
       res.forEach((r2) => {
@@ -49136,7 +51200,7 @@ function LandInfoTab({ show }) {
   const handleSave = async (villageId) => {
     setSaving(villageId);
     try {
-      await req$6(`/api/agri-tasks/village-land-info/${villageId}`, {
+      await req$7(`/api/agri-tasks/village-land-info/${villageId}`, {
         method: "PUT",
         body: JSON.stringify(editForms[villageId] || {})
       });
@@ -49214,7 +51278,7 @@ function LandInfoTab({ show }) {
         if (r2["terrain_type"] !== "") payload["terrain_type"] = TERRAIN_VALID.has(String(r2["terrain_type"])) ? r2["terrain_type"] : null;
         if (r2["soil_quality"] !== "") payload["soil_quality"] = SOIL_VALID.has(String(r2["soil_quality"])) ? r2["soil_quality"] : null;
         try {
-          await req$6(`/api/agri-tasks/village-land-info/${vid}`, { method: "PUT", body: JSON.stringify(payload) });
+          await req$7(`/api/agri-tasks/village-land-info/${vid}`, { method: "PUT", body: JSON.stringify(payload) });
           ok2++;
         } catch (e2) {
           errors.push(`「${vname}」: ${e2.message}`);
@@ -49252,7 +51316,7 @@ ${errors.slice(0, 3).join("；")}` : ""}`;
           {
             onClick: () => fileRef.current?.click(),
             disabled: importing,
-            className: "text-xs px-3 py-1.5 bg-primary text-white rounded-btn hover:bg-primary/90 disabled:opacity-50",
+            className: "text-xs px-3 py-1.5 bg-primary  rounded-btn hover:bg-primary/90 disabled:opacity-50",
             children: importing ? "导入中..." : "批量导入 Excel"
           }
         ),
@@ -49301,7 +51365,7 @@ ${errors.slice(0, 3).join("；")}` : ""}`;
                 {
                   onClick: () => handleSave(info.village_id),
                   disabled: saving === info.village_id,
-                  className: "text-xs bg-primary/90 text-white px-3 py-1 rounded hover:bg-primary disabled:opacity-50",
+                  className: "text-xs bg-primary/90  px-3 py-1 rounded hover:bg-primary disabled:opacity-50",
                   children: saving === info.village_id ? "..." : "保存"
                 }
               ),
@@ -49309,40 +51373,48 @@ ${errors.slice(0, 3).join("；")}` : ""}`;
                 setEditing(null);
                 setEditForms((prev) => ({ ...prev, [info.village_id]: { ...info } }));
               }, className: "text-xs text-text-muted border border-border px-2 py-1 rounded hover:bg-warm/30", children: "取消" })
-            ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                onClick: () => setEditing(info.village_id),
-                className: "text-xs text-blue-600 hover:underline",
-                children: "编辑"
-              }
-            ) })
+            ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1.5", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: () => checkVillageRefs(info.village_id, info.village_name),
+                  className: "text-xs text-amber-600 hover:underline",
+                  children: "引用"
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: () => setEditing(info.village_id),
+                  className: "text-xs text-blue-600 hover:underline",
+                  children: "编辑"
+                }
+              )
+            ] }) })
           ] }, info.village_id);
         }),
         infos.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 9, className: "text-center py-10 text-text-muted/50", children: "暂无村庄数据，请先在「村组结构」Tab 创建村" }) })
       ] })
+    ] }) }),
+    refModal && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "fixed inset-0 bg-black/30 z-50 flex items-center justify-center", onClick: () => setRefModal(null), children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-card shadow-xl p-6 max-w-md w-full mx-4", onClick: (e) => e.stopPropagation(), children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("h3", { className: "font-bold text-text-primary mb-1", children: [
+        "「",
+        refModal.name,
+        "」引用详情"
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted mb-4", children: refModal.total > 0 ? `共 ${refModal.total} 条引用，无法删除` : "无引用，可以安全删除" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-1.5 text-sm max-h-60 overflow-y-auto", children: Object.entries(refModal.refs).map(([k2, v2]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `flex justify-between px-3 py-1.5 rounded-btn ${v2 > 0 ? "bg-red-50 text-red-700 font-medium" : "bg-warm/20 text-text-muted"}`, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: k2 }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono", children: [
+          v2,
+          " 条"
+        ] })
+      ] }, k2)) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setRefModal(null), className: "mt-4 w-full text-sm bg-primary text-white py-2 rounded-btn", children: "关闭" })
     ] }) })
   ] });
 }
-const ERROR_TYPES = ["身份证错误", "重复人员", "已故", "身份冒用", "其他"];
-const SOURCES = ["预检发现", "外部核查", "手动录入"];
-const ERROR_LIBRARY_SYSTEM_FIELDS = [
-  { field: "real_name", label: "姓名", required: true, type: "string" },
-  { field: "id_card", label: "身份证号", required: true, type: "id_card" },
-  { field: "error_type", label: "错误类型", required: true, type: "string" },
-  { field: "error_reason", label: "错误原因", required: true, type: "string" },
-  { field: "source", label: "来源", required: false, type: "string" },
-  { field: "village_name", label: "所在村", required: false, type: "string" },
-  { field: "group_no", label: "所在组", required: false, type: "string" },
-  { field: "subsidy_name", label: "补贴分类", required: false, type: "string" },
-  { field: "discovered_date", label: "发现日期", required: false, type: "date" },
-  { field: "remark", label: "备注", required: false, type: "string" }
-];
-const IMPORT_HEADERS = ["姓名*", "身份证号*", "错误类型*", "错误原因*", "来源", "所在村", "所在组", "补贴分类", "发现日期", "备注"];
-const IMPORT_EXAMPLE = [
-  { "姓名*": "张三", "身份证号*": "510123196503154231", "错误类型*": "身份证错误", "错误原因*": "身份证号码校验不通过", "来源": "预检发现", "所在村": "红星村", "所在组": "一组", "补贴分类": "耕地地力保护补贴", "发现日期": "2025-03-15", "备注": "" }
-];
-async function req$5(path, opts = {}) {
+async function req$6(path, opts = {}) {
   const r2 = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
   if (!r2.ok) {
     const e = await r2.json().catch(() => ({}));
@@ -49350,1164 +51422,853 @@ async function req$5(path, opts = {}) {
   }
   return r2.json();
 }
-function ErrorLibraryPage({ embedded = false }) {
+const QUERY_TYPES = ["身份证查询", "姓名查询", "综合查询", "其他"];
+const TAGS_PRESET = ["年度核查", "补贴核验", "重复申领排查", "死亡核查", "迁出核查", "待处理", "已完成", "存疑"];
+function ExternalLinksPage() {
   const { toast, show } = useToast();
-  const [items, setItems] = reactExports.useState([]);
-  const [total, setTotal] = reactExports.useState(0);
-  const [page, setPage] = reactExports.useState(1);
-  const [pageSize] = reactExports.useState(20);
-  const [loading, setLoading] = reactExports.useState(false);
-  const [search, setSearch] = reactExports.useState("");
-  const [filterType, setFilterType] = reactExports.useState("");
-  const [filterVillage, setFilterVillage] = reactExports.useState("");
-  const [filterSubsidy, setFilterSubsidy] = reactExports.useState("");
-  const [stats, setStats] = reactExports.useState({ total: 0, by_type: {} });
-  const [filterOptions, setFilterOptions] = reactExports.useState({ villages: [], subsidies: [] });
-  const [selectedIds, setSelectedIds] = reactExports.useState([]);
-  const [modalOpen, setModalOpen] = reactExports.useState(false);
-  const [editId, setEditId] = reactExports.useState(null);
-  const [form, setForm] = reactExports.useState({
-    real_name: "",
-    id_card: "",
-    error_type: "",
-    error_reason: "",
-    source: "手动录入",
-    village_name: "",
-    group_no: "",
-    subsidy_name: "",
-    discovered_date: "",
-    subsidy_type_id: void 0,
-    remark: ""
-  });
-  const [importOpen, setImportOpen] = reactExports.useState(false);
-  const [templates, setTemplates] = reactExports.useState([]);
-  const loadStats = reactExports.useCallback(async () => {
-    try {
-      setStats(await req$5("/api/error-library/stats"));
-    } catch {
-    }
-  }, []);
-  const loadFilterOptions = reactExports.useCallback(async () => {
-    try {
-      setFilterOptions(await req$5("/api/error-library/filter-options"));
-    } catch {
-    }
-  }, []);
-  const loadTemplates = reactExports.useCallback(async () => {
-    try {
-      const res = await req$5("/api/excel-templates?business_type=ERROR_LIBRARY");
-      setTemplates(res);
-    } catch {
-    }
-  }, []);
-  const detectExcelColumns = async (columns, sampleRows) => {
-    try {
-      const response = await fetch("/api/excel-templates/detect-columns", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ columns, business_type: "ERROR_LIBRARY", sample_rows: sampleRows })
-      });
-      if (!response.ok) throw new Error(`检测失败: ${response.status}`);
-      const raw = await response.json();
-      const mapped = (raw.columns || []).map((d) => ({
-        excel_column: d.excel_column,
-        suggested_field: d.suggested_field,
-        confidence: d.confidence ?? d.suggested_confidence ?? 0,
-        alternatives: d.alternatives || []
-      }));
-      return { columns: mapped, recommended_templates: raw.recommended_templates || [] };
-    } catch {
-      return {
-        columns: columns.map((col) => ({ excel_column: col, suggested_field: null, confidence: 0, alternatives: [] }))
-      };
-    }
-  };
-  const saveColumnMappingTemplate = async (data) => {
-    const response = await fetch("/api/excel-templates", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data)
-    });
-    if (!response.ok) throw new Error(`保存失败: ${response.status}`);
-    const res = await response.json();
-    loadTemplates();
-    return res;
-  };
-  const handleImport = async (rows, _mapping) => {
-    const res = await req$5("/api/error-library/batch-import", {
-      method: "POST",
-      body: JSON.stringify({ rows })
-    });
-    return { created: res.created, skipped: res.skipped, errors: [] };
-  };
-  const load = reactExports.useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = { page, page_size: pageSize };
-      if (search) params.search = search;
-      if (filterType) params.error_type = filterType;
-      if (filterVillage) params.village_name = filterVillage;
-      if (filterSubsidy) params.subsidy_name = filterSubsidy;
-      const qs = new URLSearchParams(params).toString();
-      const res = await req$5("/api/error-library?" + qs);
-      setItems(res.items);
-      setTotal(res.total);
-    } catch (e) {
-      show(e.message, "err");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, pageSize, search, filterType, filterVillage, filterSubsidy, show]);
-  reactExports.useEffect(() => {
-    load();
-  }, [load]);
-  reactExports.useEffect(() => {
-    loadStats();
-  }, [loadStats]);
-  reactExports.useEffect(() => {
-    loadFilterOptions();
-  }, [loadFilterOptions]);
-  reactExports.useEffect(() => {
-    loadTemplates();
-  }, [loadTemplates]);
-  const resetForm = () => {
-    setEditId(null);
-    setForm({
-      real_name: "",
-      id_card: "",
-      error_type: "",
-      error_reason: "",
-      source: "手动录入",
-      village_name: "",
-      group_no: "",
-      subsidy_name: "",
-      discovered_date: "",
-      subsidy_type_id: void 0,
-      remark: ""
-    });
-  };
-  const openAdd = () => {
-    resetForm();
-    setModalOpen(true);
-  };
-  const openEdit = (item) => {
-    setEditId(item.id);
-    setForm({
-      real_name: item.real_name,
-      id_card: item.id_card,
-      error_type: item.error_type,
-      error_reason: item.error_reason,
-      source: item.source,
-      village_name: item.village_name || "",
-      group_no: item.group_no || "",
-      subsidy_name: item.subsidy_name || "",
-      discovered_date: item.discovered_date || "",
-      subsidy_type_id: item.subsidy_type_id || void 0,
-      remark: item.remark || ""
-    });
-    setModalOpen(true);
-  };
-  const handleSave = async () => {
-    if (!form.real_name.trim() || !form.id_card.trim() || !form.error_type || !form.error_reason.trim()) {
-      show("请填写姓名、身份证、错误类型和错误原因", "err");
-      return;
-    }
-    try {
-      if (editId) {
-        await req$5("/api/error-library/" + editId, { method: "PUT", body: JSON.stringify(form) });
-        show("✓ 更新成功");
-      } else {
-        await req$5("/api/error-library", { method: "POST", body: JSON.stringify(form) });
-        show("✓ 创建成功");
-      }
-      setModalOpen(false);
-      load();
-      loadStats();
-      loadFilterOptions();
-    } catch (e) {
-      show(e.message, "err");
-    }
-  };
-  const handleDelete = async (id2) => {
-    if (!confirm("确认删除该记录？")) return;
-    try {
-      await req$5("/api/error-library/" + id2, { method: "DELETE" });
-      show("✓ 已删除");
-      load();
-      loadStats();
-      loadFilterOptions();
-    } catch (e) {
-      show(e.message, "err");
-    }
-  };
-  const handleBatchDelete = async () => {
-    if (selectedIds.length === 0) {
-      show("请先选择要删除的记录", "err");
-      return;
-    }
-    if (!confirm(`确认删除选中的 ${selectedIds.length} 条记录？`)) return;
-    try {
-      const res = await req$5("/api/error-library/batch-delete", {
-        method: "POST",
-        body: JSON.stringify({ ids: selectedIds })
-      });
-      show(`✓ 已删除 ${res.deleted} 条记录`);
-      setSelectedIds([]);
-      load();
-      loadStats();
-      loadFilterOptions();
-    } catch (e) {
-      show(e.message, "err");
-    }
-  };
-  const toggleSelect = (id2) => {
-    setSelectedIds((prev) => prev.includes(id2) ? prev.filter((i) => i !== id2) : [...prev, id2]);
-  };
-  const toggleSelectAll = () => {
-    if (items.length > 0 && selectedIds.length === items.length) setSelectedIds([]);
-    else setSelectedIds(items.map((i) => i.id));
-  };
-  const totalPages = Math.ceil(total / pageSize) || 1;
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-    !embedded && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-5", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card p-4 shadow-card", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-2xl font-bold font-mono text-red-600", children: stats.total }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted mt-1", children: "错误记录总数" })
-      ] }),
-      ERROR_TYPES.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card p-4 shadow-card", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-lg font-bold font-mono text-text-primary", children: stats.by_type[t2] || 0 }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted mt-1", children: t2 })
-      ] }, t2))
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap items-center gap-3 mb-4", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "input",
-        {
-          value: search,
-          onChange: (e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          },
-          placeholder: "搜索姓名或身份证…",
-          className: "border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary w-56"
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "select",
-        {
-          value: filterType,
-          onChange: (e) => {
-            setFilterType(e.target.value);
-            setPage(1);
-          },
-          className: "border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary",
-          children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部类型" }),
-            ERROR_TYPES.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: t2, children: t2 }, t2))
-          ]
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "select",
-        {
-          value: filterVillage,
-          onChange: (e) => {
-            setFilterVillage(e.target.value);
-            setPage(1);
-          },
-          className: "border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary",
-          children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部村" }),
-            filterOptions.villages.map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v2, children: v2 }, v2))
-          ]
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "select",
-        {
-          value: filterSubsidy,
-          onChange: (e) => {
-            setFilterSubsidy(e.target.value);
-            setPage(1);
-          },
-          className: "border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary",
-          children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部补贴分类" }),
-            filterOptions.subsidies.map((s) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: s, children: s }, s))
-          ]
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1" }),
-      selectedIds.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "button",
-        {
-          onClick: handleBatchDelete,
-          className: "px-3 py-2 text-sm bg-red-600 text-white rounded-btn hover:bg-red-500",
-          children: [
-            "删除选中 (",
-            selectedIds.length,
-            ")"
-          ]
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
-        {
-          onClick: () => setImportOpen(true),
-          className: "px-3 py-2 text-sm border border-primary/20 text-primary rounded-btn hover:bg-primary/5",
-          children: "Excel导入"
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
-        {
-          onClick: openAdd,
-          className: "px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90",
-          children: "＋ 新增"
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-white border border-border rounded-card overflow-hidden shadow-card", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full text-sm", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "bg-warm/30 border-b border-border/50 text-text-muted", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2.5 text-left w-10", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            onClick: toggleSelectAll,
-            className: `w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${items.length > 0 && selectedIds.length === items.length ? "bg-primary/90 border-primary/90 text-white" : "border-stone-300 hover:border-emerald-400"}`,
-            children: items.length > 0 && selectedIds.length === items.length && /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { className: "w-3 h-3", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: "3", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M5 13l4 4L19 7" }) })
-          }
-        ) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2.5 text-left", children: "姓名" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2.5 text-left", children: "身份证号" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2.5 text-left", children: "错误类型" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2.5 text-left", children: "所在村" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2.5 text-left", children: "所在组" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2.5 text-left", children: "补贴分类" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2.5 text-left", children: "错误原因" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2.5 text-left", children: "来源" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2.5 text-left", children: "操作" })
-      ] }) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("tbody", { children: [
-        loading && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 10, className: "text-center py-10 text-text-muted/50", children: "加载中…" }) }),
-        !loading && items.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 10, className: "text-center py-10 text-text-muted/50", children: "暂无数据" }) }),
-        items.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "border-b border-border/50 hover:bg-warm/30/50", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              onClick: () => toggleSelect(item.id),
-              className: `w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${selectedIds.includes(item.id) ? "bg-primary/90 border-primary/90 text-white" : "border-stone-300 hover:border-emerald-400"}`,
-              children: selectedIds.includes(item.id) && /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { className: "w-3 h-3", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: "3", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M5 13l4 4L19 7" }) })
-            }
-          ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2.5 font-medium text-text-primary", children: item.real_name }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2.5 font-mono text-text-primary", children: item.id_card }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `inline-block px-2 py-0.5 rounded text-xs font-medium ${item.error_type === "已故" ? "bg-gray-100 text-gray-600" : item.error_type === "身份证错误" ? "bg-red-50 text-red-600" : item.error_type === "重复人员" ? "bg-amber-50 text-amber-600" : item.error_type === "身份冒用" ? "bg-purple-50 text-purple-600" : "bg-warm/30 text-text-muted"}`, children: item.error_type }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2.5 text-text-primary", children: item.village_name || "-" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2.5 text-text-primary", children: item.group_no || "-" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2.5 text-text-primary text-xs", children: item.subsidy_name || "-" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2.5 text-text-primary max-w-xs truncate", title: item.error_reason, children: item.error_reason }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2.5 text-text-muted text-xs", children: item.source }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => openEdit(item), className: "text-xs text-blue-500 hover:text-blue-700", children: "编辑" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => handleDelete(item.id), className: "text-xs text-red-400 hover:text-red-600", children: "删除" })
-          ] }) })
-        ] }, item.id))
-      ] })
-    ] }) }),
-    totalPages > 1 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-center gap-2 mt-4", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
-        {
-          disabled: page <= 1,
-          onClick: () => setPage((p2) => p2 - 1),
-          className: "px-3 py-1 text-sm border border-border rounded-btn disabled:opacity-30 hover:bg-warm/30",
-          children: "上一页"
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-sm text-text-muted", children: [
-        "第 ",
-        page,
-        " / ",
-        totalPages,
-        " 页 · 共 ",
-        total,
-        " 条"
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
-        {
-          disabled: page >= totalPages,
-          onClick: () => setPage((p2) => p2 + 1),
-          className: "px-3 py-1 text-sm border border-border rounded-btn disabled:opacity-30 hover:bg-warm/30",
-          children: "下一页"
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      Modal,
-      {
-        open: modalOpen,
-        title: editId ? "编辑错误记录" : "新增错误记录",
-        onClose: () => setModalOpen(false),
-        onConfirm: handleSave,
-        confirmText: editId ? "保存" : "创建",
-        children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "姓名 *" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "input",
-                {
-                  value: form.real_name,
-                  onChange: (e) => setForm((f2) => ({ ...f2, real_name: e.target.value })),
-                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-                }
-              )
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "身份证号 *" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "input",
-                {
-                  value: form.id_card,
-                  onChange: (e) => setForm((f2) => ({ ...f2, id_card: e.target.value })),
-                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono"
-                }
-              )
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "错误类型 *" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                "select",
-                {
-                  value: form.error_type,
-                  onChange: (e) => setForm((f2) => ({ ...f2, error_type: e.target.value })),
-                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary",
-                  children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "请选择" }),
-                    ERROR_TYPES.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: t2, children: t2 }, t2))
-                  ]
-                }
-              )
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "来源" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "select",
-                {
-                  value: form.source,
-                  onChange: (e) => setForm((f2) => ({ ...f2, source: e.target.value })),
-                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary",
-                  children: SOURCES.map((s) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: s, children: s }, s))
-                }
-              )
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-3 gap-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "所在村" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "input",
-                {
-                  value: form.village_name || "",
-                  onChange: (e) => setForm((f2) => ({ ...f2, village_name: e.target.value })),
-                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-                }
-              )
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "所在组" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "input",
-                {
-                  value: form.group_no || "",
-                  onChange: (e) => setForm((f2) => ({ ...f2, group_no: e.target.value })),
-                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-                }
-              )
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "补贴分类" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "input",
-                {
-                  value: form.subsidy_name || "",
-                  onChange: (e) => setForm((f2) => ({ ...f2, subsidy_name: e.target.value })),
-                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-                }
-              )
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "错误原因 *" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "textarea",
-              {
-                rows: 3,
-                value: form.error_reason,
-                onChange: (e) => setForm((f2) => ({ ...f2, error_reason: e.target.value })),
-                className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none"
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "发现日期" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "input",
-                {
-                  type: "date",
-                  value: form.discovered_date || "",
-                  onChange: (e) => setForm((f2) => ({ ...f2, discovered_date: e.target.value })),
-                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-                }
-              )
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "备注" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "input",
-                {
-                  value: form.remark || "",
-                  onChange: (e) => setForm((f2) => ({ ...f2, remark: e.target.value })),
-                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
-                }
-              )
-            ] })
-          ] })
-        ] })
-      }
-    ),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      ExcelImportWithMapping,
-      {
-        open: importOpen,
-        onClose: () => setImportOpen(false),
-        title: "错误库导入",
-        templateHeaders: IMPORT_HEADERS,
-        templateExample: IMPORT_EXAMPLE,
-        systemFields: ERROR_LIBRARY_SYSTEM_FIELDS,
-        templates: templates.map((t2) => ({ id: t2.id, template_name: t2.template_name, column_mapping: t2.column_mapping })),
-        onDetectColumns: detectExcelColumns,
-        onSaveTemplate: saveColumnMappingTemplate,
-        onImport: handleImport,
-        onSuccess: () => {
-          load();
-          loadStats();
-          loadFilterOptions();
-        }
-      }
-    ),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { ...toast })
-  ] });
-}
-const PRECHECK_SYSTEM_FIELDS = [
-  { field: "real_name", label: "姓名", required: true, type: "string" },
-  { field: "id_card", label: "身份证号", required: true, type: "id_card" },
-  { field: "village_name", label: "所在村", required: true, type: "string" },
-  { field: "group_no", label: "所在组", required: true, type: "string" },
-  { field: "gender", label: "性别", required: false, type: "string" },
-  { field: "phone", label: "手机号", required: false, type: "string" },
-  { field: "bank_card", label: "银行卡号", required: false, type: "string" },
-  { field: "bank_name", label: "开户行", required: false, type: "string" },
-  { field: "contract_area", label: "承包地面积", required: false, type: "decimal" },
-  { field: "trust_out_area", label: "流转出面积", required: false, type: "decimal" },
-  { field: "trust_in_area", label: "代耕代种面积", required: false, type: "decimal" },
-  { field: "no_subsidy_area", label: "不补贴面积", required: false, type: "decimal" },
-  { field: "actual_subsidy_area", label: "实际补贴面积", required: false, type: "decimal" },
-  { field: "address", label: "家庭地址", required: false, type: "string" },
-  { field: "remark", label: "备注", required: false, type: "string" }
-];
-const PRECHECK_TEMPLATE_HEADERS = ["姓名*", "身份证号*", "所在村*", "所在组*", "性别", "手机号", "银行卡号", "开户行", "承包地面积(亩)", "流转出面积(亩)", "代耕代种进(亩)", "不补贴面积(亩)", "实际补贴面积(亩)", "家庭地址", "备注"];
-const PRECHECK_TEMPLATE_EXAMPLE = [
-  { "姓名*": "张国强", "身份证号*": "510123196503154231", "所在村*": "红星村", "所在组*": "一组", "性别": "男", "手机号": "13812340001", "银行卡号": "", "开户行": "农业银行", "承包地面积(亩)": 3.5, "流转出面积(亩)": 0.5, "代耕代种进(亩)": 0, "不补贴面积(亩)": 0, "实际补贴面积(亩)": 3, "家庭地址": "红星村一组12号", "备注": "" }
-];
-function PreCheckPage() {
-  const { toast, show } = useToast();
-  const [step, setStep] = reactExports.useState("upload");
-  const [rawRows, setRawRows] = reactExports.useState([]);
-  const [result, setResult] = reactExports.useState(null);
-  const [season, setSeason] = reactExports.useState("");
-  const [compareYear, setCompareYear] = reactExports.useState("");
-  const [activeTab, setActiveTab] = reactExports.useState("format");
-  const [pageTab, setPageTab] = reactExports.useState("check");
-  const [exportModalOpen, setExportModalOpen] = reactExports.useState(false);
-  const [splitByVillage, setSplitByVillage] = reactExports.useState(false);
-  const [selectedSheets, setSelectedSheets] = reactExports.useState([]);
+  const [tab, setTab] = reactExports.useState("sites");
+  const [sites, setSites] = reactExports.useState([]);
+  const [openSite, setOpenSite] = reactExports.useState(null);
+  const [siteModal, setSiteModal] = reactExports.useState(false);
+  const [editSite, setEditSite] = reactExports.useState(null);
+  const [siteForm, setSiteForm] = reactExports.useState({ site_type: "link", sort_order: 0, is_active: 1 });
+  const [siteFormMode, setSiteFormMode] = reactExports.useState(false);
+  const [srch, setSrch] = reactExports.useState("");
+  const [srchYear, setSrchYear] = reactExports.useState("");
+  const [srchTypeId, setSrchTypeId] = reactExports.useState("");
+  const [srchVillage, setSrchVillage] = reactExports.useState("");
+  const [srchPage, setSrchPage] = reactExports.useState(1);
+  const [srchResults, setSrchResults] = reactExports.useState([]);
+  const [srchTotal, setSrchTotal] = reactExports.useState(0);
+  const [srchLoading, setSrchLoading] = reactExports.useState(false);
+  const [subsidyTypes, setSubsidyTypes] = reactExports.useState([]);
   const [villages, setVillages] = reactExports.useState([]);
-  const [isExporting, setIsExporting] = reactExports.useState(false);
-  const [importOpen, setImportOpen] = reactExports.useState(false);
-  const [templates, setTemplates] = reactExports.useState([]);
-  const pendingRows = reactExports.useRef(null);
+  const [records, setRecords] = reactExports.useState([]);
+  const [recTotal, setRecTotal] = reactExports.useState(0);
+  const [recPage, setRecPage] = reactExports.useState(1);
+  const [recSearch, setRecSearch] = reactExports.useState("");
+  const [recLoading, setRecLoading] = reactExports.useState(false);
+  const [stats, setStats] = reactExports.useState(null);
+  const [editRecord, setEditRecord] = reactExports.useState(null);
+  const [recForm, setRecForm] = reactExports.useState({ result_note: "", purpose: "", tags: "" });
+  const [batchOpen, setBatchOpen] = reactExports.useState(false);
+  const [batchText, setBatchText] = reactExports.useState("");
+  const [batchType, setBatchType] = reactExports.useState("身份证查询");
+  const [batchSiteId, setBatchSiteId] = reactExports.useState("");
+  const [batchPurpose, setBatchPurpose] = reactExports.useState("");
+  const [batchOperator, setBatchOperator] = reactExports.useState("操作员");
+  const [batchTags, setBatchTags] = reactExports.useState("");
+  const [favorOpen, setFavorOpen] = reactExports.useState(false);
+  const [favorContext, setFavorContext] = reactExports.useState(null);
+  const [favorPurpose, setFavorPurpose] = reactExports.useState("");
+  const [favorTags, setFavorTags] = reactExports.useState("");
   reactExports.useEffect(() => {
-    getExcelTemplates("PRECHECK").then(setTemplates).catch(() => {
-    });
+    loadSites();
   }, []);
   reactExports.useEffect(() => {
-    if (result) {
-      setSelectedSheets(getDefaultSelectedSheets(result));
-      setVillages(getVillagesFromResult(result));
-    } else {
-      setSelectedSheets([]);
-      setVillages([]);
+    getVillageGroups().then((g) => setVillages([...new Set(g.map((v2) => v2.village_name))]));
+    getSubsidyTypes().then(setSubsidyTypes);
+  }, []);
+  reactExports.useEffect(() => {
+    if (tab === "records") {
+      loadRecords();
+      loadStats();
     }
-  }, [result]);
-  const runCheck = reactExports.useCallback(async (rows) => {
-    if (!rows.length) return show("请先上传 Excel 文件", "err");
-    setStep("checking");
+  }, [tab, recPage, recSearch]);
+  const loadSites = async () => {
     try {
-      const res = await fetch("/api/precheck/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rows,
-          season: season || null,
-          compare_year: compareYear || null
-        })
-      });
-      if (!res.ok) {
-        const e = await res.json();
-        throw new Error(e.detail);
+      const d = await req$6("/api/external/sites");
+      setSites(d);
+    } catch {
+    }
+  };
+  const loadRecords = async () => {
+    setRecLoading(true);
+    try {
+      const p2 = new URLSearchParams({ page: String(recPage), page_size: "20" });
+      if (recSearch) p2.set("search", recSearch);
+      const r2 = await req$6(`/api/external/records?${p2}`);
+      setRecords(r2.items);
+      setRecTotal(r2.total);
+    } finally {
+      setRecLoading(false);
+    }
+  };
+  const loadStats = async () => {
+    try {
+      const s = await req$6("/api/external/records/stats");
+      setStats(s);
+    } catch {
+    }
+  };
+  const doSearch = reactExports.useCallback(async () => {
+    if (!srch && !srchYear && !srchTypeId && !srchVillage) return;
+    setSrchLoading(true);
+    try {
+      const p2 = { page: srchPage, page_size: 20 };
+      if (srch) p2.search = srch;
+      if (srchYear) p2.year = srchYear;
+      if (srchTypeId) p2.subsidy_type_id = srchTypeId;
+      if (srchVillage) p2.village_name = srchVillage;
+      const r2 = await searchApplications(p2);
+      setSrchResults(r2.items);
+      setSrchTotal(r2.total);
+    } finally {
+      setSrchLoading(false);
+    }
+  }, [srch, srchYear, srchTypeId, srchVillage, srchPage]);
+  reactExports.useEffect(() => {
+    if (tab === "search") doSearch();
+  }, [tab, doSearch]);
+  const submitBatch = async () => {
+    const inputs = batchText.split(/[\n,，;；]/).map((s) => s.trim()).filter(Boolean);
+    if (!inputs.length) return show("请输入查询内容", "err");
+    const siteName = sites.find((s) => s.id === batchSiteId)?.name || "手动记录";
+    try {
+      await req$6("/api/external/records", { method: "POST", body: JSON.stringify({
+        site_id: batchSiteId || null,
+        site_name: siteName,
+        query_type: batchType,
+        query_inputs: inputs,
+        purpose: batchPurpose || null,
+        operator: batchOperator,
+        tags: batchTags || null
+      }) });
+      show(`✓ 已保存 ${inputs.length} 条查询记录`);
+      setBatchOpen(false);
+      setBatchText("");
+      if (tab === "records") {
+        loadRecords();
+        loadStats();
       }
-      const data = await res.json();
-      setResult(data);
-      setStep("result");
-      const tabs = [
-        { id: "error-library-hits", count: data.summary.error_library_hits },
-        { id: "format", count: data.summary.format_errors },
-        { id: "village", count: data.summary.village_errors },
-        { id: "duplicate", count: data.summary.duplicate_errors },
-        { id: "gender", count: data.summary.gender_mismatch },
-        { id: "area-anomalies", count: data.summary.area_anomalies },
-        // { id: 'household-duplicates', ... } // 同一家庭多成员申请已移除
-        { id: "new", count: data.summary.new_farmers },
-        { id: "removed", count: data.summary.removed_farmers },
-        { id: "changed", count: data.summary.changed_farmers }
-      ];
-      const yearCompare = data.year_compare;
-      if (yearCompare?.year) {
-        tabs.push({ id: "year", count: (yearCompare.new_count || 0) + (yearCompare.removed_count || 0) });
-      }
-      setActiveTab(tabs.find((t2) => t2.count > 0)?.id || "new");
     } catch (e) {
       show(e.message, "err");
-      setStep("upload");
     }
-  }, [season, compareYear, show]);
-  const handleExportWithOptions = async () => {
-    if (!result || isExporting) return;
-    setIsExporting(true);
+  };
+  const submitEditRecord = async () => {
+    if (!editRecord) return;
+    await req$6(`/api/external/records/${editRecord.id}`, { method: "PUT", body: JSON.stringify(recForm) });
+    show("✓ 已更新");
+    setEditRecord(null);
+    loadRecords();
+  };
+  const deleteRecord = async (id2) => {
+    if (!confirm("确认删除？")) return;
+    await req$6(`/api/external/records/${id2}`, { method: "DELETE" });
+    show("✓ 已删除");
+    loadRecords();
+    loadStats();
+  };
+  const submitSite = async () => {
+    if (!siteForm.name || !siteForm.url) return show("名称和地址必填", "err");
     try {
-      await exportPrecheckReportWithOptions(
-        result,
-        {
-          splitByVillage,
-          selectedSheets: selectedSheets.length > 0 ? selectedSheets : ["summary"]
-        },
-        "预检查报告"
-      );
-      setExportModalOpen(false);
-    } catch (error) {
-      console.error("导出失败:", error);
-      show("导出失败，请重试", "err");
-    } finally {
-      setIsExporting(false);
+      if (editSite?.id) await req$6(`/api/external/sites/${editSite.id}`, { method: "PUT", body: JSON.stringify(siteForm) });
+      else await req$6("/api/external/sites", { method: "POST", body: JSON.stringify(siteForm) });
+      show("✓ 保存成功");
+      setSiteModal(false);
+      setEditSite(null);
+      setSiteFormMode(false);
+      loadSites();
+    } catch (e) {
+      show(e.message, "err");
     }
   };
-  const toggleSheet = (sheetKey) => {
-    if (selectedSheets.includes(sheetKey)) {
-      setSelectedSheets(selectedSheets.filter((s) => s !== sheetKey));
-    } else {
-      setSelectedSheets([...selectedSheets, sheetKey]);
+  const deleteSite = async (id2) => {
+    if (!confirm("确认删除？")) return;
+    await req$6(`/api/external/sites/${id2}`, { method: "DELETE" });
+    show("✓ 已删除");
+    loadSites();
+  };
+  const saveFavor = async () => {
+    if (!favorContext) return;
+    const siteName = favorContext.source || "系统内查询";
+    try {
+      await req$6("/api/external/records", { method: "POST", body: JSON.stringify({
+        site_id: null,
+        site_name: siteName,
+        query_type: favorContext.type,
+        query_inputs: favorContext.inputs,
+        purpose: favorPurpose || null,
+        operator: "操作员",
+        tags: favorTags || null
+      }) });
+      show("✓ 已收藏到查询记录");
+      setFavorOpen(false);
+      setFavorPurpose("");
+      setFavorTags("");
+    } catch (e) {
+      show(e.message, "err");
     }
   };
-  const toggleAllSheets = () => {
-    if (selectedSheets.length === PRECHECK_SHEET_OPTIONS.length) {
-      setSelectedSheets(["summary"]);
-    } else {
-      setSelectedSheets(PRECHECK_SHEET_OPTIONS.map((opt) => opt.key));
-    }
-  };
-  const handlePrecheckImport = reactExports.useCallback(async (mappedRows) => {
-    const toNum = (v2) => v2 != null && v2 !== "" ? Number(v2) : void 0;
-    const toStr = (v2) => v2 ? String(v2).trim() : void 0;
-    const rows = mappedRows.map((r2, i) => ({
-      row_index: i + 2,
-      real_name: String(r2.real_name || "").trim(),
-      id_card: String(r2.id_card || "").trim(),
-      village_name: String(r2.village_name || "").trim(),
-      group_no: String(r2.group_no || "").trim(),
-      phone: toStr(r2.phone),
-      bank_card: toStr(r2.bank_card),
-      bank_name: toStr(r2.bank_name),
-      contract_area: toNum(r2.contract_area),
-      trust_out_area: toNum(r2.trust_out_area),
-      trust_in_area: toNum(r2.trust_in_area),
-      no_subsidy_area: toNum(r2.no_subsidy_area),
-      actual_subsidy_area: toNum(r2.actual_subsidy_area),
-      gender: toStr(r2.gender),
-      address: toStr(r2.address),
-      remark: toStr(r2.remark)
-    }));
-    pendingRows.current = rows;
-    setRawRows(rows);
-    return { created: rows.length, skipped: 0, errors: [] };
-  }, []);
-  const handleImportSuccess = reactExports.useCallback(() => {
-    setImportOpen(false);
-    if (pendingRows.current && pendingRows.current.length > 0) {
-      const rows = pendingRows.current;
-      pendingRows.current = null;
-      runCheck(rows);
-    }
-  }, [runCheck]);
-  const reset = () => {
-    setStep("upload");
-    setRawRows([]);
-    setResult(null);
-    pendingRows.current = null;
-  };
-  const getTabs = (r2) => {
-    const yc2 = r2.year_compare;
-    return [
-      { id: "error-library-hits", label: "错误库命中", count: r2.summary.error_library_hits, color: "red" },
-      { id: "format", label: "格式错误", count: r2.summary.format_errors, color: "red" },
-      { id: "village", label: "村组不存在", count: r2.summary.village_errors, color: "red" },
-      { id: "duplicate", label: "重复身份证", count: r2.summary.duplicate_errors, color: "amber" },
-      { id: "gender", label: "性别不符", count: r2.summary.gender_mismatch, color: "amber" },
-      { id: "area-anomalies", label: "面积异常", count: r2.summary.area_anomalies, color: "orange" },
-      // { id: 'household-duplicates', ... } // 同一家庭多成员申请已移除
-      { id: "new", label: "新增农户", count: r2.summary.new_farmers, color: "green" },
-      { id: "removed", label: "减少农户", count: r2.summary.removed_farmers, color: "blue" },
-      { id: "changed", label: "字段变更", count: r2.summary.changed_farmers, color: "purple" },
-      ...yc2.year ? [{ id: "year", label: `${yc2.year}年对比`, count: (yc2.new_count || 0) + (yc2.removed_count || 0), color: "blue" }] : []
-    ];
-  };
-  const getTabConfig = (tabId) => {
-    const map = {
-      "error-library-hits": "error_library_hits",
-      "format": "format_errors",
-      "village": "village_errors",
-      "duplicate": "duplicate_errors",
-      "gender": "gender_mismatch",
-      "area-anomalies": "area_anomalies",
-      // 'household-duplicates': 同一家庭多成员申请已移除
-      "new": "new_farmers",
-      "removed": "removed_farmers",
-      "changed": "changed_farmers",
-      "year": null
-      // 特殊处理
-    };
-    const field = map[tabId];
-    return field ? PRECHECK_TABLE_CONFIGS[field] : null;
+  const toggleTag = (t2, cur, set) => {
+    const ts = cur.split(",").map((s) => s.trim()).filter(Boolean);
+    set(ts.includes(t2) ? ts.filter((x2) => x2 !== t2).join(", ") : [...ts, t2].join(", "));
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1 mb-5", children: [
-      { id: "check", label: "数据检查", icon: "🔍" },
-      { id: "error-lib", label: "历史错误库", icon: "📋" }
-    ].map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-      "button",
-      {
-        onClick: () => setPageTab(t2.id),
-        className: `px-4 py-2 rounded-btn text-sm font-medium transition-colors
-              ${pageTab === t2.id ? "bg-primary text-white shadow" : "bg-white text-text-primary border border-border hover:bg-warm/30"}`,
-        children: [
-          t2.icon,
-          " ",
-          t2.label
-        ]
-      },
-      t2.id
-    )) }),
-    pageTab === "error-lib" && /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorLibraryPage, { embedded: true }),
-    pageTab === "check" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-      step !== "result" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-[1fr_280px] gap-5", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card p-6 shadow-card", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-between mb-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-bold text-text-primary", children: "上传待检查 Excel 文件" }) }),
-          rawRows.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border-2 border-primary/30 bg-primary/5/40 rounded-card p-12 text-center", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-4xl mb-3", children: "✅" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-text-primary font-semibold", children: [
-              "已导入 ",
-              rawRows.length,
-              " 行数据"
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-text-muted text-sm mt-1", children: "正在执行预检查…" })
-          ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "button",
-            {
-              onClick: () => setImportOpen(true),
-              className: "w-full border-2 border-dashed border-border rounded-card p-12 text-center hover:border-emerald-400 hover:bg-primary/5 transition-colors cursor-pointer",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-4xl mb-3", children: "📊" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-text-muted text-sm", children: "点击选择 Excel 文件上传" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-text-muted/50 text-xs mt-1", children: "支持 .xlsx / .xls，可配置列映射" })
-              ]
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card p-5 shadow-card", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("h4", { className: "font-semibold text-text-primary text-sm mb-3", children: "检查选项" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "block text-xs text-text-muted mb-1", children: [
-                  "补贴分类 ",
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-red-400", children: "*" })
-                ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                  "select",
-                  {
-                    value: season,
-                    onChange: (e) => setSeason(e.target.value),
-                    className: `w-full border rounded-btn px-3 py-2 text-sm bg-white outline-none ${!season ? "border-amber-300" : "border-border"}`,
-                    children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "— 请选择 —" }),
-                      ["大春", "小春", "全年单补", "临时"].map((s) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: s, children: s }, s))
-                    ]
-                  }
-                ),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted/50 mt-1", children: "用于户级累计面积超限检测" })
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "与哪年的补贴数据对比（可选）" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                  "select",
-                  {
-                    value: compareYear,
-                    onChange: (e) => setCompareYear(e.target.value ? Number(e.target.value) : ""),
-                    className: "w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none",
-                    children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "不对比历史年度" }),
-                      years$4.map((y2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: y2, children: [
-                        y2,
-                        "年"
-                      ] }, y2))
-                    ]
-                  }
-                ),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted/50 mt-1", children: "选择后会对比该年度已有补贴记录，找出新增/减少；同时启用户级累计超限检测" })
-              ] })
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-blue-50 border border-blue-100 rounded-card p-4 text-xs text-blue-700 space-y-1.5", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-semibold mb-2", children: "检查项目：" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "✓ 姓名：长度、字符合法性" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "✓ 身份证：18位格式、出生日期、校验码" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "✓ 性别：与身份证是否一致" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "✓ 村组：是否在数据库中存在" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "✓ 内部重复：同一身份证是否出现多次" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "✓ 错误库：与历史错误记录交叉比对" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "✓ 面积：土地面积是否超过承包面积" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "✓ 与数据库比对：新增/减少/变更" }),
-            compareYear && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
-              "✓ 与 ",
-              compareYear,
-              " 年补贴数据对比"
-            ] })
-          ] })
-        ] })
-      ] }),
-      step === "result" && result && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-4 gap-3 mb-5", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `rounded-card p-4 border shadow-card ${result.summary.error_rows === 0 ? "bg-primary/5 border-primary/20" : "bg-red-50 border-red-200"}`, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `text-3xl font-bold font-mono ${result.summary.error_rows === 0 ? "text-primary" : "text-red-600"}`, children: [
-              result.summary.pass_rate,
-              "%"
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs text-text-muted mt-1", children: [
-              "通过率（",
-              result.summary.ok_rows,
-              "/",
-              result.summary.total_rows,
-              " 行）"
-            ] })
-          ] }),
-          [
-            { label: "格式/村组错误", val: result.summary.format_errors + result.summary.village_errors + result.summary.duplicate_errors, color: "text-red-600" },
-            { label: "错误库命中", val: result.summary.error_library_hits, color: "text-amber-600" },
-            { label: "新增农户", val: result.summary.new_farmers, color: "text-primary" }
-          ].map((s) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card p-4 shadow-card", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `text-2xl font-bold font-mono ${s.color}`, children: s.val }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted mt-1", children: s.label })
-          ] }, s.label))
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 mb-4", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              onClick: reset,
-              className: "px-3 py-2 text-sm border border-border rounded-btn bg-white text-text-primary hover:bg-warm/30",
-              children: "← 重新上传"
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              onClick: () => exportPrecheckReport(result),
-              className: "px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90",
-              children: "↓ 导出完整报告 Excel"
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              onClick: () => setExportModalOpen(true),
-              className: "px-3 py-2 text-sm bg-blue-700 text-white rounded-btn hover:bg-blue-600",
-              children: "⚙️ 导出选项"
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ml-auto text-xs text-text-muted flex items-center", children: [
-            result.summary.total_rows,
-            " 行"
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-1.5 mb-4", children: getTabs(result).map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "button",
-          {
-            onClick: () => setActiveTab(t2.id),
-            className: `flex items-center gap-1.5 px-3 py-1.5 rounded-btn text-xs font-medium border transition-colors
-                  ${activeTab === t2.id ? "bg-primary text-white border-primary" : "bg-white border-border text-text-primary hover:border-border"}`,
-            children: [
-              t2.label,
-              t2.count > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `px-1.5 py-0.5 rounded text-xs font-mono
-                    ${activeTab === t2.id ? "bg-white/20 text-white" : `bg-${t2.color}-100 text-${t2.color}-700`}`, children: t2.count })
-            ]
-          },
-          t2.id
-        )) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card overflow-hidden shadow-card", children: [
-          (() => {
-            if (activeTab === "year") return null;
-            const config = getTabConfig(activeTab);
-            if (!config) return null;
-            const data = result[config.field];
-            if (!data || data.length === 0) {
-              return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-8 text-center text-text-muted", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-2xl mb-2", children: "📋" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm", children: [
-                  "暂无",
-                  config.headers[0]?.replace("行号", ""),
-                  "数据"
-                ] })
-              ] });
-            }
-            const title = typeof config.title === "function" ? config.title(data.length) : config.title;
-            return /* @__PURE__ */ jsxRuntimeExports.jsx(
-              ResultTable,
-              {
-                title,
-                empty: data.length === 0,
-                headers: config.headers,
-                rows: data.map((row, index2) => config.rowMapper(row, index2))
-              },
-              activeTab
-            );
-          })(),
-          activeTab === "year" && result.year_compare && result.year_compare.year && (() => {
-            const yc2 = result.year_compare;
-            return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-5", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-4 mb-5", children: [
-                { label: `${yc2.year}年有补贴记录`, val: yc2.db_count, color: "text-text-primary" },
-                { label: "本次 Excel 行数", val: yc2.excel_count, color: "text-text-primary" },
-                { label: "新增受益农户", val: yc2.new_count, color: "text-primary" },
-                { label: "减少受益农户", val: yc2.removed_count, color: "text-blue-600" }
-              ].map((s) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-warm/30 border border-border rounded-card p-4 flex-1", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `text-2xl font-bold font-mono ${s.color}`, children: s.val }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted mt-1", children: s.label })
-              ] }, s.label)) }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-4", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm font-semibold text-primary mb-2", children: [
-                    "新增受益（",
-                    yc2.new_count,
-                    "人）"
-                  ] }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "border border-border/50 rounded-btn overflow-auto max-h-64", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full text-xs", children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { className: "bg-warm/30", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-text-muted", children: "姓名" }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-text-muted font-mono", children: "身份证号" })
-                    ] }) }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: yc2.new_farmers.slice(0, 100).map((r2, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "border-t border-border/50", children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-1.5", children: String(r2.name) }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-1.5 font-mono text-text-muted", children: r2.id_card })
-                    ] }, i)) })
-                  ] }) })
-                ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm font-semibold text-blue-700 mb-2", children: [
-                    "减少受益（",
-                    yc2.removed_count,
-                    "人）"
-                  ] }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "border border-border/50 rounded-btn overflow-auto max-h-64", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full text-xs", children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { className: "bg-warm/30", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-text-muted", children: "姓名" }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-text-muted font-mono", children: "身份证号" }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-text-muted", children: "所在村" })
-                    ] }) }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: yc2.removed_farmers.slice(0, 100).map((r2, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "border-t border-border/50", children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-1.5", children: r2.name }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-1.5 font-mono text-text-muted", children: r2.id_card }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-1.5 text-text-muted", children: r2.village })
-                    ] }, i)) })
-                  ] }) })
-                ] })
-              ] })
-            ] });
-          })()
-        ] })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      ExcelImportWithMapping,
-      {
-        open: importOpen,
-        onClose: () => setImportOpen(false),
-        title: "导入预检查数据",
-        templateHeaders: PRECHECK_TEMPLATE_HEADERS,
-        templateExample: PRECHECK_TEMPLATE_EXAMPLE,
-        systemFields: PRECHECK_SYSTEM_FIELDS,
-        templates: templates.map((t2) => ({
-          id: t2.id,
-          template_name: t2.template_name,
-          column_mapping: t2.column_mapping.map((m2) => ({
-            excel_column: m2.excel_column,
-            system_field: m2.system_field,
-            required: m2.required
-          }))
-        })),
-        onDetectColumns: async (columns, sampleRows) => {
-          const r2 = await fetch("/api/excel-templates/detect-columns", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ columns, sample_rows: sampleRows, business_type: "PRECHECK" })
-          });
-          const raw = await r2.json();
-          const cols = (raw.columns || []).map((d) => ({
-            excel_column: d.excel_column,
-            suggested_field: d.suggested_field,
-            confidence: d.confidence ?? d.suggested_confidence ?? 0,
-            alternatives: d.alternatives || []
-          }));
-          return { columns: cols, recommended_templates: raw.recommended_templates || [] };
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-4", children: [
+      [{ id: "sites", label: "🌐 外部网站" }, { id: "search", label: "🔍 系统内查询" }, { id: "records", label: "📝 查询记录" }].map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          onClick: () => setTab(t2.id),
+          className: `px-4 py-2 text-sm rounded-btn border transition-colors ${tab === t2.id ? "bg-primary text-white border-emerald-700" : "bg-white border-border text-text-primary hover:border-border"}`,
+          children: t2.label
         },
-        onSaveTemplate: async (data) => {
-          const r2 = await fetch("/api/excel-templates", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...data, business_type: "PRECHECK" })
-          });
-          return r2.json();
-        },
-        onImport: handlePrecheckImport,
-        onSuccess: handleImportSuccess
-      }
-    ),
-    exportModalOpen && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-card shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-6 py-4 border-b border-border flex items-center justify-between", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-bold text-text-primary", children: "导出选项" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted mt-1", children: "选择导出方式和包含的sheet" })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setExportModalOpen(false), className: "text-text-muted hover:text-text-primary", children: "✕" })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-6 overflow-y-auto flex-1", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-6", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("h4", { className: "font-semibold text-text-primary", children: "分村导出" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "relative inline-flex items-center cursor-pointer", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "input",
-                {
-                  type: "checkbox",
-                  checked: splitByVillage,
-                  onChange: (e) => setSplitByVillage(e.target.checked),
-                  className: "sr-only peer"
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-11 h-6 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" })
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-text-muted mb-3", children: splitByVillage ? `将按村生成独立的Excel文件（共${villages.length}个村），并打包为ZIP下载` : "所有数据将合并到一个Excel文件中" }),
-          splitByVillage && villages.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-warm/30 border border-border rounded-btn p-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted mb-2", children: "涉及的村：" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-1.5", children: villages.map((village) => /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "px-2 py-1 bg-white border border-border rounded text-xs", children: village }, village)) })
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-6", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("h4", { className: "font-semibold text-text-primary", children: "选择包含的sheet" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                onClick: toggleAllSheets,
-                className: "text-xs text-blue-600 hover:text-blue-800",
-                children: selectedSheets.length === PRECHECK_SHEET_OPTIONS.length ? "取消全选" : "全选"
-              }
-            )
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-text-muted mb-3", children: "勾选需要导出的sheet，未勾选的sheet将不会包含在导出文件中" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-2 gap-2", children: PRECHECK_SHEET_OPTIONS.map((opt) => {
-            const data = result?.[opt.key];
-            const count = data?.length || 0;
-            const isSelected = selectedSheets.includes(opt.key);
-            const hasData = count > 0 || opt.key === "summary";
-            return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "label",
-              {
-                className: `flex items-center p-3 border rounded-btn cursor-pointer transition-colors ${isSelected ? "bg-blue-50 border-blue-300" : "bg-white border-border hover:bg-warm/30"} ${!hasData ? "opacity-50 cursor-not-allowed" : ""}`,
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(
-                    "input",
-                    {
-                      type: "checkbox",
-                      checked: isSelected,
-                      onChange: () => hasData && toggleSheet(opt.key),
-                      disabled: !hasData,
-                      className: "mr-3 h-4 w-4 text-blue-600 rounded"
-                    }
-                  ),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1", children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-medium text-sm text-text-primary", children: opt.label }),
-                    opt.hasCount && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted mt-1", children: count > 0 ? `${count}条数据` : "无数据" })
-                  ] })
-                ]
-              },
-              opt.key
-            );
-          }) })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-blue-50 border border-blue-100 rounded-btn p-4 text-xs text-blue-700", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "font-semibold mb-1", children: "导出说明：" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("ul", { className: "list-disc pl-4 space-y-1", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: "汇总sheet始终包含，即使未勾选" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: "无数据的sheet将不会生成，即使勾选" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: "分村导出时，每个村的Excel文件将只包含该村的数据" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: "分村导出将自动打包为ZIP文件下载" })
-          ] })
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-6 py-4 border-t border-border flex justify-end gap-3", children: [
+        t2.id
+      )),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ml-auto flex gap-2", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
           {
-            onClick: () => setExportModalOpen(false),
-            className: "px-4 py-2 text-sm border border-border rounded-btn bg-white text-text-primary hover:bg-warm/30",
-            children: "取消"
+            onClick: () => {
+              setEditSite(null);
+              setSiteForm({ site_type: "link", sort_order: 0, is_active: 1 });
+              setSiteModal(true);
+            },
+            className: "text-xs border border-border text-text-muted px-3 py-1.5 rounded-btn hover:border-primary/30 hover:text-primary",
+            children: "⚙️ 管理网站"
           }
         ),
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
           {
-            onClick: handleExportWithOptions,
-            disabled: isExporting || selectedSheets.length === 0,
-            className: "px-4 py-2 text-sm bg-blue-700 text-white rounded-btn hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2",
-            children: isExporting ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "animate-spin rounded-full h-4 w-4 border-b-2 border-white" }),
-              "导出中..."
-            ] }) : `↓ 导出${splitByVillage ? "ZIP" : "Excel"}`
+            onClick: () => setBatchOpen(true),
+            className: "text-sm bg-primary text-white px-4 py-2 rounded-btn hover:bg-primary/90",
+            children: "＋ 批量查询"
+          }
+        )
+      ] })
+    ] }),
+    tab === "sites" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+      openSite && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-4 bg-white border border-border rounded-card overflow-hidden shadow-card", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 px-4 py-2.5 bg-warm/50 border-b border-border text-text-primary text-sm", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold", children: openSite.name }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted text-xs font-mono truncate flex-1", children: openSite.url }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("a", { href: openSite.url, target: "_blank", rel: "noopener noreferrer", className: "text-xs bg-primary/10 hover:bg-primary/20 text-primary px-2.5 py-1 rounded", children: "↗ 新标签页" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setOpenSite(null), className: "text-text-muted hover:text-text-primary ml-2", children: "✕" })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "iframe",
+          {
+            src: openSite.url,
+            className: "w-full",
+            style: { height: 480 },
+            title: openSite.name,
+            sandbox: "allow-scripts allow-same-origin allow-forms allow-popups"
+          }
+        )
+      ] }),
+      sites.filter((s) => s.is_active).length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center py-20 bg-white border border-border rounded-card text-text-muted/50", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-5xl mb-3", children: "🌐" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm mb-3", children: "暂无外部网站，点击右上角「管理网站」添加" })
+      ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-3 gap-4", children: sites.filter((s) => s.is_active).map((s) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: "bg-white border border-border rounded-card p-5 shadow-card hover:border-primary/30 hover:shadow-card transition-all cursor-pointer group",
+          onClick: () => setOpenSite(s),
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-start justify-between mb-3", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-10 h-10 bg-primary/5 border border-primary/10 rounded-card flex items-center justify-center text-xl", children: "🌐" }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-bold text-text-primary text-sm mb-1 group-hover:text-primary", children: s.name }),
+            s.description && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted mb-2", children: s.description }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted/50 font-mono truncate", children: s.url }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-primary", children: "点击内嵌打开 →" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("a", { href: s.url, target: "_blank", rel: "noopener noreferrer", onClick: (e) => e.stopPropagation(), className: "text-xs text-text-muted hover:text-text-primary", children: "↗ 新标签" })
+            ] })
+          ]
+        },
+        s.id
+      )) })
+    ] }),
+    tab === "search" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-white border border-border rounded-card p-4 shadow-card mb-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3 flex-wrap items-end", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-48", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "姓名 / 身份证号" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              value: srch,
+              onChange: (e) => setSrch(e.target.value),
+              onKeyDown: (e) => e.key === "Enter" && doSearch(),
+              placeholder: "输入姓名或身份证…",
+              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "年度" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              value: srchYear,
+              onChange: (e) => setSrchYear(e.target.value ? Number(e.target.value) : ""),
+              className: "border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部年度" }),
+                years$4.map((y2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: y2, children: [
+                  y2,
+                  "年"
+                ] }, y2))
+              ]
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "补贴类型" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              value: srchTypeId,
+              onChange: (e) => setSrchTypeId(e.target.value ? Number(e.target.value) : ""),
+              className: "border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部类型" }),
+                subsidyTypes.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: t2.id, children: [
+                  t2.subsidy_name,
+                  "（",
+                  t2.subsidy_year,
+                  "）"
+                ] }, t2.id))
+              ]
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "村庄" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              value: srchVillage,
+              onChange: (e) => setSrchVillage(e.target.value),
+              className: "border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部村庄" }),
+                villages.map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v2, children: v2 }, v2))
+              ]
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => {
+              setSrchPage(1);
+              doSearch();
+            },
+            className: "px-4 py-2 bg-primary text-white text-sm rounded-btn hover:bg-primary/90",
+            children: "搜索"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => {
+              setSrch("");
+              setSrchYear("");
+              setSrchTypeId("");
+              setSrchVillage("");
+              setSrchResults([]);
+              setSrchTotal(0);
+            },
+            className: "px-3 py-2 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30",
+            children: "清除"
+          }
+        )
+      ] }) }),
+      srchResults.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card overflow-hidden shadow-card", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-2.5 bg-warm/30 border-b border-border/50 flex justify-between items-center", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-semibold text-text-primary", children: "查询结果" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
+              "共 ",
+              srchTotal,
+              " 条"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => {
+              setFavorContext({ inputs: srch ? [srch] : ["综合查询"], type: srch.length === 18 ? "身份证查询" : "姓名查询", source: "系统内查询" });
+              setFavorOpen(true);
+            }, className: "text-xs text-amber-600 border border-amber-200 px-2.5 py-1 rounded-btn hover:bg-amber-50", children: "★ 收藏本次查询" })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full border-collapse", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { className: "border-b border-border/50", children: ["姓名", "身份证", "所在村", "补贴项目", "年度", "面积", "申请金额", "实发金额", "状态", ""].map((h) => /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3.5 py-2.5 text-left text-xs text-text-muted font-semibold whitespace-nowrap", children: h }, h)) }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("tbody", { children: [
+            srchLoading && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 9, className: "text-center py-8 text-text-muted/50", children: "查询中…" }) }),
+            !srchLoading && srchResults.map((a) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "border-b border-border/50 hover:bg-warm/30", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5 text-sm font-semibold", children: a.farmer_name }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5 text-xs font-mono text-text-muted", children: a.id_card_masked || "—" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5 text-xs text-text-muted", children: a.village || "—" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5 text-sm", children: a.subsidy_name }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5 text-sm font-bold text-blue-600", children: a.apply_year }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5 text-sm font-mono", children: a.apply_area ? `${a.apply_area}亩` : "—" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5 text-sm font-mono text-text-muted", children: fmt$2(a.apply_amount) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5 text-sm font-mono font-bold text-primary", children: fmt$2(a.actual_amount) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: PAY_STATUS[a.pay_status]?.label || "—", color: PAY_STATUS[a.pay_status]?.color }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => {
+                setFavorContext({ inputs: [a.farmer_name + (a.id_card_masked ? " " + a.id_card_masked : "")], type: "综合查询", source: "系统内查询" });
+                setFavorOpen(true);
+              }, className: "text-xs text-amber-600 border border-amber-200 px-2.5 py-1 rounded-btn hover:bg-amber-50 whitespace-nowrap", children: "★ 收藏" }) })
+            ] }, a.id))
+          ] })
+        ] }),
+        srchTotal > 20 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-2 border-t border-border/50 bg-warm/10 flex justify-between text-xs text-text-muted", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+            "第",
+            srchPage,
+            "/",
+            Math.ceil(srchTotal / 20),
+            "页"
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: srchPage <= 1, onClick: () => setSrchPage((p2) => p2 - 1), className: "px-2.5 py-1 border border-border rounded disabled:opacity-40", children: "‹" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: srchPage * 20 >= srchTotal, onClick: () => setSrchPage((p2) => p2 + 1), className: "px-2.5 py-1 border border-border rounded disabled:opacity-40", children: "›" })
+          ] })
+        ] })
+      ] }),
+      !srchLoading && srchResults.length === 0 && srch && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center py-12 bg-white border border-border rounded-card text-text-muted/50 text-sm", children: "无匹配结果" })
+    ] }),
+    tab === "records" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-[1fr_240px] gap-5", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-2 mb-3", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            value: recSearch,
+            onChange: (e) => {
+              setRecSearch(e.target.value);
+              setRecPage(1);
+            },
+            placeholder: "搜索记录内容/备注…",
+            className: "border border-border rounded-btn px-3 py-1.5 text-sm outline-none focus:border-primary bg-white w-56"
+          }
+        ) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card overflow-hidden shadow-card", children: [
+          recLoading && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center py-10 text-text-muted/50", children: "加载中…" }),
+          !recLoading && records.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center py-14 text-text-muted/50", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-4xl mb-2", children: "📝" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm", children: "暂无记录，点击右上角「保存查询记录」" })
+          ] }),
+          records.map((r2) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "border-b border-border/50 px-5 py-4 hover:bg-warm/30", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start justify-between gap-3", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-1.5 flex-wrap", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: r2.query_type, color: "blue" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: r2.site_name, color: "gray" }),
+                r2.tags && r2.tags.split(",").map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: t2.trim(), color: "amber" }, t2)),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted/50 font-mono", children: r2.created_at?.slice(0, 16) }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
+                  "· ",
+                  r2.operator
+                ] })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap gap-1.5 mb-2", children: [
+                r2.query_inputs.slice(0, 8).map((inp, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "bg-warm/30 text-text-primary text-xs font-mono px-2 py-0.5 rounded", children: inp }, i)),
+                r2.query_inputs.length > 8 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
+                  "…共",
+                  r2.query_inputs.length,
+                  "条"
+                ] })
+              ] }),
+              r2.purpose && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-text-muted mb-1", children: [
+                "目的：",
+                r2.purpose
+              ] }),
+              r2.result_note ? /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-text-primary bg-amber-50 border border-amber-100 rounded px-2 py-1", children: [
+                "备注：",
+                r2.result_note
+              ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted/50 italic", children: "无备注，点击编辑补充" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1 shrink-0", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: () => {
+                    setEditRecord(r2);
+                    setRecForm({ result_note: r2.result_note || "", purpose: r2.purpose || "", tags: r2.tags || "" });
+                  },
+                  className: "text-xs text-text-muted border border-border px-2.5 py-1 rounded-btn hover:text-primary hover:border-primary/20",
+                  children: "编辑"
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => deleteRecord(r2.id), className: "text-xs text-text-muted/50 border border-border px-2 py-1 rounded-btn hover:text-red-500 hover:border-red-200", children: "删" })
+            ] })
+          ] }) }, r2.id)),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-5 py-2 border-t border-border/50 bg-warm/10 flex justify-between text-xs text-text-muted", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+              "共",
+              recTotal,
+              "条"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: recPage <= 1, onClick: () => setRecPage((p2) => p2 - 1), className: "px-2.5 py-1 border border-border rounded disabled:opacity-40", children: "‹" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "px-1", children: [
+                recPage,
+                "/",
+                Math.max(1, Math.ceil(recTotal / 20))
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: recPage * 20 >= recTotal, onClick: () => setRecPage((p2) => p2 + 1), className: "px-2.5 py-1 border border-border rounded disabled:opacity-40", children: "›" })
+            ] })
+          ] })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-3", children: stats && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card p-4 shadow-card", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-2xl font-bold font-mono text-primary", children: stats.total_records }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted mt-1", children: "查询记录总数" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs text-text-muted/50 mt-0.5", children: [
+            "累计查询",
+            stats.total_items,
+            "条信息"
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card p-4 shadow-card", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs font-semibold text-text-muted mb-2", children: "按查询类型" }),
+          stats.by_type.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-between py-1.5 border-b border-border/50 last:border-0", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-primary", children: t2.type }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs font-mono text-text-primary", children: [
+              t2.times,
+              "次/",
+              t2.total_items,
+              "条"
+            ] })
+          ] }, t2.type)),
+          stats.by_type.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted/50", children: "暂无数据" })
+        ] })
+      ] }) })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      Modal,
+      {
+        open: siteModal,
+        title: editSite?.id ? "编辑网站" : siteFormMode ? "新增网站" : "管理外部网站",
+        onClose: () => {
+          setSiteModal(false);
+          setEditSite(null);
+          setSiteForm({ site_type: "link", sort_order: 0, is_active: 1 });
+          setSiteFormMode(false);
+        },
+        onConfirm: siteFormMode ? submitSite : void 0,
+        confirmText: "保存",
+        children: siteFormMode ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
+          editSite?.id && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs text-text-muted bg-warm/30 border border-border rounded px-3 py-1.5", children: [
+            "正在编辑：",
+            editSite.name
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "网站名称 *" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                value: siteForm.name ?? "",
+                onChange: (e) => setSiteForm((f2) => ({ ...f2, name: e.target.value })),
+                placeholder: "如：农经网、社保系统",
+                className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "网址 *" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                value: siteForm.url ?? "",
+                onChange: (e) => setSiteForm((f2) => ({ ...f2, url: e.target.value })),
+                placeholder: "https://",
+                className: "w-full border border-border rounded-btn px-3 py-2 text-sm font-mono outline-none focus:border-primary"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "描述（可选）" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                value: siteForm.description ?? "",
+                onChange: (e) => setSiteForm((f2) => ({ ...f2, description: e.target.value })),
+                className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "排序" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  type: "number",
+                  value: siteForm.sort_order ?? 0,
+                  onChange: (e) => setSiteForm((f2) => ({ ...f2, sort_order: Number(e.target.value) })),
+                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none"
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "状态" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "select",
+                {
+                  value: siteForm.is_active ?? 1,
+                  onChange: (e) => setSiteForm((f2) => ({ ...f2, is_active: Number(e.target.value) })),
+                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none",
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 1, children: "启用" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 0, children: "禁用" })
+                  ]
+                }
+              )
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: () => {
+                setSiteForm({ site_type: "link", sort_order: 0, is_active: 1 });
+                setSiteFormMode(false);
+                setEditSite(null);
+              },
+              className: "text-xs text-text-muted hover:underline",
+              children: "← 返回列表"
+            }
+          )
+        ] }) : (
+          /* ── 列表模式 ── */
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-between items-center mb-3", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm text-text-muted", children: [
+                "已配置 ",
+                sites.length,
+                " 个网站"
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: () => {
+                    setSiteForm({ name: "", url: "", site_type: "link", sort_order: sites.length + 1, is_active: 1 });
+                    setSiteFormMode(true);
+                  },
+                  className: "text-sm bg-primary text-white px-3 py-1.5 rounded-btn hover:bg-primary/90",
+                  children: "＋ 新增网站"
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2 max-h-80 overflow-y-auto", children: [
+              sites.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-center py-8 text-text-muted/50 text-sm", children: "暂无网站，点击「＋新增网站」添加" }),
+              sites.map((s) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 bg-warm/30 border border-border rounded-card px-3 py-2.5", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-semibold text-text-primary", children: s.name }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs px-1.5 py-0.5 rounded ${s.is_active ? "bg-emerald-100 text-primary" : "bg-stone-200 text-text-muted"}`, children: s.is_active ? "启用" : "禁用" })
+                  ] }),
+                  s.description && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted mt-0.5", children: s.description }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted/50 font-mono truncate mt-0.5", children: s.url })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1 shrink-0", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => {
+                    setEditSite(s);
+                    setSiteForm({ name: s.name, url: s.url, site_type: s.site_type, description: s.description || "", sort_order: s.sort_order, is_active: s.is_active });
+                    setSiteFormMode(true);
+                  }, className: "text-xs text-text-muted border border-border px-2 py-1 rounded hover:text-primary hover:border-primary/20", children: "编辑" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "a",
+                    {
+                      href: s.url,
+                      target: "_blank",
+                      rel: "noopener noreferrer",
+                      className: "text-xs text-text-muted border border-border px-2 py-1 rounded hover:text-blue-600 hover:border-blue-200",
+                      children: "↗"
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => deleteSite(s.id), className: "text-xs text-red-400 border border-red-100 px-2 py-1 rounded hover:bg-red-50", children: "删" })
+                ] })
+              ] }, s.id))
+            ] })
+          ] })
+        )
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Modal, { open: batchOpen, title: "保存查询记录", onClose: () => setBatchOpen(false), onConfirm: submitBatch, confirmText: "保存记录", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-blue-50 border border-blue-100 rounded-btn px-3 py-2 text-xs text-blue-700", children: "记录本次查询的内容（可批量），便于后期统计和审计追溯。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "查询内容 *（每行一条）" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "textarea",
+          {
+            rows: 5,
+            value: batchText,
+            onChange: (e) => setBatchText(e.target.value),
+            placeholder: "510123196503154231\n张三\n李四",
+            className: "w-full border border-border rounded-btn px-3 py-2 text-sm font-mono outline-none focus:border-primary resize-none"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-text-muted/50 mt-1", children: [
+          "已输入 ",
+          batchText.split(/[\n,，;；]/).map((s) => s.trim()).filter(Boolean).length,
+          " 条 · 保存后将记录到查询记录，可随时查阅"
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "查询类型" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "select",
+            {
+              value: batchType,
+              onChange: (e) => setBatchType(e.target.value),
+              className: "w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none",
+              children: QUERY_TYPES.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: t2, children: t2 }, t2))
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "关联网站" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              value: batchSiteId,
+              onChange: (e) => setBatchSiteId(e.target.value ? Number(e.target.value) : ""),
+              className: "w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "手动记录" }),
+                sites.map((s) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: s.id, children: s.name }, s.id))
+              ]
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "操作员" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              value: batchOperator,
+              onChange: (e) => setBatchOperator(e.target.value),
+              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "查询目的" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              value: batchPurpose,
+              onChange: (e) => setBatchPurpose(e.target.value),
+              placeholder: "如：年度补贴核查",
+              className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "标签" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-1.5 mb-2", children: TAGS_PRESET.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => toggleTag(t2, batchTags, setBatchTags),
+            className: `text-xs px-2 py-0.5 rounded border transition-colors
+                    ${batchTags.includes(t2) ? "bg-amber-100 border-amber-300 text-amber-700" : "bg-warm/30 border-border text-text-muted hover:border-border"}`,
+            children: t2
+          },
+          t2
+        )) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            value: batchTags,
+            onChange: (e) => setBatchTags(e.target.value),
+            placeholder: "自由输入，逗号分隔",
+            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+          }
+        )
+      ] })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Modal, { open: !!editRecord, title: "编辑查询记录", onClose: () => setEditRecord(null), onConfirm: submitEditRecord, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
+      editRecord && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-warm/30 border border-border rounded-btn px-3 py-2 text-xs text-text-muted", children: [
+        editRecord.query_type,
+        " · ",
+        editRecord.site_name,
+        " · ",
+        editRecord.query_count,
+        "条 · ",
+        editRecord.created_at?.slice(0, 16)
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "查询目的" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            value: recForm.purpose,
+            onChange: (e) => setRecForm((f2) => ({ ...f2, purpose: e.target.value })),
+            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "结果备注" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "textarea",
+          {
+            rows: 3,
+            value: recForm.result_note,
+            onChange: (e) => setRecForm((f2) => ({ ...f2, result_note: e.target.value })),
+            placeholder: "记录查询结论…",
+            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-1.5 mb-2", children: TAGS_PRESET.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => toggleTag(t2, recForm.tags, (v2) => setRecForm((f2) => ({ ...f2, tags: v2 }))),
+            className: `text-xs px-2 py-0.5 rounded border ${recForm.tags.includes(t2) ? "bg-amber-100 border-amber-300 text-amber-700" : "bg-warm/30 border-border text-text-muted"}`,
+            children: t2
+          },
+          t2
+        )) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            value: recForm.tags,
+            onChange: (e) => setRecForm((f2) => ({ ...f2, tags: e.target.value })),
+            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+          }
+        )
+      ] })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Modal, { open: favorOpen, title: "收藏查询记录", onClose: () => setFavorOpen(false), onConfirm: saveFavor, confirmText: "确认收藏", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-amber-50 border border-amber-100 rounded-btn px-3 py-2 text-xs text-amber-700", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: "本次查询内容：" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 flex flex-wrap gap-1", children: favorContext?.inputs.map((inp, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "bg-white border border-amber-200 text-amber-800 font-mono px-2 py-0.5 rounded text-xs", children: inp }, i)) })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "查询事项 / 原因 *" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "textarea",
+          {
+            rows: 3,
+            value: favorPurpose,
+            onChange: (e) => setFavorPurpose(e.target.value),
+            placeholder: "如：核查张三2024年粮食直补是否重复申领\n如：年度数据比对，核实身份证与姓名匹配情况",
+            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-amber-400 resize-none"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "标签" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-1.5 mb-2", children: TAGS_PRESET.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => toggleTag(t2, favorTags, setFavorTags),
+            className: `text-xs px-2 py-0.5 rounded border transition-colors
+                    ${favorTags.includes(t2) ? "bg-amber-100 border-amber-300 text-amber-700" : "bg-warm/30 border-border text-text-muted hover:border-border"}`,
+            children: t2
+          },
+          t2
+        )) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            value: favorTags,
+            onChange: (e) => setFavorTags(e.target.value),
+            placeholder: "自由输入，逗号分隔",
+            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
           }
         )
       ] })
@@ -50515,7 +52276,7 @@ function PreCheckPage() {
     /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { ...toast })
   ] });
 }
-async function req$4(path, opts = {}) {
+async function req$5(path, opts = {}) {
   const r2 = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
   if (!r2.ok) {
     const e = await r2.json().catch(() => ({}));
@@ -50541,7 +52302,7 @@ function BackupPage() {
   const [confirmRestore, setConfirmRestore] = reactExports.useState(false);
   const loadInfo = async () => {
     try {
-      setInfo(await req$4("/api/backup/info"));
+      setInfo(await req$5("/api/backup/info"));
     } catch (e) {
       show(e.message, "err");
     } finally {
@@ -50579,7 +52340,7 @@ function BackupPage() {
   const createLocalBackup = async () => {
     setLocalBacking(true);
     try {
-      const r2 = await req$4("/api/backup/auto", { method: "POST" });
+      const r2 = await req$5("/api/backup/auto", { method: "POST" });
       show(`✓ ${r2.message}：${r2.filename}（${r2.size_kb} KB）`);
       loadInfo();
     } catch (e) {
@@ -50611,7 +52372,7 @@ function BackupPage() {
   const deleteBackup = async (filename) => {
     if (!confirm(`确认删除备份 ${filename}？此操作不可恢复`)) return;
     try {
-      await req$4(`/api/backup/backups/${filename}`, { method: "DELETE" });
+      await req$5(`/api/backup/backups/${filename}`, { method: "DELETE" });
       show("✓ 已删除");
       loadInfo();
     } catch (e) {
@@ -50666,7 +52427,7 @@ function BackupPage() {
                 "button",
                 {
                   onClick: downloadDb,
-                  className: "w-full py-2 bg-primary text-white text-sm rounded-btn hover:bg-primary/90",
+                  className: "w-full py-2 bg-primary  text-sm rounded-btn hover:bg-primary/90",
                   children: "⬇️ 下载 subsidy.db"
                 }
               )
@@ -50759,7 +52520,7 @@ function BackupPage() {
               {
                 onClick: handleRestore,
                 disabled: restoring || !restoreFile || !confirmRestore,
-                className: "w-full py-2.5 bg-red-600 text-white text-sm rounded-btn hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed",
+                className: "w-full py-2.5 bg-red-600  text-sm rounded-btn hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed",
                 children: restoring ? "恢复中，请勿关闭…" : "🔄 执行数据库恢复"
               }
             )
@@ -50837,7 +52598,7 @@ function BackupPage() {
   ] });
 }
 const BT_LABEL = { SUBSIDY: "补贴发放", FARMER: "农户档案", PLANTING: "种植记录" };
-async function req$3(url, opts) {
+async function req$4(url, opts) {
   const r2 = await fetch(url, { headers: { "Content-Type": "application/json" }, ...opts });
   if (!r2.ok) {
     const e = await r2.json().catch(() => ({}));
@@ -50861,11 +52622,11 @@ function ExcelTemplatePage() {
   const [editOpen, setEditOpen] = reactExports.useState(false);
   const [editTarget, setEditTarget] = reactExports.useState(null);
   const loadTemplates = reactExports.useCallback(async () => {
-    const list = await req$3("/api/excel-templates").catch(() => []);
+    const list = await req$4("/api/excel-templates").catch(() => []);
     setTemplates(list);
   }, []);
   const loadLogs = reactExports.useCallback(async () => {
-    const r2 = await req$3("/api/excel-templates/logs?page_size=30").catch(() => ({ total: 0, items: [] }));
+    const r2 = await req$4("/api/excel-templates/logs?page_size=30").catch(() => ({ total: 0, items: [] }));
     setLogs(r2.items);
     setLogsTotal(r2.total);
   }, []);
@@ -50886,7 +52647,7 @@ function ExcelTemplatePage() {
         const rows = utils.sheet_to_json(ws, { defval: "" });
         const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
         const sampleRows = rows.slice(0, 3);
-        const result = await req$3("/api/excel-templates/detect-columns", {
+        const result = await req$4("/api/excel-templates/detect-columns", {
           method: "POST",
           body: JSON.stringify({ columns, business_type: "SUBSIDY", sample_rows: sampleRows })
         });
@@ -50915,7 +52676,7 @@ function ExcelTemplatePage() {
         const ws = wb2.Sheets[wb2.SheetNames[0]];
         const rows = utils.sheet_to_json(ws, { defval: "" });
         const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
-        const r2 = await req$3(
+        const r2 = await req$4(
           "/api/excel-templates/ai-detect",
           {
             method: "POST",
@@ -50947,7 +52708,7 @@ function ExcelTemplatePage() {
       required: false,
       transform: ""
     }));
-    await req$3("/api/excel-templates", {
+    await req$4("/api/excel-templates", {
       method: "POST",
       body: JSON.stringify({
         template_name: saveForm.name,
@@ -50963,7 +52724,7 @@ function ExcelTemplatePage() {
   };
   const deleteTemplate = async (id2) => {
     if (!confirm("确认删除此模板？")) return;
-    await req$3(`/api/excel-templates/${id2}`, { method: "DELETE" });
+    await req$4(`/api/excel-templates/${id2}`, { method: "DELETE" });
     show("✓ 已删除");
     loadTemplates();
   };
@@ -50980,10 +52741,10 @@ function ExcelTemplatePage() {
       {
         onClick: () => setTab(t2.id),
         className: `flex items-center gap-1.5 px-4 py-2 text-sm rounded-btn border transition-colors
-              ${tab === t2.id ? "bg-primary text-white border-emerald-700" : "bg-white border-border text-text-primary hover:border-border"}`,
+              ${tab === t2.id ? "bg-primary  border-emerald-700" : "bg-white border-border text-text-primary hover:border-border"}`,
         children: [
           t2.label,
-          t2.count !== null && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs px-1.5 py-0.5 rounded font-mono ${tab === t2.id ? "bg-white/20 text-white" : "bg-warm/30 text-text-muted"}`, children: t2.count })
+          t2.count !== null && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs px-1.5 py-0.5 rounded font-mono ${tab === t2.id ? "bg-white/20 " : "bg-warm/30 text-text-muted"}`, children: t2.count })
         ]
       },
       t2.id
@@ -51091,7 +52852,7 @@ function ExcelTemplatePage() {
               "button",
               {
                 onClick: () => setSaveOpen(true),
-                className: "text-xs bg-primary text-white px-3 py-1.5 rounded-btn hover:bg-primary/90",
+                className: "text-xs bg-primary  px-3 py-1.5 rounded-btn hover:bg-primary/90",
                 children: "💾 保存为模板"
               }
             ),
@@ -51115,7 +52876,7 @@ function ExcelTemplatePage() {
             "button",
             {
               onClick: async () => {
-                const tmpl = await req$3(`/api/excel-templates/${t2.id}`);
+                const tmpl = await req$4(`/api/excel-templates/${t2.id}`);
                 setMappings(tmpl.column_mapping.map((m2) => ({
                   excel_column: m2.excel_column,
                   system_field: m2.system_field,
@@ -51288,6 +53049,14 @@ function ExcelTemplatePage() {
     /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { ...toast })
   ] });
 }
+const IDLE_IMPORT_FIELDS = [
+  { field: "owner_name", label: "流出方姓名*", required: true, type: "string" },
+  { field: "owner_id_card", label: "流出方身份证*", required: true, type: "string" },
+  { field: "area", label: "面积(亩)*", required: true, type: "decimal" },
+  { field: "trust_year", label: "撂荒年度*", required: true, type: "integer" },
+  { field: "subsidy_arable", label: "扣减耕地补贴", required: false, type: "integer" },
+  { field: "note", label: "备注", required: false, type: "string" }
+];
 const TRUST_TYPE_OPTS$1 = [
   { val: "ENTRUST", label: "代耕代种", desc: "口头委托，无书面合同", icon: "🤝", color: "blue" },
   { val: "RENT", label: "出租", desc: "有书面租赁合同", icon: "📄", color: "green" },
@@ -51303,7 +53072,7 @@ const RELIABILITY_OPTS$1 = [
 ];
 const thisYear$2 = (/* @__PURE__ */ new Date()).getFullYear();
 const years$2 = Array.from({ length: 6 }, (_, i) => thisYear$2 + 1 - i);
-async function req$2(url, opts) {
+async function req$3(url, opts) {
   const r2 = await fetch(url, { headers: { "Content-Type": "application/json" }, ...opts });
   if (!r2.ok) {
     const e = await r2.json().catch(() => ({}));
@@ -51312,11 +53081,18 @@ async function req$2(url, opts) {
   return r2.json();
 }
 const emptyForm$1 = () => ({
+  owner_type: "household",
   owner_household_id: null,
+  owner_entity_id: null,
+  owner_id_card: "",
+  operator_type: "household",
   operator_household_id: null,
+  operator_entity_id: null,
+  operator_id_card: "",
   trust_type: "ENTRUST",
   area: "",
   trust_year: thisYear$2,
+  trust_end_year: null,
   start_date: "",
   end_date: "",
   annual_fee: "",
@@ -51324,28 +53100,37 @@ const emptyForm$1 = () => ({
   parcel_desc: "",
   data_reliability: "VILLAGE_CONFIRM",
   affect_subsidy_calc: 1,
+  subsidy_arable: 1,
+  subsidy_cash_crop: 1,
   note: ""
 });
 function LandTrustPage() {
   const { toast, show } = useToast();
-  const navigate = useNavigate();
+  useNavigate();
   const [yearFilter, setYearFilter] = reactExports.useState(thisYear$2);
   const [typeFilter, setTypeFilter] = reactExports.useState("");
   const [list, setList] = reactExports.useState([]);
   const [total, setTotal] = reactExports.useState(0);
   const [page, setPage] = reactExports.useState(1);
   const [loading, setLoading] = reactExports.useState(false);
-  const [sourceType, setSourceType] = reactExports.useState("all");
+  const [searchText, setSearchText] = reactExports.useState("");
+  const [selectedIds, setSelectedIds] = reactExports.useState(/* @__PURE__ */ new Set());
+  const [renewing, setRenewing] = reactExports.useState(false);
   const [summaryHH, setSummaryHH] = reactExports.useState(null);
   const [summary, setSummary] = reactExports.useState(null);
   const [summaryLoading, setSummaryLoading] = reactExports.useState(false);
   const [editOpen, setEditOpen] = reactExports.useState(false);
   const [editTarget, setEditTarget] = reactExports.useState(null);
   const [form, setForm] = reactExports.useState(emptyForm$1());
+  const [idleImportOpen, setIdleImportOpen] = reactExports.useState(false);
   const [ownerSearch, setOwnerSearch] = reactExports.useState("");
   const [ownerOpts, setOwnerOpts] = reactExports.useState([]);
   const [operSearch, setOperSearch] = reactExports.useState("");
   const [operOpts, setOperOpts] = reactExports.useState([]);
+  const [ownerVillageSearch, setOwnerVillageSearch] = reactExports.useState("");
+  const [ownerVillageOpts, setOwnerVillageOpts] = reactExports.useState([]);
+  const [operVillageSearch, setOperVillageSearch] = reactExports.useState("");
+  const [operVillageOpts, setOperVillageOpts] = reactExports.useState([]);
   const [hhSearch, setHhSearch] = reactExports.useState("");
   const [hhOpts, setHhOpts] = reactExports.useState([]);
   const load = reactExports.useCallback(async () => {
@@ -51354,14 +53139,14 @@ function LandTrustPage() {
       const p2 = new URLSearchParams({ page: String(page), page_size: "20" });
       if (yearFilter) p2.set("year", String(yearFilter));
       if (typeFilter) p2.set("trust_type", typeFilter);
-      if (sourceType !== "all") p2.set("source_type", sourceType);
-      const r2 = await req$2(`/api/land/all-trusts?${p2}`);
+      if (searchText) p2.set("search", searchText.trim());
+      const r2 = await req$3(`/api/land/all-trusts?${p2}`);
       setList(r2.items);
       setTotal(r2.total);
     } finally {
       setLoading(false);
     }
-  }, [page, yearFilter, typeFilter, sourceType]);
+  }, [page, yearFilter, typeFilter, searchText]);
   reactExports.useEffect(() => {
     load();
   }, [load]);
@@ -51370,7 +53155,23 @@ function LandTrustPage() {
       setOpts([]);
       return;
     }
-    const r2 = await req$2(`/api/land/search-household?q=${encodeURIComponent(q2)}`).catch(() => []);
+    const r2 = await req$3(`/api/land/search-household?q=${encodeURIComponent(q2)}`).catch(() => []);
+    setOpts(r2);
+  };
+  const searchVillage = async (q2, setOpts) => {
+    if (q2.length < 1) {
+      setOpts([]);
+      return;
+    }
+    const r2 = await req$3(`/api/land/search-village?q=${encodeURIComponent(q2)}`).catch(() => []);
+    setOpts(r2);
+  };
+  const searchVillageGroup = async (q2, setOpts) => {
+    if (q2.length < 1) {
+      setOpts([]);
+      return;
+    }
+    const r2 = await req$3(`/api/land/search-village-group?q=${encodeURIComponent(q2)}`).catch(() => []);
     setOpts(r2);
   };
   reactExports.useEffect(() => {
@@ -51382,16 +53183,64 @@ function LandTrustPage() {
   reactExports.useEffect(() => {
     searchHH(hhSearch, setHhOpts);
   }, [hhSearch]);
+  reactExports.useEffect(() => {
+    if (form.owner_type === "village") searchVillage(ownerVillageSearch, setOwnerVillageOpts);
+  }, [ownerVillageSearch, form.owner_type]);
+  reactExports.useEffect(() => {
+    if (form.owner_type === "village_group") searchVillageGroup(ownerVillageSearch, setOwnerVillageOpts);
+  }, [ownerVillageSearch, form.owner_type]);
+  const resolveIdCard = async (idCard, side) => {
+    if (idCard.length < 15) return;
+    try {
+      const r2 = await req$3(
+        `/api/land/resolve-by-id-card?q=${encodeURIComponent(idCard.trim())}`
+      );
+      if (r2.found && r2.household_id) {
+        if (side === "owner") {
+          sf2("owner_household_id", r2.household_id);
+          setOwnerSearch(r2.household_name || r2.farmer_name || "");
+        } else {
+          sf2("operator_household_id", r2.household_id);
+          setOperSearch(r2.household_name || r2.farmer_name || "");
+        }
+      }
+    } catch {
+    }
+  };
+  reactExports.useEffect(() => {
+    if (form.operator_type === "village") searchVillage(operVillageSearch, setOperVillageOpts);
+  }, [operVillageSearch, form.operator_type]);
+  reactExports.useEffect(() => {
+    if (form.operator_type === "village_group") searchVillageGroup(operVillageSearch, setOperVillageOpts);
+  }, [operVillageSearch, form.operator_type]);
   const loadSummary = async (hh2) => {
     setSummaryHH(hh2);
     setSummary(null);
     setSummaryLoading(true);
     try {
-      const r2 = await req$2(`/api/land/area-summary/${hh2.id}?year=${yearFilter}`);
+      const r2 = await req$3(`/api/land/area-summary/${hh2.id}?year=${yearFilter}`);
       setSummary(r2);
     } finally {
       setSummaryLoading(false);
     }
+  };
+  const handleIdleImport = async (rows, _mapping) => {
+    const payload = rows.map((r2) => ({
+      owner_name: r2.owner_name,
+      owner_id_card: r2.owner_id_card,
+      area: r2.area,
+      trust_year: r2.trust_year,
+      subsidy_arable: r2.subsidy_arable ?? 1,
+      note: r2.note
+    }));
+    const res = await req$3("/api/land/trusts/batch-import-idle", {
+      method: "POST",
+      body: JSON.stringify({ rows: payload })
+    });
+    if (res.errors?.length) {
+      return { created: res.created, skipped: res.skipped, errors: res.errors };
+    }
+    return { created: res.created, skipped: res.skipped, errors: [] };
   };
   const openAdd = () => {
     setEditTarget(null);
@@ -51400,16 +53249,27 @@ function LandTrustPage() {
     setOperSearch("");
     setOwnerOpts([]);
     setOperOpts([]);
+    setOwnerVillageSearch("");
+    setOwnerVillageOpts([]);
+    setOperVillageSearch("");
+    setOperVillageOpts([]);
     setEditOpen(true);
   };
   const openEdit = (t2) => {
     setEditTarget(t2);
     setForm({
-      owner_household_id: t2.owner_household_id,
-      operator_household_id: t2.operator_household_id,
+      owner_type: t2.owner_type || "household",
+      owner_household_id: t2.owner_type === "household" ? t2.owner_household_id : null,
+      owner_entity_id: t2.owner_type !== "household" ? t2.owner_entity_id ?? null : null,
+      owner_id_card: "",
+      operator_type: t2.operator_type || "household",
+      operator_household_id: t2.operator_type === "household" ? t2.operator_household_id : null,
+      operator_entity_id: t2.operator_type !== "household" ? t2.operator_entity_id ?? null : null,
+      operator_id_card: "",
       trust_type: t2.trust_type,
       area: t2.area !== null ? String(t2.area) : "",
       trust_year: t2.trust_year,
+      trust_end_year: t2.trust_end_year ?? null,
       start_date: t2.start_date || "",
       end_date: t2.end_date || "",
       annual_fee: t2.annual_fee !== null ? String(t2.annual_fee) : "",
@@ -51417,17 +53277,40 @@ function LandTrustPage() {
       parcel_desc: t2.parcel_desc || "",
       data_reliability: t2.data_reliability,
       affect_subsidy_calc: t2.affect_subsidy_calc,
+      subsidy_arable: t2.subsidy_arable ?? 1,
+      subsidy_cash_crop: t2.subsidy_cash_crop ?? 1,
       note: t2.note || ""
     });
-    setOwnerSearch(t2.owner_name);
-    setOperSearch(t2.operator_name || "");
+    if (t2.owner_type === "household") {
+      setOwnerSearch(t2.owner_name);
+      setOwnerVillageSearch("");
+    } else {
+      setOwnerVillageSearch(t2.owner_name);
+      setOwnerSearch("");
+    }
+    if (t2.operator_type === "household") {
+      setOperSearch(t2.operator_name || "");
+      setOperVillageSearch("");
+    } else {
+      setOperVillageSearch(t2.operator_name || "");
+      setOperSearch("");
+    }
+    setOwnerOpts([]);
+    setOwnerVillageOpts([]);
+    setOperOpts([]);
+    setOperVillageOpts([]);
     setEditOpen(true);
   };
   const submit = async () => {
-    if (!form.owner_household_id) return show("请选择流出方（承包人）", "err");
+    if (form.owner_type === "household" && !form.owner_household_id) {
+      if (!form.owner_id_card && !ownerSearch.trim()) return show("请搜索或输入流出方信息", "err");
+    }
+    if (form.owner_type !== "household" && !form.owner_entity_id) return show("请选择流出方（村/村组）", "err");
     if (!form.trust_year) return show("请选择流转年度", "err");
     const payload = {
       ...form,
+      owner_name: ownerSearch.trim() || void 0,
+      operator_name: operSearch.trim() || void 0,
       area: form.area ? Number(form.area) : null,
       annual_fee: form.annual_fee ? Number(form.annual_fee) : null,
       start_date: form.start_date || null,
@@ -51438,10 +53321,10 @@ function LandTrustPage() {
     };
     try {
       if (editTarget) {
-        await req$2(`/api/land/trusts/${editTarget.id}`, { method: "PUT", body: JSON.stringify(payload) });
+        await req$3(`/api/land/trusts/${editTarget.id}`, { method: "PUT", body: JSON.stringify(payload) });
         show("✓ 更新成功");
       } else {
-        await req$2("/api/land/trusts", { method: "POST", body: JSON.stringify(payload) });
+        await req$3("/api/land/trusts", { method: "POST", body: JSON.stringify(payload) });
         show("✓ 记录创建成功");
       }
       setEditOpen(false);
@@ -51453,10 +53336,53 @@ function LandTrustPage() {
   };
   const del = async (id2) => {
     if (!confirm("确认删除此流转记录？")) return;
-    await req$2(`/api/land/trusts/${id2}`, { method: "DELETE" });
-    show("✓ 已删除");
-    load();
+    setList((prev) => prev.filter((t2) => t2.id !== id2));
+    setTotal((prev) => Math.max(0, prev - 1));
+    try {
+      await req$3(`/api/land/trusts/${id2}`, { method: "DELETE" });
+      show("✓ 已删除");
+    } catch (e) {
+      show("删除失败，请重试", "err");
+      load();
+      return;
+    }
+    if (list.length <= 1 && page > 1) {
+      setPage((p2) => p2 - 1);
+    } else {
+      await load();
+    }
     if (summaryHH) loadSummary(summaryHH);
+  };
+  const toggleSelect = (id2) => {
+    setSelectedIds((prev) => {
+      const n2 = new Set(prev);
+      n2.has(id2) ? n2.delete(id2) : n2.add(id2);
+      return n2;
+    });
+  };
+  const toggleAll = () => {
+    if (selectedIds.size === list.length) {
+      setSelectedIds(/* @__PURE__ */ new Set());
+    } else {
+      setSelectedIds(new Set(list.map((t2) => t2.id)));
+    }
+  };
+  const batchRenew = async () => {
+    if (selectedIds.size === 0) return show("请先选择要续约的记录", "err");
+    setRenewing(true);
+    try {
+      const r2 = await req$3("/api/land/trusts/batch-renew", {
+        method: "POST",
+        body: JSON.stringify({ ids: [...selectedIds] })
+      });
+      show(`✓ 已续约 ${r2.created} 条`);
+      setSelectedIds(/* @__PURE__ */ new Set());
+      load();
+    } catch (e) {
+      show(e.message, "err");
+    } finally {
+      setRenewing(false);
+    }
   };
   const sf2 = (k2, v2) => setForm((f2) => ({ ...f2, [k2]: v2 }));
   const TRUST_COLOR = {
@@ -51468,24 +53394,13 @@ function LandTrustPage() {
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-[1fr_340px] gap-4", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 mb-4 border-b border-border", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            onClick: () => {
-            },
-            className: "px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-primary",
-            children: "土地流转"
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            onClick: () => navigate("/settings/large-farmers"),
-            className: "px-4 py-2 text-sm text-text-muted hover:text-text-primary border-b-2 border-transparent hover:border-border",
-            children: "大户管理"
-          }
-        )
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "text-lg font-bold text-text-primary", children: "土地流转" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
+          "共 ",
+          total,
+          " 条"
+        ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-4 flex-wrap", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -51518,54 +53433,49 @@ function LandTrustPage() {
             ]
           }
         ),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex border border-border rounded-btn overflow-hidden", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              onClick: () => {
-                setSourceType("all");
-                setPage(1);
-              },
-              className: `px-3 py-2 text-xs ${sourceType === "all" ? "bg-primary text-white" : "bg-white text-text-primary hover:bg-warm/30"}`,
-              children: "全部"
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              onClick: () => {
-                setSourceType("normal");
-                setPage(1);
-              },
-              className: `px-3 py-2 text-xs ${sourceType === "normal" ? "bg-primary text-white" : "bg-white text-text-primary hover:bg-warm/30"}`,
-              children: "普通流转"
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              onClick: () => {
-                setSourceType("large_farmer");
-                setPage(1);
-              },
-              className: `px-3 py-2 text-xs ${sourceType === "large_farmer" ? "bg-primary text-white" : "bg-white text-text-primary hover:bg-warm/30"}`,
-              children: "大户流转"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
-          "共 ",
-          total,
-          " 条"
-        ] }),
-        sourceType === "normal" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            value: searchText,
+            onChange: (e) => {
+              setSearchText(e.target.value);
+              setPage(1);
+            },
+            placeholder: "🔍 搜索户名或村名…",
+            className: "border border-border rounded-btn px-3 py-2 text-sm outline-none w-40"
+          }
+        ),
+        selectedIds.size > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(
           "button",
           {
-            onClick: openAdd,
-            className: "ml-auto px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90",
-            children: "＋ 新增流转记录"
+            onClick: batchRenew,
+            disabled: renewing,
+            className: "px-3 py-2 text-sm bg-emerald-600  rounded-btn hover:bg-emerald-700",
+            children: [
+              "🔄 续约 ",
+              selectedIds.size,
+              " 条（＋1年）"
+            ]
           }
-        )
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ml-auto flex gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: () => setIdleImportOpen(true),
+              className: "px-3 py-2 text-sm border border-border rounded-btn hover:bg-warm/30",
+              children: "📥 批量导入撂荒地"
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: openAdd,
+              className: "px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90",
+              children: "＋ 新增流转记录"
+            }
+          )
+        ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-blue-50 border border-blue-100 rounded-card px-4 py-3 mb-4 text-xs text-blue-700 space-y-0.5", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
@@ -51584,33 +53494,61 @@ function LandTrustPage() {
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card overflow-hidden shadow-card", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full border-collapse", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { className: "bg-warm/30 border-b-2 border-border", children: ["流出方（承包人）", "流入方（耕种人）", "类型", "面积", "来源", "可信度", "补贴计算", "操作"].map((h) => /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2.5 text-left text-xs text-text-muted font-semibold whitespace-nowrap", children: h }, h)) }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "bg-warm/30 border-b-2 border-border", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-2 py-2.5 w-8", children: /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: selectedIds.size === list.length && list.length > 0, onChange: toggleAll }) }),
+            ["流出方（承包人）", "流入方（耕种人）", "类型", "面积", "来源", "可信度", "补贴计算", "操作"].map((h) => /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2.5 text-left text-xs text-text-muted font-semibold whitespace-nowrap", children: h }, h))
+          ] }) }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("tbody", { children: [
-            loading && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 8, className: "text-center py-10 text-text-muted/50", children: "加载中…" }) }),
-            !loading && list.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { colSpan: 8, className: "text-center py-10 text-text-muted/50 text-sm", children: [
+            loading && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 9, className: "text-center py-10 text-text-muted/50", children: "加载中…" }) }),
+            !loading && list.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { colSpan: 9, className: "text-center py-10 text-text-muted/50 text-sm", children: [
               yearFilter,
               "年暂无流转记录"
             ] }) }),
             list.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "border-b border-border/50 hover:bg-warm/30", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-2 py-3", children: /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "checkbox", checked: selectedIds.has(t2.id), onChange: () => toggleSelect(t2.id) }) }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "px-3 py-2.5", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm font-semibold", children: t2.owner_name }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted font-mono", children: t2.owner_code })
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-sm font-semibold", children: [
+                  t2.owner_type && t2.owner_type !== "household" && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `inline-block text-[10px] px-1.5 py-0.5 rounded mr-1 font-normal
+                          ${t2.owner_type === "village" ? "bg-purple-100 text-purple-700" : "bg-orange-100 text-orange-700"}`, children: t2.owner_type === "village" ? "村" : "组" }),
+                  t2.owner_name
+                ] }),
+                t2.owner_type === "household" && t2.owner_code && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted font-mono", children: t2.owner_code })
               ] }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2.5", children: t2.source_type === "large_farmer" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-sm", children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold text-primary", children: t2.large_farmer_name }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: t2.large_farmer_type_label || t2.large_farmer_type })
               ] }) : t2.operator_name ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm", children: t2.operator_name }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted font-mono", children: t2.operator_code })
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-sm", children: [
+                  t2.operator_type && t2.operator_type !== "household" && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `inline-block text-[10px] px-1.5 py-0.5 rounded mr-1 font-normal
+                              ${t2.operator_type === "village" ? "bg-purple-100 text-purple-700" : "bg-orange-100 text-orange-700"}`, children: t2.operator_type === "village" ? "村" : "组" }),
+                  t2.operator_name
+                ] }),
+                t2.operator_type === "household" && t2.operator_code && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted font-mono", children: t2.operator_code })
               ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted/50", children: "— 无接收方" }) }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: t2.trust_type_label, color: TRUST_COLOR[t2.trust_type] || "gray" }) }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "px-3 py-2.5 text-sm font-mono", children: [
-                t2.area !== null ? `${t2.area}亩` : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50", children: "未填" }),
+                t2.area !== null ? /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-orange-600 font-semibold", children: [
+                  "+",
+                  t2.area,
+                  "亩"
+                ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50", children: "未填" }),
                 t2.parcel_desc && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted truncate max-w-20", title: t2.parcel_desc, children: t2.parcel_desc })
               ] }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2.5", children: t2.source_type === "large_farmer" ? /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: "大户", color: "amber" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: "普通", color: "blue" }) }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: t2.reliability_label, color: t2.data_reliability === "CERTIFIED" ? "green" : t2.data_reliability === "VILLAGE_CONFIRM" ? "blue" : t2.data_reliability === "SELF_REPORT" ? "amber" : "red" }) }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2.5", children: t2.affect_subsidy_calc ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-primary", children: "✓ 纳入计算" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: "仅记录" }) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "px-3 py-2.5", children: [
+                t2.affect_subsidy_calc ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-primary", children: "✓ 纳入计算" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: "仅记录" }),
+                t2.affect_subsidy_calc === 1 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-[10px] text-text-muted mt-0.5 space-x-1.5", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: t2.subsidy_arable ? "text-emerald-600" : "text-text-muted/40", children: [
+                    t2.subsidy_arable ? "✓" : "✗",
+                    "耕地"
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: t2.subsidy_cash_crop ? "text-emerald-600" : "text-text-muted/40", children: [
+                    t2.subsidy_cash_crop ? "✓" : "✗",
+                    "作物"
+                  ] })
+                ] })
+              ] }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "px-3 py-2.5", children: [
                 t2.source_type !== "large_farmer" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1", children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => openEdit(t2), className: "text-xs border border-border text-text-muted px-2 py-1 rounded hover:border-border", children: "编辑" }),
@@ -51618,7 +53556,7 @@ function LandTrustPage() {
                 ] }),
                 t2.source_type === "large_farmer" && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: "—" })
               ] })
-            ] }, `${t2.source_type || "normal"}-${t2.id}`))
+            ] }, t2.id))
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-2 border-t border-border/50 bg-warm/10 flex justify-between text-xs text-text-muted", children: [
@@ -51652,7 +53590,7 @@ function LandTrustPage() {
             className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
           }
         ),
-        hhOpts.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-10 max-h-48 overflow-y-auto", children: hhOpts.map((h) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        hhSearch.length > 0 && hhOpts.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-10 max-h-48 overflow-y-auto", children: hhOpts.map((h) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
           "button",
           {
             onClick: () => {
@@ -51696,9 +53634,25 @@ function LandTrustPage() {
             ] }),
             summary.trust_in_area > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-between items-center py-1.5 border-b border-border/50", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted pl-2", children: "+ 流入/代耕" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-sm font-mono text-primary", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-sm font-mono text-orange-600", children: [
                 "+",
                 summary.trust_in_area,
+                "亩"
+              ] })
+            ] }),
+            summary.trust_in_arable_area > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-between items-center py-1 pl-6", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[11px] text-emerald-600", children: "└ 耕地地力补贴享受" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs font-mono text-orange-500", children: [
+                "+",
+                summary.trust_in_arable_area,
+                "亩"
+              ] })
+            ] }),
+            summary.trust_in_cash_crop_area > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-between items-center py-1 pl-6 border-b border-border/50", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[11px] text-amber-600", children: "└ 经济作物补贴享受" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs font-mono text-orange-500", children: [
+                "+",
+                summary.trust_in_cash_crop_area,
                 "亩"
               ] })
             ] })
@@ -51775,81 +53729,258 @@ function LandTrustPage() {
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "流出方（承包人）*" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1 mb-2", children: [
+              { val: "household", label: "家庭户" },
+              { val: "village", label: "村" },
+              { val: "village_group", label: "村组" }
+            ].map((o) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                onClick: () => {
+                  sf2("owner_type", o.val);
+                  sf2("owner_household_id", null);
+                  sf2("owner_entity_id", null);
+                  sf2("owner_id_card", "");
+                  setOwnerSearch("");
+                  setOwnerVillageSearch("");
+                  setOwnerOpts([]);
+                  setOwnerVillageOpts([]);
+                },
+                className: `px-2.5 py-1 text-xs rounded-btn transition-colors
+                    ${form.owner_type === o.val ? "bg-primary " : "bg-white text-text-muted border border-border hover:border-primary/40"}`,
+                children: [
+                  o.val === "household" ? "🏠 " : o.val === "village" ? "🏘 " : "📋 ",
+                  o.label
+                ]
+              },
+              o.val
+            )) }),
+            form.owner_type === "household" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    value: ownerSearch,
+                    onChange: (e) => {
+                      setOwnerSearch(e.target.value);
+                      sf2("owner_household_id", null);
+                    },
+                    placeholder: "输入户名或户主姓名搜索",
+                    className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+                  }
+                ),
+                !form.owner_household_id && ownerOpts.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto", children: ownerOpts.map((h) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "button",
+                  {
+                    onClick: () => {
+                      sf2("owner_household_id", h.id);
+                      setOwnerSearch(h.household_name);
+                      setOwnerOpts([]);
+                    },
+                    className: "w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0",
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold", children: h.household_name }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted text-xs ml-2", children: h.head_name }),
+                      h.land_area && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-primary text-xs ml-2", children: [
+                        h.land_area,
+                        "亩"
+                      ] })
+                    ]
+                  },
+                  h.id
+                )) })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-2", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  value: form.owner_id_card,
+                  onChange: (e) => {
+                    sf2("owner_id_card", e.target.value);
+                    sf2("owner_household_id", null);
+                  },
+                  onBlur: (e) => resolveIdCard(e.target.value, "owner"),
+                  placeholder: "或直接输入身份证号自动匹配",
+                  className: "flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono"
+                }
+              ) })
+            ] }),
+            form.owner_type !== "household" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "input",
                 {
-                  value: ownerSearch,
+                  value: ownerVillageSearch,
                   onChange: (e) => {
-                    setOwnerSearch(e.target.value);
-                    sf2("owner_household_id", null);
+                    setOwnerVillageSearch(e.target.value);
+                    sf2("owner_entity_id", null);
                   },
-                  placeholder: "输入户名或户主姓名搜索",
+                  placeholder: form.owner_type === "village" ? "输入村名搜索…" : "输入村组名搜索…",
                   className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
                 }
               ),
-              ownerOpts.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto", children: ownerOpts.map((h) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              !form.owner_entity_id && ownerVillageOpts.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto", children: ownerVillageOpts.map((h) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
                 "button",
                 {
                   onClick: () => {
-                    sf2("owner_household_id", h.id);
-                    setOwnerSearch(h.household_name);
-                    setOwnerOpts([]);
+                    sf2("owner_entity_id", h.id);
+                    setOwnerVillageSearch(h.village_name || h.full_name || "");
+                    setOwnerVillageOpts([]);
                   },
                   className: "w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0",
                   children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold", children: h.household_name }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted text-xs ml-2", children: h.head_name }),
-                    h.land_area && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-primary text-xs ml-2", children: [
-                      h.land_area,
-                      "亩"
-                    ] })
+                    h.village_name && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold", children: h.village_name }),
+                    h.full_name && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold", children: h.full_name })
                   ]
                 },
                 h.id
               )) })
             ] }),
-            form.owner_household_id && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-primary mt-0.5", children: "✓ 已选择" })
+            form.owner_type === "household" && form.owner_household_id && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-primary mt-0.5", children: [
+              "✓ 已选择: ",
+              ownerSearch
+            ] }),
+            form.owner_type !== "household" && form.owner_entity_id && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-primary mt-0.5", children: [
+              "✓ 已选择: ",
+              ownerVillageSearch
+            ] }),
+            form.owner_type === "household" && !form.owner_household_id && !form.owner_id_card && ownerSearch && ownerOpts.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                onClick: () => {
+                  sf2("owner_id_card", "");
+                },
+                className: "text-xs text-blue-500 hover:text-blue-700 mt-1",
+                children: "💡 未找到，也可在上方直接输入身份证号"
+              }
+            )
           ] }),
           form.trust_type !== "IDLE" && form.trust_type !== "COLLECTIVE" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "block text-xs text-text-muted mb-1", children: [
               "流入方（实际耕种人）",
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50 ml-1", children: "— 不填则视为无明确接收方" })
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50 ml-1", children: "— 可不填" })
             ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1 mb-2", children: [
+              { val: "household", label: "家庭户" },
+              { val: "village", label: "村" },
+              { val: "village_group", label: "村组" }
+            ].map((o) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                onClick: () => {
+                  sf2("operator_type", o.val);
+                  sf2("operator_household_id", null);
+                  sf2("operator_entity_id", null);
+                  sf2("operator_id_card", "");
+                  setOperSearch("");
+                  setOperVillageSearch("");
+                  setOperOpts([]);
+                  setOperVillageOpts([]);
+                },
+                className: `px-2.5 py-1 text-xs rounded-btn transition-colors
+                      ${form.operator_type === o.val ? "bg-primary " : "bg-white text-text-muted border border-border hover:border-primary/40"}`,
+                children: [
+                  o.val === "household" ? "🏠 " : o.val === "village" ? "🏘 " : "📋 ",
+                  o.label
+                ]
+              },
+              o.val
+            )) }),
+            form.operator_type === "household" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    value: operSearch,
+                    onChange: (e) => {
+                      setOperSearch(e.target.value);
+                      sf2("operator_household_id", null);
+                    },
+                    placeholder: "输入户名或户主姓名搜索（可不填）",
+                    className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+                  }
+                ),
+                !form.operator_household_id && operOpts.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto", children: operOpts.map((h) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  "button",
+                  {
+                    onClick: () => {
+                      sf2("operator_household_id", h.id);
+                      setOperSearch(h.household_name);
+                      setOperOpts([]);
+                    },
+                    className: "w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0",
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold", children: h.household_name }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted text-xs ml-2", children: h.head_name })
+                    ]
+                  },
+                  h.id
+                )) })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-2", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  value: form.operator_id_card,
+                  onChange: (e) => {
+                    sf2("operator_id_card", e.target.value);
+                    sf2("operator_household_id", null);
+                  },
+                  onBlur: (e) => resolveIdCard(e.target.value, "operator"),
+                  placeholder: "或直接输入身份证号自动匹配",
+                  className: "flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono"
+                }
+              ) })
+            ] }),
+            form.operator_type !== "household" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "input",
                 {
-                  value: operSearch,
+                  value: operVillageSearch,
                   onChange: (e) => {
-                    setOperSearch(e.target.value);
-                    sf2("operator_household_id", null);
+                    setOperVillageSearch(e.target.value);
+                    sf2("operator_entity_id", null);
                   },
-                  placeholder: "输入户名或户主姓名搜索（可不填）",
+                  placeholder: form.operator_type === "village" ? "输入村名搜索…" : "输入村组名搜索…",
                   className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
                 }
               ),
-              operOpts.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto", children: operOpts.map((h) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              !form.operator_entity_id && operVillageOpts.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto", children: operVillageOpts.map((h) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
                 "button",
                 {
                   onClick: () => {
-                    sf2("operator_household_id", h.id);
-                    setOperSearch(h.household_name);
-                    setOperOpts([]);
+                    sf2("operator_entity_id", h.id);
+                    setOperVillageSearch(h.village_name || h.full_name || "");
+                    setOperVillageOpts([]);
                   },
                   className: "w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0",
                   children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold", children: h.household_name }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted text-xs ml-2", children: h.head_name })
+                    h.village_name && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold", children: h.village_name }),
+                    h.full_name && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold", children: h.full_name })
                   ]
                 },
                 h.id
               )) })
-            ] })
+            ] }),
+            form.operator_type === "household" && form.operator_household_id && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-primary mt-0.5", children: [
+              "✓ 已选择: ",
+              operSearch
+            ] }),
+            form.operator_type !== "household" && form.operator_entity_id && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-primary mt-0.5", children: [
+              "✓ 已选择: ",
+              operVillageSearch
+            ] }),
+            form.operator_type === "household" && !form.operator_household_id && !form.operator_id_card && operSearch && operOpts.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                onClick: () => {
+                  sf2("operator_id_card", "");
+                },
+                className: "text-xs text-blue-500 hover:text-blue-700 mt-1",
+                children: "💡 未找到，也可在上方直接输入身份证号"
+              }
+            )
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-3 gap-3", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "流转年度 *" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "起始年度 *" }),
               /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "select",
                 {
@@ -51860,6 +53991,22 @@ function LandTrustPage() {
                     y2,
                     "年"
                   ] }, y2))
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "block text-xs text-text-muted mb-1", children: [
+                "结束年度 ",
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50", children: "同起始则留空" })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  type: "number",
+                  value: form.trust_end_year || "",
+                  onChange: (e) => sf2("trust_end_year", e.target.value ? Number(e.target.value) : null),
+                  placeholder: "同起始年度",
+                  className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
                 }
               )
             ] }),
@@ -51943,6 +54090,36 @@ function LandTrustPage() {
             ] })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1.5", children: form.trust_type === "IDLE" ? "撂荒地面积影响" : "流入方补贴享受类型" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "button",
+                {
+                  onClick: () => sf2("subsidy_arable", form.subsidy_arable ? 0 : 1),
+                  className: `flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-btn transition-colors border
+                  ${form.subsidy_arable ? "bg-emerald-50 border-emerald-300 text-emerald-700" : "bg-white border-border text-text-muted"}`,
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `inline-block w-3 h-3 rounded-full border ${form.subsidy_arable ? "bg-emerald-500 border-emerald-500" : "bg-white border-border"}`, children: form.subsidy_arable && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "block w-1.5 h-1.5 mx-auto mt-0.5 rounded-full bg-white" }) }),
+                    form.trust_type === "IDLE" ? "扣减耕地地力保护补贴面积" : "耕地地力补贴由流入方享受"
+                  ]
+                }
+              ),
+              form.trust_type !== "IDLE" && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "button",
+                {
+                  onClick: () => sf2("subsidy_cash_crop", form.subsidy_cash_crop ? 0 : 1),
+                  className: `flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-btn transition-colors border
+                    ${form.subsidy_cash_crop ? "bg-emerald-50 border-emerald-300 text-emerald-700" : "bg-white border-border text-text-muted"}`,
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `inline-block w-3 h-3 rounded-full border ${form.subsidy_cash_crop ? "bg-emerald-500 border-emerald-500" : "bg-white border-border"}`, children: form.subsidy_cash_crop && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "block w-1.5 h-1.5 mx-auto mt-0.5 rounded-full bg-white" }) }),
+                    "经济作物补贴由流入方享受"
+                  ]
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted/50 mt-1", children: form.trust_type === "IDLE" ? "撂荒面积将从流出方耕地地力保护补贴可申报面积中扣减" : "影响超领计算：耕地地力补贴面积计入单领面积，经济作物补贴面积计入大春小春季节面积" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "备注" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(
               "textarea",
@@ -51958,397 +54135,282 @@ function LandTrustPage() {
         ] })
       }
     ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      ExcelImportWithMapping,
+      {
+        open: idleImportOpen,
+        onClose: () => setIdleImportOpen(false),
+        title: "批量导入撂荒地",
+        templateHeaders: ["流出方姓名*", "流出方身份证*", "面积(亩)*", "撂荒年度*", "扣减耕地补贴", "备注"],
+        templateExample: [{ "流出方姓名*": "张三", "流出方身份证*": "510123196503154231", "面积(亩)*": "2.5", "撂荒年度*": (/* @__PURE__ */ new Date()).getFullYear(), "扣减耕地补贴": "1", "备注": "" }],
+        systemFields: IDLE_IMPORT_FIELDS,
+        templates: [],
+        overwriteOption: false,
+        onDetectColumns: async (columns) => ({
+          columns: columns.map((col) => ({
+            excel_column: col,
+            suggested_field: col.includes("姓名") ? "owner_name" : col.includes("身份证") ? "owner_id_card" : col.includes("面积") ? "area" : col.includes("年度") ? "trust_year" : col.includes("扣减") || col.includes("补贴") ? "subsidy_arable" : col.includes("备注") ? "note" : null,
+            confidence: 0.9,
+            alternatives: []
+          })),
+          recommended_templates: []
+        }),
+        onSaveTemplate: async () => ({ id: 0 }),
+        onImport: handleIdleImport,
+        onSuccess: () => {
+          setIdleImportOpen(false);
+          setPage(1);
+          load();
+        }
+      }
+    ),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { ...toast })
   ] });
 }
-const ACTION_LABEL = {
-  create: { label: "新建家庭户", color: "bg-emerald-100 text-primary" },
-  merge_one: { label: "并入已有户", color: "bg-blue-100 text-blue-700" },
-  merge_multi: { label: "合并多个户", color: "bg-amber-100 text-amber-700" }
-};
+const FIELDS = [
+  { field: "real_name", label: "姓名", required: true, type: "string" },
+  { field: "id_card", label: "身份证号", required: true, type: "id_card" },
+  { field: "head_relation", label: "成员身份（户主/成员）", required: false, type: "string" },
+  { field: "household_code", label: "家庭户编码", required: false, type: "string" },
+  { field: "village_name", label: "所在村", required: false, type: "string" },
+  { field: "group_no", label: "所在组", required: false, type: "string" },
+  { field: "address", label: "家庭住址", required: false, type: "string" },
+  { field: "phone", label: "手机号", required: false, type: "string" },
+  { field: "bank_card", label: "银行卡号", required: false, type: "string" },
+  { field: "bank_name", label: "开户行", required: false, type: "string" },
+  { field: "gender", label: "性别", required: false, type: "string" },
+  { field: "farmer_status", label: "人员状态", required: false, type: "string" }
+];
+const buildRows = (rows) => rows.map((r2) => ({
+  real_name: String(r2.real_name || ""),
+  id_card: String(r2.id_card || ""),
+  address: String(r2.address || "未指定"),
+  head_relation: String(r2.head_relation || "") || void 0,
+  phone: String(r2.phone || "") || void 0,
+  household_code: String(r2.household_code || "") || void 0,
+  village_name: String(r2.village_name || "") || void 0,
+  group_no: String(r2.group_no || "") || void 0,
+  gender: String(r2.gender || "") || void 0,
+  farmer_status: String(r2.farmer_status || "") || void 0
+}));
 function HouseholdImportPage() {
   const { toast, show } = useToast();
-  const [headers, setHeaders] = reactExports.useState([]);
-  const [rawRows, setRawRows] = reactExports.useState([]);
-  const fileRef = reactExports.useRef(null);
-  const [colMap, setColMap] = reactExports.useState({
-    real_name: "",
-    id_card: "",
-    address: "",
-    head_relation: "",
-    phone: "",
-    bank_card: "",
-    bank_name: "",
-    gender: ""
-  });
-  const [step, setStep] = reactExports.useState(1);
+  const [open, setOpen] = reactExports.useState(false);
   const [preview, setPreview] = reactExports.useState(null);
   const [result, setResult] = reactExports.useState(null);
-  const [loading, setLoading] = reactExports.useState(false);
-  const [expandedGroups, setExpandedGroups] = reactExports.useState(/* @__PURE__ */ new Set());
-  const handleFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const data = new Uint8Array(ev.target.result);
-      const wb2 = readSync(data, { type: "array" });
-      const ws = wb2.Sheets[wb2.SheetNames[0]];
-      const json = utils.sheet_to_json(ws, { defval: "", raw: false });
-      if (json.length === 0) {
-        show("Excel 为空", "err");
-        return;
-      }
-      const hdrs = Object.keys(json[0]);
-      setHeaders(hdrs);
-      setRawRows(json);
-      const guess = (candidates) => hdrs.find((h) => candidates.some((c) => h.includes(c))) || "";
-      setColMap({
-        real_name: guess(["姓名", "名字", "户主姓名"]),
-        id_card: guess(["身份证", "证号", "ID"]),
-        address: guess(["地址", "住址", "户籍"]),
-        head_relation: guess(["关系", "户主", "称谓"]),
-        phone: guess(["电话", "手机", "联系"]),
-        bank_card: guess(["银行卡", "卡号"]),
-        bank_name: guess(["开户行", "银行名"]),
-        gender: guess(["性别", "男女"])
-      });
-      setStep(2);
-    };
-    reader.readAsArrayBuffer(file);
-  };
-  const buildRows = () => rawRows.map((r2) => ({
-    real_name: (r2[colMap.real_name] || "").trim(),
-    id_card: (r2[colMap.id_card] || "").trim().toUpperCase(),
-    address: (r2[colMap.address] || "").trim(),
-    head_relation: colMap.head_relation ? (r2[colMap.head_relation] || "").trim() : void 0,
-    phone: colMap.phone ? (r2[colMap.phone] || "").trim() || void 0 : void 0,
-    bank_card: colMap.bank_card ? (r2[colMap.bank_card] || "").trim() || void 0 : void 0,
-    bank_name: colMap.bank_name ? (r2[colMap.bank_name] || "").trim() || void 0 : void 0,
-    gender: colMap.gender ? (r2[colMap.gender] || "").trim() || void 0 : void 0
-  }));
-  const handlePreview = async () => {
-    if (!colMap.real_name || !colMap.id_card || !colMap.address) {
-      show("姓名、身份证号、家庭住址列为必填", "err");
-      return;
-    }
-    setLoading(true);
-    try {
-      const rows = buildRows();
-      const res = await previewHouseholdImport(rows);
-      setPreview(res);
-      setStep(3);
-    } catch (e) {
-      show(e.message, "err");
-    } finally {
-      setLoading(false);
-    }
-  };
-  const handleExecute = async () => {
-    setLoading(true);
-    try {
-      const rows = buildRows();
-      const res = await executeHouseholdImport(rows);
-      setResult(res);
-      setStep(4);
-    } catch (e) {
-      show(e.message, "err");
-    } finally {
-      setLoading(false);
-    }
-  };
-  const toggleGroup = (i) => {
-    setExpandedGroups((prev) => {
-      const next = new Set(prev);
-      next.has(i) ? next.delete(i) : next.add(i);
-      return next;
+  const [defaultVillage, setDefaultVillage] = reactExports.useState("");
+  const [defaultGroup, setDefaultGroup] = reactExports.useState("");
+  const [villageList, setVillageList] = reactExports.useState([]);
+  reactExports.useEffect(() => {
+    fetch("/api/settings/villages").then((r2) => r2.json()).then((data) => {
+      setVillageList((data || []).map((v2) => v2.village_name).filter(Boolean));
+    }).catch(() => {
     });
-  };
-  const resetAll = () => {
-    setStep(1);
-    setHeaders([]);
-    setRawRows([]);
-    setPreview(null);
-    setResult(null);
-    setExpandedGroups(/* @__PURE__ */ new Set());
-    if (fileRef.current) fileRef.current.value = "";
-  };
-  const STEPS = ["上传 Excel", "列映射", "预览结果", "导入完成"];
+  }, []);
+  const preCheck = reactExports.useCallback(async (rows, _mapping) => {
+    const importRows = buildRows(rows);
+    const res = await fetch("/api/household-import/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rows: importRows })
+    }).then((r2) => r2.json());
+    setPreview(res);
+    const conflicts = new Set((res.conflicts || []).map((c) => c.row - 1));
+    const failed = (res.conflicts || []).map((c) => ({
+      index: c.row - 1,
+      real_name: c.real_name,
+      id_card_masked: c.id_card,
+      issues: [`已在「${c.db_name}」的家庭户中存在`]
+    }));
+    return { passed_rows: rows.map((_, i) => i).filter((i) => !conflicts.has(i)), failed_rows: failed, warning_rows: [] };
+  }, []);
+  const handleImport = reactExports.useCallback(async (rows, _mapping, _overwrite) => {
+    const importRows = buildRows(rows);
+    const body = { rows: importRows };
+    if (defaultVillage.trim()) body.default_village_name = defaultVillage.trim();
+    if (defaultGroup.trim()) body.default_group_no = defaultGroup.trim();
+    const res = await fetch("/api/household-import/execute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    }).then((r2) => r2.json());
+    setResult(res);
+    show(`新建户 ${res.created_households} · 合并 ${res.merged_households} · 成员 ${res.created_farmers} · 跳过 ${res.skipped_farmers}`, "ok");
+    return { created: res.created_farmers || 0, skipped: res.skipped_farmers || 0, errors: res.errors || [] };
+  }, [show, defaultVillage, defaultGroup]);
+  const detectColumns = reactExports.useCallback(async (columns) => ({
+    columns: columns.map((col) => {
+      const g = (cs) => columns.find((h) => cs.some((c) => h.includes(c))) || null;
+      const field = g(["姓名", "名字", "户主"]) === col ? "real_name" : g(["身份证", "证号"]) === col ? "id_card" : g(["关系", "户主", "称谓", "成员身份", "身份"]) === col ? "head_relation" : g(["编码", "户号", "户编码", "家庭编码", "家庭户ID"]) === col ? "household_code" : g(["村", "村庄", "所在村", "村名"]) === col ? "village_name" : g(["组", "所在组", "组名"]) === col ? "group_no" : g(["地址", "住址", "户籍"]) === col ? "address" : g(["电话", "手机", "联系"]) === col ? "phone" : g(["银行卡", "卡号"]) === col ? "bank_card" : g(["开户行", "银行名"]) === col ? "bank_name" : g(["性别", "男女"]) === col ? "gender" : g(["状态", "人员状态", "农户状态"]) === col ? "farmer_status" : null;
+      return { excel_column: col, suggested_field: field, confidence: field ? 0.9 : 0, alternatives: [] };
+    }),
+    recommended_templates: []
+  }), []);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-5", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { msg: toast?.msg, type: toast?.type }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-xl font-bold text-text-primary", children: "家庭户批量导入" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-text-muted mt-0.5", children: "按家庭住址聚合分组，自动匹配/合并数据库已有家庭户" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-text-muted mt-0.5", children: "智能识别表格列，自动匹配/合并数据库家庭户" })
       ] }),
-      step > 1 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
         "button",
         {
-          onClick: resetAll,
-          className: "text-sm text-text-muted hover:text-text-primary border border-border rounded-btn px-3 py-1.5",
-          children: "重新上传"
+          onClick: () => setOpen(true),
+          className: "bg-green-500 text-white px-6 py-3 rounded-btn text-sm hover:bg-green-600 shadow-md transition-all font-bold text-base flex items-center gap-2",
+          children: "📥 导入家庭户"
         }
       )
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-0 bg-white rounded-card border border-border p-4", children: STEPS.map((s, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center flex-1", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `flex items-center gap-2 ${i + 1 === step ? "text-primary font-semibold" : i + 1 < step ? "text-primary/70" : "text-text-muted/50"}`, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
-                ${i + 1 === step ? "bg-primary/90 text-white" : i + 1 < step ? "bg-emerald-100 text-primary" : "bg-warm/30 text-text-muted"}`, children: i + 1 < step ? "✓" : i + 1 }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm whitespace-nowrap", children: s })
-      ] }),
-      i < STEPS.length - 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `flex-1 h-px mx-3 ${i + 1 < step ? "bg-emerald-200" : "bg-warm/30"}` })
-    ] }, i)) }),
-    step === 1 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-card border border-border p-8 flex flex-col items-center gap-4", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-4xl", children: "📂" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-text-primary text-sm", children: "上传包含家庭户信息的 Excel 文件（.xlsx / .xls）" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-text-muted text-xs", children: "必须包含：姓名、身份证号、家庭住址；建议包含：户主关系" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "cursor-pointer bg-primary/90 text-white px-6 py-2 rounded-btn text-sm hover:bg-primary transition-colors", children: [
-        "选择文件",
-        /* @__PURE__ */ jsxRuntimeExports.jsx("input", { ref: fileRef, type: "file", accept: ".xlsx,.xls", className: "hidden", onChange: handleFile })
-      ] })
-    ] }),
-    step === 2 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-card border border-border p-6 space-y-5", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-semibold text-text-primary", children: "列映射配置" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
-          "已读取 ",
-          rawRows.length,
-          " 行数据，",
-          headers.length,
-          " 列"
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-2 gap-4", children: [
-        { key: "real_name", label: "姓名", required: true },
-        { key: "id_card", label: "身份证号", required: true },
-        { key: "address", label: "家庭住址（分组依据）", required: true },
-        { key: "head_relation", label: "户主关系", required: false },
-        { key: "phone", label: "手机号", required: false },
-        { key: "bank_card", label: "银行卡号", required: false },
-        { key: "bank_name", label: "开户行", required: false },
-        { key: "gender", label: "性别", required: false }
-      ].map(({ key, label, required }) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "block text-sm text-text-primary mb-1", children: [
-          label,
-          " ",
-          required && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-red-500", children: "*" })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "select",
-          {
-            value: colMap[key],
-            onChange: (e) => setColMap((prev) => ({ ...prev, [key]: e.target.value })),
-            className: "w-full border border-border rounded-btn px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500",
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "— 不映射 —" }),
-              headers.map((h) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: h, children: h }, h))
-            ]
-          }
-        )
-      ] }, key)) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted mb-2", children: "前 3 行预览：" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "overflow-x-auto border border-border/50 rounded-btn", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "text-xs w-full", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { className: "bg-warm/30", children: /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: headers.map((h) => /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-text-muted font-normal whitespace-nowrap", children: h }, h)) }) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: rawRows.slice(0, 3).map((r2, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { className: "border-t border-border/50", children: headers.map((h) => /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-1.5 text-text-primary whitespace-nowrap", children: r2[h] }, h)) }, i)) })
-        ] }) })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex justify-end", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
-        {
-          onClick: handlePreview,
-          disabled: loading,
-          className: "bg-primary/90 text-white px-6 py-2 rounded-btn text-sm hover:bg-primary disabled:opacity-50 transition-colors",
-          children: loading ? "分析中…" : "预览导入结果 →"
-        }
-      ) })
-    ] }),
-    step === 3 && preview && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
+    preview && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-card border border-border p-5 space-y-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-semibold text-text-primary", children: "📊 导入数据预览" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-5 gap-3", children: [
-        { label: "总行数", value: preview.summary.total_rows, color: "text-text-primary" },
-        { label: "家庭户组", value: preview.summary.total_groups, color: "text-text-primary" },
-        { label: "新建", value: preview.summary.new_households, color: "text-primary" },
-        { label: "并入已有", value: preview.summary.merge_single, color: "text-blue-600" },
-        { label: "需合并", value: preview.summary.merge_multi, color: "text-amber-600" }
-      ].map(({ label, value, color }) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-card border border-border p-4 text-center", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `text-2xl font-bold ${color}`, children: value }),
+        { label: "总行数", v: preview.summary.total_rows },
+        { label: "家庭户组", v: preview.summary.total_groups },
+        { label: "新建户", v: preview.summary.new_households, c: "text-primary" },
+        { label: "并入已有", v: preview.summary.merge_single, c: "text-blue-600" },
+        { label: "需合并", v: preview.summary.merge_multi, c: "text-amber-600" }
+      ].map(({ label, v: v2, c }) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-border/50 rounded-card p-4 text-center", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `text-2xl font-bold ${c || "text-text-primary"}`, children: v2 }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted mt-1", children: label })
       ] }, label)) }),
-      preview.row_errors.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-red-50 border border-red-200 rounded-card p-4", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm font-semibold text-red-700 mb-2", children: "格式错误行（已排除，不会导入）" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { className: "text-xs text-red-600 space-y-1", children: preview.row_errors.map((e, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("li", { children: [
-          "第 ",
-          e.row,
-          " 行「",
-          e.name,
-          "」: ",
-          e.errors.join("；")
+      preview.conflicts?.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-amber-50 border border-amber-200 rounded-card p-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-between mb-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-semibold text-amber-700 text-sm", children: [
+            "⚠ 人员冲突（",
+            preview.conflicts.length,
+            " 条）— 身份证号已存在"
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => {
+            const hdr = ["行号", "姓名", "身份证", "导入村", "导入组", "电话", "DB姓名", "DB户ID"];
+            const data = preview.conflicts.map((c) => hdr.reduce((o, k2, i) => ({ ...o, [k2]: [c.row, c.real_name, c.id_card, c.village_name, c.group_no, c.phone, c.db_name, c.db_household_id][i] }), {}));
+            const ws = utils.json_to_sheet(data);
+            ws["!cols"] = hdr.map(() => ({ wch: 16 }));
+            const wb2 = utils.book_new();
+            utils.book_append_sheet(wb2, ws, "冲突");
+            writeFileSync(wb2, `人员冲突_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.xlsx`);
+          }, className: "text-xs bg-amber-200 text-amber-800 px-3 py-1.5 rounded-btn hover:bg-amber-300 font-medium", children: "📥 导出冲突" })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-h-32 overflow-y-auto text-xs text-amber-700 space-y-0.5", children: preview.conflicts.map((c, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          "第",
+          c.row,
+          "行: ",
+          c.real_name,
+          "（",
+          c.id_card,
+          "）→ DB已有「",
+          c.db_name,
+          "」"
         ] }, i)) })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-card border border-border overflow-hidden", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-3 border-b border-border/50 flex items-center justify-between", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-semibold text-text-primary text-sm", children: [
-            "家庭户分组预览（",
-            preview.groups.length,
-            " 组）"
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                onClick: () => setExpandedGroups(new Set(preview.groups.map((_, i) => i))),
-                className: "text-xs text-primary hover:underline",
-                children: "全部展开"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                onClick: () => setExpandedGroups(/* @__PURE__ */ new Set()),
-                className: "text-xs text-text-muted hover:underline",
-                children: "全部折叠"
-              }
-            )
-          ] })
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-blue-50 border border-blue-200 rounded-card p-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 flex-wrap", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-semibold text-blue-700", children: "🏘 全局默认村组" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-blue-600", children: "Excel中未填村组的行将使用此默认值" })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "divide-y divide-stone-100", children: preview.groups.map((g, i) => {
-          const expanded = expandedGroups.has(i);
-          const ac2 = ACTION_LABEL[g.action];
-          return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: g.has_errors ? "bg-red-50" : "", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 mt-3 flex-wrap", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: "村：" }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "div",
+              "select",
               {
-                className: "flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-warm/30",
-                onClick: () => toggleGroup(i),
+                value: defaultVillage,
+                onChange: (e) => setDefaultVillage(e.target.value),
+                className: "border border-border rounded-btn px-3 py-1.5 text-sm bg-white outline-none min-w-[140px]",
                 children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted text-xs w-4", children: expanded ? "▾" : "▸" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs px-2 py-0.5 rounded-full font-medium ${ac2.color}`, children: ac2.label }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm text-text-primary flex-1 truncate", children: g.address }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
-                    g.member_count,
-                    " 人"
-                  ] }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
-                    "户主：",
-                    g.head_name
-                  ] }),
-                  g.target_village_name && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-blue-500", children: [
-                    g.target_village_name,
-                    g.target_group_display
-                  ] }),
-                  !g.target_village_name && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-amber-500", children: "村组待分配" }),
-                  g.warnings.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-amber-500 text-xs", children: [
-                    "⚠ ",
-                    g.warnings.length
-                  ] })
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "— 不指定 —" }),
+                  villageList.map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v2, children: v2 }, v2))
                 ]
               }
-            ),
-            expanded && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-10 pb-3 space-y-3", children: [
-              g.warnings.map((w2, wi2) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-amber-600 bg-amber-50 rounded px-2 py-1", children: w2 }, wi2)),
-              g.matched_hh_info.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted mb-1", children: "匹配到的已有家庭户：" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex flex-wrap gap-2", children: g.matched_hh_info.map((hh2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded", children: [
-                  hh2.household_code,
-                  " ",
-                  hh2.household_name,
-                  "（",
-                  hh2.village_name,
-                  hh2.group_display,
-                  hh2.contract_area != null ? `，${hh2.contract_area}亩` : "",
-                  "）"
-                ] }, hh2.id)) }),
-                g.total_area_after_merge != null && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-text-muted mt-1", children: [
-                  "合并后承包面积（均值）：",
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("b", { className: "text-text-primary", children: [
-                    g.total_area_after_merge,
-                    " 亩"
-                  ] })
-                ] })
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "text-xs w-full", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "text-text-muted", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "text-left py-1 font-normal", children: "姓名" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "text-left py-1 font-normal", children: "身份证号" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "text-left py-1 font-normal", children: "角色" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "text-left py-1 font-normal", children: "DB状态" })
-                ] }) }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { children: g.members.map((m2, mi2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: m2.has_errors ? "text-red-500" : "text-text-primary", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-0.5", children: m2.real_name }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "py-0.5 font-mono", children: [
-                    m2.id_card.slice(0, 6),
-                    "****",
-                    m2.id_card.slice(-4)
-                  ] }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-0.5", children: m2.is_head ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-primary font-medium", children: "户主" }) : "成员" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "py-0.5", children: m2.in_db ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-blue-500", children: "已存在（跳过）" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-primary/70", children: "新增" }) })
-                ] }, mi2)) })
-              ] })
+            )
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: "组：" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                value: defaultGroup,
+                onChange: (e) => setDefaultGroup(e.target.value),
+                placeholder: "如：一组 或 1",
+                className: "border border-border rounded-btn px-3 py-1.5 text-sm outline-none w-32"
+              }
+            )
+          ] }),
+          (defaultVillage || defaultGroup) && /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: () => {
+                setDefaultVillage("");
+                setDefaultGroup("");
+              },
+              className: "text-xs text-blue-500 hover:text-blue-700",
+              children: "清除"
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-border/50 rounded-btn overflow-hidden", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-2 bg-warm/30 text-xs font-semibold text-text-primary", children: [
+          "分组明细（",
+          preview.groups?.length || 0,
+          " 组）"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "divide-y divide-stone-100 max-h-48 overflow-y-auto", children: (preview.groups || []).map((g, i) => {
+          const al2 = g.action === "create" ? "新建" : g.action === "merge_one" ? "并入" : "合并多个户";
+          const ac2 = g.action === "create" ? "bg-primary/10 text-primary" : g.action === "merge_one" ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-600";
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-2 flex items-center gap-3 text-sm", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs px-2 py-0.5 rounded-full font-medium ${ac2}`, children: al2 }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-primary truncate flex-1", children: [
+              g.household_code && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-mono text-primary mr-2", children: g.household_code }),
+              g.address
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
+              g.member_count,
+              "人 · 户主：",
+              g.head_name
             ] })
           ] }, i);
         }) })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-between items-center", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            onClick: () => setStep(2),
-            className: "text-sm text-text-muted border border-border rounded-btn px-4 py-2 hover:text-text-primary",
-            children: "← 返回列映射"
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            onClick: handleExecute,
-            disabled: loading,
-            className: "bg-primary/90 text-white px-8 py-2 rounded-btn text-sm hover:bg-primary disabled:opacity-50 transition-colors font-medium",
-            children: loading ? "导入中…" : "确认导入"
-          }
-        )
       ] })
     ] }),
-    step === 4 && result && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-card border border-border p-8 space-y-6", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-4xl mb-2", children: "✅" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-bold text-text-primary text-lg", children: "导入完成" })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-4 gap-4", children: [
-        { label: "新建家庭户", value: result.created_households, color: "text-primary" },
-        { label: "合并/更新户", value: result.merged_households, color: "text-blue-600" },
-        { label: "新增成员", value: result.created_farmers, color: "text-primary" },
-        { label: "跳过成员", value: result.skipped_farmers, color: "text-text-muted" }
-      ].map(({ label, value, color }) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center border border-border/50 rounded-card p-4", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `text-3xl font-bold ${color}`, children: value }),
+    result && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-card border border-border p-5 space-y-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-semibold text-text-primary", children: "✅ 导入结果" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-4 gap-3", children: [
+        { label: "新建家庭户", v: result.created_households },
+        { label: "合并/更新户", v: result.merged_households },
+        { label: "新增成员", v: result.created_farmers },
+        { label: "跳过成员", v: result.skipped_farmers }
+      ].map(({ label, v: v2 }) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-border/50 rounded-card p-4 text-center", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-2xl font-bold text-primary", children: v2 }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted mt-1", children: label })
       ] }, label)) }),
-      result.errors.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-amber-50 border border-amber-200 rounded-card p-4", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm font-semibold text-amber-700 mb-2", children: [
-          "部分记录未导入（",
-          result.errors.length,
-          " 条）"
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { className: "text-xs text-amber-600 space-y-1 max-h-40 overflow-y-auto", children: result.errors.map((e, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: e }, i)) })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-center gap-3", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            onClick: resetAll,
-            className: "border border-border text-text-primary px-6 py-2 rounded-btn text-sm hover:bg-warm/30",
-            children: "继续导入"
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "a",
-          {
-            href: "/farmers",
-            className: "bg-primary/90 text-white px-6 py-2 rounded-btn text-sm hover:bg-primary",
-            children: "前往户籍管理查看"
-          }
-        )
+      result.errors?.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-amber-50 border border-amber-200 rounded-card p-3 text-xs text-amber-700 max-h-32 overflow-y-auto", children: result.errors.map((e, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: e }, i)) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => {
+          setResult(null);
+          setOpen(true);
+        }, className: "text-sm bg-primary text-white px-4 py-2 rounded-btn", children: "继续导入" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("a", { href: "/farmers", className: "text-sm border border-border px-4 py-2 rounded-btn hover:bg-warm/30", children: "前往户籍管理 →" })
       ] })
-    ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      ExcelImportWithMapping,
+      {
+        open,
+        onClose: () => setOpen(false),
+        title: "家庭户批量导入",
+        templateHeaders: ["姓名*", "身份证号*", "成员身份", "家庭户编码", "所在村", "所在组", "手机号", "家庭住址"],
+        templateExample: [{ "姓名*": "张三", "身份证号*": "510123196503154231", "成员身份": "户主", "家庭户编码": "HH0001", "所在村": "红星村", "所在组": "一组", "手机号": "13800000000", "家庭住址": "红星村一组" }],
+        systemFields: FIELDS,
+        templates: [],
+        overwriteOption: false,
+        onDetectColumns: detectColumns,
+        onSaveTemplate: async () => ({ id: 0 }),
+        onImport: handleImport,
+        onSuccess: () => setOpen(false),
+        preCheck
+      }
+    )
   ] });
 }
 function FamilyRelationImportPage() {
@@ -52831,7 +54893,7 @@ function ProxyManagePage() {
 const thisYear$1 = (/* @__PURE__ */ new Date()).getFullYear();
 const years$1 = Array.from({ length: 6 }, (_, i) => thisYear$1 + 1 - i);
 const SEASONS = ["大春", "小春"];
-async function req$1(url, opts) {
+async function req$2(url, opts) {
   const r2 = await fetch(url, { headers: { "Content-Type": "application/json" }, ...opts });
   if (!r2.ok) {
     const e = await r2.json().catch(() => ({}));
@@ -52875,7 +54937,7 @@ function AgriTaskPage() {
   const [editActual, setEditActual] = reactExports.useState({});
   const loadMeta = reactExports.useCallback(async () => {
     try {
-      setMeta(await req$1("/api/agri-tasks/meta"));
+      setMeta(await req$2("/api/agri-tasks/meta"));
     } catch {
     }
   }, []);
@@ -52885,7 +54947,7 @@ function AgriTaskPage() {
       const p2 = new URLSearchParams({ page: String(page), page_size: "20" });
       if (filterYear) p2.set("task_year", String(filterYear));
       if (filterStatus) p2.set("status", filterStatus);
-      const res = await req$1(`/api/agri-tasks?${p2}`);
+      const res = await req$2(`/api/agri-tasks?${p2}`);
       setTasks(res.items);
       setTotal(res.total);
     } catch (e) {
@@ -52907,7 +54969,7 @@ function AgriTaskPage() {
     }
     setSaving(true);
     try {
-      await req$1("/api/agri-tasks", { method: "POST", body: JSON.stringify(form) });
+      await req$2("/api/agri-tasks", { method: "POST", body: JSON.stringify(form) });
       show("创建成功");
       setShowCreate(false);
       setForm(emptyForm());
@@ -52921,7 +54983,7 @@ function AgriTaskPage() {
   const handlePreview = async (taskId) => {
     setPreviewing(true);
     try {
-      setPreview(await req$1(`/api/agri-tasks/${taskId}/preview`));
+      setPreview(await req$2(`/api/agri-tasks/${taskId}/preview`));
       setShowPreview(true);
     } catch (e) {
       show(e.message, "err");
@@ -52932,7 +54994,7 @@ function AgriTaskPage() {
   const handleIssue = async (taskId) => {
     if (!confirm("确认下达任务？下达后将保存分配方案。")) return;
     try {
-      const res = await req$1(`/api/agri-tasks/${taskId}/issue`, { method: "POST" });
+      const res = await req$2(`/api/agri-tasks/${taskId}/issue`, { method: "POST" });
       show(`已下达，共分配至 ${res.village_count} 个村`);
       loadTasks();
       if (showDetail) loadDetail(taskId);
@@ -52943,7 +55005,7 @@ function AgriTaskPage() {
   const handleRevoke = async (taskId) => {
     if (!confirm("确认撤回任务？将清除已保存的分配方案。")) return;
     try {
-      await req$1(`/api/agri-tasks/${taskId}/revoke`, { method: "POST" });
+      await req$2(`/api/agri-tasks/${taskId}/revoke`, { method: "POST" });
       show("已撤回");
       loadTasks();
       if (showDetail) loadDetail(taskId);
@@ -52954,7 +55016,7 @@ function AgriTaskPage() {
   const handleDone = async (taskId) => {
     if (!confirm("确认标记为完成？")) return;
     try {
-      await req$1(`/api/agri-tasks/${taskId}/done`, { method: "PUT" });
+      await req$2(`/api/agri-tasks/${taskId}/done`, { method: "PUT" });
       show("已标记完成");
       loadTasks();
       if (showDetail) loadDetail(taskId);
@@ -52965,7 +55027,7 @@ function AgriTaskPage() {
   const handleDelete = async (taskId) => {
     if (!confirm("确认删除该任务？")) return;
     try {
-      await req$1(`/api/agri-tasks/${taskId}`, { method: "DELETE" });
+      await req$2(`/api/agri-tasks/${taskId}`, { method: "DELETE" });
       show("已删除");
       loadTasks();
     } catch (e) {
@@ -52974,7 +55036,7 @@ function AgriTaskPage() {
   };
   const loadDetail = async (taskId) => {
     try {
-      const d = await req$1(`/api/agri-tasks/${taskId}`);
+      const d = await req$2(`/api/agri-tasks/${taskId}`);
       setDetail(d);
       const init = {};
       d.allocations.forEach((a) => {
@@ -52988,7 +55050,7 @@ function AgriTaskPage() {
   };
   const handleSaveActual = async (taskId, villageId) => {
     try {
-      await req$1(`/api/agri-tasks/${taskId}/allocations/${villageId}/actual`, {
+      await req$2(`/api/agri-tasks/${taskId}/allocations/${villageId}/actual`, {
         method: "PUT",
         body: JSON.stringify({ actual_area: editActual[villageId] === "" ? null : Number(editActual[villageId]) })
       });
@@ -53037,7 +55099,7 @@ function AgriTaskPage() {
         "button",
         {
           onClick: () => setShowCreate(true),
-          className: "ml-auto bg-primary/90 hover:bg-primary text-white text-sm px-4 py-1.5 rounded-btn",
+          className: "ml-auto bg-primary/90 hover:bg-primary  text-sm px-4 py-1.5 rounded-btn",
           children: "+ 新建任务"
         }
       )
@@ -53079,7 +55141,7 @@ function AgriTaskPage() {
       "button",
       {
         onClick: () => setPage(p2),
-        className: `w-8 h-8 text-sm rounded ${p2 === page ? "bg-primary/90 text-white" : "bg-white border border-border text-text-primary hover:border-primary/30"}`,
+        className: `w-8 h-8 text-sm rounded ${p2 === page ? "bg-primary/90 " : "bg-white border border-border text-text-primary hover:border-primary/30"}`,
         children: p2
       },
       p2
@@ -53307,7 +55369,7 @@ function AgriTaskPage() {
                 "button",
                 {
                   onClick: () => handleIssue(detail.id),
-                  className: "px-3 py-1.5 text-sm bg-primary/90 text-white rounded-btn hover:bg-primary",
+                  className: "px-3 py-1.5 text-sm bg-primary/90  rounded-btn hover:bg-primary",
                   children: "下达任务"
                 }
               )
@@ -53325,7 +55387,7 @@ function AgriTaskPage() {
                 "button",
                 {
                   onClick: () => handleDone(detail.id),
-                  className: "px-3 py-1.5 text-sm bg-primary/90 text-white rounded-btn hover:bg-primary",
+                  className: "px-3 py-1.5 text-sm bg-primary/90  rounded-btn hover:bg-primary",
                   children: "标记完成"
                 }
               )
@@ -53355,7 +55417,7 @@ const RELIABILITY_OPTS = [
 ];
 const thisYear = (/* @__PURE__ */ new Date()).getFullYear();
 const years = Array.from({ length: 6 }, (_, i) => thisYear + 1 - i);
-async function req(url, opts) {
+async function req$1(url, opts) {
   const r2 = await fetch(url, { headers: { "Content-Type": "application/json" }, ...opts });
   if (!r2.ok) {
     const e = await r2.json().catch(() => ({}));
@@ -53432,7 +55494,7 @@ function LargeFarmersPage() {
   const [ownerOpts, setOwnerOpts] = reactExports.useState([]);
   const loadVillages = reactExports.useCallback(async () => {
     try {
-      const r2 = await req("/api/settings/villages");
+      const r2 = await req$1("/api/settings/villages");
       setVillages(r2);
     } catch (e) {
       console.error("加载村组失败", e);
@@ -53445,7 +55507,7 @@ function LargeFarmersPage() {
       if (villageFilter) p2.set("village_id", String(villageFilter));
       if (typeFilter) p2.set("operator_type", typeFilter);
       if (keywordFilter) p2.set("keyword", keywordFilter);
-      const r2 = await req(`/api/large-farmers?${p2}`);
+      const r2 = await req$1(`/api/large-farmers?${p2}`);
       setList(r2.items);
       setTotal(r2.total);
     } finally {
@@ -53456,7 +55518,7 @@ function LargeFarmersPage() {
     setSelectedFarmer(farmer);
     setDetailLoading(true);
     try {
-      const r2 = await req(`/api/large-farmers/${farmer.id}/trusts?year=${trustYear}`);
+      const r2 = await req$1(`/api/large-farmers/${farmer.id}/trusts?year=${trustYear}`);
       setTrustList(r2.items);
     } finally {
       setDetailLoading(false);
@@ -53476,7 +55538,7 @@ function LargeFarmersPage() {
       setOwnerOpts([]);
       return;
     }
-    const r2 = await req(`/api/land/search-household?q=${encodeURIComponent(q2)}`).catch(() => []);
+    const r2 = await req$1(`/api/land/search-household?q=${encodeURIComponent(q2)}`).catch(() => []);
     setOwnerOpts(r2);
   };
   reactExports.useEffect(() => {
@@ -53522,10 +55584,10 @@ function LargeFarmersPage() {
     };
     try {
       if (editTarget) {
-        await req(`/api/large-farmers/${editTarget.id}`, { method: "PUT", body: JSON.stringify(payload) });
+        await req$1(`/api/large-farmers/${editTarget.id}`, { method: "PUT", body: JSON.stringify(payload) });
         show("✓ 更新成功");
       } else {
-        await req("/api/large-farmers", { method: "POST", body: JSON.stringify(payload) });
+        await req$1("/api/large-farmers", { method: "POST", body: JSON.stringify(payload) });
         show("✓ 创建成功");
       }
       setEditOpen(false);
@@ -53536,7 +55598,7 @@ function LargeFarmersPage() {
   };
   const deleteFarmer = async (id2) => {
     if (!confirm("确认删除此大户信息？")) return;
-    await req(`/api/large-farmers/${id2}`, { method: "DELETE" });
+    await req$1(`/api/large-farmers/${id2}`, { method: "DELETE" });
     show("✓ 已删除");
     loadList();
     if (selectedFarmer?.id === id2) setSelectedFarmer(null);
@@ -53605,10 +55667,10 @@ function LargeFarmersPage() {
     };
     try {
       if (trustEditTarget) {
-        await req(`/api/large-farmers/${selectedFarmer.id}/trusts/${trustEditTarget.id}`, { method: "PUT", body: JSON.stringify(payload) });
+        await req$1(`/api/large-farmers/${selectedFarmer.id}/trusts/${trustEditTarget.id}`, { method: "PUT", body: JSON.stringify(payload) });
         show("✓ 更新成功");
       } else {
-        await req(`/api/large-farmers/${selectedFarmer.id}/trusts`, { method: "POST", body: JSON.stringify(payload) });
+        await req$1(`/api/large-farmers/${selectedFarmer.id}/trusts`, { method: "POST", body: JSON.stringify(payload) });
         show("✓ 创建成功");
       }
       setTrustEditOpen(false);
@@ -53620,7 +55682,7 @@ function LargeFarmersPage() {
   };
   const deleteTrust = async (id2) => {
     if (!selectedFarmer || !confirm("确认删除此代耕代种关联？")) return;
-    await req(`/api/large-farmers/${selectedFarmer.id}/trusts/${id2}`, { method: "DELETE" });
+    await req$1(`/api/large-farmers/${selectedFarmer.id}/trusts/${id2}`, { method: "DELETE" });
     show("✓ 已删除");
     loadFarmerDetail(selectedFarmer);
     loadList();
@@ -54310,6 +56372,61 @@ function LargeFarmersPage() {
     /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { ...toast })
   ] });
 }
+function ProjectProgressPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlProjectId = Number(searchParams.get("subsidy_type_id")) || null;
+  const [projectId, setProjectId] = reactExports.useState(urlProjectId);
+  const [projectList, setProjectList] = reactExports.useState([]);
+  const [projectName, setProjectName] = reactExports.useState("");
+  reactExports.useEffect(() => {
+    fetch("/api/subsidies/types").then((r2) => r2.json()).then((data) => {
+      const list = Array.isArray(data) ? data : [];
+      setProjectList(list);
+      if (urlProjectId) {
+        const p2 = list.find((t2) => t2.id === urlProjectId);
+        setProjectName(p2 ? `${p2.subsidy_name}（${p2.subsidy_year}年）` : `项目 #${urlProjectId}`);
+      } else if (list.length > 0) {
+        setProjectId(list[0].id);
+      }
+    }).catch(() => {
+    });
+  }, [urlProjectId]);
+  reactExports.useEffect(() => {
+    if (projectId && projectList.length > 0) {
+      const p2 = projectList.find((t2) => t2.id === projectId);
+      setProjectName(p2 ? `${p2.subsidy_name}（${p2.subsidy_year}年）` : `项目 #${projectId}`);
+    }
+  }, [projectId, projectList]);
+  const selectedProject = projectList.find((p2) => p2.id === projectId);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 max-w-full mx-auto", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 mb-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => navigate(-1), className: "text-text-muted hover:text-text-primary", children: "← 返回" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("h1", { className: "text-lg font-bold", children: [
+        "📋 ",
+        projectName || "项目进度"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card p-3 mb-3 flex items-center gap-3 shadow-sm", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "select",
+        {
+          value: projectId ?? "",
+          onChange: (e) => setProjectId(Number(e.target.value)),
+          className: "border border-border rounded-btn px-2 py-1.5 text-[11px] outline-none bg-white",
+          children: projectList.map((p2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: p2.id, children: [
+            p2.subsidy_name,
+            "（",
+            p2.subsidy_year,
+            "年）"
+          ] }, p2.id))
+        }
+      ),
+      !selectedProject && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: "请选择一个项目" })
+    ] }),
+    selectedProject ? /* @__PURE__ */ jsxRuntimeExports.jsx(ProjectProgressTab, { subsidyType: selectedProject }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center text-text-muted py-16 text-sm", children: '请在补贴项目页面点击"管理进度"进入' })
+  ] });
+}
 const sections = [
   { id: "overview", title: "系统概览", icon: "📋" },
   { id: "basics", title: "基础数据管理", icon: "🏘️" },
@@ -54631,6 +56748,756 @@ function WorkflowDocPage() {
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-8 text-center text-[10px] text-stone-300 pb-4", children: "农户补贴管理系统 · 操作流程文档 · 内网部署版" })
   ] });
 }
+const ToolsPage = () => {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-6", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-2xl font-bold text-primary mb-4", children: "数据工具" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-text-secondary", children: "数据工具页面开发中..." })
+  ] });
+};
+function validateIdCard(id2) {
+  if (!id2 || id2.length !== 18) return { ok: false, error: "长度不为18位" };
+  if (!/^\d{17}[\dXx]$/.test(id2)) return { ok: false, error: "含非法字符" };
+  const birth = id2.substring(6, 14);
+  const y2 = parseInt(birth.substring(0, 4)), m2 = parseInt(birth.substring(4, 6)), d = parseInt(birth.substring(6, 8));
+  if (y2 < 1900 || y2 > 2100 || m2 < 1 || m2 > 12 || d < 1 || d > 31) return { ok: false, error: "出生日期无效" };
+  const weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
+  const checkMap = "10X98765432";
+  let sum = 0;
+  for (let i = 0; i < 17; i++) sum += parseInt(id2[i]) * weights[i];
+  const expected = checkMap[sum % 11];
+  if (id2[17].toUpperCase() !== expected) return { ok: false, error: `校验位错误(应为${expected})` };
+  return { ok: true, error: "" };
+}
+function DataVerifyPage() {
+  const [input, setInput] = reactExports.useState("");
+  const [results, setResults] = reactExports.useState([]);
+  const [loading, setLoading] = reactExports.useState(false);
+  const [filter, setFilter] = reactExports.useState(null);
+  const parseData = (text) => {
+    const lines = text.trim().split("\n").filter((l2) => l2.trim());
+    const rows = [];
+    for (const line of lines) {
+      const idMatch = line.match(/(\d{17}[\dXx])/i);
+      const idCard = idMatch ? idMatch[1].toUpperCase() : "";
+      let name = line.replace(idCard, "").replace(/[\t,;|，；]+/g, " ").replace(/\s+/g, " ").trim();
+      if (!name && !idCard) continue;
+      rows.push({ name, id_card: idCard });
+    }
+    return rows;
+  };
+  const handleVerify = async () => {
+    const rows = parseData(input);
+    if (!rows.length) return;
+    setLoading(true);
+    const idCounts = {};
+    const localResults = [];
+    rows.forEach((r2, i) => {
+      const ic2 = r2.id_card;
+      if (ic2 && ic2.length === 18) {
+        if (!idCounts[ic2]) idCounts[ic2] = [];
+        idCounts[ic2].push(i);
+      }
+    });
+    rows.forEach((r2, i) => {
+      const ic2 = r2.id_card;
+      if (!ic2 || ic2.length !== 18) {
+        localResults.push({ row: i + 1, input_name: r2.name, input_id_card: ic2, db_name: null, db_village: null, match: "invalid", detail: "长度不为18位" });
+        return;
+      }
+      const fmt2 = validateIdCard(ic2);
+      if (!fmt2.ok) {
+        localResults.push({ row: i + 1, input_name: r2.name, input_id_card: ic2, db_name: null, db_village: null, match: "bad_format", detail: fmt2.error });
+        return;
+      }
+      const occurrences = idCounts[ic2] || [];
+      if (occurrences.length > 1 && occurrences[0] === i) {
+        const others = occurrences.filter((j) => j !== i).map((j) => j + 1).join("、");
+        localResults.push({ row: i + 1, input_name: r2.name, input_id_card: ic2, db_name: null, db_village: null, match: "duplicate", detail: `与第${others}行重复` });
+        return;
+      }
+      localResults.push({ row: i + 1, input_name: r2.name, input_id_card: ic2, db_name: null, db_village: null, match: "ok", detail: "" });
+    });
+    const toVerify = rows.filter((_, i) => localResults[i]?.match === "ok");
+    if (toVerify.length > 0) {
+      try {
+        const res = await fetch("/api/farmers/verify-names", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rows: toVerify })
+        }).then((r2) => r2.json());
+        let vi2 = 0;
+        for (let i = 0; i < localResults.length; i++) {
+          if (localResults[i].match === "ok") {
+            const v2 = res.results[vi2++];
+            if (v2) {
+              localResults[i].match = v2.match;
+              localResults[i].db_name = v2.db_name;
+              localResults[i].db_village = v2.db_village;
+            }
+          }
+        }
+      } catch (e) {
+        alert("数据库验证失败: " + e.message);
+      }
+    }
+    const order = { duplicate: 0, bad_format: 1, invalid: 2, mismatch: 3, not_found: 4, ok: 5 };
+    setResults([...localResults].sort((a, b) => (order[a.match] ?? 9) - (order[b.match] ?? 9)));
+    setLoading(false);
+  };
+  const counts = {};
+  results.forEach((r2) => {
+    counts[r2.match] = (counts[r2.match] || 0) + 1;
+  });
+  const cards = [
+    { key: null, label: "全部", count: results.length, color: "text-text-primary", bg: "bg-white border-border" },
+    { key: "duplicate", label: "重复", count: counts["duplicate"] || 0, color: "text-purple-600", bg: "bg-purple-50 border-purple-200" },
+    { key: "bad_format", label: "格式有误", count: counts["bad_format"] || 0, color: "text-orange-600", bg: "bg-orange-50 border-orange-200" },
+    { key: "invalid", label: "格式错误", count: counts["invalid"] || 0, color: "text-gray-500", bg: "bg-gray-50 border-gray-200" },
+    { key: "mismatch", label: "姓名不符", count: counts["mismatch"] || 0, color: "text-red-600", bg: "bg-red-50 border-red-200" },
+    { key: "not_found", label: "未找到", count: counts["not_found"] || 0, color: "text-amber-600", bg: "bg-amber-50 border-amber-200" },
+    { key: "ok", label: "一致", count: counts["ok"] || 0, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200" }
+  ];
+  const TAG_MAP = {
+    ok: { label: "一致", color: "green" },
+    mismatch: { label: "姓名不符", color: "red" },
+    not_found: { label: "未找到", color: "amber" },
+    invalid: { label: "格式错误", color: "gray" },
+    duplicate: { label: "重复", color: "purple" },
+    bad_format: { label: "格式有误", color: "blue" }
+  };
+  const exportExcel = () => {
+    const wb2 = utils.book_new();
+    const headers = ["行号", "输入姓名", "输入身份证", "DB姓名", "DB村组", "详情", "验证结果"];
+    const COLS = [
+      { wch: 6 },
+      { wch: 12 },
+      { wch: 22 },
+      { wch: 12 },
+      { wch: 18 },
+      { wch: 20 },
+      { wch: 10 }
+    ];
+    const HEADER_STYLE = {
+      font: { bold: true, sz: 11, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "4A5568" } },
+      border: { bottom: { style: "medium", color: { rgb: "CBD5E0" } } },
+      alignment: { horizontal: "center", vertical: "center", wrapText: true }
+    };
+    const buildHeader = () => headers.map((h) => ({ v: h, s: HEADER_STYLE }));
+    const buildRow = (r2) => {
+      const tag = TAG_MAP[r2.match];
+      const rowStyle2 = {
+        font: { sz: 10 },
+        alignment: { vertical: "center", wrapText: true },
+        ...r2.match !== "ok" ? { fill: { fgColor: { rgb: "FFF5F5" } } } : {}
+      };
+      return [
+        { v: r2.row, s: { ...rowStyle2, alignment: { ...rowStyle2.alignment, horizontal: "center" } } },
+        { v: r2.input_name || "", s: rowStyle2 },
+        { v: r2.input_id_card || "", s: { ...rowStyle2, font: { ...rowStyle2.font, name: "Consolas" } } },
+        { v: r2.db_name || "", s: rowStyle2 },
+        { v: r2.db_village || "", s: rowStyle2 },
+        { v: r2.detail || "", s: { ...rowStyle2, font: { ...rowStyle2.font, color: { rgb: "C53030" } } } },
+        { v: tag?.label || r2.match, s: { ...rowStyle2, alignment: { ...rowStyle2.alignment, horizontal: "center" }, font: { ...rowStyle2.font, bold: true } } }
+      ];
+    };
+    const appendSheet = (name, rows) => {
+      const aoa = [buildHeader()];
+      rows.forEach((r2) => aoa.push(buildRow(r2)));
+      const ws = utils.aoa_to_sheet(aoa);
+      ws["!cols"] = COLS;
+      utils.book_append_sheet(wb2, ws, name);
+    };
+    const groups = [
+      { label: "重复", key: "duplicate", rows: results.filter((r2) => r2.match === "duplicate") },
+      { label: "格式有误", key: "bad_format", rows: results.filter((r2) => r2.match === "bad_format") },
+      { label: "格式错误", key: "invalid", rows: results.filter((r2) => r2.match === "invalid") },
+      { label: "姓名不符", key: "mismatch", rows: results.filter((r2) => r2.match === "mismatch") },
+      { label: "未找到", key: "not_found", rows: results.filter((r2) => r2.match === "not_found") },
+      { label: "一致", key: "ok", rows: results.filter((r2) => r2.match === "ok") }
+    ];
+    const summaryHeader = [
+      { v: "类型", s: HEADER_STYLE },
+      { v: "数量", s: HEADER_STYLE }
+    ];
+    const totalStyle = {
+      font: { sz: 11, bold: true },
+      alignment: { horizontal: "center", vertical: "center" },
+      fill: { fgColor: { rgb: "EDF2F7" } }
+    };
+    const rowStyle = { font: { sz: 11 }, alignment: { vertical: "center" } };
+    const countStyle = { font: { sz: 11, bold: true }, alignment: { horizontal: "center", vertical: "center" } };
+    const summaryRows = [summaryHeader];
+    groups.forEach((g) => {
+      summaryRows.push([
+        { v: g.label, s: rowStyle },
+        { v: g.rows.length, s: countStyle }
+      ]);
+    });
+    summaryRows.push([
+      { v: "合计", s: totalStyle },
+      { v: results.length, s: totalStyle }
+    ]);
+    const sws = utils.aoa_to_sheet(summaryRows);
+    sws["!cols"] = [{ wch: 14 }, { wch: 8 }];
+    utils.book_append_sheet(wb2, sws, "汇总");
+    for (const g of groups) {
+      if (g.rows.length > 0) {
+        appendSheet(g.label, g.rows);
+      }
+    }
+    writeFileSync(wb2, `身份信息验证结果_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.xlsx`);
+  };
+  const ROW_BG = {
+    duplicate: "bg-purple-50/50",
+    bad_format: "bg-orange-50/30",
+    invalid: "bg-gray-50/50",
+    mismatch: "bg-red-50/50",
+    not_found: "bg-amber-50/30",
+    ok: ""
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-5", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-xl font-bold text-text-primary", children: "📋 身份信息验证" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-text-muted mt-0.5", children: "粘贴姓名+身份证号，自动校验格式、检测重复、比对数据库" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-card border border-border p-4 shadow-card", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "textarea",
+        {
+          value: input,
+          onChange: (e) => setInput(e.target.value),
+          placeholder: `姓名	身份证号
+张三	510123196503154231
+李四	510123197802156789`,
+          className: "w-full h-40 border border-border rounded-btn p-3 text-sm font-mono outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 resize-y"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 mt-3 items-center", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: handleVerify,
+            disabled: loading || !input.trim(),
+            className: "px-5 py-2.5 bg-primary text-white rounded-btn hover:bg-primary/90 disabled:opacity-40 font-medium text-sm",
+            children: loading ? "验证中…" : "🔍 开始验证"
+          }
+        ),
+        results.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: exportExcel,
+            className: "px-4 py-2.5 border-2 border-emerald-500 bg-emerald-500 text-white rounded-btn hover:bg-emerald-600 hover:border-emerald-600 shadow-sm transition-all font-medium text-sm flex items-center gap-1.5",
+            children: "📥 导出 Excel"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: "支持 Tab / 逗号 / 分号 / 空格分隔，每行一条记录" })
+      ] })
+    ] }),
+    results.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-7 gap-2", children: cards.map(({ key, label, count, color, bg: bg2 }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: () => setFilter(key),
+          className: `${bg2} border rounded-card p-3 text-center cursor-pointer transition-all hover:shadow-md ${filter === key ? "ring-2 ring-primary ring-offset-1 scale-[1.02]" : ""}`,
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `text-xl font-bold ${color}`, children: count }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[11px] text-text-muted mt-0.5", children: label })
+          ]
+        },
+        label
+      )) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-white rounded-card border border-border shadow-card overflow-hidden", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full text-sm", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "bg-warm/30 border-b-2 border-border", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs font-semibold text-text-muted w-10", children: "#" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs font-semibold text-text-muted", children: "输入姓名" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs font-semibold text-text-muted", children: "输入身份证" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs font-semibold text-text-muted", children: "DB姓名" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs font-semibold text-text-muted", children: "DB村组" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs font-semibold text-text-muted", children: "详情" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-center text-xs font-semibold text-text-muted", children: "结果" })
+        ] }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { className: "divide-y divide-stone-100", children: results.filter((r2) => !filter || r2.match === filter).map((r2, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: ROW_BG[r2.match] || "", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-xs text-text-muted", children: r2.row }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 font-medium text-text-primary", children: r2.input_name || "—" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 font-mono text-xs text-text-muted", children: r2.input_id_card || "—" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 font-medium text-text-primary", children: r2.db_name || "—" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-xs text-text-muted", children: r2.db_village || "—" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-xs text-text-muted", children: r2.detail || "" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: TAG_MAP[r2.match]?.label || r2.match, color: TAG_MAP[r2.match]?.color || "gray" }) })
+        ] }, i)) })
+      ] }) }) })
+    ] })
+  ] });
+}
+const AUTH_KEY = "subsidy_auth";
+let _authDisabled = null;
+function isAuthDisabled() {
+  return _authDisabled;
+}
+function setAuthDisabled(v2) {
+  _authDisabled = v2;
+}
+function getAuth() {
+  try {
+    const raw = localStorage.getItem(AUTH_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+function saveAuth(info) {
+  localStorage.setItem(AUTH_KEY, JSON.stringify(info));
+}
+function clearAuth() {
+  localStorage.removeItem(AUTH_KEY);
+}
+function LoginPage() {
+  const navigate = useNavigate();
+  const [username, setUsername] = reactExports.useState("");
+  const [password, setPassword] = reactExports.useState("");
+  const [error, setError] = reactExports.useState("");
+  const [loading, setLoading] = reactExports.useState(false);
+  const [authDisabled, setAuthDisabledLocal] = reactExports.useState(false);
+  reactExports.useEffect(() => {
+    fetch("/api/auth/status").then((r2) => r2.json()).then((data) => {
+      const disabled = !data.auth_enabled;
+      setAuthDisabled(disabled);
+      setAuthDisabledLocal(disabled);
+      if (disabled) return;
+    }).catch(() => {
+    });
+  }, []);
+  reactExports.useEffect(() => {
+    if (getAuth()) navigate("/", { replace: true });
+  }, [navigate]);
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    if (!username.trim() || !password.trim()) return;
+    setLoading(true);
+    setError("");
+    try {
+      const r2 = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: username.trim(), password })
+      });
+      if (!r2.ok) {
+        const d = await r2.json().catch(() => ({}));
+        throw new Error(d.detail || "登录失败");
+      }
+      const data = await r2.json();
+      saveAuth(data);
+      navigate("/", { replace: true });
+    } catch (e2) {
+      setError(e2.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-stone-100", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-card shadow-lg p-8 w-full max-w-sm", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center mb-6", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-xl font-bold text-text-primary", children: "农户补贴管理系统" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-text-muted mt-1", children: authDisabled ? "认证已关闭，可直接进入系统" : "请登录后使用" })
+    ] }),
+    authDisabled ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted text-center", children: "检测到认证已关闭（AUTH_DISABLED），本地模式无需登录。" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          onClick: () => navigate("/"),
+          className: "w-full py-2.5 bg-primary text-white rounded-btn font-medium hover:bg-primary/90",
+          children: "直接进入系统"
+        }
+      )
+    ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("form", { onSubmit: handleLogin, className: "space-y-4", children: [
+      error && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-red-50 border border-red-100 rounded-btn px-3 py-2 text-sm text-red-600", children: error }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "用户名" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            value: username,
+            onChange: (e) => setUsername(e.target.value),
+            autoFocus: true,
+            className: "w-full border border-border rounded-btn px-3 py-2.5 text-sm outline-none focus:border-primary"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "密码" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            type: "password",
+            value: password,
+            onChange: (e) => setPassword(e.target.value),
+            className: "w-full border border-border rounded-btn px-3 py-2.5 text-sm outline-none focus:border-primary"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          type: "submit",
+          disabled: loading,
+          className: "w-full py-2.5 bg-primary  rounded-btn font-medium hover:bg-primary/90 disabled:opacity-50",
+          children: loading ? "登录中…" : "登 录"
+        }
+      )
+    ] })
+  ] }) });
+}
+async function req(path, opts = {}) {
+  const headers = { "Content-Type": "application/json" };
+  const auth = getAuth();
+  if (auth) headers["Authorization"] = `Bearer ${auth.token}`;
+  const r2 = await fetch(path, { headers, ...opts });
+  if (!r2.ok) {
+    const e = await r2.json().catch(() => ({}));
+    throw new Error(e.detail || "请求失败");
+  }
+  return r2.json();
+}
+function UserManagementPage() {
+  const { toast, show } = useToast();
+  const auth = getAuth();
+  const [users, setUsers] = reactExports.useState([]);
+  const [addOpen, setAddOpen] = reactExports.useState(false);
+  const [pwdOpen, setPwdOpen] = reactExports.useState(false);
+  const [form, setForm] = reactExports.useState({ username: "", password: "", display_name: "", role: "operator" });
+  const [pwdForm, setPwdForm] = reactExports.useState({ old_password: "", new_password: "" });
+  const load = async () => {
+    try {
+      setUsers(await req("/api/auth/users"));
+    } catch {
+    }
+  };
+  reactExports.useEffect(() => {
+    load();
+  }, []);
+  const createUser = async () => {
+    if (!form.username || !form.password) return show("用户名和密码不能为空", "err");
+    try {
+      await req("/api/auth/users", { method: "POST", body: JSON.stringify(form) });
+      show("✓ 用户创建成功");
+      setAddOpen(false);
+      setForm({ username: "", password: "", display_name: "", role: "operator" });
+      load();
+    } catch (e) {
+      show(e.message, "err");
+    }
+  };
+  const toggleUser = async (u2) => {
+    try {
+      await req(`/api/auth/users/${u2.id}`, { method: "PUT", body: JSON.stringify({ is_active: !u2.is_active }) });
+      load();
+    } catch (e) {
+      show(e.message, "err");
+    }
+  };
+  const changePwd = async () => {
+    if (!pwdForm.old_password || !pwdForm.new_password) return show("请填写完整", "err");
+    try {
+      await req("/api/auth/change-password", { method: "POST", body: JSON.stringify(pwdForm) });
+      show("✓ 密码已修改");
+      setPwdOpen(false);
+      setPwdForm({ old_password: "", new_password: "" });
+    } catch (e) {
+      show(e.message, "err");
+    }
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 max-w-3xl mx-auto", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-lg font-bold mb-4", children: "👤 用户管理" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 mb-4", children: [
+      auth?.role === "admin" && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setAddOpen(true), className: "px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90", children: "＋ 新增用户" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setPwdOpen(true), className: "px-3 py-2 text-sm border border-border rounded-btn hover:bg-warm/30", children: "🔒 修改密码" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-white border border-border rounded-card overflow-hidden", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full text-sm", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { className: "bg-warm/30 border-b border-border", children: ["用户名", "显示名", "角色", "状态", "操作"].map((h) => /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-4 py-2.5 text-left text-xs text-text-muted font-semibold", children: h }, h)) }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("tbody", { children: [
+        users.map((u2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "border-b border-border/30 hover:bg-warm/10", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-4 py-2.5 font-medium", children: u2.username }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-4 py-2.5 text-text-muted", children: u2.display_name }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-4 py-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs px-2 py-0.5 rounded ${u2.role === "admin" ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"}`, children: u2.role === "admin" ? "管理员" : "操作员" }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-4 py-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs ${u2.is_active ? "text-emerald-600" : "text-text-muted/50"}`, children: u2.is_active ? "启用" : "禁用" }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-4 py-2.5", children: auth?.role === "admin" && u2.username !== "admin" && /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: () => toggleUser(u2),
+              className: `text-xs px-2 py-1 rounded-btn ${u2.is_active ? "text-red-500 hover:bg-red-50" : "text-emerald-500 hover:bg-emerald-50"}`,
+              children: u2.is_active ? "禁用" : "启用"
+            }
+          ) })
+        ] }, u2.id)),
+        users.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 5, className: "text-center py-8 text-text-muted/50 text-sm", children: "暂无用户" }) })
+      ] })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Modal, { open: addOpen, title: "新增用户", onClose: () => setAddOpen(false), onConfirm: createUser, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "用户名 *" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            value: form.username,
+            onChange: (e) => setForm((f2) => ({ ...f2, username: e.target.value })),
+            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "密码 *" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            type: "password",
+            value: form.password,
+            onChange: (e) => setForm((f2) => ({ ...f2, password: e.target.value })),
+            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "显示名称" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            value: form.display_name,
+            onChange: (e) => setForm((f2) => ({ ...f2, display_name: e.target.value })),
+            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "角色" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "select",
+          {
+            value: form.role,
+            onChange: (e) => setForm((f2) => ({ ...f2, role: e.target.value })),
+            className: "w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "operator", children: "操作员" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "admin", children: "管理员" })
+            ]
+          }
+        )
+      ] })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Modal, { open: pwdOpen, title: "修改密码", onClose: () => setPwdOpen(false), onConfirm: changePwd, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "原密码" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            type: "password",
+            value: pwdForm.old_password,
+            onChange: (e) => setPwdForm((f2) => ({ ...f2, old_password: e.target.value })),
+            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "block text-xs text-text-muted mb-1", children: "新密码" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            type: "password",
+            value: pwdForm.new_password,
+            onChange: (e) => setPwdForm((f2) => ({ ...f2, new_password: e.target.value })),
+            className: "w-full border border-border rounded-btn px-3 py-2 text-sm outline-none"
+          }
+        )
+      ] })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { ...toast })
+  ] });
+}
+const CONFIDENCE_CFG = {
+  high: { label: "高", color: "green", bg: "bg-green-50 border-green-200" },
+  medium: { label: "中", color: "blue", bg: "bg-blue-50 border-blue-200" },
+  low: { label: "低", color: "amber", bg: "bg-amber-50 border-amber-200" },
+  none: { label: "无", color: "red", bg: "bg-red-50 border-red-200" }
+};
+function PeopleMatchPage() {
+  const [input, setInput] = reactExports.useState("");
+  const [loading, setLoading] = reactExports.useState(false);
+  const [result, setResult] = reactExports.useState(null);
+  const [error, setError] = reactExports.useState("");
+  const parseInput = (text) => {
+    const lines = text.trim().split("\n").filter((l2) => l2.trim());
+    if (lines.length === 0) return [];
+    const firstLine = lines[0];
+    const sep = firstLine.includes("	") ? "	" : firstLine.includes(",") ? "," : /\s{2,}/;
+    const headerLine = lines[0];
+    const headers = typeof sep === "string" ? headerLine.split(sep).map((h) => h.trim()) : headerLine.split(sep).map((h) => h.trim());
+    const isHeader = headers.some(
+      (h) => ["姓名", "名字", "村名", "电话", "手机", "name", "phone", "village"].some(
+        (k2) => h.includes(k2) || h === k2
+      )
+    );
+    const dataLines = isHeader ? lines.slice(1) : lines;
+    const fieldNames = isHeader ? headers : ["姓名", "村名", "电话号码"];
+    return dataLines.map((line) => {
+      const vals = typeof sep === "string" ? line.split(sep).map((v2) => v2.trim()) : line.split(sep).map((v2) => v2.trim()).filter((v2) => v2);
+      const row = {};
+      fieldNames.forEach((h, i) => {
+        if (vals[i]) row[h] = vals[i];
+      });
+      const name = row["姓名"] || row["名字"] || row["name"] || vals[0] || "";
+      const village = row["村名"] || row["村"] || row["village"] || vals[1] || "";
+      const phone2 = row["电话"] || row["手机"] || row["电话号码"] || row["phone"] || vals[2] || "";
+      return { name, village, phone: phone2 };
+    });
+  };
+  const handleMatch = async () => {
+    setError("");
+    const rows = parseInput(input);
+    if (rows.length === 0) {
+      setError("请输入至少一行数据");
+      return;
+    }
+    setLoading(true);
+    try {
+      const r2 = await fetch("/api/farmers/match-people", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows })
+      });
+      if (!r2.ok) throw new Error("匹配请求失败");
+      const data = await r2.json();
+      setResult(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const exportXlsx = () => {
+    if (!result) return;
+    const sheetRows = result.results.map((r2) => {
+      const m2 = r2.matches[0];
+      const cfg = CONFIDENCE_CFG[r2.confidence];
+      return {
+        "输入姓名": r2.input.name,
+        "输入村名": r2.input.village,
+        "输入电话": r2.input.phone,
+        "匹配姓名": m2?.real_name || "—",
+        "匹配村名": m2?.village_name || "—",
+        "匹配电话": m2?.phone || "—",
+        "匹配身份证": m2?.id_card || m2?.id_card_masked || "—",
+        "其他匹配": r2.match_count > 1 ? `${r2.match_count - 1}人` : "",
+        "置信度": cfg.label,
+        "匹配方式": r2.matched_by,
+        "备注": r2.note || ""
+      };
+    });
+    const ws = utils.json_to_sheet(sheetRows);
+    ws["!cols"] = [{ wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 20 }, { wch: 8 }, { wch: 6 }, { wch: 16 }, { wch: 14 }];
+    const wb2 = utils.book_new();
+    utils.book_append_sheet(wb2, ws, "匹配结果");
+    writeFileSync(wb2, `人员匹配结果_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.xlsx`);
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-5xl mx-auto", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-xl font-bold text-text-primary mb-2", children: "🔍 人员模糊匹配" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-text-muted mb-5", children: "粘贴姓名、村名、电话数据，系统自动匹配数据库中的农户。支持 Tab / 逗号 / 双空格分隔。" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card shadow-card p-4 mb-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-semibold text-text-primary", children: "📋 粘贴数据" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
+          input.split("\n").filter((l2) => l2.trim()).length,
+          " 行",
+          " · ",
+          ' 第一行含"姓名/村名/电话"字样会自动识别为表头'
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "textarea",
+        {
+          value: input,
+          onChange: (e) => setInput(e.target.value),
+          placeholder: `姓名	村名	电话号码
+张三	红星村	13800138001
+李四	朝阳村	13900139002
+...`,
+          className: "w-full h-40 border border-border rounded-btn p-3 text-sm font-mono outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 resize-y"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3 mt-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: handleMatch,
+            disabled: loading || !input.trim(),
+            className: "px-5 py-2.5 bg-primary text-white rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium text-sm",
+            children: loading ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "animate-spin inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full mr-2" }),
+              "匹配中…"
+            ] }) : "🔍 开始匹配"
+          }
+        ),
+        result && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: exportXlsx, className: "px-4 py-2.5 text-sm border border-border text-text-primary rounded-btn hover:bg-warm/30 transition-all", children: "↓ 导出 Excel" })
+      ] }),
+      error && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-2 text-sm text-red-600", children: error })
+    ] }),
+    result && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-4 gap-3 mb-4", children: [
+        { label: "高置信", count: result.summary.high, color: "text-green-700", bg: "bg-green-50 border-green-200" },
+        { label: "中置信", count: result.summary.medium, color: "text-blue-700", bg: "bg-blue-50 border-blue-200" },
+        { label: "低置信", count: result.summary.low, color: "text-amber-700", bg: "bg-amber-50 border-amber-200" },
+        { label: "未匹配", count: result.summary.none, color: "text-red-700", bg: "bg-red-50 border-red-200" }
+      ].map((s) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `${s.bg} border rounded-card p-4 text-center`, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `text-2xl font-bold ${s.color}`, children: s.count }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted mt-1", children: s.label })
+      ] }, s.label)) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-white border border-border rounded-card shadow-card overflow-hidden", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full text-sm", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "bg-warm/30 border-b-2 border-border", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs font-semibold text-text-muted", children: "#" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs font-semibold text-text-muted", children: "输入姓名" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs font-semibold text-text-muted", children: "输入村名" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs font-semibold text-text-muted", children: "输入电话" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs font-semibold text-text-muted", children: "匹配姓名" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs font-semibold text-text-muted", children: "匹配村名" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs font-semibold text-text-muted", children: "匹配电话" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs font-semibold text-text-muted", children: "身份证" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-center text-xs font-semibold text-text-muted", children: "置信度" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left text-xs font-semibold text-text-muted", children: "匹配方式" })
+        ] }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("tbody", { className: "divide-y divide-stone-100", children: result.results.map((r2, i) => {
+          const m2 = r2.matches[0];
+          const cfg = CONFIDENCE_CFG[r2.confidence];
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: `hover:bg-warm/30 ${cfg.bg.replace("border-", "")}`, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-xs text-text-muted", children: i + 1 }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 font-medium text-text-primary", children: r2.input.name || "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-text-muted", children: r2.input.village || "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 font-mono text-xs text-text-muted", children: r2.input.phone || "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 font-semibold text-text-primary", children: m2 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-1.5", children: [
+              m2.real_name,
+              m2.farmer_status !== 1 && /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: FARMER_STATUS[m2.farmer_status]?.label ?? "异常", color: "red" })
+            ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50", children: "—" }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-text-muted text-xs", children: m2?.village_name || "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 font-mono text-xs text-text-muted", children: m2?.phone || "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 font-mono text-xs text-amber-700 font-semibold select-all", children: m2?.id_card || m2?.id_card_masked || "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 text-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color === "green" ? "bg-green-100 text-green-700" : cfg.color === "blue" ? "bg-blue-100 text-blue-700" : cfg.color === "amber" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"}`, children: cfg.label }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "px-3 py-2 text-xs text-text-muted", children: [
+              r2.matched_by.replace("name_village_phone", "姓名+村名+电话一致").replace("name_village_exact", "姓名+村名一致").replace("village_phone", "村名+电话一致"),
+              r2.note && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "ml-1 text-amber-600", children: [
+                "(",
+                r2.note,
+                ")"
+              ] }),
+              r2.match_count > 1 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "ml-1 text-amber-600", children: [
+                "(+",
+                r2.match_count - 1,
+                ")"
+              ] })
+            ] })
+          ] }, i);
+        }) })
+      ] }) }) })
+    ] })
+  ] });
+}
 const QUOTES = [
   "革命尚未成功，同志们还当努力",
   "实事求是，群众路线",
@@ -54653,12 +57520,14 @@ const mainNav = [
   { to: "/", label: "首页", icon: "dashboard", end: true },
   { to: "/farmers", label: "户籍管理", icon: "farmers" },
   { to: "/projects", label: "补贴项目", icon: "subsidies" },
-  { to: "/land", label: "土地与大户", icon: "land" },
-  { to: "/agri-tasks", label: "任务分解", icon: "tasks" },
-  { to: "/settings/village-groups", label: "村组管理", icon: "village" },
-  { to: "/precheck", label: "数据预检", icon: "search" },
   { to: "/links", label: "补贴查询", icon: "link" },
-  { to: "/workflow", label: "操作流程", icon: "menu" }
+  { to: "/tools", label: "数据工具", icon: "menu" }
+];
+const settingNavBiz = [
+  // 业务管理
+  { to: "/settings/land-trust", label: "土地流转", icon: "land" },
+  { to: "/settings/large-farmers", label: "大户管理", icon: "household" },
+  { to: "/agri-tasks", label: "任务分解", icon: "tasks" }
 ];
 const settingNavBasic = [
   // 基础配置
@@ -54666,20 +57535,31 @@ const settingNavBasic = [
 ];
 const settingNavData = [
   // 数据工具
-  { to: "/precheck", label: "数据预检", icon: "search" },
-  { to: "/ai", label: "AI 分析", icon: "ai" },
   { to: "/settings/excel-templates", label: "Excel模板", icon: "export" }
 ];
 const settingNavSystem = [
   // 系统
+  { to: "/settings/users", label: "用户管理", icon: "person" },
   { to: "/settings/backup", label: "备份迁移", icon: "download" }
 ];
 function Layout() {
+  const auth = getAuth();
   const [online, setOnline] = reactExports.useState(null);
+  const [authChecked, setAuthChecked] = reactExports.useState(false);
   const [settingsOpen, setSettingsOpen] = reactExports.useState(false);
   const settingsRef = reactExports.useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+  reactExports.useEffect(() => {
+    fetch("/api/auth/status").then((r2) => r2.json()).then((data) => {
+      setAuthDisabled(!data.auth_enabled);
+      setAuthChecked(true);
+    }).catch(() => setAuthChecked(true));
+  }, []);
+  reactExports.useEffect(() => {
+    if (!authChecked) return;
+    if (!isAuthDisabled() && !auth && location.pathname !== "/login") navigate("/login", { replace: true });
+  }, [auth, location.pathname, navigate, authChecked]);
   const isSettings = location.pathname.startsWith("/settings");
   const { quote } = reactExports.useMemo(() => {
     const randomQuote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
@@ -54753,6 +57633,21 @@ function Layout() {
           to
         )) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 shrink-0", children: [
+          auth && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-white/70 text-xs", children: auth.display_name }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                onClick: () => {
+                  clearAuth();
+                  navigate("/login");
+                },
+                className: "text-white/50 hover:text-white text-xs",
+                children: "退出"
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-5 bg-white/20" })
+          ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", ref: settingsRef, children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs(
               "button",
@@ -54781,6 +57676,23 @@ function Layout() {
               }
             ),
             settingsOpen && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "absolute right-0 top-full mt-2 bg-white rounded-card shadow-card border border-border overflow-hidden w-52 z-50", children: [
+              settingNavBiz.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30", children: "业务管理" }),
+                settingNavBiz.map(({ to, label, icon }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                  NavLink,
+                  {
+                    to,
+                    onClick: () => setSettingsOpen(false),
+                    className: ({ isActive }) => `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
+                            ${isActive ? "text-primary font-semibold bg-primary/5" : "text-text-primary hover:bg-warm/30"}`,
+                    children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: icon, size: 16, className: "text-text-muted" }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label })
+                    ]
+                  },
+                  to
+                ))
+              ] }),
               settingNavBasic.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30", children: "基础配置" }),
                 settingNavBasic.map(({ to, label, icon }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
@@ -54860,12 +57772,17 @@ function Layout() {
       ] }) })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("main", { className: "flex-1", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-w-screen-xl mx-auto px-6 py-6 pb-10", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Routes, { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/login", element: /* @__PURE__ */ jsxRuntimeExports.jsx(LoginPage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/", element: /* @__PURE__ */ jsxRuntimeExports.jsx(DashboardPage, { onGoTab: (t2) => navigate(`/${t2 === "projects" ? "projects" : t2}`) }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/farmers", element: /* @__PURE__ */ jsxRuntimeExports.jsx(FarmersPage, {}) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/match-people", element: /* @__PURE__ */ jsxRuntimeExports.jsx(PeopleMatchPage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/projects", element: /* @__PURE__ */ jsxRuntimeExports.jsx(SubsidyProjectsPage, {}) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/project-progress", element: /* @__PURE__ */ jsxRuntimeExports.jsx(ProjectProgressPage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/agri-tasks", element: /* @__PURE__ */ jsxRuntimeExports.jsx(AgriTaskPage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/land", element: /* @__PURE__ */ jsxRuntimeExports.jsx(LandTrustPage, {}) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/precheck", element: /* @__PURE__ */ jsxRuntimeExports.jsx(PreCheckPage, {}) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/links", element: /* @__PURE__ */ jsxRuntimeExports.jsx(ExternalLinksPage, {}) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/tools", element: /* @__PURE__ */ jsxRuntimeExports.jsx(ToolsPage, {}) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/data-verify", element: /* @__PURE__ */ jsxRuntimeExports.jsx(DataVerifyPage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/ai", element: /* @__PURE__ */ jsxRuntimeExports.jsx(AIPage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/settings/village-groups", element: /* @__PURE__ */ jsxRuntimeExports.jsx(SettingsPage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/settings/backup", element: /* @__PURE__ */ jsxRuntimeExports.jsx(BackupPage, {}) }),
@@ -54874,6 +57791,7 @@ function Layout() {
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/settings/household-import", element: /* @__PURE__ */ jsxRuntimeExports.jsx(HouseholdImportPage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/settings/family-relation-import", element: /* @__PURE__ */ jsxRuntimeExports.jsx(FamilyRelationImportPage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/settings/large-farmers", element: /* @__PURE__ */ jsxRuntimeExports.jsx(LargeFarmersPage, {}) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/settings/users", element: /* @__PURE__ */ jsxRuntimeExports.jsx(UserManagementPage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/proxy/application/:applicationId", element: /* @__PURE__ */ jsxRuntimeExports.jsx(ProxyManagePage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/workflow", element: /* @__PURE__ */ jsxRuntimeExports.jsx(WorkflowDocPage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "*", element: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center py-24 text-text-muted", children: [
@@ -54894,7 +57812,7 @@ function Layout() {
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat"
         },
-        children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-w-screen-xl mx-auto px-12 text-center", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-sm opacity-80", children: [
+        children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-w-screen-xl mx-auto px-16 text-center", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-m opacity-80", children: [
           '" ',
           quote,
           ' "'

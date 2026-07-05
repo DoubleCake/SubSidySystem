@@ -7,7 +7,7 @@
  *   - 选中家庭户：家庭户详情（成员/面积/补贴/历史）
  */
 import { useState, useEffect, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import * as api from '../api'
 import type { VillageGroup, HH, HHDetail, HHMember, HHEvent, HistoryDateEvent, SnapshotAtResponse, FarmerDetail, FarmerOut, SnapshotMember, ExcelColumnTemplate } from '../types'
@@ -41,6 +41,7 @@ type LeftTab = 'farmers' | 'households'
 export default function FarmersPage() {
   const { toast, show } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
 
   // ── 从 URL 恢复状态 ──
   const getInitialLeftTab = (): LeftTab => {
@@ -54,6 +55,11 @@ export default function FarmersPage() {
   const getInitialHouseholdId = (): number | null => {
     const id = searchParams.get('householdId')
     return id ? Number(id) : null
+  }
+
+  const getInitialYear = (): number => {
+    const y = searchParams.get('year')
+    return y ? Number(y) : new Date().getFullYear()
   }
 
   // ── 左侧Tab ──
@@ -77,8 +83,7 @@ export default function FarmersPage() {
   const [overdrawnOnly, setOverdrawnOnly] = useState(false)
   const [confirmedFilter, setConfirmedFilter] = useState<string>('') // ''=全部, '1'=已确认, '0'=未确认
   const [statusFilter, setStatusFilter] = useState<string>('1') // ''=全部, '1'=在册, '2'=注销, '3'=迁出
-  const [highSubsidyOnly, setHighSubsidyOnly] = useState(false) // 补贴记录≥4条
-  const yearFilter = new Date().getFullYear()
+  const [yearFilter, setYearFilter] = useState<number>(getInitialYear)
 
   // ── 批量确认状态 ──
   const [batchConfirmMode, setBatchConfirmMode] = useState(false)
@@ -93,9 +98,8 @@ export default function FarmersPage() {
 
   // ── 户详情 ──
   const [detail, setDetail] = useState<HHDetail | null>(null)
-  const detailYear = new Date().getFullYear()
   const [detailTab, setDetailTab] = useState<'members' | 'subsidy'>('members')
-  const [areaYear, setAreaYear] = useState(detailYear)
+  const [areaYear, setAreaYear] = useState(yearFilter)
   const [events, setEvents] = useState<HHEvent[]>([])
 
   // ── 历史快照 ──
@@ -125,6 +129,9 @@ export default function FarmersPage() {
   // ── 新建家庭户 ──
   const [createHhOpen, setCreateHhOpen] = useState(false)
   const [createHhForm, setCreateHhForm] = useState({ household_name: '', village_group_id: 0, contract_area: '', address: '', remark: '' })
+
+  // ── 工具栏收缩 ──
+  const [showToolbar, setShowToolbar] = useState(true)
 
   // ── 合并家庭户（内嵌模式） ──
   const [mergeMode, setMergeMode] = useState(false)
@@ -224,7 +231,7 @@ export default function FarmersPage() {
   // ── 成员管理 ──
   const [memberAddOpen, setMemberAddOpen] = useState(false)
   const [memberEditTarget, setMemberEditTarget] = useState<HHMember | null>(null)
-  const [memberForm, setMemberForm] = useState({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: 0, group_no: 1, village_name: '', group_name: '' })
+  const [memberForm, setMemberForm] = useState({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', restricted_identity: '0', event_date: '', village_id: 0, group_no: 1, village_name: '', group_name: '' })
   const [memberImportOpen, setMemberImportOpen] = useState(false)
 
   // ── 分户向导 ──
@@ -241,7 +248,6 @@ export default function FarmersPage() {
 
   // ── 批量导入农户 ──
   const [importOpen, setImportOpen] = useState(false)
-  const [importOverwrite, setImportOverwrite] = useState(false)
   const [templates, setTemplates] = useState<ExcelColumnTemplate[]>([])
 
   // ── 批量导入确权面积 ──
@@ -275,11 +281,10 @@ export default function FarmersPage() {
       if (overdrawnOnly) p.overdrawn_only = '1'
       if (confirmedFilter) p.confirmed_only = confirmedFilter
       if (statusFilter) p.status = statusFilter
-      if (highSubsidyOnly) p.min_app_count = 4
       const r = await api.getHouseholds(p)
       setHhList(r.items); setHhTotal(r.total)
     } finally { setHhLoading(false) }
-  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter, highSubsidyOnly])
+  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter])
 
   useEffect(() => {
     if (leftTab === 'farmers') loadFarmers()
@@ -314,7 +319,7 @@ export default function FarmersPage() {
   }, [])
 
   // ── 更新 URL ──
-  const updateUrl = useCallback((params: { tab?: LeftTab; farmerId?: number | null; householdId?: number | null }) => {
+  const updateUrl = useCallback((params: { tab?: LeftTab; farmerId?: number | null; householdId?: number | null; year?: number }) => {
     const newParams = new URLSearchParams(searchParams)
     if (params.tab) {
       newParams.set('tab', params.tab)
@@ -334,6 +339,9 @@ export default function FarmersPage() {
       } else {
         newParams.delete('householdId')
       }
+    }
+    if (params.year !== undefined) {
+      newParams.set('year', String(params.year))
     }
     setSearchParams(newParams, { replace: true })
   }, [searchParams, setSearchParams])
@@ -365,7 +373,7 @@ export default function FarmersPage() {
       // 同时加载所属家庭户信息
       if (f.household_id) {
         try {
-          const hh = await api.getHouseholdDetail(f.household_id)
+          const hh = await api.getHouseholdDetail(f.household_id, yearFilter)
           setSelectedFarmerHousehold(hh)
           await loadHouseholdHistoryDates(f.household_id)
         } catch {
@@ -384,7 +392,8 @@ export default function FarmersPage() {
 
   // ── 打开户详情 ──
   const openDetail = async (id: number, skipUrlUpdate = false) => {
-    const d = await api.getHouseholdDetail(id)
+    setAreaYear(yearFilter)
+    const d = await api.getHouseholdDetail(id, yearFilter)
     setDetail(d); setDetailTab('members'); setEvents([]); setSelectedFarmer(null); setSelectedFarmerHousehold(null)
     setHistoryEventId(null); setSnapshotData(null)
     // 打开详情时清除合并和批量确认状态
@@ -437,12 +446,12 @@ export default function FarmersPage() {
   // ── 刷新户详情 ──
   const refreshDetail = async () => {
     if (detail) {
-      const d = await api.getHouseholdDetail(detail.id)
+      const d = await api.getHouseholdDetail(detail.id, yearFilter)
       setDetail(d)
     }
     if (selectedFarmer?.household_id) {
       try {
-        const hh = await api.getHouseholdDetail(selectedFarmer.household_id)
+        const hh = await api.getHouseholdDetail(selectedFarmer.household_id, yearFilter)
         setSelectedFarmerHousehold(hh)
       } catch {
         setSelectedFarmerHousehold(null)
@@ -517,6 +526,20 @@ export default function FarmersPage() {
   useEffect(() => {
     if (detail || selectedFarmerHousehold) loadEvents()
   }, [detail?.id, selectedFarmerHousehold?.id, loadEvents])
+
+  // ── 筛选年份变化时，同步 areaYear ──
+  useEffect(() => {
+    setAreaYear(yearFilter)
+  }, [yearFilter])
+
+  // ── 年份切换时，重新获取该年度的流转数据和面积信息 ──
+  useEffect(() => {
+    if (!detail || historyEventId !== null) return
+    const currentId = detail.id
+    api.getHouseholdDetail(currentId, areaYear > 0 ? areaYear : undefined).then(d => {
+      if (d.id === currentId) setDetail(d)
+    })
+  }, [areaYear]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 切换左侧 Tab ──
   const handleTabChange = (tab: LeftTab) => {
@@ -594,8 +617,10 @@ export default function FarmersPage() {
   }
 
   const confirmMerge = async () => {
-    const targetId = mergeSelected[0]
-    const sourceIds = mergeSelected.slice(1)
+    if (mergeSelectedHouseholds.length < 2) return show('请至少选择 2 个家庭户', 'err')
+    const targetId = mergeSelectedHouseholds[0].id
+    const sourceIds = mergeSelectedHouseholds.slice(1).map(h => h.id).filter(id => id !== targetId)
+    if (sourceIds.length === 0) return show('目标户不能与被合并户相同', 'err')
     setMergeLoading(true)
     try {
       for (const srcId of sourceIds) {
@@ -662,6 +687,7 @@ export default function FarmersPage() {
           bank_card: memberForm.bank_card || undefined,
           bank_name: memberForm.bank_name || undefined,
           farmer_status: Number(memberForm.farmer_status),
+          restricted_identity: Number(memberForm.restricted_identity) || 0,
           event_date: memberForm.event_date || undefined,
           village_id: memberForm.village_id || undefined,
           group_no: memberForm.group_no || undefined,
@@ -678,6 +704,7 @@ export default function FarmersPage() {
           bank_card: memberForm.bank_card || undefined,
           bank_name: memberForm.bank_name || undefined,
           farmer_status: 1,
+          restricted_identity: Number(memberForm.restricted_identity) || 0,
         })
         show('✓ 成员已添加')
       }
@@ -710,6 +737,7 @@ export default function FarmersPage() {
       real_name: m.real_name, id_card: '', gender: String(m.gender),
       relation: m.relation || '成员', is_head: m.is_head === 1,
       phone: '', bank_card: '', bank_name: '', farmer_status: String(m.farmer_status),
+      restricted_identity: String((m as HHMember).restricted_identity ?? 0),
       event_date: '',
       village_id: effVid ?? 0,
       group_no: effGno ?? 1,
@@ -822,7 +850,7 @@ export default function FarmersPage() {
   }
 
   // ── 批量导入农户 ──
-  const handleImport = async (rows: Record<string, unknown>[]) => {
+  const handleImport = async (rows: Record<string, unknown>[], _mapping?: Record<string, string>, overwrite?: boolean) => {
     const toCreate: Record<string, unknown>[] = []
     const formatErrors: string[] = []
     rows.forEach((row, i) => {
@@ -848,7 +876,7 @@ export default function FarmersPage() {
       })
     })
     if (formatErrors.length > 0 && toCreate.length === 0) return { created: 0, skipped: 0, errors: formatErrors }
-    const res = await api.batchImportFarmers(toCreate as unknown as Parameters<typeof api.batchImportFarmers>[0], importOverwrite)
+    const res = await api.batchImportFarmers(toCreate as unknown as Parameters<typeof api.batchImportFarmers>[0], overwrite ?? false)
     api.getVillageGroups().then(g => { setGroups(g); setVillages([...new Set(g.map(v => v.village_name))]) })
     const allErrors = [...formatErrors, ...(res.errors || [])]
     if (res.skipped > 0) allErrors.push(`已跳过 ${res.skipped} 条重复身份证（未开启覆盖）`)
@@ -934,6 +962,44 @@ export default function FarmersPage() {
     }
   }
 
+  // 导出超限明细
+  const exportOverdrawnDetail = async () => {
+    try {
+      const res = await fetch('/api/households/alert/overdrawn?year=' + yearFilter).then(r => r.json()) as {
+        year: number; total: number; items: Array<{
+          household_name: string; head_name: string; village: string
+          contracted_area: number; cultivable_area: number; used_area: number; overdraw_amount: number
+          season_breakdown: Record<string, { used_area: number; is_overdrawn: boolean; overdraw_amount: number }>
+        }>
+      }
+      if (res.total === 0) { show('当前年度无超限家庭户', 'err'); return }
+      const rows = res.items.map(h => {
+        const row: Record<string, unknown> = {
+          '户名': h.household_name,
+          '户主': h.head_name,
+          '所在村组': h.village,
+          '承包面积(亩)': h.contracted_area,
+          '可耕种面积(亩)': h.cultivable_area,
+          '已使用面积(亩)': h.used_area,
+          '超限面积(亩)': h.overdraw_amount,
+        }
+        for (const [season, breakdown] of Object.entries(h.season_breakdown)) {
+          row[`${season}使用面积`] = breakdown.used_area
+          row[`${season}超限面积`] = breakdown.overdraw_amount
+        }
+        return row
+      })
+      const ws = XLSX.utils.json_to_sheet(rows)
+      ws['!cols'] = Object.keys(rows[0] || {}).map(() => ({ wch: 14 }))
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, '超限明细')
+      XLSX.writeFile(wb, `超限明细_${yearFilter}年_${new Date().toISOString().slice(0, 10)}.xlsx`)
+      show(`✓ 已导出 ${res.total} 户超限明细`)
+    } catch (e) {
+      show('导出超限明细失败：' + (e as Error).message, 'err')
+    }
+  }
+
   // ── 年份折叠 ──
   const toggleYear = (yr: number) => {
     setExpandedYears(prev => {
@@ -966,7 +1032,7 @@ export default function FarmersPage() {
 
         {/* 工具栏 - 搜索和筛选 */}
         <div className="flex gap-2 mb-3 flex-wrap">
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={leftTab === 'farmers' ? '搜索农户姓名或身份证…' : '搜索户名或户主…'}
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={leftTab === 'farmers' ? '搜索农户姓名或身份证…' : '搜索户名、户号或户主…'}
             className="flex-1 min-w-32 border border-border rounded-btn px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white shadow-card transition-all" />
           <select value={villageFilter} onChange={e => { setVillageFilter(e.target.value); leftTab === 'farmers' ? setFarmerPage(1) : setHhPage(1) }}
             className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all">
@@ -975,6 +1041,12 @@ export default function FarmersPage() {
           </select>
           {leftTab === 'households' && (
             <>
+              <select value={yearFilter} onChange={e => { setYearFilter(Number(e.target.value)); setHhPage(1); updateUrl({ year: Number(e.target.value) }) }}
+                className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all">
+                {Array.from({ length: 21 }, (_, i) => new Date().getFullYear() - 10 + i).map(y => (
+                  <option key={y} value={y}>{y}年</option>
+                ))}
+              </select>
               <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setHhPage(1) }}
                 className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all">
                 <option value="">全部状态</option>
@@ -993,50 +1065,65 @@ export default function FarmersPage() {
         </div>
 
         {/* 工具栏 - 操作按钮 */}
-        <div className="flex gap-2 mb-3 flex-wrap">
-          {leftTab === 'households' && !mergeMode && (
-            <>
-              <div className="flex gap-2 flex-wrap">
-                <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
-                  <Icon name="create" size={14} className="inline mr-1" />创建新家庭户
-                </button>
-                <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]); setHhPage(1) }}
-                  className="px-3 py-2 text-sm border border-orange-tag/30  bg-[#f7edd8] text-[#B8860B] rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium bg-orange-tag/5">
-                  <Icon name="merge" size={14} className="inline mr-1" />合并家庭户
-                </button>
-                <button onClick={exportCurrentList} className="px-3 py-2 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30 shadow-card hover:shadow-card-hover transition-all font-medium">
-                  <Icon name="export" size={14} className="inline mr-1" />导出
-                </button>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <button onClick={() => { setConfirmedAreaRows([]); setConfirmedAreaImportResult(null); setConfirmedAreaImportOpen(true) }}
-                  className="px-3 py-2 text-sm border border-blue-200 text-blue-700 rounded-btn hover:bg-blue-50 shadow-card hover:shadow-card-hover transition-all font-medium">
-                  <Icon name="upload" size={14} className="inline mr-1" />导入确权面积
-                </button>
-                <button onClick={() => { setBatchConfirmMode(true); setBatchSelected([]); setBatchSelectedHouseholds([]); setMergeMode(false); setMergeSelected([]); setMergeSelectedHouseholds([]) }}
-                  className="px-3 py-2 text-sm border border-primary/20 text-primary bg-[#e3e7ec] rounded-btn hover:bg-primary/5 shadow-card hover:shadow-card-hover transition-all font-medium bg-primary/[0.02]">
-                  <Icon name="confirm" size={14} className="inline mr-1" />批量确认
-                </button>
-                <button onClick={() => handleRefreshCache()} disabled={refreshingCache}
-                  className="px-3 py-2 bg-[#edeaed]  hover:brightness-95 text-sm border-2 border-danger/30 text-danger bg-danger/5 rounded-btn hover:bg-danger/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-purple-700 ">
-                  <Icon name="refresh" size={14} className="inline mr-1" />
-                  {refreshingCache ? '刷新中…' : '刷新缓存'}
-                </button>
-                <button onClick={handleRecalcUnconfirmedArea} disabled={recalculatingArea}
-                  className="px-3 py-2 text-sm border-2 border-orange-tag/30 text-[#B8860B] bg-orange-tag/5 rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
-                  <Icon name="area" size={14} className="inline mr-1" />
-                  {recalculatingArea ? '计算中…' : '重算未确认户承包面积'}
-                </button>
-              </div>
-              <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer bg-warm/30  px-3 py-2 rounded-btn border border-border shadow-card hover:bg-warm/50 transition-all">
-                <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-primary rounded" />
-                <span className="font-medium">仅看超领</span>
-              </label>
-              <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer bg-warm/30 px-3 py-2 rounded-btn border border-border shadow-card hover:bg-warm/50 transition-all">
-                <input type="checkbox" checked={highSubsidyOnly} onChange={e => { setHighSubsidyOnly(e.target.checked); setHhPage(1) }} className="w-4 h-4 text-primary rounded" />
-                <span className="font-medium">补贴≥4条</span>
-              </label>
-            </>
+        <div className="mb-3">
+          {/* 收缩栏头部 */}
+          {leftTab === 'households' && !mergeMode && !batchConfirmMode && (
+            <button
+              onClick={() => setShowToolbar(v => !v)}
+              className="flex items-center gap-2 text-sm text-text-muted hover:text-text-primary transition-colors mb-2 w-full"
+            >
+              <span className={`inline-block transition-transform text-xs ${showToolbar ? 'rotate-90' : ''}`}>▸</span>
+              <span className="font-medium">操作工具</span>
+              <span className="text-xs text-text-muted/60 ml-2">{showToolbar ? '点击收起' : '点击展开'}</span>
+            </button>
+          )}
+          {showToolbar && (
+            <div className="flex gap-2 flex-wrap">
+              {leftTab === 'households' && !mergeMode && (
+                <>
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
+                      <Icon name="create" size={14} className="inline mr-1" />创建新家庭户
+                    </button>
+                    <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]); setHhPage(1) }}
+                      className="px-3 py-2 text-sm border border-orange-tag/30  bg-[#f7edd8] text-[#B8860B] rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium bg-orange-tag/5">
+                      <Icon name="merge" size={14} className="inline mr-1" />合并家庭户
+                    </button>
+                    <button onClick={exportCurrentList} className="px-3 py-2 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30 shadow-card hover:shadow-card-hover transition-all font-medium">
+                      <Icon name="export" size={14} className="inline mr-1" />导出
+                    </button>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={() => { setConfirmedAreaRows([]); setConfirmedAreaImportResult(null); setConfirmedAreaImportOpen(true) }}
+                      className="px-3 py-2 text-sm border border-blue-200 text-blue-700 rounded-btn hover:bg-blue-50 shadow-card hover:shadow-card-hover transition-all font-medium">
+                      <Icon name="upload" size={14} className="inline mr-1" />导入确权面积
+                    </button>
+                    <button onClick={() => { setBatchConfirmMode(true); setBatchSelected([]); setBatchSelectedHouseholds([]); setMergeMode(false); setMergeSelected([]); setMergeSelectedHouseholds([]) }}
+                      className="px-3 py-2 text-sm border border-primary/20 text-primary bg-[#e3e7ec] rounded-btn hover:bg-primary/5 shadow-card hover:shadow-card-hover transition-all font-medium bg-primary/[0.02]">
+                      <Icon name="confirm" size={14} className="inline mr-1" />批量确认
+                    </button>
+                    <button onClick={() => handleRefreshCache()} disabled={refreshingCache}
+                      className="px-3 py-2 bg-[#edeaed]  hover:brightness-95 text-sm border-2 border-danger/30 text-danger bg-danger/5 rounded-btn hover:bg-danger/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-purple-700 ">
+                      <Icon name="refresh" size={14} className="inline mr-1" />
+                      {refreshingCache ? '刷新中…' : '刷新缓存'}
+                    </button>
+                    <button onClick={handleRecalcUnconfirmedArea} disabled={recalculatingArea}
+                      className="px-3 py-2 text-sm border-2 border-orange-tag/30 text-[#B8860B] bg-orange-tag/5 rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
+                      <Icon name="area" size={14} className="inline mr-1" />
+                      {recalculatingArea ? '计算中…' : '重算未确认户承包面积'}
+                    </button>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer bg-warm/30  px-3 py-2 rounded-btn border border-border shadow-card hover:bg-warm/50 transition-all">
+                    <input type="checkbox" checked={overdrawnOnly} onChange={e => setOverdrawnOnly(e.target.checked)} className="w-4 h-4 text-primary rounded" />
+                    <span className="font-medium">仅看超领</span>
+                  </label>
+                  <button onClick={exportOverdrawnDetail}
+                    className="px-3 py-2 text-sm border border-orange-tag/30 text-[#B8860B] bg-orange-tag/5 rounded-btn hover:bg-orange-tag/10 shadow-card hover:shadow-card-hover transition-all font-medium whitespace-nowrap">
+                    <Icon name="export" size={14} className="inline mr-1" />导出超限明细
+                  </button>
+                </>
+              )}
+            </div>
           )}
         </div>
 
@@ -1065,7 +1152,7 @@ export default function FarmersPage() {
             </span>
             <button onClick={handleMergeConfirm}
               disabled={mergeSelectedHouseholds.length < 2}
-              className="ml-auto px-4 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium">
+              className="ml-auto px-4 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium">
               确认合并
             </button>
           </div>
@@ -1084,34 +1171,29 @@ export default function FarmersPage() {
             </span>
             <button onClick={handleBatchConfirm}
               disabled={batchSelected.length === 0 || batchConfirmLoading}
-              className="ml-auto px-4 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2">
+              className="ml-auto px-4 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2">
               {batchConfirmLoading ? <><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>确认中...</> : '确认所选'}
             </button>
           </div>
         )}
         {leftTab === 'farmers' && (
           <>
-            <button onClick={() => setCreateFarmerOpen(true)} className="px-4 py-2.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
-              <Icon name="create" size={14} className="inline mr-1" />新建农户
-            </button>
-            <div className="flex items-center gap-0 border border-border rounded-btn shadow-card overflow-hidden">
-              <button onClick={() => setImportOpen(true)} className="px-4 py-2.5 text-sm text-text-primary hover:bg-warm/30 transition-all font-medium">
+            <div className="flex items-center gap-2">
+              <button onClick={() => setCreateFarmerOpen(true)} className="px-4 py-2.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
+                <Icon name="create" size={14} className="inline mr-1" />新建农户
+              </button>
+              <button onClick={() => setImportOpen(true)} className="px-4 py-2.5 text-sm border border-primary/30 text-primary bg-primary/[0.03] rounded-btn hover:bg-primary/10 shadow-card hover:shadow-card-hover transition-all font-medium">
                 <Icon name="import" size={14} className="inline mr-1" />导入农户
               </button>
-              <label className={`flex items-center gap-1.5 px-3 py-2.5 text-meta cursor-pointer border-l border-border transition-colors select-none ${importOverwrite ? 'bg-orange-tag/10 text-[#B8860B]' : 'text-text-muted hover:bg-warm/30'}`}
-                title="开启后，重复身份证的记录将被 Excel 中的数据覆盖更新">
-                <input type="checkbox" checked={importOverwrite} onChange={e => setImportOverwrite(e.target.checked)} className="accent-orange-tag w-3 h-3" />
-                覆盖重复
-              </label>
+              <button onClick={exportCurrentList} className="px-4 py-2.5 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30 shadow-card hover:shadow-card-hover transition-all font-medium">
+                <Icon name="export" size={14} className="inline mr-1" />导出
+              </button>
             </div>
-            <button onClick={exportCurrentList} className="px-4 py-2.5 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30 shadow-card hover:shadow-card-hover transition-all font-medium">
-              <Icon name="export" size={14} className="inline mr-1" />导出
-            </button>
           </>
         )}
 
         {/* 列表 */}
-        <div className="flex-1 bg-white border border-border rounded-card overflow-hidden shadow-card flex flex-col min-h-0">
+        <div className="flex-1 bg-warm-100 border border-border rounded-card overflow-hidden shadow-card flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto">
             {/* 农户列表 */}
             {leftTab === 'farmers' && (
@@ -1170,7 +1252,10 @@ export default function FarmersPage() {
             <FarmerDetailCard
               selectedFarmer={selectedFarmer}
               showAppSummary={true}
-              appSummary={selectedFarmerHousehold?.app_summary}
+              appSummary={selectedFarmerHousehold?.app_summary?.filter(a => a.farmer_id === selectedFarmer.id)}
+              groups={groups}
+              onUpdate={() => openFarmer(selectedFarmer!.id)}
+              onNavigateToProject={(typeId, farmerName) => navigate(`/projects?subsidy_type_id=${typeId}&farmer_name=${encodeURIComponent(farmerName)}`)}
             />
             {selectedFarmerHousehold && (
               <div className="flex gap-4 flex-1 min-h-0">
@@ -1201,7 +1286,7 @@ export default function FarmersPage() {
                     onOpenMemberAdd={() => {
                       const v = groups.find(g => g.village_id === detail?.village_id)
                       const g = groups.find(g => g.village_id === detail?.village_id && g.group_no === detail?.group_no)
-                      setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` })
+                      setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', restricted_identity: '0', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` })
                       setMemberAddOpen(true)
                     }}
                     onOpenMemberImport={() => setMemberImportOpen(true)}
@@ -1252,7 +1337,7 @@ export default function FarmersPage() {
                 onOpenMemberAdd={() => {
                   const v = groups.find(g => g.village_id === detail?.village_id)
                   const g = groups.find(g => g.village_id === detail?.village_id && g.group_no === detail?.group_no)
-                  setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` })
+                  setMemberForm({ real_name: '', id_card: '', gender: '1', relation: '成员', is_head: false, phone: '', bank_card: '', bank_name: '', farmer_status: '1', restricted_identity: '0', event_date: '', village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v?.village_name ?? '', group_name: g ? g.full_name.replace(g.village_name, '').replace('村', '') : `第${detail?.group_no ?? 1}组` })
                   setMemberAddOpen(true)
                 }}
                 onOpenEvent={() => setEventOpen(true)}
@@ -1265,6 +1350,7 @@ export default function FarmersPage() {
                 onOpenManualConfirm={() => { setConfirmForm({ operator: '', remark: '' }); setManualConfirmOpen(true) }}
                 onOpenCancelConfirm={() => { setConfirmForm({ operator: '', remark: '' }); setCancelConfirmOpen(true) }}
                 onDelete={() => { setDeleteTarget(detail); setDeleteConfirmOpen(true) }}
+                onNavigateToProject={(typeId, farmerName) => navigate(`/projects?subsidy_type_id=${typeId}&farmer_name=${encodeURIComponent(farmerName)}`)}
                 onRefreshCache={handleRefreshCache}
                 refreshingCache={refreshingCache}
               />
@@ -1435,7 +1521,6 @@ export default function FarmersPage() {
       <FarmerImport
         open={importOpen}
         templates={templates}
-        importOverwrite={importOverwrite}
         onClose={() => setImportOpen(false)}
         onDetectColumns={detectExcelColumns}
         onSaveTemplate={saveColumnMappingTemplate}

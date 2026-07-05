@@ -15,6 +15,11 @@ export const parseIdCardInfo = (id: string): { birth: string; gender: number } |
   } catch { return null }
 }
 
+export const RESTRICTED_IDENTITY: Record<number, { label: string; color: string }> = {
+  0: { label: '无限制', color: 'green' },
+  1: { label: '受限制', color: 'red' },
+}
+
 export const FARMER_STATUS: Record<number, { label: string; color: string }> = {
   1: { label: '在册',  color: 'green'  },
   2: { label: '注销',  color: 'red'    },

@@ -18,7 +18,8 @@ export function exportAreaStatsToExcel(
     '村名': row.village,
     '农户数': row.farmer_count,
     '记录数': row.record_count,
-    '实际补贴面积(亩)': row.total_apply_area,
+    '计入超限面积(亩)': row.total_apply_area,
+    '不计超限面积(亩)': row.total_apply_area_no_calc,
     '承包地面积(亩)': row.total_contract_area,
     '代耕代种面积(亩)': row.total_trust_area,
     '不予补贴面积(亩)': row.total_no_subsidy_area,
@@ -32,7 +33,8 @@ export function exportAreaStatsToExcel(
     { wch: 15 },  // 村名
     { wch: 8 },   // 农户数
     { wch: 8 },   // 记录数
-    { wch: 15 },  // 实际补贴面积
+    { wch: 15 },  // 计入超限面积
+    { wch: 15 },  // 不计超限面积
     { wch: 15 },  // 承包地面积
     { wch: 15 },  // 代耕代种面积
     { wch: 15 },  // 不予补贴面积

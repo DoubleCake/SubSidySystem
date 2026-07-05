@@ -6,16 +6,18 @@ import type {
   ErrorLibraryItem, ErrorLibraryCreate,
   HH, HHDetail, HHEvent, HistoryDateEvent, SnapshotAtResponse,
   HouseholdCreate, MemberCreate, MemberUpdate, MemberMoveRequest,
-  SubsidyProxyOut, SubsidyProxyCreate,
+  SubsidyProxyOut, SubsidyProxyCreate, CheckConfig,
+  PrecheckHistoryItem, PrecheckHistoryBatch, CheckResult,
 } from '../types'
+import { getAuth } from '../pages/LoginPage'
 
 const BASE = ''
 
 async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const r = await fetch(BASE + path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...opts,
-  })
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const auth = getAuth()
+  if (auth) headers['Authorization'] = `Bearer ${auth.token}`
+  const r = await fetch(BASE + path, { headers, ...opts })
   if (!r.ok) {
     const e = await r.json().catch(() => ({})) as { detail?: string }
     throw new Error(e.detail || `请求失败 ${r.status}`)
@@ -112,8 +114,13 @@ export const previewMultiHeadHouseholds = (villageNames: string[], excelRows: Fa
   )
 
 // ── 补贴类型 ──
-export const getSubsidyTypes = (year?: number) =>
-  req<SubsidyType[]>('/api/subsidies/types' + (year ? `?year=${year}` : ''))
+export const getSubsidyTypes = (year?: number, status?: number) => {
+  const params = new URLSearchParams()
+  if (year) params.set('year', String(year))
+  if (status !== undefined) params.set('status', String(status))
+  const qs = params.toString()
+  return req<SubsidyType[]>('/api/subsidies/types' + (qs ? `?${qs}` : ''))
+}
 
 export const getSubsidyTypesWithStats = (year?: number) =>
   req<(SubsidyType & { app_count: number; beneficiary_count: number; total_apply: number; total_actual: number })[]>(
@@ -125,6 +132,41 @@ export const createSubsidyType = (data: SubsidyTypeCreate) =>
 
 export const updateSubsidyType = (id: number, data: Partial<SubsidyTypeCreate>) =>
   req('/api/subsidies/types/' + id, { method: 'PUT', body: JSON.stringify(data) })
+
+export const getCheckConfig = (typeId: number) =>
+  req<{ check_config: CheckConfig; raw: string | null }>('/api/subsidies/types/' + typeId + '/check-config')
+
+export const updateCheckConfig = (typeId: number, config: CheckConfig) =>
+  req('/api/subsidies/types/' + typeId + '/check-config', { method: 'PUT', body: JSON.stringify(config) })
+
+export const restoreSubsidyType = (typeId: number) =>
+  req<{ message: string }>('/api/subsidies/types/' + typeId + '/restore', { method: 'POST' })
+
+// ── 预检历史 ──
+export const savePrecheckHistory = (
+  subsidy_type_id: number, year: number, precheck_result: CheckResult,
+  error_types?: string[],
+) =>
+  req<{ saved: number; batch_key: string }>('/api/precheck-history?subsidy_type_id=' + subsidy_type_id + '&year=' + year,
+    { method: 'POST', body: JSON.stringify({ precheck_result, error_types }) })
+
+export const getPrecheckHistory = (params: Record<string, string | number>) =>
+  req<PageResult<PrecheckHistoryItem>>('/api/precheck-history?' + new URLSearchParams(params as Record<string, string>))
+
+export const getPrecheckHistoryBatches = (subsidy_type_id: number, year: number) =>
+  req<{ batches: PrecheckHistoryBatch[] }>('/api/precheck-history/batches?subsidy_type_id=' + subsidy_type_id + '&year=' + year)
+
+export const resolvePrecheckHistory = (id: number) =>
+  req('/api/precheck-history/' + id + '/resolve', { method: 'PUT' })
+
+export const unresolvePrecheckHistory = (id: number) =>
+  req('/api/precheck-history/' + id + '/unresolve', { method: 'PUT' })
+
+export const deletePrecheckHistory = (id: number) =>
+  req('/api/precheck-history/' + id, { method: 'DELETE' })
+
+export const autoResolvePrecheckHistory = (subsidy_type_id: number, year: number) =>
+  req<{ resolved_count: number; total: number }>('/api/precheck-history/auto-resolve?subsidy_type_id=' + subsidy_type_id + '&year=' + year, { method: 'POST' })
 
 // ── 补贴申请 ──
 export const getApplications = (params: Record<string, string | number>) =>
@@ -146,6 +188,12 @@ export const batchImportApplications = (rows: ApplicationCreate[]) =>
     '/api/subsidies/applications/batch-import',
     { method: 'POST', body: JSON.stringify({ rows }) }
   )
+
+export const exportApplications = (subsidyTypeId: number) =>
+  req<{ items: any[] }>('/api/subsidies/applications/export?subsidy_type_id=' + subsidyTypeId)
+
+export const exportPayments = (subsidyTypeId: number) =>
+  req<{ items: any[] }>('/api/subsidies/payments/export?subsidy_type_id=' + subsidyTypeId)
 
 // ── 代领关系 ──
 export const getProxies = (params: Record<string, string | number>) =>
@@ -174,6 +222,7 @@ export interface VillageAreaStats {
   farmer_count: number
   record_count: number
   total_apply_area: number
+  total_apply_area_no_calc: number
   total_contract_area: number
   total_trust_area: number
   total_no_subsidy_area: number
@@ -184,15 +233,25 @@ export interface AreaStatsResponse {
   by_village: VillageAreaStats[]
   total: VillageAreaStats
   data_source: 'payment' | 'application'
+  group_by: 'excel' | 'database'
+  villages_without_data?: string[]
 }
 
-export const getAreaStatsByVillage = (subsidyTypeId: number, year: number, dataSource?: 'payment' | 'application') => {
+export const getAreaStatsByVillage = (
+  subsidyTypeId: number,
+  year: number,
+  dataSource?: 'payment' | 'application',
+  groupBy?: 'excel' | 'database',
+) => {
   const params = new URLSearchParams({
     subsidy_type_id: String(subsidyTypeId),
     year: String(year)
   })
   if (dataSource) {
     params.append('data_source', dataSource)
+  }
+  if (groupBy) {
+    params.append('group_by', groupBy)
   }
   return req<AreaStatsResponse>(`/api/subsidies/applications/stats-by-village?${params.toString()}`)
 }
@@ -418,11 +477,17 @@ export interface HouseholdImportRow {
   bank_card?: string
   bank_name?: string
   gender?: string
+  household_code?: string
+  farmer_status?: string
+  village_name?: string
+  group_no?: string
 }
 
 export interface HouseholdImportPreview {
+  conflicts?: { row: number; real_name: string; id_card: string; village_name: string; group_no: string; phone: string; db_name: string; db_household_id: number }[]
   groups: {
     address: string
+    household_code?: string
     action: 'create' | 'merge_one' | 'merge_multi'
     head_name: string
     head_id_card: string

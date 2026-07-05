@@ -8,22 +8,35 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Modal from '../components/Modal'
+import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
 import Tag from '../components/Tag'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import { fmt } from '../utils'
 
+const IDLE_IMPORT_FIELDS = [
+  { field: 'owner_name',     label: '流出方姓名*', required: true,  type: 'string' },
+  { field: 'owner_id_card',  label: '流出方身份证*', required: true,  type: 'string' },
+  { field: 'area',           label: '面积(亩)*', required: true,  type: 'decimal' },
+  { field: 'trust_year',     label: '撂荒年度*', required: true,  type: 'integer' },
+  { field: 'subsidy_arable', label: '扣减耕地补贴', required: false, type: 'integer' },
+  { field: 'note',           label: '备注', required: false, type: 'string' },
+]
+
 interface Trust {
   id: number
-  owner_household_id: number;   owner_name: string;   owner_code: string
+  owner_type?: string; owner_entity_id?: number | null
+  owner_household_id: number | null; owner_name: string; owner_code: string
+  operator_type?: string; operator_entity_id?: number | null
   operator_household_id: number | null; operator_name: string | null; operator_code: string | null
   trust_type: string;  trust_type_label: string
-  area: number | null; trust_year: number
+  area: number | null; trust_year: number; trust_end_year?: number | null
   start_date: string | null; end_date: string | null
   annual_fee: number | null; payment_method: string | null
   parcel_desc: string | null
   data_reliability: string; reliability_label: string
   affect_subsidy_calc: number
+  subsidy_arable?: number; subsidy_cash_crop?: number
   note: string | null; operator: string | null
   is_active: number
   // 扩展字段：大户流转
@@ -41,6 +54,7 @@ interface HHOption { id: number; household_code: string; household_name: string;
 
 interface AreaSummary {
   contracted_area: number; trust_out_area: number; trust_in_area: number
+  trust_in_arable_area: number; trust_in_cash_crop_area: number
   cultivable_area: number; applied_area: number
   is_overdrawn: boolean; overdraw_amount: number
   cultivable_note: string; has_trust_data: boolean
@@ -73,11 +87,18 @@ async function req<T>(url: string, opts?: RequestInit): Promise<T> {
 }
 
 const emptyForm = () => ({
+  owner_type: 'household',
   owner_household_id: null as number | null,
+  owner_entity_id: null as number | null,
+  owner_id_card: '',
+  operator_type: 'household',
   operator_household_id: null as number | null,
+  operator_entity_id: null as number | null,
+  operator_id_card: '',
   trust_type: 'ENTRUST',
   area: '' as string,
   trust_year: thisYear,
+  trust_end_year: null as number | null,
   start_date: '',
   end_date: '',
   annual_fee: '' as string,
@@ -85,6 +106,8 @@ const emptyForm = () => ({
   parcel_desc: '',
   data_reliability: 'VILLAGE_CONFIRM',
   affect_subsidy_calc: 1,
+  subsidy_arable: 1,
+  subsidy_cash_crop: 1,
   note: '',
 })
 
@@ -97,8 +120,9 @@ export default function LandTrustPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage]   = useState(1)
   const [loading, setLoading] = useState(false)
-  // 流转来源类型：all=全部 normal=普通流转 large_farmer=大户流转
-  const [sourceType, setSourceType] = useState<'all' | 'normal' | 'large_farmer'>('all')
+  const [searchText, setSearchText] = useState('')
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [renewing, setRenewing] = useState(false)
 
   // 详情/面积汇总
   const [summaryHH, setSummaryHH]   = useState<HHOption | null>(null)
@@ -109,11 +133,16 @@ export default function LandTrustPage() {
   const [editOpen, setEditOpen]   = useState(false)
   const [editTarget, setEditTarget] = useState<Trust | null>(null)
   const [form, setForm]           = useState(emptyForm())
+  const [idleImportOpen, setIdleImportOpen] = useState(false)
   const [ownerSearch, setOwnerSearch]   = useState('')
   const [ownerOpts, setOwnerOpts]       = useState<HHOption[]>([])
   const [operSearch, setOperSearch]     = useState('')
   const [operOpts, setOperOpts]         = useState<HHOption[]>([])
-
+  // 村/村组搜索
+  const [ownerVillageSearch, setOwnerVillageSearch] = useState('')
+  const [ownerVillageOpts, setOwnerVillageOpts] = useState<{id: number; village_name?: string; full_name?: string}[]>([])
+  const [operVillageSearch, setOperVillageSearch] = useState('')
+  const [operVillageOpts, setOperVillageOpts] = useState<{id: number; village_name?: string; full_name?: string}[]>([])
   // 家庭户查询弹窗（用于面积汇总）
   const [hhSearch, setHhSearch] = useState('')
   const [hhOpts, setHhOpts]     = useState<HHOption[]>([])
@@ -124,12 +153,12 @@ export default function LandTrustPage() {
       const p = new URLSearchParams({ page: String(page), page_size: '20' })
       if (yearFilter) p.set('year', String(yearFilter))
       if (typeFilter) p.set('trust_type', typeFilter)
-      if (sourceType !== 'all') p.set('source_type', sourceType)
+      if (searchText) p.set('search', searchText.trim())
 
       const r = await req<{ total: number; items: Trust[] }>(`/api/land/all-trusts?${p}`)
       setList(r.items); setTotal(r.total)
     } finally { setLoading(false) }
-  }, [page, yearFilter, typeFilter, sourceType])
+  }, [page, yearFilter, typeFilter, searchText])
 
   useEffect(() => { load() }, [load])
 
@@ -140,9 +169,44 @@ export default function LandTrustPage() {
     setOpts(r)
   }
 
+  const searchVillage = async (q: string, setOpts: (v: {id: number; village_name: string}[]) => void) => {
+    if (q.length < 1) { setOpts([]); return }
+    const r = await req<{id: number; village_name: string}[]>(`/api/land/search-village?q=${encodeURIComponent(q)}`).catch(() => [])
+    setOpts(r)
+  }
+
+  const searchVillageGroup = async (q: string, setOpts: (v: {id: number; full_name: string}[]) => void) => {
+    if (q.length < 1) { setOpts([]); return }
+    const r = await req<{id: number; full_name: string}[]>(`/api/land/search-village-group?q=${encodeURIComponent(q)}`).catch(() => [])
+    setOpts(r)
+  }
+
   useEffect(() => { searchHH(ownerSearch, setOwnerOpts) }, [ownerSearch])
   useEffect(() => { searchHH(operSearch, setOperOpts) }, [operSearch])
   useEffect(() => { searchHH(hhSearch, setHhOpts) }, [hhSearch])
+  useEffect(() => { if (form.owner_type === 'village') searchVillage(ownerVillageSearch, setOwnerVillageOpts) }, [ownerVillageSearch, form.owner_type])
+  useEffect(() => { if (form.owner_type === 'village_group') searchVillageGroup(ownerVillageSearch, setOwnerVillageOpts) }, [ownerVillageSearch, form.owner_type])
+
+  // 身份证自动匹配
+  const resolveIdCard = async (idCard: string, side: 'owner' | 'operator') => {
+    if (idCard.length < 15) return
+    try {
+      const r = await req<{ found: boolean; farmer_name: string | null; household_id: number | null; household_name: string | null }>(
+        `/api/land/resolve-by-id-card?q=${encodeURIComponent(idCard.trim())}`
+      )
+      if (r.found && r.household_id) {
+        if (side === 'owner') {
+          sf('owner_household_id', r.household_id)
+          setOwnerSearch(r.household_name || r.farmer_name || '')
+        } else {
+          sf('operator_household_id', r.household_id)
+          setOperSearch(r.household_name || r.farmer_name || '')
+        }
+      }
+    } catch { /* ignore */ }
+  }
+  useEffect(() => { if (form.operator_type === 'village') searchVillage(operVillageSearch, setOperVillageOpts) }, [operVillageSearch, form.operator_type])
+  useEffect(() => { if (form.operator_type === 'village_group') searchVillageGroup(operVillageSearch, setOperVillageOpts) }, [operVillageSearch, form.operator_type])
 
   const loadSummary = async (hh: HHOption) => {
     setSummaryHH(hh); setSummary(null); setSummaryLoading(true)
@@ -152,19 +216,47 @@ export default function LandTrustPage() {
     } finally { setSummaryLoading(false) }
   }
 
+  // 批量导入撂荒地
+  const handleIdleImport = async (rows: Record<string, unknown>[], _mapping?: Record<string, string>) => {
+    const payload = rows.map(r => ({
+      owner_name: r.owner_name, owner_id_card: r.owner_id_card,
+      area: r.area, trust_year: r.trust_year,
+      subsidy_arable: r.subsidy_arable ?? 1,
+      note: r.note,
+    }))
+    const res = await req<{ created: number; skipped: number; errors: string[] }>('/api/land/trusts/batch-import-idle', {
+      method: 'POST', body: JSON.stringify({ rows: payload }),
+    })
+    if (res.errors?.length) {
+      return { created: res.created, skipped: res.skipped, errors: res.errors }
+    }
+    return { created: res.created, skipped: res.skipped, errors: [] }
+  }
+
   const openAdd = () => {
-    setEditTarget(null); setForm(emptyForm()); setOwnerSearch(''); setOperSearch('')
-    setOwnerOpts([]); setOperOpts([]); setEditOpen(true)
+    setEditTarget(null); setForm(emptyForm())
+    setOwnerSearch(''); setOperSearch('')
+    setOwnerOpts([]); setOperOpts([])
+    setOwnerVillageSearch(''); setOwnerVillageOpts([])
+    setOperVillageSearch(''); setOperVillageOpts([])
+    setEditOpen(true)
   }
 
   const openEdit = (t: Trust) => {
     setEditTarget(t)
     setForm({
-      owner_household_id: t.owner_household_id,
-      operator_household_id: t.operator_household_id,
+      owner_type: t.owner_type || 'household',
+      owner_household_id: t.owner_type === 'household' ? t.owner_household_id : null,
+      owner_entity_id: t.owner_type !== 'household' ? t.owner_entity_id ?? null : null,
+      owner_id_card: '',
+      operator_type: t.operator_type || 'household',
+      operator_household_id: t.operator_type === 'household' ? t.operator_household_id : null,
+      operator_entity_id: t.operator_type !== 'household' ? t.operator_entity_id ?? null : null,
+      operator_id_card: '',
       trust_type: t.trust_type,
       area: t.area !== null ? String(t.area) : '',
       trust_year: t.trust_year,
+      trust_end_year: t.trust_end_year ?? null,
       start_date: t.start_date || '',
       end_date: t.end_date || '',
       annual_fee: t.annual_fee !== null ? String(t.annual_fee) : '',
@@ -172,17 +264,37 @@ export default function LandTrustPage() {
       parcel_desc: t.parcel_desc || '',
       data_reliability: t.data_reliability,
       affect_subsidy_calc: t.affect_subsidy_calc,
+      subsidy_arable: t.subsidy_arable ?? 1,
+      subsidy_cash_crop: t.subsidy_cash_crop ?? 1,
       note: t.note || '',
     })
-    setOwnerSearch(t.owner_name); setOperSearch(t.operator_name || '')
+    // 根据 party 类型设置对应的搜索显示
+    if (t.owner_type === 'household') {
+      setOwnerSearch(t.owner_name); setOwnerVillageSearch('')
+    } else {
+      setOwnerVillageSearch(t.owner_name); setOwnerSearch('')
+    }
+    if (t.operator_type === 'household') {
+      setOperSearch(t.operator_name || ''); setOperVillageSearch('')
+    } else {
+      setOperVillageSearch(t.operator_name || ''); setOperSearch('')
+    }
+    setOwnerOpts([]); setOwnerVillageOpts([])
+    setOperOpts([]); setOperVillageOpts([])
     setEditOpen(true)
   }
 
   const submit = async () => {
-    if (!form.owner_household_id) return show('请选择流出方（承包人）', 'err')
+    // 家庭户类型：有 household_id 或用 name/id_card 自动创建
+    if (form.owner_type === 'household' && !form.owner_household_id) {
+      if (!form.owner_id_card && !ownerSearch.trim()) return show('请搜索或输入流出方信息', 'err')
+    }
+    if (form.owner_type !== 'household' && !form.owner_entity_id) return show('请选择流出方（村/村组）', 'err')
     if (!form.trust_year) return show('请选择流转年度', 'err')
-    const payload = {
+    const payload: Record<string, unknown> = {
       ...form,
+      owner_name: ownerSearch.trim() || undefined,
+      operator_name: operSearch.trim() || undefined,
       area: form.area ? Number(form.area) : null,
       annual_fee: form.annual_fee ? Number(form.annual_fee) : null,
       start_date: form.start_date || null,
@@ -206,9 +318,44 @@ export default function LandTrustPage() {
 
   const del = async (id: number) => {
     if (!confirm('确认删除此流转记录？')) return
-    await req(`/api/land/trusts/${id}`, { method: 'DELETE' })
-    show('✓ 已删除'); load()
+    // 乐观更新：立即从列表中移除
+    setList(prev => prev.filter(t => t.id !== id))
+    setTotal(prev => Math.max(0, prev - 1))
+    try {
+      await req(`/api/land/trusts/${id}`, { method: 'DELETE' })
+      show('✓ 已删除')
+    } catch (e) {
+      show('删除失败，请重试', 'err')
+      load() // 失败后重新加载恢复数据
+      return
+    }
+    // 如果当前页删空了且不是第一页，退回到上一页
+    if (list.length <= 1 && page > 1) {
+      setPage(p => p - 1)
+    } else {
+      await load()
+    }
     if (summaryHH) loadSummary(summaryHH)
+  }
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+  const toggleAll = () => {
+    if (selectedIds.size === list.length) { setSelectedIds(new Set()) }
+    else { setSelectedIds(new Set(list.map(t => t.id))) }
+  }
+  const batchRenew = async () => {
+    if (selectedIds.size === 0) return show('请先选择要续约的记录', 'err')
+    setRenewing(true)
+    try {
+      const r = await req<{ created: number }>('/api/land/trusts/batch-renew', {
+        method: 'POST', body: JSON.stringify({ ids: [...selectedIds] }),
+      })
+      show(`✓ 已续约 ${r.created} 条`)
+      setSelectedIds(new Set()); load()
+    } catch (e) { show((e as Error).message, 'err') }
+    finally { setRenewing(false) }
   }
 
   const sf = (k: keyof ReturnType<typeof emptyForm>, v: unknown) => setForm(f => ({ ...f, [k]: v }))
@@ -216,24 +363,15 @@ export default function LandTrustPage() {
   const TRUST_COLOR: Record<string, 'blue'|'green'|'purple'|'red'|'amber'|'gray'> = {
     ENTRUST: 'blue', RENT: 'green', TRANSFER: 'purple', IDLE: 'red', COLLECTIVE: 'amber'
   }
-  const TRUST_LABEL: Record<string, string> = {
-    ENTRUST: '代耕代种', RENT: '出租', TRANSFER: '流转', IDLE: '撂荒', COLLECTIVE: '集体统一'
-  }
 
   return (
     <div className="grid grid-cols-[1fr_340px] gap-4">
       {/* ── 左列：流转台账 ── */}
       <div>
-        {/* 一级Tab切换：土地与大户 */}
-        <div className="flex items-center gap-1 mb-4 border-b border-border">
-          <button onClick={() => {}}
-            className="px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-primary">
-            土地流转
-          </button>
-          <button onClick={() => navigate('/settings/large-farmers')}
-            className="px-4 py-2 text-sm text-text-muted hover:text-text-primary border-b-2 border-transparent hover:border-border">
-            大户管理
-          </button>
+        {/* 标题 */}
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-lg font-bold text-text-primary">土地流转</h2>
+          <span className="text-xs text-text-muted">共 {total} 条</span>
         </div>
         {/* 工具栏 */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
@@ -246,28 +384,25 @@ export default function LandTrustPage() {
             <option value="">所有类型</option>
             {TRUST_TYPE_OPTS.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
           </select>
-          {/* 来源类型切换 */}
-          <div className="flex border border-border rounded-btn overflow-hidden">
-            <button onClick={() => { setSourceType('all'); setPage(1) }}
-              className={`px-3 py-2 text-xs ${sourceType === 'all' ? 'bg-primary text-white' : 'bg-white text-text-primary hover:bg-warm/30'}`}>
-              全部
-            </button>
-            <button onClick={() => { setSourceType('normal'); setPage(1) }}
-              className={`px-3 py-2 text-xs ${sourceType === 'normal' ? 'bg-primary text-white' : 'bg-white text-text-primary hover:bg-warm/30'}`}>
-              普通流转
-            </button>
-            <button onClick={() => { setSourceType('large_farmer'); setPage(1) }}
-              className={`px-3 py-2 text-xs ${sourceType === 'large_farmer' ? 'bg-primary text-white' : 'bg-white text-text-primary hover:bg-warm/30'}`}>
-              大户流转
-            </button>
-          </div>
-          <span className="text-xs text-text-muted">共 {total} 条</span>
-          {sourceType === 'normal' && (
-            <button onClick={openAdd}
-              className="ml-auto px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
-              ＋ 新增流转记录
+          <input value={searchText} onChange={e => { setSearchText(e.target.value); setPage(1) }}
+            placeholder="🔍 搜索户名或村名…"
+            className="border border-border rounded-btn px-3 py-2 text-sm outline-none w-40" />
+          {selectedIds.size > 0 && (
+            <button onClick={batchRenew} disabled={renewing}
+              className="px-3 py-2 text-sm bg-emerald-600  rounded-btn hover:bg-emerald-700">
+              🔄 续约 {selectedIds.size} 条（＋1年）
             </button>
           )}
+          <div className="ml-auto flex gap-2">
+            <button onClick={() => setIdleImportOpen(true)}
+              className="px-3 py-2 text-sm border border-border rounded-btn hover:bg-warm/30">
+              📥 批量导入撂荒地
+            </button>
+            <button onClick={openAdd}
+              className="px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
+              ＋ 新增流转记录
+            </button>
+          </div>
         </div>
 
         {/* 说明栏 */}
@@ -281,22 +416,34 @@ export default function LandTrustPage() {
         <div className="bg-white border border-border rounded-card overflow-hidden shadow-card">
           <table className="w-full border-collapse">
             <thead><tr className="bg-warm/30 border-b-2 border-border">
+              <th className="px-2 py-2.5 w-8"><input type="checkbox" checked={selectedIds.size === list.length && list.length > 0} onChange={toggleAll} /></th>
               {['流出方（承包人）','流入方（耕种人）','类型','面积','来源','可信度','补贴计算','操作'].map(h => (
                 <th key={h} className="px-3 py-2.5 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
               ))}
             </tr></thead>
             <tbody>
-              {loading && <tr><td colSpan={8} className="text-center py-10 text-text-muted/50">加载中…</td></tr>}
+              {loading && <tr><td colSpan={9} className="text-center py-10 text-text-muted/50">加载中…</td></tr>}
               {!loading && list.length === 0 && (
-                <tr><td colSpan={8} className="text-center py-10 text-text-muted/50 text-sm">
+                <tr><td colSpan={9} className="text-center py-10 text-text-muted/50 text-sm">
                   {yearFilter}年暂无流转记录
                 </td></tr>
               )}
               {list.map(t => (
-                <tr key={`${t.source_type || 'normal'}-${t.id}`} className="border-b border-border/50 hover:bg-warm/30">
+                <tr key={t.id} className="border-b border-border/50 hover:bg-warm/30">
+                <td className="px-2 py-3"><input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSelect(t.id)} /></td>
                   <td className="px-3 py-2.5">
-                    <div className="text-sm font-semibold">{t.owner_name}</div>
-                    <div className="text-xs text-text-muted font-mono">{t.owner_code}</div>
+                    <div className="text-sm font-semibold">
+                      {t.owner_type && t.owner_type !== 'household' && (
+                        <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded mr-1 font-normal
+                          ${t.owner_type === 'village' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'}`}>
+                          {t.owner_type === 'village' ? '村' : '组'}
+                        </span>
+                      )}
+                      {t.owner_name}
+                    </div>
+                    {t.owner_type === 'household' && t.owner_code && (
+                      <div className="text-xs text-text-muted font-mono">{t.owner_code}</div>
+                    )}
                   </td>
                   <td className="px-3 py-2.5">
                     {t.source_type === 'large_farmer' ? (
@@ -305,15 +452,28 @@ export default function LandTrustPage() {
                         <div className="text-xs text-text-muted">{t.large_farmer_type_label || t.large_farmer_type}</div>
                       </div>
                     ) : t.operator_name ? (
-                      <><div className="text-sm">{t.operator_name}</div>
-                          <div className="text-xs text-text-muted font-mono">{t.operator_code}</div></>
+                      <><div className="text-sm">
+                          {t.operator_type && t.operator_type !== 'household' && (
+                            <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded mr-1 font-normal
+                              ${t.operator_type === 'village' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'}`}>
+                              {t.operator_type === 'village' ? '村' : '组'}
+                            </span>
+                          )}
+                          {t.operator_name}
+                        </div>
+                        {t.operator_type === 'household' && t.operator_code && (
+                          <div className="text-xs text-text-muted font-mono">{t.operator_code}</div>
+                        )}
+                      </>
                     ) : (
                       <span className="text-xs text-text-muted/50">— 无接收方</span>
                     )}
                   </td>
                   <td className="px-3 py-2.5"><Tag label={t.trust_type_label} color={TRUST_COLOR[t.trust_type] || 'gray'} /></td>
                   <td className="px-3 py-2.5 text-sm font-mono">
-                    {t.area !== null ? `${t.area}亩` : <span className="text-text-muted/50">未填</span>}
+                    {t.area !== null
+                      ? <span className="text-orange-600 font-semibold">+{t.area}亩</span>
+                      : <span className="text-text-muted/50">未填</span>}
                     {t.parcel_desc && <div className="text-xs text-text-muted truncate max-w-20" title={t.parcel_desc}>{t.parcel_desc}</div>}
                   </td>
                   <td className="px-3 py-2.5">
@@ -332,6 +492,12 @@ export default function LandTrustPage() {
                     {t.affect_subsidy_calc
                       ? <span className="text-xs text-primary">✓ 纳入计算</span>
                       : <span className="text-xs text-text-muted">仅记录</span>}
+                    {t.affect_subsidy_calc === 1 && (
+                      <div className="text-[10px] text-text-muted mt-0.5 space-x-1.5">
+                        <span className={t.subsidy_arable ? 'text-emerald-600' : 'text-text-muted/40'}>{t.subsidy_arable ? '✓' : '✗'}耕地</span>
+                        <span className={t.subsidy_cash_crop ? 'text-emerald-600' : 'text-text-muted/40'}>{t.subsidy_cash_crop ? '✓' : '✗'}作物</span>
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2.5">
                     {t.source_type !== 'large_farmer' && (
@@ -370,7 +536,7 @@ export default function LandTrustPage() {
             <input value={hhSearch} onChange={e => setHhSearch(e.target.value)}
               placeholder="输入户名、户主姓名搜索…"
               className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
-            {hhOpts.length > 0 && (
+            {hhSearch.length > 0 && hhOpts.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-10 max-h-48 overflow-y-auto">
                 {hhOpts.map(h => (
                   <button key={h.id} onClick={() => { loadSummary(h); setHhSearch(''); setHhOpts([]) }}
@@ -413,7 +579,19 @@ export default function LandTrustPage() {
                     {summary.trust_in_area > 0 && (
                       <div className="flex justify-between items-center py-1.5 border-b border-border/50">
                         <span className="text-xs text-text-muted pl-2">+ 流入/代耕</span>
-                        <span className="text-sm font-mono text-primary">+{summary.trust_in_area}亩</span>
+                        <span className="text-sm font-mono text-orange-600">+{summary.trust_in_area}亩</span>
+                      </div>
+                    )}
+                    {summary.trust_in_arable_area > 0 && (
+                      <div className="flex justify-between items-center py-1 pl-6">
+                        <span className="text-[11px] text-emerald-600">└ 耕地地力补贴享受</span>
+                        <span className="text-xs font-mono text-orange-500">+{summary.trust_in_arable_area}亩</span>
+                      </div>
+                    )}
+                    {summary.trust_in_cash_crop_area > 0 && (
+                      <div className="flex justify-between items-center py-1 pl-6 border-b border-border/50">
+                        <span className="text-[11px] text-amber-600">└ 经济作物补贴享受</span>
+                        <span className="text-xs font-mono text-orange-500">+{summary.trust_in_cash_crop_area}亩</span>
                       </div>
                     )}
                   </>
@@ -498,25 +676,77 @@ export default function LandTrustPage() {
           {/* 流出方 */}
           <div>
             <label className="block text-xs text-text-muted mb-1">流出方（承包人）*</label>
-            <div className="relative">
-              <input value={ownerSearch}
-                onChange={e => { setOwnerSearch(e.target.value); sf('owner_household_id', null) }}
-                placeholder="输入户名或户主姓名搜索"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
-              {ownerOpts.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
-                  {ownerOpts.map(h => (
-                    <button key={h.id} onClick={() => { sf('owner_household_id', h.id); setOwnerSearch(h.household_name); setOwnerOpts([]) }}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0">
-                      <span className="font-semibold">{h.household_name}</span>
-                      <span className="text-text-muted text-xs ml-2">{h.head_name}</span>
-                      {h.land_area && <span className="text-primary text-xs ml-2">{h.land_area}亩</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
+            {/* 流出方类型选择 */}
+            <div className="flex gap-1 mb-2">
+              {[
+                { val: 'household', label: '家庭户' },
+                { val: 'village', label: '村' },
+                { val: 'village_group', label: '村组' },
+              ].map(o => (
+                <button key={o.val}
+                  onClick={() => { sf('owner_type', o.val); sf('owner_household_id', null); sf('owner_entity_id', null); sf('owner_id_card', ''); setOwnerSearch(''); setOwnerVillageSearch(''); setOwnerOpts([]); setOwnerVillageOpts([]) }}
+                  className={`px-2.5 py-1 text-xs rounded-btn transition-colors
+                    ${form.owner_type === o.val ? 'bg-primary ' : 'bg-white text-text-muted border border-border hover:border-primary/40'}`}>
+                  {o.val === 'household' ? '🏠 ' : o.val === 'village' ? '🏘 ' : '📋 '}{o.label}
+                </button>
+              ))}
             </div>
-            {form.owner_household_id && <p className="text-xs text-primary mt-0.5">✓ 已选择</p>}
+            {/* 家庭户：搜索 + 身份证直输 */}
+            {form.owner_type === 'household' && (
+              <div className="space-y-2">
+                <div className="relative">
+                  <input value={ownerSearch}
+                    onChange={e => { setOwnerSearch(e.target.value); sf('owner_household_id', null) }}
+                    placeholder="输入户名或户主姓名搜索"
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  {!form.owner_household_id && ownerOpts.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
+                      {ownerOpts.map(h => (
+                        <button key={h.id} onClick={() => { sf('owner_household_id', h.id); setOwnerSearch(h.household_name); setOwnerOpts([]) }}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0">
+                          <span className="font-semibold">{h.household_name}</span>
+                          <span className="text-text-muted text-xs ml-2">{h.head_name}</span>
+                          {h.land_area && <span className="text-primary text-xs ml-2">{h.land_area}亩</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input value={form.owner_id_card}
+                    onChange={e => { sf('owner_id_card', e.target.value); sf('owner_household_id', null) }}
+                    onBlur={e => resolveIdCard(e.target.value, 'owner')}
+                    placeholder="或直接输入身份证号自动匹配"
+                    className="flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" />
+                </div>
+              </div>
+            )}
+            {/* 村/村组搜索 */}
+            {form.owner_type !== 'household' && (
+              <div className="relative">
+                <input value={ownerVillageSearch}
+                  onChange={e => { setOwnerVillageSearch(e.target.value); sf('owner_entity_id', null) }}
+                  placeholder={form.owner_type === 'village' ? '输入村名搜索…' : '输入村组名搜索…'}
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                {!form.owner_entity_id && ownerVillageOpts.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
+                    {ownerVillageOpts.map(h => (
+                      <button key={h.id} onClick={() => { sf('owner_entity_id', h.id); setOwnerVillageSearch(h.village_name || h.full_name || ''); setOwnerVillageOpts([]) }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0">
+                        {h.village_name && <span className="font-semibold">{h.village_name}</span>}
+                        {h.full_name && <span className="font-semibold">{h.full_name}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {(form.owner_type === 'household' && form.owner_household_id) && <p className="text-xs text-primary mt-0.5">✓ 已选择: {ownerSearch}</p>}
+            {(form.owner_type !== 'household' && form.owner_entity_id) && <p className="text-xs text-primary mt-0.5">✓ 已选择: {ownerVillageSearch}</p>}
+            {form.owner_type === 'household' && !form.owner_household_id && !form.owner_id_card && ownerSearch && ownerOpts.length === 0 && (
+              <button onClick={() => { sf('owner_id_card', ''); }}
+                className="text-xs text-blue-500 hover:text-blue-700 mt-1">💡 未找到，也可在上方直接输入身份证号</button>
+            )}
           </div>
 
           {/* 流入方（撂荒时可为空）*/}
@@ -524,36 +754,94 @@ export default function LandTrustPage() {
             <div>
               <label className="block text-xs text-text-muted mb-1">
                 流入方（实际耕种人）
-                <span className="text-text-muted/50 ml-1">— 不填则视为无明确接收方</span>
+                <span className="text-text-muted/50 ml-1">— 可不填</span>
               </label>
-              <div className="relative">
-                <input value={operSearch}
-                  onChange={e => { setOperSearch(e.target.value); sf('operator_household_id', null) }}
-                  placeholder="输入户名或户主姓名搜索（可不填）"
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
-                {operOpts.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
-                    {operOpts.map(h => (
-                      <button key={h.id} onClick={() => { sf('operator_household_id', h.id); setOperSearch(h.household_name); setOperOpts([]) }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0">
-                        <span className="font-semibold">{h.household_name}</span>
-                        <span className="text-text-muted text-xs ml-2">{h.head_name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+              {/* 流入方类型选择 */}
+              <div className="flex gap-1 mb-2">
+                {[
+                  { val: 'household', label: '家庭户' },
+                  { val: 'village', label: '村' },
+                  { val: 'village_group', label: '村组' },
+                ].map(o => (
+                  <button key={o.val}
+                    onClick={() => { sf('operator_type', o.val); sf('operator_household_id', null); sf('operator_entity_id', null); sf('operator_id_card', ''); setOperSearch(''); setOperVillageSearch(''); setOperOpts([]); setOperVillageOpts([]) }}
+                    className={`px-2.5 py-1 text-xs rounded-btn transition-colors
+                      ${form.operator_type === o.val ? 'bg-primary ' : 'bg-white text-text-muted border border-border hover:border-primary/40'}`}>
+                    {o.val === 'household' ? '🏠 ' : o.val === 'village' ? '🏘 ' : '📋 '}{o.label}
+                  </button>
+                ))}
               </div>
+              {/* 家庭户：搜索 + 身份证直输 */}
+              {form.operator_type === 'household' && (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <input value={operSearch}
+                      onChange={e => { setOperSearch(e.target.value); sf('operator_household_id', null) }}
+                      placeholder="输入户名或户主姓名搜索（可不填）"
+                      className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                    {!form.operator_household_id && operOpts.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
+                        {operOpts.map(h => (
+                          <button key={h.id} onClick={() => { sf('operator_household_id', h.id); setOperSearch(h.household_name); setOperOpts([]) }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0">
+                            <span className="font-semibold">{h.household_name}</span>
+                            <span className="text-text-muted text-xs ml-2">{h.head_name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input value={form.operator_id_card}
+                      onChange={e => { sf('operator_id_card', e.target.value); sf('operator_household_id', null) }}
+                      onBlur={e => resolveIdCard(e.target.value, 'operator')}
+                      placeholder="或直接输入身份证号自动匹配"
+                      className="flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" />
+                  </div>
+                </div>
+              )}
+              {/* 村/村组搜索 */}
+              {form.operator_type !== 'household' && (
+                <div className="relative">
+                  <input value={operVillageSearch}
+                    onChange={e => { setOperVillageSearch(e.target.value); sf('operator_entity_id', null) }}
+                    placeholder={form.operator_type === 'village' ? '输入村名搜索…' : '输入村组名搜索…'}
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  {!form.operator_entity_id && operVillageOpts.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
+                      {operVillageOpts.map(h => (
+                        <button key={h.id} onClick={() => { sf('operator_entity_id', h.id); setOperVillageSearch(h.village_name || h.full_name || ''); setOperVillageOpts([]) }}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-warm/30 border-b border-border/50 last:border-0">
+                          {h.village_name && <span className="font-semibold">{h.village_name}</span>}
+                          {h.full_name && <span className="font-semibold">{h.full_name}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {(form.operator_type === 'household' && form.operator_household_id) && <p className="text-xs text-primary mt-0.5">✓ 已选择: {operSearch}</p>}
+              {(form.operator_type !== 'household' && form.operator_entity_id) && <p className="text-xs text-primary mt-0.5">✓ 已选择: {operVillageSearch}</p>}
+              {form.operator_type === 'household' && !form.operator_household_id && !form.operator_id_card && operSearch && operOpts.length === 0 && (
+                <button onClick={() => { sf('operator_id_card', ''); }}
+                  className="text-xs text-blue-500 hover:text-blue-700 mt-1">💡 未找到，也可在上方直接输入身份证号</button>
+              )}
             </div>
           )}
 
           {/* 年度 + 面积 + 地块描述 */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs text-text-muted mb-1">流转年度 *</label>
+              <label className="block text-xs text-text-muted mb-1">起始年度 *</label>
               <select value={form.trust_year} onChange={e => sf('trust_year', Number(e.target.value))}
                 className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
                 {years.map(y => <option key={y} value={y}>{y}年</option>)}
               </select>
+            </div>
+            <div>
+              <label className="block text-xs text-text-muted mb-1">结束年度 <span className="text-text-muted/50">同起始则留空</span></label>
+              <input type="number" value={form.trust_end_year || ''} onChange={e => sf('trust_end_year', e.target.value ? Number(e.target.value) : null)}
+                placeholder="同起始年度" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">面积（亩）<span className="text-text-muted/50">可不填</span></label>
@@ -595,6 +883,42 @@ export default function LandTrustPage() {
             </div>
           </div>
 
+          {/* 补贴享受类型 */}
+          <div>
+            <label className="block text-xs text-text-muted mb-1.5">
+              {form.trust_type === 'IDLE' ? '撂荒地面积影响' : '流入方补贴享受类型'}
+            </label>
+            <div className="flex gap-2">
+              <button onClick={() => sf('subsidy_arable', form.subsidy_arable ? 0 : 1)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-btn transition-colors border
+                  ${form.subsidy_arable
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                    : 'bg-white border-border text-text-muted'}`}>
+                <span className={`inline-block w-3 h-3 rounded-full border ${form.subsidy_arable ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-border'}`}>
+                  {form.subsidy_arable && <span className="block w-1.5 h-1.5 mx-auto mt-0.5 rounded-full bg-white" />}
+                </span>
+                {form.trust_type === 'IDLE' ? '扣减耕地地力保护补贴面积' : '耕地地力补贴由流入方享受'}
+              </button>
+              {form.trust_type !== 'IDLE' && (
+                <button onClick={() => sf('subsidy_cash_crop', form.subsidy_cash_crop ? 0 : 1)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-btn transition-colors border
+                    ${form.subsidy_cash_crop
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                      : 'bg-white border-border text-text-muted'}`}>
+                  <span className={`inline-block w-3 h-3 rounded-full border ${form.subsidy_cash_crop ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-border'}`}>
+                    {form.subsidy_cash_crop && <span className="block w-1.5 h-1.5 mx-auto mt-0.5 rounded-full bg-white" />}
+                  </span>
+                  经济作物补贴由流入方享受
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-text-muted/50 mt-1">
+              {form.trust_type === 'IDLE'
+                ? '撂荒面积将从流出方耕地地力保护补贴可申报面积中扣减'
+                : '影响超领计算：耕地地力补贴面积计入单领面积，经济作物补贴面积计入大春小春季节面积'}
+            </p>
+          </div>
+
           <div>
             <label className="block text-xs text-text-muted mb-1">备注</label>
             <textarea rows={2} value={form.note} onChange={e => sf('note', e.target.value)}
@@ -608,6 +932,34 @@ export default function LandTrustPage() {
           )}
         </div>
       </Modal>
+
+      {/* 批量导入撂荒地 */}
+      <ExcelImportWithMapping
+        open={idleImportOpen}
+        onClose={() => setIdleImportOpen(false)}
+        title="批量导入撂荒地"
+        templateHeaders={['流出方姓名*', '流出方身份证*', '面积(亩)*', '撂荒年度*', '扣减耕地补贴', '备注']}
+        templateExample={[{ '流出方姓名*': '张三', '流出方身份证*': '510123196503154231', '面积(亩)*': '2.5', '撂荒年度*': new Date().getFullYear(), '扣减耕地补贴': '1', '备注': '' }]}
+        systemFields={IDLE_IMPORT_FIELDS}
+        templates={[]}
+        overwriteOption={false}
+        onDetectColumns={async (columns) => ({
+          columns: columns.map(col => ({
+            excel_column: col,
+            suggested_field: col.includes('姓名') ? 'owner_name'
+              : col.includes('身份证') ? 'owner_id_card'
+              : col.includes('面积') ? 'area'
+              : col.includes('年度') ? 'trust_year'
+              : col.includes('扣减') || col.includes('补贴') ? 'subsidy_arable'
+              : col.includes('备注') ? 'note' : null,
+            confidence: 0.9, alternatives: [],
+          })),
+          recommended_templates: [],
+        })}
+        onSaveTemplate={async () => ({ id: 0 })}
+        onImport={handleIdleImport}
+        onSuccess={() => { setIdleImportOpen(false); setPage(1); load() }}
+      />
 
       <Toast {...toast} />
     </div>

@@ -5,6 +5,7 @@
  * 批量查询记录：记录本次查了哪些人，留备注标签，供后期统计
  */
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import * as api from '../api'
 import type { SubsidyType } from '../types'
 import Tag from '../components/Tag'
@@ -14,7 +15,7 @@ import Toast from '../components/Toast'
 import { fmt, PAY_STATUS, years } from '../utils'
 
 // ─── 类型 ───
-interface Site { id:number; name:string; url:string; site_type:'link'|'query'; description:string|null; sort_order:number; is_active:number }
+interface Site { id:number; name:string; url:string; site_type:'link'|'query'; image:string|null; description:string|null; sort_order:number; is_active:number }
 interface QRecord { id:number; site_name:string; query_type:string; query_inputs:string[]; query_count:number; result_note:string|null; purpose:string|null; operator:string; tags:string|null; created_at:string|null }
 interface Stats { total_records:number; total_items:number; by_type:{type:string;times:number;total_items:number}[]; by_site:{site:string;times:number}[] }
 
@@ -24,18 +25,18 @@ async function req<T>(path:string, opts:RequestInit={}):Promise<T> {
   return r.json() as Promise<T>
 }
 
-type AppRow = { id:number; farmer_id:number; farmer_name:string; id_card_masked?:string; village?:string; subsidy_name:string; calc_mode:string; apply_year:number; apply_area:string|null; apply_amount:string|null; actual_amount:string|null; pay_status:number; pay_date:string|null; remark:string|null }
+type AppRow = { id:number; farmer_id:number; farmer_name:string; id_card_masked?:string; village?:string; subsidy_name:string; subsidy_type_id?:number; calc_mode:string; apply_year:number; apply_area:string|null; apply_area_no_calc?:string|null; apply_amount:string|null; actual_amount:string|null; pay_status:number; pay_date:string|null; remark:string|null }
 
 const QUERY_TYPES = ['身份证查询','姓名查询','综合查询','其他']
 const TAGS_PRESET = ['年度核查','补贴核验','重复申领排查','死亡核查','迁出核查','待处理','已完成','存疑']
 
 export default function ExternalLinksPage() {
   const { toast, show } = useToast()
-  const [tab, setTab] = useState<'sites'|'search'|'records'>('sites')
+  const navigate = useNavigate()
+  const [tab, setTab] = useState<'sites'|'search'|'records'>('search')
 
   // ── 网站 ──
   const [sites, setSites] = useState<Site[]>([])
-  const [openSite, setOpenSite] = useState<Site|null>(null)
   const [siteModal, setSiteModal] = useState(false)
   const [editSite, setEditSite] = useState<Site|null>(null)
   const [siteForm, setSiteForm] = useState<Partial<Site>>({site_type:'link',sort_order:0,is_active:1})
@@ -186,9 +187,9 @@ export default function ExternalLinksPage() {
     <div>
       {/* Tab */}
       <div className="flex items-center gap-2 mb-4">
-        {[{id:'sites',label:'🌐 外部网站'},{id:'search',label:'🔍 系统内查询'},{id:'records',label:'📝 查询记录'}].map(t=>(
+        {[{id:'search',label:'🔍 系统内查询'},{id:'records',label:'📝 查询记录'},{id:'sites',label:'🌐 外部网站'}].map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id as typeof tab)}
-            className={`px-4 py-2 text-sm rounded-btn border transition-colors ${tab===t.id?'bg-primary text-white border-emerald-700':'bg-white border-border text-text-primary hover:border-border'}`}>
+            className={`px-4 py-2 text-sm rounded-btn border transition-colors ${tab===t.id?'bg-primary  border-emerald-700':'bg-white border-border text-text-primary hover:border-border'}`}>
             {t.label}
           </button>
         ))}
@@ -196,25 +197,13 @@ export default function ExternalLinksPage() {
           <button onClick={()=>{ setEditSite(null); setSiteForm({site_type:'link',sort_order:0,is_active:1}); setSiteModal(true) }}
             className="text-xs border border-border text-text-muted px-3 py-1.5 rounded-btn hover:border-primary/30 hover:text-primary">⚙️ 管理网站</button>
           <button onClick={()=>setBatchOpen(true)}
-            className="text-sm bg-primary text-white px-4 py-2 rounded-btn hover:bg-primary/90">＋ 批量查询</button>
+            className="text-sm bg-primary  px-4 py-2 rounded-btn hover:bg-primary/90">＋ 批量查询</button>
         </div>
       </div>
 
       {/* ── 外部网站 ── */}
       {tab==='sites'&&(
         <>
-          {openSite&&(
-            <div className="mb-4 bg-white border border-border rounded-card overflow-hidden shadow-card">
-              <div className="flex items-center gap-3 px-4 py-2.5 bg-warm/50 border-b border-border text-text-primary text-sm">
-                <span className="font-semibold">{openSite.name}</span>
-                <span className="text-text-muted text-xs font-mono truncate flex-1">{openSite.url}</span>
-                <a href={openSite.url} target="_blank" rel="noopener noreferrer" className="text-xs bg-primary/10 hover:bg-primary/20 text-primary px-2.5 py-1 rounded">↗ 新标签页</a>
-                <button onClick={()=>setOpenSite(null)} className="text-text-muted hover:text-text-primary ml-2">✕</button>
-              </div>
-              <iframe src={openSite.url} className="w-full" style={{height:480}} title={openSite.name}
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups" />
-            </div>
-          )}
           {sites.filter(s=>s.is_active).length===0
             ?<div className="text-center py-20 bg-white border border-border rounded-card text-text-muted/50">
                <div className="text-5xl mb-3">🌐</div>
@@ -223,16 +212,19 @@ export default function ExternalLinksPage() {
             :<div className="grid grid-cols-3 gap-4">
                {sites.filter(s=>s.is_active).map(s=>(
                  <div key={s.id} className="bg-white border border-border rounded-card p-5 shadow-card hover:border-primary/30 hover:shadow-card transition-all cursor-pointer group"
-                   onClick={()=>setOpenSite(s)}>
+                   onClick={()=>window.open(s.url, '_blank')}>
                    <div className="flex items-start justify-between mb-3">
-                     <div className="w-10 h-10 bg-primary/5 border border-primary/10 rounded-card flex items-center justify-center text-xl">🌐</div>
+                     <div className="w-12 h-12 bg-primary/5 border border-primary/10 rounded-card flex items-center justify-center overflow-hidden">
+                       {s.image
+                         ? <img src={s.image} alt={s.name} className="w-full h-full object-cover" />
+                         : <span className="text-xl">🌐</span>}
+                     </div>
                    </div>
                    <h3 className="font-bold text-text-primary text-sm mb-1 group-hover:text-primary">{s.name}</h3>
                    {s.description&&<p className="text-xs text-text-muted mb-2">{s.description}</p>}
                    <p className="text-xs text-text-muted/50 font-mono truncate">{s.url}</p>
                    <div className="mt-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                     <span className="text-xs text-primary">点击内嵌打开 →</span>
-                     <a href={s.url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="text-xs text-text-muted hover:text-text-primary">↗ 新标签</a>
+                     <span className="text-xs text-primary">↗ 新标签页打开</span>
                    </div>
                  </div>
                ))}
@@ -277,7 +269,7 @@ export default function ExternalLinksPage() {
                 </select>
               </div>
               <button onClick={()=>{setSrchPage(1);doSearch()}}
-                className="px-4 py-2 bg-primary text-white text-sm rounded-btn hover:bg-primary/90">搜索</button>
+                className="px-4 py-2 bg-primary  text-sm rounded-btn hover:bg-primary/90">搜索</button>
               <button onClick={()=>{setSrch('');setSrchYear('');setSrchTypeId('');setSrchVillage('');setSrchResults([]);setSrchTotal(0)}}
                 className="px-3 py-2 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30">清除</button>
             </div>
@@ -318,12 +310,20 @@ export default function ExternalLinksPage() {
                       <td className="px-3.5 py-2.5 text-sm font-mono font-bold text-primary">{fmt(a.actual_amount)}</td>
                       <td className="px-3.5 py-2.5"><Tag label={PAY_STATUS[a.pay_status]?.label||'—'} color={PAY_STATUS[a.pay_status]?.color as 'green'}/></td>
                       <td className="px-3.5 py-2.5">
-                        <button onClick={()=>{
-                          setFavorContext({ inputs:[a.farmer_name + (a.id_card_masked?' '+a.id_card_masked:'')], type:'综合查询', source:'系统内查询' })
-                          setFavorOpen(true)
-                        }} className="text-xs text-amber-600 border border-amber-200 px-2.5 py-1 rounded-btn hover:bg-amber-50 whitespace-nowrap">
-                          ★ 收藏
-                        </button>
+                        <div className="flex gap-1">
+                          <button onClick={()=>{
+                            setFavorContext({ inputs:[a.farmer_name + (a.id_card_masked?' '+a.id_card_masked:'')], type:'综合查询', source:'系统内查询' })
+                            setFavorOpen(true)
+                          }} className="text-xs text-amber-600 border border-amber-200 px-2.5 py-1 rounded-btn hover:bg-amber-50 whitespace-nowrap">
+                            ★ 收藏
+                          </button>
+                          {a.subsidy_type_id && (
+                            <button onClick={()=>navigate(`/projects?subsidy_type_id=${a.subsidy_type_id}&farmer_name=${encodeURIComponent(a.farmer_name)}`)}
+                              className="text-xs text-blue-600 border border-blue-200 px-2.5 py-1 rounded-btn hover:bg-blue-50 whitespace-nowrap">
+                              ↗ 查看明细
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -435,6 +435,23 @@ export default function ExternalLinksPage() {
             <div><label className="block text-xs text-text-muted mb-1">网址 *</label>
               <input value={siteForm.url??''} onChange={e=>setSiteForm(f=>({...f,url:e.target.value}))} placeholder="https://"
                 className="w-full border border-border rounded-btn px-3 py-2 text-sm font-mono outline-none focus:border-primary"/></div>
+            <div><label className="block text-xs text-text-muted mb-1">图标（可选）</label>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 border border-border rounded-card overflow-hidden bg-warm/20 flex items-center justify-center flex-shrink-0">
+                  {siteForm.image
+                    ? <img src={siteForm.image as string} alt="" className="w-full h-full object-cover" />
+                    : <span className="text-text-muted/40 text-lg">🖼</span>}
+                </div>
+                <label className="px-3 py-1.5 text-xs border border-border rounded-btn cursor-pointer hover:bg-warm/20">
+                  {siteForm.image ? '更换图片' : '选择图片'}
+                  <input type="file" accept="image/*" className="hidden" onChange={e=>{
+                    const f=e.target.files?.[0]; if(!f) return
+                    const r=new FileReader(); r.onload=()=>setSiteForm(p=>({...p,image:r.result as string})); r.readAsDataURL(f)
+                  }}/>
+                </label>
+                {siteForm.image&&<button onClick={()=>setSiteForm(f=>({...f,image:null}))}
+                  className="text-xs text-red-400 hover:underline">移除</button>}
+              </div></div>
             <div><label className="block text-xs text-text-muted mb-1">描述（可选）</label>
               <input value={siteForm.description??''} onChange={e=>setSiteForm(f=>({...f,description:e.target.value}))}
                 className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"/></div>
@@ -457,7 +474,7 @@ export default function ExternalLinksPage() {
             <div className="flex justify-between items-center mb-3">
               <p className="text-sm text-text-muted">已配置 {sites.length} 个网站</p>
               <button onClick={()=>{ setSiteForm({name:'',url:'',site_type:'link',sort_order:sites.length+1,is_active:1}); setSiteFormMode(true) }}
-                className="text-sm bg-primary text-white px-3 py-1.5 rounded-btn hover:bg-primary/90">＋ 新增网站</button>
+                className="text-sm bg-primary  px-3 py-1.5 rounded-btn hover:bg-primary/90">＋ 新增网站</button>
             </div>
             <div className="space-y-2 max-h-80 overflow-y-auto">
               {sites.length===0&&<p className="text-center py-8 text-text-muted/50 text-sm">暂无网站，点击「＋新增网站」添加</p>}
@@ -476,7 +493,7 @@ export default function ExternalLinksPage() {
                   <div className="flex gap-1 shrink-0">
                     <button onClick={()=>{
                       setEditSite(s)
-                      setSiteForm({name:s.name,url:s.url,site_type:s.site_type,description:s.description||'',sort_order:s.sort_order,is_active:s.is_active})
+                      setSiteForm({name:s.name,url:s.url,site_type:s.site_type,image:s.image,description:s.description||'',sort_order:s.sort_order,is_active:s.is_active})
                       setSiteFormMode(true)
                     }} className="text-xs text-text-muted border border-border px-2 py-1 rounded hover:text-primary hover:border-primary/20">编辑</button>
                     <a href={s.url} target="_blank" rel="noopener noreferrer"
@@ -565,7 +582,7 @@ export default function ExternalLinksPage() {
       </Modal>
 
       {/* 收藏查询结果弹窗 */}
-      <Modal open={favorOpen} title="收藏查询记录" onClose={()=>setFavorOpen(false)} onConfirm={saveFavor} confirmText="确认收藏">
+      <Modal open={favorOpen} title="收藏查询记录" onClose={()=>setFavorOpen(false)} onConfirm={saveFavor} confirmText="确认收藏" bg-primary-200>
         <div className="space-y-3">
           <div className="bg-amber-50 border border-amber-100 rounded-btn px-3 py-2 text-xs text-amber-700">
             <strong>本次查询内容：</strong>

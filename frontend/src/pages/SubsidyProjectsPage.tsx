@@ -4,7 +4,7 @@
  * - 进入子页查看/管理人员记录
  * - 记录支持搜索、新增、Excel导入、编辑、删除
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import * as api from '../api'
 import type { SubsidyType, SubsidyTypeCreate } from '../types'
@@ -34,13 +34,19 @@ export default function SubsidyProjectsPage() {
   const searchParams = new URLSearchParams(location.search)
   const urlYear = searchParams.get('year')
   const initialYear = urlYear ? parseInt(urlYear, 10) : thisYear
+  const urlFarmerName = searchParams.get('farmer_name') || undefined
   const [yearFilter, setYearFilter] = useState(initialYear)
   const [types, setTypes] = useState<StatsType[]>([])
   const [loading, setLoading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [showTrash, setShowTrash] = useState(false)  // 回收站模式
+  const [deletedTypes, setDeletedTypes] = useState<SubsidyType[]>([])
+  const [restoring, setRestoring] = useState<number | null>(null)  // 正在恢复的项目ID
   const [activeType, setActiveType] = useState<StatsType | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [editing, setEditing] = useState<SubsidyType | null>(null)
   const [form, setForm] = useState<Partial<SubsidyTypeCreate>>({ subsidy_year: thisYear, calc_mode: 'fixed' })
+  const pendingCheckConfig = useRef<object | null>(null)
 
   // 更新URL参数和状态
   const handleYearChange = (year: number) => {
@@ -67,22 +73,35 @@ export default function SubsidyProjectsPage() {
     finally { setLoading(false) }
   }, [yearFilter])
 
+  const loadDeletedTypes = async () => {
+    try { setDeletedTypes(await api.getSubsidyTypes(yearFilter, 0)) }
+    catch { /* ignore */ }
+  }
+
   useEffect(() => { loadTypes() }, [loadTypes])
 
   // 检查URL参数，自动选中补贴项目
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const typeIdParam = params.get('subsidy_type_id')
-    if (typeIdParam && types.length > 0) {
-      const typeId = parseInt(typeIdParam, 10)
-      const found = types.find(t => t.id === typeId)
-      if (found) {
-        setActiveType(found)
-      }
+    if (!typeIdParam) return
+    const typeId = parseInt(typeIdParam, 10)
+    // 先在当前列表中查找
+    const found = types.find(t => t.id === typeId)
+    if (found) {
+      setActiveType(found)
+      return
+    }
+    // 未找到：可能跨年度，从后台直接获取
+    if (types.length > 0) {
+      api.getSubsidyTypesWithStats().then((allTypes: StatsType[]) => {
+        const crossYear = allTypes.find((t: StatsType) => t.id === typeId)
+        if (crossYear) setActiveType(crossYear)
+      }).catch(() => {})
     }
   }, [types, location.search])
 
-  const openAdd = () => { setEditing(null); setForm({ subsidy_year: yearFilter, calc_mode: 'fixed', season: '全年单补' }); setEditOpen(true) }
+  const openAdd = () => { setEditing(null); setForm({ subsidy_year: yearFilter, calc_mode: 'fixed', season: '耕地地力保护' }); setEditOpen(true) }
   const openEdit = (t: SubsidyType) => {
     setEditing(t)
     setForm({
@@ -106,25 +125,62 @@ export default function SubsidyProjectsPage() {
     const autoUnit = form.calc_mode === 'per_mu' ? '元/亩' : (form.standard_unit || '元/户')
     const payload = { ...form, standard_unit: autoUnit }
     try {
-      if (editing) { await api.updateSubsidyType(editing.id, payload); show('✓ 更新成功') }
-      else { await api.createSubsidyType(payload as SubsidyTypeCreate); show('✓ 创建成功') }
+      if (editing) {
+        await api.updateSubsidyType(editing.id, payload)
+        // SubsidyForms 内部已自动保存 check_config（编辑模式）
+        show('✓ 更新成功')
+      } else {
+        const res = await api.createSubsidyType(payload as SubsidyTypeCreate)
+        // 新建项目：将表单里的预检配置保存到新类型
+        if (pendingCheckConfig.current) {
+          await fetch(`/api/subsidies/types/${res.id}/check-config`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(pendingCheckConfig.current),
+          })
+        }
+        show('✓ 创建成功')
+      }
       setEditOpen(false); loadTypes()
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
   const deleteProject = async (type_id: number) => {
+    setDeleting(true)
     try {
       const response = await fetch(`/api/subsidies/types/${type_id}`, { method: 'DELETE' })
       if (!response.ok) throw new Error('删除失败')
-      show('✓ 项目删除成功')
+      show('✓ 项目已移入回收站')
       loadTypes()
+      if (showTrash) loadDeletedTypes()
     } catch (error) {
       show('删除失败：' + (error as Error).message, 'err')
+    } finally {
+      setDeleting(false)
     }
   }
 
+  const restoreProject = async (type_id: number) => {
+    setRestoring(type_id)
+    try {
+      await api.restoreSubsidyType(type_id)
+      show('✓ 项目已恢复')
+      loadDeletedTypes()
+      loadTypes()
+    } catch (error) {
+      show('恢复失败：' + (error as Error).message, 'err')
+    } finally {
+      setRestoring(null)
+    }
+  }
+
+  const toggleTrash = () => {
+    const next = !showTrash
+    setShowTrash(next)
+    if (next) loadDeletedTypes()
+  }
+
   if (activeType) {
-    return <SubsidyRecordsPage subsidyType={activeType} onBack={() => { setActiveType(null); updateUrlType(null); loadTypes() }} />
+    return <SubsidyRecordsPage subsidyType={activeType} onBack={() => { setActiveType(null); updateUrlType(null); loadTypes() }} farmerName={urlFarmerName} />
   }
 
   return (
@@ -135,7 +191,11 @@ export default function SubsidyProjectsPage() {
           {years.map(y => <option key={y} value={y}>{y}年</option>)}
         </select>
         <span className="text-xs text-text-muted">共 {types.length} 个项目</span>
-        <button onClick={openAdd} className="ml-auto px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">＋ 新增项目</button>
+        <button onClick={openAdd} className="px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary/90 transition-all">＋ 新增项目</button>
+        <button onClick={toggleTrash}
+          className={`px-3 py-2 text-sm border rounded-btn transition-all ${showTrash ? 'bg-amber-50 border-amber-300 text-amber-700' : 'border-border text-text-muted hover:bg-warm/30'}`}>
+          🗑️ 回收站{deletedTypes.length > 0 && <span className="ml-1 text-amber-600">({deletedTypes.length})</span>}
+        </button>
       </div>
 
       <div className="bg-blue-50 border border-blue-100 rounded-card px-4 py-3 mb-4 text-xs text-blue-700">
@@ -172,6 +232,9 @@ export default function SubsidyProjectsPage() {
                   <div><span className="text-text-muted">记录</span><span className="text-text-primary ml-1">{t.app_count}条</span></div>
                 </div>
                 {t.apply_deadline && <p className="text-xs text-text-muted/50 mt-1.5">截止：{t.apply_deadline}</p>}
+
+                {/* 扫描源目录 */}
+                <ScanDirInput projectId={t.id} />
               </div>
 
               {/* 操作区 */}
@@ -180,12 +243,16 @@ export default function SubsidyProjectsPage() {
                   className="px-3 py-1.5 text-sm bg-primary/10 text-primary-700 rounded-btn hover:bg-primary/20 whitespace-nowrap font-medium">
                   查看人员 →
                 </button>
+                <button onClick={() => navigate(`/project-progress?subsidy_type_id=${t.id}`)}
+                  className="px-3 py-1.5 text-xs border border-blue-200 text-blue-700 rounded-btn hover:bg-blue-50 whitespace-nowrap">
+                  📋 管理进度
+                </button>
                 <button onClick={() => openEdit(t)}
                   className="px-3 py-1.5 text-xs border border-border text-text-muted rounded-btn hover:border-border text-center">
                   编辑项目
                 </button>
                 <button onClick={() => {
-                  if (confirm(`确定要删除项目「${t.subsidy_name}」吗？\n\n⚠️ 警告：此操作会同时删除该项目下的所有补贴申请记录，且无法恢复！`)) {
+                  if (confirm(`确定要删除项目「${t.subsidy_name}」吗？\n\n删除后项目将移入回收站，关联的申请记录会被保留。可在回收站中恢复。`)) {
                     deleteProject(t.id)
                   }
                 }}
@@ -207,9 +274,79 @@ export default function SubsidyProjectsPage() {
         onSubmit={submitType}
         onClose={() => setEditOpen(false)}
         thisYear={thisYear}
+        onCheckConfigChange={cfg => { pendingCheckConfig.current = cfg }}
       />
 
+      {/* 回收站 */}
+      {showTrash && (
+        <div className="mt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-sm font-bold text-text-primary">🗑️ 回收站</span>
+            <span className="text-xs text-text-muted">已删除项目（关联数据已保留）</span>
+          </div>
+          {deletedTypes.length === 0 ? (
+            <div className="text-center py-8 bg-white border border-border rounded-card text-text-muted/50 text-sm">
+              回收站为空
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              {deletedTypes.map(t => (
+                <div key={t.id} className="bg-amber-50/50 border border-amber-200 rounded-card px-4 py-3 flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-text-muted line-through">{t.subsidy_name}</span>
+                      <Tag label={`${t.subsidy_year}年`} color="gray" />
+                      {t.season && <Tag label={t.season} color="gray" />}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => restoreProject(t.id)}
+                    disabled={restoring === t.id}
+                    className="px-3 py-1.5 text-xs bg-emerald-500 text-white rounded-btn hover:bg-emerald-600 disabled:opacity-50 transition-all whitespace-nowrap">
+                    {restoring === t.id ? '恢复中…' : '↩ 恢复项目'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 删除中遮罩 */}
+      {deleting && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/20">
+          <div className="bg-white rounded-card shadow-xl border border-border px-8 py-6 flex flex-col items-center gap-3">
+            <span className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-text-muted">删除项目中，请稍候…</span>
+          </div>
+        </div>
+      )}
+
       <Toast {...toast} />
+    </div>
+  )
+}
+
+// ── 扫描目录设置组件（嵌入项目卡片） ──
+function ScanDirInput({ projectId }: { projectId: number }) {
+  const [path, setPath] = useState(() => localStorage.getItem(`scan_${projectId}`) || '')
+
+  const updatePath = (v: string) => { setPath(v); localStorage.setItem(`scan_${projectId}`, v) }
+
+  return (
+    <div className="mt-2 pt-2 border-t border-border/30 text-xs">
+      <div className="flex items-center gap-2">
+        <span className="text-text-muted shrink-0">📁 项目本地路径:</span>
+        <input value={path} onChange={e => updatePath(e.target.value)}
+          placeholder="D:\材料\2024耕地补贴"
+          className="flex-1 border border-border/50 rounded px-1.5 py-0.5 text-[10px] outline-none focus:border-primary/40" />
+        {path && (
+          <button onClick={() => updatePath('')} className="text-[9px] text-red-400 hover:text-red-600 shrink-0">✕</button>
+        )}
+      </div>
+      {path && (
+        <div className="text-[10px] text-green-600 font-mono mt-1 truncate" title={path}>📂 {path}</div>
+      )}
     </div>
   )
 }

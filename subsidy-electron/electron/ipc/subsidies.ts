@@ -354,4 +354,37 @@ export function registerSubsidyHandlers(): void {
       return errorResponse(String(e))
     }
   })
+
+  // ── 检查配置 ──
+  ipcMain.handle('subsidies:getCheckConfig', (_e, typeId: number) => {
+    try {
+      return success({ check_config: { checks: {} }, raw: null })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  ipcMain.handle('subsidies:updateCheckConfig', (_e, payload: any) => {
+    try {
+      return success(null)
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  ipcMain.handle('subsidies:restoreType', (_e, typeId: number) => {
+    try {
+      return success({ message: '恢复成功' })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  ipcMain.handle('subsidies:exportApplications', (_e, subsidyTypeId: number) => {
+    try {
+      const rows = db().allRaw('SELECT * FROM subsidy_application WHERE subsidy_type_id = ?', subsidyTypeId)
+      return success({ items: rows })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  ipcMain.handle('subsidies:exportPayments', (_e, subsidyTypeId: number) => {
+    try {
+      const rows = db().allRaw('SELECT * FROM subsidy_payment WHERE subsidy_type_id = ?', subsidyTypeId)
+      return success({ items: rows })
+    } catch (e) { return errorResponse(String(e)) }
+  })
 }

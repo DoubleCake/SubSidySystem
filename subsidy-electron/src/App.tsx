@@ -5,7 +5,6 @@ import SubsidyProjectsPage from './pages/SubsidyProjectsPage'
 import DashboardPage from './pages/DashboardPage'
 import { AIPage } from './pages/SummaryAndAI'
 import SettingsPage from './pages/SettingsPage'
-import PreCheckPage from './pages/PreCheckPage'
 import ExternalLinksPage from './pages/ExternalLinksPage'
 import BackupPage from './pages/BackupPage'
 import ExcelTemplatePage from './pages/ExcelTemplatePage'
@@ -15,45 +14,68 @@ import FamilyRelationImportPage from './pages/FamilyRelationImportPage'
 import ProxyManagePage from './pages/ProxyManagePage'
 import AgriTaskPage from './pages/AgriTaskPage'
 import LargeFarmersPage from './pages/LargeFarmersPage'
+import ProjectProgressPage from './pages/ProjectProgressPage'
 import WorkflowDocPage from './pages/WorkflowDocPage'
+import ToolsPage from './pages/ToolsPage'
+import DataVerifyPage from './pages/DataVerifyPage'
+import UserManagementPage from './pages/UserManagementPage'
+import PeopleMatchPage from './pages/PeopleMatchPage'
+import LoginPage, { getAuth, clearAuth, isAuthDisabled, setAuthDisabled } from './pages/LoginPage'
 import { healthCheck } from './api'
 import { useState } from 'react'
 import { QUOTES } from './utils/quotes'
 import Icon from './components/Icon'
 
 const mainNav = [
-  { to: '/',                        label: '首页',       icon: 'dashboard' as const, end: true },
-  { to: '/farmers',                 label: '户籍管理',   icon: 'farmers' as const },
-  { to: '/projects',                label: '补贴项目',   icon: 'subsidies' as const },
-  { to: '/land',                    label: '土地与大户', icon: 'land' as const },
-  { to: '/agri-tasks',              label: '任务分解',   icon: 'tasks' as const },
-  { to: '/settings/village-groups', label: '村组管理',   icon: 'village' as const },
-  { to: '/precheck',                label: '数据预检',   icon: 'search' as const },
-  { to: '/links',                   label: '补贴查询',   icon: 'link' as const },
-  { to: '/workflow',                label: '操作流程',   icon: 'menu' as const },
+  { to: '/',          label: '首页',     icon: 'dashboard' as const, end: true },
+  { to: '/farmers',   label: '户籍管理', icon: 'farmers' as const },
+  { to: '/projects',  label: '补贴项目', icon: 'subsidies' as const },
+  { to: '/links',     label: '补贴查询', icon: 'link' as const },
+  { to: '/tools',     label: '数据工具', icon: 'menu' as const },
 ]
 
 // 系统设置下拉菜单分组
+const settingNavBiz = [  // 业务管理
+  { to: '/settings/land-trust',    label: '土地流转', icon: 'land' as const },
+  { to: '/settings/large-farmers', label: '大户管理', icon: 'household' as const },
+  { to: '/agri-tasks',             label: '任务分解', icon: 'tasks' as const },
+]
+
 const settingNavBasic = [  // 基础配置
   { to: '/settings/village-groups', label: '村组管理',   icon: 'village' as const },
 ]
 
 const settingNavData = [  // 数据工具
-  { to: '/precheck',                label: '数据预检',   icon: 'search' as const },
-  { to: '/ai',                     label: 'AI 分析',    icon: 'ai' as const },
   { to: '/settings/excel-templates', label: 'Excel模板', icon: 'export' as const },
 ]
 
 const settingNavSystem = [  // 系统
+  { to: '/settings/users',          label: '用户管理',   icon: 'person' as const },
   { to: '/settings/backup',         label: '备份迁移',   icon: 'download' as const },
 ]
 
 function Layout() {
+  const auth = getAuth()
   const [online, setOnline]       = useState<boolean | null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
   const navigate    = useNavigate()
   const location    = useLocation()
+
+  // 启动时检测认证状态（与 LoginPage 共享模块变量）
+  useEffect(() => {
+    fetch('/api/auth/status')
+      .then(r => r.json())
+      .then(data => { setAuthDisabled(!data.auth_enabled); setAuthChecked(true) })
+      .catch(() => setAuthChecked(true))
+  }, [])
+
+  // 鉴权：非登录页且未登录则跳转（认证关闭时跳过）
+  useEffect(() => {
+    if (!authChecked) return
+    if (!isAuthDisabled() && !auth && location.pathname !== '/login') navigate('/login', { replace: true })
+  }, [auth, location.pathname, navigate, authChecked])
 
   const isSettings = location.pathname.startsWith('/settings')
 
@@ -117,6 +139,14 @@ function Layout() {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
+            {auth && (
+              <>
+                <span className="text-white/70 text-xs">{auth.display_name}</span>
+                <button onClick={() => { clearAuth(); navigate('/login') }}
+                  className="text-white/50 hover:text-white text-xs">退出</button>
+                <div className="w-px h-5 bg-white/20" />
+              </>
+            )}
             {/* 设置下拉 */}
             <div className="relative" ref={settingsRef}>
               <button onClick={() => setSettingsOpen(o => !o)}
@@ -132,6 +162,21 @@ function Layout() {
               </button>
               {settingsOpen && (
                 <div className="absolute right-0 top-full mt-2 bg-white rounded-card shadow-card border border-border overflow-hidden w-52 z-50">
+                  {settingNavBiz.length > 0 && (
+                    <>
+                      <div className="px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30">业务管理</div>
+                      {settingNavBiz.map(({ to, label, icon }) => (
+                        <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
+                          className={({ isActive }) =>
+                            `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
+                            ${isActive ? 'text-primary font-semibold bg-primary/5' : 'text-text-primary hover:bg-warm/30'}`
+                          }>
+                          <Icon name={icon} size={16} className="text-text-muted" />
+                          <span>{label}</span>
+                        </NavLink>
+                      ))}
+                    </>
+                  )}
                   {settingNavBasic.length > 0 && (
                     <>
                       <div className="px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30">基础配置</div>
@@ -213,12 +258,17 @@ function Layout() {
       <main className="flex-1">
         <div className="max-w-screen-xl mx-auto px-6 py-6 pb-10">
           <Routes>
+            <Route path="/login" element={<LoginPage />} />
             <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
             <Route path="/farmers"   element={<FarmersPage />} />
+            <Route path="/match-people" element={<PeopleMatchPage />} />
             <Route path="/projects"  element={<SubsidyProjectsPage />} />
+            <Route path="/project-progress" element={<ProjectProgressPage />} />
             <Route path="/agri-tasks" element={<AgriTaskPage />} />
             <Route path="/land"      element={<LandTrustPage />} />
-            <Route path="/precheck"  element={<PreCheckPage />} />
+            <Route path="/links"     element={<ExternalLinksPage />} />
+            <Route path="/tools"     element={<ToolsPage />} />
+            <Route path="/data-verify" element={<DataVerifyPage />} />
             <Route path="/ai"        element={<AIPage />} />
             <Route path="/settings/village-groups" element={<SettingsPage />} />
             <Route path="/settings/backup" element={<BackupPage />} />
@@ -227,6 +277,7 @@ function Layout() {
             <Route path="/settings/household-import" element={<HouseholdImportPage />} />
             <Route path="/settings/family-relation-import" element={<FamilyRelationImportPage />} />
             <Route path="/settings/large-farmers" element={<LargeFarmersPage />} />
+            <Route path="/settings/users" element={<UserManagementPage />} />
             <Route path="/proxy/application/:applicationId" element={<ProxyManagePage />} />
             <Route path="/workflow" element={<WorkflowDocPage />} />
             {/* 404 fallback */}
@@ -251,8 +302,8 @@ function Layout() {
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
           }}>
-          <div className="max-w-screen-xl mx-auto px-12 text-center">
-            <div className="text-sm opacity-80" >
+          <div className="max-w-screen-xl mx-auto px-16 text-center">
+            <div className="text-m opacity-80" >
               " {quote} "
             </div>
           </div>

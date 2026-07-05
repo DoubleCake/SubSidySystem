@@ -12,12 +12,15 @@ import Toast from '../components/Toast'
 interface LargeFarmer {
   id: number
   operator_name: string
+  responsible_person: string | null
   operator_type: string
   operator_type_label: string
   id_card: string | null
   phone: string | null
+  org_code: string | null
   bank_card: string | null
   bank_name: string | null
+  planting_location: string | null
   village_id: number
   village_name: string
   group_no: number | null
@@ -110,11 +113,14 @@ async function req<T>(url: string, opts?: RequestInit): Promise<T> {
 
 const emptyFarmerForm = () => ({
   operator_name: '',
+  responsible_person: '',
   operator_type: 'FAMILY_FARM' as const,
   id_card: '',
   phone: '',
+  org_code: '',
   bank_card: '',
   bank_name: '',
+  planting_location: '',
   village_id: null as number | null,
   group_no: '',
   address: '',
@@ -240,11 +246,14 @@ export default function LargeFarmersPage() {
     setEditTarget(f)
     setFarmerForm({
       operator_name: f.operator_name,
+      responsible_person: f.responsible_person || '',
       operator_type: f.operator_type as any,
       id_card: f.id_card || '',
       phone: f.phone || '',
+      org_code: f.org_code || '',
       bank_card: f.bank_card || '',
       bank_name: f.bank_name || '',
+      planting_location: f.planting_location || '',
       village_id: f.village_id,
       group_no: f.group_no ? String(f.group_no) : '',
       address: f.address || '',
@@ -409,7 +418,7 @@ export default function LargeFarmersPage() {
             className="border border-border rounded-btn px-3 py-2 text-sm outline-none flex-1 min-w-[160px]" />
           <span className="text-xs text-text-muted">共 {total} 条</span>
           <button onClick={openAddFarmer}
-            className="ml-auto px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
+            className="ml-auto px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
             ＋ 新增大户
           </button>
         </div>
@@ -423,14 +432,14 @@ export default function LargeFarmersPage() {
         <div className="bg-white border border-border rounded-card overflow-hidden shadow-card">
           <table className="w-full border-collapse">
             <thead><tr className="bg-warm/30 border-b-2 border-border">
-              {['经营者名称','类型','所属村','经营面积','状态','操作'].map(h => (
+              {['经营者名称','责任人','类型','所属村','经营面积','状态','操作'].map(h => (
                 <th key={h} className="px-3 py-2.5 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
               ))}
             </tr></thead>
             <tbody>
-              {loading && <tr><td colSpan={6} className="text-center py-10 text-text-muted/50">加载中…</td></tr>}
+              {loading && <tr><td colSpan={7} className="text-center py-10 text-text-muted/50">加载中…</td></tr>}
               {!loading && list.length === 0 && (
-                <tr><td colSpan={6} className="text-center py-10 text-text-muted/50 text-sm">
+                <tr><td colSpan={7} className="text-center py-10 text-text-muted/50 text-sm">
                   暂无大户信息，点击「＋ 新增大户」添加
                 </td></tr>
               )}
@@ -441,6 +450,7 @@ export default function LargeFarmersPage() {
                     <div className="text-sm font-semibold">{f.operator_name}</div>
                     {f.phone && <div className="text-xs text-text-muted">{f.phone}</div>}
                   </td>
+                  <td className="px-3 py-2.5 text-sm">{f.responsible_person || <span className="text-text-muted/50">—</span>}</td>
                   <td className="px-3 py-2.5"><Tag label={f.operator_type_label} color={OPERATOR_COLOR[f.operator_type] || 'gray'} /></td>
                   <td className="px-3 py-2.5 text-sm">{f.village_name}</td>
                   <td className="px-3 py-2.5 text-sm font-mono">
@@ -491,6 +501,9 @@ export default function LargeFarmersPage() {
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div><span className="text-text-muted">所属村：</span>{selectedFarmer.village_name}</div>
                 {selectedFarmer.phone && <div><span className="text-text-muted">电话：</span>{selectedFarmer.phone}</div>}
+                {selectedFarmer.responsible_person && <div><span className="text-text-muted">责任人：</span>{selectedFarmer.responsible_person}</div>}
+                {selectedFarmer.org_code && <div><span className="text-text-muted">机构代码：</span>{selectedFarmer.org_code}</div>}
+                {selectedFarmer.planting_location && <div className="col-span-2"><span className="text-text-muted">种粮地点：</span>{selectedFarmer.planting_location}</div>}
                 <div><span className="text-text-muted">自有承包：</span><span className="font-mono">{ownArea}亩</span></div>
                 <div><span className="text-text-muted">流入面积：</span><span className="font-mono text-primary">+{totalTrustArea}亩</span></div>
                 <div className="col-span-2"><span className="text-text-muted">总计经营：</span><span className="font-mono font-bold text-text-primary">{totalManaged}亩</span></div>
@@ -507,7 +520,7 @@ export default function LargeFarmersPage() {
                     {years.map(y => <option key={y} value={y}>{y}年</option>)}
                   </select>
                 </div>
-                <button onClick={openAddTrust} className="text-xs px-2 py-1 bg-primary text-white rounded hover:bg-primary/90">
+                <button onClick={openAddTrust} className="text-xs px-2 py-1 bg-primary  rounded hover:bg-primary/90">
                   ＋ 添加关联
                 </button>
               </div>
@@ -607,12 +620,21 @@ export default function LargeFarmersPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
+            <div>
               <label className="block text-xs text-text-muted mb-1">经营者/主体名称 *</label>
               <input value={farmerForm.operator_name} onChange={e => sff('operator_name', e.target.value)}
                 placeholder="请填写"
                 className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
+            <div>
+              <label className="block text-xs text-text-muted mb-1">责任人名称</label>
+              <input value={farmerForm.responsible_person} onChange={e => sff('responsible_person', e.target.value)}
+                placeholder="责任人姓名"
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-text-muted mb-1">身份证号</label>
               <input value={farmerForm.id_card} onChange={e => sff('id_card', e.target.value)}
@@ -623,6 +645,36 @@ export default function LargeFarmersPage() {
               <label className="block text-xs text-text-muted mb-1">联系电话</label>
               <input value={farmerForm.phone} onChange={e => sff('phone', e.target.value)}
                 placeholder="联系电话"
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-text-muted mb-1">机构代码</label>
+              <input value={farmerForm.org_code} onChange={e => sff('org_code', e.target.value)}
+                placeholder="统一社会信用代码"
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            </div>
+            <div>
+              <label className="block text-xs text-text-muted mb-1">种粮地点</label>
+              <input value={farmerForm.planting_location} onChange={e => sff('planting_location', e.target.value)}
+                placeholder="如：XX村XX组"
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-text-muted mb-1">一卡通账号 / 基本账号</label>
+              <input value={farmerForm.bank_card} onChange={e => sff('bank_card', e.target.value)}
+                placeholder="银行卡号"
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            </div>
+            <div>
+              <label className="block text-xs text-text-muted mb-1">开户行</label>
+              <input value={farmerForm.bank_name} onChange={e => sff('bank_name', e.target.value)}
+                placeholder="如：农商银行"
                 className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
             </div>
           </div>

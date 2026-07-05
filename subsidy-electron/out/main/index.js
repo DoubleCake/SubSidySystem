@@ -1904,6 +1904,43 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
+  electron.ipcMain.handle("subsidies:getCheckConfig", (_e, typeId) => {
+    try {
+      return success({ check_config: { checks: {} }, raw: null });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:updateCheckConfig", (_e, payload) => {
+    try {
+      return success(null);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:restoreType", (_e, typeId) => {
+    try {
+      return success({ message: "恢复成功" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:exportApplications", (_e, subsidyTypeId) => {
+    try {
+      const rows = db2().allRaw("SELECT * FROM subsidy_application WHERE subsidy_type_id = ?", subsidyTypeId);
+      return success({ items: rows });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:exportPayments", (_e, subsidyTypeId) => {
+    try {
+      const rows = db2().allRaw("SELECT * FROM subsidy_payment WHERE subsidy_type_id = ?", subsidyTypeId);
+      return success({ items: rows });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
 }
 function registerAiHandlers() {
   const db2 = () => getDb();
@@ -2096,6 +2133,55 @@ function registerPrecheckHandlers() {
   electron.ipcMain.handle("precheck:run", (_e, data) => {
     try {
       return success({ message: "预检功能开发中", results: [] });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("precheck:saveHistory", (_e, payload) => {
+    try {
+      return success({ saved: 0, batch_key: "" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("precheck:listHistory", (_e, params = {}) => {
+    try {
+      return successList([], 0);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("precheck:listBatches", (_e, payload) => {
+    try {
+      return success({ batches: [] });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("precheck:resolveHistory", (_e, id) => {
+    try {
+      return success(null);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("precheck:unresolveHistory", (_e, id) => {
+    try {
+      return success(null);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("precheck:deleteHistory", (_e, id) => {
+    try {
+      return success(null);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("precheck:autoResolve", (_e, payload) => {
+    try {
+      return success({ resolved_count: 0, total: 0 });
     } catch (e) {
       return errorResponse(String(e));
     }
