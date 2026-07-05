@@ -121,7 +121,7 @@ export function HouseholdDetailContent({
       <div className="bg-main border border-border rounded-card overflow-hidden shadow-card mb-3 shrink-0">
         <div className="px-5 py-3.5 flex items-center gap-4 relative border-b border-emerald-100"
           style={{
-            backgroundImage: 'url(/images/household.png)',
+            backgroundImage: 'url(images/household.png)',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',

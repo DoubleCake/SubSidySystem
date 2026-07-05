@@ -183,7 +183,7 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
         ].map((s, idx) => {
           const bgNum = (idx % 4) + 1
           const bgStyle = {
-            backgroundImage: `url(/images/chart_bg_0${bgNum}.png)`,
+            backgroundImage: `url(images/chart_bg_0${bgNum}.png)`,
             backgroundSize: 'cover' as const,
             backgroundPosition: 'center' as const,
             backgroundRepeat: 'no-repeat' as const,

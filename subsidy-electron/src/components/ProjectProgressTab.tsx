@@ -569,7 +569,7 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
                         return (
                           <div key={sn}
                             className="rounded-lg p-2.5 transition-all hover:shadow-sm group/card"
-                            style={{ backgroundImage: 'url(/images/progress_change.png)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                            style={{ backgroundImage: 'url(images/progress_change.png)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
                             {/* 阶段名 + 日期 */}
                             <div className="flex items-center gap-1.5 mb-2">
                               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cfg.square }} />
@@ -581,7 +581,7 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
                               <button
                                 onClick={() => setOpenDropdown(openDropdown === ddKey ? null : ddKey)}
                                 className="w-[85%]  px-2 py-1 rounded-md text-[11px] font-semibold border flex items-center justify-center gap-1.5 hover:brightness-95 transition-all"
-                                style={{ backgroundImage: 'url(/images/stateChange.png)', backgroundSize: 'cover', backgroundPosition: 'center', color: cfg.pillText, borderColor: cfg.square + '40' }}>
+                                style={{ backgroundImage: 'url(images/stateChange.png)', backgroundSize: 'cover', backgroundPosition: 'center', color: cfg.pillText, borderColor: cfg.square + '40' }}>
                                 <span className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ backgroundColor: cfg.square }} />
                                 <span>{cfg.label}</span>
                                 <span className="ml-auto text-text-muted/40 text-[10px]  ml-[15%]">▾</span>

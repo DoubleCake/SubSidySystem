@@ -40134,7 +40134,7 @@ function HouseholdList({
               ${selectedId === h.id ? "border-l-4 border-l-primary" : ""}
               ${h.is_overdrawn ? "bg-red-50/40" : ""}`,
           style: selectedId === h.id ? {
-            backgroundImage: "url(/images/focus.png)",
+            backgroundImage: "url(images/focus.png)",
             backgroundSize: "cover",
             backgroundPosition: "center"
           } : void 0,
@@ -40573,7 +40573,7 @@ function HouseholdDetailContent({
         {
           className: "px-5 py-3.5 flex items-center gap-4 relative border-b border-emerald-100",
           style: {
-            backgroundImage: "url(/images/household.png)",
+            backgroundImage: "url(images/household.png)",
             backgroundSize: "cover",
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat"
@@ -47678,7 +47678,7 @@ function ProjectProgressTab({ subsidyType }) {
                 "div",
                 {
                   className: "rounded-lg p-2.5 transition-all hover:shadow-sm group/card",
-                  style: { backgroundImage: "url(/images/progress_change.png)", backgroundSize: "cover", backgroundPosition: "center" },
+                  style: { backgroundImage: "url(images/progress_change.png)", backgroundSize: "cover", backgroundPosition: "center" },
                   children: [
                     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1.5 mb-2", children: [
                       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-1.5 h-1.5 rounded-full shrink-0", style: { backgroundColor: cfg.square } }),
@@ -47690,7 +47690,7 @@ function ProjectProgressTab({ subsidyType }) {
                         {
                           onClick: () => setOpenDropdown(openDropdown === ddKey ? null : ddKey),
                           className: "w-[85%]  px-2 py-1 rounded-md text-[11px] font-semibold border flex items-center justify-center gap-1.5 hover:brightness-95 transition-all",
-                          style: { backgroundImage: "url(/images/stateChange.png)", backgroundSize: "cover", backgroundPosition: "center", color: cfg.pillText, borderColor: cfg.square + "40" },
+                          style: { backgroundImage: "url(images/stateChange.png)", backgroundSize: "cover", backgroundPosition: "center", color: cfg.pillText, borderColor: cfg.square + "40" },
                           children: [
                             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-1.5 h-1.5 rounded-sm shrink-0", style: { backgroundColor: cfg.square } }),
                             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: cfg.label }),
@@ -49673,7 +49673,7 @@ function DashboardPage({ onGoTab }) {
     ].map((s, idx) => {
       const bgNum = idx % 4 + 1;
       const bgStyle = {
-        backgroundImage: `url(/images/chart_bg_0${bgNum}.png)`,
+        backgroundImage: `url(images/chart_bg_0${bgNum}.png)`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat"
@@ -57548,8 +57548,8 @@ function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   reactExports.useEffect(() => {
-    fetch("/api/auth/status").then((r2) => r2.json()).then((data) => {
-      setAuthDisabled(!data.auth_enabled);
+    window.electronAPI.invoke("auth:status").then((result) => {
+      setAuthDisabled(!result?.data?.auth_enabled);
       setAuthChecked(true);
     }).catch(() => setAuthChecked(true));
   }, []);
@@ -57615,17 +57615,14 @@ function Layout() {
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("nav", { className: "bg-primary-500 text-white sticky top-0 z-40 shadow-card", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-screen-xl mx-auto px-6 flex items-center gap-6", style: { height: 50 }, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1 flex-1", children: mainNav.map(({ to, label, icon, end }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1 flex-1", children: mainNav.map(({ to, label, icon, end }) => /* @__PURE__ */ jsxRuntimeExports.jsx(
           NavLink,
           {
             to,
             end,
             className: ({ isActive }) => `px-3.5 py-1.5 text-sm rounded-btn transition-colors whitespace-nowrap flex items-center gap-2
                   ${isActive ? "bg-white/15 text-white font-semibold" : "text-white/80 hover:text-white hover:bg-white/10"}`,
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: icon, size: 16 }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label })
-            ]
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label })
           },
           to
         )) }),

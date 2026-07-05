@@ -65,9 +65,8 @@ function Layout() {
 
   // 启动时检测认证状态（与 LoginPage 共享模块变量）
   useEffect(() => {
-    fetch('/api/auth/status')
-      .then(r => r.json())
-      .then(data => { setAuthDisabled(!data.auth_enabled); setAuthChecked(true) })
+    window.electronAPI.invoke<{ code: number; data: { auth_enabled: boolean } }>('auth:status')
+      .then(result => { setAuthDisabled(!result?.data?.auth_enabled); setAuthChecked(true) })
       .catch(() => setAuthChecked(true))
   }, [])
 
@@ -132,7 +131,6 @@ function Layout() {
                   `px-3.5 py-1.5 text-sm rounded-btn transition-colors whitespace-nowrap flex items-center gap-2
                   ${isActive ? 'bg-white/15 text-white font-semibold' : 'text-white/80 hover:text-white hover:bg-white/10'}`
                 }>
-                <Icon name={icon} size={16} />
                 <span>{label}</span>
               </NavLink>
             ))}

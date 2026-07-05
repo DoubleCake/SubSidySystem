@@ -126,7 +126,7 @@ export default function HouseholdList({
               ${selectedId === h.id ? 'border-l-4 border-l-primary' : ''}
               ${h.is_overdrawn ? 'bg-red-50/40' : ''}`}
             style={selectedId === h.id ? {
-              backgroundImage: 'url(/images/focus.png)',
+              backgroundImage: 'url(images/focus.png)',
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             } : undefined}>
