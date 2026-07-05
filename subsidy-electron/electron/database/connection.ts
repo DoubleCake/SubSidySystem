@@ -154,11 +154,25 @@ class SqlJsWrapper {
 let db: SqlJsWrapper | null = null
 
 export async function initDatabase(dbPath?: string): Promise<void> {
-  const resolvedPath = dbPath || join(app.getPath('userData'), 'subsidy.db')
+  // 数据库存储路径优先级:
+  // 1. 显式传入的路径
+  // 2. 应用同目录的 subsidy.db（便携模式，兼容 Python 版）
+  // 3. userData 目录
+  let resolvedPath = dbPath
+  if (!resolvedPath) {
+    const portablePath = join(app.getAppPath(), '..', 'subsidy.db')
+    if (existsSync(portablePath)) {
+      resolvedPath = portablePath
+    } else {
+      resolvedPath = join(app.getPath('userData'), 'subsidy.db')
+    }
+  }
 
   // 确保目录存在
   const dir = require('path').dirname(resolvedPath)
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+
+  console.log(`[DB] 数据库路径: ${resolvedPath}`)
 
   // 使用 require 加载 sql.js（CJS 兼容）
   const initSqlJs = require('sql.js')
@@ -168,8 +182,10 @@ export async function initDatabase(dbPath?: string): Promise<void> {
   if (existsSync(resolvedPath)) {
     const fileBuffer = readFileSync(resolvedPath)
     sqliteDb = new SQL.Database(fileBuffer)
+    console.log(`[DB] 加载已有数据库 (${(fileBuffer.length / 1024 / 1024).toFixed(1)} MB)`)
   } else {
     sqliteDb = new SQL.Database()
+    console.log('[DB] 创建新数据库')
   }
 
   // 启用 WAL 模式（sql.js 不支持 WAL，但会保留设置）
@@ -184,6 +200,9 @@ export function getDb(): SqlJsWrapper {
 }
 
 export function getDbPath(): string {
+  // 便携模式优先
+  const portablePath = join(app.getAppPath(), '..', 'subsidy.db')
+  if (existsSync(portablePath)) return portablePath
   return join(app.getPath('userData'), 'subsidy.db')
 }
 

@@ -454,6 +454,17 @@ export function runMigrations(): void {
       created_at DATETIME DEFAULT (datetime('now','localtime'))
     );
 
+    CREATE TABLE IF NOT EXISTS query_record (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      site_id INTEGER,
+      site_name VARCHAR(100) NOT NULL,
+      query_type VARCHAR(50) NOT NULL,
+      query_input TEXT NOT NULL,
+      query_count INTEGER NOT NULL DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT (datetime('now','localtime'))
+    );
+
     CREATE TABLE IF NOT EXISTS external_site (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -505,5 +516,54 @@ export function runMigrations(): void {
 
   for (const idx of indexes) {
     db.exec(idx)
+  }
+
+  // ═══════════════════════════════════════════
+  //  兼容旧数据库 — 逐列补充（ALTER TABLE ADD COLUMN）
+  //  对应 Python main.py 中 migrate_db() 的全部增量迁移
+  // ═══════════════════════════════════════════
+
+  const alterStatements = [
+    // family_household 增量
+    "ALTER TABLE family_household ADD COLUMN confirmed_area DECIMAL(10,2)",
+    "ALTER TABLE family_household ADD COLUMN is_manually_confirmed SMALLINT DEFAULT 0",
+    "ALTER TABLE family_household ADD COLUMN manually_confirmed_at DATETIME",
+    "ALTER TABLE family_household ADD COLUMN manually_confirmed_by VARCHAR(50)",
+    "ALTER TABLE family_household ADD COLUMN registered_address TEXT",
+    // farmer_profile 增量
+    "ALTER TABLE farmer_profile ADD COLUMN own_village_id INTEGER REFERENCES village(id)",
+    "ALTER TABLE farmer_profile ADD COLUMN own_group_no INTEGER",
+    // subsidy_application 增量
+    "ALTER TABLE subsidy_application ADD COLUMN apply_village_id INTEGER REFERENCES village(id)",
+    "ALTER TABLE subsidy_application ADD COLUMN apply_group_no INTEGER",
+    "ALTER TABLE subsidy_application ADD COLUMN apply_village_name VARCHAR(50)",
+    "ALTER TABLE subsidy_application ADD COLUMN apply_group_display VARCHAR(20)",
+    "ALTER TABLE subsidy_application ADD COLUMN is_proxy SMALLINT DEFAULT 0",
+    "ALTER TABLE subsidy_application ADD COLUMN beneficiary_id INTEGER REFERENCES farmer_profile(id)",
+    // subsidy_payment 增量
+    "ALTER TABLE subsidy_payment ADD COLUMN payment_village_id INTEGER REFERENCES village(id)",
+    "ALTER TABLE subsidy_payment ADD COLUMN payment_group_no INTEGER",
+    "ALTER TABLE subsidy_payment ADD COLUMN payment_village_name VARCHAR(50)",
+    "ALTER TABLE subsidy_payment ADD COLUMN payment_group_display VARCHAR(20)",
+    "ALTER TABLE subsidy_payment ADD COLUMN is_proxy SMALLINT DEFAULT 0",
+    "ALTER TABLE subsidy_payment ADD COLUMN proxy_remark TEXT",
+    "ALTER TABLE subsidy_payment ADD COLUMN pay_status SMALLINT DEFAULT 2",
+    "ALTER TABLE subsidy_payment ADD COLUMN beneficiary_id INTEGER REFERENCES farmer_profile(id)",
+    // subsidy_proxy 增量
+    "ALTER TABLE subsidy_proxy ADD COLUMN subsidy_type_id INTEGER REFERENCES subsidy_type(id)",
+    // large_farmer 增量
+    "ALTER TABLE large_farmer ADD COLUMN farmer_grade VARCHAR(20)",
+    "ALTER TABLE large_farmer ADD COLUMN credit_score SMALLINT",
+    // large_farmer_trust 增量
+    "ALTER TABLE large_farmer_trust ADD COLUMN parcel_village_id INTEGER REFERENCES village(id)",
+    "ALTER TABLE large_farmer_trust ADD COLUMN parcel_group_no SMALLINT",
+    "ALTER TABLE large_farmer_trust ADD COLUMN is_high_standard SMALLINT DEFAULT 0",
+    "ALTER TABLE large_farmer_trust ADD COLUMN is_demonstration SMALLINT DEFAULT 0",
+    "ALTER TABLE large_farmer_trust ADD COLUMN zone_name VARCHAR(100)",
+    "ALTER TABLE large_farmer_trust ADD COLUMN reminder_sent SMALLINT DEFAULT 0",
+  ]
+
+  for (const stmt of alterStatements) {
+    try { db.exec(stmt) } catch { /* 列已存在，忽略 */ }
   }
 }

@@ -109,17 +109,28 @@ class SqlJsWrapper {
 }
 let db = null;
 async function initDatabase(dbPath) {
-  const resolvedPath = path.join(electron.app.getPath("userData"), "subsidy.db");
+  let resolvedPath = dbPath;
+  if (!resolvedPath) {
+    const portablePath = path.join(electron.app.getAppPath(), "..", "subsidy.db");
+    if (fs.existsSync(portablePath)) {
+      resolvedPath = portablePath;
+    } else {
+      resolvedPath = path.join(electron.app.getPath("userData"), "subsidy.db");
+    }
+  }
   const dir = require("path").dirname(resolvedPath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  console.log(`[DB] 数据库路径: ${resolvedPath}`);
   const initSqlJs = require("sql.js");
   const SQL = await initSqlJs();
   let sqliteDb;
   if (fs.existsSync(resolvedPath)) {
     const fileBuffer = fs.readFileSync(resolvedPath);
     sqliteDb = new SQL.Database(fileBuffer);
+    console.log(`[DB] 加载已有数据库 (${(fileBuffer.length / 1024 / 1024).toFixed(1)} MB)`);
   } else {
     sqliteDb = new SQL.Database();
+    console.log("[DB] 创建新数据库");
   }
   sqliteDb.run("PRAGMA foreign_keys = ON");
   db = new SqlJsWrapper(sqliteDb, resolvedPath);
@@ -129,6 +140,8 @@ function getDb() {
   return db;
 }
 function getDbPath() {
+  const portablePath = path.join(electron.app.getAppPath(), "..", "subsidy.db");
+  if (fs.existsSync(portablePath)) return portablePath;
   return path.join(electron.app.getPath("userData"), "subsidy.db");
 }
 function runMigrations() {
@@ -576,6 +589,17 @@ function runMigrations() {
       created_at DATETIME DEFAULT (datetime('now','localtime'))
     );
 
+    CREATE TABLE IF NOT EXISTS query_record (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      site_id INTEGER,
+      site_name VARCHAR(100) NOT NULL,
+      query_type VARCHAR(50) NOT NULL,
+      query_input TEXT NOT NULL,
+      query_count INTEGER NOT NULL DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT (datetime('now','localtime'))
+    );
+
     CREATE TABLE IF NOT EXISTS external_site (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -622,6 +646,51 @@ function runMigrations() {
   ];
   for (const idx of indexes) {
     db2.exec(idx);
+  }
+  const alterStatements = [
+    // family_household 增量
+    "ALTER TABLE family_household ADD COLUMN confirmed_area DECIMAL(10,2)",
+    "ALTER TABLE family_household ADD COLUMN is_manually_confirmed SMALLINT DEFAULT 0",
+    "ALTER TABLE family_household ADD COLUMN manually_confirmed_at DATETIME",
+    "ALTER TABLE family_household ADD COLUMN manually_confirmed_by VARCHAR(50)",
+    "ALTER TABLE family_household ADD COLUMN registered_address TEXT",
+    // farmer_profile 增量
+    "ALTER TABLE farmer_profile ADD COLUMN own_village_id INTEGER REFERENCES village(id)",
+    "ALTER TABLE farmer_profile ADD COLUMN own_group_no INTEGER",
+    // subsidy_application 增量
+    "ALTER TABLE subsidy_application ADD COLUMN apply_village_id INTEGER REFERENCES village(id)",
+    "ALTER TABLE subsidy_application ADD COLUMN apply_group_no INTEGER",
+    "ALTER TABLE subsidy_application ADD COLUMN apply_village_name VARCHAR(50)",
+    "ALTER TABLE subsidy_application ADD COLUMN apply_group_display VARCHAR(20)",
+    "ALTER TABLE subsidy_application ADD COLUMN is_proxy SMALLINT DEFAULT 0",
+    "ALTER TABLE subsidy_application ADD COLUMN beneficiary_id INTEGER REFERENCES farmer_profile(id)",
+    // subsidy_payment 增量
+    "ALTER TABLE subsidy_payment ADD COLUMN payment_village_id INTEGER REFERENCES village(id)",
+    "ALTER TABLE subsidy_payment ADD COLUMN payment_group_no INTEGER",
+    "ALTER TABLE subsidy_payment ADD COLUMN payment_village_name VARCHAR(50)",
+    "ALTER TABLE subsidy_payment ADD COLUMN payment_group_display VARCHAR(20)",
+    "ALTER TABLE subsidy_payment ADD COLUMN is_proxy SMALLINT DEFAULT 0",
+    "ALTER TABLE subsidy_payment ADD COLUMN proxy_remark TEXT",
+    "ALTER TABLE subsidy_payment ADD COLUMN pay_status SMALLINT DEFAULT 2",
+    "ALTER TABLE subsidy_payment ADD COLUMN beneficiary_id INTEGER REFERENCES farmer_profile(id)",
+    // subsidy_proxy 增量
+    "ALTER TABLE subsidy_proxy ADD COLUMN subsidy_type_id INTEGER REFERENCES subsidy_type(id)",
+    // large_farmer 增量
+    "ALTER TABLE large_farmer ADD COLUMN farmer_grade VARCHAR(20)",
+    "ALTER TABLE large_farmer ADD COLUMN credit_score SMALLINT",
+    // large_farmer_trust 增量
+    "ALTER TABLE large_farmer_trust ADD COLUMN parcel_village_id INTEGER REFERENCES village(id)",
+    "ALTER TABLE large_farmer_trust ADD COLUMN parcel_group_no SMALLINT",
+    "ALTER TABLE large_farmer_trust ADD COLUMN is_high_standard SMALLINT DEFAULT 0",
+    "ALTER TABLE large_farmer_trust ADD COLUMN is_demonstration SMALLINT DEFAULT 0",
+    "ALTER TABLE large_farmer_trust ADD COLUMN zone_name VARCHAR(100)",
+    "ALTER TABLE large_farmer_trust ADD COLUMN reminder_sent SMALLINT DEFAULT 0"
+  ];
+  for (const stmt of alterStatements) {
+    try {
+      db2.exec(stmt);
+    } catch {
+    }
   }
 }
 function parseIdCard(idCard) {
