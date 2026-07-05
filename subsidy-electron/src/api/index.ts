@@ -338,11 +338,17 @@ export const recalcUnconfirmedContractArea = () =>
 export interface HouseholdImportRow {
   real_name: string; id_card: string; address: string
   head_relation?: string; phone?: string; bank_card?: string; bank_name?: string; gender?: string
+  household_code?: string   // 家庭编码（分组依据，优先级高于地址）
+  farmer_status?: string    // 人员状态：死亡、移居、出国等
+  village_name?: string     // 指定所属村
+  group_no?: string         // 指定所属组（如"一组"或"1"）
 }
 
 export interface HouseholdImportPreview {
   groups: {
-    address: string; action: 'create' | 'merge_one' | 'merge_multi'
+    address: string
+    household_code?: string | null         // 家庭编码
+    action: 'create' | 'merge_one' | 'merge_multi'
     head_name: string; head_id_card: string; member_count: number
     members: { real_name: string; id_card: string; is_head: boolean; in_db: boolean; has_errors: boolean }[]
     matched_hh_info: { id: number; household_code: string; household_name: string; village_name: string; group_display: string; contract_area: number | null }[]
@@ -350,6 +356,7 @@ export interface HouseholdImportPreview {
     total_area_after_merge: number | null; warnings: string[]; has_errors: boolean
   }[]
   row_errors: { row: number; name: string; errors: string[] }[]
+  conflicts?: { row: number; real_name: string; id_card: string; village_name: string; group_no: string; phone: string; db_name: string; db_household_id: number }[]
   summary: { total_rows: number; total_groups: number; new_households: number; merge_single: number; merge_multi: number; error_rows: number }
 }
 
@@ -361,5 +368,5 @@ export interface HouseholdImportResult {
 export const previewHouseholdImport = (rows: HouseholdImportRow[]) =>
   req<HouseholdImportPreview>('household-import:preview', rows)
 
-export const executeHouseholdImport = (rows: HouseholdImportRow[]) =>
-  req<HouseholdImportResult>('household-import:execute', rows)
+export const executeHouseholdImport = (rows: HouseholdImportRow[], defaultVillageName?: string, defaultGroupNo?: string) =>
+  req<HouseholdImportResult>('household-import:execute', { rows, default_village_name: defaultVillageName, default_group_no: defaultGroupNo })

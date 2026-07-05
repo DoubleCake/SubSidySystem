@@ -39769,7 +39769,7 @@ const refreshAreaCache = (householdId) => req$7(
 );
 const recalcUnconfirmedContractArea = () => req$7("households:recalcUnconfirmedContractArea");
 const previewHouseholdImport = (rows) => req$7("household-import:preview", rows);
-const executeHouseholdImport = (rows) => req$7("household-import:execute", rows);
+const executeHouseholdImport = (rows, defaultVillageName, defaultGroupNo) => req$7("household-import:execute", { rows, default_village_name: defaultVillageName, default_group_no: defaultGroupNo });
 const fmt$2 = (n2) => n2 == null ? "—" : "¥" + Number(n2).toFixed(2);
 const parseIdCardInfo = (id2) => {
   if (id2.length !== 18) return null;
