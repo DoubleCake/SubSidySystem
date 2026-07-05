@@ -107,17 +107,6 @@ function Layout() {
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
         }}>
-        <div className="max-w-screen-xl mx-auto px-6 flex items-center" style={{ height: 100 }}>
-          {/* Logo */}
-          <div className="shrink-0 cursor-pointer flex items-center"
-            onClick={() => navigate('/')}>
-            <img src="images/Logo.png" alt="Logo"
-              className="h-14 w-auto"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-            <span className="font-bold text-base tracking-wider text-primary ml-2.5"
-              style={{ display: 'none' }}>农户补贴管理系统</span>
-          </div>
-        </div>
       </header>
 
       {/* 墨绿色导航栏 */}

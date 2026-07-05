@@ -56748,12 +56748,93 @@ function WorkflowDocPage() {
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-8 text-center text-[10px] text-stone-300 pb-4", children: "农户补贴管理系统 · 操作流程文档 · 内网部署版" })
   ] });
 }
-const ToolsPage = () => {
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-6", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-2xl font-bold text-primary mb-4", children: "数据工具" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-text-secondary", children: "数据工具页面开发中..." })
+const tools = [
+  {
+    title: "身份证验证",
+    desc: "批量校验身份证号有效性，查看校验历史和错误明细",
+    icon: "search",
+    path: "/data-verify",
+    color: "#1A4D3A"
+  },
+  {
+    title: "人员匹配",
+    desc: "按姓名/身份证跨村组匹配人员，支持批量导入对照",
+    icon: "link",
+    path: "/match-people",
+    color: "#2C6B52"
+  },
+  {
+    title: "家庭户批量导入",
+    desc: "Excel 批量导入家庭户和成员，自动建户、并入已有户或合并多户",
+    icon: "household",
+    path: "/settings/household-import",
+    color: "#5B8C5A"
+  },
+  {
+    title: "家庭关系导入",
+    desc: "Excel 导入家庭关系（户主/配偶/子女等），自动拆分多户主家庭",
+    icon: "excel",
+    path: "/settings/family-relation-import",
+    color: "#3B7C6A"
+  },
+  {
+    title: "Excel 模板管理",
+    desc: "管理 Excel 列映射模板，适配各村镇不同格式的导入文件",
+    icon: "export",
+    path: "/settings/excel-templates",
+    color: "#E6C288"
+  },
+  {
+    title: "数据备份迁移",
+    desc: "导出数据库备份、恢复历史数据、跨设备迁移",
+    icon: "download",
+    path: "/settings/backup",
+    color: "#8B7355"
+  },
+  {
+    title: "土地流转台账",
+    desc: "管理土地代耕代种流转记录，跟踪合同到期和补贴影响",
+    icon: "land",
+    path: "/settings/land-trust",
+    color: "#6B8E6B"
+  },
+  {
+    title: "操作流程文档",
+    desc: "查看系统各功能模块的操作流程和注意事项",
+    icon: "dashboard",
+    path: "/workflow",
+    color: "#4A7C6E"
+  }
+];
+function ToolsPage() {
+  const navigate = useNavigate();
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-6 max-w-screen-xl mx-auto", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-6", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-xl font-bold text-text-primary", children: "数据工具" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-text-muted mt-1", children: "常用的数据处理和导入工具，点击卡片进入" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4", children: tools.map((tool) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        onClick: () => navigate(tool.path),
+        className: "bg-white rounded-card border border-border p-5 cursor-pointer\n                       hover:shadow-card hover:border-primary/30 hover:-translate-y-0.5\n                       transition-all duration-200 group",
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "div",
+            {
+              className: "w-10 h-10 rounded-btn flex items-center justify-center mb-3",
+              style: { backgroundColor: tool.color + "15" },
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: tool.icon, size: 22, color: tool.color })
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-semibold text-text-primary mb-1.5 group-hover:text-primary transition-colors", children: tool.title }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted leading-relaxed line-clamp-2", children: tool.desc })
+        ]
+      },
+      tool.path
+    )) })
   ] });
-};
+}
 function validateIdCard(id2) {
   if (!id2 || id2.length !== 18) return { ok: false, error: "长度不为18位" };
   if (!/^\d{17}[\dXx]$/.test(id2)) return { ok: false, error: "含非法字符" };
