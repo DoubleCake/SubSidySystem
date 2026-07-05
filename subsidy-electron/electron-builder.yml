@@ -1,0 +1,38 @@
+appId: com.subsidy.electron
+productName: 农户补贴管理系统
+copyright: Copyright © 2024
+
+directories:
+  buildResources: resources
+  output: dist
+
+files:
+  - out/**/*
+  - "!node_modules/**/*"
+
+win:
+  target:
+    - nsis
+  icon: resources/icon.png
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 农户补贴管理系统
+  installerIcon: resources/icon.png
+  uninstallerIcon: resources/icon.png
+
+mac:
+  target:
+    - dmg
+  icon: resources/icon.png
+
+linux:
+  target:
+    - AppImage
+  icon: resources/icon.png
+
+asar: true
+compression: normal

@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #1A4D3A;
+  --secondary: #2C6B52;
+  --danger: #D32F2F;
+  --success: #4CAF50;
+  --edit: #E6C288;
+  --bg-main: #F8F5F0;
+  --border: #E8E2D9;
+  --text-primary: #2E2E2E;
+  --text-muted: #999999;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Roboto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', 'Consolas', monospace !important;
+}
+
+/* 自定义滚动条 - 浅米色 */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #d5cfc5; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #bfb8ad; }
+
+/* 选中文本色 */
+::selection {
+  background-color: rgba(26, 77, 58, 0.12);
+  color: #1A4D3A;
+}
+
+/* 输入框占位符色 */
+input::placeholder, textarea::placeholder {
+  color: #bfb8ad;
+}

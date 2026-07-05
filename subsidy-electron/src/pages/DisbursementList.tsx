@@ -1,0 +1,684 @@
+/**
+ * 发放列表组件
+ * 显示发放记录的表格、筛选、分页功能
+ */
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import Tag from '../components/Tag'
+import Modal from '../components/Modal'
+import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
+import * as api from '../api'
+import type { ApplicationSearchResult, ApplicationCreate, ApplicationOut, ExcelColumnTemplate } from '../types'
+import { PAY_STATUS, fmt } from '../utils'
+
+interface DisbursementListProps {
+  subsidyType: {
+    id: number
+    subsidy_year: number
+    subsidy_name: string
+    calc_mode: 'fixed' | 'per_mu' | undefined
+    standard_amount: string | null
+    standard_unit: string | null
+  }
+  apps: ApplicationSearchResult[]
+  total: number
+  page: number
+  loading: boolean
+  selectedIds: number[]
+  search: string
+  filters: {
+    village: string
+    payStatus: string
+    minAmount: string
+    maxAmount: string
+    dateFrom: string
+    dateTo: string
+  }
+  villages: string[]
+  loadingVillages: boolean
+  templates: ExcelColumnTemplate[]
+  addOpen: boolean
+  editTarget: ApplicationOut | null
+  deleteId: number | null
+  form: Partial<ApplicationCreate> & { proxy_remark?: string }
+  idInput: string
+  farmerHint: string
+  farmerId: number | null
+
+  // 状态 setters
+  setApps: (apps: ApplicationSearchResult[]) => void
+  setTotal: (total: number) => void
+  setPage: (page: number | ((prev: number) => number)) => void
+  setLoading: (loading: boolean) => void
+  setSelectedIds: (ids: number[] | ((prev: number[]) => number[])) => void
+  setSearch: (search: string) => void
+  setFilters: (filters: DisbursementListProps['filters']) => void
+  setAddOpen: (open: boolean) => void
+  setEditTarget: (target: ApplicationOut | null) => void
+  setDeleteId: (id: number | null) => void
+  setForm: (form: Partial<ApplicationCreate> & { proxy_remark?: string } | ((prev: Partial<ApplicationCreate> & { proxy_remark?: string }) => Partial<ApplicationCreate> & { proxy_remark?: string })) => void
+  setIdInput: (input: string) => void
+  setFarmerHint: (hint: string) => void
+  setFarmerId: (id: number | null) => void
+  setTemplates: (templates: ExcelColumnTemplate[]) => void
+  setLoadingVillages: (loading: boolean) => void
+  setVillages: (villages: string[]) => void
+
+  // 回调函数
+  show: (msg: string, type?: 'ok' | 'err') => void
+  load: () => void
+  handleFilterChange: (field: string, value: string) => void
+  handleSearchChange: (value: string) => void
+  clearFilters: () => void
+}
+
+const SUBSIDY_IMPORT_FIELDS = [
+  { field: "id_card", label: "身份证号", required: true, type: "id_card" },
+  { field: "real_name", label: "姓名", required: true, type: "string" },
+  { field: "apply_area", label: "种植面积", required: false, type: "decimal" },
+  { field: "contract_area", label: "承包地面积", required: false, type: "decimal" },
+  { field: "trust_area", label: "代耕代种面积", required: false, type: "decimal" },
+  { field: "no_subsidy_area", label: "不予补贴面积", required: false, type: "decimal" },
+  { field: "village_name", label: "所在村", required: false, type: "string" },
+  { field: "group_no", label: "所在组", required: false, type: "string" },
+  { field: "remark", label: "备注", required: false, type: "string" },
+  { field: "proxy_remark", label: "代领备注", required: false, type: "string" },
+]
+
+export default function DisbursementList({
+  subsidyType,
+  apps,
+  total,
+  page,
+  loading,
+  selectedIds,
+  search,
+  filters,
+  villages,
+  loadingVillages,
+  templates,
+  addOpen,
+  editTarget,
+  deleteId,
+  form,
+  idInput,
+  farmerHint,
+  farmerId,
+  setApps,
+  setTotal,
+  setPage,
+  setLoading,
+  setSelectedIds,
+  setSearch,
+  setFilters,
+  setAddOpen,
+  setEditTarget,
+  setDeleteId,
+  setForm,
+  setIdInput,
+  setFarmerHint,
+  setFarmerId,
+  setTemplates,
+  setLoadingVillages,
+  setVillages,
+  show,
+  load,
+  handleFilterChange,
+  handleSearchChange,
+  clearFilters,
+}: DisbursementListProps) {
+  const navigate = useNavigate()
+
+  // 加载模板列表
+  useEffect(() => {
+    api.getExcelTemplates('DISBURSEMENT').then(setTemplates).catch(() => {})
+  }, [setTemplates])
+
+  // 身份证查人
+  useEffect(() => {
+    if (idInput.length < 6) { setFarmerHint(''); setFarmerId(null); return }
+    const t = setTimeout(async () => {
+      const res = await api.getFarmers({ search: idInput, page_size: 1 })
+      if (res.items.length) {
+        const f = res.items[0]
+        setFarmerHint(`✓ ${f.real_name} · ${f.village_full_name}`)
+        setFarmerId(f.id)
+      } else { setFarmerHint('未找到该农户'); setFarmerId(null) }
+    }, 400)
+    return () => clearTimeout(t)
+  }, [idInput, setFarmerHint, setFarmerId])
+
+  // 按亩自动计算
+  useEffect(() => {
+    if (subsidyType.calc_mode !== 'per_mu' || !form.apply_area) return
+    const amt = Number(subsidyType.standard_amount || 0) * Number(form.apply_area)
+    setForm(f => ({ ...f, apply_amount: Math.round(amt * 100) / 100, actual_amount: Math.round(amt * 100) / 100 }))
+  }, [form.apply_area, subsidyType, setForm])
+
+  const submitAdd = async () => {
+    if (!farmerId) return show('请输入有效身份证号', 'err')
+    try {
+      // 发放记录直接创建
+      const res = await fetch('/api/subsidies/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          farmer_id: farmerId,
+          subsidy_type_id: subsidyType.id,
+          payment_year: subsidyType.subsidy_year,
+          amount: form.actual_amount,
+          apply_area: form.apply_area,
+          contract_area: form.contract_area,
+          trust_area: form.trust_area,
+          no_subsidy_area: form.no_subsidy_area,
+          payment_date: form.pay_date,
+          remark: form.remark,
+          proxy_remark: form.proxy_remark
+        })
+      }).then(r => r.json())
+      show(`✓ 记录创建成功`)
+      setAddOpen(false)
+      load()
+    } catch (e: unknown) { show((e as Error).message, 'err') }
+  }
+
+  const submitEdit = async () => {
+    if (!editTarget) return
+    try {
+      await fetch(`/api/subsidies/payments/${editTarget.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: form.actual_amount,
+          apply_area: form.apply_area,
+          contract_area: form.contract_area,
+          trust_area: form.trust_area,
+          no_subsidy_area: form.no_subsidy_area,
+          payment_date: form.pay_date,
+          remark: form.remark,
+          proxy_remark: form.proxy_remark
+        })
+      })
+      show('✓ 更新成功')
+      setEditTarget(null)
+      load()
+    } catch (e: unknown) { show((e as Error).message, 'err') }
+  }
+
+  const openEdit = (a: ApplicationSearchResult & { proxy_remark?: string | null }) => {
+    const appOut: ApplicationOut = {
+      id: a.id,
+      farmer_id: a.farmer_id,
+      farmer_name: a.farmer_name,
+      village: a.village,
+      subsidy_type_id: a.subsidy_type_id,
+      subsidy_name: a.subsidy_name,
+      calc_mode: a.calc_mode as 'fixed' | 'per_mu' | undefined,
+      apply_year: a.apply_year,
+      apply_amount: a.apply_amount,
+      actual_amount: a.actual_amount,
+      apply_area: a.apply_area,
+      pay_status: a.pay_status,
+      pay_date: a.pay_date,
+      remark: a.remark
+    }
+    setEditTarget(appOut)
+    setForm({
+      pay_status: a.pay_status,
+      actual_amount: a.actual_amount ? Number(a.actual_amount) : undefined,
+      apply_area: a.apply_area ? Number(a.apply_area) : undefined,
+      contract_area: a.contract_area ? Number(a.contract_area) : undefined,
+      trust_area: a.trust_area ? Number(a.trust_area) : undefined,
+      no_subsidy_area: a.no_subsidy_area ? Number(a.no_subsidy_area) : undefined,
+      pay_date: a.pay_date ?? undefined,
+      remark: a.remark ?? undefined,
+      proxy_remark: a.proxy_remark ?? undefined
+    })
+  }
+
+  const deleteApp = async (id: number) => {
+    try {
+      await fetch(`/api/subsidies/applications/${id}`, { method: 'DELETE' })
+      show('✓ 已删除')
+      setDeleteId(null)
+      load()
+    } catch (e: unknown) { show((e as Error).message, 'err') }
+  }
+
+  // 批量选择
+  const toggleSelectAll = () => {
+    if (selectedIds.length === apps.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(apps.map(a => a.id))
+    }
+  }
+
+  const toggleSelect = (id: number) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(selectedId => selectedId !== id))
+    } else {
+      setSelectedIds([...selectedIds, id])
+    }
+  }
+
+  // 批量删除
+  const batchDelete = async () => {
+    if (selectedIds.length === 0) {
+      show('请先选择要删除的记录', 'err')
+      return
+    }
+    if (!confirm(`确定要删除选中的 ${selectedIds.length} 条记录吗？此操作不可恢复。`)) {
+      return
+    }
+    try {
+      const response = await fetch('/api/subsidies/applications/batch-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds })
+      })
+      if (!response.ok) throw new Error('批量删除失败')
+      show(`✓ 已删除 ${selectedIds.length} 条记录`)
+      setSelectedIds([])
+      load()
+    } catch (error) {
+      console.error('批量删除失败:', error)
+      show('批量删除失败: ' + (error as Error).message, 'err')
+    }
+  }
+
+  // Excel导入
+  const handleImport = async (rows: Record<string, unknown>[], mapping?: Record<string, string>): Promise<{ created: number; skipped: number; errors: string[] }> => {
+    const toCreate: Record<string, unknown>[] = []
+    const errors: string[] = []
+
+    const allIdCards = rows.map(r => String(r['身份证号*'] || r['身份证号'] || '').trim()).filter(Boolean)
+    let farmerMap: Record<string, number> = {}
+    if (allIdCards.length) {
+      try {
+        const res = await api.batchLookupFarmers(allIdCards)
+        farmerMap = res.results
+      } catch { /* 批量查找失败不阻断 */ }
+    }
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]
+      const idCard = String(row['id_card'] || row['身份证号*'] || row['身份证号'] || '').trim()
+      const realName = String(row['real_name'] || row['姓名*'] || row['姓名'] || '').trim()
+      const villageName = String(row['village_name'] || row['所在村'] || '').trim()
+      const groupNo = String(row['group_no'] || row['所在组'] || '').trim()
+      if (!idCard) { errors.push(`第${i + 2}行：缺少身份证号`); continue }
+      if (!realName) { errors.push(`第${i + 2}行：缺少姓名`); continue }
+      const farmerId = farmerMap[idCard] || 0
+      const contractArea = Number(row['contract_area'] || row['承包地面积(亩)']) || 0
+      const trustArea = Number(row['trust_area'] || row['代耕代种面积(亩)']) || 0
+      const noSubsidyArea = Number(row['no_subsidy_area'] || row['不予补贴面积']) || undefined
+      const applyAreaExplicit = Number(row['apply_area'] || row['种植面积'] || row['面积(亩)']) || 0
+      const area = applyAreaExplicit || (contractArea + trustArea || undefined)
+      const amount = Number(row['actual_amount'] || row['实发金额']) || (area ? area * Number(subsidyType.standard_amount || 0) : undefined)
+
+      toCreate.push({
+        farmer_id: farmerId,
+        id_card: idCard,
+        real_name: realName,
+        village_name: villageName || undefined,
+        group_no: groupNo || undefined,
+        subsidy_type_id: subsidyType.id,
+        payment_year: subsidyType.subsidy_year,
+        apply_area: area,
+        contract_area: contractArea || undefined,
+        trust_area: trustArea || undefined,
+        no_subsidy_area: noSubsidyArea,
+        amount,
+        payment_date: String(row['pay_date'] || row['打款日期'] || '').trim() || undefined,
+        remark: String(row['remark'] || row['备注'] || '').trim() || undefined,
+        proxy_remark: String(row['proxy_remark'] || row['代领备注'] || '').trim() || undefined,
+      })
+    }
+    if (errors.length && !toCreate.length) return { created: 0, skipped: 0, errors }
+
+    // 发放记录导入（独立表）
+    const paymentRows = toCreate.map(r => ({
+      farmer_id: r.farmer_id,
+      id_card: r.id_card,
+      real_name: r.real_name,
+      subsidy_type_id: r.subsidy_type_id,
+      payment_year: subsidyType.subsidy_year,
+      amount: r.amount,
+      payment_date: r.payment_date,
+      apply_area: r.apply_area,
+      contract_area: r.contract_area,
+      trust_area: r.trust_area,
+      no_subsidy_area: r.no_subsidy_area,
+      remark: r.remark,
+      proxy_remark: r.proxy_remark,
+    }))
+    const res = await fetch('/api/subsidies/payments/batch-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows: paymentRows }),
+    }).then(r => r.json()) as { created: number; skipped: number; errors: string[] }
+    show(`✓ 导入 ${res.created} 条发放记录，跳过 ${res.skipped} 条`)
+    load()
+    return { ...res, errors: [...errors, ...(res.errors || [])] }
+  }
+
+  const totalAmt = apps.reduce((s, a) => s + Number(a.actual_amount || 0), 0)
+
+  // 模板相关
+  const selectedTmpl = templates.find(t => t.id) || null
+  const IMPORT_HEADERS = selectedTmpl
+    ? selectedTmpl.column_mapping.filter(m => m.system_field).map(m => m.excel_column + (m.required ? '*' : ''))
+    : ['身份证号*', '姓名*', '实发金额', '承包地面积(亩)', '代耕代种面积(亩)', '不予补贴面积(亩)', '打款日期', '所在村', '所在组', '备注', '代领备注']
+  const IMPORT_EXAMPLE = selectedTmpl
+    ? [Object.fromEntries(selectedTmpl.column_mapping.filter(m => m.system_field).map(m => {
+        const sample: Record<string, unknown> = {
+          id_card: '510123196503154231', real_name: '张国强', actual_amount: 420,
+          contract_area: 2.5, trust_area: 1.0, pay_date: `${subsidyType.subsidy_year}-07-15`,
+          village_name: '红星村', group_no: '一组', remark: '', proxy_remark: '',
+        }
+        return [m.excel_column, sample[m.system_field!] ?? '']
+      }))]
+    : [{ '身份证号*': '510123196503154231', '姓名*': '张国强', '实发金额': 420, '承包地面积(亩)': 2.5, '代耕代种面积(亩)': 1.0, '不予补贴面积(亩)': 0.5, '打款日期': `${subsidyType.subsidy_year}-07-15`, '所在村': '红星村', '所在组': '一组', '备注': '', '代领备注': '' }]
+
+  const detectExcelColumns = async (columns: string[], sampleRows: Record<string, unknown>[]) => {
+    try {
+      const response = await fetch('/api/excel-templates/detect-columns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ columns, business_type: 'DISBURSEMENT', sample_rows: sampleRows }),
+      })
+      if (!response.ok) throw new Error(`检测失败: ${response.status}`)
+      const raw = await response.json()
+      return {
+        columns: (raw.columns || []).map((d: Record<string, unknown>) => ({
+          excel_column: d.excel_column,
+          suggested_field: d.suggested_field,
+          confidence: d.confidence ?? 0,
+          alternatives: d.alternatives || [],
+        })),
+        recommended_templates: raw.recommended_templates || [],
+      }
+    } catch (error) {
+      return { columns: columns.map(col => ({ excel_column: col, suggested_field: null, confidence: 0, alternatives: [] })) }
+    }
+  }
+
+  const saveColumnMappingTemplate = async (data: {
+    template_name: string; template_year?: number; region_name?: string; business_type: string
+    column_mapping: Array<{ excel_column: string; system_field: string; aliases: string[]; required: boolean; transform?: string }>
+  }) => {
+    const response = await fetch('/api/excel-templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) throw new Error(`保存失败: ${response.status}`)
+    return await response.json()
+  }
+
+  return (
+    <>
+      {/* 表格区域 */}
+      <div className="bg-white border border-border rounded-card overflow-x-auto shadow-card">
+        {/* 筛选栏 */}
+        <div className="px-4 py-3 border-b border-border bg-warm/10 flex flex-wrap items-center gap-3">
+          <span className="text-xs text-text-muted">筛选：</span>
+          <select value={filters.village} onChange={e => handleFilterChange('village', e.target.value)}
+            className="border border-border rounded-btn px-2 py-1.5 text-xs bg-white outline-none">
+            <option value="">全部村庄</option>
+            {loadingVillages ? <option disabled>加载中...</option> : villages.map(v => <option key={v} value={v}>{v}</option>)}
+          </select>
+          <select value={filters.payStatus} onChange={e => handleFilterChange('payStatus', e.target.value)}
+            className="border border-border rounded-btn px-2 py-1.5 text-xs bg-white outline-none">
+            <option value="">全部状态</option>
+            <option value="0">待发放</option>
+            <option value="1">发放中</option>
+            <option value="2">已完成</option>
+          </select>
+          <div className="flex items-center gap-1 text-xs">
+            <span className="text-text-muted">金额:</span>
+            <input type="number" value={filters.minAmount} onChange={e => handleFilterChange('minAmount', e.target.value)}
+              placeholder="最低" className="w-16 border border-border rounded px-1.5 py-1 text-xs outline-none" />
+            <span className="text-text-muted/50">-</span>
+            <input type="number" value={filters.maxAmount} onChange={e => handleFilterChange('maxAmount', e.target.value)}
+              placeholder="最高" className="w-16 border border-border rounded px-1.5 py-1 text-xs outline-none" />
+          </div>
+          <div className="flex items-center gap-1 text-xs">
+            <span className="text-text-muted">日期:</span>
+            <input type="date" value={filters.dateFrom} onChange={e => handleFilterChange('dateFrom', e.target.value)}
+              className="border border-border rounded px-1.5 py-1 text-xs outline-none" />
+            <span className="text-text-muted/50">-</span>
+            <input type="date" value={filters.dateTo} onChange={e => handleFilterChange('dateTo', e.target.value)}
+              className="border border-border rounded px-1.5 py-1 text-xs outline-none" />
+          </div>
+          <div className="flex items-center gap-1 flex-1 min-w-[200px] max-w-[300px]">
+            <input type="text" value={search} onChange={e => handleSearchChange(e.target.value)}
+              placeholder="姓名/身份证" className="flex-1 border border-border rounded-btn px-2 py-1.5 text-xs outline-none" />
+            <button onClick={() => setPage(1)} className="px-2 py-1 text-xs bg-primary text-white rounded-btn hover:bg-primary/90">搜索</button>
+          </div>
+          <button onClick={clearFilters} className="text-xs text-text-muted hover:text-text-primary border border-border px-2 py-1 rounded"
+            disabled={Object.values(filters).every(v => !v) && !search}>清除</button>
+        </div>
+
+        <table className="w-full border-collapse min-w-[950px]">
+          <thead>
+            <tr className="bg-warm/30 border-b-2 border-border">
+              <th className="px-2 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap">
+                <button onClick={toggleSelectAll}
+                  className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                    apps.length > 0 && selectedIds.length === apps.length ? 'bg-primary/90 border-emerald-600 text-white' : 'border-stone-300 hover:border-emerald-400'
+                  }`}>
+                  {apps.length > 0 && selectedIds.length === apps.length && (
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
+              </th>
+              {['姓名', '身份证', '手机号', '所在村', '所在组', '实际补贴面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额', '状态', '打款日期', '备注', '代领备注', '操作'].map(h => (
+                <th key={h} className="px-2 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading && <tr><td colSpan={16} className="text-center py-10 text-text-muted/50">加载中…</td></tr>}
+            {!loading && (!apps || apps.length === 0) && (
+              <tr><td colSpan={16} className="text-center py-10 text-text-muted/50 text-sm">暂无记录，通过「Excel 导入」或「＋ 新增一条」添加</td></tr>
+            )}
+            {!loading && apps && apps.map(a => (
+              <tr key={a.id} className={`border-b border-border/50 hover:bg-warm/30 ${a.pay_status === 0 ? 'bg-amber-50/30' : ''}`}>
+                <td className="px-2 py-2 text-center">
+                  <button onClick={() => toggleSelect(a.id)}
+                    className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                      selectedIds.includes(a.id) ? 'bg-primary/90 border-emerald-600 text-white' : 'border-stone-300 hover:border-emerald-400'
+                    }`}>
+                    {selectedIds.includes(a.id) && (
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                </td>
+                <td className="px-2 py-2 text-sm font-semibold whitespace-nowrap">
+                  <div className="flex items-center gap-1">
+                    {a.farmer_name}
+                    {a.is_proxy === 1 && <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">代领</span>}
+                  </div>
+                </td>
+                <td className="px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap">{a.id_card_masked || '—'}</td>
+                <td className="px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap">{a.phone || '—'}</td>
+                <td className="px-2 py-2 text-xs text-text-muted whitespace-nowrap">{a.village || '—'}</td>
+                <td className="px-2 py-2 text-xs text-text-muted whitespace-nowrap">{a.group_no || '—'}</td>
+                <td className="px-2 py-2 text-xs font-mono font-bold text-text-primary">{a.apply_area ? `${a.apply_area}` : '—'}</td>
+                <td className="px-2 py-2 text-xs font-mono text-text-muted">{a.contract_area || '—'}</td>
+                <td className="px-2 py-2 text-xs font-mono text-text-muted">{a.trust_area || '—'}</td>
+                <td className="px-2 py-2 text-xs font-mono text-red-400">{a.no_subsidy_area || '—'}</td>
+                <td className="px-2 py-2 text-xs font-mono text-text-muted">{a.apply_amount ? `¥${fmt(a.apply_amount)}` : '—'}</td>
+                <td className="px-2 py-2 text-sm font-mono font-bold text-primary whitespace-nowrap">
+                  {a.actual_amount
+                    ? <span title={a.apply_amount && a.apply_amount !== a.actual_amount ? `申请：${fmt(a.apply_amount)}` : ''}>{fmt(a.actual_amount)}</span>
+                    : <span className="text-amber-500 font-normal text-xs">待发放</span>}
+                </td>
+                <td className="px-2 py-2"><Tag label={PAY_STATUS[a.pay_status]?.label || '—'} color={PAY_STATUS[a.pay_status]?.color as 'green'} /></td>
+                <td className="px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap">{a.pay_date ?? '—'}</td>
+                <td className="px-2 py-2 text-xs text-text-muted max-w-[120px] truncate" title={a.remark || ''}>{a.remark || '—'}</td>
+                <td className="px-2 py-2 text-xs text-text-muted max-w-[120px] truncate" title={a.proxy_remark || ''}>{a.proxy_remark || '—'}</td>
+                <td className="px-2 py-2">
+                  <div className="flex gap-1">
+                    <button onClick={() => openEdit(a)} className="text-xs text-text-muted border border-border px-2 py-1 rounded hover:text-primary hover:border-primary/20">编辑</button>
+                    <button onClick={() => setDeleteId(a.id)} className="text-xs text-red-400 border border-red-100 px-2 py-1 rounded hover:bg-red-50">删</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="px-4 py-2 border-t border-border/50 bg-warm/10 flex justify-between text-xs text-text-muted">
+          <span>共{total}条</span>
+          <span className="font-mono font-bold text-primary">实发合计 ¥{totalAmt.toFixed(2)}</span>
+          <div className="flex gap-1">
+            <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="px-2.5 py-1 border border-border rounded disabled:opacity-40">‹</button>
+            <span className="px-2 py-1">第{page}/{Math.max(1, Math.ceil(total / 20))}页</span>
+            <button disabled={page * 20 >= total} onClick={() => setPage(p => p + 1)} className="px-2.5 py-1 border border-border rounded disabled:opacity-40">›</button>
+          </div>
+        </div>
+      </div>
+
+      {/* 新增弹窗 */}
+      <Modal open={addOpen} title={`新增 · ${subsidyType.subsidy_name}`} onClose={() => setAddOpen(false)} onConfirm={submitAdd}>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-text-muted mb-1">农户身份证号 *</label>
+            <input value={idInput} onChange={e => setIdInput(e.target.value)} placeholder="输入身份证号自动查找农户"
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            {farmerHint && <p className="text-xs mt-1" style={{ color: farmerId ? '#15803d' : '#dc2626' }}>{farmerHint}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {subsidyType.calc_mode === 'per_mu' && (
+              <>
+                <div>
+                  <label className="block text-xs text-text-muted mb-1">承包地面积(亩)</label>
+                  <input type="number" step="0.01" value={form.contract_area ?? ''} onChange={e => {
+                    const ca = Number(e.target.value) || undefined
+                    setForm(f => ({ ...f, contract_area: ca, apply_area: (ca || 0) + (f.trust_area || 0) || undefined }))
+                  }}
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                </div>
+                <div>
+                  <label className="block text-xs text-text-muted mb-1">代耕代种面积(亩)</label>
+                  <input type="number" step="0.01" value={form.trust_area ?? ''} onChange={e => {
+                    const ta = Number(e.target.value) || undefined
+                    setForm(f => ({ ...f, trust_area: ta, apply_area: (f.contract_area || 0) + (ta || 0) || undefined }))
+                  }}
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs text-text-muted mb-1">实际补贴面积(亩) <span className="text-text-muted/50">— 可手动填写</span></label>
+                  <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_amount: Number(e.target.value) || undefined }))}
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                </div>
+              </>
+            )}
+            <div>
+              <label className="block text-xs text-text-muted mb-1">不予补贴面积(亩)</label>
+              <input type="number" step="0.01" value={form.no_subsidy_area ?? ''} onChange={e => setForm(f => ({ ...f, no_subsidy_area: Number(e.target.value) || undefined }))}
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            </div>
+            <div>
+              <label className="block text-xs text-text-muted mb-1">实发金额(元)</label>
+              <input type="number" step="0.01" value={form.actual_amount ?? ''} onChange={e => setForm(f => ({ ...f, actual_amount: Number(e.target.value) || undefined }))}
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            </div>
+            <div>
+              <label className="block text-xs text-text-muted mb-1">打款日期</label>
+              <input type="date" value={form.pay_date ?? ''} onChange={e => setForm(f => ({ ...f, pay_date: e.target.value || undefined }))}
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            </div>
+            <div>
+              <label className="block text-xs text-text-muted mb-1">备注</label>
+              <input value={form.remark ?? ''} onChange={e => setForm(f => ({ ...f, remark: e.target.value || undefined }))}
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            </div>
+            <div>
+              <label className="block text-xs text-text-muted mb-1">代领备注</label>
+              <input value={form.proxy_remark ?? ''} onChange={e => setForm(f => ({ ...f, proxy_remark: e.target.value || undefined }))}
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 编辑弹窗 */}
+      <Modal open={!!editTarget} title={`编辑 · ${editTarget?.farmer_name}`} onClose={() => setEditTarget(null)} onConfirm={submitEdit}>
+        <div className="grid grid-cols-2 gap-3">
+          {subsidyType.calc_mode === 'per_mu' && (
+            <>
+              <div>
+                <label className="block text-xs text-text-muted mb-1">承包地面积(亩)</label>
+                <input type="number" step="0.01" value={form.contract_area ?? ''} onChange={e => {
+                  const ca = Number(e.target.value) || undefined
+                  setForm(f => ({ ...f, contract_area: ca, apply_area: (ca || 0) + (f.trust_area || 0) || undefined }))
+                }}
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="block text-xs text-text-muted mb-1">代耕代种面积(亩)</label>
+                <input type="number" step="0.01" value={form.trust_area ?? ''} onChange={e => {
+                  const ta = Number(e.target.value) || undefined
+                  setForm(f => ({ ...f, trust_area: ta, apply_area: (f.contract_area || 0) + (ta || 0) || undefined }))
+                }}
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs text-text-muted mb-1">实际补贴面积(亩) <span className="text-text-muted/50">— 可手动填写</span></label>
+                <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))}
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              </div>
+            </>
+          )}
+          <div>
+            <label className="block text-xs text-text-muted mb-1">不予补贴面积(亩)</label>
+            <input type="number" step="0.01" value={form.no_subsidy_area ?? ''} onChange={e => setForm(f => ({ ...f, no_subsidy_area: Number(e.target.value) || undefined }))}
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+          </div>
+          <div><label className="block text-xs text-text-muted mb-1">实发金额(元)</label>
+            <input type="number" step="0.01" value={form.actual_amount ?? ''} onChange={e => setForm(f => ({ ...f, actual_amount: Number(e.target.value) || undefined }))}
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+          <div><label className="block text-xs text-text-muted mb-1">发放状态</label>
+            <select value={form.pay_status ?? 0} onChange={e => setForm(f => ({ ...f, pay_status: Number(e.target.value) }))}
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
+              <option value={0}>待发放</option><option value={1}>部分发放</option><option value={2}>已发放</option>
+            </select></div>
+          <div><label className="block text-xs text-text-muted mb-1">打款日期</label>
+            <input type="date" value={form.pay_date ?? ''} onChange={e => setForm(f => ({ ...f, pay_date: e.target.value || undefined }))}
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+          <div className="col-span-2"><label className="block text-xs text-text-muted mb-1">备注</label>
+            <input value={form.remark ?? ''} onChange={e => setForm(f => ({ ...f, remark: e.target.value || undefined }))}
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+          <div className="col-span-2"><label className="block text-xs text-text-muted mb-1">代领备注</label>
+            <input value={form.proxy_remark ?? ''} onChange={e => setForm(f => ({ ...f, proxy_remark: e.target.value || undefined }))}
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+        </div>
+      </Modal>
+
+      {/* 删除确认 */}
+      <Modal open={deleteId !== null} title="确认删除" onClose={() => setDeleteId(null)}
+        onConfirm={() => deleteApp(deleteId!)} confirmText="确认删除">
+        <p className="text-sm text-text-primary">删除后无法恢复，确认要删除这条补贴记录吗？</p>
+      </Modal>
+
+      {/* Excel导入 */}
+      <ExcelImportWithMapping open={addOpen} onClose={() => setAddOpen(false)}
+        title={`导入发放 · ${subsidyType.subsidy_name}`}
+        templateHeaders={IMPORT_HEADERS}
+        templateExample={IMPORT_EXAMPLE}
+        systemFields={SUBSIDY_IMPORT_FIELDS}
+        templates={templates}
+        onDetectColumns={detectExcelColumns}
+        onSaveTemplate={saveColumnMappingTemplate}
+        onImport={handleImport}
+        onSuccess={load} />
+    </>
+  )
+}
