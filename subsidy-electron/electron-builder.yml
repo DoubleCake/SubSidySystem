@@ -8,12 +8,22 @@ directories:
 
 files:
   - out/**/*
-  - "!node_modules/**/*"
+  - package.json
+
+# sql.js 需要 WASM 文件，asar 解包
+asar:
+  smartUnpack: true
+
+asarUnpack:
+  - "node_modules/sql.js/**"
 
 win:
   target:
-    - nsis
+    - target: nsis
+      arch: [x64]
   icon: resources/icon.png
+  sign: null
+  signAndEditExecutable: false
 
 nsis:
   oneClick: false
@@ -23,6 +33,7 @@ nsis:
   shortcutName: 农户补贴管理系统
   installerIcon: resources/icon.png
   uninstallerIcon: resources/icon.png
+  language: 2052
 
 mac:
   target:
@@ -34,5 +45,4 @@ linux:
     - AppImage
   icon: resources/icon.png
 
-asar: true
 compression: normal
