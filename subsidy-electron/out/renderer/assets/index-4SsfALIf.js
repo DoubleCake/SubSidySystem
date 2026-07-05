@@ -7015,16 +7015,19 @@ var Action;
   Action2["Replace"] = "REPLACE";
 })(Action || (Action = {}));
 const PopStateEventType = "popstate";
-function createBrowserHistory(options) {
+function createHashHistory(options) {
   if (options === void 0) {
     options = {};
   }
-  function createBrowserLocation(window2, globalHistory) {
+  function createHashLocation(window2, globalHistory) {
     let {
-      pathname,
-      search,
-      hash
-    } = window2.location;
+      pathname = "/",
+      search = "",
+      hash = ""
+    } = parsePath(window2.location.hash.substr(1));
+    if (!pathname.startsWith("/") && !pathname.startsWith(".")) {
+      pathname = "/" + pathname;
+    }
     return createLocation(
       "",
       {
@@ -7037,10 +7040,20 @@ function createBrowserHistory(options) {
       globalHistory.state && globalHistory.state.key || "default"
     );
   }
-  function createBrowserHref(window2, to) {
-    return typeof to === "string" ? to : createPath(to);
+  function createHashHref(window2, to) {
+    let base = window2.document.querySelector("base");
+    let href = "";
+    if (base && base.getAttribute("href")) {
+      let url = window2.location.href;
+      let hashIndex = url.indexOf("#");
+      href = hashIndex === -1 ? url : url.slice(0, hashIndex);
+    }
+    return href + "#" + (typeof to === "string" ? to : createPath(to));
   }
-  return getUrlBasedHistory(createBrowserLocation, createBrowserHref, null, options);
+  function validateHashLocation(location, to) {
+    warning(location.pathname.charAt(0) === "/", "relative pathnames are not supported in hash history.push(" + JSON.stringify(to) + ")");
+  }
+  return getUrlBasedHistory(createHashLocation, createHashHref, validateHashLocation, options);
 }
 function invariant(value, message) {
   if (value === false || value === null || typeof value === "undefined") {
@@ -7153,6 +7166,7 @@ function getUrlBasedHistory(getLocation, createHref, validateLocation, options) 
   function push(to, state) {
     action = Action.Push;
     let location = createLocation(history.location, to, state);
+    if (validateLocation) validateLocation(location, to);
     index2 = getIndex() + 1;
     let historyState = getHistoryState(location, index2);
     let url = history.createHref(location);
@@ -7175,6 +7189,7 @@ function getUrlBasedHistory(getLocation, createHref, validateLocation, options) 
   function replace(to, state) {
     action = Action.Replace;
     let location = createLocation(history.location, to, state);
+    if (validateLocation) validateLocation(location, to);
     index2 = getIndex();
     let historyState = getHistoryState(location, index2);
     let url = history.createHref(location);
@@ -8242,16 +8257,16 @@ const ViewTransitionContext = /* @__PURE__ */ reactExports.createContext({
 });
 const START_TRANSITION = "startTransition";
 const startTransitionImpl = React[START_TRANSITION];
-function BrowserRouter(_ref4) {
+function HashRouter(_ref5) {
   let {
     basename,
     children,
     future,
     window: window2
-  } = _ref4;
+  } = _ref5;
   let historyRef = reactExports.useRef();
   if (historyRef.current == null) {
-    historyRef.current = createBrowserHistory({
+    historyRef.current = createHashHistory({
       window: window2,
       v5Compat: true
     });
@@ -54889,7 +54904,7 @@ function Layout() {
   ] });
 }
 function App() {
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(BrowserRouter, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Layout, {}) });
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(HashRouter, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Layout, {}) });
 }
 createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) })

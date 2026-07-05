@@ -1,5 +1,5 @@
 import { useEffect, useRef, useMemo } from 'react'
-import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { HashRouter, Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import FarmersPage from './pages/FarmersPage'
 import SubsidyProjectsPage from './pages/SubsidyProjectsPage'
 import DashboardPage from './pages/DashboardPage'
@@ -264,8 +264,8 @@ function Layout() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Layout />
-    </BrowserRouter>
+    </HashRouter>
   )
 }
