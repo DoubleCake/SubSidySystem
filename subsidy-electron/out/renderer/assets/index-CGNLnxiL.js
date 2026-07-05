@@ -57659,11 +57659,40 @@ function Layout() {
       "header",
       {
         style: {
+          height: 100,
           backgroundImage: "url(images/head.png)",
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat"
-        }
+        },
+        children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-w-screen-xl mx-auto px-6 flex items-center", style: { height: "100%" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            className: "shrink-0 cursor-pointer flex items-center",
+            onClick: () => navigate("/"),
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "img",
+                {
+                  src: "images/Logo.png",
+                  alt: "Logo",
+                  className: "h-14 w-auto",
+                  onError: (e) => {
+                    e.target.style.display = "none";
+                  }
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "span",
+                {
+                  className: "font-bold text-base tracking-wider text-primary ml-2.5",
+                  style: { display: "none" },
+                  children: "农户补贴管理系统"
+                }
+              )
+            ]
+          }
+        ) })
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("nav", { className: "bg-primary-500 text-white sticky top-0 z-40 shadow-card", children: [
@@ -57854,6 +57883,7 @@ function Layout() {
       {
         className: "w-full py-5 text-[#2A4B3C]",
         style: {
+          height: 120,
           backgroundImage: "url(images/foot.png)",
           backgroundSize: "cover",
           backgroundPosition: "center",

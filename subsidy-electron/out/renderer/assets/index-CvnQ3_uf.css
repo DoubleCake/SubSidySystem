@@ -636,6 +636,9 @@ video {
 .ml-2 {
   margin-left: 0.5rem;
 }
+.ml-2\.5 {
+  margin-left: 0.625rem;
+}
 .ml-3 {
   margin-left: 0.75rem;
 }
@@ -905,6 +908,9 @@ video {
 }
 .w-\[85\%\] {
   width: 85%;
+}
+.w-auto {
+  width: auto;
 }
 .w-full {
   width: 100%;
@@ -2263,6 +2269,9 @@ video {
 }
 .tracking-wide {
   letter-spacing: 0.025em;
+}
+.tracking-wider {
+  letter-spacing: 0.05em;
 }
 .text-\[\#2A4B3C\] {
   --tw-text-opacity: 1;
