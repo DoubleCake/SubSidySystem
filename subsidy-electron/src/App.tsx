@@ -257,7 +257,6 @@ function Layout() {
       <main className="flex-1">
         <div className="max-w-screen-xl mx-auto px-6 py-6 pb-10">
           <Routes>
-            <Route path="/login" element={<LoginPage />} />
             <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
             <Route path="/farmers"   element={<FarmersPage />} />
             <Route path="/match-people" element={<PeopleMatchPage />} />
@@ -316,7 +315,12 @@ function Layout() {
 export default function App() {
   return (
     <HashRouter>
-      <Layout />
+      <Routes>
+        {/* 登录页独立于主布局，全屏显示 */}
+        <Route path="/login" element={<LoginPage />} />
+        {/* 其他所有页面包裹在主布局中 */}
+        <Route path="/*" element={<Layout />} />
+      </Routes>
     </HashRouter>
   )
 }

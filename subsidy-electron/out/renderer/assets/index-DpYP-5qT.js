@@ -57965,7 +57965,6 @@ function Layout() {
       ] }) })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("main", { className: "flex-1", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-w-screen-xl mx-auto px-6 py-6 pb-10", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Routes, { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/login", element: /* @__PURE__ */ jsxRuntimeExports.jsx(LoginPage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/", element: /* @__PURE__ */ jsxRuntimeExports.jsx(DashboardPage, { onGoTab: (t2) => navigate(`/${t2 === "projects" ? "projects" : t2}`) }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/farmers", element: /* @__PURE__ */ jsxRuntimeExports.jsx(FarmersPage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/match-people", element: /* @__PURE__ */ jsxRuntimeExports.jsx(PeopleMatchPage, {}) }),
@@ -58016,7 +58015,10 @@ function Layout() {
   ] });
 }
 function App() {
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(HashRouter, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(Layout, {}) });
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(HashRouter, { children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Routes, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/login", element: /* @__PURE__ */ jsxRuntimeExports.jsx(LoginPage, {}) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/*", element: /* @__PURE__ */ jsxRuntimeExports.jsx(Layout, {}) })
+  ] }) });
 }
 const _originalFetch = window.fetch.bind(window);
 window.fetch = async function(input, init) {
