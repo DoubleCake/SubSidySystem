@@ -2,6 +2,8 @@
 const electron = require("electron");
 const path = require("path");
 const fs = require("fs");
+const electronUpdater = require("electron-updater");
+const Store = require("electron-store");
 class SqlJsWrapper {
   db;
   dbPath;
@@ -2363,6 +2365,37 @@ function registerSettingsHandlers() {
       return errorResponse(String(e));
     }
   });
+  electron.ipcMain.handle("settings:getUpdateConfig", () => {
+    try {
+      const { getUpdateServerUrl: getUpdateServerUrl2, getAutoCheckUpdate: getAutoCheckUpdate2, getLastUpdateCheck } = require("../store");
+      return success({
+        updateServerUrl: getUpdateServerUrl2(),
+        autoCheckUpdate: getAutoCheckUpdate2(),
+        lastUpdateCheck: getLastUpdateCheck(),
+        currentVersion: require("electron").app.getVersion()
+      });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("settings:setUpdateConfig", (_e, config) => {
+    try {
+      const { setUpdateServerUrl, setAutoCheckUpdate } = require("../store");
+      if (config.updateServerUrl !== void 0) setUpdateServerUrl(config.updateServerUrl);
+      if (config.autoCheckUpdate !== void 0) setAutoCheckUpdate(config.autoCheckUpdate);
+      return success({ message: "设置已保存" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("settings:checkForUpdate", async () => {
+    try {
+      const { checkForUpdatesAndInstall } = require("../updater");
+      return success(await checkForUpdatesAndInstall());
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
   electron.ipcMain.handle("settings:listVillages", () => {
     try {
       const rows = db2().allRaw("SELECT id, village_name FROM village ORDER BY village_name");
@@ -3347,6 +3380,94 @@ function registerAllIpcHandlers() {
   registerEligibilityHandlers();
   registerAuthHandlers();
 }
+const store = new Store({
+  name: "user-settings",
+  defaults: {
+    updateServerUrl: "",
+    autoCheckUpdate: true,
+    lastUpdateCheck: null
+  }
+});
+function getUpdateServerUrl() {
+  return store.get("updateServerUrl");
+}
+function getAutoCheckUpdate() {
+  return store.get("autoCheckUpdate");
+}
+function setLastUpdateCheck(date) {
+  store.set("lastUpdateCheck", date);
+}
+let mainWindow$1 = null;
+function setUpdateWindow(win) {
+  mainWindow$1 = win;
+}
+function configureUpdater(url) {
+  if (url) {
+    electronUpdater.autoUpdater.setFeedURL({
+      provider: "generic",
+      url: url.replace(/\/+$/, "")
+      // 去掉末尾斜杠
+    });
+  }
+}
+async function checkForUpdatesSilent() {
+  const url = getUpdateServerUrl();
+  if (!url) return;
+  configureUpdater(url);
+  try {
+    const result = await electronUpdater.autoUpdater.checkForUpdates();
+    if (result?.updateInfo?.version !== electronUpdater.autoUpdater.currentVersion) {
+      mainWindow$1?.webContents.send("update:available", {
+        version: result.updateInfo.version,
+        currentVersion: electronUpdater.autoUpdater.currentVersion
+      });
+    }
+  } catch (e) {
+    console.log("[Updater] 检查更新失败:", e.message);
+  }
+  setLastUpdateCheck((/* @__PURE__ */ new Date()).toISOString());
+}
+function registerUpdateEvents() {
+  electronUpdater.autoUpdater.autoDownload = false;
+  electronUpdater.autoUpdater.autoInstallOnAppQuit = true;
+  electronUpdater.autoUpdater.on("checking-for-update", () => {
+    mainWindow$1?.webContents.send("update:status", "checking");
+  });
+  electronUpdater.autoUpdater.on("update-available", (info) => {
+    mainWindow$1?.webContents.send("update:status", "available");
+    mainWindow$1?.webContents.send("update:available", {
+      version: info.version,
+      currentVersion: electronUpdater.autoUpdater.currentVersion
+    });
+  });
+  electronUpdater.autoUpdater.on("update-not-available", () => {
+    mainWindow$1?.webContents.send("update:status", "up-to-date");
+  });
+  electronUpdater.autoUpdater.on("download-progress", (progress) => {
+    mainWindow$1?.webContents.send("update:progress", {
+      percent: Math.round(progress.percent),
+      speed: progress.bytesPerSecond
+    });
+  });
+  electronUpdater.autoUpdater.on("update-downloaded", () => {
+    mainWindow$1?.webContents.send("update:status", "downloaded");
+    electron.dialog.showMessageBox({
+      type: "info",
+      title: "更新已下载",
+      message: "新版本已下载完成，是否立即重启安装？",
+      buttons: ["立即重启", "稍后"],
+      defaultId: 0
+    }).then(({ response }) => {
+      if (response === 0) {
+        electronUpdater.autoUpdater.quitAndInstall();
+      }
+    });
+  });
+  electronUpdater.autoUpdater.on("error", (error) => {
+    mainWindow$1?.webContents.send("update:status", "error");
+    mainWindow$1?.webContents.send("update:error", error.message);
+  });
+}
 let mainWindow = null;
 function createWindow() {
   mainWindow = new electron.BrowserWindow({
@@ -3362,6 +3483,7 @@ function createWindow() {
       sandbox: false
     }
   });
+  setUpdateWindow(mainWindow);
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     electron.shell.openExternal(url);
     return { action: "deny" };
@@ -3376,7 +3498,11 @@ electron.app.whenReady().then(async () => {
   await initDatabase();
   runMigrations();
   registerAllIpcHandlers();
+  registerUpdateEvents();
   createWindow();
+  setTimeout(() => {
+    if (getAutoCheckUpdate()) checkForUpdatesSilent();
+  }, 3e3);
   electron.app.on("activate", () => {
     if (electron.BrowserWindow.getAllWindows().length === 0) {
       createWindow();

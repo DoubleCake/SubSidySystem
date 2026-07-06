@@ -200,6 +200,35 @@ export function registerSettingsHandlers(): void {
     } catch (e) { return errorResponse(String(e)) }
   })
 
+  // ── 更新设置 ──
+  ipcMain.handle('settings:getUpdateConfig', () => {
+    try {
+      const { getUpdateServerUrl, getAutoCheckUpdate, getLastUpdateCheck } = require('../store')
+      return success({
+        updateServerUrl: getUpdateServerUrl(),
+        autoCheckUpdate: getAutoCheckUpdate(),
+        lastUpdateCheck: getLastUpdateCheck(),
+        currentVersion: require('electron').app.getVersion(),
+      })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  ipcMain.handle('settings:setUpdateConfig', (_e, config: { updateServerUrl?: string; autoCheckUpdate?: boolean }) => {
+    try {
+      const { setUpdateServerUrl, setAutoCheckUpdate } = require('../store')
+      if (config.updateServerUrl !== undefined) setUpdateServerUrl(config.updateServerUrl)
+      if (config.autoCheckUpdate !== undefined) setAutoCheckUpdate(config.autoCheckUpdate)
+      return success({ message: '设置已保存' })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  ipcMain.handle('settings:checkForUpdate', async () => {
+    try {
+      const { checkForUpdatesAndInstall } = require('../updater')
+      return success(await checkForUpdatesAndInstall())
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
   // ── 获取村列表 ──
   ipcMain.handle('settings:listVillages', () => {
     try {

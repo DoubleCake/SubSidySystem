@@ -55,6 +55,28 @@ const electronAPI = {
    */
   copyFile: (src: string, dest: string): Promise<void> => {
     return ipcRenderer.invoke('fs:copyFile', { src, dest })
+  },
+
+  /**
+   * 监听更新事件
+   */
+  onUpdateStatus: (callback: (status: string) => void) => {
+    ipcRenderer.on('update:status', (_e, status) => callback(status as string))
+  },
+  onUpdateAvailable: (callback: (info: { version: string; currentVersion: string }) => void) => {
+    ipcRenderer.on('update:available', (_e, info) => callback(info as { version: string; currentVersion: string }))
+  },
+  onUpdateProgress: (callback: (progress: { percent: number }) => void) => {
+    ipcRenderer.on('update:progress', (_e, progress) => callback(progress as { percent: number }))
+  },
+  onUpdateError: (callback: (error: string) => void) => {
+    ipcRenderer.on('update:error', (_e, error) => callback(error as string))
+  },
+  removeUpdateListeners: () => {
+    ipcRenderer.removeAllListeners('update:status')
+    ipcRenderer.removeAllListeners('update:available')
+    ipcRenderer.removeAllListeners('update:progress')
+    ipcRenderer.removeAllListeners('update:error')
   }
 }
 

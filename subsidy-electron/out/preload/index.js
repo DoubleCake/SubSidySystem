@@ -39,6 +39,27 @@ const electronAPI = {
    */
   copyFile: (src, dest) => {
     return electron.ipcRenderer.invoke("fs:copyFile", { src, dest });
+  },
+  /**
+   * 监听更新事件
+   */
+  onUpdateStatus: (callback) => {
+    electron.ipcRenderer.on("update:status", (_e, status) => callback(status));
+  },
+  onUpdateAvailable: (callback) => {
+    electron.ipcRenderer.on("update:available", (_e, info) => callback(info));
+  },
+  onUpdateProgress: (callback) => {
+    electron.ipcRenderer.on("update:progress", (_e, progress) => callback(progress));
+  },
+  onUpdateError: (callback) => {
+    electron.ipcRenderer.on("update:error", (_e, error) => callback(error));
+  },
+  removeUpdateListeners: () => {
+    electron.ipcRenderer.removeAllListeners("update:status");
+    electron.ipcRenderer.removeAllListeners("update:available");
+    electron.ipcRenderer.removeAllListeners("update:progress");
+    electron.ipcRenderer.removeAllListeners("update:error");
   }
 };
 electron.contextBridge.exposeInMainWorld("electronAPI", electronAPI);

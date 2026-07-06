@@ -3,6 +3,8 @@ import { join } from 'path'
 import { initDatabase } from './database/connection'
 import { runMigrations } from './database/migrate'
 import { registerAllIpcHandlers } from './ipc/index'
+import { registerUpdateEvents, setUpdateWindow, checkForUpdatesSilent } from './updater'
+import { getAutoCheckUpdate } from './store'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -21,6 +23,8 @@ function createWindow(): void {
     }
   })
 
+  setUpdateWindow(mainWindow)
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
     return { action: 'deny' }
@@ -34,15 +38,16 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
-  // 初始化数据库（sql.js 是异步的）
   await initDatabase()
   runMigrations()
-
-  // 注册 IPC 处理器
   registerAllIpcHandlers()
-
-  // 创建窗口
+  registerUpdateEvents()
   createWindow()
+
+  // 启动后自动检查更新（如果已配置服务器）
+  setTimeout(() => {
+    if (getAutoCheckUpdate()) checkForUpdatesSilent()
+  }, 3000)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
