@@ -63,27 +63,96 @@ export async function checkForUpdatesSilent() {
 
 /**
  * 手动检查更新并下载安装
+ * 返回详细步骤信息，方便用户判断问题
  */
 export async function checkForUpdatesAndInstall() {
   const url = getUpdateServerUrl()
   if (!url) {
-    return { error: '未配置更新服务器地址，请在设置中填写' }
+    return { error: '未配置更新服务器地址，请在软件更新面板中填写' }
   }
 
-  configureUpdater(url)
+  const cleanUrl = url.replace(/\/+$/, '')
+  const latestUrl = `${cleanUrl}/latest.yml`
+  const steps: string[] = []
 
+  // 步骤1: 检查服务器连通性
+  steps.push(`正在连接服务器: ${cleanUrl}`)
   try {
-    const result = await autoUpdater.checkForUpdates()
-    if (!result || result.updateInfo.version === autoUpdater.currentVersion) {
-      return { message: '当前已是最新版本', version: autoUpdater.currentVersion }
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10000)
+    const response = await fetch(latestUrl, { signal: controller.signal })
+    clearTimeout(timeout)
+
+    if (!response.ok) {
+      return {
+        error: `服务器返回错误 (HTTP ${response.status})`,
+        steps: [...steps, `❌ 服务器返回 HTTP ${response.status}`],
+        detail: `请确认 latest.yml 文件已上传到 ${cleanUrl}/`,
+      }
     }
 
-    // 下载并安装
-    await autoUpdater.downloadUpdate()
-    setLastUpdateCheck(new Date().toISOString())
-    return { message: '更新已下载，将在退出时安装', version: result.updateInfo.version }
-  } catch (e) {
-    return { error: `更新失败: ${(e as Error).message}` }
+    const ymlContent = await response.text()
+    steps.push(`✅ 已连接到服务器，找到 latest.yml`)
+
+    // 步骤2: 解析版本信息
+    let serverVersion = ''
+    const versionMatch = ymlContent.match(/version:\s*(\S+)/)
+    if (versionMatch) {
+      serverVersion = versionMatch[1]
+      steps.push(`服务器版本: ${serverVersion}`)
+    } else {
+      steps.push(`⚠️ latest.yml 中未找到版本号`)
+    }
+
+    // 步骤3: 比较版本
+    const currentVersion = require('electron').app.getVersion()
+    steps.push(`当前版本: ${currentVersion}`)
+
+    if (!serverVersion || serverVersion === currentVersion) {
+      setLastUpdateCheck(new Date().toISOString())
+      return {
+        message: `当前已是最新版本 (v${currentVersion})`,
+        steps,
+        currentVersion,
+        serverVersion: serverVersion || '未知',
+      }
+    }
+
+    steps.push(`发现新版本 v${serverVersion}，开始下载...`)
+
+    // 步骤4: 使用 electron-updater 下载
+    configureUpdater(cleanUrl)
+
+    try {
+      await autoUpdater.downloadUpdate()
+      steps.push(`✅ 下载完成`)
+      setLastUpdateCheck(new Date().toISOString())
+      return {
+        message: `更新已下载 (v${currentVersion} → v${serverVersion})，重启后安装`,
+        steps,
+        currentVersion,
+        serverVersion,
+      }
+    } catch (downloadErr) {
+      return {
+        error: `下载失败: ${(downloadErr as Error).message}`,
+        steps: [...steps, `❌ 下载失败`],
+        detail: '请确认安装包文件已上传到服务器',
+      }
+    }
+  } catch (e: any) {
+    if (e.name === 'AbortError') {
+      return {
+        error: `连接超时 (10秒)`,
+        steps: [...steps, '❌ 连接超时'],
+        detail: `无法访问 ${latestUrl}，请检查:\n1. 服务器是否在线\n2. 地址是否填写正确\n3. 防火墙是否开放端口`,
+      }
+    }
+    return {
+      error: `连接失败: ${e.message || '未知错误'}`,
+      steps: [...steps, `❌ 连接失败`],
+      detail: `尝试访问 ${latestUrl}\n失败原因: ${e.message}`,
+    }
   }
 }
 

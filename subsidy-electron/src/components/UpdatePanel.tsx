@@ -21,6 +21,8 @@ export default function UpdatePanel() {
   const [status, setStatus] = useState('')
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState('')
+  const [detail, setDetail] = useState('')
+  const [steps, setSteps] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -74,22 +76,29 @@ export default function UpdatePanel() {
   const checkForUpdate = async () => {
     setChecking(true)
     setError('')
+    setDetail('')
+    setSteps([])
     setStatus('checking')
     setProgress(0)
     try {
-      const result = await window.electronAPI.invoke<{ code: number; data: { message?: string; error?: string; version?: string } }>('settings:checkForUpdate')
-      if (result?.data?.error) {
-        setError(result.data.error)
-        setStatus('')
-        setChecking(false)
-      } else if (result?.data?.message) {
-        setStatus(result.data.message)
-        setChecking(false)
+      const result = await window.electronAPI.invoke<{
+        code: number; data: { message?: string; error?: string; version?: string; steps?: string[]; detail?: string; serverVersion?: string; currentVersion?: string }
+      }>('settings:checkForUpdate')
+      const d = result?.data
+      if (d?.error) {
+        setError(d.error)
+        setDetail(d.detail || '')
+        setSteps(d.steps || [])
+        setStatus('error')
+      } else if (d?.message) {
+        setStatus(d.message)
+        setSteps(d.steps || [])
       }
-      loadConfig() // 刷新最后检查时间
+      setChecking(false)
+      loadConfig()
     } catch (e) {
       setError(String(e))
-      setStatus('')
+      setStatus('error')
       setChecking(false)
     }
   }
@@ -153,18 +162,31 @@ export default function UpdatePanel() {
           </div>
         )}
 
+        {/* 步骤日志 */}
+        {steps.length > 0 && (
+          <div className="bg-gray-50 border border-border rounded-card p-3 text-xs space-y-0.5 max-h-40 overflow-y-auto font-mono">
+            {steps.map((s, i) => (
+              <div key={i} className={s.includes('❌') ? 'text-red-600' : s.includes('✅') ? 'text-green-600' : s.includes('⚠️') ? 'text-amber-600' : 'text-text-muted'}>
+                {s}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* 状态提示 */}
         {status && (
-          <div className={`text-xs ${st.color} bg-${st.color.replace('text-', '')}/5 rounded-btn px-3 py-2`}>
+          <div className={`text-xs ${st.color} rounded-btn px-3 py-2`}
+            style={{ backgroundColor: st.color === 'text-green-600' ? '#f0fdf4' : st.color === 'text-red-600' ? '#fef2f2' : st.color === 'text-amber-600' ? '#fffbeb' : '#eff6ff' }}>
             {st.text}
             {progress > 0 && progress < 100 && ` (${progress}%)`}
           </div>
         )}
 
-        {/* 错误 */}
+        {/* 错误 + 诊断建议 */}
         {error && (
-          <div className="text-xs text-red-600 bg-red-50 rounded-btn px-3 py-2">
-            ⚠️ {error}
+          <div className="text-xs text-red-600 bg-red-50 rounded-btn px-3 py-2 space-y-1">
+            <div className="font-semibold">⚠️ {error}</div>
+            {detail && <div className="text-red-500 whitespace-pre-wrap">{detail}</div>}
           </div>
         )}
 

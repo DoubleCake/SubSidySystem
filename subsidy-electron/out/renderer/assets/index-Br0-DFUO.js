@@ -52266,6 +52266,8 @@ function UpdatePanel() {
   const [status, setStatus] = reactExports.useState("");
   const [progress, setProgress] = reactExports.useState(0);
   const [error, setError] = reactExports.useState("");
+  const [detail, setDetail] = reactExports.useState("");
+  const [steps, setSteps] = reactExports.useState([]);
   const [saving, setSaving] = reactExports.useState(false);
   reactExports.useEffect(() => {
     loadConfig();
@@ -52321,22 +52323,27 @@ function UpdatePanel() {
   const checkForUpdate = async () => {
     setChecking(true);
     setError("");
+    setDetail("");
+    setSteps([]);
     setStatus("checking");
     setProgress(0);
     try {
       const result = await window.electronAPI.invoke("settings:checkForUpdate");
-      if (result?.data?.error) {
-        setError(result.data.error);
-        setStatus("");
-        setChecking(false);
-      } else if (result?.data?.message) {
-        setStatus(result.data.message);
-        setChecking(false);
+      const d = result?.data;
+      if (d?.error) {
+        setError(d.error);
+        setDetail(d.detail || "");
+        setSteps(d.steps || []);
+        setStatus("error");
+      } else if (d?.message) {
+        setStatus(d.message);
+        setSteps(d.steps || []);
       }
+      setChecking(false);
       loadConfig();
     } catch (e) {
       setError(String(e));
-      setStatus("");
+      setStatus("error");
       setChecking(false);
     }
   };
@@ -52411,13 +52418,24 @@ function UpdatePanel() {
           style: { width: `${progress}%` }
         }
       ) }),
-      status && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `text-xs ${st.color} bg-${st.color.replace("text-", "")}/5 rounded-btn px-3 py-2`, children: [
-        st.text,
-        progress > 0 && progress < 100 && ` (${progress}%)`
-      ] }),
-      error && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs text-red-600 bg-red-50 rounded-btn px-3 py-2", children: [
-        "⚠️ ",
-        error
+      steps.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-gray-50 border border-border rounded-card p-3 text-xs space-y-0.5 max-h-40 overflow-y-auto font-mono", children: steps.map((s, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: s.includes("❌") ? "text-red-600" : s.includes("✅") ? "text-green-600" : s.includes("⚠️") ? "text-amber-600" : "text-text-muted", children: s }, i)) }),
+      status && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: `text-xs ${st.color} rounded-btn px-3 py-2`,
+          style: { backgroundColor: st.color === "text-green-600" ? "#f0fdf4" : st.color === "text-red-600" ? "#fef2f2" : st.color === "text-amber-600" ? "#fffbeb" : "#eff6ff" },
+          children: [
+            st.text,
+            progress > 0 && progress < 100 && ` (${progress}%)`
+          ]
+        }
+      ),
+      error && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs text-red-600 bg-red-50 rounded-btn px-3 py-2 space-y-1", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "font-semibold", children: [
+          "⚠️ ",
+          error
+        ] }),
+        detail && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-red-500 whitespace-pre-wrap", children: detail })
       ] }),
       config?.lastUpdateCheck && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-[11px] text-text-muted/50", children: [
         "上次检查: ",
