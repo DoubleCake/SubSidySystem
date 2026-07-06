@@ -83,6 +83,7 @@ export default function FarmersPage() {
   const [overdrawnOnly, setOverdrawnOnly] = useState(false)
   const [confirmedFilter, setConfirmedFilter] = useState<string>('') // ''=全部, '1'=已确认, '0'=未确认
   const [statusFilter, setStatusFilter] = useState<string>('1') // ''=全部, '1'=在册, '2'=注销, '3'=迁出
+  const [subsidyOnly, setSubsidyOnly] = useState(false) // 仅展示有补贴记录的家庭户
   const [yearFilter, setYearFilter] = useState<number>(getInitialYear)
 
   // ── 批量确认状态 ──
@@ -281,10 +282,11 @@ export default function FarmersPage() {
       if (overdrawnOnly) p.overdrawn_only = '1'
       if (confirmedFilter) p.confirmed_only = confirmedFilter
       if (statusFilter) p.status = statusFilter
+      if (subsidyOnly) p.has_subsidy = '1'
       const r = await api.getHouseholds(p)
       setHhList(r.items); setHhTotal(r.total)
     } finally { setHhLoading(false) }
-  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter])
+  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter, subsidyOnly])
 
   useEffect(() => {
     if (leftTab === 'farmers') loadFarmers()
@@ -1044,6 +1046,11 @@ export default function FarmersPage() {
                 <option value="1">✓ 已确认</option>
                 <option value="0">✗ 未确认</option>
               </select>
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-text-primary bg-white border border-border rounded-btn px-3 py-2.5 shadow-card hover:border-primary/30 transition-all">
+                <input type="checkbox" checked={subsidyOnly} onChange={e => { setSubsidyOnly(e.target.checked); setHhPage(1) }}
+                  className="w-4 h-4 text-primary rounded" />
+                <span>仅有补贴记录</span>
+              </label>
             </>
           )}
         </div>

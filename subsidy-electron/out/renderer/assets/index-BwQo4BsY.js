@@ -43481,6 +43481,7 @@ function FarmersPage() {
   const [overdrawnOnly, setOverdrawnOnly] = reactExports.useState(false);
   const [confirmedFilter, setConfirmedFilter] = reactExports.useState("");
   const [statusFilter, setStatusFilter] = reactExports.useState("1");
+  const [subsidyOnly, setSubsidyOnly] = reactExports.useState(false);
   const [yearFilter, setYearFilter] = reactExports.useState(getInitialYear);
   const [batchConfirmMode, setBatchConfirmMode] = reactExports.useState(false);
   const [batchSelected, setBatchSelected] = reactExports.useState([]);
@@ -43635,13 +43636,14 @@ function FarmersPage() {
       if (overdrawnOnly) p2.overdrawn_only = "1";
       if (confirmedFilter) p2.confirmed_only = confirmedFilter;
       if (statusFilter) p2.status = statusFilter;
+      if (subsidyOnly) p2.has_subsidy = "1";
       const r2 = await getHouseholds(p2);
       setHhList(r2.items);
       setHhTotal(r2.total);
     } finally {
       setHhLoading(false);
     }
-  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter]);
+  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter, subsidyOnly]);
   reactExports.useEffect(() => {
     if (leftTab === "farmers") loadFarmers();
     else loadHouseholds();
@@ -44431,7 +44433,22 @@ function FarmersPage() {
                 /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "0", children: "✗ 未确认" })
               ]
             }
-          )
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 cursor-pointer text-sm text-text-primary bg-white border border-border rounded-btn px-3 py-2.5 shadow-card hover:border-primary/30 transition-all", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "input",
+              {
+                type: "checkbox",
+                checked: subsidyOnly,
+                onChange: (e) => {
+                  setSubsidyOnly(e.target.checked);
+                  setHhPage(1);
+                },
+                className: "w-4 h-4 text-primary rounded"
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "仅有补贴记录" })
+          ] })
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-3", children: [

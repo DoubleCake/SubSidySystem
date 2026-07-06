@@ -1091,6 +1091,7 @@ function registerHouseholdHandlers() {
       const search = params.search || "";
       const villageName = params.village_name || "";
       const status = params.status != null ? Number(params.status) : null;
+      const hasSubsidy = params.has_subsidy != null ? Number(params.has_subsidy) : 0;
       let where = "WHERE 1=1";
       const values = [];
       if (search) {
@@ -1104,6 +1105,9 @@ function registerHouseholdHandlers() {
       if (status != null) {
         where += ` AND hh.status = ?`;
         values.push(status);
+      }
+      if (hasSubsidy === 1) {
+        where += ` AND EXISTS (SELECT 1 FROM farmer_profile fp2 JOIN subsidy_application sa2 ON sa2.beneficiary_id = fp2.id WHERE fp2.household_id = hh.id)`;
       }
       const countRow = db2().getRaw(`
         SELECT COUNT(*) as cnt FROM family_household hh
@@ -1150,27 +1154,25 @@ function registerHouseholdHandlers() {
         WHERE fp.household_id = ?
         ORDER BY CASE WHEN fp.relation = '本人' THEN 0 ELSE 1 END, fp.id
       `, id);
-      const maskedMembers = members.map((m) => ({
+      const members_list = members.map((m) => ({
         ...m,
-        id_card_masked: m.id_card ? maskIdCard(m.id_card) : "",
-        phone_masked: m.phone ? maskPhone(m.phone) : "",
-        bank_card: m.bank_card ? maskBankCard(m.bank_card) : "",
         is_head: hh.head_farmer_id === m.id ? 1 : 0,
         restricted_identity: 0
       }));
       let appSummary = [];
       try {
         appSummary = db2().allRaw(`
-          SELECT sa.apply_year, sa.beneficiary_id as farmer_id, fp.real_name as farmer_name,
-                 st.subsidy_name, st.calc_mode,
-                 sa.apply_area, sa.apply_amount, sa.actual_amount, sa.pay_status,
-                 sa.apply_village_name, sa.apply_group_display,
+          SELECT sa.id, sa.apply_year, sa.beneficiary_id as farmer_id, fp.real_name as farmer_name,
+                 st.subsidy_name, st.subsidy_type_name, st.calc_mode,
+                 sa.apply_area, COALESCE(sa.apply_amount, 0) as apply_amount,
+                 COALESCE(sa.actual_amount, 0) as actual_amount,
+                 sa.pay_status, sa.apply_village_name, sa.apply_group_display,
                  sa.is_proxy, sa.subsidy_type_id, sa.apply_area_no_calc
           FROM subsidy_application sa
           JOIN farmer_profile fp ON fp.id = sa.beneficiary_id
-          JOIN subsidy_type st ON st.id = sa.subsidy_type_id
+          LEFT JOIN subsidy_type st ON st.id = sa.subsidy_type_id
           WHERE fp.household_id = ?
-          ORDER BY sa.apply_year DESC
+          ORDER BY sa.apply_year DESC, sa.id DESC
         `, id);
       } catch {
       }
@@ -1230,7 +1232,7 @@ function registerHouseholdHandlers() {
         head_farmer_id: hh.head_farmer_id,
         head_name: hh.head_name,
         group_display: groupDisplay,
-        members: maskedMembers,
+        members: members_list,
         app_summary: appSummary,
         area_usage: areaUsage,
         trust_records: trustRecords

@@ -14,6 +14,7 @@ export function registerHouseholdHandlers(): void {
       const search = params.search as string || ''
       const villageName = params.village_name as string || ''
       const status = params.status != null ? Number(params.status) : null
+      const hasSubsidy = params.has_subsidy != null ? Number(params.has_subsidy) : 0
 
       let where = 'WHERE 1=1'
       const values: unknown[] = []
@@ -29,6 +30,9 @@ export function registerHouseholdHandlers(): void {
       if (status != null) {
         where += ` AND hh.status = ?`
         values.push(status)
+      }
+      if (hasSubsidy === 1) {
+        where += ` AND EXISTS (SELECT 1 FROM farmer_profile fp2 JOIN subsidy_application sa2 ON sa2.beneficiary_id = fp2.id WHERE fp2.household_id = hh.id)`
       }
 
       const countRow = db().getRaw<{ cnt: number }>(`
@@ -85,11 +89,8 @@ export function registerHouseholdHandlers(): void {
         ORDER BY CASE WHEN fp.relation = '本人' THEN 0 ELSE 1 END, fp.id
       `, id)
 
-      const maskedMembers = members.map(m => ({
+      const members_list = members.map(m => ({
         ...m,
-        id_card_masked: m.id_card ? maskIdCard(m.id_card as string) : '',
-        phone_masked: m.phone ? maskPhone(m.phone as string) : '',
-        bank_card: m.bank_card ? maskBankCard(m.bank_card as string) : '',
         is_head: hh.head_farmer_id === m.id ? 1 : 0,
         restricted_identity: 0,
       }))
@@ -98,16 +99,17 @@ export function registerHouseholdHandlers(): void {
       let appSummary: unknown[] = []
       try {
         appSummary = db().allRaw(`
-          SELECT sa.apply_year, sa.beneficiary_id as farmer_id, fp.real_name as farmer_name,
-                 st.subsidy_name, st.calc_mode,
-                 sa.apply_area, sa.apply_amount, sa.actual_amount, sa.pay_status,
-                 sa.apply_village_name, sa.apply_group_display,
+          SELECT sa.id, sa.apply_year, sa.beneficiary_id as farmer_id, fp.real_name as farmer_name,
+                 st.subsidy_name, st.subsidy_type_name, st.calc_mode,
+                 sa.apply_area, COALESCE(sa.apply_amount, 0) as apply_amount,
+                 COALESCE(sa.actual_amount, 0) as actual_amount,
+                 sa.pay_status, sa.apply_village_name, sa.apply_group_display,
                  sa.is_proxy, sa.subsidy_type_id, sa.apply_area_no_calc
           FROM subsidy_application sa
           JOIN farmer_profile fp ON fp.id = sa.beneficiary_id
-          JOIN subsidy_type st ON st.id = sa.subsidy_type_id
+          LEFT JOIN subsidy_type st ON st.id = sa.subsidy_type_id
           WHERE fp.household_id = ?
-          ORDER BY sa.apply_year DESC
+          ORDER BY sa.apply_year DESC, sa.id DESC
         `, id)
       } catch { /* table might not exist yet */ }
 
@@ -170,7 +172,7 @@ export function registerHouseholdHandlers(): void {
         head_farmer_id: hh.head_farmer_id,
         head_name: hh.head_name,
         group_display: groupDisplay,
-        members: maskedMembers,
+        members: members_list,
         app_summary: appSummary,
         area_usage: areaUsage,
         trust_records: trustRecords,
