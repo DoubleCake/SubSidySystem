@@ -4787,6 +4787,30 @@ function registerAllIpcHandlers() {
   registerProjectProgressHandlers();
   registerVillageContactsHandlers();
 }
+function ensureAppUpdateYml() {
+  try {
+    const exeDir = path.dirname(electron.app.getPath("exe"));
+    const ymlPath = path.join(exeDir, "resources", "app-update.yml");
+    if (!fs.existsSync(ymlPath)) {
+      const version = electron.app.getVersion();
+      const now = (/* @__PURE__ */ new Date()).toISOString();
+      const content = [
+        `version: ${version}`,
+        "files:",
+        "  - url: SubsidySystem.exe",
+        "    sha512: SKIP",
+        "    size: 0",
+        `path: SubsidySystem.exe`,
+        "sha512: SKIP",
+        `releaseDate: ${now}`
+      ].join("\n");
+      fs.writeFileSync(ymlPath, content, "utf-8");
+      console.log("[App] Created app-update.yml at", ymlPath);
+    }
+  } catch (e) {
+    console.error("[App] Failed to create app-update.yml:", e);
+  }
+}
 let mainWindow = null;
 function createWindow() {
   mainWindow = new electron.BrowserWindow({
@@ -4814,6 +4838,7 @@ function createWindow() {
   }
 }
 electron.app.whenReady().then(async () => {
+  ensureAppUpdateYml();
   await initDatabase();
   runMigrations();
   registerAllIpcHandlers();
