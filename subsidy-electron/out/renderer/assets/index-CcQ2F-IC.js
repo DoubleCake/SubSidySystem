@@ -40709,9 +40709,9 @@ function HouseholdDetailContent({
                 }
               ),
               /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "a",
+                "button",
                 {
-                  href: `/api/households/${detail.id}/export-subsidies`,
+                  onClick: () => alert("导出功能开发中"),
                   className: "text-xs bg-blue-500 text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
                   children: "📥 导出补贴"
                 }

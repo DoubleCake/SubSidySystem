@@ -162,10 +162,10 @@ export function HouseholdDetailContent({
                 <button onClick={onOpenSplit}
                   className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1.5 rounded-btn font-medium transition-colors">🔀 分户</button>
               )}
-              <a href={`/api/households/${detail.id}/export-subsidies`}
+              <button onClick={() => alert('导出功能开发中')}
                 className="text-xs bg-blue-500 text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">
                 📥 导出补贴
-              </a>
+              </button>
               <button onClick={() => onRefreshCache(detail.id)} disabled={refreshingCache}
                 className="text-xs bg-[#4FA080]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 {refreshingCache ? '⏳' : '🔄'} 刷新缓存

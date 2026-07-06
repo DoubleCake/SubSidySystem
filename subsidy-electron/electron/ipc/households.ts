@@ -51,6 +51,8 @@ export function registerHouseholdHandlers(): void {
       const items = rows.map(r => ({
         ...r,
         group_display: formatGroupNo(r.group_no as number),
+        village_full_name: r.village_name ? `${r.village_name}${formatGroupNo(r.group_no as number)}` : '未知村组',
+        is_overdrawn: false,
       }))
 
       return successList(items, countRow?.cnt ?? 0, page, pageSize)
@@ -73,6 +75,9 @@ export function registerHouseholdHandlers(): void {
 
       if (!hh) return errorResponse('家庭户不存在', 404)
 
+      const groupDisplay = formatGroupNo(hh.group_no as number)
+      const villageFullName = hh.village_name ? `${hh.village_name}${groupDisplay}` : (groupDisplay || '未知村组')
+
       const members = db().allRaw<Record<string, unknown>>(`
         SELECT fp.*
         FROM farmer_profile fp
@@ -82,12 +87,94 @@ export function registerHouseholdHandlers(): void {
 
       const maskedMembers = members.map(m => ({
         ...m,
-        id_card: maskIdCard(m.id_card as string),
-        phone: m.phone ? maskPhone(m.phone as string) : null,
-        bank_card: m.bank_card ? maskBankCard(m.bank_card as string) : null,
+        id_card_masked: m.id_card ? maskIdCard(m.id_card as string) : '',
+        phone_masked: m.phone ? maskPhone(m.phone as string) : '',
+        bank_card: m.bank_card ? maskBankCard(m.bank_card as string) : '',
+        is_head: hh.head_farmer_id === m.id ? 1 : 0,
+        restricted_identity: 0,
       }))
 
-      return success({ ...hh, group_display: formatGroupNo(hh.group_no as number), members: maskedMembers })
+      // app_summary: 补贴申请记录
+      let appSummary: unknown[] = []
+      try {
+        appSummary = db().allRaw(`
+          SELECT sa.apply_year, sa.beneficiary_id as farmer_id, fp.real_name as farmer_name,
+                 st.subsidy_name, st.calc_mode,
+                 sa.apply_area, sa.apply_amount, sa.actual_amount, sa.pay_status,
+                 sa.apply_village_name, sa.apply_group_display,
+                 sa.is_proxy, sa.subsidy_type_id, sa.apply_area_no_calc
+          FROM subsidy_application sa
+          JOIN farmer_profile fp ON fp.id = sa.beneficiary_id
+          JOIN subsidy_type st ON st.id = sa.subsidy_type_id
+          WHERE fp.household_id = ?
+          ORDER BY sa.apply_year DESC
+        `, id)
+      } catch { /* table might not exist yet */ }
+
+      // area_usage: 面积使用情况
+      const contractedArea = Number(hh.contract_area || 0)
+      const areaUsage = {
+        contracted_area: contractedArea,
+        trust_out_area: 0,
+        trust_in_area: 0,
+        trust_in_arable_area: 0,
+        trust_in_cash_crop_area: 0,
+        cultivable_area: contractedArea,
+        used_area: 0,
+        remaining_area: contractedArea,
+        is_overdrawn: false,
+        overdraw_amount: 0,
+        has_trust_data: false,
+        subsidy_breakdown: [] as unknown[],
+        season_reference: {} as Record<string, number>,
+        season_breakdown: {} as Record<string, unknown>,
+        year_totals: {} as Record<string, Record<string, number>>,
+        year_apply_totals: {} as Record<string, Record<string, number>>,
+        year_payment_totals: {} as Record<string, Record<string, number>>,
+      }
+
+      // trust_records: 流转记录
+      let trustRecords: unknown[] = []
+      try {
+        trustRecords = db().allRaw(`
+          SELECT lt.*,
+                 oh.household_name as counterparty_name,
+                 vh.village_name as counterparty_village_name,
+                 oh.group_no as counterparty_group_no
+          FROM land_trust lt
+          LEFT JOIN family_household oh ON (
+            (lt.owner_household_id = ? AND lt.operator_household_id = oh.id)
+            OR (lt.operator_household_id = ? AND lt.owner_household_id = oh.id)
+          )
+          LEFT JOIN village vh ON oh.village_id = vh.id
+          WHERE lt.owner_household_id = ? OR lt.operator_household_id = ?
+          ORDER BY lt.trust_year DESC
+        `, id, id, id, id)
+      } catch { /* table might not exist yet */ }
+
+      return success({
+        id: hh.id,
+        household_code: hh.household_code,
+        household_name: hh.household_name,
+        village_full_name: villageFullName,
+        village_id: hh.village_id,
+        group_no: hh.group_no || 1,
+        address: hh.address,
+        contracted_area: contractedArea,
+        confirmed_area: hh.confirmed_area != null ? Number(hh.confirmed_area) : null,
+        status: hh.status,
+        remark: hh.remark,
+        is_manually_confirmed: hh.is_manually_confirmed || 0,
+        manually_confirmed_at: hh.manually_confirmed_at || null,
+        manually_confirmed_by: hh.manually_confirmed_by || null,
+        head_farmer_id: hh.head_farmer_id,
+        head_name: hh.head_name,
+        group_display: groupDisplay,
+        members: maskedMembers,
+        app_summary: appSummary,
+        area_usage: areaUsage,
+        trust_records: trustRecords,
+      })
     } catch (e) {
       return errorResponse(String(e))
     }
