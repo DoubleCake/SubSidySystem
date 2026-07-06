@@ -10,14 +10,14 @@ export function registerSubsidyHandlers(): void {
 
   ipcMain.handle('subsidies:listTypes', (_e, payload: any) => {
     try {
-      const year = payload?.year ?? payload
-      const status = payload?.status
+      const year = typeof payload === 'object' && payload !== null ? payload.year : payload
+      const status = typeof payload === 'object' && payload !== null ? payload.status : undefined
       let query = 'SELECT * FROM subsidy_type WHERE 1=1'
-      const params: unknown[] = []
-      if (year) { query += ' AND subsidy_year = ?'; params.push(year) }
-      if (status !== undefined) { query += ' AND pay_status = ?'; params.push(status) }
+      const sqlParams: unknown[] = []
+      if (year) { query += ' AND subsidy_year = ?'; sqlParams.push(year) }
+      if (status !== undefined && status !== null) { query += ' AND pay_status = ?'; sqlParams.push(status) }
       query += ' ORDER BY subsidy_year DESC'
-      return success(db().allRaw(query, ...params))
+      return success(db().allRaw(query, ...sqlParams))
     } catch (e) {
       return errorResponse(String(e))
     }
@@ -26,8 +26,16 @@ export function registerSubsidyHandlers(): void {
   ipcMain.handle('subsidies:listTypesWithStats', (_e, year?: any) => {
     try {
       const params: unknown[] = []
-      let yearCondition = ''
-      if (year) { yearCondition = ' AND sa.apply_year = ?'; params.push(year) }
+      let stWhere = ''
+      let saWhere = ''
+      if (year) {
+        stWhere = ' WHERE st.subsidy_year = ?'
+        saWhere = ' AND sa.apply_year = ?'
+        params.push(year, year)
+      } else {
+        // 无年份筛选时也要确保 JOIN 条件一致
+        if (year) params.push(year)
+      }
       const rows = db().allRaw(`
         SELECT st.*,
                COUNT(sa.id) as app_count,
@@ -35,7 +43,8 @@ export function registerSubsidyHandlers(): void {
                COALESCE(SUM(sa.apply_amount), 0) as total_apply,
                COALESCE(SUM(sa.actual_amount), 0) as total_actual
         FROM subsidy_type st
-        LEFT JOIN subsidy_application sa ON st.id = sa.subsidy_type_id${yearCondition}
+        LEFT JOIN subsidy_application sa ON st.id = sa.subsidy_type_id${saWhere}
+        ${stWhere}
         GROUP BY st.id
         ORDER BY st.subsidy_year DESC
       `, ...params)

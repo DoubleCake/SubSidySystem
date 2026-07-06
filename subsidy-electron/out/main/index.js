@@ -1658,20 +1658,20 @@ function registerSubsidyHandlers() {
   const db2 = () => getDb();
   electron.ipcMain.handle("subsidies:listTypes", (_e, payload) => {
     try {
-      const year = payload?.year ?? payload;
-      const status = payload?.status;
+      const year = typeof payload === "object" && payload !== null ? payload.year : payload;
+      const status = typeof payload === "object" && payload !== null ? payload.status : void 0;
       let query = "SELECT * FROM subsidy_type WHERE 1=1";
-      const params = [];
+      const sqlParams = [];
       if (year) {
         query += " AND subsidy_year = ?";
-        params.push(year);
+        sqlParams.push(year);
       }
-      if (status !== void 0) {
+      if (status !== void 0 && status !== null) {
         query += " AND pay_status = ?";
-        params.push(status);
+        sqlParams.push(status);
       }
       query += " ORDER BY subsidy_year DESC";
-      return success(db2().allRaw(query, ...params));
+      return success(db2().allRaw(query, ...sqlParams));
     } catch (e) {
       return errorResponse(String(e));
     }
@@ -1679,10 +1679,14 @@ function registerSubsidyHandlers() {
   electron.ipcMain.handle("subsidies:listTypesWithStats", (_e, year) => {
     try {
       const params = [];
-      let yearCondition = "";
+      let stWhere = "";
+      let saWhere = "";
       if (year) {
-        yearCondition = " AND sa.apply_year = ?";
-        params.push(year);
+        stWhere = " WHERE st.subsidy_year = ?";
+        saWhere = " AND sa.apply_year = ?";
+        params.push(year, year);
+      } else {
+        if (year) params.push(year);
       }
       const rows = db2().allRaw(`
         SELECT st.*,
@@ -1691,7 +1695,8 @@ function registerSubsidyHandlers() {
                COALESCE(SUM(sa.apply_amount), 0) as total_apply,
                COALESCE(SUM(sa.actual_amount), 0) as total_actual
         FROM subsidy_type st
-        LEFT JOIN subsidy_application sa ON st.id = sa.subsidy_type_id${yearCondition}
+        LEFT JOIN subsidy_application sa ON st.id = sa.subsidy_type_id${saWhere}
+        ${stWhere}
         GROUP BY st.id
         ORDER BY st.subsidy_year DESC
       `, ...params);
