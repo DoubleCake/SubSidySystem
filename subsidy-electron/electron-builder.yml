@@ -31,8 +31,6 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: 农户补贴管理系统
-  installerIcon: resources/icon.png
-  uninstallerIcon: resources/icon.png
   language: 2052
 
 mac:

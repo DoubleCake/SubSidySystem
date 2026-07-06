@@ -25,9 +25,20 @@ start() {
         return 1
     fi
 
+    # 检查新版服务脚本是否存在
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    SERVER_SCRIPT="$SCRIPT_DIR/update-server.py"
+    if [ -f "$SERVER_SCRIPT" ]; then
+        CMD="python3 $SERVER_SCRIPT $PORT $UPDATE_DIR"
+        echo "使用高性能服务脚本: $SERVER_SCRIPT"
+    else
+        CMD="python3 -m http.server $PORT --bind 0.0.0.0 -d $UPDATE_DIR"
+        echo "使用内置 http.server (下载速度较慢)"
+    fi
+
     echo "启动更新服务..."
     cd "$UPDATE_DIR"
-    nohup python3 -m http.server $PORT --bind 0.0.0.0 >> "$LOG_FILE" 2>&1 &
+    nohup $CMD >> "$LOG_FILE" 2>&1 &
     echo $! > "$PID_FILE"
     sleep 1
 
@@ -80,15 +91,24 @@ install() {
         return 0
     fi
 
-    cat > /etc/systemd/system/update-server.service << 'EOF'
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    if [ -f "$SCRIPT_DIR/update-server.py" ]; then
+        SERVER_CMD="/usr/bin/python3 $SCRIPT_DIR/update-server.py $PORT $UPDATE_DIR"
+        echo "使用高性能服务脚本"
+    else
+        SERVER_CMD="/usr/bin/python3 -m http.server $PORT --bind 0.0.0.0 -d $UPDATE_DIR"
+        echo "使用内置 http.server (下载速度较慢)"
+    fi
+
+    cat > /etc/systemd/system/update-server.service << EOF
 [Unit]
 Description=更新服务
 After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/updates
-ExecStart=/usr/bin/python3 -m http.server 8080 --bind 0.0.0.0
+WorkingDirectory=$UPDATE_DIR
+ExecStart=$SERVER_CMD
 Restart=always
 RestartSec=5
 StandardOutput=append:/var/log/update-server.log
