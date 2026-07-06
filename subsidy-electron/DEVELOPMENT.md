@@ -178,28 +178,81 @@ electron-updater ──HTTP──→  https://your-server.com/updates/
 用户设置: 更新服务器地址 → 存储在 %APPDATA%/subsidy-electron/user-settings.json
 ```
 
-### 发布新版本流程
+### 发布新版本 — 完整流程
 
 ```bash
-# 1. 修改 package.json 版本号
-# 2. 构建 + 打包
+# 1. 修改版本号
+#    编辑 package.json: "version": "3.1.0"
+
+# 2. 生成安装包
 npm run dist
-# 产物在 dist/ 下: .exe, .blockmap, latest.yml
+# 产物在 dist/ 下:
+#   农户补贴管理系统 Setup 3.1.0.exe          ← 安装包
+#   农户补贴管理系统 Setup 3.1.0.exe.blockmap   ← 增量更新
+#   latest.yml                                  ← 版本元数据
 
-# 3. 上传 dist/ 下所有文件到云服务器
-# 例如: scp dist/* user@your-server.com:/var/www/updates/
+# 3. 上传到服务器 (只需 3 个文件)
+scp dist/latest.yml \
+    dist/"农户补贴管理系统 Setup 3.1.0.exe" \
+    dist/"农户补贴管理系统 Setup 3.1.0.exe.blockmap" \
+    user@your-server.com:/var/www/updates/
+```
 
-# 4. 用户下次启动时会自动检测到新版本
+### 服务器端配置
+
+服务器只需要一个**静态文件目录**，不需要数据库或后端。
+
+**Nginx 配置示例：**
+```nginx
+server {
+    listen 80;
+    server_name your-server.com;
+
+    location /updates/ {
+        alias /var/www/updates/;
+        add_header Access-Control-Allow-Origin *;
+        autoindex on;  # 可选：方便查看文件列表
+    }
+}
+```
+
+**目录结构：**
+```
+/var/www/updates/
+├── latest.yml                                  ← 最新版本信息
+├── 农户补贴管理系统 Setup 3.1.0.exe             ← 最新安装包
+├── 农户补贴管理系统 Setup 3.1.0.exe.blockmap     ← 增量更新
+├── 农户补贴管理系统 Setup 3.0.0.exe             ← 旧版本(可选保留)
+└── ...
+```
+
+**验证服务器是否正常：**
+```bash
+curl https://your-server.com/updates/latest.yml
+# 应返回类似:
+# version: 3.1.0
+# files:
+#   - url: 农户补贴管理系统 Setup 3.1.0.exe
+#     sha512: xxx
+#     size: 123456789
 ```
 
 ### 用户在软件中配置
 
-在 **设置 > 更新** 中填写更新服务器地址，例如：
+在 **备份迁移页 → 软件更新面板** 中填写更新服务器地址：
 ```
 https://your-server.com/updates/
 ```
 
-### 相关文件
+### 一键部署脚本
+
+```bash
+# 编辑 deploy-update.sh 中的服务器信息
+# SERVER="user@your-server.com"
+# REMOTE_DIR="/var/www/updates/"
+
+bash deploy-update.sh
+```
 
 | 文件 | 作用 |
 |------|------|
