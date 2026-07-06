@@ -1,49 +1,81 @@
 /**
- * 本地持久化存储
- * 使用 electron-store 管理用户设置
+ * 本地持久化存储 — 简单的 JSON 文件存储
+ * 替代 electron-store (ESM-only 不兼容 CJS)
  */
-import Store from 'electron-store'
+import { app } from 'electron'
+import { join, dirname } from 'path'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 
 interface UserSettings {
-  /** 更新服务器地址 (用户可手动修改) */
   updateServerUrl: string
-  /** 是否自动检查更新 */
   autoCheckUpdate: boolean
-  /** 最后检查更新的时间 */
   lastUpdateCheck: string | null
 }
 
-const store = new Store<UserSettings>({
-  name: 'user-settings',
-  defaults: {
-    updateServerUrl: '',
-    autoCheckUpdate: true,
-    lastUpdateCheck: null,
-  },
-})
+const DEFAULT_SETTINGS: UserSettings = {
+  updateServerUrl: '',
+  autoCheckUpdate: true,
+  lastUpdateCheck: null,
+}
+
+function getConfigPath(): string {
+  const dir = join(app.getPath('userData'))
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  return join(dir, 'user-settings.json')
+}
+
+function readSettings(): UserSettings {
+  try {
+    const path = getConfigPath()
+    if (existsSync(path)) {
+      const raw = readFileSync(path, 'utf-8')
+      return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) }
+    }
+  } catch { /* ignore */ }
+  return { ...DEFAULT_SETTINGS }
+}
+
+function writeSettings(settings: UserSettings): void {
+  try {
+    writeFileSync(getConfigPath(), JSON.stringify(settings, null, 2), 'utf-8')
+  } catch (e) {
+    console.error('[Store] 保存设置失败:', e)
+  }
+}
+
+let cachedSettings: UserSettings | null = null
+
+function getSettings(): UserSettings {
+  if (!cachedSettings) cachedSettings = readSettings()
+  return cachedSettings
+}
 
 export function getUpdateServerUrl(): string {
-  return store.get('updateServerUrl')
+  return getSettings().updateServerUrl
 }
 
 export function setUpdateServerUrl(url: string): void {
-  store.set('updateServerUrl', url)
+  const s = getSettings()
+  s.updateServerUrl = url
+  writeSettings(s)
 }
 
 export function getAutoCheckUpdate(): boolean {
-  return store.get('autoCheckUpdate')
+  return getSettings().autoCheckUpdate
 }
 
 export function setAutoCheckUpdate(v: boolean): void {
-  store.set('autoCheckUpdate', v)
+  const s = getSettings()
+  s.autoCheckUpdate = v
+  writeSettings(s)
 }
 
 export function getLastUpdateCheck(): string | null {
-  return store.get('lastUpdateCheck')
+  return getSettings().lastUpdateCheck
 }
 
 export function setLastUpdateCheck(date: string): void {
-  store.set('lastUpdateCheck', date)
+  const s = getSettings()
+  s.lastUpdateCheck = date
+  writeSettings(s)
 }
-
-export default store

@@ -11,7 +11,7 @@ export default defineConfig({
         input: {
           index: resolve(__dirname, 'electron/main.ts')
         },
-        external: ['electron', 'sql.js', 'electron-updater', 'electron-store'],
+        external: ['electron', 'sql.js', 'electron-updater'],
         output: {
           format: 'cjs'
         }
@@ -24,7 +24,7 @@ export default defineConfig({
         input: {
           index: resolve(__dirname, 'electron/preload.ts')
         },
-        external: ['electron', 'sql.js', 'electron-updater', 'electron-store'],
+        external: ['electron', 'sql.js', 'electron-updater'],
         output: {
           format: 'cjs'
         }

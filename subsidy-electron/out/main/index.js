@@ -3,7 +3,6 @@ const electron = require("electron");
 const path = require("path");
 const fs = require("fs");
 const electronUpdater = require("electron-updater");
-const Store = require("electron-store");
 class SqlJsWrapper {
   db;
   dbPath;
@@ -3380,22 +3379,49 @@ function registerAllIpcHandlers() {
   registerEligibilityHandlers();
   registerAuthHandlers();
 }
-const store = new Store({
-  name: "user-settings",
-  defaults: {
-    updateServerUrl: "",
-    autoCheckUpdate: true,
-    lastUpdateCheck: null
+const DEFAULT_SETTINGS = {
+  updateServerUrl: "",
+  autoCheckUpdate: true,
+  lastUpdateCheck: null
+};
+function getConfigPath() {
+  const dir = path.join(electron.app.getPath("userData"));
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return path.join(dir, "user-settings.json");
+}
+function readSettings() {
+  try {
+    const path2 = getConfigPath();
+    if (fs.existsSync(path2)) {
+      const raw = fs.readFileSync(path2, "utf-8");
+      return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    }
+  } catch {
   }
-});
+  return { ...DEFAULT_SETTINGS };
+}
+function writeSettings(settings) {
+  try {
+    fs.writeFileSync(getConfigPath(), JSON.stringify(settings, null, 2), "utf-8");
+  } catch (e) {
+    console.error("[Store] 保存设置失败:", e);
+  }
+}
+let cachedSettings = null;
+function getSettings() {
+  if (!cachedSettings) cachedSettings = readSettings();
+  return cachedSettings;
+}
 function getUpdateServerUrl() {
-  return store.get("updateServerUrl");
+  return getSettings().updateServerUrl;
 }
 function getAutoCheckUpdate() {
-  return store.get("autoCheckUpdate");
+  return getSettings().autoCheckUpdate;
 }
 function setLastUpdateCheck(date) {
-  store.set("lastUpdateCheck", date);
+  const s = getSettings();
+  s.lastUpdateCheck = date;
+  writeSettings(s);
 }
 let mainWindow$1 = null;
 function setUpdateWindow(win) {
