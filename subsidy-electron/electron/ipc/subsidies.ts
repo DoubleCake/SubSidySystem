@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../database/connection'
-import { maskIdCard } from '../utils/masking'
+import { maskIdCard, maskPhone } from '../utils/masking'
 import { parsePagination, successList, success, errorResponse } from './response'
 
 export function registerSubsidyHandlers(): void {
@@ -111,7 +111,7 @@ export function registerSubsidyHandlers(): void {
       `, ...values)
 
       const rows = db().allRaw<Record<string, unknown>>(`
-        SELECT sa.*, fp.real_name as farmer_name, fp.id_card as farmer_id_card,
+        SELECT sa.*, fp.real_name as farmer_name, fp.id_card, fp.phone,
                st.subsidy_name, st.season, st.calc_mode,
                v.village_name, hh.group_no
         FROM subsidy_application sa
@@ -126,7 +126,8 @@ export function registerSubsidyHandlers(): void {
 
       const items = rows.map(r => ({
         ...r,
-        farmer_id_card: maskIdCard(r.farmer_id_card as string),
+        id_card_masked: r.id_card ? maskIdCard(r.id_card as string) : '',
+        phone_masked: r.phone ? maskPhone(r.phone as string) : '',
       }))
 
       return successList(items, countRow?.cnt ?? 0, page, pageSize)

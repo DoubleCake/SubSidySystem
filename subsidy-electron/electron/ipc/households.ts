@@ -95,18 +95,21 @@ export function registerHouseholdHandlers(): void {
         restricted_identity: 0,
       }))
 
-      // app_summary: 补贴申请记录
+      // app_summary: 补贴申请记录（按受益人关联，NULL 时回退 farmer_id）
       let appSummary: unknown[] = []
       try {
         appSummary = db().allRaw(`
-          SELECT sa.id, sa.apply_year, sa.beneficiary_id as farmer_id, fp.real_name as farmer_name,
-                 st.subsidy_name, st.subsidy_type_name, st.calc_mode,
+          SELECT sa.id, sa.apply_year,
+                 COALESCE(sa.beneficiary_id, sa.farmer_id) as farmer_id,
+                 fp.real_name as farmer_name,
+                 st.subsidy_name, COALESCE(st.subsidy_type_name, st.subsidy_name) as subsidy_type_name,
+                 st.calc_mode,
                  sa.apply_area, COALESCE(sa.apply_amount, 0) as apply_amount,
                  COALESCE(sa.actual_amount, 0) as actual_amount,
                  sa.pay_status, sa.apply_village_name, sa.apply_group_display,
                  sa.is_proxy, sa.subsidy_type_id, sa.apply_area_no_calc
           FROM subsidy_application sa
-          JOIN farmer_profile fp ON fp.id = sa.beneficiary_id
+          LEFT JOIN farmer_profile fp ON fp.id = COALESCE(sa.beneficiary_id, sa.farmer_id)
           LEFT JOIN subsidy_type st ON st.id = sa.subsidy_type_id
           WHERE fp.household_id = ?
           ORDER BY sa.apply_year DESC, sa.id DESC
