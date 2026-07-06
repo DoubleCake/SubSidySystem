@@ -234,25 +234,6 @@ function Layout() {
             </div>
           </div>
         </div>
-
-        {/* 设置子标签栏 */}
-        {isSettings && (
-          <div className="bg-warm/50 border-t border-border">
-            <div className="max-w-screen-xl mx-auto px-6 flex items-center gap-1" style={{ height: 36 }}>
-              <span className="text-meta text-text-muted mr-2 shrink-0">系统设置 /</span>
-              {[...settingNavBasic, ...settingNavData, ...settingNavSystem].map(({ to, label, icon }) => (
-                <NavLink key={to} to={to}
-                  className={({ isActive }) =>
-                    `px-3 py-1 text-meta rounded-btn transition-colors flex items-center gap-1.5
-                    ${isActive ? 'bg-primary/10 text-primary font-medium' : 'text-text-muted hover:text-primary hover:bg-primary/5'}`
-                  }>
-                  <Icon name={icon} size={12} />
-                  {label}
-                </NavLink>
-              ))}
-            </div>
-          </div>
-        )}
       </nav>
 
       <main className="flex-1">

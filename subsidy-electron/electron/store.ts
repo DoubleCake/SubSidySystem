@@ -13,7 +13,7 @@ interface UserSettings {
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
-  updateServerUrl: '',
+  updateServerUrl: 'http://8.137.8.78:8080/',
   autoCheckUpdate: true,
   lastUpdateCheck: null,
 }

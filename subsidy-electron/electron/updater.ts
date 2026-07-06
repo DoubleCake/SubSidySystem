@@ -71,12 +71,16 @@ export async function checkForUpdatesAndInstall() {
     return { error: '未配置更新服务器地址，请在软件更新面板中填写' }
   }
 
-  const cleanUrl = url.replace(/\/+$/, '')
+  // 智能处理 URL：如果用户输入了完整 latest.yml 路径，自动修正为目录
+  let cleanUrl = url.replace(/\/+$/, '')
+  if (cleanUrl.endsWith('latest.yml')) {
+    cleanUrl = cleanUrl.replace(/\/?latest\.yml$/, '')
+  }
   const latestUrl = `${cleanUrl}/latest.yml`
   const steps: string[] = []
 
   // 步骤1: 检查服务器连通性
-  steps.push(`正在连接服务器: ${cleanUrl}`)
+  steps.push(`🔍 正在连接: ${latestUrl}`)
   try {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 10000)
@@ -85,14 +89,14 @@ export async function checkForUpdatesAndInstall() {
 
     if (!response.ok) {
       return {
-        error: `服务器返回错误 (HTTP ${response.status})`,
-        steps: [...steps, `❌ 服务器返回 HTTP ${response.status}`],
-        detail: `请确认 latest.yml 文件已上传到 ${cleanUrl}/`,
+        error: `服务器返回 HTTP ${response.status}`,
+        steps: [...steps, `❌ 服务器响应: HTTP ${response.status}`],
+        detail: `请确认 ${latestUrl} 可正常访问\n常见原因:\n1. 服务器未启动或端口错误\n2. latest.yml 未上传到服务器目录\n3. 防火墙未开放端口`,
       }
     }
 
     const ymlContent = await response.text()
-    steps.push(`✅ 已连接到服务器，找到 latest.yml`)
+    steps.push(`✅ 已连接服务器，获取到 latest.yml (${ymlContent.length} 字节)`)
 
     // 步骤2: 解析版本信息
     let serverVersion = ''
@@ -120,10 +124,20 @@ export async function checkForUpdatesAndInstall() {
 
     steps.push(`发现新版本 v${serverVersion}，开始下载...`)
 
-    // 步骤4: 使用 electron-updater 下载
+    // 步骤4: 先 checkForUpdates 注册更新信息，再下载
     configureUpdater(cleanUrl)
 
     try {
+      const checkResult = await autoUpdater.checkForUpdates()
+      if (!checkResult || !checkResult.updateInfo) {
+        return {
+          error: '无法获取更新信息',
+          steps: [...steps, '❌ checkForUpdates 返回空'],
+          detail: '服务器 latest.yml 格式可能不正确',
+        }
+      }
+      steps.push(`✅ 解析更新信息成功 (v${checkResult.updateInfo.version})`)
+
       await autoUpdater.downloadUpdate()
       steps.push(`✅ 下载完成`)
       setLastUpdateCheck(new Date().toISOString())
@@ -136,22 +150,22 @@ export async function checkForUpdatesAndInstall() {
     } catch (downloadErr) {
       return {
         error: `下载失败: ${(downloadErr as Error).message}`,
-        steps: [...steps, `❌ 下载失败`],
-        detail: '请确认安装包文件已上传到服务器',
+        steps: [...steps, `❌ 下载失败: ${(downloadErr as Error).message}`],
+        detail: `请确认:\n1. exe 文件已上传到 ${cleanUrl}/\n2. latest.yml 中 url 字段与实际文件名一致\n3. sha512/文件大小正确`,
       }
     }
   } catch (e: any) {
     if (e.name === 'AbortError') {
       return {
-        error: `连接超时 (10秒)`,
-        steps: [...steps, '❌ 连接超时'],
-        detail: `无法访问 ${latestUrl}，请检查:\n1. 服务器是否在线\n2. 地址是否填写正确\n3. 防火墙是否开放端口`,
+        error: '连接超时 (10秒)',
+        steps: [...steps, '❌ 请求超时无响应'],
+        detail: `无法访问 ${latestUrl}\n请检查:\n1. 服务器是否在线 (ping ${cleanUrl.split('/')[2]})\n2. 地址和端口是否填写正确\n3. 防火墙/安全组是否开放端口`,
       }
     }
     return {
-      error: `连接失败: ${e.message || '未知错误'}`,
-      steps: [...steps, `❌ 连接失败`],
-      detail: `尝试访问 ${latestUrl}\n失败原因: ${e.message}`,
+      error: `网络连接失败`,
+      steps: [...steps, `❌ 无法连接: ${e.message || '未知错误'}`],
+      detail: `目标地址: ${latestUrl}\n失败原因: ${e.message}\n请确认:\n1. 网址格式正确 (如 http://8.137.8.78:8080/)\n2. 服务器已启动并监听该端口\n3. 本机可访问该地址`,
     }
   }
 }

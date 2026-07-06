@@ -99,26 +99,13 @@ function Layout() {
 
   return (
     <div className="min-h-screen bg-bg-main flex flex-col">
-      {/* 顶部图片横幅 */}
-      <header
-        style={{
-          height: 100,
-          backgroundImage: 'url(images/head.png)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-        }}>
-        <div className="max-w-screen-xl mx-auto px-6 flex items-center" style={{ height: '100%' }}>
-          {/* Logo */}
-          <div className="shrink-0 cursor-pointer flex items-center"
-            onClick={() => navigate('/')}>
-            <img src="images/Logo.png" alt="Logo"
-              className="h-14 w-auto"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-            <span className="font-bold text-base tracking-wider text-primary ml-2.5"
-              style={{ display: 'none' }}>农户补贴管理系统</span>
-          </div>
-        </div>
+      {/* 顶部横幅 — 原始尺寸，超宽完整显示，窄屏横向滚动 */}
+      <header className="overflow-x-auto" style={{ height: 100 }}>
+        <img
+          src="images/head.png"
+          alt=""
+          style={{ height: 100, width: 'auto', maxWidth: 'none', display: 'block' }}
+        />
       </header>
 
       {/* 墨绿色导航栏 */}
@@ -291,18 +278,17 @@ function Layout() {
         </div>
       </main>
 
-      {/* 底部 */}
+      {/* 底部 — 原始尺寸，超宽完整显示，窄屏横向滚动 */}
       <footer>
-        <div className="w-full py-5 text-[#2A4B3C]"
-          style={{
-            height: 120,
-            backgroundImage: 'url(images/foot.png)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-          }}>
-          <div className="max-w-screen-xl mx-auto px-16 text-center">
-            <div className="text-m opacity-80" >
+        <div className="relative overflow-x-auto" style={{ height: 120 }}>
+          <img
+            src="images/foot.png"
+            alt=""
+            style={{ height: 120, width: 'auto', maxWidth: 'none', display: 'block' }}
+            className="absolute top-0 left-0"
+          />
+          <div className="relative max-w-screen-xl mx-auto px-16 text-center flex items-center justify-center z-10" style={{ height: '100%' }}>
+            <div className="text-m opacity-80 text-[#2A4B3C]">
               " {quote} "
             </div>
           </div>

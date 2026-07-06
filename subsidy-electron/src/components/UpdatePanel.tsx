@@ -128,15 +128,15 @@ export default function UpdatePanel() {
             <input
               value={url}
               onChange={e => setUrl(e.target.value)}
-              placeholder="https://your-server.com/updates/"
+              placeholder="http://8.137.8.78:8080/"
               className="flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono"
             />
             <button onClick={saveConfig} disabled={saving}
               className="px-4 py-2 bg-primary-500 text-white text-sm rounded-btn hover:bg-primary/90 disabled:opacity-50 whitespace-nowrap">
-              {saving ? '保存中' : '保存'}
+              {saving ? '保存中...' : '保存'}
             </button>
           </div>
-          <p className="text-[11px] text-text-muted/60 mt-1">服务器上需放置 latest.yml 和安装包文件</p>
+          <p className="text-[11px] text-text-muted/60 mt-1">填写更新服务器根目录地址，如 http://8.137.8.78:8080/，程序会自动查找 latest.yml</p>
         </div>
 
         {/* 当前状态 + 操作 */}

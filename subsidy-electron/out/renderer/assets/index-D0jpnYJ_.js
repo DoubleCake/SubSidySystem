@@ -52372,7 +52372,7 @@ function UpdatePanel() {
             {
               value: url,
               onChange: (e) => setUrl(e.target.value),
-              placeholder: "https://your-server.com/updates/",
+              placeholder: "http://8.137.8.78:8080/",
               className: "flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono"
             }
           ),
@@ -52382,11 +52382,11 @@ function UpdatePanel() {
               onClick: saveConfig,
               disabled: saving,
               className: "px-4 py-2 bg-primary-500 text-white text-sm rounded-btn hover:bg-primary/90 disabled:opacity-50 whitespace-nowrap",
-              children: saving ? "保存中" : "保存"
+              children: saving ? "保存中..." : "保存"
             }
           )
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[11px] text-text-muted/60 mt-1", children: "服务器上需放置 latest.yml 和安装包文件" })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[11px] text-text-muted/60 mt-1", children: "填写更新服务器根目录地址，如 http://8.137.8.78:8080/，程序会自动查找 latest.yml" })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 flex-wrap", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 cursor-pointer", children: [
@@ -57772,46 +57772,14 @@ function Layout() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen bg-bg-main flex flex-col", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "header",
+    /* @__PURE__ */ jsxRuntimeExports.jsx("header", { className: "overflow-x-auto", style: { height: 100 }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "img",
       {
-        style: {
-          height: 100,
-          backgroundImage: "url(images/head.png)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat"
-        },
-        children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-w-screen-xl mx-auto px-6 flex items-center", style: { height: "100%" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "div",
-          {
-            className: "shrink-0 cursor-pointer flex items-center",
-            onClick: () => navigate("/"),
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "img",
-                {
-                  src: "images/Logo.png",
-                  alt: "Logo",
-                  className: "h-14 w-auto",
-                  onError: (e) => {
-                    e.target.style.display = "none";
-                  }
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "span",
-                {
-                  className: "font-bold text-base tracking-wider text-primary ml-2.5",
-                  style: { display: "none" },
-                  children: "农户补贴管理系统"
-                }
-              )
-            ]
-          }
-        ) })
+        src: "images/head.png",
+        alt: "",
+        style: { height: 100, width: "auto", maxWidth: "none", display: "block" }
       }
-    ),
+    ) }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("nav", { className: "bg-primary-500 text-white sticky top-0 z-40 shadow-card", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-screen-xl mx-auto px-6 flex items-center gap-6", style: { height: 50 }, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1 flex-1", children: mainNav.map(({ to, label, icon, end }) => /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -57994,24 +57962,22 @@ function Layout() {
         ] })
       ] }) })
     ] }) }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("footer", { children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "div",
-      {
-        className: "w-full py-5 text-[#2A4B3C]",
-        style: {
-          height: 120,
-          backgroundImage: "url(images/foot.png)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat"
-        },
-        children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-w-screen-xl mx-auto px-16 text-center", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-m opacity-80", children: [
-          '" ',
-          quote,
-          ' "'
-        ] }) })
-      }
-    ) })
+    /* @__PURE__ */ jsxRuntimeExports.jsx("footer", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative overflow-x-auto", style: { height: 120 }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "img",
+        {
+          src: "images/foot.png",
+          alt: "",
+          style: { height: 120, width: "auto", maxWidth: "none", display: "block" },
+          className: "absolute top-0 left-0"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "relative max-w-screen-xl mx-auto px-16 text-center flex items-center justify-center z-10", style: { height: "100%" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-m opacity-80 text-[#2A4B3C]", children: [
+        '" ',
+        quote,
+        ' "'
+      ] }) })
+    ] }) })
   ] });
 }
 function App() {
