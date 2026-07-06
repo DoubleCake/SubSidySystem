@@ -52259,6 +52259,173 @@ function ExternalLinksPage() {
     /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { ...toast })
   ] });
 }
+function UpdatePanel() {
+  const [config, setConfig] = reactExports.useState(null);
+  const [url, setUrl] = reactExports.useState("");
+  const [checking, setChecking] = reactExports.useState(false);
+  const [status, setStatus] = reactExports.useState("");
+  const [progress, setProgress] = reactExports.useState(0);
+  const [error, setError] = reactExports.useState("");
+  const [saving, setSaving] = reactExports.useState(false);
+  reactExports.useEffect(() => {
+    loadConfig();
+    window.electronAPI.onUpdateStatus((s) => {
+      setStatus(s);
+      if (s === "up-to-date") setChecking(false);
+      if (s === "downloaded") setChecking(false);
+    });
+    window.electronAPI.onUpdateProgress((p2) => {
+      setProgress(p2.percent);
+    });
+    window.electronAPI.onUpdateError((e) => {
+      setError(e);
+      setChecking(false);
+    });
+    return () => {
+      window.electronAPI.removeUpdateListeners();
+    };
+  }, []);
+  const loadConfig = async () => {
+    try {
+      const result = await window.electronAPI.invoke("settings:getUpdateConfig");
+      if (result?.data) {
+        setConfig(result.data);
+        setUrl(result.data.updateServerUrl);
+      }
+    } catch {
+    }
+  };
+  const saveConfig = async () => {
+    setSaving(true);
+    try {
+      await window.electronAPI.invoke("settings:setUpdateConfig", { updateServerUrl: url.trim() });
+      setError("");
+      setStatus("设置已保存");
+      setTimeout(() => setStatus(""), 2e3);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+  const toggleAutoCheck = async () => {
+    if (!config) return;
+    const next = !config.autoCheckUpdate;
+    try {
+      await window.electronAPI.invoke("settings:setUpdateConfig", { autoCheckUpdate: next });
+      setConfig({ ...config, autoCheckUpdate: next });
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+  const checkForUpdate = async () => {
+    setChecking(true);
+    setError("");
+    setStatus("checking");
+    setProgress(0);
+    try {
+      const result = await window.electronAPI.invoke("settings:checkForUpdate");
+      if (result?.data?.error) {
+        setError(result.data.error);
+        setStatus("");
+        setChecking(false);
+      } else if (result?.data?.message) {
+        setStatus(result.data.message);
+        setChecking(false);
+      }
+      loadConfig();
+    } catch (e) {
+      setError(String(e));
+      setStatus("");
+      setChecking(false);
+    }
+  };
+  const statusLabel = {
+    checking: { text: "正在检查更新...", color: "text-blue-600" },
+    "up-to-date": { text: "当前已是最新版本 ✓", color: "text-green-600" },
+    available: { text: "发现新版本！", color: "text-amber-600" },
+    downloaded: { text: "更新已下载，重启后安装", color: "text-primary" },
+    error: { text: "更新出错", color: "text-red-600" }
+  };
+  const st = statusLabel[status] || { text: status, color: "text-text-muted" };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card overflow-hidden shadow-card", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-5 py-3 bg-primary/5 border-b border-primary/10", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold text-primary text-sm", children: "🔄 软件更新" }),
+      config && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "ml-3 text-xs text-text-muted font-mono", children: [
+        "v",
+        config.currentVersion
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-5 space-y-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "text-xs text-text-muted mb-1 block", children: "更新服务器地址" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              value: url,
+              onChange: (e) => setUrl(e.target.value),
+              placeholder: "https://your-server.com/updates/",
+              className: "flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono"
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: saveConfig,
+              disabled: saving,
+              className: "px-4 py-2 bg-primary-500 text-white text-sm rounded-btn hover:bg-primary/90 disabled:opacity-50 whitespace-nowrap",
+              children: saving ? "保存中" : "保存"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-[11px] text-text-muted/60 mt-1", children: "服务器上需放置 latest.yml 和安装包文件" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 flex-wrap", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 cursor-pointer", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              type: "checkbox",
+              checked: config?.autoCheckUpdate ?? false,
+              onChange: toggleAutoCheck,
+              className: "w-4 h-4"
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-primary", children: "启动时自动检查" })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: checkForUpdate,
+            disabled: checking || !url.trim(),
+            className: "px-4 py-2 bg-primary-500 text-white text-sm rounded-btn hover:bg-primary/90 disabled:opacity-40 transition-all",
+            children: checking ? "检查中..." : "🔍 立即检查更新"
+          }
+        )
+      ] }),
+      progress > 0 && progress < 100 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-full bg-border rounded-full h-2 overflow-hidden", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "div",
+        {
+          className: "bg-primary-500 h-full rounded-full transition-all duration-300",
+          style: { width: `${progress}%` }
+        }
+      ) }),
+      status && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `text-xs ${st.color} bg-${st.color.replace("text-", "")}/5 rounded-btn px-3 py-2`, children: [
+        st.text,
+        progress > 0 && progress < 100 && ` (${progress}%)`
+      ] }),
+      error && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs text-red-600 bg-red-50 rounded-btn px-3 py-2", children: [
+        "⚠️ ",
+        error
+      ] }),
+      config?.lastUpdateCheck && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-[11px] text-text-muted/50", children: [
+        "上次检查: ",
+        new Date(config.lastUpdateCheck).toLocaleString("zh-CN")
+      ] })
+    ] })
+  ] });
+}
 const TABLE_LABELS = {
   farmer_profile: { label: "农户档案", icon: "👤", color: "text-blue-600" },
   family_household: { label: "家庭户", icon: "🏠", color: "text-purple-600" },
@@ -52508,6 +52675,7 @@ function BackupPage() {
         ] }, b.filename)) })
       ] })
     ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-5", children: /* @__PURE__ */ jsxRuntimeExports.jsx(UpdatePanel, {}) }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-blue-50 border border-blue-100 rounded-card p-5 mt-5", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-semibold text-blue-800 text-sm mb-3", children: "📖 换电脑迁移指南" }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-4 text-xs text-blue-700", children: [

@@ -1,0 +1,180 @@
+/**
+ * 软件更新面板
+ * - 显示当前版本
+ * - 配置更新服务器地址
+ * - 自动检查开关
+ * - 手动检查更新
+ */
+import { useState, useEffect } from 'react'
+
+interface UpdateConfig {
+  updateServerUrl: string
+  autoCheckUpdate: boolean
+  lastUpdateCheck: string | null
+  currentVersion: string
+}
+
+export default function UpdatePanel() {
+  const [config, setConfig] = useState<UpdateConfig | null>(null)
+  const [url, setUrl] = useState('')
+  const [checking, setChecking] = useState(false)
+  const [status, setStatus] = useState('')
+  const [progress, setProgress] = useState(0)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    loadConfig()
+    // 监听更新事件
+    window.electronAPI.onUpdateStatus((s: string) => {
+      setStatus(s)
+      if (s === 'up-to-date') setChecking(false)
+      if (s === 'downloaded') setChecking(false)
+    })
+    window.electronAPI.onUpdateProgress((p: { percent: number }) => {
+      setProgress(p.percent)
+    })
+    window.electronAPI.onUpdateError((e: string) => {
+      setError(e)
+      setChecking(false)
+    })
+    return () => { window.electronAPI.removeUpdateListeners() }
+  }, [])
+
+  const loadConfig = async () => {
+    try {
+      const result = await window.electronAPI.invoke<{ code: number; data: UpdateConfig }>('settings:getUpdateConfig')
+      if (result?.data) {
+        setConfig(result.data)
+        setUrl(result.data.updateServerUrl)
+      }
+    } catch { /* ignore */ }
+  }
+
+  const saveConfig = async () => {
+    setSaving(true)
+    try {
+      await window.electronAPI.invoke('settings:setUpdateConfig', { updateServerUrl: url.trim() })
+      setError('')
+      setStatus('设置已保存')
+      setTimeout(() => setStatus(''), 2000)
+    } catch (e) { setError(String(e)) }
+    finally { setSaving(false) }
+  }
+
+  const toggleAutoCheck = async () => {
+    if (!config) return
+    const next = !config.autoCheckUpdate
+    try {
+      await window.electronAPI.invoke('settings:setUpdateConfig', { autoCheckUpdate: next })
+      setConfig({ ...config, autoCheckUpdate: next })
+    } catch (e) { setError(String(e)) }
+  }
+
+  const checkForUpdate = async () => {
+    setChecking(true)
+    setError('')
+    setStatus('checking')
+    setProgress(0)
+    try {
+      const result = await window.electronAPI.invoke<{ code: number; data: { message?: string; error?: string; version?: string } }>('settings:checkForUpdate')
+      if (result?.data?.error) {
+        setError(result.data.error)
+        setStatus('')
+        setChecking(false)
+      } else if (result?.data?.message) {
+        setStatus(result.data.message)
+        setChecking(false)
+      }
+      loadConfig() // 刷新最后检查时间
+    } catch (e) {
+      setError(String(e))
+      setStatus('')
+      setChecking(false)
+    }
+  }
+
+  const statusLabel: Record<string, { text: string; color: string }> = {
+    checking: { text: '正在检查更新...', color: 'text-blue-600' },
+    'up-to-date': { text: '当前已是最新版本 ✓', color: 'text-green-600' },
+    available: { text: '发现新版本！', color: 'text-amber-600' },
+    downloaded: { text: '更新已下载，重启后安装', color: 'text-primary' },
+    error: { text: '更新出错', color: 'text-red-600' },
+  }
+
+  const st = statusLabel[status] || { text: status, color: 'text-text-muted' }
+
+  return (
+    <div className="bg-white border border-border rounded-card overflow-hidden shadow-card">
+      <div className="px-5 py-3 bg-primary/5 border-b border-primary/10">
+        <span className="font-semibold text-primary text-sm">🔄 软件更新</span>
+        {config && <span className="ml-3 text-xs text-text-muted font-mono">v{config.currentVersion}</span>}
+      </div>
+      <div className="p-5 space-y-4">
+
+        {/* 更新服务器地址 */}
+        <div>
+          <label className="text-xs text-text-muted mb-1 block">更新服务器地址</label>
+          <div className="flex gap-2">
+            <input
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              placeholder="https://your-server.com/updates/"
+              className="flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono"
+            />
+            <button onClick={saveConfig} disabled={saving}
+              className="px-4 py-2 bg-primary-500 text-white text-sm rounded-btn hover:bg-primary/90 disabled:opacity-50 whitespace-nowrap">
+              {saving ? '保存中' : '保存'}
+            </button>
+          </div>
+          <p className="text-[11px] text-text-muted/60 mt-1">服务器上需放置 latest.yml 和安装包文件</p>
+        </div>
+
+        {/* 当前状态 + 操作 */}
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* 自动检查开关 */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={config?.autoCheckUpdate ?? false} onChange={toggleAutoCheck}
+              className="w-4 h-4" />
+            <span className="text-xs text-text-primary">启动时自动检查</span>
+          </label>
+
+          <button onClick={checkForUpdate} disabled={checking || !url.trim()}
+            className="px-4 py-2 bg-primary-500 text-white text-sm rounded-btn hover:bg-primary/90 disabled:opacity-40 transition-all">
+            {checking ? '检查中...' : '🔍 立即检查更新'}
+          </button>
+        </div>
+
+        {/* 进度条 */}
+        {progress > 0 && progress < 100 && (
+          <div className="w-full bg-border rounded-full h-2 overflow-hidden">
+            <div className="bg-primary-500 h-full rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }} />
+          </div>
+        )}
+
+        {/* 状态提示 */}
+        {status && (
+          <div className={`text-xs ${st.color} bg-${st.color.replace('text-', '')}/5 rounded-btn px-3 py-2`}>
+            {st.text}
+            {progress > 0 && progress < 100 && ` (${progress}%)`}
+          </div>
+        )}
+
+        {/* 错误 */}
+        {error && (
+          <div className="text-xs text-red-600 bg-red-50 rounded-btn px-3 py-2">
+            ⚠️ {error}
+          </div>
+        )}
+
+        {/* 最后检查时间 */}
+        {config?.lastUpdateCheck && (
+          <p className="text-[11px] text-text-muted/50">
+            上次检查: {new Date(config.lastUpdateCheck).toLocaleString('zh-CN')}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}

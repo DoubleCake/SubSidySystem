@@ -9,6 +9,7 @@
 import { useState, useEffect } from 'react'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
+import UpdatePanel from '../components/UpdatePanel'
 import * as api from '../api'
 
 interface BackupInfo {
@@ -262,6 +263,9 @@ export default function BackupPage() {
             </table>
         }
       </div>
+
+      {/* 软件更新 */}
+      <div className="mt-5"><UpdatePanel /></div>
 
       {/* 迁移指南 */}
       <div className="bg-blue-50 border border-blue-100 rounded-card p-5 mt-5">
