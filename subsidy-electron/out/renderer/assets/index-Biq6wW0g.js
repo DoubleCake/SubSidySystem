@@ -57808,158 +57808,140 @@ function Layout() {
         style: { height: 100, width: "auto", maxWidth: "none", display: "block" }
       }
     ) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("nav", { className: "bg-primary-500 text-white sticky top-0 z-40 shadow-card", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-screen-xl mx-auto px-6 flex items-center gap-6", style: { height: 50 }, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1 flex-1", children: mainNav.map(({ to, label, icon, end }) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-          NavLink,
-          {
-            to,
-            end,
-            className: ({ isActive }) => `px-3.5 py-1.5 text-sm rounded-btn transition-colors whitespace-nowrap flex items-center gap-2
+    /* @__PURE__ */ jsxRuntimeExports.jsx("nav", { className: "bg-primary-500 text-white sticky top-0 z-40 shadow-card", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-screen-xl mx-auto px-6 flex items-center gap-6", style: { height: 50 }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1 flex-1", children: mainNav.map(({ to, label, icon, end }) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+        NavLink,
+        {
+          to,
+          end,
+          className: ({ isActive }) => `px-3.5 py-1.5 text-sm rounded-btn transition-colors whitespace-nowrap flex items-center gap-2
                   ${isActive ? "bg-white/15 text-white font-semibold" : "text-white/80 hover:text-white hover:bg-white/10"}`,
-            children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label })
-          },
-          to
-        )) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 shrink-0", children: [
-          auth && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-white/70 text-xs", children: auth.display_name }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                onClick: () => {
-                  clearAuth();
-                  navigate("/login");
-                },
-                className: "text-white/50 hover:text-white text-xs",
-                children: "退出"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-5 bg-white/20" })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", ref: settingsRef, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "button",
-              {
-                onClick: () => setSettingsOpen((o) => !o),
-                className: `flex items-center gap-2 px-3 py-1.5 rounded-btn text-sm transition-colors
+          children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label })
+        },
+        to
+      )) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 shrink-0", children: [
+        auth && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-white/70 text-xs", children: auth.display_name }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: () => {
+                clearAuth();
+                navigate("/login");
+              },
+              className: "text-white/50 hover:text-white text-xs",
+              children: "退出"
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-5 bg-white/20" })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", ref: settingsRef, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              onClick: () => setSettingsOpen((o) => !o),
+              className: `flex items-center gap-2 px-3 py-1.5 rounded-btn text-sm transition-colors
                   ${isSettings ? "bg-white/15 text-white font-semibold" : "text-white/80 hover:text-white hover:bg-white/10"}`,
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "settings", size: 16 }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "系统设置" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(
-                    "svg",
-                    {
-                      viewBox: "0 0 24 24",
-                      fill: "none",
-                      stroke: "currentColor",
-                      strokeWidth: "2",
-                      strokeLinecap: "round",
-                      strokeLinejoin: "round",
-                      className: "w-3.5 h-3.5 transition-transform duration-150",
-                      style: { transform: settingsOpen ? "rotate(180deg)" : "none" },
-                      children: /* @__PURE__ */ jsxRuntimeExports.jsx("polyline", { points: "6 9 12 15 18 9" })
-                    }
-                  )
-                ]
-              }
-            ),
-            settingsOpen && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "absolute right-0 top-full mt-2 bg-white rounded-card shadow-card border border-border overflow-hidden w-52 z-50", children: [
-              settingNavBiz.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30", children: "业务管理" }),
-                settingNavBiz.map(({ to, label, icon }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                  NavLink,
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "settings", size: 16 }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "系统设置" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "svg",
                   {
-                    to,
-                    onClick: () => setSettingsOpen(false),
-                    className: ({ isActive }) => `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
+                    viewBox: "0 0 24 24",
+                    fill: "none",
+                    stroke: "currentColor",
+                    strokeWidth: "2",
+                    strokeLinecap: "round",
+                    strokeLinejoin: "round",
+                    className: "w-3.5 h-3.5 transition-transform duration-150",
+                    style: { transform: settingsOpen ? "rotate(180deg)" : "none" },
+                    children: /* @__PURE__ */ jsxRuntimeExports.jsx("polyline", { points: "6 9 12 15 18 9" })
+                  }
+                )
+              ]
+            }
+          ),
+          settingsOpen && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "absolute right-0 top-full mt-2 bg-white rounded-card shadow-card border border-border overflow-hidden w-52 z-50", children: [
+            settingNavBiz.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30", children: "业务管理" }),
+              settingNavBiz.map(({ to, label, icon }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                NavLink,
+                {
+                  to,
+                  onClick: () => setSettingsOpen(false),
+                  className: ({ isActive }) => `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
                             ${isActive ? "text-primary font-semibold bg-primary/5" : "text-text-primary hover:bg-warm/30"}`,
-                    children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: icon, size: 16, className: "text-text-muted" }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label })
-                    ]
-                  },
-                  to
-                ))
-              ] }),
-              settingNavBasic.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30", children: "基础配置" }),
-                settingNavBasic.map(({ to, label, icon }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                  NavLink,
-                  {
-                    to,
-                    onClick: () => setSettingsOpen(false),
-                    className: ({ isActive }) => `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: icon, size: 16, className: "text-text-muted" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label })
+                  ]
+                },
+                to
+              ))
+            ] }),
+            settingNavBasic.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30", children: "基础配置" }),
+              settingNavBasic.map(({ to, label, icon }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                NavLink,
+                {
+                  to,
+                  onClick: () => setSettingsOpen(false),
+                  className: ({ isActive }) => `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
                             ${isActive ? "text-primary font-semibold bg-primary/5" : "text-text-primary hover:bg-warm/30"}`,
-                    children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: icon, size: 16, className: "text-text-muted" }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label })
-                    ]
-                  },
-                  to
-                ))
-              ] }),
-              settingNavData.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30", children: "数据工具" }),
-                settingNavData.map(({ to, label, icon }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                  NavLink,
-                  {
-                    to,
-                    onClick: () => setSettingsOpen(false),
-                    className: ({ isActive }) => `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: icon, size: 16, className: "text-text-muted" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label })
+                  ]
+                },
+                to
+              ))
+            ] }),
+            settingNavData.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30", children: "数据工具" }),
+              settingNavData.map(({ to, label, icon }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                NavLink,
+                {
+                  to,
+                  onClick: () => setSettingsOpen(false),
+                  className: ({ isActive }) => `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
                             ${isActive ? "text-primary font-semibold bg-primary/5" : "text-text-primary hover:bg-warm/30"}`,
-                    children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: icon, size: 16, className: "text-text-muted" }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label })
-                    ]
-                  },
-                  to
-                ))
-              ] }),
-              settingNavSystem.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30", children: "系统" }),
-                settingNavSystem.map(({ to, label, icon }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                  NavLink,
-                  {
-                    to,
-                    onClick: () => setSettingsOpen(false),
-                    className: ({ isActive }) => `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: icon, size: 16, className: "text-text-muted" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label })
+                  ]
+                },
+                to
+              ))
+            ] }),
+            settingNavSystem.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30", children: "系统" }),
+              settingNavSystem.map(({ to, label, icon }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                NavLink,
+                {
+                  to,
+                  onClick: () => setSettingsOpen(false),
+                  className: ({ isActive }) => `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
                             ${isActive ? "text-primary font-semibold bg-primary/5" : "text-text-primary hover:bg-warm/30"}`,
-                    children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: icon, size: 16, className: "text-text-muted" }),
-                      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label })
-                    ]
-                  },
-                  to
-                ))
-              ] })
+                  children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: icon, size: 16, className: "text-text-muted" }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: label })
+                  ]
+                },
+                to
+              ))
             ] })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `text-meta font-mono whitespace-nowrap flex items-center gap-1.5
-              ${online === null ? "text-white/60" : online === false ? "text-red-300" : "text-white/80"}`, children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `inline-block w-2 h-2 rounded-full
-                ${online === null ? "bg-white/40" : online ? "bg-green-300" : "bg-red-300"}` }),
-            online === null ? "连接中" : online ? "已连接" : "离线"
           ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `text-meta font-mono whitespace-nowrap flex items-center gap-1.5
+              ${online === null ? "text-white/60" : online === false ? "text-red-300" : "text-white/80"}`, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `inline-block w-2 h-2 rounded-full
+                ${online === null ? "bg-white/40" : online ? "bg-green-300" : "bg-red-300"}` }),
+          online === null ? "连接中" : online ? "已连接" : "离线"
         ] })
-      ] }),
-      isSettings && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-warm/50 border-t border-border", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-screen-xl mx-auto px-6 flex items-center gap-1", style: { height: 36 }, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-meta text-text-muted mr-2 shrink-0", children: "系统设置 /" }),
-        [...settingNavBasic, ...settingNavData, ...settingNavSystem].map(({ to, label, icon }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          NavLink,
-          {
-            to,
-            className: ({ isActive }) => `px-3 py-1 text-meta rounded-btn transition-colors flex items-center gap-1.5
-                    ${isActive ? "bg-primary/10 text-primary font-medium" : "text-text-muted hover:text-primary hover:bg-primary/5"}`,
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: icon, size: 12 }),
-              label
-            ]
-          },
-          to
-        ))
-      ] }) })
-    ] }),
+      ] })
+    ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("main", { className: "flex-1", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-w-screen-xl mx-auto px-6 py-6 pb-10", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Routes, { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/", element: /* @__PURE__ */ jsxRuntimeExports.jsx(DashboardPage, { onGoTab: (t2) => navigate(`/${t2 === "projects" ? "projects" : t2}`) }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/farmers", element: /* @__PURE__ */ jsxRuntimeExports.jsx(FarmersPage, {}) }),
