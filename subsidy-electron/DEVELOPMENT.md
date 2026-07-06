@@ -162,6 +162,60 @@ npm run pack
 | `ELECTRON_RUN_AS_NODE` | **必须清除**，否则 Electron 以 Node 模式运行 |
 | `HTTP_PROXY` / `HTTPS_PROXY` | npm/electron 下载代理 |
 
+## 自动更新
+
+### 架构
+
+```
+用户电脑                        云服务器 (用户自有)
+────────                       ─────────
+electron-updater ──HTTP──→  https://your-server.com/updates/
+  (检查 latest.yml)            ├── latest.yml
+  (下载 .exe + .blockmap)       ├── 农户补贴管理系统 Setup 3.1.0.exe
+                               ├── 农户补贴管理系统 Setup 3.1.0.exe.blockmap
+                               └── ... (历史版本)
+
+用户设置: 更新服务器地址 → 存储在 %APPDATA%/subsidy-electron/user-settings.json
+```
+
+### 发布新版本流程
+
+```bash
+# 1. 修改 package.json 版本号
+# 2. 构建 + 打包
+npm run dist
+# 产物在 dist/ 下: .exe, .blockmap, latest.yml
+
+# 3. 上传 dist/ 下所有文件到云服务器
+# 例如: scp dist/* user@your-server.com:/var/www/updates/
+
+# 4. 用户下次启动时会自动检测到新版本
+```
+
+### 用户在软件中配置
+
+在 **设置 > 更新** 中填写更新服务器地址，例如：
+```
+https://your-server.com/updates/
+```
+
+### 相关文件
+
+| 文件 | 作用 |
+|------|------|
+| `electron/updater.ts` | 检查/下载/安装逻辑 |
+| `electron/store.ts` | 持久化用户设置 (electron-store) |
+| `electron/ipc/settings.ts` | `getUpdateConfig` / `setUpdateConfig` / `checkForUpdate` |
+| `electron/preload.ts` | 暴露更新事件监听 (status/available/progress/error) |
+
+### 手动触发检查
+
+```javascript
+// 渲染进程中
+const result = await window.electronAPI.invoke('settings:checkForUpdate')
+// result: { message, version } 或 { error }
+```
+
 ## 默认账号
 
 - 用户名: `admin`
