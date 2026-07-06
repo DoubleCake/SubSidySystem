@@ -57721,6 +57721,190 @@ function PeopleMatchPage() {
     ] })
   ] });
 }
+function UpdatePage() {
+  const [history, setHistory] = reactExports.useState(null);
+  const [loading, setLoading] = reactExports.useState(false);
+  const [url, setUrl] = reactExports.useState("");
+  const [config, setConfig] = reactExports.useState(null);
+  const [checking, setChecking] = reactExports.useState(false);
+  const [status, setStatus] = reactExports.useState("");
+  const [steps, setSteps] = reactExports.useState([]);
+  const [error, setError] = reactExports.useState("");
+  const [detail, setDetail] = reactExports.useState("");
+  const [localLog, setLocalLog] = reactExports.useState("");
+  reactExports.useEffect(() => {
+    loadConfig();
+  }, []);
+  const loadConfig = async () => {
+    try {
+      const r2 = await window.electronAPI.invoke("settings:getUpdateConfig");
+      if (r2?.data) {
+        setConfig(r2.data);
+        setUrl(r2.data.updateServerUrl);
+      }
+    } catch {
+    }
+  };
+  const loadHistory = async () => {
+    setLoading(true);
+    try {
+      const r2 = await window.electronAPI.invoke("update:getVersionHistory");
+      if (r2?.data) setHistory(r2.data);
+      const l2 = await window.electronAPI.invoke("update:getLocalChangelog");
+      if (l2?.data) setLocalLog(l2.data.content);
+    } catch {
+    } finally {
+      setLoading(false);
+    }
+  };
+  const saveUrl = async () => {
+    try {
+      await window.electronAPI.invoke("settings:setUpdateConfig", { updateServerUrl: url.trim() });
+      setStatus("已保存");
+      setTimeout(() => setStatus(""), 2e3);
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+  const checkUpdate = async () => {
+    setChecking(true);
+    setError("");
+    setDetail("");
+    setSteps([]);
+    setStatus("checking");
+    try {
+      const r2 = await window.electronAPI.invoke("settings:checkForUpdate");
+      const d = r2?.data;
+      if (d?.error) {
+        setError(d.error);
+        setDetail(d.detail || "");
+        setSteps(d.steps || []);
+        setStatus("error");
+      } else {
+        setStatus(d?.message || "");
+        setSteps(d?.steps || []);
+      }
+      setChecking(false);
+      loadConfig();
+    } catch (e) {
+      setError(String(e));
+      setStatus("error");
+      setChecking(false);
+    }
+  };
+  const downloadVersion = async (v2) => {
+    if (!confirm(`确定要下载并安装版本 ${v2.version}？
+${v2.title || ""}`)) return;
+    setChecking(true);
+    setStatus("downloading");
+    try {
+      const r2 = await window.electronAPI.invoke("update:downloadVersion", { version: v2.version, url: v2.downloadUrl });
+      if (r2?.data?.error) setError(r2.data.error);
+      else setStatus(r2?.data?.message || `已下载 v${v2.version}`);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setChecking(false);
+    }
+  };
+  const stLabel = {
+    checking: { text: "检查中...", color: "text-blue-600", bg: "#eff6ff" },
+    "up-to-date": { text: "当前已是最新", color: "text-green-600", bg: "#f0fdf4" },
+    downloading: { text: "下载中...", color: "text-amber-600", bg: "#fffbeb" },
+    error: { text: "出错", color: "text-red-600", bg: "#fef2f2" }
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-4xl mx-auto p-4 space-y-5", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-xl font-bold", children: "🔄 软件更新" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card p-5 shadow-card space-y-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 flex-wrap", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm text-text-muted", children: "当前版本:" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-mono font-bold text-primary", children: config?.currentVersion || "—" })
+        ] }),
+        history && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm text-text-muted", children: "服务器最新:" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `font-mono font-bold ${history.latestVersion !== history.currentVersion ? "text-amber-600" : "text-green-600"}`, children: history.latestVersion || "未知" }),
+          history.latestVersion !== history.currentVersion && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded", children: "可更新" })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            value: url,
+            onChange: (e) => setUrl(e.target.value),
+            placeholder: "http://8.137.8.78:8080/",
+            className: "flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: saveUrl, className: "px-4 py-2 bg-primary-500 text-white text-sm rounded-btn hover:bg-primary/90", children: "保存" })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 flex-wrap", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: checkUpdate,
+            disabled: checking || !url.trim(),
+            className: "px-5 py-2.5 bg-primary-500 text-white rounded-btn hover:bg-primary/90 disabled:opacity-40 font-medium",
+            children: checking ? "检查中..." : "🔍 检查更新"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: loadHistory,
+            disabled: loading,
+            className: "px-4 py-2 border border-border rounded-btn text-sm hover:bg-warm/30",
+            children: loading ? "加载中..." : "📋 加载版本历史"
+          }
+        )
+      ] }),
+      steps.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-gray-50 border border-border rounded-card p-3 text-xs space-y-0.5 font-mono max-h-36 overflow-y-auto", children: steps.map((s, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: s.includes("❌") ? "text-red-600" : s.includes("✅") ? "text-green-600" : "text-text-muted", children: s }, i)) }),
+      status && (() => {
+        const sl2 = stLabel[status] || { text: status, color: "text-text-muted", bg: "#f5f5f5" };
+        return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `text-xs ${sl2.color} rounded-btn px-3 py-2`, style: { backgroundColor: sl2.bg }, children: sl2.text });
+      })(),
+      error && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs text-red-600 bg-red-50 rounded-btn px-3 py-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "font-semibold", children: [
+          "⚠️ ",
+          error
+        ] }),
+        detail && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-red-500 mt-1 whitespace-pre-wrap", children: detail })
+      ] })
+    ] }),
+    history && history.versions.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white border border-border rounded-card shadow-card overflow-hidden", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-5 py-3 bg-primary/5 border-b border-primary/10 font-semibold text-primary text-sm", children: "📜 版本历史" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "divide-y divide-border/50", children: history.versions.map((v2, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `p-4 ${v2.version === config?.currentVersion ? "bg-primary/5" : ""}`, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 mb-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono font-bold text-primary", children: [
+            "v",
+            v2.version
+          ] }),
+          v2.version === config?.currentVersion && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-primary text-white px-2 py-0.5 rounded", children: "当前" }),
+          v2.version === history.latestVersion && v2.version !== config?.currentVersion && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-amber-500 text-white px-2 py-0.5 rounded", children: "最新" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: v2.date }),
+          v2.fileSize && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: v2.fileSize })
+        ] }),
+        v2.title && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm font-medium text-text-primary mb-1.5", children: v2.title }),
+        v2.changes.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("ul", { className: "text-xs text-text-muted space-y-0.5 ml-4 list-disc", children: v2.changes.map((c, j) => /* @__PURE__ */ jsxRuntimeExports.jsx("li", { children: c }, j)) }),
+        v2.version !== config?.currentVersion && /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => downloadVersion(v2),
+            disabled: checking,
+            className: "mt-2 text-xs text-primary border border-primary/30 px-3 py-1 rounded-btn hover:bg-primary/5 disabled:opacity-40",
+            children: "⬇️ 切换到此版本"
+          }
+        )
+      ] }, v2.version)) })
+    ] }),
+    localLog && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-white border border-border rounded-card p-5 shadow-card", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("summary", { className: "text-sm font-medium text-text-muted cursor-pointer", children: "📝 本地更新日志 (CHANGELOG.md)" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("pre", { className: "mt-3 text-xs text-text-muted whitespace-pre-wrap font-mono max-h-60 overflow-y-auto bg-warm/30 p-3 rounded", children: localLog })
+    ] }) }),
+    !history?.versions?.length && !loading && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center text-text-muted/50 py-8 text-sm", children: '点击"加载版本历史"查看服务器上可用的版本' })
+  ] });
+}
 const QUOTES = [
   "革命尚未成功，同志们还当努力",
   "实事求是，群众路线",
@@ -57763,7 +57947,8 @@ const settingNavData = [
 const settingNavSystem = [
   // 系统
   { to: "/settings/users", label: "用户管理", icon: "person" },
-  { to: "/settings/backup", label: "备份迁移", icon: "download" }
+  { to: "/settings/backup", label: "备份迁移", icon: "download" },
+  { to: "/settings/update", label: "软件更新", icon: "settings" }
 ];
 function Layout() {
   const auth = getAuth();
@@ -57962,6 +58147,7 @@ function Layout() {
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/settings/family-relation-import", element: /* @__PURE__ */ jsxRuntimeExports.jsx(FamilyRelationImportPage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/settings/large-farmers", element: /* @__PURE__ */ jsxRuntimeExports.jsx(LargeFarmersPage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/settings/users", element: /* @__PURE__ */ jsxRuntimeExports.jsx(UserManagementPage, {}) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/settings/update", element: /* @__PURE__ */ jsxRuntimeExports.jsx(UpdatePage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/proxy/application/:applicationId", element: /* @__PURE__ */ jsxRuntimeExports.jsx(ProxyManagePage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "/workflow", element: /* @__PURE__ */ jsxRuntimeExports.jsx(WorkflowDocPage, {}) }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(Route, { path: "*", element: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center py-24 text-text-muted", children: [

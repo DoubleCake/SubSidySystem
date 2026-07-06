@@ -94,6 +94,12 @@ sha512: $SHA512
 releaseDate: $(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 YEOF
 
+# 复制 versions.json（版本更新日志）
+if [ -f "versions.json" ]; then
+  cp versions.json "$RELEASE_DIR/versions.json"
+  echo "✅ versions.json 已复制"
+fi
+
 echo "✅ latest.yml 已生成"
 
 # 同时复制到 resources/ 作为 app-update.yml
@@ -113,7 +119,9 @@ echo "================================================"
 # 5. 上传
 echo ""
 echo "[4/5] 上传到 $SERVER:$REMOTE_DIR ..."
-scp "$RELEASE_DIR/$SETUP_NAME" "$RELEASE_DIR/$BLOCKMAP_FILE" "$RELEASE_DIR/latest.yml" "$SERVER:$REMOTE_DIR"
+UPLOAD_FILES=("$RELEASE_DIR/$SETUP_NAME" "$RELEASE_DIR/$BLOCKMAP_FILE" "$RELEASE_DIR/latest.yml")
+[ -f "$RELEASE_DIR/versions.json" ] && UPLOAD_FILES+=("$RELEASE_DIR/versions.json")
+scp "${UPLOAD_FILES[@]}" "$SERVER:$REMOTE_DIR"
 
 echo ""
 echo "[5/5] 验证..."

@@ -16,6 +16,7 @@ import { registerEligibilityHandlers } from './eligibility'
 import { registerAuthHandlers } from './auth'
 import { registerProjectProgressHandlers } from './project-progress'
 import { registerVillageContactsHandlers } from './village-contacts'
+import { registerUpdateHandlers } from './update'
 import { getDbPath } from '../database/connection'
 
 /**

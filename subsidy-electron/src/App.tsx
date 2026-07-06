@@ -20,6 +20,7 @@ import ToolsPage from './pages/ToolsPage'
 import DataVerifyPage from './pages/DataVerifyPage'
 import UserManagementPage from './pages/UserManagementPage'
 import PeopleMatchPage from './pages/PeopleMatchPage'
+import UpdatePage from './pages/UpdatePage'
 import LoginPage, { getAuth, clearAuth, isAuthDisabled, setAuthDisabled } from './pages/LoginPage'
 import { healthCheck } from './api'
 import { useState } from 'react'
@@ -52,6 +53,7 @@ const settingNavData = [  // 数据工具
 const settingNavSystem = [  // 系统
   { to: '/settings/users',          label: '用户管理',   icon: 'person' as const },
   { to: '/settings/backup',         label: '备份迁移',   icon: 'download' as const },
+  { to: '/settings/update',         label: '软件更新',   icon: 'settings' as const },
 ]
 
 function Layout() {
@@ -245,6 +247,7 @@ function Layout() {
             <Route path="/settings/family-relation-import" element={<FamilyRelationImportPage />} />
             <Route path="/settings/large-farmers" element={<LargeFarmersPage />} />
             <Route path="/settings/users" element={<UserManagementPage />} />
+            <Route path="/settings/update" element={<UpdatePage />} />
             <Route path="/proxy/application/:applicationId" element={<ProxyManagePage />} />
             <Route path="/workflow" element={<WorkflowDocPage />} />
             {/* 404 fallback */}

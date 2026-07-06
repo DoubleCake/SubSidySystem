@@ -1,0 +1,63 @@
+{
+  "versions": [
+    {
+      "version": "0.0.8",
+      "date": "2026-07-07",
+      "title": "农户补贴记录关联修复 + 独立更新页面",
+      "changes": [
+        "修复 household/farmer 页面补贴记录显示",
+        "修复代领关系 proxy_info 不显示问题",
+        "新增独立软件更新页面(版本历史+回退)",
+        "应用启动自动生成 app-update.yml 解决更新缺文件"
+      ]
+    },
+    {
+      "version": "0.0.7",
+      "date": "2026-07-07",
+      "title": "移除设置子导航 + deploy.bat 纯 ASCII + 自动生成 app-update.yml",
+      "changes": [
+        "应用启动时自动生成 resources/app-update.yml",
+        "deploy.bat 纯 ASCII 重写，解决 cmd.exe GBK 编码错乱",
+        "移除系统设置页面下的冗余二级导航 tab",
+        "DEVELOPMENT.md 补充 .bat 编码经验文档"
+      ]
+    },
+    {
+      "version": "0.0.5",
+      "date": "2026-07-06",
+      "title": "40个缺失IPC handler补齐 + 项目进度页面",
+      "changes": [
+        "补齐用户管理/大户管理/村级联系人/补贴批处理等40个IPC通道",
+        "新增项目进度管理页面(project-progress)",
+        "农户详情页补充补贴记录和代领关系",
+        "家庭户成员信息不打码，显示原始值",
+        "新增仅显示有补贴记录家庭户筛选",
+        "header/footer图片原始尺寸显示，全屏不拉伸"
+      ]
+    },
+    {
+      "version": "0.0.4",
+      "date": "2026-07-06",
+      "title": "农户详情页补贴记录 + 英文exe名 + sha512修复",
+      "changes": [
+        "FarmerDetail页面显示补贴记录(applications)",
+        "exe文件改英文名 SubsidySystem.exe 解决URL编码问题",
+        "修复latest.yml sha512 base64换行导致YAML解析失败",
+        "electron-updater下载前补充checkForUpdates调用",
+        "部署脚本自动生成app-update.yml"
+      ]
+    },
+    {
+      "version": "0.0.1",
+      "date": "2026-07-05",
+      "title": "首个 Electron 版本",
+      "changes": [
+        "Electron 33 + React 18 + sql.js WASM SQLite",
+        "Python FastAPI 后端全部迁移到 IPC 通信",
+        "25张数据库表完全兼容",
+        "自动更新功能(electron-updater)",
+        "本地认证 admin/admin123"
+      ]
+    }
+  ]
+}
