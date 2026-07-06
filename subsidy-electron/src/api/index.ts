@@ -426,8 +426,8 @@ export const getDbInfo = () =>
     backup_dir: string
   }>('settings:getDbInfo')
 
-export const createBackup = (destPath?: string) =>
-  req<{ message: string; filename: string; size_kb: number }>('settings:backup', destPath)
+export const createBackup = () =>
+  req<{ message: string; filename: string; size_kb: number }>('settings:createBackup')
 
 export const restoreDatabase = (filePath: string) =>
   req<{ message: string; backup_created: string }>('settings:restore', filePath)
@@ -436,10 +436,13 @@ export const deleteBackup = (filename: string) =>
   req('settings:deleteBackup', filename)
 
 export const exportExcel = () =>
-  window.electronAPI.invoke('settings:exportExcel')
+  req<{ message: string }>('settings:exportExcel')
 
 export const downloadDb = () =>
-  window.electronAPI.invoke('settings:downloadDb')
+  req<{ message: string }>('settings:downloadDb')
+
+export const downloadBackup = (filename: string) =>
+  req('settings:downloadBackup', filename)
 
 // ── 超领明细 ──
 export interface OverdrawnDetailItem {

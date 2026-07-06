@@ -39810,10 +39810,10 @@ const getDashboardTodos = (year) => req(
   { year }
 );
 const getDbInfo = () => req("settings:getDbInfo");
-const createBackup = (destPath) => req("settings:backup", destPath);
+const createBackup = () => req("settings:createBackup");
 const deleteBackup = (filename) => req("settings:deleteBackup", filename);
-const exportExcel = () => window.electronAPI.invoke("settings:exportExcel");
-const downloadDb = () => window.electronAPI.invoke("settings:downloadDb");
+const exportExcel = () => req("settings:exportExcel");
+const downloadDb = () => req("settings:downloadDb");
 const getOverdrawnDetail = (year) => req("households:overdrawnDetail", { year });
 const getAgriTasks = (params) => req("agri-tasks:list", params);
 const getAgriTaskDetail = (id2) => req("agri-tasks:get", id2);

@@ -1,14 +1,19 @@
-import { ipcMain, app } from 'electron'
-import { getDb } from '../database/connection'
-import { getDbPath } from '../database/connection'
-import { success, errorResponse, parsePagination, successList } from './response'
-import { copyFileSync } from 'fs'
-import { join } from 'path'
+import { ipcMain, app, dialog } from 'electron'
+import { getDb, getDbPath } from '../database/connection'
+import { success, errorResponse } from './response'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'fs'
+import { join, basename } from 'path'
+
+function getBackupDir(): string {
+  const dir = join(app.getPath('userData'), 'backups')
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  return dir
+}
 
 export function registerSettingsHandlers(): void {
   const db = () => getDb()
 
-  // 村组管理
+  // ── 村组管理 ──
   ipcMain.handle('settings:listVillageGroups', () => {
     try {
       const rows = db().allRaw(`
@@ -22,7 +27,6 @@ export function registerSettingsHandlers(): void {
 
   ipcMain.handle('settings:createVillageGroup', (_e, data: { village_name: string; group_no: string }) => {
     try {
-      // 确保 village 存在
       let village = db().getRaw<{ id: number }>('SELECT id FROM village WHERE village_name = ?', data.village_name)
       if (!village) {
         const r = db().runRaw('INSERT INTO village (village_name) VALUES (?)', data.village_name)
@@ -33,27 +37,174 @@ export function registerSettingsHandlers(): void {
     } catch (e) { return errorResponse(String(e)) }
   })
 
-  // 备份
-  ipcMain.handle('settings:backup', (_e, destPath: string) => {
+  // ── 数据库信息 ──
+  ipcMain.handle('settings:getDbInfo', () => {
     try {
-      const srcPath = getDbPath()
-      copyFileSync(srcPath, destPath)
-      return success({ message: '备份成功', path: destPath })
+      const dbPath = getDbPath()
+      const stat = existsSync(dbPath) ? statSync(dbPath) : { size: 0 }
+      const sizeKb = Math.round(stat.size / 1024)
+      const sizeMb = Math.round(stat.size / 1024 / 1024 * 100) / 100
+
+      // 各表记录数
+      const tables = ['farmer_profile', 'family_household', 'village_group', 'subsidy_type', 'subsidy_application']
+      const recordCounts: Record<string, number> = {}
+      let totalRecords = 0
+      for (const t of tables) {
+        try {
+          const r = db().getRaw<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM "${t}"`)
+          recordCounts[t] = r?.cnt ?? 0
+          totalRecords += r?.cnt ?? 0
+        } catch { recordCounts[t] = 0 }
+      }
+
+      // 本地备份列表
+      const backupDir = getBackupDir()
+      const backups: { filename: string; size_kb: number; created: string }[] = []
+      try {
+        for (const f of readdirSync(backupDir)) {
+          if (f.endsWith('.db')) {
+            const fs = statSync(join(backupDir, f))
+            backups.push({
+              filename: f,
+              size_kb: Math.round(fs.size / 1024),
+              created: fs.birthtime.toISOString().split('T')[0],
+            })
+          }
+        }
+        backups.sort((a, b) => b.created.localeCompare(a.created))
+      } catch { /* ignore */ }
+
+      return success({
+        db_path: dbPath,
+        db_size_kb: sizeKb,
+        db_size_mb: sizeMb,
+        total_records: totalRecords,
+        record_counts: recordCounts,
+        backups,
+        backup_dir: backupDir,
+      })
     } catch (e) { return errorResponse(String(e)) }
   })
 
-  ipcMain.handle('settings:getDbInfo', () => {
+  // ── 下载数据库文件 ──
+  ipcMain.handle('settings:downloadDb', async () => {
     try {
-      const path = getDbPath()
-      const tables = db().allRaw<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-      const counts: Record<string, number> = {}
-      for (const t of tables) {
+      const result = await dialog.showSaveDialog({
+        title: '保存数据库文件',
+        defaultPath: 'subsidy.db',
+        filters: [{ name: 'SQLite 数据库', extensions: ['db'] }],
+      })
+      if (result.canceled || !result.filePath) return success(null, '已取消')
+      copyFileSync(getDbPath(), result.filePath)
+      return success({ message: '下载成功', path: result.filePath })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 导出 Excel ──
+  ipcMain.handle('settings:exportExcel', async () => {
+    try {
+      // 动态加载 xlsx
+      const XLSX = require('xlsx')
+      const wb = XLSX.utils.book_new()
+
+      const sheets: { name: string; table: string }[] = [
+        { name: '农户档案', table: 'farmer_profile' },
+        { name: '家庭户', table: 'family_household' },
+        { name: '补贴记录', table: 'subsidy_application' },
+        { name: '补贴项目', table: 'subsidy_type' },
+        { name: '村组配置', table: 'village_group' },
+      ]
+
+      for (const { name, table } of sheets) {
         try {
-          const r = db().getRaw<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM "${t.name}"`)
-          counts[t.name] = r?.cnt ?? 0
-        } catch { /* skip */ }
+          const rows = db().allRaw(`SELECT * FROM "${table}"`)
+          if (rows.length > 0) {
+            const ws = XLSX.utils.json_to_sheet(rows)
+            XLSX.utils.book_append_sheet(wb, ws, name)
+          }
+        } catch { /* table might not exist */ }
       }
-      return success({ path, tables: tables.map(t => t.name), counts })
+
+      const result = await dialog.showSaveDialog({
+        title: '导出 Excel',
+        defaultPath: `数据备份_${new Date().toISOString().split('T')[0]}.xlsx`,
+        filters: [{ name: 'Excel 文件', extensions: ['xlsx'] }],
+      })
+      if (result.canceled || !result.filePath) return success(null, '已取消')
+
+      XLSX.writeFile(wb, result.filePath)
+      return success({ message: '导出成功', path: result.filePath })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 创建本地备份 ──
+  ipcMain.handle('settings:createBackup', () => {
+    try {
+      const backupDir = getBackupDir()
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+      const filename = `backup_${timestamp}.db`
+      const destPath = join(backupDir, filename)
+      copyFileSync(getDbPath(), destPath)
+      const stat = statSync(destPath)
+      return success({
+        message: '备份创建成功',
+        filename,
+        size_kb: Math.round(stat.size / 1024),
+        path: destPath,
+      })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 下载备份文件 ──
+  ipcMain.handle('settings:downloadBackup', async (_e, filename: string) => {
+    try {
+      const srcPath = join(getBackupDir(), filename)
+      if (!existsSync(srcPath)) return errorResponse('备份文件不存在')
+      const result = await dialog.showSaveDialog({
+        title: '下载备份',
+        defaultPath: filename,
+        filters: [{ name: 'SQLite 数据库', extensions: ['db'] }],
+      })
+      if (result.canceled || !result.filePath) return success(null, '已取消')
+      copyFileSync(srcPath, result.filePath)
+      return success({ message: '下载成功' })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 删除备份 ──
+  ipcMain.handle('settings:deleteBackup', (_e, filename: string) => {
+    try {
+      const filePath = join(getBackupDir(), filename)
+      if (existsSync(filePath)) unlinkSync(filePath)
+      return success({ message: '已删除' })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 恢复数据库 ──
+  ipcMain.handle('settings:restore', (_e, filePath: string) => {
+    try {
+      if (!existsSync(filePath)) return errorResponse('备份文件不存在')
+
+      // 先创建应急备份
+      const emergencyDir = getBackupDir()
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+      const emergencyPath = join(emergencyDir, `emergency_before_restore_${timestamp}.db`)
+      copyFileSync(getDbPath(), emergencyPath)
+
+      // 恢复
+      copyFileSync(filePath, getDbPath())
+      return success({
+        message: '数据库已恢复，请重启应用使更改生效',
+        backup_created: basename(emergencyPath),
+      })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 获取村列表 ──
+  ipcMain.handle('settings:listVillages', () => {
+    try {
+      const rows = db().allRaw('SELECT id, village_name FROM village ORDER BY village_name')
+      return success(rows)
     } catch (e) { return errorResponse(String(e)) }
   })
 }

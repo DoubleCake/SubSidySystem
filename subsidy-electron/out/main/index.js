@@ -2144,6 +2144,11 @@ function registerLandHandlers() {
     }
   });
 }
+function getBackupDir() {
+  const dir = path.join(electron.app.getPath("userData"), "backups");
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
 function registerSettingsHandlers() {
   const db2 = () => getDb();
   electron.ipcMain.handle("settings:listVillageGroups", () => {
@@ -2171,28 +2176,163 @@ function registerSettingsHandlers() {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("settings:backup", (_e, destPath) => {
+  electron.ipcMain.handle("settings:getDbInfo", () => {
     try {
-      const srcPath = getDbPath();
-      fs.copyFileSync(srcPath, destPath);
-      return success({ message: "备份成功", path: destPath });
+      const dbPath = getDbPath();
+      const stat = fs.existsSync(dbPath) ? fs.statSync(dbPath) : { size: 0 };
+      const sizeKb = Math.round(stat.size / 1024);
+      const sizeMb = Math.round(stat.size / 1024 / 1024 * 100) / 100;
+      const tables = ["farmer_profile", "family_household", "village_group", "subsidy_type", "subsidy_application"];
+      const recordCounts = {};
+      let totalRecords = 0;
+      for (const t of tables) {
+        try {
+          const r = db2().getRaw(`SELECT COUNT(*) as cnt FROM "${t}"`);
+          recordCounts[t] = r?.cnt ?? 0;
+          totalRecords += r?.cnt ?? 0;
+        } catch {
+          recordCounts[t] = 0;
+        }
+      }
+      const backupDir = getBackupDir();
+      const backups = [];
+      try {
+        for (const f of fs.readdirSync(backupDir)) {
+          if (f.endsWith(".db")) {
+            const fs$1 = fs.statSync(path.join(backupDir, f));
+            backups.push({
+              filename: f,
+              size_kb: Math.round(fs$1.size / 1024),
+              created: fs$1.birthtime.toISOString().split("T")[0]
+            });
+          }
+        }
+        backups.sort((a, b) => b.created.localeCompare(a.created));
+      } catch {
+      }
+      return success({
+        db_path: dbPath,
+        db_size_kb: sizeKb,
+        db_size_mb: sizeMb,
+        total_records: totalRecords,
+        record_counts: recordCounts,
+        backups,
+        backup_dir: backupDir
+      });
     } catch (e) {
       return errorResponse(String(e));
     }
   });
-  electron.ipcMain.handle("settings:getDbInfo", () => {
+  electron.ipcMain.handle("settings:downloadDb", async () => {
     try {
-      const path2 = getDbPath();
-      const tables = db2().allRaw("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
-      const counts = {};
-      for (const t of tables) {
+      const result = await electron.dialog.showSaveDialog({
+        title: "保存数据库文件",
+        defaultPath: "subsidy.db",
+        filters: [{ name: "SQLite 数据库", extensions: ["db"] }]
+      });
+      if (result.canceled || !result.filePath) return success(null, "已取消");
+      fs.copyFileSync(getDbPath(), result.filePath);
+      return success({ message: "下载成功", path: result.filePath });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("settings:exportExcel", async () => {
+    try {
+      const XLSX = require("xlsx");
+      const wb = XLSX.utils.book_new();
+      const sheets = [
+        { name: "农户档案", table: "farmer_profile" },
+        { name: "家庭户", table: "family_household" },
+        { name: "补贴记录", table: "subsidy_application" },
+        { name: "补贴项目", table: "subsidy_type" },
+        { name: "村组配置", table: "village_group" }
+      ];
+      for (const { name, table } of sheets) {
         try {
-          const r = db2().getRaw(`SELECT COUNT(*) as cnt FROM "${t.name}"`);
-          counts[t.name] = r?.cnt ?? 0;
+          const rows = db2().allRaw(`SELECT * FROM "${table}"`);
+          if (rows.length > 0) {
+            const ws = XLSX.utils.json_to_sheet(rows);
+            XLSX.utils.book_append_sheet(wb, ws, name);
+          }
         } catch {
         }
       }
-      return success({ path: path2, tables: tables.map((t) => t.name), counts });
+      const result = await electron.dialog.showSaveDialog({
+        title: "导出 Excel",
+        defaultPath: `数据备份_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.xlsx`,
+        filters: [{ name: "Excel 文件", extensions: ["xlsx"] }]
+      });
+      if (result.canceled || !result.filePath) return success(null, "已取消");
+      XLSX.writeFile(wb, result.filePath);
+      return success({ message: "导出成功", path: result.filePath });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("settings:createBackup", () => {
+    try {
+      const backupDir = getBackupDir();
+      const timestamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      const filename = `backup_${timestamp}.db`;
+      const destPath = path.join(backupDir, filename);
+      fs.copyFileSync(getDbPath(), destPath);
+      const stat = fs.statSync(destPath);
+      return success({
+        message: "备份创建成功",
+        filename,
+        size_kb: Math.round(stat.size / 1024),
+        path: destPath
+      });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("settings:downloadBackup", async (_e, filename) => {
+    try {
+      const srcPath = path.join(getBackupDir(), filename);
+      if (!fs.existsSync(srcPath)) return errorResponse("备份文件不存在");
+      const result = await electron.dialog.showSaveDialog({
+        title: "下载备份",
+        defaultPath: filename,
+        filters: [{ name: "SQLite 数据库", extensions: ["db"] }]
+      });
+      if (result.canceled || !result.filePath) return success(null, "已取消");
+      fs.copyFileSync(srcPath, result.filePath);
+      return success({ message: "下载成功" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("settings:deleteBackup", (_e, filename) => {
+    try {
+      const filePath = path.join(getBackupDir(), filename);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      return success({ message: "已删除" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("settings:restore", (_e, filePath) => {
+    try {
+      if (!fs.existsSync(filePath)) return errorResponse("备份文件不存在");
+      const emergencyDir = getBackupDir();
+      const timestamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      const emergencyPath = path.join(emergencyDir, `emergency_before_restore_${timestamp}.db`);
+      fs.copyFileSync(getDbPath(), emergencyPath);
+      fs.copyFileSync(filePath, getDbPath());
+      return success({
+        message: "数据库已恢复，请重启应用使更改生效",
+        backup_created: path.basename(emergencyPath)
+      });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("settings:listVillages", () => {
+    try {
+      const rows = db2().allRaw("SELECT id, village_name FROM village ORDER BY village_name");
+      return success(rows);
     } catch (e) {
       return errorResponse(String(e));
     }
