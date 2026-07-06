@@ -78,11 +78,10 @@ export default function BackupPage() {
     if (!confirmRestore) return show('请勾选确认框后再执行恢复', 'err')
     setRestoring(true)
     try {
-      const result = await window.electronAPI.invoke('dialog:selectFile', {
+      const filePath = await window.electronAPI.invoke<string | null>('dialog:selectFile', {
         filters: [{ name: '数据库文件', extensions: ['db'] }]
       })
-      if (!result || result.canceled) { setRestoring(false); return }
-      const filePath = result.filePath || result[0]
+      if (!filePath) { setRestoring(false); return }
       const r = await window.electronAPI.invoke('settings:restore', filePath)
       show('✓ ' + (r.message || '恢复成功'))
       setConfirmRestore(false)

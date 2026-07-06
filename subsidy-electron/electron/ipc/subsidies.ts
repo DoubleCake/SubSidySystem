@@ -8,11 +8,14 @@ export function registerSubsidyHandlers(): void {
 
   // ═══════════════════ 补贴类型 ═══════════════════
 
-  ipcMain.handle('subsidies:listTypes', (_e, year?: number) => {
+  ipcMain.handle('subsidies:listTypes', (_e, payload: any) => {
     try {
-      let query = 'SELECT * FROM subsidy_type'
+      const year = payload?.year ?? payload
+      const status = payload?.status
+      let query = 'SELECT * FROM subsidy_type WHERE 1=1'
       const params: unknown[] = []
-      if (year) { query += ' WHERE subsidy_year = ?'; params.push(year) }
+      if (year) { query += ' AND subsidy_year = ?'; params.push(year) }
+      if (status !== undefined) { query += ' AND pay_status = ?'; params.push(status) }
       query += ' ORDER BY subsidy_year DESC'
       return success(db().allRaw(query, ...params))
     } catch (e) {
@@ -20,7 +23,7 @@ export function registerSubsidyHandlers(): void {
     }
   })
 
-  ipcMain.handle('subsidies:listTypesWithStats', (_e, year?: number) => {
+  ipcMain.handle('subsidies:listTypesWithStats', (_e, year?: any) => {
     try {
       const params: unknown[] = []
       let yearCondition = ''
@@ -368,8 +371,30 @@ export function registerSubsidyHandlers(): void {
     } catch (e) { return errorResponse(String(e)) }
   })
 
+  ipcMain.handle('subsidies:deleteType', (_e, typeId: number) => {
+    try {
+      // 软删除：设 pay_status=0
+      db().runRaw("UPDATE subsidy_type SET pay_status = 0, updated_at = datetime('now','localtime') WHERE id = ?", typeId)
+      return success({ message: '已移入回收站' })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  ipcMain.handle('subsidies:comparableTypes', (_e, payload: any) => {
+    try {
+      const { category, current_type_id } = payload
+      let query = 'SELECT id, subsidy_name, subsidy_year FROM subsidy_type WHERE 1=1'
+      const params: unknown[] = []
+      if (category) { query += ' AND category = ?'; params.push(category) }
+      if (current_type_id) { query += ' AND id != ?'; params.push(current_type_id) }
+      query += ' ORDER BY subsidy_year DESC'
+      return success(db().allRaw(query, ...params))
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
   ipcMain.handle('subsidies:restoreType', (_e, typeId: number) => {
     try {
+      // 恢复：设 pay_status=2
+      db().runRaw("UPDATE subsidy_type SET pay_status = 2, updated_at = datetime('now','localtime') WHERE id = ?", typeId)
       return success({ message: '恢复成功' })
     } catch (e) { return errorResponse(String(e)) }
   })

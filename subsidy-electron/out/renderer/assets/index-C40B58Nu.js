@@ -39722,7 +39722,7 @@ const batchImportFarmers = (rows, overwrite = false) => req(
 );
 const importFamilyRelations = (rows, splitVillages) => req("farmers:importRelations", { rows, splitVillages });
 const previewMultiHeadHouseholds = (villageNames, excelRows) => req("farmers:multiHeadPreview", { villageNames, excelRows });
-const getSubsidyTypes = (year) => req("subsidies:listTypes", year);
+const getSubsidyTypes = (year, status) => req("subsidies:listTypes", { year, status });
 const getSubsidyTypesWithStats = (year) => req(
   "subsidies:listTypesWithStats",
   year
@@ -52316,14 +52316,13 @@ function BackupPage() {
     if (!confirmRestore) return show("请勾选确认框后再执行恢复", "err");
     setRestoring(true);
     try {
-      const result = await window.electronAPI.invoke("dialog:selectFile", {
+      const filePath = await window.electronAPI.invoke("dialog:selectFile", {
         filters: [{ name: "数据库文件", extensions: ["db"] }]
       });
-      if (!result || result.canceled) {
+      if (!filePath) {
         setRestoring(false);
         return;
       }
-      const filePath = result.filePath || result[0];
       const r2 = await window.electronAPI.invoke("settings:restore", filePath);
       show("✓ " + (r2.message || "恢复成功"));
       setConfirmRestore(false);

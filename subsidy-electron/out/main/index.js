@@ -1655,13 +1655,19 @@ function registerHouseholdHandlers() {
 }
 function registerSubsidyHandlers() {
   const db2 = () => getDb();
-  electron.ipcMain.handle("subsidies:listTypes", (_e, year) => {
+  electron.ipcMain.handle("subsidies:listTypes", (_e, payload) => {
     try {
-      let query = "SELECT * FROM subsidy_type";
+      const year = payload?.year ?? payload;
+      const status = payload?.status;
+      let query = "SELECT * FROM subsidy_type WHERE 1=1";
       const params = [];
       if (year) {
-        query += " WHERE subsidy_year = ?";
+        query += " AND subsidy_year = ?";
         params.push(year);
+      }
+      if (status !== void 0) {
+        query += " AND pay_status = ?";
+        params.push(status);
       }
       query += " ORDER BY subsidy_year DESC";
       return success(db2().allRaw(query, ...params));
@@ -1987,8 +1993,36 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
+  electron.ipcMain.handle("subsidies:deleteType", (_e, typeId) => {
+    try {
+      db2().runRaw("UPDATE subsidy_type SET pay_status = 0, updated_at = datetime('now','localtime') WHERE id = ?", typeId);
+      return success({ message: "已移入回收站" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:comparableTypes", (_e, payload) => {
+    try {
+      const { category, current_type_id } = payload;
+      let query = "SELECT id, subsidy_name, subsidy_year FROM subsidy_type WHERE 1=1";
+      const params = [];
+      if (category) {
+        query += " AND category = ?";
+        params.push(category);
+      }
+      if (current_type_id) {
+        query += " AND id != ?";
+        params.push(current_type_id);
+      }
+      query += " ORDER BY subsidy_year DESC";
+      return success(db2().allRaw(query, ...params));
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
   electron.ipcMain.handle("subsidies:restoreType", (_e, typeId) => {
     try {
+      db2().runRaw("UPDATE subsidy_type SET pay_status = 2, updated_at = datetime('now','localtime') WHERE id = ?", typeId);
       return success({ message: "恢复成功" });
     } catch (e) {
       return errorResponse(String(e));

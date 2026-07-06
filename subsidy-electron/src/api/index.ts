@@ -95,8 +95,8 @@ export const previewMultiHeadHouseholds = (villageNames: string[], excelRows: Fa
   req<{ households: MultiHeadHouseholdInfo[] }>('farmers:multiHeadPreview', { villageNames, excelRows })
 
 // ── 补贴类型 ──
-export const getSubsidyTypes = (year?: number) =>
-  req<SubsidyType[]>('subsidies:listTypes', year)
+export const getSubsidyTypes = (year?: number, status?: number) =>
+  req<SubsidyType[]>('subsidies:listTypes', { year, status })
 
 export const getSubsidyTypesWithStats = (year?: number) =>
   req<(SubsidyType & { app_count: number; beneficiary_count: number; total_apply: number; total_actual: number })[]>(
