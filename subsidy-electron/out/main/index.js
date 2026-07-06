@@ -898,30 +898,54 @@ function registerFarmerHandlers() {
       const villageFullName = row.village_name ? `${row.village_name}${formatGroupNo(groupNo)}` : formatGroupNo(groupNo) || "未知村组";
       let applications = [];
       try {
-        applications = db2().allRaw(`
+        const apps = db2().allRaw(`
           SELECT sa.id, sa.apply_year, sa.subsidy_type_id,
                  st.subsidy_name,
-                 sa.apply_area, sa.apply_amount, sa.actual_amount,
+                 sa.apply_area, COALESCE(sa.apply_amount, 0) as apply_amount,
+                 COALESCE(sa.actual_amount, 0) as actual_amount,
                  sa.pay_status, sa.is_proxy, sa.apply_village_name, sa.apply_group_display,
                  sa.created_at
           FROM subsidy_application sa
-          LEFT JOIN subsidy_type st ON st.id = sa.subsidy_type_id
-          WHERE sa.beneficiary_id = ?
+          JOIN subsidy_type st ON st.id = sa.subsidy_type_id
+          WHERE COALESCE(sa.beneficiary_id, sa.farmer_id) = ?
           ORDER BY sa.apply_year DESC, sa.id DESC
         `, id);
-      } catch {
-      }
-      let proxyRecords = [];
-      try {
-        proxyRecords = db2().allRaw(`
-          SELECT sp.*, sa.subsidy_type_id, st.subsidy_name,
-                 sa.apply_year, sa.apply_area, sa.actual_amount, sa.pay_status
-          FROM subsidy_proxy sp
-          JOIN subsidy_application sa ON sa.id = sp.application_id
-          LEFT JOIN subsidy_type st ON st.id = sa.subsidy_type_id
-          WHERE sp.proxy_farmer_id = ? OR sp.beneficiary_farmer_id = ?
-          ORDER BY sa.apply_year DESC
-        `, id, id);
+        if (apps.length > 0) {
+          const appIds = apps.map((a) => a.id);
+          const placeholders = appIds.map(() => "?").join(",");
+          try {
+            const proxies = db2().allRaw(`
+              SELECT sp.application_id, sp.proxy_type as type,
+                     sp.beneficiary_farmer_id, sp.proxy_farmer_id,
+                     bf.real_name as beneficiary_name,
+                     pf.real_name as proxy_name,
+                     sp.remark
+              FROM subsidy_proxy sp
+              LEFT JOIN farmer_profile bf ON bf.id = sp.beneficiary_farmer_id
+              LEFT JOIN farmer_profile pf ON pf.id = sp.proxy_farmer_id
+              WHERE sp.application_id IN (${placeholders})
+            `, ...appIds);
+            const proxyMap = /* @__PURE__ */ new Map();
+            for (const p of proxies) {
+              proxyMap.set(p.application_id, {
+                type: p.type,
+                beneficiary_farmer_id: p.beneficiary_farmer_id,
+                proxy_farmer_id: p.proxy_farmer_id,
+                beneficiary_name: p.beneficiary_name,
+                proxy_name: p.proxy_name,
+                remark: p.remark
+              });
+            }
+            applications = apps.map((a) => ({
+              ...a,
+              proxy_info: proxyMap.get(a.id) || null
+            }));
+          } catch {
+            applications = apps;
+          }
+        } else {
+          applications = apps;
+        }
       } catch {
       }
       return success({
@@ -929,9 +953,7 @@ function registerFarmerHandlers() {
         village_full_name: villageFullName,
         group_display: formatGroupNo(groupNo),
         applications,
-        proxy_records: proxyRecords,
         is_head: row.household_id && row.id ? null : 0
-        // computed by backend normally
       });
     } catch (e) {
       return errorResponse(String(e));
@@ -1218,22 +1240,57 @@ function registerHouseholdHandlers() {
       }));
       let appSummary = [];
       try {
-        appSummary = db2().allRaw(`
+        const apps = db2().allRaw(`
           SELECT sa.id, sa.apply_year,
                  COALESCE(sa.beneficiary_id, sa.farmer_id) as farmer_id,
                  fp.real_name as farmer_name,
-                 st.subsidy_name, COALESCE(st.subsidy_type_name, st.subsidy_name) as subsidy_type_name,
-                 st.calc_mode,
+                 st.subsidy_name, st.calc_mode,
                  sa.apply_area, COALESCE(sa.apply_amount, 0) as apply_amount,
                  COALESCE(sa.actual_amount, 0) as actual_amount,
                  sa.pay_status, sa.apply_village_name, sa.apply_group_display,
                  sa.is_proxy, sa.subsidy_type_id, sa.apply_area_no_calc
           FROM subsidy_application sa
-          LEFT JOIN farmer_profile fp ON fp.id = COALESCE(sa.beneficiary_id, sa.farmer_id)
-          LEFT JOIN subsidy_type st ON st.id = sa.subsidy_type_id
+          JOIN farmer_profile fp ON fp.id = COALESCE(sa.beneficiary_id, sa.farmer_id)
+          JOIN subsidy_type st ON st.id = sa.subsidy_type_id
           WHERE fp.household_id = ?
           ORDER BY sa.apply_year DESC, sa.id DESC
         `, id);
+        if (apps.length > 0) {
+          const appIds = apps.map((a) => a.id);
+          const placeholders = appIds.map(() => "?").join(",");
+          try {
+            const proxies = db2().allRaw(`
+              SELECT sp.application_id, sp.proxy_type as type,
+                     sp.beneficiary_farmer_id, sp.proxy_farmer_id,
+                     bf.real_name as beneficiary_name,
+                     pf.real_name as proxy_name,
+                     sp.remark
+              FROM subsidy_proxy sp
+              LEFT JOIN farmer_profile bf ON bf.id = sp.beneficiary_farmer_id
+              LEFT JOIN farmer_profile pf ON pf.id = sp.proxy_farmer_id
+              WHERE sp.application_id IN (${placeholders})
+            `, ...appIds);
+            const proxyMap = /* @__PURE__ */ new Map();
+            for (const p of proxies) {
+              proxyMap.set(p.application_id, {
+                type: p.type,
+                beneficiary_farmer_id: p.beneficiary_farmer_id,
+                proxy_farmer_id: p.proxy_farmer_id,
+                beneficiary_name: p.beneficiary_name,
+                proxy_name: p.proxy_name,
+                remark: p.remark
+              });
+            }
+            appSummary = apps.map((a) => ({
+              ...a,
+              proxy_info: proxyMap.get(a.id) || null
+            }));
+          } catch {
+            appSummary = apps;
+          }
+        } else {
+          appSummary = apps;
+        }
       } catch {
       }
       const contractedArea = Number(hh.contract_area || 0);

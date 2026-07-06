@@ -89,34 +89,57 @@ export function registerFarmerHandlers(): void {
         ? `${row.village_name}${formatGroupNo(groupNo)}`
         : (formatGroupNo(groupNo) || '未知村组')
 
-      // 查询该农户的补贴记录
+      // 查询该农户的补贴记录（含代领关系）
       let applications: unknown[] = []
       try {
-        applications = db().allRaw(`
+        const apps = db().allRaw<Record<string, unknown>>(`
           SELECT sa.id, sa.apply_year, sa.subsidy_type_id,
                  st.subsidy_name,
-                 sa.apply_area, sa.apply_amount, sa.actual_amount,
+                 sa.apply_area, COALESCE(sa.apply_amount, 0) as apply_amount,
+                 COALESCE(sa.actual_amount, 0) as actual_amount,
                  sa.pay_status, sa.is_proxy, sa.apply_village_name, sa.apply_group_display,
                  sa.created_at
           FROM subsidy_application sa
-          LEFT JOIN subsidy_type st ON st.id = sa.subsidy_type_id
-          WHERE sa.beneficiary_id = ?
+          JOIN subsidy_type st ON st.id = sa.subsidy_type_id
+          WHERE COALESCE(sa.beneficiary_id, sa.farmer_id) = ?
           ORDER BY sa.apply_year DESC, sa.id DESC
         `, id)
-      } catch { /* table may not exist */ }
 
-      // 查询代领关系（该农户作为代领人 or 受益人的记录）
-      let proxyRecords: unknown[] = []
-      try {
-        proxyRecords = db().allRaw(`
-          SELECT sp.*, sa.subsidy_type_id, st.subsidy_name,
-                 sa.apply_year, sa.apply_area, sa.actual_amount, sa.pay_status
-          FROM subsidy_proxy sp
-          JOIN subsidy_application sa ON sa.id = sp.application_id
-          LEFT JOIN subsidy_type st ON st.id = sa.subsidy_type_id
-          WHERE sp.proxy_farmer_id = ? OR sp.beneficiary_farmer_id = ?
-          ORDER BY sa.apply_year DESC
-        `, id, id)
+        // 查询代领关系
+        if (apps.length > 0) {
+          const appIds = apps.map(a => a.id)
+          const placeholders = appIds.map(() => '?').join(',')
+          try {
+            const proxies = db().allRaw<Record<string, unknown>>(`
+              SELECT sp.application_id, sp.proxy_type as type,
+                     sp.beneficiary_farmer_id, sp.proxy_farmer_id,
+                     bf.real_name as beneficiary_name,
+                     pf.real_name as proxy_name,
+                     sp.remark
+              FROM subsidy_proxy sp
+              LEFT JOIN farmer_profile bf ON bf.id = sp.beneficiary_farmer_id
+              LEFT JOIN farmer_profile pf ON pf.id = sp.proxy_farmer_id
+              WHERE sp.application_id IN (${placeholders})
+            `, ...appIds)
+            const proxyMap = new Map<unknown, unknown>()
+            for (const p of proxies) {
+              proxyMap.set(p.application_id, {
+                type: p.type,
+                beneficiary_farmer_id: p.beneficiary_farmer_id,
+                proxy_farmer_id: p.proxy_farmer_id,
+                beneficiary_name: p.beneficiary_name,
+                proxy_name: p.proxy_name,
+                remark: p.remark,
+              })
+            }
+            applications = apps.map(a => ({
+              ...a,
+              proxy_info: proxyMap.get(a.id) || null,
+            }))
+          } catch { applications = apps }
+        } else {
+          applications = apps
+        }
       } catch { /* table may not exist */ }
 
       return success({
@@ -124,8 +147,7 @@ export function registerFarmerHandlers(): void {
         village_full_name: villageFullName,
         group_display: formatGroupNo(groupNo),
         applications,
-        proxy_records: proxyRecords,
-        is_head: row.household_id && row.id ? null : 0, // computed by backend normally
+        is_head: row.household_id && row.id ? null : 0,
       })
     } catch (e) {
       return errorResponse(String(e))

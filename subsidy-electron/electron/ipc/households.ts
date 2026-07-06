@@ -95,25 +95,60 @@ export function registerHouseholdHandlers(): void {
         restricted_identity: 0,
       }))
 
-      // app_summary: 补贴申请记录（按受益人关联，NULL 时回退 farmer_id）
+      // app_summary: 补贴申请记录 + 代领关系
       let appSummary: unknown[] = []
       try {
-        appSummary = db().allRaw(`
+        const apps = db().allRaw<Record<string, unknown>>(`
           SELECT sa.id, sa.apply_year,
                  COALESCE(sa.beneficiary_id, sa.farmer_id) as farmer_id,
                  fp.real_name as farmer_name,
-                 st.subsidy_name, COALESCE(st.subsidy_type_name, st.subsidy_name) as subsidy_type_name,
-                 st.calc_mode,
+                 st.subsidy_name, st.calc_mode,
                  sa.apply_area, COALESCE(sa.apply_amount, 0) as apply_amount,
                  COALESCE(sa.actual_amount, 0) as actual_amount,
                  sa.pay_status, sa.apply_village_name, sa.apply_group_display,
                  sa.is_proxy, sa.subsidy_type_id, sa.apply_area_no_calc
           FROM subsidy_application sa
-          LEFT JOIN farmer_profile fp ON fp.id = COALESCE(sa.beneficiary_id, sa.farmer_id)
-          LEFT JOIN subsidy_type st ON st.id = sa.subsidy_type_id
+          JOIN farmer_profile fp ON fp.id = COALESCE(sa.beneficiary_id, sa.farmer_id)
+          JOIN subsidy_type st ON st.id = sa.subsidy_type_id
           WHERE fp.household_id = ?
           ORDER BY sa.apply_year DESC, sa.id DESC
         `, id)
+
+        // 查询代领关系
+        if (apps.length > 0) {
+          const appIds = apps.map(a => a.id)
+          const placeholders = appIds.map(() => '?').join(',')
+          try {
+            const proxies = db().allRaw<Record<string, unknown>>(`
+              SELECT sp.application_id, sp.proxy_type as type,
+                     sp.beneficiary_farmer_id, sp.proxy_farmer_id,
+                     bf.real_name as beneficiary_name,
+                     pf.real_name as proxy_name,
+                     sp.remark
+              FROM subsidy_proxy sp
+              LEFT JOIN farmer_profile bf ON bf.id = sp.beneficiary_farmer_id
+              LEFT JOIN farmer_profile pf ON pf.id = sp.proxy_farmer_id
+              WHERE sp.application_id IN (${placeholders})
+            `, ...appIds)
+            const proxyMap = new Map<unknown, unknown>()
+            for (const p of proxies) {
+              proxyMap.set(p.application_id, {
+                type: p.type,
+                beneficiary_farmer_id: p.beneficiary_farmer_id,
+                proxy_farmer_id: p.proxy_farmer_id,
+                beneficiary_name: p.beneficiary_name,
+                proxy_name: p.proxy_name,
+                remark: p.remark,
+              })
+            }
+            appSummary = apps.map(a => ({
+              ...a,
+              proxy_info: proxyMap.get(a.id) || null,
+            }))
+          } catch { appSummary = apps }
+        } else {
+          appSummary = apps
+        }
       } catch { /* table might not exist yet */ }
 
       // area_usage: 面积使用情况
