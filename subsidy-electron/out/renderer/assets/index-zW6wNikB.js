@@ -52441,6 +52441,8 @@ function BackupPage() {
   const [localBacking, setLocalBacking] = reactExports.useState(false);
   const [restoring, setRestoring] = reactExports.useState(false);
   const [confirmRestore, setConfirmRestore] = reactExports.useState(false);
+  const [restorePreview, setRestorePreview] = reactExports.useState(null);
+  const [restoreResult, setRestoreResult] = reactExports.useState(null);
   const loadInfo = async () => {
     try {
       setInfo(await getDbInfo());
@@ -52479,20 +52481,38 @@ function BackupPage() {
       setLocalBacking(false);
     }
   };
-  const handleRestore = async () => {
-    if (!confirmRestore) return show("请勾选确认框后再执行恢复", "err");
-    setRestoring(true);
+  const handleSelectRestoreFile = async () => {
+    setRestoreResult(null);
     try {
       const filePath = await window.electronAPI.invoke("dialog:selectFile", {
         filters: [{ name: "数据库文件", extensions: ["db"] }]
       });
-      if (!filePath) {
-        setRestoring(false);
-        return;
+      if (!filePath) return;
+      const preview = await window.electronAPI.invoke("settings:previewRestore", filePath);
+      if (preview?.data) {
+        setRestorePreview(preview.data);
+        setConfirmRestore(false);
+      } else {
+        show("无法读取源文件", "err");
       }
-      const r2 = await window.electronAPI.invoke("settings:restore", filePath);
-      show("✓ " + (r2.message || "恢复成功"));
+    } catch (e) {
+      show(e.message, "err");
+    }
+  };
+  const handleRestore = async () => {
+    if (!confirmRestore) return show("请勾选确认框后再执行恢复", "err");
+    if (!restorePreview) return;
+    setRestoring(true);
+    try {
+      const r2 = await window.electronAPI.invoke("settings:restore", restorePreview.filePath);
+      const result = r2?.data || r2;
+      setRestoreResult({
+        message: result?.message || "恢复成功",
+        details: result?.details || []
+      });
+      show("✓ " + (result?.message || "恢复成功"));
       setConfirmRestore(false);
+      setRestorePreview(null);
       setTimeout(loadInfo, 500);
     } catch (e) {
       show(e.message, "err");
@@ -52615,27 +52635,67 @@ function BackupPage() {
             ] })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 cursor-pointer", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "input",
-                {
-                  type: "checkbox",
-                  checked: confirmRestore,
-                  onChange: (e) => setConfirmRestore(e.target.checked),
-                  className: "w-4 h-4"
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-primary", children: "我已了解风险，确认执行数据库恢复操作" })
-            ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(
               "button",
               {
-                onClick: handleRestore,
-                disabled: restoring || !confirmRestore,
-                className: "w-full py-2.5 bg-red-600  text-sm rounded-btn hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed",
-                children: restoring ? "恢复中，请勿关闭…" : "🔄 执行数据库恢复"
+                onClick: handleSelectRestoreFile,
+                className: "w-full py-2.5 border border-border text-text-primary text-sm rounded-btn hover:bg-warm/30",
+                children: "📁 选择数据库文件"
               }
-            )
+            ),
+            restorePreview && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-blue-50 border border-blue-200 rounded-card p-3 text-xs", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "font-semibold text-blue-800 mb-1", children: [
+                "📋 ",
+                restorePreview.fileName,
+                " (",
+                restorePreview.fileSizeMb,
+                " MB)"
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-blue-700 mb-1", children: [
+                "共 ",
+                restorePreview.tableCount,
+                " 个表，",
+                restorePreview.totalRecords.toLocaleString(),
+                " 条记录"
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-h-32 overflow-y-auto space-y-0.5 text-blue-600", children: restorePreview.tables.map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-between", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: t2.name }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono", children: [
+                  t2.count.toLocaleString(),
+                  " 条"
+                ] })
+              ] }, t2.name)) })
+            ] }),
+            restoreResult && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-green-50 border border-green-200 rounded-card p-3 text-xs", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "font-semibold text-green-800 mb-1", children: [
+                "✅ ",
+                restoreResult.message
+              ] }),
+              restoreResult.details.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-green-700 space-y-0.5 max-h-32 overflow-y-auto", children: restoreResult.details.map((d, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: d }, i)) })
+            ] }),
+            restorePreview && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 cursor-pointer", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "input",
+                  {
+                    type: "checkbox",
+                    checked: confirmRestore,
+                    onChange: (e) => setConfirmRestore(e.target.checked),
+                    className: "w-4 h-4"
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-primary", children: "我已了解风险，确认执行数据库恢复操作" })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: handleRestore,
+                  disabled: restoring || !confirmRestore,
+                  className: "w-full py-2.5 bg-red-600 text-white text-sm rounded-btn hover:bg-red-700 disabled:opacity-40",
+                  children: restoring ? "恢复中…" : "🔄 确认恢复"
+                }
+              )
+            ] })
           ] })
         ] })
       ] })

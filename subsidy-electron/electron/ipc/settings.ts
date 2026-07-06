@@ -180,22 +180,95 @@ export function registerSettingsHandlers(): void {
     } catch (e) { return errorResponse(String(e)) }
   })
 
-  // ── 恢复数据库 ──
-  ipcMain.handle('settings:restore', (_e, filePath: string) => {
+  // ── 预览恢复（读取源 DB 统计信息）──
+  ipcMain.handle('settings:previewRestore', async (_e, filePath: string) => {
     try {
       if (!existsSync(filePath)) return errorResponse('备份文件不存在')
 
-      // 先创建应急备份
+      const fileStat = statSync(filePath)
+      const tables: { name: string; count: number }[] = []
+      let totalRecords = 0
+
+      // 用 sql.js 临时打开源文件读取统计
+      try {
+        const initSqlJs = require('sql.js')
+        const SQL = await initSqlJs()
+        const fileBuffer = readFileSync(filePath)
+        const srcDb = new SQL.Database(fileBuffer)
+        const rows = srcDb.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+        if (rows.length > 0) {
+          for (const col of rows[0].values) {
+            const tableName = col[0] as string
+            try {
+              const cnt = srcDb.exec(`SELECT COUNT(*) as cnt FROM "${tableName}"`)
+              const count = cnt.length > 0 ? Number(cnt[0].values[0][0]) : 0
+              tables.push({ name: tableName, count })
+              totalRecords += count
+            } catch { tables.push({ name: tableName, count: 0 }) }
+          }
+        }
+        srcDb.close()
+      } catch { /* 无法解析，跳过 */ }
+
+      return success({
+        filePath,
+        fileName: basename(filePath),
+        fileSizeKb: Math.round(fileStat.size / 1024),
+        fileSizeMb: (fileStat.size / 1024 / 1024).toFixed(1),
+        tables,
+        tableCount: tables.length,
+        totalRecords,
+      })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 恢复数据库 ──
+  ipcMain.handle('settings:restore', async (_e, filePath: string) => {
+    try {
+      if (!existsSync(filePath)) return errorResponse('备份文件不存在')
+
+      // 创建应急备份
       const emergencyDir = getBackupDir()
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
       const emergencyPath = join(emergencyDir, `emergency_before_restore_${timestamp}.db`)
       copyFileSync(getDbPath(), emergencyPath)
 
-      // 恢复
+      // 分析源文件
+      const fileStat = statSync(filePath)
+      const tables: { name: string; count: number }[] = []
+      let totalRecords = 0
+
+      try {
+        const initSqlJs = require('sql.js')
+        const SQL = await initSqlJs()
+        const fileBuffer = readFileSync(filePath)
+        const srcDb = new SQL.Database(fileBuffer)
+        const rows = srcDb.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+        if (rows.length > 0) {
+          for (const col of rows[0].values) {
+            const tableName = col[0] as string
+            try {
+              const cnt = srcDb.exec(`SELECT COUNT(*) as cnt FROM "${tableName}"`)
+              const count = cnt.length > 0 ? Number(cnt[0].values[0][0]) : 0
+              tables.push({ name: tableName, count })
+              totalRecords += count
+            } catch { tables.push({ name: tableName, count: 0 }) }
+          }
+        }
+        srcDb.close()
+      } catch { /* 统计失败，继续恢复 */ }
+
+      // 执行恢复
       copyFileSync(filePath, getDbPath())
+
       return success({
-        message: '数据库已恢复，请重启应用使更改生效',
+        message: `数据库恢复完成！共 ${tables.length} 个表，${totalRecords} 条记录`,
         backup_created: basename(emergencyPath),
+        source_file: basename(filePath),
+        source_size_kb: Math.round(fileStat.size / 1024),
+        tables_imported: tables.length,
+        total_records: totalRecords,
+        details: tables.map(t => `${t.name}: ${t.count} 条`),
       })
     } catch (e) { return errorResponse(String(e)) }
   })

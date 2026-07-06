@@ -39,6 +39,8 @@ export default function BackupPage() {
   const [localBacking, setLocalBacking] = useState(false)
   const [restoring, setRestoring] = useState(false)
   const [confirmRestore, setConfirmRestore] = useState(false)
+  const [restorePreview, setRestorePreview] = useState<{ fileName: string; fileSizeMb: string; tables: { name: string; count: number }[]; tableCount: number; totalRecords: number } | null>(null)
+  const [restoreResult, setRestoreResult] = useState<{ message: string; details: string[] } | null>(null)
 
   const loadInfo = async () => {
     try { setInfo(await api.getDbInfo()) }
@@ -74,18 +76,41 @@ export default function BackupPage() {
     finally { setLocalBacking(false) }
   }
 
-  // 恢复数据库（通过文件对话框选择 .db 文件）
-  const handleRestore = async () => {
-    if (!confirmRestore) return show('请勾选确认框后再执行恢复', 'err')
-    setRestoring(true)
+  // 步骤1: 选择文件并预览
+  const handleSelectRestoreFile = async () => {
+    setRestoreResult(null)
     try {
       const filePath = await window.electronAPI.invoke<string | null>('dialog:selectFile', {
         filters: [{ name: '数据库文件', extensions: ['db'] }]
       })
-      if (!filePath) { setRestoring(false); return }
-      const r = await window.electronAPI.invoke('settings:restore', filePath)
-      show('✓ ' + (r.message || '恢复成功'))
+      if (!filePath) return
+
+      // 预览源文件
+      const preview: any = await window.electronAPI.invoke('settings:previewRestore', filePath)
+      if (preview?.data) {
+        setRestorePreview(preview.data)
+        setConfirmRestore(false)
+      } else {
+        show('无法读取源文件', 'err')
+      }
+    } catch (e: unknown) { show((e as Error).message, 'err') }
+  }
+
+  // 步骤2: 确认并执行恢复
+  const handleRestore = async () => {
+    if (!confirmRestore) return show('请勾选确认框后再执行恢复', 'err')
+    if (!restorePreview) return
+    setRestoring(true)
+    try {
+      const r: any = await window.electronAPI.invoke('settings:restore', (restorePreview as any).filePath)
+      const result = r?.data || r
+      setRestoreResult({
+        message: result?.message || '恢复成功',
+        details: result?.details || [],
+      })
+      show('✓ ' + (result?.message || '恢复成功'))
       setConfirmRestore(false)
+      setRestorePreview(null)
       setTimeout(loadInfo, 500)
     } catch (e: unknown) { show((e as Error).message, 'err') }
     finally { setRestoring(false) }
@@ -212,16 +237,59 @@ export default function BackupPage() {
             </div>
 
             <div className="space-y-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={confirmRestore} onChange={e => setConfirmRestore(e.target.checked)}
-                  className="w-4 h-4" />
-                <span className="text-xs text-text-primary">我已了解风险，确认执行数据库恢复操作</span>
-              </label>
-
-              <button onClick={handleRestore} disabled={restoring || !confirmRestore}
-                className="w-full py-2.5 bg-red-600  text-sm rounded-btn hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed">
-                {restoring ? '恢复中，请勿关闭…' : '🔄 执行数据库恢复'}
+              {/* 选择文件 */}
+              <button onClick={handleSelectRestoreFile}
+                className="w-full py-2.5 border border-border text-text-primary text-sm rounded-btn hover:bg-warm/30">
+                📁 选择数据库文件
               </button>
+
+              {/* 预览 */}
+              {restorePreview && (
+                <div className="bg-blue-50 border border-blue-200 rounded-card p-3 text-xs">
+                  <div className="font-semibold text-blue-800 mb-1">
+                    📋 {restorePreview.fileName} ({restorePreview.fileSizeMb} MB)
+                  </div>
+                  <div className="text-blue-700 mb-1">
+                    共 {restorePreview.tableCount} 个表，{restorePreview.totalRecords.toLocaleString()} 条记录
+                  </div>
+                  <div className="max-h-32 overflow-y-auto space-y-0.5 text-blue-600">
+                    {restorePreview.tables.map(t => (
+                      <div key={t.name} className="flex justify-between">
+                        <span>{t.name}</span>
+                        <span className="font-mono">{t.count.toLocaleString()} 条</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 恢复结果 */}
+              {restoreResult && (
+                <div className="bg-green-50 border border-green-200 rounded-card p-3 text-xs">
+                  <div className="font-semibold text-green-800 mb-1">✅ {restoreResult.message}</div>
+                  {restoreResult.details.length > 0 && (
+                    <div className="text-green-700 space-y-0.5 max-h-32 overflow-y-auto">
+                      {restoreResult.details.map((d, i) => (
+                        <div key={i}>{d}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {restorePreview && (
+                <>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={confirmRestore} onChange={e => setConfirmRestore(e.target.checked)}
+                      className="w-4 h-4" />
+                    <span className="text-xs text-text-primary">我已了解风险，确认执行数据库恢复操作</span>
+                  </label>
+                  <button onClick={handleRestore} disabled={restoring || !confirmRestore}
+                    className="w-full py-2.5 bg-red-600 text-white text-sm rounded-btn hover:bg-red-700 disabled:opacity-40">
+                    {restoring ? '恢复中…' : '🔄 确认恢复'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 {
   "name": "subsidy-electron",
-  "version": "3.0.0",
+  "version": "0.0.1",
   "description": "农户补贴管理系统 - Electron 桌面版",
   "main": "./out/main/index.js",
   "author": "wp",
