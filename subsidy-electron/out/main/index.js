@@ -1219,14 +1219,17 @@ function registerHouseholdHandlers() {
       let appSummary = [];
       try {
         appSummary = db2().allRaw(`
-          SELECT sa.id, sa.apply_year, sa.beneficiary_id as farmer_id, fp.real_name as farmer_name,
-                 st.subsidy_name, st.subsidy_type_name, st.calc_mode,
+          SELECT sa.id, sa.apply_year,
+                 COALESCE(sa.beneficiary_id, sa.farmer_id) as farmer_id,
+                 fp.real_name as farmer_name,
+                 st.subsidy_name, COALESCE(st.subsidy_type_name, st.subsidy_name) as subsidy_type_name,
+                 st.calc_mode,
                  sa.apply_area, COALESCE(sa.apply_amount, 0) as apply_amount,
                  COALESCE(sa.actual_amount, 0) as actual_amount,
                  sa.pay_status, sa.apply_village_name, sa.apply_group_display,
                  sa.is_proxy, sa.subsidy_type_id, sa.apply_area_no_calc
           FROM subsidy_application sa
-          JOIN farmer_profile fp ON fp.id = sa.beneficiary_id
+          LEFT JOIN farmer_profile fp ON fp.id = COALESCE(sa.beneficiary_id, sa.farmer_id)
           LEFT JOIN subsidy_type st ON st.id = sa.subsidy_type_id
           WHERE fp.household_id = ?
           ORDER BY sa.apply_year DESC, sa.id DESC
@@ -1904,7 +1907,7 @@ function registerSubsidyHandlers() {
         ${where}
       `, ...values);
       const rows = db2().allRaw(`
-        SELECT sa.*, fp.real_name as farmer_name, fp.id_card as farmer_id_card,
+        SELECT sa.*, fp.real_name as farmer_name, fp.id_card, fp.phone,
                st.subsidy_name, st.season, st.calc_mode,
                v.village_name, hh.group_no
         FROM subsidy_application sa
@@ -1918,7 +1921,8 @@ function registerSubsidyHandlers() {
       `, ...values, pageSize, offset);
       const items = rows.map((r) => ({
         ...r,
-        farmer_id_card: maskIdCard(r.farmer_id_card)
+        id_card_masked: r.id_card ? maskIdCard(r.id_card) : "",
+        phone_masked: r.phone ? maskPhone(r.phone) : ""
       }));
       return successList(items, countRow?.cnt ?? 0, page, pageSize);
     } catch (e) {
@@ -2896,9 +2900,13 @@ function registerUpdateEvents() {
     mainWindow$1?.webContents.send("update:status", "up-to-date");
   });
   electronUpdater.autoUpdater.on("download-progress", (progress) => {
+    const speedMB = progress.bytesPerSecond ? (progress.bytesPerSecond / (1024 * 1024)).toFixed(1) : "0.0";
     mainWindow$1?.webContents.send("update:progress", {
       percent: Math.round(progress.percent),
-      speed: progress.bytesPerSecond
+      speed: progress.bytesPerSecond,
+      speedMB: `${speedMB} MB/s`,
+      transferred: progress.transferred,
+      total: progress.total
     });
   });
   electronUpdater.autoUpdater.on("update-downloaded", () => {
@@ -2911,7 +2919,7 @@ function registerUpdateEvents() {
       defaultId: 0
     }).then(({ response }) => {
       if (response === 0) {
-        electronUpdater.autoUpdater.quitAndInstall();
+        electronUpdater.autoUpdater.quitAndInstall(true, true);
       }
     });
   });

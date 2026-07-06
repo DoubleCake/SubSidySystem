@@ -15,6 +15,13 @@ export interface ElectronAPI {
   getUserDataPath: () => Promise<string>
   getDbPath: () => Promise<string>
   copyFile: (src: string, dest: string) => Promise<void>
+
+  // 更新事件监听
+  onUpdateStatus: (callback: (status: string) => void) => void
+  onUpdateAvailable: (callback: (info: { version: string; currentVersion: string }) => void) => void
+  onUpdateProgress: (callback: (progress: { percent: number; speedMB?: string; speed?: number; transferred?: number; total?: number }) => void) => void
+  onUpdateError: (callback: (error: string) => void) => void
+  removeUpdateListeners: () => void
 }
 
 declare global {

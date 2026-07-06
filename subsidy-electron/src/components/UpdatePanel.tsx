@@ -20,6 +20,7 @@ export default function UpdatePanel() {
   const [checking, setChecking] = useState(false)
   const [status, setStatus] = useState('')
   const [progress, setProgress] = useState(0)
+  const [speedInfo, setSpeedInfo] = useState('')
   const [error, setError] = useState('')
   const [detail, setDetail] = useState('')
   const [steps, setSteps] = useState<string[]>([])
@@ -33,8 +34,9 @@ export default function UpdatePanel() {
       if (s === 'up-to-date') setChecking(false)
       if (s === 'downloaded') setChecking(false)
     })
-    window.electronAPI.onUpdateProgress((p: { percent: number }) => {
+    window.electronAPI.onUpdateProgress((p: { percent: number; speedMB?: string }) => {
       setProgress(p.percent)
+      if (p.speedMB) setSpeedInfo(p.speedMB)
     })
     window.electronAPI.onUpdateError((e: string) => {
       setError(e)
@@ -156,9 +158,15 @@ export default function UpdatePanel() {
 
         {/* 进度条 */}
         {progress > 0 && progress < 100 && (
-          <div className="w-full bg-border rounded-full h-2 overflow-hidden">
-            <div className="bg-primary-500 h-full rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }} />
+          <div className="space-y-1">
+            <div className="w-full bg-border rounded-full h-2 overflow-hidden">
+              <div className="bg-primary-500 h-full rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }} />
+            </div>
+            <div className="flex justify-between text-[11px] text-text-muted">
+              <span>{progress}%</span>
+              {speedInfo && <span>{speedInfo}</span>}
+            </div>
           </div>
         )}
 

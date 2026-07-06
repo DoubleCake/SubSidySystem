@@ -52282,6 +52282,7 @@ function UpdatePanel() {
   const [checking, setChecking] = reactExports.useState(false);
   const [status, setStatus] = reactExports.useState("");
   const [progress, setProgress] = reactExports.useState(0);
+  const [speedInfo, setSpeedInfo] = reactExports.useState("");
   const [error, setError] = reactExports.useState("");
   const [detail, setDetail] = reactExports.useState("");
   const [steps, setSteps] = reactExports.useState([]);
@@ -52295,6 +52296,7 @@ function UpdatePanel() {
     });
     window.electronAPI.onUpdateProgress((p2) => {
       setProgress(p2.percent);
+      if (p2.speedMB) setSpeedInfo(p2.speedMB);
     });
     window.electronAPI.onUpdateError((e) => {
       setError(e);
@@ -52428,13 +52430,22 @@ function UpdatePanel() {
           }
         )
       ] }),
-      progress > 0 && progress < 100 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-full bg-border rounded-full h-2 overflow-hidden", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "div",
-        {
-          className: "bg-primary-500 h-full rounded-full transition-all duration-300",
-          style: { width: `${progress}%` }
-        }
-      ) }),
+      progress > 0 && progress < 100 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-1", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-full bg-border rounded-full h-2 overflow-hidden", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "div",
+          {
+            className: "bg-primary-500 h-full rounded-full transition-all duration-300",
+            style: { width: `${progress}%` }
+          }
+        ) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-between text-[11px] text-text-muted", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+            progress,
+            "%"
+          ] }),
+          speedInfo && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: speedInfo })
+        ] })
+      ] }),
       steps.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-gray-50 border border-border rounded-card p-3 text-xs space-y-0.5 max-h-40 overflow-y-auto font-mono", children: steps.map((s, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: s.includes("❌") ? "text-red-600" : s.includes("✅") ? "text-green-600" : s.includes("⚠️") ? "text-amber-600" : "text-text-muted", children: s }, i)) }),
       status && /* @__PURE__ */ jsxRuntimeExports.jsxs(
         "div",

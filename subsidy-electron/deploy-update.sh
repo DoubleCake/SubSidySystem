@@ -1,6 +1,6 @@
 #!/bin/bash
 # ══════════════════════════════════════════════════════
-# 发布更新到服务器 — 自动对齐文件名 + latest.yml
+# 发布更新到服务器 — 构建 NSIS 安装包 + latest.yml + blockmap
 # 用法: bash deploy-update.sh
 # ══════════════════════════════════════════════════════
 
@@ -23,66 +23,104 @@ echo "========================================"
 
 # 2. 构建
 echo ""
-echo "[1/4] 构建应用..."
+echo "[1/5] 构建应用..."
 npx electron-vite build
 echo "✅ 构建完成"
 
-# 3. 打包
+# 3. 打包为 NSIS 安装包（不用 --dir，确保生成 .exe 安装包）
 echo ""
-echo "[2/4] 打包 (electron-builder --dir)..."
+echo "[2/5] 打包 NSIS 安装包..."
 rm -rf dist
-npx electron-builder --dir --win
+npx electron-builder --win --publish never
 echo "✅ 打包完成"
 
-# 4. 标准化文件名
+# 4. 准备发布文件
 echo ""
-echo "[3/4] 准备上传文件..."
+echo "[3/5] 准备发布文件..."
 
-APP_EXE="SubsidySystem.exe"
 RELEASE_DIR="dist/release"
 mkdir -p "$RELEASE_DIR"
 
-# 复制 exe 为标准名称
-cp "dist/win-unpacked/$APP_EXE" "$RELEASE_DIR/$APP_EXE"
-
-# 计算 sha512（base64 默认每76字符换行，用 tr -d '\n' 去掉）
-if command -v sha512sum &>/dev/null; then
-  SHA512=$(sha512sum "$RELEASE_DIR/$APP_EXE" | awk '{print $1}' | xxd -r -p | base64 | tr -d '\n')
-elif command -v shasum &>/dev/null; then
-  SHA512=$(shasum -a 512 "$RELEASE_DIR/$APP_EXE" | awk '{print $1}' | xxd -r -p | base64 | tr -d '\n')
-else
-  SHA512="SKIP"
+# 查找 NSIS 安装包（文件名格式: SubsidySystem Setup X.Y.Z.exe）
+SETUP_FILE=$(ls dist/"SubsidySystem Setup $VERSION.exe" 2>/dev/null || echo "")
+if [ -z "$SETUP_FILE" ]; then
+  # 尝试模糊匹配
+  SETUP_FILE=$(ls dist/SubsidySystem*.exe 2>/dev/null | head -1 || echo "")
+fi
+if [ -z "$SETUP_FILE" ]; then
+  echo "❌ 错误: 未找到 NSIS 安装包！"
+  echo "dist/ 目录中的 .exe 文件:"
+  ls -la dist/*.exe 2>/dev/null || echo "  (无)"
+  exit 1
 fi
 
-EXE_SIZE=$(stat -f%z "$RELEASE_DIR/$APP_EXE" 2>/dev/null || stat -c%s "$RELEASE_DIR/$APP_EXE" 2>/dev/null)
+SETUP_NAME=$(basename "$SETUP_FILE")
+cp "$SETUP_FILE" "$RELEASE_DIR/$SETUP_NAME"
+echo "安装包: $SETUP_NAME"
 
-# 生成 latest.yml（文件名自动对齐）
+# 复制 blockmap（用于差量更新，后续更新只需下载差异部分）
+BLOCKMAP_FILE="${SETUP_NAME}.blockmap"
+if [ -f "dist/$BLOCKMAP_FILE" ]; then
+  cp "dist/$BLOCKMAP_FILE" "$RELEASE_DIR/$BLOCKMAP_FILE"
+  echo "blockmap: $BLOCKMAP_FILE"
+else
+  echo "⚠️  警告: blockmap 未找到，差量更新不可用"
+fi
+
+# 计算 sha512（base64，electron-updater 用于完整性校验和差量更新）
+if command -v sha512sum &>/dev/null; then
+  SHA512=$(sha512sum "$RELEASE_DIR/$SETUP_NAME" | awk '{print $1}' | xxd -r -p | base64 | tr -d '\n')
+elif command -v shasum &>/dev/null; then
+  SHA512=$(shasum -a 512 "$RELEASE_DIR/$SETUP_NAME" | awk '{print $1}' | xxd -r -p | base64 | tr -d '\n')
+else
+  echo "❌ 错误: 需要 sha512sum 或 shasum 来计算文件哈希"
+  exit 1
+fi
+
+EXE_SIZE=$(stat -c%s "$RELEASE_DIR/$SETUP_NAME" 2>/dev/null || stat -f%z "$RELEASE_DIR/$SETUP_NAME" 2>/dev/null)
+
+echo "文件大小: $EXE_SIZE bytes ($(numfmt --to=iec $EXE_SIZE 2>/dev/null || echo ${EXE_SIZE}))"
+echo "SHA512: $SHA512"
+
+# 生成 latest.yml
 cat > "$RELEASE_DIR/latest.yml" << YEOF
 version: $VERSION
 files:
-  - url: $APP_EXE
+  - url: $SETUP_NAME
     sha512: $SHA512
     size: $EXE_SIZE
-path: $APP_EXE
+path: $SETUP_NAME
 sha512: $SHA512
 releaseDate: $(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 YEOF
 
-# 同时复制到 resources/ 作为 app-update.yml（electron-updater 需要）
-cp "$RELEASE_DIR/latest.yml" "dist/win-unpacked/resources/app-update.yml"
+echo "✅ latest.yml 已生成"
 
-echo "✅ 准备完成:"
-echo "   $APP_EXE ($(numfmt --to=iec $EXE_SIZE 2>/dev/null || echo ${EXE_SIZE} bytes))"
-echo "   latest.yml (version: $VERSION)"
-echo "   dist/win-unpacked/resources/app-update.yml (已创建)"
+# 同时复制到 resources/ 作为 app-update.yml
+if [ -d "dist/win-unpacked" ]; then
+  cp "$RELEASE_DIR/latest.yml" "dist/win-unpacked/resources/app-update.yml"
+  echo "✅ app-update.yml 已复制到 win-unpacked"
+fi
+
+echo ""
+echo "================================================"
+echo "  准备完成:"
+echo "    $SETUP_NAME ($EXE_SIZE bytes)"
+echo "    $BLOCKMAP_FILE"
+echo "    latest.yml (v$VERSION)"
+echo "================================================"
 
 # 5. 上传
 echo ""
-echo "[4/4] 上传到 $SERVER:$REMOTE_DIR"
-scp "$RELEASE_DIR/$APP_EXE" "$RELEASE_DIR/latest.yml" "$SERVER:$REMOTE_DIR"
+echo "[4/5] 上传到 $SERVER:$REMOTE_DIR ..."
+scp "$RELEASE_DIR/$SETUP_NAME" "$RELEASE_DIR/$BLOCKMAP_FILE" "$RELEASE_DIR/latest.yml" "$SERVER:$REMOTE_DIR"
+
+echo ""
+echo "[5/5] 验证..."
+echo "  $SERVER_URL/latest.yml"
+curl -s "$SERVER_URL/latest.yml" || echo "  ⚠️ 无法访问，请检查服务器"
 
 echo ""
 echo "========================================"
 echo "  发布完成!"
-echo "  验证: curl $SERVER_URL/latest.yml"
 echo "========================================"

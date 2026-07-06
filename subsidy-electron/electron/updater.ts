@@ -194,15 +194,24 @@ export function registerUpdateEvents() {
   })
 
   autoUpdater.on('download-progress', (progress) => {
+    const speedMB = progress.bytesPerSecond
+      ? (progress.bytesPerSecond / (1024 * 1024)).toFixed(1)
+      : '0.0'
     mainWindow?.webContents.send('update:progress', {
       percent: Math.round(progress.percent),
       speed: progress.bytesPerSecond,
+      speedMB: `${speedMB} MB/s`,
+      transferred: progress.transferred,
+      total: progress.total,
     })
   })
 
   autoUpdater.on('update-downloaded', () => {
     mainWindow?.webContents.send('update:status', 'downloaded')
     // 弹窗询问是否立即重启安装
+    // quitAndInstall(isSilent=true, isForceRunAfter=true):
+    //   isSilent: NSIS 安装包静默安装（不显示安装界面）
+    //   isForceRunAfter: 安装完成后强制启动新版本
     dialog.showMessageBox({
       type: 'info',
       title: '更新已下载',
@@ -211,7 +220,8 @@ export function registerUpdateEvents() {
       defaultId: 0,
     }).then(({ response }) => {
       if (response === 0) {
-        autoUpdater.quitAndInstall()
+        // 静默安装 + 完成后强制启动新版本
+        autoUpdater.quitAndInstall(true, true)
       }
     })
   })
