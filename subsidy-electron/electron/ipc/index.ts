@@ -14,6 +14,8 @@ import { registerAgriTaskHandlers } from './agri-tasks'
 import { registerExternalLinksHandlers } from './external-links'
 import { registerEligibilityHandlers } from './eligibility'
 import { registerAuthHandlers } from './auth'
+import { registerProjectProgressHandlers } from './project-progress'
+import { registerVillageContactsHandlers } from './village-contacts'
 import { getDbPath } from '../database/connection'
 
 /**
@@ -63,4 +65,6 @@ export function registerAllIpcHandlers(): void {
   registerExternalLinksHandlers()
   registerEligibilityHandlers()
   registerAuthHandlers()
+  registerProjectProgressHandlers()
+  registerVillageContactsHandlers()
 }

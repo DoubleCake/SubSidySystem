@@ -3,6 +3,7 @@ import { getDb, getDbPath } from '../database/connection'
 import { success, errorResponse } from './response'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, unlinkSync, readFileSync } from 'fs'
 import { join, basename } from 'path'
+import { formatGroupNo } from '../utils/format'
 import { getUpdateServerUrl, getAutoCheckUpdate, getLastUpdateCheck, setUpdateServerUrl, setAutoCheckUpdate } from '../store'
 import { checkForUpdatesAndInstall } from '../updater'
 
@@ -306,6 +307,118 @@ export function registerSettingsHandlers(): void {
     try {
       const rows = db().allRaw('SELECT id, village_name FROM village ORDER BY village_name')
       return success(rows)
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 村详情 ──
+  ipcMain.handle('settings:villageDetail', (_e, villageId: number) => {
+    try {
+      const v = db().getRaw<Record<string, unknown>>('SELECT * FROM village WHERE id=?', villageId)
+      if (!v) return errorResponse('村不存在', 404)
+      const groups = db().allRaw('SELECT * FROM village_group WHERE village_id=? ORDER BY group_no', villageId)
+      return success({ ...v, groups })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 更新村 ──
+  ipcMain.handle('settings:updateVillage', (_e, payload: any) => {
+    try {
+      const { id, ...data } = payload
+      const keys = Object.keys(data).filter(k => data[k] !== undefined && k !== 'id')
+      if (keys.length === 0) return errorResponse('无更新数据')
+      const sets = keys.map(k => `${k}=?`).join(',')
+      db().runRaw(`UPDATE village SET ${sets} WHERE id=?`, ...keys.map(k => data[k]), id)
+      return success(null, '更新成功')
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 批量创建村组 ──
+  ipcMain.handle('settings:batchCreateVillageGroups', (_e, payload: any) => {
+    try {
+      const { rows } = payload
+      let created = 0
+      for (const r of rows) {
+        let village = db().getRaw<{ id: number }>('SELECT id FROM village WHERE village_name=?', r.village_name)
+        if (!village) {
+          const vr = db().runRaw('INSERT INTO village (village_name) VALUES (?)', r.village_name)
+          village = { id: Number(vr.lastInsertRowid) }
+        }
+        const exist = db().getRaw<{ id: number }>('SELECT id FROM village_group WHERE village_id=? AND group_no=?', village.id, r.group_no)
+        if (!exist) {
+          db().runRaw('INSERT INTO village_group (village_id, group_no) VALUES (?,?)', village.id, r.group_no)
+          created++
+        }
+      }
+      return success({ message: `已创建 ${created} 个村组` })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 更新村组 ──
+  ipcMain.handle('settings:updateVillageGroup', (_e, payload: any) => {
+    try {
+      const { id, ...data } = payload
+      const keys = Object.keys(data).filter(k => data[k] !== undefined && k !== 'id')
+      if (keys.length === 0) return errorResponse('无更新数据')
+      db().runRaw(`UPDATE village_group SET ${keys.map(k => `${k}=?`).join(',')} WHERE id=?`, ...keys.map(k => data[k]), id)
+      return success(null, '更新成功')
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 删除村组 ──
+  ipcMain.handle('settings:deleteVillageGroup', (_e, gId: number) => {
+    try {
+      // check references
+      const hhCount = db().getRaw<{ cnt: number }>('SELECT COUNT(*) as cnt FROM family_household WHERE village_id IN (SELECT village_id FROM village_group WHERE id=?)', gId)?.cnt ?? 0
+      if (hhCount > 0) return errorResponse(`该村组下有 ${hhCount} 个家庭户，无法删除`)
+      db().runRaw('DELETE FROM village_group WHERE id=?', gId)
+      return success({ message: '已删除' })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 村组引用检查 ──
+  ipcMain.handle('settings:villageReferences', (_e, vid: number) => {
+    try {
+      const hhCount = db().getRaw<{ cnt: number }>('SELECT COUNT(*) as cnt FROM family_household WHERE village_id=?', vid)?.cnt ?? 0
+      const farmerCount = db().getRaw<{ cnt: number }>('SELECT COUNT(*) as cnt FROM farmer_profile WHERE own_village_id=?', vid)?.cnt ?? 0
+      return success({ households: hhCount, farmers: farmerCount, canDelete: hhCount === 0 && farmerCount === 0 })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 批量更新负责人 ──
+  ipcMain.handle('settings:batchUpdateLeaders', (_e, payload: any) => {
+    try {
+      const { rows } = payload
+      let updated = 0
+      for (const r of rows) {
+        db().runRaw('UPDATE family_household SET head_farmer_id=(SELECT id FROM farmer_profile WHERE household_id=? AND relation=\'本人\' LIMIT 1) WHERE id=?',
+          r.household_id || 0, r.household_id || 0)
+        updated++
+      }
+      return success({ message: `已更新 ${updated} 个家庭户` })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 农事任务：村土地信息 ──
+  ipcMain.handle('agri-tasks:listVillageLandInfo', () => {
+    try {
+      const rows = db().allRaw<Record<string, unknown>>(`
+        SELECT vg.id as village_id, v.village_name, vg.group_no,
+               (SELECT COUNT(*) FROM family_household WHERE village_id=v.id AND group_no=vg.group_no) as household_count,
+               (SELECT COALESCE(SUM(contract_area),0) FROM family_household WHERE village_id=v.id AND group_no=vg.group_no) as total_contract_area
+        FROM village_group vg JOIN village v ON vg.village_id=v.id ORDER BY v.village_name, vg.group_no
+      `)
+      return success(rows.map(r => ({ ...r, group_display: formatGroupNo(r.group_no as number) })))
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  ipcMain.handle('agri-tasks:updateVillageLandInfo', (_e, payload: any) => {
+    try {
+      const { village_id, ...data } = payload
+      if (data.contract_area != null) {
+        db().runRaw('UPDATE family_household SET contract_area=? WHERE village_id=?',
+          data.contract_area, village_id)
+      }
+      return success({ message: '已更新' })
     } catch (e) { return errorResponse(String(e)) }
   })
 }

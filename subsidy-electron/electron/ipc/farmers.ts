@@ -327,4 +327,25 @@ export function registerFarmerHandlers(): void {
       return errorResponse(String(e))
     }
   })
+
+  // ── 搜索 ──
+  ipcMain.handle('farmers:search', (_e, params: Record<string, unknown> = {}) => {
+    try {
+      const search = (params.search as string) || ''
+      const pageSize = Number(params.page_size) || 20
+      const rows = db().allRaw<Record<string, unknown>>(`
+        SELECT fp.id, fp.real_name, fp.id_card, fp.phone, fp.household_id,
+               hh.household_name, hh.household_code,
+               COALESCE(v.village_name,'') as village_name
+        FROM farmer_profile fp
+        LEFT JOIN family_household hh ON fp.household_id=hh.id
+        LEFT JOIN village v ON hh.village_id=v.id
+        WHERE fp.real_name LIKE ? OR fp.id_card LIKE ? OR fp.phone LIKE ?
+        ORDER BY fp.id DESC LIMIT ?
+      `, `%${search}%`, `%${search}%`, `%${search}%`, pageSize)
+      return success(rows)
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
 }

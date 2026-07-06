@@ -1120,6 +1120,25 @@ function registerFarmerHandlers() {
       return errorResponse(String(e));
     }
   });
+  electron.ipcMain.handle("farmers:search", (_e, params = {}) => {
+    try {
+      const search = params.search || "";
+      const pageSize = Number(params.page_size) || 20;
+      const rows = db2().allRaw(`
+        SELECT fp.id, fp.real_name, fp.id_card, fp.phone, fp.household_id,
+               hh.household_name, hh.household_code,
+               COALESCE(v.village_name,'') as village_name
+        FROM farmer_profile fp
+        LEFT JOIN family_household hh ON fp.household_id=hh.id
+        LEFT JOIN village v ON hh.village_id=v.id
+        WHERE fp.real_name LIKE ? OR fp.id_card LIKE ? OR fp.phone LIKE ?
+        ORDER BY fp.id DESC LIMIT ?
+      `, `%${search}%`, `%${search}%`, `%${search}%`, pageSize);
+      return success(rows);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
 }
 function registerHouseholdHandlers() {
   const db2 = () => getDb();
@@ -2172,6 +2191,252 @@ function registerSubsidyHandlers() {
       return errorResponse(String(e));
     }
   });
+  electron.ipcMain.handle("subsidies:listPayments", (_e, params = {}) => {
+    try {
+      const { page, pageSize, offset } = parsePagination(params);
+      const subsidyTypeId = Number(params.subsidy_type_id) || 0;
+      const paymentYear = Number(params.payment_year) || 0;
+      const search = params.search || "";
+      let where = "WHERE 1=1";
+      const vals = [];
+      if (subsidyTypeId) {
+        where += " AND sp.subsidy_type_id=?";
+        vals.push(subsidyTypeId);
+      }
+      if (paymentYear) {
+        where += " AND sp.payment_year=?";
+        vals.push(paymentYear);
+      }
+      if (search) {
+        where += " AND (fp.real_name LIKE ? OR hh.household_name LIKE ?)";
+        vals.push(`%${search}%`, `%${search}%`);
+      }
+      const countRow = db2().getRaw(`SELECT COUNT(*) as cnt FROM subsidy_payment sp LEFT JOIN farmer_profile fp ON sp.beneficiary_id=fp.id LEFT JOIN family_household hh ON fp.household_id=hh.id ${where}`, ...vals);
+      const rows = db2().allRaw(`SELECT sp.*, fp.real_name as farmer_name, hh.household_name, hh.household_code FROM subsidy_payment sp LEFT JOIN farmer_profile fp ON sp.beneficiary_id=fp.id LEFT JOIN family_household hh ON fp.household_id=hh.id ${where} ORDER BY sp.id DESC LIMIT ? OFFSET ?`, ...vals, pageSize, offset);
+      return successList(rows, countRow?.cnt ?? 0, page, pageSize);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:deleteApplication", (_e, id) => {
+    try {
+      db2().runRaw("DELETE FROM subsidy_application WHERE id=?", id);
+      return success({ message: "已删除" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:deletePayment", (_e, id) => {
+    try {
+      db2().runRaw("DELETE FROM subsidy_payment WHERE id=?", id);
+      return success({ message: "已删除" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:batchDeleteApplications", (_e, payload) => {
+    try {
+      if (payload.delete_all) {
+        db2().runRaw("DELETE FROM subsidy_application WHERE subsidy_type_id=?", payload.subsidy_type_id);
+        return success({ message: "已全部删除" });
+      }
+      for (const id of payload.ids || []) db2().runRaw("DELETE FROM subsidy_application WHERE id=?", id);
+      return success({ message: `已删除 ${(payload.ids || []).length} 条` });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:batchDeletePayments", (_e, payload) => {
+    try {
+      if (payload.delete_all) {
+        db2().runRaw("DELETE FROM subsidy_payment WHERE subsidy_type_id=?", payload.subsidy_type_id);
+        return success({ message: "已全部删除" });
+      }
+      for (const id of payload.ids || []) db2().runRaw("DELETE FROM subsidy_payment WHERE id=?", id);
+      return success({ message: `已删除 ${(payload.ids || []).length} 条` });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:convertToPayment", (_e, payload) => {
+    try {
+      const ids = payload.application_ids || [];
+      let count = 0;
+      for (const appId of ids) {
+        const app = db2().getRaw("SELECT * FROM subsidy_application WHERE id=?", appId);
+        if (!app) continue;
+        const exist = db2().getRaw("SELECT id FROM subsidy_payment WHERE application_id=?", appId);
+        if (exist) continue;
+        db2().runRaw(
+          `INSERT INTO subsidy_payment (subsidy_type_id, beneficiary_id, farmer_id, payment_year, applicant_name, id_card, apply_area, contract_area, trust_area, no_subsidy_area, amount, pay_status, is_proxy, payment_village_name, payment_group_display, application_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          app.subsidy_type_id,
+          app.beneficiary_id,
+          app.farmer_id,
+          app.apply_year,
+          app.applicant_name,
+          app.id_card,
+          app.apply_area,
+          app.contract_area,
+          app.trust_area,
+          app.no_subsidy_area,
+          app.actual_amount || app.apply_amount,
+          2,
+          app.is_proxy,
+          app.apply_village_name,
+          app.apply_group_display,
+          appId
+        );
+        count++;
+      }
+      return success({ message: `已转换 ${count} 条` });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:applicationStats", (_e, params) => {
+    try {
+      const { subsidy_type_id, year, compare_type_id } = params || {};
+      const rows = db2().allRaw(`SELECT sa.apply_year, COUNT(*) as cnt, COALESCE(SUM(sa.apply_area),0) as total_area, COALESCE(SUM(sa.actual_amount),0) as total_amount FROM subsidy_application sa WHERE sa.subsidy_type_id=? ${year ? "AND sa.apply_year=?" : ""} GROUP BY sa.apply_year ORDER BY sa.apply_year`, subsidy_type_id, ...year ? [year] : []);
+      return success(rows);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:applicationVillages", (_e, params) => {
+    try {
+      const { subsidy_type_id, year } = params || {};
+      const rows = db2().allRaw(`SELECT sa.apply_village_name as village_name, sa.apply_group_display as group_display, COUNT(*) as cnt FROM subsidy_application sa WHERE sa.subsidy_type_id=? ${year ? "AND sa.apply_year=?" : ""} GROUP BY sa.apply_village_name, sa.apply_group_display ORDER BY sa.apply_village_name`, subsidy_type_id, ...year ? [year] : []);
+      return success(rows);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:batchImportPayments", (_e, payload) => {
+    try {
+      const { rows, overwrite } = payload;
+      let created = 0, skipped = 0;
+      for (const row of rows) {
+        if (overwrite) {
+          const exist = db2().getRaw(
+            "SELECT id FROM subsidy_payment WHERE subsidy_type_id=? AND beneficiary_id=? AND payment_year=?",
+            row.subsidy_type_id,
+            row.beneficiary_id,
+            row.payment_year
+          );
+          if (exist) {
+            db2().runRaw("DELETE FROM subsidy_payment WHERE id=?", exist.id);
+            skipped++;
+          }
+        }
+        const cols = Object.keys(row).filter((k) => row[k] !== void 0).join(",");
+        const ph = Object.keys(row).filter((k) => row[k] !== void 0).map(() => "?").join(",");
+        const vals = Object.keys(row).filter((k) => row[k] !== void 0).map((k) => row[k]);
+        db2().runRaw(`INSERT INTO subsidy_payment (${cols}) VALUES (${ph})`, ...vals);
+        created++;
+      }
+      return success({ message: `导入完成：新增${created}，覆盖${skipped}` });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:precheck", (_e, params) => {
+    try {
+      const { subsidy_type_id, year, pay_status, village_name } = params || {};
+      let where = "WHERE 1=1";
+      const vals = [];
+      if (subsidy_type_id) {
+        where += " AND sa.subsidy_type_id=?";
+        vals.push(subsidy_type_id);
+      }
+      if (year) {
+        where += " AND sa.apply_year=?";
+        vals.push(year);
+      }
+      if (pay_status != null) {
+        where += " AND sa.pay_status=?";
+        vals.push(pay_status);
+      }
+      if (village_name) {
+        where += " AND sa.apply_village_name=?";
+        vals.push(village_name);
+      }
+      const rows = db2().allRaw(`
+        SELECT sa.*, fp.real_name as farmer_name, st.subsidy_name, hh.household_name
+        FROM subsidy_application sa
+        LEFT JOIN farmer_profile fp ON sa.beneficiary_id=fp.id
+        LEFT JOIN subsidy_type st ON sa.subsidy_type_id=st.id
+        LEFT JOIN family_household hh ON fp.household_id=hh.id
+        ${where} ORDER BY sa.id
+      `, ...vals);
+      return success({ items: rows, total: rows.length });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:exportPrecheck", (_e, params) => {
+    try {
+      const { subsidy_type_id, year, village_name } = params || {};
+      let where = "WHERE 1=1";
+      const vals = [];
+      if (subsidy_type_id) {
+        where += " AND sa.subsidy_type_id=?";
+        vals.push(subsidy_type_id);
+      }
+      if (year) {
+        where += " AND sa.apply_year=?";
+        vals.push(year);
+      }
+      if (village_name) {
+        where += " AND sa.apply_village_name=?";
+        vals.push(village_name);
+      }
+      const rows = db2().allRaw(`
+        SELECT sa.*, fp.real_name as farmer_name, st.subsidy_name, hh.household_name
+        FROM subsidy_application sa
+        LEFT JOIN farmer_profile fp ON sa.beneficiary_id=fp.id
+        LEFT JOIN subsidy_type st ON sa.subsidy_type_id=st.id
+        LEFT JOIN family_household hh ON fp.household_id=hh.id
+        ${where} ORDER BY sa.apply_village_name, fp.real_name
+      `, ...vals);
+      return success({ items: rows });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:exportPrecheckWithOptions", (_e, params) => {
+    try {
+      const { subsidy_type_id, year, village_name, pay_status } = params || {};
+      let where = "WHERE 1=1";
+      const vals = [];
+      if (subsidy_type_id) {
+        where += " AND sa.subsidy_type_id=?";
+        vals.push(subsidy_type_id);
+      }
+      if (year) {
+        where += " AND sa.apply_year=?";
+        vals.push(year);
+      }
+      if (village_name) {
+        where += " AND sa.apply_village_name=?";
+        vals.push(village_name);
+      }
+      if (pay_status != null) {
+        where += " AND sa.pay_status=?";
+        vals.push(pay_status);
+      }
+      const rows = db2().allRaw(`
+        SELECT sa.*, fp.real_name as farmer_name, st.subsidy_name, hh.household_name, hh.household_code
+        FROM subsidy_application sa
+        LEFT JOIN farmer_profile fp ON sa.beneficiary_id=fp.id
+        LEFT JOIN subsidy_type st ON sa.subsidy_type_id=st.id
+        LEFT JOIN family_household hh ON fp.household_id=hh.id
+        ${where} ORDER BY sa.apply_village_name, fp.real_name
+      `, ...vals);
+      return success({ items: rows });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
 }
 function registerAiHandlers() {
   const db2 = () => getDb();
@@ -2295,12 +2560,129 @@ function registerLandHandlers() {
       return errorResponse(String(e));
     }
   });
+  function ensureLargeFarmerTables() {
+    try {
+      db2().runRaw("CREATE TABLE IF NOT EXISTS large_farmer (id INTEGER PRIMARY KEY AUTOINCREMENT, farmer_name TEXT, household_id INTEGER, household_name TEXT, village_name TEXT, land_area REAL, remark TEXT, created_at TEXT DEFAULT (datetime('now','localtime')))");
+    } catch {
+    }
+    try {
+      db2().runRaw("CREATE TABLE IF NOT EXISTS large_farmer_trust (id INTEGER PRIMARY KEY AUTOINCREMENT, large_farmer_id INTEGER, trust_type TEXT, land_area REAL, trust_year INTEGER, start_date TEXT, end_date TEXT, remark TEXT, created_at TEXT DEFAULT (datetime('now','localtime')))");
+    } catch {
+    }
+  }
+  ensureLargeFarmerTables();
   electron.ipcMain.handle("land:listLargeFarmers", (_e, params = {}) => {
     try {
       const { page, pageSize, offset } = parsePagination(params);
       const countRow = db2().getRaw("SELECT COUNT(*) as cnt FROM large_farmer");
       const rows = db2().allRaw("SELECT * FROM large_farmer ORDER BY id DESC LIMIT ? OFFSET ?", pageSize, offset);
       return successList(rows, countRow?.cnt ?? 0, page, pageSize);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("land:createLargeFarmer", (_e, payload) => {
+    try {
+      const cols = Object.keys(payload).filter((k) => payload[k] !== void 0).join(",");
+      const ph = Object.keys(payload).filter((k) => payload[k] !== void 0).map(() => "?").join(",");
+      const vals = Object.keys(payload).filter((k) => payload[k] !== void 0).map((k) => payload[k]);
+      const r = db2().runRaw(`INSERT INTO large_farmer (${cols}) VALUES (${ph})`, ...vals);
+      return success({ id: r.lastInsertRowid });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("land:updateLargeFarmer", (_e, payload) => {
+    try {
+      const { id, ...data } = payload;
+      const keys = Object.keys(data).filter((k) => data[k] !== void 0);
+      if (keys.length === 0) return errorResponse("无更新数据");
+      const sets = keys.map((k) => `${k}=?`).join(",");
+      const vals = keys.map((k) => data[k]);
+      db2().runRaw(`UPDATE large_farmer SET ${sets} WHERE id=?`, ...vals, id);
+      return success(null, "更新成功");
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("land:deleteLargeFarmer", (_e, id) => {
+    try {
+      db2().runRaw("DELETE FROM large_farmer_trust WHERE large_farmer_id=?", id);
+      db2().runRaw("DELETE FROM large_farmer WHERE id=?", id);
+      return success({ message: "已删除" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("land:listLargeFarmerTrusts", (_e, payload) => {
+    try {
+      const { id, year } = payload || {};
+      let sql = "SELECT * FROM large_farmer_trust WHERE large_farmer_id=?";
+      const params = [id];
+      if (year) {
+        sql += " AND trust_year=?";
+        params.push(year);
+      }
+      sql += " ORDER BY trust_year DESC";
+      const rows = db2().allRaw(sql, ...params);
+      return success(rows);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("land:createLargeFarmerTrust", (_e, payload) => {
+    try {
+      const { large_farmer_id, trust_type, land_area, trust_year, start_date, end_date, remark } = payload;
+      const r = db2().runRaw(
+        "INSERT INTO large_farmer_trust (large_farmer_id, trust_type, land_area, trust_year, start_date, end_date, remark) VALUES (?,?,?,?,?,?,?)",
+        large_farmer_id,
+        trust_type,
+        land_area,
+        trust_year,
+        start_date || null,
+        end_date || null,
+        remark || ""
+      );
+      return success({ id: r.lastInsertRowid });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("land:updateLargeFarmerTrust", (_e, payload) => {
+    try {
+      const { id, large_farmer_id, ...data } = payload;
+      const keys = Object.keys(data).filter((k) => data[k] !== void 0);
+      if (keys.length === 0) return errorResponse("无更新数据");
+      const sets = keys.map((k) => `${k}=?`).join(",");
+      const vals = keys.map((k) => data[k]);
+      db2().runRaw(`UPDATE large_farmer_trust SET ${sets} WHERE id=?`, ...vals, id);
+      return success(null, "更新成功");
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("land:deleteLargeFarmerTrust", (_e, id) => {
+    try {
+      db2().runRaw("DELETE FROM large_farmer_trust WHERE id=?", id);
+      return success({ message: "已删除" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("land:searchHousehold", (_e, payload) => {
+    try {
+      const q = payload.q || "";
+      const rows = db2().allRaw(
+        `SELECT hh.id as household_id, hh.household_code, hh.household_name,
+                (SELECT real_name FROM farmer_profile WHERE id=hh.head_farmer_id) as head_name,
+                COALESCE(v.village_name,'') as village_name
+         FROM family_household hh LEFT JOIN village v ON hh.village_id=v.id
+         WHERE hh.household_name LIKE ? OR hh.household_code LIKE ?
+         LIMIT 20`,
+        `%${q}%`,
+        `%${q}%`
+      );
+      return success(rows);
     } catch (e) {
       return errorResponse(String(e));
     }
@@ -2826,6 +3208,124 @@ function registerSettingsHandlers() {
     try {
       const rows = db2().allRaw("SELECT id, village_name FROM village ORDER BY village_name");
       return success(rows);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("settings:villageDetail", (_e, villageId) => {
+    try {
+      const v = db2().getRaw("SELECT * FROM village WHERE id=?", villageId);
+      if (!v) return errorResponse("村不存在", 404);
+      const groups = db2().allRaw("SELECT * FROM village_group WHERE village_id=? ORDER BY group_no", villageId);
+      return success({ ...v, groups });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("settings:updateVillage", (_e, payload) => {
+    try {
+      const { id, ...data } = payload;
+      const keys = Object.keys(data).filter((k) => data[k] !== void 0 && k !== "id");
+      if (keys.length === 0) return errorResponse("无更新数据");
+      const sets = keys.map((k) => `${k}=?`).join(",");
+      db2().runRaw(`UPDATE village SET ${sets} WHERE id=?`, ...keys.map((k) => data[k]), id);
+      return success(null, "更新成功");
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("settings:batchCreateVillageGroups", (_e, payload) => {
+    try {
+      const { rows } = payload;
+      let created = 0;
+      for (const r of rows) {
+        let village = db2().getRaw("SELECT id FROM village WHERE village_name=?", r.village_name);
+        if (!village) {
+          const vr = db2().runRaw("INSERT INTO village (village_name) VALUES (?)", r.village_name);
+          village = { id: Number(vr.lastInsertRowid) };
+        }
+        const exist = db2().getRaw("SELECT id FROM village_group WHERE village_id=? AND group_no=?", village.id, r.group_no);
+        if (!exist) {
+          db2().runRaw("INSERT INTO village_group (village_id, group_no) VALUES (?,?)", village.id, r.group_no);
+          created++;
+        }
+      }
+      return success({ message: `已创建 ${created} 个村组` });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("settings:updateVillageGroup", (_e, payload) => {
+    try {
+      const { id, ...data } = payload;
+      const keys = Object.keys(data).filter((k) => data[k] !== void 0 && k !== "id");
+      if (keys.length === 0) return errorResponse("无更新数据");
+      db2().runRaw(`UPDATE village_group SET ${keys.map((k) => `${k}=?`).join(",")} WHERE id=?`, ...keys.map((k) => data[k]), id);
+      return success(null, "更新成功");
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("settings:deleteVillageGroup", (_e, gId) => {
+    try {
+      const hhCount = db2().getRaw("SELECT COUNT(*) as cnt FROM family_household WHERE village_id IN (SELECT village_id FROM village_group WHERE id=?)", gId)?.cnt ?? 0;
+      if (hhCount > 0) return errorResponse(`该村组下有 ${hhCount} 个家庭户，无法删除`);
+      db2().runRaw("DELETE FROM village_group WHERE id=?", gId);
+      return success({ message: "已删除" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("settings:villageReferences", (_e, vid) => {
+    try {
+      const hhCount = db2().getRaw("SELECT COUNT(*) as cnt FROM family_household WHERE village_id=?", vid)?.cnt ?? 0;
+      const farmerCount = db2().getRaw("SELECT COUNT(*) as cnt FROM farmer_profile WHERE own_village_id=?", vid)?.cnt ?? 0;
+      return success({ households: hhCount, farmers: farmerCount, canDelete: hhCount === 0 && farmerCount === 0 });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("settings:batchUpdateLeaders", (_e, payload) => {
+    try {
+      const { rows } = payload;
+      let updated = 0;
+      for (const r of rows) {
+        db2().runRaw(
+          "UPDATE family_household SET head_farmer_id=(SELECT id FROM farmer_profile WHERE household_id=? AND relation='本人' LIMIT 1) WHERE id=?",
+          r.household_id || 0,
+          r.household_id || 0
+        );
+        updated++;
+      }
+      return success({ message: `已更新 ${updated} 个家庭户` });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("agri-tasks:listVillageLandInfo", () => {
+    try {
+      const rows = db2().allRaw(`
+        SELECT vg.id as village_id, v.village_name, vg.group_no,
+               (SELECT COUNT(*) FROM family_household WHERE village_id=v.id AND group_no=vg.group_no) as household_count,
+               (SELECT COALESCE(SUM(contract_area),0) FROM family_household WHERE village_id=v.id AND group_no=vg.group_no) as total_contract_area
+        FROM village_group vg JOIN village v ON vg.village_id=v.id ORDER BY v.village_name, vg.group_no
+      `);
+      return success(rows.map((r) => ({ ...r, group_display: formatGroupNo(r.group_no) })));
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("agri-tasks:updateVillageLandInfo", (_e, payload) => {
+    try {
+      const { village_id, ...data } = payload;
+      if (data.contract_area != null) {
+        db2().runRaw(
+          "UPDATE family_household SET contract_area=? WHERE village_id=?",
+          data.contract_area,
+          village_id
+        );
+      }
+      return success({ message: "已更新" });
     } catch (e) {
       return errorResponse(String(e));
     }
@@ -3736,12 +4236,36 @@ function registerEligibilityHandlers() {
     }
   });
 }
-const LOCAL_USERS = {
-  admin: { password: "admin123", display_name: "管理员", role: "admin" }
-};
 let authEnabled = true;
 let tokenCounter = 1;
+function ensureUsersTable() {
+  try {
+    getDb().runRaw(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        display_name TEXT DEFAULT '',
+        role TEXT DEFAULT 'user',
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now','localtime'))
+      )
+    `);
+    const admin = getDb().getRaw("SELECT id FROM users WHERE username=?", "admin");
+    if (!admin) {
+      getDb().runRaw(
+        "INSERT INTO users (username, password, display_name, role) VALUES (?,?,?,?)",
+        "admin",
+        "admin123",
+        "管理员",
+        "admin"
+      );
+    }
+  } catch {
+  }
+}
 function registerAuthHandlers() {
+  ensureUsersTable();
   electron.ipcMain.handle("auth:status", () => {
     try {
       return success({ auth_enabled: authEnabled });
@@ -3752,18 +4276,465 @@ function registerAuthHandlers() {
   electron.ipcMain.handle("auth:login", (_e, payload) => {
     try {
       const { username, password } = payload;
-      const user = LOCAL_USERS[username];
+      const user = getDb().getRaw(
+        "SELECT * FROM users WHERE username=? AND is_active=1",
+        username
+      );
       if (!user || user.password !== password) {
         return errorResponse("用户名或密码错误", 401);
       }
       const token = `local_token_${tokenCounter++}_${Date.now()}`;
       return success({
         token,
-        user_id: 1,
+        user_id: user.id,
         username,
         display_name: user.display_name,
         role: user.role
       });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("auth:listUsers", () => {
+    try {
+      const rows = getDb().allRaw(
+        "SELECT id, username, display_name, role, is_active, created_at FROM users ORDER BY id"
+      );
+      return success(rows.map((r) => ({ ...r, password: void 0 })));
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("auth:createUser", (_e, form) => {
+    try {
+      const exist = getDb().getRaw("SELECT id FROM users WHERE username=?", form.username);
+      if (exist) return errorResponse("用户名已存在");
+      const r = getDb().runRaw(
+        "INSERT INTO users (username, password, display_name, role, is_active) VALUES (?,?,?,?,?)",
+        form.username,
+        form.password || "123456",
+        form.display_name || "",
+        form.role || "user",
+        form.is_active ?? 1
+      );
+      return success({ id: r.lastInsertRowid });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("auth:updateUser", (_e, payload) => {
+    try {
+      const { id, is_active, password, display_name, role } = payload;
+      const updates = [];
+      const vals = [];
+      if (is_active !== void 0) {
+        updates.push("is_active=?");
+        vals.push(is_active);
+      }
+      if (password) {
+        updates.push("password=?");
+        vals.push(password);
+      }
+      if (display_name) {
+        updates.push("display_name=?");
+        vals.push(display_name);
+      }
+      if (role) {
+        updates.push("role=?");
+        vals.push(role);
+      }
+      if (updates.length === 0) return errorResponse("无更新数据");
+      vals.push(id);
+      getDb().runRaw(`UPDATE users SET ${updates.join(",")}, created_at=datetime('now','localtime') WHERE id=?`, ...vals);
+      return success(null, "更新成功");
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("auth:changePassword", (_e, pwdForm) => {
+    try {
+      const user = getDb().getRaw(
+        "SELECT * FROM users WHERE id=? AND is_active=1",
+        pwdForm.user_id || 1
+      );
+      if (!user) return errorResponse("用户不存在");
+      if (pwdForm.old_password && user.password !== pwdForm.old_password) {
+        return errorResponse("原密码错误");
+      }
+      getDb().runRaw("UPDATE users SET password=? WHERE id=?", pwdForm.new_password, user.id);
+      return success({ message: "密码已修改" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+}
+function registerProjectProgressHandlers() {
+  const db2 = () => getDb();
+  try {
+    db2().runRaw(`
+      CREATE TABLE IF NOT EXISTS project_progress (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        subsidy_type_id INTEGER NOT NULL,
+        village_id INTEGER NOT NULL,
+        village_name TEXT DEFAULT '',
+        person_name TEXT DEFAULT '',
+        phone TEXT DEFAULT '',
+        stages TEXT DEFAULT '[]',
+        note TEXT DEFAULT '',
+        updated_at TEXT DEFAULT (datetime('now','localtime')),
+        UNIQUE(subsidy_type_id, village_id)
+      )
+    `);
+  } catch {
+  }
+  electron.ipcMain.handle("project-progress:get", (_e, projectId) => {
+    try {
+      const rows = db2().allRaw(`
+        SELECT * FROM project_progress WHERE subsidy_type_id = ? ORDER BY village_name
+      `, projectId);
+      const records = rows.map((r) => ({
+        ...r,
+        stages: safeParse(r.stages, [])
+      }));
+      return success(records);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("project-progress:save", (_e, payload) => {
+    try {
+      const { projectId, village_id, village_name, person_name, phone, stages, note } = payload;
+      const stagesJson = JSON.stringify(stages || []);
+      const existing = db2().getRaw(
+        "SELECT id FROM project_progress WHERE subsidy_type_id = ? AND village_id = ?",
+        projectId,
+        village_id
+      );
+      if (existing) {
+        db2().runRaw(
+          `UPDATE project_progress SET village_name=?, person_name=?, phone=?, stages=?, note=?, updated_at=datetime('now','localtime') WHERE id=?`,
+          village_name || "",
+          person_name || "",
+          phone || "",
+          stagesJson,
+          note || "",
+          existing.id
+        );
+      } else {
+        db2().runRaw(
+          `INSERT INTO project_progress (subsidy_type_id, village_id, village_name, person_name, phone, stages, note) VALUES (?,?,?,?,?,?,?)`,
+          projectId,
+          village_id,
+          village_name || "",
+          person_name || "",
+          phone || "",
+          stagesJson,
+          note || ""
+        );
+      }
+      return success({ message: "已保存" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("project-progress:batch", (_e, payload) => {
+    try {
+      const { projectId, action } = payload;
+      const rows = db2().allRaw(
+        "SELECT * FROM project_progress WHERE subsidy_type_id = ?",
+        projectId
+      );
+      switch (action) {
+        case "init": {
+          const villages = db2().allRaw(
+            "SELECT vg.*, v.village_name FROM village_group vg JOIN village v ON vg.village_id = v.id ORDER BY v.village_name, vg.group_no"
+          );
+          let added = 0;
+          for (const v of villages) {
+            const exists = rows.find((r) => r.village_id === v.id);
+            if (!exists) {
+              db2().runRaw(
+                `INSERT INTO project_progress (subsidy_type_id, village_id, village_name, stages) VALUES (?,?,?,?)`,
+                projectId,
+                v.id,
+                `${v.village_name}${formatGroupNoSimple(v.group_no)}`,
+                "[]"
+              );
+              added++;
+            }
+          }
+          return success({ message: `已初始化 ${added} 个村` });
+        }
+        case "sync_leaders": {
+          let updated = 0;
+          for (const r of rows) {
+            const leader = db2().getRaw(`
+              SELECT fp.real_name, fp.phone FROM farmer_profile fp
+              JOIN family_household hh ON fp.household_id = hh.id
+              WHERE hh.village_id = (SELECT village_id FROM village_group WHERE id = ?)
+              AND fp.relation = '本人'
+              LIMIT 1
+            `, r.village_id);
+            if (leader) {
+              db2().runRaw(
+                `UPDATE project_progress SET person_name=?, phone=?, updated_at=datetime('now','localtime') WHERE id=?`,
+                leader.real_name || "",
+                leader.phone || "",
+                r.id
+              );
+              updated++;
+            }
+          }
+          return success({ message: `已同步`, updated });
+        }
+        case "add_stage_to_all": {
+          const { stage } = payload;
+          for (const r of rows) {
+            const stages = safeParse(r.stages, []);
+            if (!stages.find((s) => s.name === stage.name)) {
+              stages.push(stage);
+              db2().runRaw(
+                `UPDATE project_progress SET stages=?, updated_at=datetime('now','localtime') WHERE id=?`,
+                JSON.stringify(stages),
+                r.id
+              );
+            }
+          }
+          return success({ message: `已添加阶段「${stage.name}」` });
+        }
+        case "batch_stage": {
+          const { stage_name, status, date } = payload;
+          for (const r of rows) {
+            const stages = safeParse(r.stages, []);
+            const idx = stages.findIndex((s) => s.name === stage_name);
+            if (idx >= 0) {
+              stages[idx] = { ...stages[idx], status, date: date || stages[idx].date };
+              db2().runRaw(
+                `UPDATE project_progress SET stages=?, updated_at=datetime('now','localtime') WHERE id=?`,
+                JSON.stringify(stages),
+                r.id
+              );
+            }
+          }
+          return success({ message: `已批量更新「${stage_name}」` });
+        }
+        case "swap_stages": {
+          const { stage_a, stage_b } = payload;
+          for (const r of rows) {
+            const stages = safeParse(r.stages, []);
+            const ia = stages.findIndex((s) => s.name === stage_a);
+            const ib = stages.findIndex((s) => s.name === stage_b);
+            if (ia >= 0 && ib >= 0) {
+              ;
+              [stages[ia], stages[ib]] = [stages[ib], stages[ia]];
+              db2().runRaw(
+                `UPDATE project_progress SET stages=?, updated_at=datetime('now','localtime') WHERE id=?`,
+                JSON.stringify(stages),
+                r.id
+              );
+            }
+          }
+          return success({ message: "已交换阶段顺序" });
+        }
+        default:
+          return errorResponse("未知操作: " + action);
+      }
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("project-progress:deleteStage", (_e, payload) => {
+    try {
+      const { projectId, stage_name } = payload;
+      const rows = db2().allRaw(
+        "SELECT * FROM project_progress WHERE subsidy_type_id = ?",
+        projectId
+      );
+      for (const r of rows) {
+        const stages = safeParse(r.stages, []);
+        const filtered = stages.filter((s) => s.name !== stage_name);
+        if (filtered.length !== stages.length) {
+          db2().runRaw(
+            `UPDATE project_progress SET stages=?, updated_at=datetime('now','localtime') WHERE id=?`,
+            JSON.stringify(filtered),
+            r.id
+          );
+        }
+      }
+      return success({ message: `已删除阶段「${stage_name}」` });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("project-progress:scanFiles", (_e, payload) => {
+    try {
+      const { projectId, path: scanPath, stage_name } = payload;
+      if (!fs.existsSync(scanPath)) return errorResponse("目录不存在: " + scanPath);
+      const files = fs.readdirSync(scanPath).filter((f) => {
+        try {
+          return fs.statSync(path.join(scanPath, f)).isFile();
+        } catch {
+          return false;
+        }
+      });
+      const rows = db2().allRaw(
+        "SELECT * FROM project_progress WHERE subsidy_type_id = ?",
+        projectId
+      );
+      let matched = 0;
+      for (const r of rows) {
+        const vname = String(r.village_name || "");
+        const found = files.some((f) => {
+          const basename = f.replace(/\.[^.]+$/, "");
+          return basename.includes(vname) || vname.includes(basename);
+        });
+        if (found) {
+          const stages = safeParse(r.stages, []);
+          const idx = stages.findIndex((s) => s.name === stage_name);
+          if (idx >= 0) {
+            stages[idx] = { ...stages[idx], status: "done", date: (/* @__PURE__ */ new Date()).toISOString() };
+            db2().runRaw(
+              `UPDATE project_progress SET stages=?, updated_at=datetime('now','localtime') WHERE id=?`,
+              JSON.stringify(stages),
+              r.id
+            );
+            matched++;
+          }
+        }
+      }
+      return success({ message: `扫描完成：${files.length} 个文件，匹配 ${matched} 个村` });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+}
+function safeParse(val, fallback) {
+  try {
+    return JSON.parse(val || "[]");
+  } catch {
+    return fallback;
+  }
+}
+function formatGroupNoSimple(n) {
+  const map = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
+  if (n >= 1 && n <= 10) return map[n] + "组";
+  return n + "组";
+}
+function ensureTable() {
+  const db2 = getDb();
+  db2.runRaw(`
+    CREATE TABLE IF NOT EXISTS village_contact (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      village_id INTEGER NOT NULL UNIQUE,
+      village_name TEXT DEFAULT '',
+      leader_name TEXT DEFAULT '',
+      leader_phone TEXT DEFAULT '',
+      leader_title TEXT DEFAULT '',
+      contact_name TEXT DEFAULT '',
+      contact_phone TEXT DEFAULT '',
+      remark TEXT DEFAULT '',
+      updated_at TEXT DEFAULT (datetime('now','localtime'))
+    )
+  `);
+}
+function registerVillageContactsHandlers() {
+  ensureTable();
+  electron.ipcMain.handle("village-contacts:list", () => {
+    try {
+      const rows = getDb().allRaw(
+        "SELECT * FROM village_contact ORDER BY village_name"
+      );
+      return success(rows);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("village-contacts:create", (_e, body) => {
+    try {
+      const { village_id, village_name, leader_name, leader_phone, leader_title, contact_name, contact_phone, remark } = body;
+      const r = getDb().runRaw(
+        `INSERT INTO village_contact (village_id, village_name, leader_name, leader_phone, leader_title, contact_name, contact_phone, remark) VALUES (?,?,?,?,?,?,?,?)`,
+        village_id,
+        village_name || "",
+        leader_name || "",
+        leader_phone || "",
+        leader_title || "",
+        contact_name || "",
+        contact_phone || "",
+        remark || ""
+      );
+      return success({ id: r.lastInsertRowid });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("village-contacts:update", (_e, payload) => {
+    try {
+      const { id, ...data } = payload;
+      const keys = Object.keys(data).filter((k) => data[k] !== void 0 && k !== "id");
+      if (keys.length === 0) return errorResponse("无更新数据");
+      const sets = keys.map((k) => `${k} = ?`).join(", ");
+      const vals = keys.map((k) => data[k]);
+      getDb().runRaw(`UPDATE village_contact SET ${sets}, updated_at=datetime('now','localtime') WHERE id=?`, ...vals, id);
+      return success(null, "更新成功");
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("village-contacts:delete", (_e, id) => {
+    try {
+      getDb().runRaw("DELETE FROM village_contact WHERE id=?", id);
+      return success({ message: "已删除" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("village-contacts:setLead", (_e, id) => {
+    try {
+      const c = getDb().getRaw("SELECT village_id FROM village_contact WHERE id=?", id);
+      if (!c) return errorResponse("联系人不存在");
+      getDb().runRaw("UPDATE village_contact SET leader_name='', leader_phone='', leader_title='' WHERE village_id=? AND id!=?", c.village_id, id);
+      getDb().runRaw("UPDATE village_contact SET leader_name='负责人', leader_title='主要负责人' WHERE id=?", id);
+      return success({ message: "已设为负责人" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("village-contacts:import", (_e, payload) => {
+    try {
+      const { overwrite, filePath } = payload;
+      if (!fs.existsSync(filePath)) return errorResponse("文件不存在");
+      const XLSX = require("xlsx");
+      const wb = XLSX.readFile(filePath);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws);
+      let created = 0, updated = 0;
+      for (const row of rows) {
+        const vname = row["村名"] || row["village_name"] || "";
+        const vg = getDb().getRaw("SELECT id FROM village_group WHERE id=?", Number(row["village_id"]) || 0);
+        const vid = vg?.id;
+        if (!vid) continue;
+        const exist = getDb().getRaw("SELECT id FROM village_contact WHERE village_id=?", vid);
+        if (exist && overwrite) {
+          getDb().runRaw(
+            "UPDATE village_contact SET leader_name=?, leader_phone=?, updated_at=datetime('now','localtime') WHERE id=?",
+            row["负责人"] || row["leader_name"] || "",
+            row["电话"] || row["leader_phone"] || "",
+            exist.id
+          );
+          updated++;
+        } else if (!exist) {
+          getDb().runRaw(
+            "INSERT INTO village_contact (village_id, village_name, leader_name, leader_phone) VALUES (?,?,?,?)",
+            vid,
+            vname,
+            row["负责人"] || "",
+            row["电话"] || ""
+          );
+          created++;
+        }
+      }
+      return success({ message: `导入完成：新增${created}，更新${updated}` });
     } catch (e) {
       return errorResponse(String(e));
     }
@@ -3805,6 +4776,8 @@ function registerAllIpcHandlers() {
   registerExternalLinksHandlers();
   registerEligibilityHandlers();
   registerAuthHandlers();
+  registerProjectProgressHandlers();
+  registerVillageContactsHandlers();
 }
 let mainWindow = null;
 function createWindow() {

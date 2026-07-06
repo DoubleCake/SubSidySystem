@@ -421,4 +421,187 @@ export function registerSubsidyHandlers(): void {
       return success({ items: rows })
     } catch (e) { return errorResponse(String(e)) }
   })
+
+  // ── 补贴发放列表（分页）──
+  ipcMain.handle('subsidies:listPayments', (_e, params: Record<string, unknown> = {}) => {
+    try {
+      const { page, pageSize, offset } = parsePagination(params)
+      const subsidyTypeId = Number(params.subsidy_type_id) || 0
+      const paymentYear = Number(params.payment_year) || 0
+      const search = (params.search as string) || ''
+
+      let where = 'WHERE 1=1'
+      const vals: unknown[] = []
+      if (subsidyTypeId) { where += ' AND sp.subsidy_type_id=?'; vals.push(subsidyTypeId) }
+      if (paymentYear) { where += ' AND sp.payment_year=?'; vals.push(paymentYear) }
+      if (search) { where += ' AND (fp.real_name LIKE ? OR hh.household_name LIKE ?)'; vals.push(`%${search}%`, `%${search}%`) }
+
+      const countRow = db().getRaw<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM subsidy_payment sp LEFT JOIN farmer_profile fp ON sp.beneficiary_id=fp.id LEFT JOIN family_household hh ON fp.household_id=hh.id ${where}`, ...vals)
+      const rows = db().allRaw(`SELECT sp.*, fp.real_name as farmer_name, hh.household_name, hh.household_code FROM subsidy_payment sp LEFT JOIN farmer_profile fp ON sp.beneficiary_id=fp.id LEFT JOIN family_household hh ON fp.household_id=hh.id ${where} ORDER BY sp.id DESC LIMIT ? OFFSET ?`, ...vals, pageSize, offset)
+      return successList(rows, countRow?.cnt ?? 0, page, pageSize)
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 删除申请 ──
+  ipcMain.handle('subsidies:deleteApplication', (_e, id: number) => {
+    try {
+      db().runRaw('DELETE FROM subsidy_application WHERE id=?', id)
+      return success({ message: '已删除' })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 删除发放 ──
+  ipcMain.handle('subsidies:deletePayment', (_e, id: number) => {
+    try {
+      db().runRaw('DELETE FROM subsidy_payment WHERE id=?', id)
+      return success({ message: '已删除' })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 批量删除 ──
+  ipcMain.handle('subsidies:batchDeleteApplications', (_e, payload: any) => {
+    try {
+      if (payload.delete_all) {
+        db().runRaw('DELETE FROM subsidy_application WHERE subsidy_type_id=?', payload.subsidy_type_id)
+        return success({ message: '已全部删除' })
+      }
+      for (const id of (payload.ids || [])) db().runRaw('DELETE FROM subsidy_application WHERE id=?', id)
+      return success({ message: `已删除 ${(payload.ids||[]).length} 条` })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  ipcMain.handle('subsidies:batchDeletePayments', (_e, payload: any) => {
+    try {
+      if (payload.delete_all) {
+        db().runRaw('DELETE FROM subsidy_payment WHERE subsidy_type_id=?', payload.subsidy_type_id)
+        return success({ message: '已全部删除' })
+      }
+      for (const id of (payload.ids || [])) db().runRaw('DELETE FROM subsidy_payment WHERE id=?', id)
+      return success({ message: `已删除 ${(payload.ids||[]).length} 条` })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 预申请转发放 ──
+  ipcMain.handle('subsidies:convertToPayment', (_e, payload: any) => {
+    try {
+      const ids = payload.application_ids || []
+      let count = 0
+      for (const appId of ids) {
+        const app = db().getRaw<any>('SELECT * FROM subsidy_application WHERE id=?', appId)
+        if (!app) continue
+        // check if payment already exists
+        const exist = db().getRaw<{ id: number }>('SELECT id FROM subsidy_payment WHERE application_id=?', appId)
+        if (exist) continue
+        db().runRaw(`INSERT INTO subsidy_payment (subsidy_type_id, beneficiary_id, farmer_id, payment_year, applicant_name, id_card, apply_area, contract_area, trust_area, no_subsidy_area, amount, pay_status, is_proxy, payment_village_name, payment_group_display, application_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          app.subsidy_type_id, app.beneficiary_id, app.farmer_id, app.apply_year, app.applicant_name, app.id_card, app.apply_area, app.contract_area, app.trust_area, app.no_subsidy_area, app.actual_amount || app.apply_amount, 2, app.is_proxy, app.apply_village_name, app.apply_group_display, appId)
+        count++
+      }
+      return success({ message: `已转换 ${count} 条` })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 统计 ──
+  ipcMain.handle('subsidies:applicationStats', (_e, params: any) => {
+    try {
+      const { subsidy_type_id, year, compare_type_id } = params || {}
+      const rows = db().allRaw(`SELECT sa.apply_year, COUNT(*) as cnt, COALESCE(SUM(sa.apply_area),0) as total_area, COALESCE(SUM(sa.actual_amount),0) as total_amount FROM subsidy_application sa WHERE sa.subsidy_type_id=? ${year?'AND sa.apply_year=?':''} GROUP BY sa.apply_year ORDER BY sa.apply_year`, subsidy_type_id, ...(year?[year]:[]))
+      return success(rows)
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  ipcMain.handle('subsidies:applicationVillages', (_e, params: any) => {
+    try {
+      const { subsidy_type_id, year } = params || {}
+      const rows = db().allRaw(`SELECT sa.apply_village_name as village_name, sa.apply_group_display as group_display, COUNT(*) as cnt FROM subsidy_application sa WHERE sa.subsidy_type_id=? ${year?'AND sa.apply_year=?':''} GROUP BY sa.apply_village_name, sa.apply_group_display ORDER BY sa.apply_village_name`, subsidy_type_id, ...(year?[year]:[]))
+      return success(rows)
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 批量导入发放记录 ──
+  ipcMain.handle('subsidies:batchImportPayments', (_e, payload: any) => {
+    try {
+      const { rows, overwrite } = payload
+      let created = 0, skipped = 0
+      for (const row of rows) {
+        if (overwrite) {
+          // check duplicate by key fields
+          const exist = db().getRaw<{ id: number }>(
+            'SELECT id FROM subsidy_payment WHERE subsidy_type_id=? AND beneficiary_id=? AND payment_year=?',
+            row.subsidy_type_id, row.beneficiary_id, row.payment_year)
+          if (exist) { db().runRaw('DELETE FROM subsidy_payment WHERE id=?', exist.id); skipped++ }
+        }
+        const cols = Object.keys(row).filter(k => row[k] !== undefined).join(',')
+        const ph = Object.keys(row).filter(k => row[k] !== undefined).map(() => '?').join(',')
+        const vals = Object.keys(row).filter(k => row[k] !== undefined).map(k => row[k])
+        db().runRaw(`INSERT INTO subsidy_payment (${cols}) VALUES (${ph})`, ...vals)
+        created++
+      }
+      return success({ message: `导入完成：新增${created}，覆盖${skipped}` })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 预检查／数据验证 ──
+  ipcMain.handle('subsidies:precheck', (_e, params: any) => {
+    try {
+      const { subsidy_type_id, year, pay_status, village_name } = params || {}
+      let where = 'WHERE 1=1'
+      const vals: unknown[] = []
+      if (subsidy_type_id) { where += ' AND sa.subsidy_type_id=?'; vals.push(subsidy_type_id) }
+      if (year) { where += ' AND sa.apply_year=?'; vals.push(year) }
+      if (pay_status != null) { where += ' AND sa.pay_status=?'; vals.push(pay_status) }
+      if (village_name) { where += ' AND sa.apply_village_name=?'; vals.push(village_name) }
+      const rows = db().allRaw<Record<string, unknown>>(`
+        SELECT sa.*, fp.real_name as farmer_name, st.subsidy_name, hh.household_name
+        FROM subsidy_application sa
+        LEFT JOIN farmer_profile fp ON sa.beneficiary_id=fp.id
+        LEFT JOIN subsidy_type st ON sa.subsidy_type_id=st.id
+        LEFT JOIN family_household hh ON fp.household_id=hh.id
+        ${where} ORDER BY sa.id
+      `, ...vals)
+      return success({ items: rows, total: rows.length })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 导出预检查报告（简化版）──
+  ipcMain.handle('subsidies:exportPrecheck', (_e, params: any) => {
+    try {
+      const { subsidy_type_id, year, village_name } = params || {}
+      let where = 'WHERE 1=1'
+      const vals: unknown[] = []
+      if (subsidy_type_id) { where += ' AND sa.subsidy_type_id=?'; vals.push(subsidy_type_id) }
+      if (year) { where += ' AND sa.apply_year=?'; vals.push(year) }
+      if (village_name) { where += ' AND sa.apply_village_name=?'; vals.push(village_name) }
+      const rows = db().allRaw(`
+        SELECT sa.*, fp.real_name as farmer_name, st.subsidy_name, hh.household_name
+        FROM subsidy_application sa
+        LEFT JOIN farmer_profile fp ON sa.beneficiary_id=fp.id
+        LEFT JOIN subsidy_type st ON sa.subsidy_type_id=st.id
+        LEFT JOIN family_household hh ON fp.household_id=hh.id
+        ${where} ORDER BY sa.apply_village_name, fp.real_name
+      `, ...vals)
+      return success({ items: rows })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  ipcMain.handle('subsidies:exportPrecheckWithOptions', (_e, params: any) => {
+    try {
+      // same as exportPrecheck but with additional filter options
+      const { subsidy_type_id, year, village_name, pay_status } = params || {}
+      let where = 'WHERE 1=1'
+      const vals: unknown[] = []
+      if (subsidy_type_id) { where += ' AND sa.subsidy_type_id=?'; vals.push(subsidy_type_id) }
+      if (year) { where += ' AND sa.apply_year=?'; vals.push(year) }
+      if (village_name) { where += ' AND sa.apply_village_name=?'; vals.push(village_name) }
+      if (pay_status != null) { where += ' AND sa.pay_status=?'; vals.push(pay_status) }
+      const rows = db().allRaw(`
+        SELECT sa.*, fp.real_name as farmer_name, st.subsidy_name, hh.household_name, hh.household_code
+        FROM subsidy_application sa
+        LEFT JOIN farmer_profile fp ON sa.beneficiary_id=fp.id
+        LEFT JOIN subsidy_type st ON sa.subsidy_type_id=st.id
+        LEFT JOIN family_household hh ON fp.household_id=hh.id
+        ${where} ORDER BY sa.apply_village_name, fp.real_name
+      `, ...vals)
+      return success({ items: rows })
+    } catch (e) { return errorResponse(String(e)) }
+  })
 }
