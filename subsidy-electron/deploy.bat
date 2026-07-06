@@ -38,6 +38,10 @@ echo sha512: SKIP
 echo releaseDate: %DATE:~0,4%-%DATE:~5,2%-%DATE:~8,2%T00:00:00.000Z
 ) > dist\release\latest.yml
 
+REM also copy to resources/ for electron-updater
+copy /y dist\release\latest.yml dist\win-unpacked\resources\app-update.yml >nul
+
 echo Done! %APP_EXE% (%EXE_SIZE% bytes^) latest.yml (v%VERSION%^)
 echo.
 
+#scp dist\release\* root@8.137.8.78:/opt/updates/

@@ -694,6 +694,46 @@ function runMigrations() {
     }
   }
 }
+const DIGITS = "零一二三四五六七八九十";
+function arabicToChinese(n) {
+  if (n <= 10) return DIGITS[n];
+  if (n < 20) {
+    return "十" + (n % 10 ? DIGITS[n - 10] : "");
+  }
+  const tens = Math.floor(n / 10);
+  const ones = n % 10;
+  return DIGITS[tens] + "十" + (ones ? DIGITS[ones] : "");
+}
+function formatGroupNo(n) {
+  if (n == null) return "一组";
+  if (n >= 1 && n <= 10) {
+    return `${arabicToChinese(n)}组`;
+  }
+  return `${n}组`;
+}
+function parseGroupNoToInt(value) {
+  if (value == null) return 1;
+  const s = String(value).trim();
+  if (/^\d+$/.test(s)) return parseInt(s);
+  const m = s.match(/^(\d+)/);
+  if (m) return parseInt(m[1]);
+  const CN_MAP = {
+    "一": 1,
+    "二": 2,
+    "三": 3,
+    "四": 4,
+    "五": 5,
+    "六": 6,
+    "七": 7,
+    "八": 8,
+    "九": 9,
+    "十": 10
+  };
+  for (const [cn, num] of Object.entries(CN_MAP)) {
+    if (s.includes(cn)) return num;
+  }
+  return /^\d+$/.test(s) ? parseInt(s) : 1;
+}
 function parseIdCard(idCard) {
   const result = { birthDate: null, gender: 0 };
   const card = idCard.trim();
@@ -845,8 +885,8 @@ function registerFarmerHandlers() {
   electron.ipcMain.handle("farmers:get", (_e, id) => {
     try {
       const row = db2().getRaw(
-        `SELECT fp.*, hh.household_code, hh.household_name,
-                COALESCE(v.village_name || '/' || hh.group_no, '未知村组') AS village_full_name
+        `SELECT fp.*, hh.household_code, hh.household_name, hh.group_no,
+                v.village_name
          FROM farmer_profile fp
          LEFT JOIN family_household hh ON fp.household_id = hh.id
          LEFT JOIN village v ON hh.village_id = v.id
@@ -854,7 +894,45 @@ function registerFarmerHandlers() {
         id
       );
       if (!row) return errorResponse("农户不存在", 404);
-      return success(row);
+      const groupNo = row.group_no != null ? Number(row.group_no) : 0;
+      const villageFullName = row.village_name ? `${row.village_name}${formatGroupNo(groupNo)}` : formatGroupNo(groupNo) || "未知村组";
+      let applications = [];
+      try {
+        applications = db2().allRaw(`
+          SELECT sa.id, sa.apply_year, sa.subsidy_type_id,
+                 st.subsidy_name,
+                 sa.apply_area, sa.apply_amount, sa.actual_amount,
+                 sa.pay_status, sa.is_proxy, sa.apply_village_name, sa.apply_group_display,
+                 sa.created_at
+          FROM subsidy_application sa
+          LEFT JOIN subsidy_type st ON st.id = sa.subsidy_type_id
+          WHERE sa.beneficiary_id = ?
+          ORDER BY sa.apply_year DESC, sa.id DESC
+        `, id);
+      } catch {
+      }
+      let proxyRecords = [];
+      try {
+        proxyRecords = db2().allRaw(`
+          SELECT sp.*, sa.subsidy_type_id, st.subsidy_name,
+                 sa.apply_year, sa.apply_area, sa.actual_amount, sa.pay_status
+          FROM subsidy_proxy sp
+          JOIN subsidy_application sa ON sa.id = sp.application_id
+          LEFT JOIN subsidy_type st ON st.id = sa.subsidy_type_id
+          WHERE sp.proxy_farmer_id = ? OR sp.beneficiary_farmer_id = ?
+          ORDER BY sa.apply_year DESC
+        `, id, id);
+      } catch {
+      }
+      return success({
+        ...row,
+        village_full_name: villageFullName,
+        group_display: formatGroupNo(groupNo),
+        applications,
+        proxy_records: proxyRecords,
+        is_head: row.household_id && row.id ? null : 0
+        // computed by backend normally
+      });
     } catch (e) {
       return errorResponse(String(e));
     }
@@ -1042,46 +1120,6 @@ function registerFarmerHandlers() {
       return errorResponse(String(e));
     }
   });
-}
-const DIGITS = "零一二三四五六七八九十";
-function arabicToChinese(n) {
-  if (n <= 10) return DIGITS[n];
-  if (n < 20) {
-    return "十" + (n % 10 ? DIGITS[n - 10] : "");
-  }
-  const tens = Math.floor(n / 10);
-  const ones = n % 10;
-  return DIGITS[tens] + "十" + (ones ? DIGITS[ones] : "");
-}
-function formatGroupNo(n) {
-  if (n == null) return "一组";
-  if (n >= 1 && n <= 10) {
-    return `${arabicToChinese(n)}组`;
-  }
-  return `${n}组`;
-}
-function parseGroupNoToInt(value) {
-  if (value == null) return 1;
-  const s = String(value).trim();
-  if (/^\d+$/.test(s)) return parseInt(s);
-  const m = s.match(/^(\d+)/);
-  if (m) return parseInt(m[1]);
-  const CN_MAP = {
-    "一": 1,
-    "二": 2,
-    "三": 3,
-    "四": 4,
-    "五": 5,
-    "六": 6,
-    "七": 7,
-    "八": 8,
-    "九": 9,
-    "十": 10
-  };
-  for (const [cn, num] of Object.entries(CN_MAP)) {
-    if (s.includes(cn)) return num;
-  }
-  return /^\d+$/.test(s) ? parseInt(s) : 1;
 }
 function registerHouseholdHandlers() {
   const db2 = () => getDb();

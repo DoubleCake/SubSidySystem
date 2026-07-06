@@ -38,18 +38,18 @@ echo "✅ 打包完成"
 echo ""
 echo "[3/4] 准备上传文件..."
 
-APP_EXE="农户补贴管理系统.exe"
+APP_EXE="SubsidySystem.exe"
 RELEASE_DIR="dist/release"
 mkdir -p "$RELEASE_DIR"
 
 # 复制 exe 为标准名称
 cp "dist/win-unpacked/$APP_EXE" "$RELEASE_DIR/$APP_EXE"
 
-# 计算 sha512
+# 计算 sha512（base64 默认每76字符换行，用 tr -d '\n' 去掉）
 if command -v sha512sum &>/dev/null; then
-  SHA512=$(sha512sum "$RELEASE_DIR/$APP_EXE" | awk '{print $1}' | xxd -r -p | base64)
+  SHA512=$(sha512sum "$RELEASE_DIR/$APP_EXE" | awk '{print $1}' | xxd -r -p | base64 | tr -d '\n')
 elif command -v shasum &>/dev/null; then
-  SHA512=$(shasum -a 512 "$RELEASE_DIR/$APP_EXE" | awk '{print $1}' | xxd -r -p | base64)
+  SHA512=$(shasum -a 512 "$RELEASE_DIR/$APP_EXE" | awk '{print $1}' | xxd -r -p | base64 | tr -d '\n')
 else
   SHA512="SKIP"
 fi
@@ -68,9 +68,13 @@ sha512: $SHA512
 releaseDate: $(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 YEOF
 
+# 同时复制到 resources/ 作为 app-update.yml（electron-updater 需要）
+cp "$RELEASE_DIR/latest.yml" "dist/win-unpacked/resources/app-update.yml"
+
 echo "✅ 准备完成:"
 echo "   $APP_EXE ($(numfmt --to=iec $EXE_SIZE 2>/dev/null || echo ${EXE_SIZE} bytes))"
 echo "   latest.yml (version: $VERSION)"
+echo "   dist/win-unpacked/resources/app-update.yml (已创建)"
 
 # 5. 上传
 echo ""

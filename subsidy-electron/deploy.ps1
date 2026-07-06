@@ -31,7 +31,7 @@ Write-Host "Package done" -ForegroundColor Green
 # Step 3: Generate latest.yml
 Write-Host "[3/3] Generating latest.yml..." -ForegroundColor Yellow
 
-$APP_EXE = "农户补贴管理系统.exe"
+$APP_EXE = "SubsidySystem.exe"
 $RELEASE_DIR = "dist\release"
 if (-not (Test-Path $RELEASE_DIR)) { New-Item -ItemType Directory -Path $RELEASE_DIR -Force | Out-Null }
 
