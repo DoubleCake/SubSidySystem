@@ -269,6 +269,44 @@ const result = await window.electronAPI.invoke('settings:checkForUpdate')
 // result: { message, version } 或 { error }
 ```
 
+## `.bat` 脚本编码注意事项
+
+**核心原则：Windows 批处理文件 (`deploy.bat`) 绝对不能包含任何中文或非 ASCII 字符。**
+
+### 原因
+
+- `cmd.exe` 解析 `.bat` 文件时使用系统 **OEM 代码页**（中文 Windows 为 GBK/CP936）
+- 编辑器/工具链（Git、VS Code、Claude Write 工具）默认保存为 **UTF-8**
+- UTF-8 编码的中文字节在 GBK 下被错误解析，导致：
+  - 后续命令被 "吃掉" 几个字符（如 `electron-vite` → `ctron-vite`）
+  - `REM`、`set` 等关键字解析失败
+  - 出现 `'XXX' 不是内部或外部命令` 等诡异报错
+
+### 正确做法
+
+```batch
+REM ❌ 错误 — 中文注释会导致整个脚本解析错乱
+REM 读取版本号到临时文件
+
+REM ✅ 正确 — 所有注释/echo/字符串必须是纯 ASCII
+REM Read version from package.json
+```
+
+### 自动获取中文 exe 文件名
+
+```batch
+REM 用 for 循环动态获取，代码中不硬编码中文
+for %%f in (dist\win-unpacked\*.exe) do set APP_EXE=%%~nxf
+```
+
+### 替代方案
+
+- 优先用 `bash deploy-update.sh`（Git Bash 完美支持 UTF-8）
+- 或用 `.ps1` PowerShell 脚本（原生 UTF-8）
+- 如果必须用 `.bat`，确保 **每个字节都是 0x00-0x7F 范围内的 ASCII 字符**
+
+此问题出现过 3 次（2026-07-06 初次、07-06 再次、07-07 第三次），每次都是中文注释/字符串导致，特此记录。
+
 ## 默认账号
 
 - 用户名: `admin`
