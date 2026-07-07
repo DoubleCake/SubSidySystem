@@ -1655,7 +1655,11 @@ function registerHouseholdHandlers() {
   });
   electron.ipcMain.handle("households:split", (_e, payload) => {
     try {
-      const { householdId, newHouseholdName, villageId, groupNo, memberIds, operator } = payload;
+      const householdId = payload.householdId || payload.household_id;
+      const newHouseholdName = payload.newHouseholdName || payload.new_household_name || "新家庭户";
+      const villageId = payload.villageId || payload.village_id;
+      const groupNo = payload.groupNo || payload.group_no || 1;
+      const memberIds = payload.memberIds || payload.member_ids || [];
       const code = `HH_SPLIT_${Date.now()}`;
       const result = db2().runRaw(`
         INSERT INTO family_household (household_code, household_name, village_id, group_no, address, contract_area, status, remark)

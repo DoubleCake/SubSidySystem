@@ -557,7 +557,11 @@ export function registerHouseholdHandlers(): void {
   // ── 分户 ──
   ipcMain.handle('households:split', (_e, payload: any) => {
     try {
-      const { householdId, newHouseholdName, villageId, groupNo, memberIds, operator } = payload
+      const householdId = payload.householdId || payload.household_id
+      const newHouseholdName = payload.newHouseholdName || payload.new_household_name || '新家庭户'
+      const villageId = payload.villageId || payload.village_id
+      const groupNo = payload.groupNo || payload.group_no || 1
+      const memberIds = payload.memberIds || payload.member_ids || []
 
       // 1. 创建新家庭户
       const code = `HH_SPLIT_${Date.now()}`
