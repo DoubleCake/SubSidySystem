@@ -51926,7 +51926,6 @@ function ExternalLinksPage() {
   const { toast, show } = useToast();
   const [tab, setTab] = reactExports.useState("sites");
   const [sites, setSites] = reactExports.useState([]);
-  const [openSite, setOpenSite] = reactExports.useState(null);
   const [siteModal, setSiteModal] = reactExports.useState(false);
   const [editSite, setEditSite] = reactExports.useState(null);
   const [siteForm, setSiteForm] = reactExports.useState({ site_type: "link", sort_order: 0, is_active: 1 });
@@ -52136,47 +52135,26 @@ function ExternalLinksPage() {
         )
       ] })
     ] }),
-    tab === "sites" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-      openSite && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-4 bg-white border border-border rounded-card overflow-hidden shadow-card", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 px-4 py-2.5 bg-warm/50 border-b border-border text-text-primary text-sm", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold", children: openSite.name }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted text-xs font-mono truncate flex-1", children: openSite.url }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("a", { href: openSite.url, target: "_blank", rel: "noopener noreferrer", className: "text-xs bg-primary/10 hover:bg-primary/20 text-primary px-2.5 py-1 rounded", children: "↗ 新标签页" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => setOpenSite(null), className: "text-text-muted hover:text-text-primary ml-2", children: "✕" })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "iframe",
-          {
-            src: openSite.url,
-            className: "w-full",
-            style: { height: 480 },
-            title: openSite.name,
-            sandbox: "allow-scripts allow-same-origin allow-forms allow-popups"
-          }
-        )
-      ] }),
-      sites.filter((s) => s.is_active).length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center py-20 bg-white border border-border rounded-card text-text-muted/50", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-5xl mb-3", children: "🌐" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm mb-3", children: "暂无外部网站，点击右上角「管理网站」添加" })
-      ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-3 gap-4", children: sites.filter((s) => s.is_active).map((s) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "div",
-        {
-          className: "bg-white border border-border rounded-card p-5 shadow-card hover:border-primary/30 hover:shadow-card transition-all cursor-pointer group",
-          onClick: () => setOpenSite(s),
-          children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-start justify-between mb-3", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-10 h-10 bg-primary/5 border border-primary/10 rounded-card flex items-center justify-center text-xl", children: "🌐" }) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-bold text-text-primary text-sm mb-1 group-hover:text-primary", children: s.name }),
-            s.description && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted mb-2", children: s.description }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted/50 font-mono truncate", children: s.url }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-primary", children: "点击内嵌打开 →" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("a", { href: s.url, target: "_blank", rel: "noopener noreferrer", onClick: (e) => e.stopPropagation(), className: "text-xs text-text-muted hover:text-text-primary", children: "↗ 新标签" })
-            ] })
-          ]
-        },
-        s.id
-      )) })
-    ] }),
+    tab === "sites" && /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: sites.filter((s) => s.is_active).length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center py-20 bg-white border border-border rounded-card text-text-muted/50", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-5xl mb-3", children: "🌐" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm mb-3", children: "暂无外部网站，点击右上角「管理网站」添加" })
+    ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-3 gap-4", children: sites.filter((s) => s.is_active).map((s) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "bg-white border border-border rounded-card p-5 shadow-card hover:border-primary/30 hover:shadow-card transition-all cursor-pointer group",
+        onClick: () => window.open(s.url, "_blank"),
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start justify-between mb-3", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-10 h-10 bg-primary/5 border border-primary/10 rounded-card flex items-center justify-center text-xl", children: "🌐" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted/30 opacity-0 group-hover:opacity-100 transition-opacity", children: "点击打开 →" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "font-bold text-text-primary text-sm mb-1 group-hover:text-primary", children: s.name }),
+          s.description && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted mb-2", children: s.description }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-text-muted/50 font-mono truncate", children: s.url })
+        ]
+      },
+      s.id
+    )) }) }),
     tab === "search" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-white border border-border rounded-card p-4 shadow-card mb-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3 flex-wrap items-end", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-48", children: [

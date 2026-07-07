@@ -15,6 +15,8 @@ export function registerHouseholdHandlers(): void {
       const villageName = params.village_name as string || ''
       const status = params.status != null ? Number(params.status) : null
       const hasSubsidy = params.has_subsidy != null ? Number(params.has_subsidy) : 0
+      const overdrawnOnly = params.overdrawn_only != null ? Number(params.overdrawn_only) : 0
+      const confirmedOnly = params.confirmed_only as string || ''
 
       let where = 'WHERE 1=1'
       const values: unknown[] = []
@@ -32,7 +34,15 @@ export function registerHouseholdHandlers(): void {
         values.push(status)
       }
       if (hasSubsidy === 1) {
-        where += ` AND EXISTS (SELECT 1 FROM farmer_profile fp2 JOIN subsidy_application sa2 ON sa2.beneficiary_id = fp2.id WHERE fp2.household_id = hh.id)`
+        where += ` AND EXISTS (SELECT 1 FROM farmer_profile fp2 JOIN subsidy_application sa2 ON COALESCE(sa2.beneficiary_id,sa2.farmer_id) = fp2.id WHERE fp2.household_id = hh.id)`
+      }
+      if (overdrawnOnly === 1) {
+        where += ` AND (SELECT COALESCE(SUM(sa.apply_area),0) FROM subsidy_application sa JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id,sa.farmer_id) = fp2.id WHERE fp2.household_id = hh.id) > COALESCE(hh.contract_area, 0) AND hh.contract_area > 0`
+      }
+      if (confirmedOnly === '1') {
+        where += ` AND hh.is_manually_confirmed = 1`
+      } else if (confirmedOnly === '0') {
+        where += ` AND (hh.is_manually_confirmed IS NULL OR hh.is_manually_confirmed = 0)`
       }
 
       const countRow = db().getRaw<{ cnt: number }>(`
@@ -44,7 +54,8 @@ export function registerHouseholdHandlers(): void {
       const rows = db().allRaw<Record<string, unknown>>(`
         SELECT hh.*, v.village_name,
                (SELECT COUNT(*) FROM farmer_profile WHERE household_id = hh.id) as member_count,
-               (SELECT real_name FROM farmer_profile WHERE id = hh.head_farmer_id) as head_name
+               (SELECT real_name FROM farmer_profile WHERE id = hh.head_farmer_id) as head_name,
+               (SELECT COALESCE(SUM(sa.apply_area),0) FROM subsidy_application sa JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id,sa.farmer_id) = fp2.id WHERE fp2.household_id = hh.id) as total_subsidy_area
         FROM family_household hh
         LEFT JOIN village v ON hh.village_id = v.id
         ${where}
@@ -52,12 +63,18 @@ export function registerHouseholdHandlers(): void {
         LIMIT ? OFFSET ?
       `, ...values, pageSize, offset)
 
-      const items = rows.map(r => ({
-        ...r,
-        group_display: formatGroupNo(r.group_no as number),
-        village_full_name: r.village_name ? `${r.village_name}${formatGroupNo(r.group_no as number)}` : '未知村组',
-        is_overdrawn: false,
-      }))
+      const items = rows.map(r => {
+        const contractArea = Number(r.contract_area || 0)
+        const subsidyArea = Number(r.total_subsidy_area || 0)
+        const isOverdrawn = contractArea > 0 && subsidyArea > contractArea
+        return {
+          ...r,
+          group_display: formatGroupNo(r.group_no as number),
+          village_full_name: r.village_name ? `${r.village_name}${formatGroupNo(r.group_no as number)}` : '未知村组',
+          is_overdrawn: isOverdrawn,
+          used_area: subsidyArea,
+        }
+      })
 
       return successList(items, countRow?.cnt ?? 0, page, pageSize)
     } catch (e) {
