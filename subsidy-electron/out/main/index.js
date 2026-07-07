@@ -1378,9 +1378,11 @@ function registerHouseholdHandlers() {
             seasonTotals[r.season].apply += Number(r.apply_area);
             seasonTotals[r.season].payment += Number(r.payment_area);
           }
+          const ALL_SEASONS = ["大春", "小春", "全年单补", "临时"];
           const sb = {};
           let totalUsed = 0;
-          for (const [season, totals] of Object.entries(seasonTotals)) {
+          for (const season of ALL_SEASONS) {
+            const totals = seasonTotals[season] || { used: 0, apply: 0, payment: 0 };
             const used = Math.round(totals.used * 100) / 100;
             const remaining = Math.max(0, contractedArea - used);
             const isOver = contractedArea > 0 && used > contractedArea;
