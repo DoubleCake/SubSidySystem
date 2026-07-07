@@ -70,6 +70,12 @@ if exist dist\win-unpacked (
   copy /y dist\release\latest.yml dist\win-unpacked\resources\app-update.yml >nul
 )
 
+REM Copy versions.json (版本更新日志)
+if exist versions.json (
+  copy /y versions.json dist\release\versions.json >nul
+  echo versions.json copied
+)
+
 echo.
 echo ========================================
 echo   Done!
