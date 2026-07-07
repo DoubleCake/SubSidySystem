@@ -512,6 +512,13 @@ export function runMigrations(): void {
     'CREATE INDEX IF NOT EXISTS ix_large_farmer_trust_land_trust ON large_farmer_trust(land_trust_id)',
     'CREATE INDEX IF NOT EXISTS ix_large_farmer_trust_end_date ON large_farmer_trust(end_date)',
     'CREATE INDEX IF NOT EXISTS ix_large_farmer_trust_parcel_village ON large_farmer_trust(parcel_village_id)',
+
+    // 家庭户查询性能优化
+    'CREATE INDEX IF NOT EXISTS ix_subsidy_application_beneficiary ON subsidy_application(beneficiary_id)',
+    'CREATE INDEX IF NOT EXISTS ix_subsidy_application_beneficiary_year ON subsidy_application(beneficiary_id, apply_year)',
+    'CREATE INDEX IF NOT EXISTS ix_family_household_confirmed ON family_household(is_manually_confirmed)',
+    'CREATE INDEX IF NOT EXISTS ix_land_trust_owner_hh ON land_trust(owner_household_id)',
+    'CREATE INDEX IF NOT EXISTS ix_land_trust_operator_hh ON land_trust(operator_household_id)',
   ]
 
   for (const idx of indexes) {

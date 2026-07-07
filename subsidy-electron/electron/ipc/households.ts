@@ -51,13 +51,23 @@ export function registerHouseholdHandlers(): void {
         ${where}
       `, ...values)
 
+      // 用 LEFT JOIN 派生表替代标量子查询，3 个聚合只跑一次而非 N×3 次
       const rows = db().allRaw<Record<string, unknown>>(`
         SELECT hh.*, v.village_name,
-               (SELECT COUNT(*) FROM farmer_profile WHERE household_id = hh.id) as member_count,
-               (SELECT real_name FROM farmer_profile WHERE id = hh.head_farmer_id) as head_name,
-               (SELECT COALESCE(SUM(sa.apply_area),0) FROM subsidy_application sa JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id,sa.farmer_id) = fp2.id WHERE fp2.household_id = hh.id) as total_subsidy_area
+               COALESCE(mc.cnt, 0) as member_count,
+               head.real_name as head_name,
+               COALESCE(area.total, 0) as total_subsidy_area
         FROM family_household hh
         LEFT JOIN village v ON hh.village_id = v.id
+        LEFT JOIN (SELECT household_id, COUNT(*) as cnt FROM farmer_profile GROUP BY household_id) mc
+          ON mc.household_id = hh.id
+        LEFT JOIN farmer_profile head ON head.id = hh.head_farmer_id
+        LEFT JOIN (
+          SELECT fp2.household_id, COALESCE(SUM(sa.apply_area), 0) as total
+          FROM subsidy_application sa
+          JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp2.id
+          GROUP BY fp2.household_id
+        ) area ON area.household_id = hh.id
         ${where}
         ORDER BY hh.id DESC
         LIMIT ? OFFSET ?
@@ -363,21 +373,60 @@ export function registerHouseholdHandlers(): void {
   // ── 超面积预警 ──
   ipcMain.handle('households:overdrawn', () => {
     try {
+      // 使用派生表一次聚合，避免 WHERE 和 SELECT 中重复子查询
       const rows = db().allRaw<Record<string, unknown>>(`
         SELECT hh.*, v.village_name,
-               (SELECT COUNT(*) FROM farmer_profile WHERE household_id = hh.id) as member_count,
-               COALESCE((SELECT SUM(sa.apply_area) FROM subsidy_application sa
-                         JOIN farmer_profile fp2 ON sa.beneficiary_id = fp2.id
-                         WHERE fp2.household_id = hh.id), 0) as total_subsidy_area
+               COALESCE(mc.cnt, 0) as member_count,
+               COALESCE(area.total, 0) as total_subsidy_area
         FROM family_household hh
         LEFT JOIN village v ON hh.village_id = v.id
-        WHERE hh.contract_area IS NOT NULL
-          AND (SELECT COALESCE(SUM(sa.apply_area), 0) FROM subsidy_application sa
-               JOIN farmer_profile fp2 ON sa.beneficiary_id = fp2.id
-               WHERE fp2.household_id = hh.id) > hh.contract_area
-        ORDER BY total_subsidy_area DESC
+        LEFT JOIN (SELECT household_id, COUNT(*) as cnt FROM farmer_profile GROUP BY household_id) mc
+          ON mc.household_id = hh.id
+        LEFT JOIN (
+          SELECT fp2.household_id, COALESCE(SUM(sa.apply_area), 0) as total
+          FROM subsidy_application sa
+          JOIN farmer_profile fp2 ON sa.beneficiary_id = fp2.id
+          GROUP BY fp2.household_id
+        ) area ON area.household_id = hh.id
+        WHERE hh.contract_area IS NOT NULL AND hh.contract_area > 0
+          AND COALESCE(area.total, 0) > hh.contract_area
+        ORDER BY area.total DESC
       `)
       return success(rows.map(r => ({ ...r, group_display: formatGroupNo(r.group_no as number) })))
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
+
+  // ── 超领明细导出 ──
+  ipcMain.handle('households:overdrawnDetail', (_e, payload: any) => {
+    try {
+      const year = payload?.year ? Number(payload.year) : new Date().getFullYear()
+
+      const rows = db().allRaw<Record<string, unknown>>(`
+        SELECT hh.household_name, head.real_name as head_name,
+               v.village_name as village,
+               COALESCE(hh.contract_area, 0) as contracted_area,
+               COALESCE(hh.cultivable_area, 0) as cultivable_area,
+               COALESCE(area.total, 0) as used_area,
+               MAX(0, COALESCE(area.total, 0) - COALESCE(hh.contract_area, 0)) as overdraw_amount
+        FROM family_household hh
+        LEFT JOIN village v ON hh.village_id = v.id
+        LEFT JOIN farmer_profile head ON head.id = hh.head_farmer_id
+        LEFT JOIN (
+          SELECT fp2.household_id, COALESCE(SUM(sa.apply_area), 0) as total
+          FROM subsidy_application sa
+          JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp2.id
+          WHERE sa.apply_year = ?
+          GROUP BY fp2.household_id
+        ) area ON area.household_id = hh.id
+        WHERE hh.contract_area IS NOT NULL AND hh.contract_area > 0
+          AND COALESCE(area.total, 0) > hh.contract_area
+        ORDER BY overdraw_amount DESC
+      `, year)
+
+      const items = rows.map(r => ({ ...r, season_breakdown: {} }))
+      return success({ year, total: items.length, items })
     } catch (e) {
       return errorResponse(String(e))
     }
@@ -790,27 +839,32 @@ export function registerHouseholdHandlers(): void {
   // ── 重新计算未确认户的承包面积 ──
   ipcMain.handle('households:recalcUnconfirmedContractArea', () => {
     try {
-      const unconfirmed = db().allRaw<Record<string, unknown>>(`
-        SELECT id FROM family_household WHERE is_manually_confirmed = 0
+      // 用一条 GROUP BY 查询替代 N+1 循环
+      const areaRows = db().allRaw<{ household_id: number; total_area: number }>(`
+        SELECT fp.household_id, COALESCE(SUM(sa.contract_area), 0) as total_area
+        FROM subsidy_application sa
+        JOIN farmer_profile fp ON fp.id = COALESCE(sa.beneficiary_id, sa.farmer_id)
+        JOIN family_household hh ON hh.id = fp.household_id
+        WHERE hh.is_manually_confirmed = 0
+          AND sa.apply_year = CAST(strftime('%Y','now') AS INTEGER)
+          AND sa.contract_area > 0
+        GROUP BY fp.household_id
       `)
 
       let updated = 0
-      for (const hh of unconfirmed) {
-        const areaRow = db().getRaw<{ total_area: number }>(`
-          SELECT COALESCE(SUM(sa.contract_area), 0) as total_area
-          FROM subsidy_application sa
-          JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
-          WHERE fp.household_id = ?
-          AND sa.apply_year = CAST(strftime('%Y','now') AS INTEGER)
-        `, hh.id)
-        const area = areaRow?.total_area ?? 0
-        if (area > 0) {
-          db().runRaw('UPDATE family_household SET contract_area = ? WHERE id = ?', area, hh.id)
+      for (const row of areaRows) {
+        if (row.total_area > 0) {
+          db().runRaw('UPDATE family_household SET contract_area = ? WHERE id = ?',
+            row.total_area, row.household_id)
           updated++
         }
       }
 
-      return success({ total_unconfirmed: unconfirmed.length, updated })
+      const total = db().getRaw<{ cnt: number }>(
+        'SELECT COUNT(*) as cnt FROM family_household WHERE is_manually_confirmed = 0'
+      )
+
+      return success({ total_unconfirmed: total?.cnt ?? 0, updated })
     } catch (e) {
       return errorResponse(String(e))
     }

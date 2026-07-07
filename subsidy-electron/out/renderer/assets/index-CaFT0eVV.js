@@ -48669,7 +48669,7 @@ function SubsidyRecordsPage({ subsidyType, onBack, farmerName }) {
     show(`✓ 成功导入 ${successCount} 条代领关系${errors.length > 0 ? `，失败 ${errors.length} 条` : ""}`, errors.length > 0 ? "err" : "ok");
     return { created: successCount, skipped: proxies.length - successCount, errors };
   };
-  const loadVillages = reactExports.useCallback(async () => {
+  const loadVillages2 = reactExports.useCallback(async () => {
     setLoadingVillages(true);
     try {
       const response = await window.electronAPI.invoke("subsidies:applicationVillages", {
@@ -48761,8 +48761,8 @@ function SubsidyRecordsPage({ subsidyType, onBack, farmerName }) {
   }, [page, search, filters, subsidyType.id, subsidyType.subsidy_year, activeTab, searchTrigger, sortField, sortDir]);
   reactExports.useEffect(() => {
     load();
-    loadVillages();
-  }, [load, loadVillages]);
+    loadVillages2();
+  }, [load, loadVillages2]);
   const runPreCheck = async () => {
     if (apps.length === 0) {
       show("暂无数据可预检", "err");
@@ -51922,6 +51922,42 @@ ${errors.slice(0, 3).join("；")}` : ""}`;
     ] }) })
   ] });
 }
+const CACHE_TTL = 5 * 60 * 1e3;
+function makeCache(fetcher) {
+  return { data: null, promise: null, ts: 0 };
+}
+function loadCache(cache, fetcher) {
+  if (cache.data && Date.now() - cache.ts < CACHE_TTL) {
+    return Promise.resolve(cache.data);
+  }
+  if (!cache.promise) {
+    cache.promise = fetcher().then((data) => {
+      cache.data = data;
+      cache.ts = Date.now();
+      cache.promise = null;
+      return data;
+    }).catch((err) => {
+      cache.promise = null;
+      throw err;
+    });
+  }
+  return cache.promise;
+}
+const villageCache = makeCache();
+const subsidyTypeCache = makeCache();
+const siteCache = makeCache();
+const loadVillages = () => loadCache(
+  villageCache,
+  () => getVillageGroups().then((g) => [...new Set(g.map((v2) => v2.village_name))])
+);
+const loadSubsidyTypes = () => loadCache(
+  subsidyTypeCache,
+  () => getSubsidyTypes()
+);
+const loadSites = () => loadCache(
+  siteCache,
+  () => getExternalSites()
+);
 const QUERY_TYPES = ["身份证查询", "姓名查询", "综合查询", "其他"];
 const TAGS_PRESET = ["年度核查", "补贴核验", "重复申领排查", "死亡核查", "迁出核查", "待处理", "已完成", "存疑"];
 function ExternalLinksPage() {
@@ -51962,11 +51998,14 @@ function ExternalLinksPage() {
   const [favorPurpose, setFavorPurpose] = reactExports.useState("");
   const [favorTags, setFavorTags] = reactExports.useState("");
   reactExports.useEffect(() => {
-    loadSites();
-  }, []);
-  reactExports.useEffect(() => {
-    getVillageGroups().then((g) => setVillages([...new Set(g.map((v2) => v2.village_name))]));
-    getSubsidyTypes().then(setSubsidyTypes);
+    Promise.all([
+      loadSites().then(setSites).catch(() => {
+      }),
+      loadVillages().then(setVillages).catch(() => {
+      }),
+      loadSubsidyTypes().then(setSubsidyTypes).catch(() => {
+      })
+    ]);
   }, []);
   reactExports.useEffect(() => {
     if (tab === "records") {
@@ -51974,9 +52013,9 @@ function ExternalLinksPage() {
       loadStats();
     }
   }, [tab, recPage, recSearch]);
-  const loadSites = async () => {
+  const loadSites$1 = async () => {
     try {
-      const d = await getExternalSites();
+      const d = await loadSites();
       setSites(d);
     } catch {
     }
@@ -52067,7 +52106,7 @@ function ExternalLinksPage() {
       setSiteModal(false);
       setEditSite(null);
       setSiteFormMode(false);
-      loadSites();
+      loadSites$1();
     } catch (e) {
       show(e.message, "err");
     }
@@ -52076,7 +52115,7 @@ function ExternalLinksPage() {
     if (!confirm("确认删除？")) return;
     await deleteExternalSite(id2);
     show("✓ 已删除");
-    loadSites();
+    loadSites$1();
   };
   const saveFavor = async () => {
     if (!favorContext) return;
@@ -56139,7 +56178,7 @@ function LargeFarmersPage() {
   const [trustForm, setTrustForm] = reactExports.useState(emptyTrustForm());
   const [ownerSearch, setOwnerSearch] = reactExports.useState("");
   const [ownerOpts, setOwnerOpts] = reactExports.useState([]);
-  const loadVillages = reactExports.useCallback(async () => {
+  const loadVillages2 = reactExports.useCallback(async () => {
     try {
       const r2 = await window.electronAPI.invoke("settings:listVillages");
       setVillages(r2);
@@ -56172,8 +56211,8 @@ function LargeFarmersPage() {
     }
   }, [trustYear]);
   reactExports.useEffect(() => {
-    loadVillages();
-  }, [loadVillages]);
+    loadVillages2();
+  }, [loadVillages2]);
   reactExports.useEffect(() => {
     loadList();
   }, [loadList]);

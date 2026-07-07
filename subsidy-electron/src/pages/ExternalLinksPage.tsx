@@ -12,6 +12,7 @@ import Modal from '../components/Modal'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import { fmt, PAY_STATUS, years } from '../utils'
+import { loadVillages, loadSubsidyTypes, loadSites as loadSitesCached } from '../cache'
 
 // ─── 类型 ───
 interface Site { id:number; name:string; url:string; site_type:'link'|'query'; description:string|null; sort_order:number; is_active:number }
@@ -73,14 +74,20 @@ export default function ExternalLinksPage() {
   const [favorPurpose, setFavorPurpose] = useState('')
   const [favorTags, setFavorTags] = useState('')
 
-  useEffect(()=>{ loadSites() },[])
+  // 初始化：并行加载所有缓存数据
   useEffect(()=>{
-    api.getVillageGroups().then(g=>setVillages([...new Set(g.map(v=>v.village_name))]))
-    api.getSubsidyTypes().then(setSubsidyTypes)
+    Promise.all([
+      loadSitesCached().then(setSites).catch(()=>{}),
+      loadVillages().then(setVillages).catch(()=>{}),
+      loadSubsidyTypes().then(setSubsidyTypes).catch(()=>{}),
+    ])
   },[])
+
   useEffect(()=>{ if(tab==='records'){ loadRecords(); loadStats() } },[tab, recPage, recSearch])
 
-  const loadSites = async()=>{ try{ const d=await api.getExternalSites(); setSites(d) }catch{} }
+  const loadSites = async()=>{
+    try{ const d=await loadSitesCached(); setSites(d) }catch{}
+  }
   const loadRecords = async()=>{
     setRecLoading(true)
     try{
