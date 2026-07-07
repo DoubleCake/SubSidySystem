@@ -44039,29 +44039,29 @@ function HouseholdDetailContent({
               ] }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-3 py-1.5 bg-main", children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-warm/30 rounded-full h-1.5 overflow-hidden flex", children: [
-                  yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
                     "div",
                     {
-                      className: "h-full bg-emerald-400",
+                      className: "h-full bg-emerald-400 transition-all",
                       style: { width: Math.min(100, paymentPct) + "%" }
                     }
                   ),
-                  yearApplyArea - yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
                     "div",
                     {
-                      className: "h-full bg-blue-400",
+                      className: "h-full bg-blue-400 transition-all",
                       style: { width: Math.min(100 - paymentPct, applyPct) + "%" }
                     }
                   )
                 ] }),
                 /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3 mt-1 text-xs text-text-muted", children: [
-                  yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-1", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-1", children: [
                     /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-2 h-2 bg-emerald-400 rounded-full" }),
                     "已发布 ",
                     yearPaymentArea.toFixed(2),
                     " 亩"
                   ] }),
-                  yearApplyArea - yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-1", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-1", children: [
                     /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-2 h-2 bg-blue-400 rounded-full" }),
                     "预申请 ",
                     (yearApplyArea - yearPaymentArea).toFixed(2),

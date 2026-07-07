@@ -1358,59 +1358,57 @@ function registerHouseholdHandlers() {
           GROUP BY sa.apply_year, st.season
           ORDER BY sa.apply_year DESC
         `, id);
-        if (areaRows.length > 0) {
-          const yt = {};
-          const yat = {};
-          const ypt = {};
-          const seasonTotals = {};
-          for (const r of areaRows) {
-            const y = String(r.apply_year);
-            if (!yt[y]) {
-              yt[y] = {};
-              yat[y] = {};
-              ypt[y] = {};
-            }
-            yt[y][r.season] = (yt[y][r.season] || 0) + Number(r.used_area);
-            yat[y][r.season] = (yat[y][r.season] || 0) + Number(r.apply_area);
-            ypt[y][r.season] = (ypt[y][r.season] || 0) + Number(r.payment_area);
-            if (!seasonTotals[r.season]) seasonTotals[r.season] = { used: 0, apply: 0, payment: 0 };
-            seasonTotals[r.season].used += Number(r.used_area);
-            seasonTotals[r.season].apply += Number(r.apply_area);
-            seasonTotals[r.season].payment += Number(r.payment_area);
+        const yt = {};
+        const yat = {};
+        const ypt = {};
+        const seasonTotals = {};
+        for (const r of areaRows) {
+          const y = String(r.apply_year);
+          if (!yt[y]) {
+            yt[y] = {};
+            yat[y] = {};
+            ypt[y] = {};
           }
-          const ALL_SEASONS = ["大春", "小春", "全年单补", "临时"];
-          const sb = {};
-          let totalUsed = 0;
-          for (const season of ALL_SEASONS) {
-            const totals = seasonTotals[season] || { used: 0, apply: 0, payment: 0 };
-            const used = Math.round(totals.used * 100) / 100;
-            const remaining = Math.max(0, contractedArea - used);
-            const isOver = contractedArea > 0 && used > contractedArea;
-            sb[season] = {
-              used_area: used,
-              apply_area: Math.round(totals.apply * 100) / 100,
-              payment_area: Math.round(totals.payment * 100) / 100,
-              remaining_area: Math.round(remaining * 100) / 100,
-              is_overdrawn: isOver,
-              overdraw_amount: isOver ? Math.round((used - contractedArea) * 100) / 100 : 0,
-              reference_area: contractedArea,
-              subsidies: []
-            };
-            totalUsed = Math.max(totalUsed, used);
-          }
-          totalUsed = Math.round(totalUsed * 100) / 100;
-          areaUsage = {
-            ...areaUsage,
-            used_area: totalUsed,
-            remaining_area: Math.round(Math.max(0, contractedArea - totalUsed) * 100) / 100,
-            is_overdrawn: contractedArea > 0 && totalUsed > contractedArea,
-            overdraw_amount: contractedArea > 0 ? Math.round(Math.max(0, totalUsed - contractedArea) * 100) / 100 : 0,
-            season_breakdown: sb,
-            year_totals: yt,
-            year_apply_totals: yat,
-            year_payment_totals: ypt
-          };
+          yt[y][r.season] = (yt[y][r.season] || 0) + Number(r.used_area);
+          yat[y][r.season] = (yat[y][r.season] || 0) + Number(r.apply_area);
+          ypt[y][r.season] = (ypt[y][r.season] || 0) + Number(r.payment_area);
+          if (!seasonTotals[r.season]) seasonTotals[r.season] = { used: 0, apply: 0, payment: 0 };
+          seasonTotals[r.season].used += Number(r.used_area);
+          seasonTotals[r.season].apply += Number(r.apply_area);
+          seasonTotals[r.season].payment += Number(r.payment_area);
         }
+        const ALL_SEASONS = ["大春", "小春", "全年单补", "临时"];
+        const sb = {};
+        let totalUsed = 0;
+        for (const season of ALL_SEASONS) {
+          const totals = seasonTotals[season] || { used: 0, apply: 0, payment: 0 };
+          const used = Math.round(totals.used * 100) / 100;
+          const remaining = Math.max(0, contractedArea - used);
+          const isOver = contractedArea > 0 && used > contractedArea;
+          sb[season] = {
+            used_area: used,
+            apply_area: Math.round(totals.apply * 100) / 100,
+            payment_area: Math.round(totals.payment * 100) / 100,
+            remaining_area: Math.round(remaining * 100) / 100,
+            is_overdrawn: isOver,
+            overdraw_amount: isOver ? Math.round((used - contractedArea) * 100) / 100 : 0,
+            reference_area: contractedArea,
+            subsidies: []
+          };
+          totalUsed = Math.max(totalUsed, used);
+        }
+        totalUsed = Math.round(totalUsed * 100) / 100;
+        areaUsage = {
+          ...areaUsage,
+          used_area: totalUsed,
+          remaining_area: Math.round(Math.max(0, contractedArea - totalUsed) * 100) / 100,
+          is_overdrawn: contractedArea > 0 && totalUsed > contractedArea,
+          overdraw_amount: contractedArea > 0 ? Math.round(Math.max(0, totalUsed - contractedArea) * 100) / 100 : 0,
+          season_breakdown: sb,
+          year_totals: yt,
+          year_apply_totals: yat,
+          year_payment_totals: ypt
+        };
       } catch {
       }
       let trustRecords = [];

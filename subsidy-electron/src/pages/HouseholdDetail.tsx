@@ -407,33 +407,21 @@ export function HouseholdDetailContent({
                     <div className="px-3 py-1.5 bg-main">
                       <div className="bg-warm/30 rounded-full h-1.5 overflow-hidden flex">
                         {/* 已发布面积用绿色 */}
-                        {yearPaymentArea > 0 && (
-                          <div
-                            className="h-full bg-emerald-400"
-                            style={{ width: Math.min(100, paymentPct) + "%" }}
-                          />
-                        )}
+                        <div className="h-full bg-emerald-400 transition-all"
+                          style={{ width: Math.min(100, paymentPct) + "%" }} />
                         {/* 预申请面积用蓝色 */}
-                        {(yearApplyArea - yearPaymentArea) > 0 && (
-                          <div
-                            className="h-full bg-blue-400"
-                            style={{ width: Math.min(100 - paymentPct, applyPct) + "%" }}
-                          />
-                        )}
+                        <div className="h-full bg-blue-400 transition-all"
+                          style={{ width: Math.min(100 - paymentPct, applyPct) + "%" }} />
                       </div>
                       <div className="flex gap-3 mt-1 text-xs text-text-muted">
-                        {yearPaymentArea > 0 && (
-                          <span className="flex items-center gap-1">
-                            <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
-                            已发布 {yearPaymentArea.toFixed(2)} 亩
-                          </span>
-                        )}
-                        {(yearApplyArea - yearPaymentArea) > 0 && (
-                          <span className="flex items-center gap-1">
-                            <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                            预申请 {(yearApplyArea - yearPaymentArea).toFixed(2)} 亩
-                          </span>
-                        )}
+                        <span className="flex items-center gap-1">
+                          <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
+                          已发布 {yearPaymentArea.toFixed(2)} 亩
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                          预申请 {(yearApplyArea - yearPaymentArea).toFixed(2)} 亩
+                        </span>
                       </div>
                     </div>
                   </div>
