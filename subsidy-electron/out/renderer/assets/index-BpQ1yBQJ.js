@@ -42753,11 +42753,19 @@ function FarmersTab(props) {
     if (!date) return null;
     return historyDates.find((e) => e.date === date) || null;
   };
+  const [debouncedSearch, setDebouncedSearch] = reactExports.useState("");
+  reactExports.useEffect(() => {
+    const t2 = setTimeout(() => {
+      setDebouncedSearch(search);
+      setFarmerPage(1);
+    }, 300);
+    return () => clearTimeout(t2);
+  }, [search]);
   const loadFarmers = reactExports.useCallback(async () => {
     setFarmerLoading(true);
     try {
       const p2 = { page: farmerPage, page_size: 20 };
-      if (search) p2.search = search;
+      if (debouncedSearch) p2.search = debouncedSearch;
       if (villageFilter) p2.village_name = villageFilter;
       const r2 = await getFarmers(p2);
       setFarmerList(r2.items);
@@ -42765,16 +42773,10 @@ function FarmersTab(props) {
     } finally {
       setFarmerLoading(false);
     }
-  }, [farmerPage, search, villageFilter]);
+  }, [farmerPage, debouncedSearch, villageFilter]);
   reactExports.useEffect(() => {
     loadFarmers();
   }, [loadFarmers]);
-  reactExports.useEffect(() => {
-    const t2 = setTimeout(() => {
-      setFarmerPage(1);
-    }, 350);
-    return () => clearTimeout(t2);
-  }, [search]);
   reactExports.useEffect(() => {
     getExcelTemplates("FARMER").then(setTemplates).catch(() => {
     });
@@ -43179,7 +43181,7 @@ function FarmersTab(props) {
   };
   const exportCurrentList = async () => {
     const params = { page: 1, page_size: 5e3 };
-    if (search) params.search = search;
+    if (debouncedSearch) params.search = debouncedSearch;
     if (villageFilter) params.village_name = villageFilter;
     const res = await getFarmers(params);
     const rows = res.items.map((f2) => ({
@@ -43232,7 +43234,7 @@ function FarmersTab(props) {
           {
             value: search,
             onChange: (e) => setSearch(e.target.value),
-            placeholder: "搜索农户姓名或身份证…",
+            placeholder: "搜索姓名/身份证/手机号…",
             className: "flex-1 min-w-32 border border-border rounded-btn px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white shadow-card transition-all"
           }
         ),
@@ -44307,11 +44309,19 @@ function HouseholdsTab(props) {
   const [confirmedAreaImporting, setConfirmedAreaImporting] = reactExports.useState(false);
   const [refreshingCache, setRefreshingCache] = reactExports.useState(false);
   const [recalculatingArea, setRecalculatingArea] = reactExports.useState(false);
+  const [debouncedSearch, setDebouncedSearch] = reactExports.useState("");
+  reactExports.useEffect(() => {
+    const t2 = setTimeout(() => {
+      setDebouncedSearch(search);
+      setHhPage(1);
+    }, 300);
+    return () => clearTimeout(t2);
+  }, [search]);
   const loadHouseholds = reactExports.useCallback(async () => {
     setHhLoading(true);
     try {
       const p2 = { page: hhPage, page_size: 20, year: yearFilter };
-      if (search) p2.search = search;
+      if (debouncedSearch) p2.search = debouncedSearch;
       if (villageFilter) p2.village_name = villageFilter;
       if (overdrawnOnly) p2.overdrawn_only = "1";
       if (confirmedFilter) p2.confirmed_only = confirmedFilter;
@@ -44323,16 +44333,10 @@ function HouseholdsTab(props) {
     } finally {
       setHhLoading(false);
     }
-  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter, subsidyOnly]);
+  }, [hhPage, debouncedSearch, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter, subsidyOnly]);
   reactExports.useEffect(() => {
     loadHouseholds();
   }, [loadHouseholds]);
-  reactExports.useEffect(() => {
-    const t2 = setTimeout(() => {
-      setHhPage(1);
-    }, 350);
-    return () => clearTimeout(t2);
-  }, [search]);
   reactExports.useEffect(() => {
     if (initialHouseholdId) {
       openDetail(initialHouseholdId, true);
@@ -44805,7 +44809,7 @@ function HouseholdsTab(props) {
   };
   const exportCurrentList = async () => {
     const params = { page: 1, page_size: 5e3, year: yearFilter };
-    if (search) params.search = search;
+    if (debouncedSearch) params.search = debouncedSearch;
     if (villageFilter) params.village_name = villageFilter;
     const res = await getHouseholds(params);
     const rows = res.items.map((h) => ({
@@ -44893,7 +44897,7 @@ function HouseholdsTab(props) {
           {
             value: search,
             onChange: (e) => setSearch(e.target.value),
-            placeholder: "搜索户名、户号或户主…",
+            placeholder: "搜索户名/户编码/户主姓名…",
             className: "flex-1 min-w-32 border border-border rounded-btn px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white shadow-card transition-all"
           }
         ),

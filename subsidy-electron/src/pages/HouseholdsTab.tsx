@@ -147,12 +147,19 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
   const [refreshingCache, setRefreshingCache] = useState(false)
   const [recalculatingArea, setRecalculatingArea] = useState(false)
 
+  // ── 搜索防抖：延迟 300ms 再更新实际搜索词 ──
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(search); setHhPage(1) }, 300)
+    return () => clearTimeout(t)
+  }, [search])
+
   // ── 加载家庭户列表 ──
   const loadHouseholds = useCallback(async () => {
     setHhLoading(true)
     try {
       const p: Record<string, string | number> = { page: hhPage, page_size: 20, year: yearFilter }
-      if (search) p.search = search
+      if (debouncedSearch) p.search = debouncedSearch
       if (villageFilter) p.village_name = villageFilter
       if (overdrawnOnly) p.overdrawn_only = '1'
       if (confirmedFilter) p.confirmed_only = confirmedFilter
@@ -161,15 +168,9 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
       const r = await api.getHouseholds(p)
       setHhList(r.items); setHhTotal(r.total)
     } finally { setHhLoading(false) }
-  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter, subsidyOnly])
+  }, [hhPage, debouncedSearch, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter, subsidyOnly])
 
   useEffect(() => { loadHouseholds() }, [loadHouseholds])
-
-  // ── 搜索防抖 ──
-  useEffect(() => {
-    const t = setTimeout(() => { setHhPage(1) }, 350)
-    return () => clearTimeout(t)
-  }, [search])
 
   // ── 从 URL 恢复选中状态 ──
   useEffect(() => {
@@ -663,7 +664,7 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
   // ── 导出当前列表 ──
   const exportCurrentList = async () => {
     const params: Record<string, string | number> = { page: 1, page_size: 5000, year: yearFilter }
-    if (search) params.search = search
+    if (debouncedSearch) params.search = debouncedSearch
     if (villageFilter) params.village_name = villageFilter
     const res = await api.getHouseholds(params)
     const rows = res.items.map(h => ({
@@ -740,7 +741,7 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
 
         {/* 工具栏 - 搜索和筛选 */}
         <div className="flex gap-2 mb-3 flex-wrap">
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索户名、户号或户主…"
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索户名/户编码/户主姓名…"
             className="flex-1 min-w-32 border border-border rounded-btn px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white shadow-card transition-all" />
           <select value={villageFilter} onChange={e => { setVillageFilter(e.target.value); setHhPage(1) }}
             className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all">

@@ -117,25 +117,26 @@ export default function FarmersTab(props: FarmersTabProps) {
     return historyDates.find(e => e.date === date) || null
   }
 
+  // ── 搜索防抖：延迟 300ms 再更新实际搜索词 ──
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(search); setFarmerPage(1) }, 300)
+    return () => clearTimeout(t)
+  }, [search])
+
   // ── 加载农户列表 ──
   const loadFarmers = useCallback(async () => {
     setFarmerLoading(true)
     try {
       const p: Record<string, string | number> = { page: farmerPage, page_size: 20 }
-      if (search) p.search = search
+      if (debouncedSearch) p.search = debouncedSearch
       if (villageFilter) p.village_name = villageFilter
       const r = await api.getFarmers(p)
       setFarmerList(r.items); setFarmerTotal(r.total)
     } finally { setFarmerLoading(false) }
-  }, [farmerPage, search, villageFilter])
+  }, [farmerPage, debouncedSearch, villageFilter])
 
   useEffect(() => { loadFarmers() }, [loadFarmers])
-
-  // ── 搜索防抖 ──
-  useEffect(() => {
-    const t = setTimeout(() => { setFarmerPage(1) }, 350)
-    return () => clearTimeout(t)
-  }, [search])
 
   // ── 加载 Excel 模板 ──
   useEffect(() => {
@@ -565,7 +566,7 @@ export default function FarmersTab(props: FarmersTabProps) {
   // ── 导出 ──
   const exportCurrentList = async () => {
     const params: Record<string, string | number> = { page: 1, page_size: 5000 }
-    if (search) params.search = search
+    if (debouncedSearch) params.search = debouncedSearch
     if (villageFilter) params.village_name = villageFilter
     const res = await api.getFarmers(params)
     const rows = res.items.map(f => ({
@@ -608,7 +609,7 @@ export default function FarmersTab(props: FarmersTabProps) {
 
         {/* 搜索和筛选 */}
         <div className="flex gap-2 mb-3 flex-wrap">
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索农户姓名或身份证…"
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索姓名/身份证/手机号…"
             className="flex-1 min-w-32 border border-border rounded-btn px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white shadow-card transition-all" />
           <select value={villageFilter} onChange={e => { setVillageFilter(e.target.value); setFarmerPage(1) }}
             className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all">
