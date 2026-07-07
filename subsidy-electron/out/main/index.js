@@ -1660,23 +1660,30 @@ function registerHouseholdHandlers() {
       const villageId = payload.villageId || payload.village_id;
       const groupNo = payload.groupNo || payload.group_no || 1;
       const memberIds = payload.memberIds || payload.member_ids || [];
+      const newHeadId = payload.newHeadId || payload.new_head_id || null;
+      const newLandArea = payload.newLandArea || payload.new_land_area || 0;
+      const originLandArea = payload.originLandArea || payload.origin_land_area || 0;
       const code = `HH_SPLIT_${Date.now()}`;
       const result = db2().runRaw(`
-        INSERT INTO family_household (household_code, household_name, village_id, group_no, address, contract_area, status, remark)
-        VALUES (?, ?, ?, ?, '', 0, 1, ?)
-      `, code, newHouseholdName, villageId, groupNo, `从家庭户 ${householdId} 分出`);
+        INSERT INTO family_household (household_code, household_name, village_id, group_no, address, contract_area, status, head_farmer_id, remark)
+        VALUES (?, ?, ?, ?, '', ?, 1, ?, ?)
+      `, code, newHouseholdName, villageId, groupNo, Number(newLandArea) || 0, newHeadId, `从家庭户 ${householdId} 分出`);
       const newHouseholdId = result.lastInsertRowid;
       const newCode = `HH${String(newHouseholdId).padStart(4, "0")}`;
       db2().runRaw("UPDATE family_household SET household_code = ? WHERE id = ?", newCode, newHouseholdId);
       if (memberIds && Array.isArray(memberIds)) {
         for (const farmerId of memberIds) {
           db2().runRaw(
-            "UPDATE farmer_profile SET household_id = ?, updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?",
+            "UPDATE farmer_profile SET household_id = ?, relation = CASE WHEN id = ? THEN '本人' ELSE relation END, updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?",
             newHouseholdId,
+            newHeadId || 0,
             farmerId,
             householdId
           );
         }
+      }
+      if (Number(originLandArea) > 0) {
+        db2().runRaw("UPDATE family_household SET contract_area = ? WHERE id = ?", Number(originLandArea), householdId);
       }
       db2().runRaw(
         "INSERT INTO household_event (household_id, related_hh_id, event_type, event_year, description, event_date) VALUES (?, ?, 'SPLIT', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",

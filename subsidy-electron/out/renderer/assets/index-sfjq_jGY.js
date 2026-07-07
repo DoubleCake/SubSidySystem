@@ -44727,6 +44727,8 @@ function HouseholdsTab(props) {
         new_household_name: actualHouseholdName,
         member_ids: splitSelected,
         new_head_id: actualHeadId,
+        village_id: detail.village_id,
+        group_no: detail.group_no,
         new_land_area: splitForm.new_land_area ? Number(splitForm.new_land_area) : null,
         origin_land_area: splitForm.origin_land_area ? Number(splitForm.origin_land_area) : null,
         description: splitForm.description || `分户：${splitSelected.length}名成员独立组建「${actualHouseholdName}」`,
