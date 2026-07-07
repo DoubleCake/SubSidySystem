@@ -557,39 +557,50 @@ export function registerHouseholdHandlers(): void {
   // ── 分户 ──
   ipcMain.handle('households:split', (_e, payload: any) => {
     try {
-      const householdId = payload.householdId || payload.household_id
+      const householdId = Number(payload.householdId || payload.household_id) || 0
+      if (!householdId) return errorResponse('缺少源家庭户ID')
       const newHouseholdName = payload.newHouseholdName || payload.new_household_name || '新家庭户'
-      const villageId = payload.villageId || payload.village_id
-      const groupNo = payload.groupNo || payload.group_no || 1
-      const memberIds = payload.memberIds || payload.member_ids || []
-      const newHeadId = payload.newHeadId || payload.new_head_id || null
-      const newLandArea = payload.newLandArea || payload.new_land_area || 0
-      const originLandArea = payload.originLandArea || payload.origin_land_area || 0
+      const villageId = Number(payload.villageId || payload.village_id) || null
+      const groupNo = Number(payload.groupNo || payload.group_no) || 1
+      const memberIds: number[] = payload.memberIds || payload.member_ids || []
+      const newHeadId = Number(payload.newHeadId || payload.new_head_id) || null
+      const newLandArea = Number(payload.newLandArea || payload.new_land_area) || 0
+      const originLandArea = Number(payload.originLandArea || payload.origin_land_area) || 0
 
-      // 1. 创建新家庭户
+      // 1. 创建新家庭户（village_id 可为 NULL）
       const code = `HH_SPLIT_${Date.now()}`
-      const result = db().runRaw(`
-        INSERT INTO family_household (household_code, household_name, village_id, group_no, address, contract_area, status, head_farmer_id, remark)
-        VALUES (?, ?, ?, ?, '', ?, 1, ?, ?)
-      `, code, newHouseholdName, villageId, groupNo, Number(newLandArea) || 0, newHeadId, `从家庭户 ${householdId} 分出`)
+      const result = villageId
+        ? db().runRaw(`
+            INSERT INTO family_household (household_code, household_name, village_id, group_no, address, contract_area, status, head_farmer_id, remark)
+            VALUES (?, ?, ?, ?, '', ?, 1, ?, ?)
+          `, code, newHouseholdName, villageId, groupNo, newLandArea, newHeadId, `从家庭户 ${householdId} 分出`)
+        : db().runRaw(`
+            INSERT INTO family_household (household_code, household_name, group_no, address, contract_area, status, head_farmer_id, remark)
+            VALUES (?, ?, ?, '', ?, 1, ?, ?)
+          `, code, newHouseholdName, groupNo, newLandArea, newHeadId, `从家庭户 ${householdId} 分出`)
 
       const newHouseholdId = result.lastInsertRowid
       const newCode = `HH${String(newHouseholdId).padStart(4, '0')}`
       db().runRaw('UPDATE family_household SET household_code = ? WHERE id = ?', newCode, newHouseholdId)
 
-      // 2. 迁移成员到新户，设置新户主relation
-      if (memberIds && Array.isArray(memberIds)) {
-        for (const farmerId of memberIds) {
+      // 2. 迁移成员到新户
+      for (const farmerId of memberIds) {
+        if (newHeadId && farmerId === newHeadId) {
           db().runRaw(
-            "UPDATE farmer_profile SET household_id = ?, relation = CASE WHEN id = ? THEN '本人' ELSE relation END, updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?",
-            newHouseholdId, newHeadId || 0, farmerId, householdId
+            "UPDATE farmer_profile SET household_id = ?, relation = '本人', updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?",
+            newHouseholdId, farmerId, householdId
+          )
+        } else {
+          db().runRaw(
+            "UPDATE farmer_profile SET household_id = ?, updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?",
+            newHouseholdId, farmerId, householdId
           )
         }
       }
 
       // 3. 更新原户承包面积
-      if (Number(originLandArea) > 0) {
-        db().runRaw('UPDATE family_household SET contract_area = ? WHERE id = ?', Number(originLandArea), householdId)
+      if (originLandArea > 0) {
+        db().runRaw('UPDATE family_household SET contract_area = ? WHERE id = ?', originLandArea, householdId)
       }
 
       // 4. 记录事件（原户）
