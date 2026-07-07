@@ -23,10 +23,10 @@ const FIELDS = [
 ]
 
 const buildRows = (rows: Record<string, unknown>[]) =>
-  rows.map(r => ({
+  rows.map((r, idx) => ({
     real_name: String(r.real_name || ''),
     id_card: String(r.id_card || ''),
-    address: String(r.address || '未指定'),
+    address: String(r.address || r.id_card || `行${idx + 1}`),
     head_relation: String(r.head_relation || '') || undefined,
     phone: String(r.phone || '') || undefined,
     household_code: String(r.household_code || '') || undefined,
