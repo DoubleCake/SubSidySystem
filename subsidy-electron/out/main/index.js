@@ -1987,7 +1987,7 @@ function registerSubsidyHandlers() {
       const rows = db2().allRaw(`
         SELECT sa.*, fp.real_name as farmer_name, fp.id_card, fp.phone,
                st.subsidy_name, st.season, st.calc_mode,
-               v.village_name, hh.group_no
+               v.village_name as village, hh.group_no
         FROM subsidy_application sa
         LEFT JOIN farmer_profile fp ON sa.farmer_id = fp.id
         LEFT JOIN family_household hh ON fp.household_id = hh.id
@@ -1997,11 +1997,7 @@ function registerSubsidyHandlers() {
         ORDER BY sa.id DESC
         LIMIT ? OFFSET ?
       `, ...values, pageSize, offset);
-      const items = rows.map((r) => ({
-        ...r,
-        id_card_masked: r.id_card ? maskIdCard(r.id_card) : "",
-        phone_masked: r.phone ? maskPhone(r.phone) : ""
-      }));
+      const items = rows.map((r) => ({ ...r }));
       return successList(items, countRow?.cnt ?? 0, page, pageSize);
     } catch (e) {
       return errorResponse(String(e));
@@ -4283,12 +4279,178 @@ function registerExternalLinksHandlers() {
       icon TEXT,
       sort_order INTEGER DEFAULT 0,
       is_active INTEGER DEFAULT 1
-    )
+    );
+
+    CREATE TABLE IF NOT EXISTS query_record (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      site_id INTEGER,
+      site_name VARCHAR(100) NOT NULL,
+      query_type VARCHAR(50) NOT NULL,
+      query_input TEXT NOT NULL,
+      query_count INTEGER NOT NULL DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT (datetime('now','localtime'))
+    );
   `);
+  const cols = db2().allRaw("PRAGMA table_info('query_record')");
+  const colNames = cols.map((c) => c.name);
+  const addCol = (name, def) => {
+    if (!colNames.includes(name)) {
+      db2().runRaw(`ALTER TABLE query_record ADD COLUMN ${name} ${def}`);
+    }
+  };
+  addCol("purpose", "TEXT");
+  addCol("operator", "TEXT DEFAULT '操作员'");
+  addCol("tags", "TEXT");
+  addCol("result_note", "TEXT");
   electron.ipcMain.handle("external-links:list", () => {
     try {
-      const rows = db2().allRaw("SELECT * FROM external_site WHERE is_active = 1 ORDER BY sort_order");
+      const rows = db2().allRaw(
+        "SELECT * FROM external_site WHERE is_active = 1 ORDER BY sort_order"
+      );
       return success(rows);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("external-links:createSite", (_e, data) => {
+    try {
+      const cols2 = Object.keys(data).join(", ");
+      const vals = Object.keys(data).map(() => "?").join(", ");
+      const result = db2().runRaw(
+        `INSERT INTO external_site (${cols2}) VALUES (${vals})`,
+        ...Object.values(data)
+      );
+      return success({ id: result.lastInsertRowid });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("external-links:updateSite", (_e, payload) => {
+    try {
+      const { id, ...data } = payload;
+      const sets = Object.keys(data).map((k) => `${k} = ?`).join(", ");
+      db2().runRaw(
+        `UPDATE external_site SET ${sets} WHERE id = ?`,
+        ...Object.values(data),
+        id
+      );
+      return success(null);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("external-links:deleteSite", (_e, id) => {
+    try {
+      db2().runRaw("DELETE FROM external_site WHERE id = ?", id);
+      return success(null);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("external-links:listRecords", (_e, params = {}) => {
+    try {
+      const page = Number(params.page) || 1;
+      const pageSize = Number(params.page_size) || 20;
+      const offset = (page - 1) * pageSize;
+      const search = params.search ? String(params.search) : "";
+      let where = "WHERE 1=1";
+      const values = [];
+      if (search) {
+        where += " AND (query_input LIKE ? OR result_note LIKE ? OR site_name LIKE ? OR query_type LIKE ? OR purpose LIKE ?)";
+        const s = `%${search}%`;
+        values.push(s, s, s, s, s);
+      }
+      const countRow = db2().getRaw(
+        `SELECT COUNT(*) as cnt FROM query_record ${where}`,
+        ...values
+      );
+      const rows = db2().allRaw(
+        `SELECT * FROM query_record ${where} ORDER BY id DESC LIMIT ? OFFSET ?`,
+        ...values,
+        pageSize,
+        offset
+      );
+      const items = rows.map((r) => {
+        let queryInputs = [];
+        try {
+          queryInputs = JSON.parse(r.query_input);
+        } catch {
+          queryInputs = [r.query_input || ""];
+        }
+        return {
+          ...r,
+          query_inputs: queryInputs,
+          query_count: r.query_count || queryInputs.length
+        };
+      });
+      return success({ items, total: countRow?.cnt ?? 0 });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("external-links:createRecord", (_e, data) => {
+    try {
+      const d = { ...data };
+      if (Array.isArray(d.query_inputs)) {
+        d.query_input = JSON.stringify(d.query_inputs);
+        d.query_count = d.query_inputs.length;
+      } else if (d.query_input) {
+        d.query_input = String(d.query_input);
+        d.query_count = 1;
+      }
+      delete d.query_inputs;
+      const cols2 = Object.keys(d).join(", ");
+      const vals = Object.keys(d).map(() => "?").join(", ");
+      const result = db2().runRaw(
+        `INSERT INTO query_record (${cols2}) VALUES (${vals})`,
+        ...Object.values(d)
+      );
+      return success({ id: result.lastInsertRowid });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("external-links:updateRecord", (_e, payload) => {
+    try {
+      const { id, ...data } = payload;
+      const d = { ...data };
+      const sets = Object.keys(d).map((k) => `${k} = ?`).join(", ");
+      db2().runRaw(
+        `UPDATE query_record SET ${sets} WHERE id = ?`,
+        ...Object.values(d),
+        id
+      );
+      return success(null);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("external-links:deleteRecord", (_e, id) => {
+    try {
+      db2().runRaw("DELETE FROM query_record WHERE id = ?", id);
+      return success(null);
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("external-links:stats", () => {
+    try {
+      const totalRow = db2().getRaw(
+        "SELECT COUNT(*) as total_records, COALESCE(SUM(query_count),0) as total_items FROM query_record"
+      );
+      const byType = db2().allRaw(
+        "SELECT query_type as type, COUNT(*) as times, COALESCE(SUM(query_count),0) as total_items FROM query_record GROUP BY query_type ORDER BY times DESC"
+      );
+      const bySite = db2().allRaw(
+        "SELECT site_name as site, COUNT(*) as times FROM query_record GROUP BY site_name ORDER BY times DESC"
+      );
+      return success({
+        total_records: totalRow?.total_records ?? 0,
+        total_items: totalRow?.total_items ?? 0,
+        by_type: byType,
+        by_site: bySite
+      });
     } catch (e) {
       return errorResponse(String(e));
     }

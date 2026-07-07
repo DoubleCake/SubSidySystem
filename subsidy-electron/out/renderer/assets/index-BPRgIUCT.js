@@ -52266,13 +52266,16 @@ function ExternalLinksPage() {
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("table", { className: "w-full border-collapse", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { className: "border-b border-border/50", children: ["姓名", "身份证", "所在村", "补贴项目", "年度", "面积", "申请金额", "实发金额", "状态", ""].map((h) => /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3.5 py-2.5 text-left text-xs text-text-muted font-semibold whitespace-nowrap", children: h }, h)) }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { className: "border-b border-border/50", children: ["姓名", "身份证号", "所在村组", "补贴项目", "年度", "面积", "申请金额", "实发金额", "状态", ""].map((h) => /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3.5 py-2.5 text-left text-xs text-text-muted font-semibold whitespace-nowrap", children: h }, h)) }) }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("tbody", { children: [
             srchLoading && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 9, className: "text-center py-8 text-text-muted/50", children: "查询中…" }) }),
             !srchLoading && srchResults.map((a) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "border-b border-border/50 hover:bg-warm/30", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5 text-sm font-semibold", children: a.farmer_name }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5 text-xs font-mono text-text-muted", children: a.id_card_masked || "—" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5 text-xs text-text-muted", children: a.village || "—" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5 text-xs font-mono text-text-primary", children: a.id_card || "—" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "px-3.5 py-2.5 text-xs text-text-muted", children: [
+                a.village || "—",
+                a.group_no ? `${a.group_no}组` : ""
+              ] }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5 text-sm", children: a.subsidy_name }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5 text-sm font-bold text-blue-600", children: a.apply_year }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5 text-sm font-mono", children: a.apply_area ? `${a.apply_area}亩` : "—" }),
@@ -52280,7 +52283,7 @@ function ExternalLinksPage() {
               /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5 text-sm font-mono font-bold text-primary", children: fmt$2(a.actual_amount) }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: PAY_STATUS[a.pay_status]?.label || "—", color: PAY_STATUS[a.pay_status]?.color }) }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3.5 py-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => {
-                setFavorContext({ inputs: [a.farmer_name + (a.id_card_masked ? " " + a.id_card_masked : "")], type: "综合查询", source: "系统内查询" });
+                setFavorContext({ inputs: [a.farmer_name + (a.id_card ? " " + a.id_card : "")], type: "综合查询", source: "系统内查询" });
                 setFavorOpen(true);
               }, className: "text-xs text-amber-600 border border-amber-200 px-2.5 py-1 rounded-btn hover:bg-amber-50 whitespace-nowrap", children: "★ 收藏" }) })
             ] }, a.id))

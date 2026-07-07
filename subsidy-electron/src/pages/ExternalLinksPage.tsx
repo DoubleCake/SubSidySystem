@@ -18,7 +18,7 @@ interface Site { id:number; name:string; url:string; site_type:'link'|'query'; d
 interface QRecord { id:number; site_name:string; query_type:string; query_inputs:string[]; query_count:number; result_note:string|null; purpose:string|null; operator:string; tags:string|null; created_at:string|null }
 interface Stats { total_records:number; total_items:number; by_type:{type:string;times:number;total_items:number}[]; by_site:{site:string;times:number}[] }
 
-type AppRow = { id:number; farmer_id:number; farmer_name:string; id_card_masked?:string; village?:string; subsidy_name:string; calc_mode:string; apply_year:number; apply_area:string|null; apply_amount:string|null; actual_amount:string|null; pay_status:number; pay_date:string|null; remark:string|null }
+type AppRow = { id:number; farmer_id:number; farmer_name:string; id_card?:string; village?:string; group_no?:number; subsidy_name:string; calc_mode:string; apply_year:number; apply_area:string|null; apply_amount:string|null; actual_amount:string|null; pay_status:number; pay_date:string|null; remark:string|null }
 
 const QUERY_TYPES = ['身份证查询','姓名查询','综合查询','其他']
 const TAGS_PRESET = ['年度核查','补贴核验','重复申领排查','死亡核查','迁出核查','待处理','已完成','存疑']
@@ -277,7 +277,7 @@ export default function ExternalLinksPage() {
               </div>
               <table className="w-full border-collapse">
                 <thead><tr className="border-b border-border/50">
-                  {['姓名','身份证','所在村','补贴项目','年度','面积','申请金额','实发金额','状态',''].map(h=>(
+                  {['姓名','身份证号','所在村组','补贴项目','年度','面积','申请金额','实发金额','状态',''].map(h=>(
                     <th key={h} className="px-3.5 py-2.5 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr></thead>
@@ -286,8 +286,8 @@ export default function ExternalLinksPage() {
                   {!srchLoading&&srchResults.map(a=>(
                     <tr key={a.id} className="border-b border-border/50 hover:bg-warm/30">
                       <td className="px-3.5 py-2.5 text-sm font-semibold">{a.farmer_name}</td>
-                      <td className="px-3.5 py-2.5 text-xs font-mono text-text-muted">{a.id_card_masked||'—'}</td>
-                      <td className="px-3.5 py-2.5 text-xs text-text-muted">{a.village||'—'}</td>
+                      <td className="px-3.5 py-2.5 text-xs font-mono text-text-primary">{a.id_card||'—'}</td>
+                      <td className="px-3.5 py-2.5 text-xs text-text-muted">{a.village||'—'}{a.group_no ? `${a.group_no}组` : ''}</td>
                       <td className="px-3.5 py-2.5 text-sm">{a.subsidy_name}</td>
                       <td className="px-3.5 py-2.5 text-sm font-bold text-blue-600">{a.apply_year}</td>
                       <td className="px-3.5 py-2.5 text-sm font-mono">{a.apply_area?`${a.apply_area}亩`:'—'}</td>
@@ -296,7 +296,7 @@ export default function ExternalLinksPage() {
                       <td className="px-3.5 py-2.5"><Tag label={PAY_STATUS[a.pay_status]?.label||'—'} color={PAY_STATUS[a.pay_status]?.color as 'green'}/></td>
                       <td className="px-3.5 py-2.5">
                         <button onClick={()=>{
-                          setFavorContext({ inputs:[a.farmer_name + (a.id_card_masked?' '+a.id_card_masked:'')], type:'综合查询', source:'系统内查询' })
+                          setFavorContext({ inputs:[a.farmer_name + (a.id_card?' '+a.id_card:'')], type:'综合查询', source:'系统内查询' })
                           setFavorOpen(true)
                         }} className="text-xs text-amber-600 border border-amber-200 px-2.5 py-1 rounded-btn hover:bg-amber-50 whitespace-nowrap">
                           ★ 收藏

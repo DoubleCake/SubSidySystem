@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../database/connection'
-import { maskIdCard, maskPhone } from '../utils/masking'
+// 系统内查询：明文显示，不做打码处理
 import { parsePagination, successList, success, errorResponse } from './response'
 
 export function registerSubsidyHandlers(): void {
@@ -113,7 +113,7 @@ export function registerSubsidyHandlers(): void {
       const rows = db().allRaw<Record<string, unknown>>(`
         SELECT sa.*, fp.real_name as farmer_name, fp.id_card, fp.phone,
                st.subsidy_name, st.season, st.calc_mode,
-               v.village_name, hh.group_no
+               v.village_name as village, hh.group_no
         FROM subsidy_application sa
         LEFT JOIN farmer_profile fp ON sa.farmer_id = fp.id
         LEFT JOIN family_household hh ON fp.household_id = hh.id
@@ -124,11 +124,8 @@ export function registerSubsidyHandlers(): void {
         LIMIT ? OFFSET ?
       `, ...values, pageSize, offset)
 
-      const items = rows.map(r => ({
-        ...r,
-        id_card_masked: r.id_card ? maskIdCard(r.id_card as string) : '',
-        phone_masked: r.phone ? maskPhone(r.phone as string) : '',
-      }))
+      // 系统内查询：返回明文，不做打码
+      const items = rows.map(r => ({ ...r }))
 
       return successList(items, countRow?.cnt ?? 0, page, pageSize)
     } catch (e) {
