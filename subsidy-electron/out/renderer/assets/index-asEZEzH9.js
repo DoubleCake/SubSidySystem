@@ -8498,6 +8498,193 @@ function useViewTransitionState(to, opts) {
   let nextPath = stripBasename(vtContext.nextLocation.pathname, basename) || vtContext.nextLocation.pathname;
   return matchPath(path.pathname, nextPath) != null || matchPath(path.pathname, currentPath) != null;
 }
+async function req(channel, data) {
+  const result = await window.electronAPI.invoke(channel, data);
+  if (result && typeof result === "object" && "code" in result && result.code !== 0) {
+    throw new Error(result.message || `请求失败`);
+  }
+  if (result && typeof result === "object" && "data" in result) {
+    return result.data;
+  }
+  return result;
+}
+const getVillageGroups = () => req("households:groupOptions");
+const createVillageGroup = (data) => req("settings:createVillageGroup", data);
+const getFarmers = (params) => req("farmers:list", params);
+const getFarmer = (id2) => req("farmers:get", id2);
+const batchLookupFarmers = (idCards) => req("farmers:batchLookup", idCards);
+const createFarmer = (data) => req("farmers:create", data);
+const batchImportFarmers = (rows, overwrite = false) => req(
+  "farmers:batchImport",
+  { rows, overwrite }
+);
+const importFamilyRelations = (rows, splitVillages) => req("farmers:importRelations", { rows, splitVillages });
+const previewMultiHeadHouseholds = (villageNames, excelRows) => req("farmers:multiHeadPreview", { villageNames, excelRows });
+const getSubsidyTypes = (year, status) => req("subsidies:listTypes", { year, status });
+const getSubsidyTypesWithStats = (year) => req(
+  "subsidies:listTypesWithStats",
+  year
+);
+const createSubsidyType = (data) => req("subsidies:createType", data);
+const updateSubsidyType = (id2, data) => req("subsidies:updateType", { id: id2, ...data });
+const searchApplications = (params) => req("subsidies:listApplications", params);
+const createApplication = (data) => req("subsidies:createApplication", data);
+const updateApplication = (id2, data) => req("subsidies:updateApplication", { id: id2, ...data });
+const batchImportApplications = (rows) => req(
+  "subsidies:batchImportApplications",
+  rows
+);
+const getProxies = (params) => req("subsidies:listProxies", params);
+const createProxy = (data) => req("subsidies:createProxy", data);
+const deleteProxy = (id2) => req("subsidies:deleteProxy", id2);
+const getYearCompare = (year) => req("subsidies:yearCompare", year);
+const getSummaryByVillage = (year) => req("subsidies:summaryByVillage", year);
+const getSummaryBySeason = (year) => req(
+  "subsidies:summaryBySeason",
+  year
+);
+const getAreaStatsByVillage = (subsidyTypeId, year, dataSource) => {
+  const params = { subsidy_type_id: subsidyTypeId, year };
+  params.data_source = dataSource;
+  return req("subsidies:areaStatsByVillage", params);
+};
+const aiAnalyze = (data) => req("ai:analyze", data);
+const getExcelTemplates = (businessType) => req("excel-templates:list", businessType);
+const getExcelTemplate = (id2) => req("excel-templates:get", id2);
+const detectExcelColumns = (columns, businessType, sampleRows) => req("excel-templates:detectColumns", { columns, business_type: businessType, sample_rows: sampleRows });
+const saveExcelTemplate = (data) => req("excel-templates:save", data);
+const healthCheck = () => req("app:getDbPath");
+const getHouseholds = (params) => req("households:list", params);
+const getHouseholdDetail = (id2, year) => req("households:get", { id: id2, year });
+const mergeHouseholds = (data) => req("households:merge", data);
+const updateHousehold = (id2, data) => req("households:update", { id: id2, ...data });
+const createHousehold = (data) => req("households:create", data);
+const addHouseholdMember = (householdId, data) => req("households:addMember", { householdId, ...data });
+const updateHouseholdMember = (householdId, farmerId, data) => req("households:updateMember", { householdId, farmerId, ...data });
+const removeHouseholdMember = (householdId, farmerId) => req("households:removeMember", { householdId, farmerId });
+const getHouseholdEvents = (householdId, year) => req("households:events", { householdId, year });
+const addHouseholdEvent = (householdId, data) => req("households:addEvent", { householdId, ...data });
+const getHouseholdHistoryDates = (householdId) => req("households:historyDates", householdId);
+const getHouseholdSnapshotAt = (householdId, date) => req("households:snapshotAt", { householdId, date });
+const getHouseholdSnapshotByEvent = (householdId, eventId) => req("households:snapshotByEvent", { householdId, eventId });
+const splitHousehold = (householdId, data) => req("households:split", { householdId, ...data });
+const batchImportHouseholdMembers = (householdId, rows) => req("households:batchImportMembers", { householdId, rows });
+const importConfirmedArea = (rows) => req(
+  "households:importConfirmedArea",
+  rows
+);
+const exportConfirmedAreaDiff = () => window.electronAPI.invoke("households:exportConfirmedAreaDiff");
+const manualConfirmHousehold = (householdId, data) => req(
+  "households:manualConfirm",
+  { householdId, ...data }
+);
+const cancelManualConfirm = (householdId, data) => req(
+  "households:cancelConfirm",
+  { householdId, ...data }
+);
+const batchConfirmHouseholds = (data) => req("households:batchConfirm", data);
+const deleteHousehold = (householdId) => req("households:delete", householdId);
+const refreshAreaCache = (householdId) => req(
+  "households:refreshAreaCache",
+  householdId
+);
+const recalcUnconfirmedContractArea = () => req("households:recalcUnconfirmedContractArea");
+const previewHouseholdImport = (rows) => req("household-import:preview", rows);
+const executeHouseholdImport = (rows, defaultVillageName, defaultGroupNo) => req("household-import:execute", { rows, default_village_name: defaultVillageName, default_group_no: defaultGroupNo });
+const getCheckConfig = (typeId) => req("subsidies:getCheckConfig", typeId);
+const updateCheckConfig = (typeId, config) => req("subsidies:updateCheckConfig", { typeId, config });
+const restoreSubsidyType = (typeId) => req("subsidies:restoreType", typeId);
+const savePrecheckHistory = (subsidy_type_id, year, precheck_result, error_types) => req("precheck:saveHistory", { subsidy_type_id, year, precheck_result, error_types });
+const getPrecheckHistory = (params) => req("precheck:listHistory", params);
+const getPrecheckHistoryBatches = (subsidy_type_id, year) => req("precheck:listBatches", { subsidy_type_id, year });
+const resolvePrecheckHistory = (id2) => req("precheck:resolveHistory", id2);
+const unresolvePrecheckHistory = (id2) => req("precheck:unresolveHistory", id2);
+const deletePrecheckHistory = (id2) => req("precheck:deleteHistory", id2);
+const autoResolvePrecheckHistory = (subsidy_type_id, year) => req("precheck:autoResolve", { subsidy_type_id, year });
+const exportApplications = (subsidyTypeId) => req("subsidies:exportApplications", subsidyTypeId);
+const exportPayments = (subsidyTypeId) => req("subsidies:exportPayments", subsidyTypeId);
+const getDashboardTodos = (year) => req(
+  "subsidies:dashboardTodos",
+  { year }
+);
+const getDbInfo = () => req("settings:getDbInfo");
+const createBackup = () => req("settings:createBackup");
+const deleteBackup = (filename) => req("settings:deleteBackup", filename);
+const exportExcel = () => req("settings:exportExcel");
+const downloadDb = () => req("settings:downloadDb");
+const getOverdrawnDetail = (year) => req("households:overdrawnDetail", { year });
+const getAgriTasks = (params) => req("agri-tasks:list", params);
+const getAgriTaskDetail = (id2) => req("agri-tasks:get", id2);
+const createAgriTask = (data) => req("agri-tasks:create", data);
+const deleteAgriTask = (id2) => req("agri-tasks:delete", id2);
+const previewAgriTask = (id2) => req(
+  "agri-tasks:preview",
+  id2
+);
+const issueAgriTask = (id2) => req("agri-tasks:issue", id2);
+const revokeAgriTask = (id2) => req("agri-tasks:revoke", id2);
+const completeAgriTask = (id2) => req("agri-tasks:done", id2);
+const getAgriTaskMeta = () => req(
+  "agri-tasks:meta"
+);
+const updateAgriTaskAllocation = (taskId, villageId, actualArea) => req("agri-tasks:updateAllocation", { taskId, villageId, actual_area: actualArea });
+const checkEligibility = (data) => req(
+  "eligibility:check",
+  data
+);
+const getLandTrusts = (params) => req("land:list", params);
+const createLandTrust = (data) => req("land:create", data);
+const updateLandTrust = (id2, data) => req("land:update", { id: id2, ...data });
+const deleteLandTrust = (id2) => req("land:delete", id2);
+const searchLandHousehold = (q2) => req(
+  "land:searchHousehold",
+  q2
+);
+const searchLandVillage = (q2) => req("land:searchVillage", q2);
+const searchLandVillageGroup = (q2) => req("land:searchVillageGroup", q2);
+const resolveLandByIdCard = (q2) => req(
+  "land:resolveByIdCard",
+  q2
+);
+const getLandAreaSummary = (householdId, year) => req("land:areaSummary", { householdId, year });
+const batchRenewLandTrusts = (ids) => req("land:batchRenew", ids);
+const batchImportIdleLand = (rows) => req("land:batchImportIdle", rows);
+const getExternalSites = () => req("external-links:list");
+const createExternalSite = (data) => req("external-links:createSite", data);
+const updateExternalSite = (id2, data) => req("external-links:updateSite", { id: id2, ...data });
+const deleteExternalSite = (id2) => req("external-links:deleteSite", id2);
+const getExternalRecords = (params) => req("external-links:listRecords", params);
+const getExternalStats = () => req(
+  "external-links:stats"
+);
+const createExternalRecord = (data) => req("external-links:createRecord", data);
+const updateExternalRecord = (id2, data) => req("external-links:updateRecord", { id: id2, ...data });
+const deleteExternalRecord = (id2) => req("external-links:deleteRecord", id2);
+const deleteExcelTemplate = (id2) => req("excel-templates:delete", id2);
+const getExcelTemplateLogs = (params) => req("excel-templates:logs", params || { page_size: 30 });
+const aiDetectColumns = (data) => req(
+  "excel-templates:aiDetect",
+  data
+);
+const verifyNames = (rows) => req(
+  "farmers:verifyNames",
+  { rows }
+);
+const matchPeople = (rows) => req("farmers:matchPeople", { rows });
+const getVillages = () => req("settings:villages");
+function useToast() {
+  const [toast, setToast] = reactExports.useState(null);
+  const show = reactExports.useCallback((msg, type = "ok") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 2800);
+  }, []);
+  return { toast, show };
+}
+function Toast({ msg, type }) {
+  if (!msg) return null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-card shadow-card text-body  transition-all
+      ${type === "err" ? "bg-danger" : "bg-primary"}`, children: msg });
+}
 /*! xlsx.js (C) 2013-present SheetJS -- http://sheetjs.com */
 var XLSX = {};
 XLSX.version = "0.18.5";
@@ -39700,180 +39887,6 @@ const xlsx = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty
   writeFileXLSX: writeFileSyncXLSX,
   writeXLSX: writeSyncXLSX
 }, Symbol.toStringTag, { value: "Module" }));
-async function req(channel, data) {
-  const result = await window.electronAPI.invoke(channel, data);
-  if (result && typeof result === "object" && "code" in result && result.code !== 0) {
-    throw new Error(result.message || `请求失败`);
-  }
-  if (result && typeof result === "object" && "data" in result) {
-    return result.data;
-  }
-  return result;
-}
-const getVillageGroups = () => req("households:groupOptions");
-const createVillageGroup = (data) => req("settings:createVillageGroup", data);
-const getFarmers = (params) => req("farmers:list", params);
-const getFarmer = (id2) => req("farmers:get", id2);
-const batchLookupFarmers = (idCards) => req("farmers:batchLookup", idCards);
-const createFarmer = (data) => req("farmers:create", data);
-const batchImportFarmers = (rows, overwrite = false) => req(
-  "farmers:batchImport",
-  { rows, overwrite }
-);
-const importFamilyRelations = (rows, splitVillages) => req("farmers:importRelations", { rows, splitVillages });
-const previewMultiHeadHouseholds = (villageNames, excelRows) => req("farmers:multiHeadPreview", { villageNames, excelRows });
-const getSubsidyTypes = (year, status) => req("subsidies:listTypes", { year, status });
-const getSubsidyTypesWithStats = (year) => req(
-  "subsidies:listTypesWithStats",
-  year
-);
-const createSubsidyType = (data) => req("subsidies:createType", data);
-const updateSubsidyType = (id2, data) => req("subsidies:updateType", { id: id2, ...data });
-const searchApplications = (params) => req("subsidies:listApplications", params);
-const createApplication = (data) => req("subsidies:createApplication", data);
-const updateApplication = (id2, data) => req("subsidies:updateApplication", { id: id2, ...data });
-const batchImportApplications = (rows) => req(
-  "subsidies:batchImportApplications",
-  rows
-);
-const getProxies = (params) => req("subsidies:listProxies", params);
-const createProxy = (data) => req("subsidies:createProxy", data);
-const deleteProxy = (id2) => req("subsidies:deleteProxy", id2);
-const getYearCompare = (year) => req("subsidies:yearCompare", year);
-const getSummaryByVillage = (year) => req("subsidies:summaryByVillage", year);
-const getSummaryBySeason = (year) => req(
-  "subsidies:summaryBySeason",
-  year
-);
-const getAreaStatsByVillage = (subsidyTypeId, year, dataSource) => {
-  const params = { subsidy_type_id: subsidyTypeId, year };
-  params.data_source = dataSource;
-  return req("subsidies:areaStatsByVillage", params);
-};
-const aiAnalyze = (data) => req("ai:analyze", data);
-const getExcelTemplates = (businessType) => req("excel-templates:list", businessType);
-const getExcelTemplate = (id2) => req("excel-templates:get", id2);
-const detectExcelColumns = (columns, businessType, sampleRows) => req("excel-templates:detectColumns", { columns, business_type: businessType, sample_rows: sampleRows });
-const saveExcelTemplate = (data) => req("excel-templates:save", data);
-const healthCheck = () => req("app:getDbPath");
-const getHouseholds = (params) => req("households:list", params);
-const getHouseholdDetail = (id2, year) => req("households:get", { id: id2, year });
-const mergeHouseholds = (data) => req("households:merge", data);
-const updateHousehold = (id2, data) => req("households:update", { id: id2, ...data });
-const createHousehold = (data) => req("households:create", data);
-const addHouseholdMember = (householdId, data) => req("households:addMember", { householdId, ...data });
-const updateHouseholdMember = (householdId, farmerId, data) => req("households:updateMember", { householdId, farmerId, ...data });
-const removeHouseholdMember = (householdId, farmerId) => req("households:removeMember", { householdId, farmerId });
-const getHouseholdEvents = (householdId, year) => req("households:events", { householdId, year });
-const addHouseholdEvent = (householdId, data) => req("households:addEvent", { householdId, ...data });
-const getHouseholdHistoryDates = (householdId) => req("households:historyDates", householdId);
-const getHouseholdSnapshotAt = (householdId, date) => req("households:snapshotAt", { householdId, date });
-const getHouseholdSnapshotByEvent = (householdId, eventId) => req("households:snapshotByEvent", { householdId, eventId });
-const splitHousehold = (householdId, data) => req("households:split", { householdId, ...data });
-const batchImportHouseholdMembers = (householdId, rows) => req("households:batchImportMembers", { householdId, rows });
-const importConfirmedArea = (rows) => req(
-  "households:importConfirmedArea",
-  rows
-);
-const exportConfirmedAreaDiff = () => window.electronAPI.invoke("households:exportConfirmedAreaDiff");
-const manualConfirmHousehold = (householdId, data) => req(
-  "households:manualConfirm",
-  { householdId, ...data }
-);
-const cancelManualConfirm = (householdId, data) => req(
-  "households:cancelConfirm",
-  { householdId, ...data }
-);
-const batchConfirmHouseholds = (data) => req("households:batchConfirm", data);
-const deleteHousehold = (householdId) => req("households:delete", householdId);
-const refreshAreaCache = (householdId) => req(
-  "households:refreshAreaCache",
-  householdId
-);
-const recalcUnconfirmedContractArea = () => req("households:recalcUnconfirmedContractArea");
-const previewHouseholdImport = (rows) => req("household-import:preview", rows);
-const executeHouseholdImport = (rows, defaultVillageName, defaultGroupNo) => req("household-import:execute", { rows, default_village_name: defaultVillageName, default_group_no: defaultGroupNo });
-const getCheckConfig = (typeId) => req("subsidies:getCheckConfig", typeId);
-const updateCheckConfig = (typeId, config) => req("subsidies:updateCheckConfig", { typeId, config });
-const restoreSubsidyType = (typeId) => req("subsidies:restoreType", typeId);
-const savePrecheckHistory = (subsidy_type_id, year, precheck_result, error_types) => req("precheck:saveHistory", { subsidy_type_id, year, precheck_result, error_types });
-const getPrecheckHistory = (params) => req("precheck:listHistory", params);
-const getPrecheckHistoryBatches = (subsidy_type_id, year) => req("precheck:listBatches", { subsidy_type_id, year });
-const resolvePrecheckHistory = (id2) => req("precheck:resolveHistory", id2);
-const unresolvePrecheckHistory = (id2) => req("precheck:unresolveHistory", id2);
-const deletePrecheckHistory = (id2) => req("precheck:deleteHistory", id2);
-const autoResolvePrecheckHistory = (subsidy_type_id, year) => req("precheck:autoResolve", { subsidy_type_id, year });
-const exportApplications = (subsidyTypeId) => req("subsidies:exportApplications", subsidyTypeId);
-const exportPayments = (subsidyTypeId) => req("subsidies:exportPayments", subsidyTypeId);
-const getDashboardTodos = (year) => req(
-  "subsidies:dashboardTodos",
-  { year }
-);
-const getDbInfo = () => req("settings:getDbInfo");
-const createBackup = () => req("settings:createBackup");
-const deleteBackup = (filename) => req("settings:deleteBackup", filename);
-const exportExcel = () => req("settings:exportExcel");
-const downloadDb = () => req("settings:downloadDb");
-const getOverdrawnDetail = (year) => req("households:overdrawnDetail", { year });
-const getAgriTasks = (params) => req("agri-tasks:list", params);
-const getAgriTaskDetail = (id2) => req("agri-tasks:get", id2);
-const createAgriTask = (data) => req("agri-tasks:create", data);
-const deleteAgriTask = (id2) => req("agri-tasks:delete", id2);
-const previewAgriTask = (id2) => req(
-  "agri-tasks:preview",
-  id2
-);
-const issueAgriTask = (id2) => req("agri-tasks:issue", id2);
-const revokeAgriTask = (id2) => req("agri-tasks:revoke", id2);
-const completeAgriTask = (id2) => req("agri-tasks:done", id2);
-const getAgriTaskMeta = () => req(
-  "agri-tasks:meta"
-);
-const updateAgriTaskAllocation = (taskId, villageId, actualArea) => req("agri-tasks:updateAllocation", { taskId, villageId, actual_area: actualArea });
-const checkEligibility = (data) => req(
-  "eligibility:check",
-  data
-);
-const getLandTrusts = (params) => req("land:list", params);
-const createLandTrust = (data) => req("land:create", data);
-const updateLandTrust = (id2, data) => req("land:update", { id: id2, ...data });
-const deleteLandTrust = (id2) => req("land:delete", id2);
-const searchLandHousehold = (q2) => req(
-  "land:searchHousehold",
-  q2
-);
-const searchLandVillage = (q2) => req("land:searchVillage", q2);
-const searchLandVillageGroup = (q2) => req("land:searchVillageGroup", q2);
-const resolveLandByIdCard = (q2) => req(
-  "land:resolveByIdCard",
-  q2
-);
-const getLandAreaSummary = (householdId, year) => req("land:areaSummary", { householdId, year });
-const batchRenewLandTrusts = (ids) => req("land:batchRenew", ids);
-const batchImportIdleLand = (rows) => req("land:batchImportIdle", rows);
-const getExternalSites = () => req("external-links:list");
-const createExternalSite = (data) => req("external-links:createSite", data);
-const updateExternalSite = (id2, data) => req("external-links:updateSite", { id: id2, ...data });
-const deleteExternalSite = (id2) => req("external-links:deleteSite", id2);
-const getExternalRecords = (params) => req("external-links:listRecords", params);
-const getExternalStats = () => req(
-  "external-links:stats"
-);
-const createExternalRecord = (data) => req("external-links:createRecord", data);
-const updateExternalRecord = (id2, data) => req("external-links:updateRecord", { id: id2, ...data });
-const deleteExternalRecord = (id2) => req("external-links:deleteRecord", id2);
-const deleteExcelTemplate = (id2) => req("excel-templates:delete", id2);
-const getExcelTemplateLogs = (params) => req("excel-templates:logs", params || { page_size: 30 });
-const aiDetectColumns = (data) => req(
-  "excel-templates:aiDetect",
-  data
-);
-const verifyNames = (rows) => req(
-  "farmers:verifyNames",
-  { rows }
-);
-const matchPeople = (rows) => req("farmers:matchPeople", { rows });
-const getVillages = () => req("settings:villages");
 const fmt$2 = (n2) => n2 == null ? "—" : "¥" + Number(n2).toFixed(2);
 const parseIdCardInfo = (id2) => {
   if (id2.length !== 18) return null;
@@ -39975,19 +39988,6 @@ const SVG_MAP = {
   home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="{size}" height="{size}"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
   ai: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="{size}" height="{size}"><path d="M12 2a4 4 0 0 1 4 4c0 2-2 4-4 6-2-2-4-4-4-6a4 4 0 0 1 4-4z"/><path d="M9 13h6"/><path d="M7 17h10"/><path d="M5 21h14"/></svg>`
 };
-function useToast() {
-  const [toast, setToast] = reactExports.useState(null);
-  const show = reactExports.useCallback((msg, type = "ok") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 2800);
-  }, []);
-  return { toast, show };
-}
-function Toast({ msg, type }) {
-  if (!msg) return null;
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-card shadow-card text-body  transition-all
-      ${type === "err" ? "bg-danger" : "bg-primary"}`, children: msg });
-}
 function r(e) {
   var t2, f2, n2 = "";
   if ("string" == typeof e || "number" == typeof e) n2 += e;
@@ -40075,168 +40075,6 @@ function FarmerList({ farmers, loading, selectedId, onSelect }) {
       },
       f2.id
     ))
-  ] });
-}
-function HouseholdList({
-  households,
-  loading,
-  selectedId,
-  mergeMode,
-  batchConfirmMode,
-  mergeSelected,
-  batchSelected,
-  mergeSelectedHouseholds,
-  onSelect,
-  onToggleMerge,
-  onToggleBatch
-}) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-    mergeMode && mergeSelectedHouseholds.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border-b-2 border-orange-tag/20 bg-orange-tag/5", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-1.5 text-xs text-orange-tag font-semibold border-b border-orange-tag/10 flex items-center gap-1", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "已选（搜索不影响）" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "bg-orange-tag/15 text-amber-800 rounded-full px-1.5 py-0.5 ml-1", children: mergeSelectedHouseholds.length })
-      ] }),
-      mergeSelectedHouseholds.map((h, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-2.5 border-b border-orange-tag/10 flex items-center gap-2.5 bg-orange-tag/5", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs font-bold px-1.5 py-0.5 rounded shrink-0 ${i === 0 ? "bg-primary text-white" : "bg-orange-tag/15 text-amber-800"}`, children: i === 0 ? "目标" : `被合并${i}` }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold text-sm text-text-primary truncate", children: h.household_name }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs text-text-muted", children: [
-            h.head_name,
-            " · ",
-            h.member_count ?? "?",
-            "人 · ",
-            h.village_full_name
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            onClick: () => onToggleMerge(h),
-            className: "shrink-0 text-text-muted hover:text-red-500 transition-colors text-lg leading-none px-1",
-            children: "×"
-          }
-        )
-      ] }, `pinned-${h.id}`))
-    ] }),
-    loading && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center py-12 text-text-muted/50", children: "加载中…" }),
-    !loading && households.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center py-12 text-text-muted/50 text-sm", children: "暂无数据" }),
-    households.map((h) => {
-      const isSelected = mergeSelected.includes(h.id);
-      const isBatchSelected = batchSelected.includes(h.id);
-      if (mergeMode && isSelected) return null;
-      if (batchConfirmMode) {
-        return /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "div",
-          {
-            className: `px-5 py-4 border-b border-border/50 transition-all
-                ${h.is_manually_confirmed === 1 ? "bg-warm/30 opacity-60" : "hover:bg-blue-50 cursor-pointer"}
-                ${isBatchSelected && h.is_manually_confirmed !== 1 ? "bg-blue-50 border-l-4 border-l-blue-500" : ""}`,
-            children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "input",
-                {
-                  type: "checkbox",
-                  checked: isBatchSelected,
-                  onChange: () => h.is_manually_confirmed !== 1 && onToggleBatch(h),
-                  disabled: h.is_manually_confirmed === 1,
-                  className: "w-4 h-4 text-blue-600 rounded disabled:opacity-40"
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2.5 mb-1.5", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold text-base text-text-primary", children: h.household_name }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20", children: h.household_code }),
-                  h.is_manually_confirmed === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full", children: "✓已确认" }),
-                  h.is_overdrawn && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full", children: "⚠️超领" })
-                ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 text-xs text-text-muted", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: h.head_name ? `户主:${h.head_name}` : "无户主" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "bg-warm/30 px-2 py-0.5 rounded", children: [
-                    h.member_count,
-                    "人"
-                  ] }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: h.contracted_area > 0 ? `${h.contracted_area}亩` : "—" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-auto truncate max-w-[180px]", children: h.village_full_name })
-                ] })
-              ] })
-            ] })
-          },
-          h.id
-        );
-      }
-      if (mergeMode) {
-        return /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "div",
-          {
-            onClick: () => onToggleMerge(h),
-            className: `px-5 py-4 border-b border-border/50 cursor-pointer transition-all
-                ${isSelected ? "border-l-4 border-l-amber-500 bg-orange-tag/5" : "hover:bg-warm/30"}
-                ${h.is_overdrawn && !isSelected ? "bg-red-50/40" : ""}`,
-            children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "input",
-                {
-                  type: "checkbox",
-                  checked: isSelected,
-                  onChange: () => onToggleMerge(h),
-                  className: "w-4 h-4 text-orange-tag rounded"
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2.5 mb-1.5", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold text-base text-text-primary", children: h.household_name }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20", children: h.household_code }),
-                  h.is_manually_confirmed === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full", children: "✓已确认" }),
-                  h.is_overdrawn && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full", children: "⚠️超领" })
-                ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 text-xs text-text-muted", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: h.head_name ? `户主:${h.head_name}` : "无户主" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "bg-warm/30 px-2 py-0.5 rounded", children: [
-                    h.member_count,
-                    "人"
-                  ] }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: h.contracted_area > 0 ? `${h.contracted_area}亩` : "—" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-auto truncate max-w-[180px]", children: h.village_full_name })
-                ] })
-              ] })
-            ] })
-          },
-          h.id
-        );
-      }
-      return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "div",
-        {
-          onClick: () => onSelect(h.id),
-          className: `px-5 py-4 border-b border-border/50 cursor-pointer transition-all hover:bg-warm/30
-              ${selectedId === h.id ? "border-l-4 border-l-primary" : ""}
-              ${h.is_overdrawn ? "bg-red-50/40" : ""}`,
-          style: selectedId === h.id ? {
-            backgroundImage: "url(images/focus.png)",
-            backgroundSize: "cover",
-            backgroundPosition: "center"
-          } : void 0,
-          children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2.5 mb-1.5", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold text-base text-text-primary", children: h.household_name }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20", children: h.household_code }),
-              h.is_manually_confirmed === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full", children: "✓已确认" }),
-              h.is_overdrawn && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full", children: "⚠️超领" })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 text-xs text-text-muted", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: h.head_name ? `户主:${h.head_name}` : "无户主" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "bg-warm/30 px-2 py-0.5 rounded", children: [
-                h.member_count,
-                "人"
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: h.contracted_area > 0 ? `${h.contracted_area}亩` : "—" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-auto truncate max-w-[180px]", children: h.village_full_name })
-            ] })
-          ]
-        },
-        h.id
-      );
-    })
   ] });
 }
 function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }) {
@@ -40576,586 +40414,6 @@ function HistorySidebar({ householdId, historyEventId, historyDates, expandedYea
       historyDates.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center py-5 text-xs text-text-muted/50", children: "暂无变更记录" })
     ] })
   ] }) });
-}
-function HouseholdDetailContent({
-  detail,
-  detailTab,
-  setDetailTab,
-  areaYear,
-  setAreaYear,
-  historyDate,
-  historyEventId,
-  historyDates,
-  snapshotData,
-  events,
-  historyDateIsNull,
-  onOpenMemberImport,
-  onOpenMemberAdd,
-  onOpenEvent,
-  onOpenFarmer,
-  onOpenMemberEdit,
-  onRemoveMember,
-  onOpenEdit,
-  onOpenSplit,
-  canSplit,
-  onOpenManualConfirm,
-  onOpenCancelConfirm,
-  onDelete,
-  onNavigateToProject,
-  onRefreshCache,
-  refreshingCache
-}) {
-  const appsByYear = {};
-  detail.app_summary.forEach((a) => {
-    if (!appsByYear[a.apply_year]) appsByYear[a.apply_year] = [];
-    appsByYear[a.apply_year].push(a);
-  });
-  const noCalcByYear = {};
-  detail.app_summary.forEach((a) => {
-    const area = Number(a.apply_area_no_calc || 0);
-    if (area > 0) noCalcByYear[a.apply_year] = (noCalcByYear[a.apply_year] || 0) + area;
-  });
-  const displayMembers = historyDate !== null && snapshotData?.snapshot ? snapshotData.snapshot.members : detail.members;
-  const defaultAreaUsage = {
-    contracted_area: detail.contracted_area || 0,
-    trust_out_area: 0,
-    trust_in_area: 0,
-    trust_in_arable_area: 0,
-    trust_in_cash_crop_area: 0,
-    cultivable_area: detail.contracted_area || 0,
-    used_area: 0,
-    remaining_area: detail.contracted_area || 0,
-    is_overdrawn: false,
-    overdraw_amount: 0,
-    has_trust_data: false,
-    subsidy_breakdown: [],
-    season_reference: {},
-    season_breakdown: {},
-    year_totals: {},
-    year_apply_totals: {},
-    year_payment_totals: {}
-  };
-  const areaUsage = historyDate !== null && snapshotData?.snapshot ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, trust_in_arable_area: 0, trust_in_cash_crop_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [], season_reference: {}, season_breakdown: {}, year_totals: {}, year_apply_totals: {}, year_payment_totals: {} } : detail.area_usage || defaultAreaUsage;
-  const calcSeasonMax = (yt) => {
-    if (!yt || Object.keys(yt).length === 0) return 0;
-    return Math.max(...Object.values(yt).filter((v2) => v2 > 0), 0);
-  };
-  const effectiveUsedArea = areaYear > 0 && areaUsage.year_totals?.[String(areaYear)] ? calcSeasonMax(areaUsage.year_totals[String(areaYear)]) : areaUsage.used_area;
-  const effectiveRemainingArea = Math.max(0, (areaUsage.cultivable_area ?? areaUsage.contracted_area) - effectiveUsedArea);
-  const effectiveIsOverdrawn = areaYear > 0 && areaUsage.year_totals?.[String(areaYear)] ? Object.values(areaUsage.year_totals[String(areaYear)]).some((v2) => (areaUsage.cultivable_area ?? areaUsage.contracted_area) > 0 && v2 > (areaUsage.cultivable_area ?? areaUsage.contracted_area) + 1e-3) : areaUsage.is_overdrawn;
-  const effectiveOverdrawAmount = Math.max(0, effectiveUsedArea - (areaUsage.cultivable_area ?? areaUsage.contracted_area));
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0 flex flex-col", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-main border border-border rounded-card overflow-hidden shadow-card mb-3 shrink-0", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "div",
-        {
-          className: "px-5 py-3.5 flex items-center gap-4 relative border-b border-emerald-100",
-          style: {
-            backgroundImage: "url(images/household.png)",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat"
-          },
-          children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-10 h-10 rounded-card bg-primary/10 flex items-center justify-center text-lg font-bold text-primary shrink-0", children: "🏠" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 mb-0.5 flex-wrap", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-base font-bold text-primary-50", children: detail.household_name }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted text-xs font-mono", children: detail.household_code }),
-                detail.is_manually_confirmed === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-blue-500  px-1.5 py-0.5 rounded", children: "✓ 已确认" }),
-                effectiveIsOverdrawn && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-red-500  px-1.5 py-0.5 rounded", children: "⚠️ 超领" }),
-                historyDate !== null && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-amber-500/80  px-1.5 py-0.5 rounded", children: "⏳ 快照" })
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-text-muted text-xs", children: [
-                "📍 ",
-                detail.village_full_name,
-                detail.address && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-1 text-text-muted", children: detail.address })
-              ] })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-right shrink-0 mr-2", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-lg font-bold font-mono text-primary-50", children: historyDate !== null && snapshotData?.snapshot ? snapshotData.snapshot.contract_area > 0 ? `${snapshotData.snapshot.contract_area}亩` : "未设置" : detail.contracted_area > 0 ? `${detail.contracted_area}亩` : "未设置" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-text-muted text-xs", children: "承包面积" })
-            ] }),
-            historyDateIsNull && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1.5 shrink-0", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  onClick: onOpenEdit,
-                  className: "text-xs bg-[#DAA550]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
-                  children: "✏️ 编辑"
-                }
-              ),
-              detail.is_manually_confirmed === 1 ? /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  onClick: onOpenCancelConfirm,
-                  className: "text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-1.5 rounded-btn font-medium transition-colors",
-                  children: "↩️ 取消确认"
-                }
-              ) : /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  onClick: onOpenManualConfirm,
-                  className: "text-xs bg-[#2E7A60]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
-                  children: "✓ 人工确认"
-                }
-              ),
-              canSplit && /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  onClick: onOpenSplit,
-                  className: "text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1.5 rounded-btn font-medium transition-colors",
-                  children: "🔀 分户"
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  onClick: () => alert("导出功能开发中"),
-                  className: "text-xs bg-blue-500 text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
-                  children: "📥 导出补贴"
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                "button",
-                {
-                  onClick: () => onRefreshCache(detail.id),
-                  disabled: refreshingCache,
-                  className: "text-xs bg-[#4FA080]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
-                  children: [
-                    refreshingCache ? "⏳" : "🔄",
-                    " 刷新缓存"
-                  ]
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  onClick: onDelete,
-                  className: "text-xs bg-[#C04848]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
-                  children: "🗑️ 删除"
-                }
-              )
-            ] })
-          ]
-        }
-      ),
-      historyEventId !== null && (() => {
-        const currentEvent = historyDates.find((e) => e.event_id === historyEventId);
-        if (currentEvent?.description) {
-          const cfg = EVENT_TYPE_CFG[currentEvent.event_type] || EVENT_TYPE_CFG.REMARK;
-          return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-warm/30 border-b border-border px-5 py-3", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-2", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-lg shrink-0", children: cfg.icon }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-1", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs px-2 py-0.5 rounded font-medium ${cfg.color}`, children: cfg.label }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: currentEvent.date || `${currentEvent.event_year}年` })
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-text-primary", children: currentEvent.description })
-            ] })
-          ] }) });
-        }
-        return null;
-      })(),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-4 py-3 bg-gradient-to-b from-stone-50 to-white border-b border-border bg-primary-100", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-2xl", children: "👥" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-lg font-bold text-text-primary", children: displayMembers.length }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: "人口" })
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-10 bg-stone-200" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-2xl", children: "📐" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-lg font-bold font-mono text-text-primary", children: [
-              areaUsage.contracted_area,
-              " 亩",
-              (areaUsage.trust_in_area ?? 0) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-orange-500 text-sm ml-1", children: [
-                "+",
-                (areaUsage.trust_in_area ?? 0).toFixed(2),
-                "亩"
-              ] }),
-              (areaUsage.trust_out_area ?? 0) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-orange-400 text-sm ml-1", children: [
-                "-",
-                (areaUsage.trust_out_area ?? 0).toFixed(2),
-                "亩"
-              ] })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: areaUsage.cultivable_area != null && areaUsage.cultivable_area !== areaUsage.contracted_area ? `可耕${areaUsage.cultivable_area.toFixed(2)}亩` : "承包面积" })
-          ] })
-        ] }),
-        detail.confirmed_area != null && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-10 bg-stone-200" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-2xl", children: "📋" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-lg font-bold font-mono text-blue-700", children: [
-                detail.confirmed_area,
-                " 亩"
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: "确权面积" })
-            ] })
-          ] }),
-          (() => {
-            const diff = Math.round((detail.confirmed_area - areaUsage.contracted_area) * 100) / 100;
-            if (Math.abs(diff) <= 1e-3) return null;
-            return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-10 bg-stone-200" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `flex items-center gap-1.5 px-2.5 py-1.5 rounded-btn border text-xs font-medium ${diff > 0 ? "bg-orange-50 border-orange-200 text-orange-700" : "bg-sky-50 border-sky-200 text-sky-700"}`, children: diff > 0 ? `确权多 ${diff}亩` : `承包多 ${Math.abs(diff)}亩` })
-            ] });
-          })()
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-10 bg-stone-200" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-2xl", children: "📊" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-lg font-bold font-mono " + (effectiveIsOverdrawn ? "text-red-500" : "text-primary"), children: [
-              effectiveUsedArea.toFixed(1),
-              " 亩"
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: "已用面积" })
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-10 bg-stone-200" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-2xl", children: "✨" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-lg font-bold font-mono " + (effectiveRemainingArea < 0 ? "text-red-500" : "text-blue-600"), children: [
-              effectiveRemainingArea.toFixed(1),
-              " 亩"
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: "剩余可申请" })
-          ] })
-        ] }),
-        effectiveIsOverdrawn && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-10 bg-stone-200" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 bg-red-50 border border-red-200 rounded-btn px-3 py-1", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-lg", children: "⚠️" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-sm font-bold text-red-600", children: [
-                "超限 ",
-                effectiveOverdrawAmount.toFixed(1),
-                " 亩"
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-red-400", children: "请注意" })
-            ] })
-          ] })
-        ] })
-      ] }) }),
-      areaUsage && ((areaUsage.trust_out_area ?? 0) > 0 || (areaUsage.trust_in_area ?? 0) > 0) && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-main border-b border-border px-4 py-2", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 text-xs flex-wrap", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted font-medium", children: "🔄 流转面积" }),
-        (areaUsage.trust_out_area ?? 0) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-orange-500", children: [
-          "流出: ",
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono font-bold", children: [
-            "-",
-            (areaUsage.trust_out_area ?? 0).toFixed(2),
-            "亩"
-          ] })
-        ] }),
-        (areaUsage.trust_in_area ?? 0) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-orange-500", children: [
-          "流入: ",
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono font-bold", children: [
-            "+",
-            (areaUsage.trust_in_area ?? 0).toFixed(2),
-            "亩"
-          ] })
-        ] }),
-        areaUsage.cultivable_area != null && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-muted", children: [
-          "可耕种: ",
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono font-bold", children: [
-            areaUsage.cultivable_area.toFixed(2),
-            "亩"
-          ] })
-        ] })
-      ] }) }),
-      detail.is_manually_confirmed === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-blue-50 border-b border-blue-100 px-4 py-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 text-xs text-blue-700", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-lg", children: "✅" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", children: "已人工确认" }),
-        detail.manually_confirmed_at && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-blue-500", children: [
-          "· ",
-          new Date(detail.manually_confirmed_at).toLocaleString("zh-CN")
-        ] }),
-        detail.manually_confirmed_by && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-blue-500", children: [
-          "· 操作人: ",
-          detail.manually_confirmed_by
-        ] })
-      ] }) }),
-      areaUsage && areaUsage.season_breakdown && Object.keys(areaUsage.season_breakdown).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-main border-b border-border px-4 py-3", children: [
-        (() => {
-          const allYears = [...new Set(
-            (detail.app_summary || []).map((a) => a.apply_year)
-          )].sort((a, b) => b - a);
-          return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-2", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted font-medium", children: "📊 补贴面积使用情况" }),
-            allYears.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "select",
-              {
-                value: areaYear,
-                onChange: (e) => setAreaYear(Number(e.target.value)),
-                className: "border border-border rounded-btn px-2 py-1 text-xs outline-none focus:border-primary bg-main",
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 0, children: "全部年份" }),
-                  allYears.map((y2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: y2, children: y2 }, y2))
-                ]
-              }
-            ),
-            areaYear !== 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-primary", children: [
-              "已筛选至 ",
-              areaYear,
-              " 年度"
-            ] })
-          ] });
-        })(),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
-          Object.entries(areaUsage.season_breakdown).map(([season, usage]) => {
-            if (season === "临时") return null;
-            let yearUsedArea = 0;
-            let yearApplyArea = 0;
-            let yearPaymentArea = 0;
-            if (areaYear === 0) {
-              yearUsedArea = usage.used_area || 0;
-              yearApplyArea = usage.apply_area || 0;
-              yearPaymentArea = usage.payment_area || 0;
-            } else {
-              yearUsedArea = areaUsage.year_totals?.[String(areaYear)]?.[season] || 0;
-              yearApplyArea = areaUsage.year_apply_totals?.[String(areaYear)]?.[season] || 0;
-              yearPaymentArea = areaUsage.year_payment_totals?.[String(areaYear)]?.[season] || 0;
-            }
-            const seasonRef = usage.reference_area ?? areaUsage.season_reference?.[season] ?? areaUsage.cultivable_area ?? areaUsage.contracted_area;
-            const pct2 = seasonRef > 0 ? Math.round(yearUsedArea / seasonRef * 100) : 0;
-            const paymentPct = seasonRef > 0 ? Math.round(yearPaymentArea / seasonRef * 100) : 0;
-            const applyPct = seasonRef > 0 ? Math.round((yearApplyArea - yearPaymentArea) / seasonRef * 100) : 0;
-            const isOverdrawn = yearUsedArea > seasonRef + 1e-3;
-            return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-border rounded-btn overflow-hidden", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between px-3 py-2 " + (isOverdrawn ? "bg-red-50" : "bg-warm/30"), children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-bold " + (isOverdrawn ? "text-red-600" : "text-text-primary"), children: season }),
-                  isOverdrawn && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs bg-red-500  px-1.5 py-0.5 rounded", children: [
-                    "超 ",
-                    (yearUsedArea - seasonRef).toFixed(2),
-                    " 亩"
-                  ] })
-                ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-sm font-mono font-bold " + (isOverdrawn ? "text-red-500" : "text-primary"), children: [
-                    yearUsedArea.toFixed(2),
-                    " 亩"
-                  ] }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
-                    "/ ",
-                    seasonRef.toFixed(2),
-                    " 亩"
-                  ] }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
-                    "(",
-                    pct2,
-                    "%)"
-                  ] }),
-                  (areaUsage.trust_in_area ?? 0) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-orange-500 text-sm font-mono font-bold pl-2 border-l border-border/50" })
-                ] })
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-3 py-1.5 bg-main", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-warm/30 rounded-full h-1.5 overflow-hidden flex", children: [
-                  yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
-                    "div",
-                    {
-                      className: "h-full bg-emerald-400",
-                      style: { width: Math.min(100, paymentPct) + "%" }
-                    }
-                  ),
-                  yearApplyArea - yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
-                    "div",
-                    {
-                      className: "h-full bg-blue-400",
-                      style: { width: Math.min(100 - paymentPct, applyPct) + "%" }
-                    }
-                  )
-                ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3 mt-1 text-xs text-text-muted", children: [
-                  yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-1", children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-2 h-2 bg-emerald-400 rounded-full" }),
-                    "已发布 ",
-                    yearPaymentArea.toFixed(2),
-                    " 亩"
-                  ] }),
-                  yearApplyArea - yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-1", children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-2 h-2 bg-blue-400 rounded-full" }),
-                    "预申请 ",
-                    (yearApplyArea - yearPaymentArea).toFixed(2),
-                    " 亩"
-                  ] })
-                ] })
-              ] })
-            ] }, season);
-          }),
-          (() => {
-            const hasNoCalc = Object.keys(noCalcByYear).length > 0;
-            if (!hasNoCalc) return null;
-            const noCalcTotal = areaYear === 0 ? Object.values(noCalcByYear).reduce((s, v2) => s + v2, 0) : noCalcByYear[areaYear] || 0;
-            if (noCalcTotal <= 0) return null;
-            return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "border border-border rounded-btn overflow-hidden opacity-70", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between px-3 py-2 bg-warm/30", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-bold text-text-muted", children: "不占用补贴面积" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-sm font-mono text-text-muted", children: [
-                noCalcTotal.toFixed(2),
-                " 亩"
-              ] })
-            ] }) });
-          })()
-        ] })
-      ] }),
-      detail.trust_records && detail.trust_records.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-main border-b border-border px-4 py-3", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { open: true, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("summary", { className: "text-xs text-text-muted font-medium cursor-pointer mb-2", children: [
-          "🔄 流转记录 (",
-          detail.trust_records.length,
-          "条)"
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-1.5 max-h-48 overflow-y-auto", children: detail.trust_records.map((t2, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 text-xs py-1 border-b border-border/20 last:border-0", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `font-bold shrink-0 ${t2.direction === "流入" ? "text-emerald-600" : "text-orange-500"}`, children: t2.direction === "流入" ? "＋流入" : "－流出" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted shrink-0", children: t2.counterparty || "—" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-primary font-mono shrink-0", children: [
-            t2.area?.toFixed(2),
-            "亩"
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50 shrink-0", children: t2.trust_type }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-muted/50 shrink-0", children: [
-            t2.trust_year,
-            "年"
-          ] }),
-          t2.subsidy_arable === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-emerald-600 shrink-0", children: "耕地✓" }),
-          t2.subsidy_cash_crop === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-blue-600 shrink-0", children: "作物✓" }),
-          t2.end_date && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-muted/50 shrink-0", children: [
-            "至",
-            t2.end_date
-          ] }),
-          t2.note && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/40 truncate", children: t2.note })
-        ] }, t2.id || i)) })
-      ] }) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex border-b border-border bg-warm/30 items-center", children: [
-        [
-          { id: "members", label: `👥 成员 (${displayMembers.length})` },
-          { id: "subsidy", label: `💰 补贴记录 (${detail.app_summary.length})` }
-        ].map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            onClick: () => setDetailTab(t2.id),
-            className: `px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
-                ${detailTab === t2.id ? "border-emerald-600 text-primary bg-main" : "border-transparent text-text-muted hover:text-text-primary"}`,
-            children: t2.label
-          },
-          t2.id
-        )),
-        historyDateIsNull && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "ml-auto px-2 flex gap-1.5", children: detailTab === "members" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onOpenMemberImport, className: "text-xs border-2 border-green-500 bg-green-500 text-white px-2.5 py-1.5 rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-medium", children: "↑ 批量导入" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onOpenMemberAdd, className: "text-xs bg-primary  px-2.5 py-1.5 rounded-btn hover:bg-primary/90 transition-colors", children: "＋ 成员" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onOpenEvent, className: "text-xs border border-border text-text-primary px-2.5 py-1.5 rounded-btn hover:bg-warm/30 transition-colors", children: "＋ 补录" })
-        ] }) })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 bg-main border border-border rounded-card overflow-hidden shadow-card", children: [
-      detailTab === "members" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 grid gap-2", children: [
-        displayMembers.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center py-8 text-text-muted/50 text-sm", children: "暂无成员记录" }),
-        displayMembers.map((m2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `flex items-center gap-3 rounded-card px-4 py-3 border transition-all
-                ${m2.is_head ? "bg-primary/5 border-primary/20" : "bg-main border-border hover:border-border hover:bg-warm/30"}
-                ${m2.farmer_status !== 1 ? "opacity-60" : ""}`, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0
-                  ${m2.is_head ? "bg-primary/90 " : "bg-warm/30 text-text-muted"}`, children: m2.real_name.slice(-1) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 flex-wrap", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold text-text-primary", children: m2.real_name }),
-              m2.is_head === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: "户主", color: "green" }),
-              m2.relation && /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: m2.relation, color: "gray" }),
-              m2.farmer_status !== 1 && /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: FARMER_STATUS[m2.farmer_status]?.label ?? "异常", color: "red" }),
-              m2.restricted_identity === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: RESTRICTED_IDENTITY[1]?.label, color: "red" })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs text-text-muted mt-0.5", children: [
-              m2.gender === 1 ? "男" : "女",
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-2", children: m2.phone_masked || "—" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-2 font-mono", children: m2.id_card || m2.id_card_masked })
-            ] })
-          ] }),
-          historyDateIsNull && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1.5 shrink-0", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => onOpenFarmer(m2.id), className: "text-xs text-primary border border-primary/20 px-2 py-1 rounded-btn hover:bg-primary/5 transition-colors", children: "查看农户" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => onOpenMemberEdit(m2), className: "text-xs border border-border text-text-muted px-2 py-1 rounded-btn hover:border-border transition-colors", children: "编辑" }),
-            m2.is_head !== 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => onRemoveMember(m2), className: "text-xs border border-amber-200 text-amber-600 px-2 py-1 rounded-btn hover:bg-amber-50 transition-colors", children: "移出" })
-          ] })
-        ] }, m2.id))
-      ] }),
-      detailTab === "subsidy" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-        Object.keys(appsByYear).length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "py-10 text-center text-text-muted/50 text-sm", children: "暂无补贴记录" }),
-        Object.entries(appsByYear).sort((a, b) => Number(b[0]) - Number(a[0])).map(([yr, apps]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-5 py-2 bg-warm/30 border-b border-border/50 text-xs font-bold text-text-muted", children: [
-            yr,
-            "年度 · ",
-            apps.length,
-            "条 · 合计 ¥",
-            apps.reduce((s, a) => s + (a.actual_amount || 0), 0).toFixed(2)
-          ] }),
-          apps.map((a, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 px-5 py-2.5 border-b border-border/50 hover:bg-warm/30 transition-colors", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-2 flex-wrap w-16 shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm text-text-muted", children: a.farmer_name }) }),
-            (a.apply_village_name || a.apply_group_display) && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted font-mono bg-warm/30 px-1.5 py-0.5 rounded", children: [
-              a.apply_village_name,
-              a.apply_group_display
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm flex-1", children: a.subsidy_name }),
-            a.proxy_info && (() => {
-              const proxy = a.proxy_info;
-              const labelType = proxy.type;
-              const targetId = labelType === "受益" ? proxy.proxy_farmer_id : proxy.beneficiary_farmer_id;
-              const canClick = targetId != null;
-              return /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "group relative", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(
-                  "button",
-                  {
-                    onClick: (e) => {
-                      e.stopPropagation();
-                      if (canClick) onOpenFarmer(targetId);
-                    },
-                    className: canClick ? "cursor-pointer hover:opacity-80" : "",
-                    children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded border border-amber-200", children: labelType })
-                  }
-                ),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "left-0 top-full mt-1   text-xs px-2 py-1.5 rounded-btn shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10", children: [
-                  labelType === "受益" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                    "受益人: ",
-                    proxy.beneficiary_name,
-                    " → 代领人: ",
-                    proxy.proxy_name
-                  ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                    "代领人: ",
-                    proxy.proxy_name,
-                    " → 受益人: ",
-                    proxy.beneficiary_name
-                  ] }),
-                  proxy.remark && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-text-muted mt-0.5", children: proxy.remark }),
-                  canClick && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-primary/60 mt-0.5", children: "点击查看农户详情 →" })
-                ] })
-              ] });
-            })(),
-            (a.apply_area != null || a.apply_area_no_calc != null) && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted font-mono", title: `计入超限 ${a.apply_area || 0}亩 / 不计超限 ${a.apply_area_no_calc || 0}亩`, children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: Number(a.apply_area || 0).toFixed(2) }),
-              a.apply_area_no_calc ? /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-muted/50", children: [
-                "+",
-                Number(a.apply_area_no_calc).toFixed(2)
-              ] }) : null,
-              "亩"
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-mono font-bold text-primary", children: a.actual_amount ? fmt$2(a.actual_amount) : "—" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: PAY_STATUS[a.pay_status]?.label || "—", color: PAY_STATUS[a.pay_status]?.color }),
-            onNavigateToProject && a.subsidy_type_id && /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "button",
-              {
-                onClick: () => onNavigateToProject(a.subsidy_type_id, a.farmer_name),
-                className: "text-xs text-blue-600 border border-blue-200 px-2 py-1 rounded-btn hover:bg-blue-50 whitespace-nowrap shrink-0",
-                children: "↗ 查看明细"
-              }
-            )
-          ] }, i))
-        ] }, yr))
-      ] })
-    ] })
-  ] });
 }
 function Modal({ open, title, onClose, onConfirm, confirmText = "保存", width = 560, children }) {
   reactExports.useEffect(() => {
@@ -43445,33 +42703,1544 @@ function EditHouseholdForm({ open, editForm, groups, onSubmit, onClose, setEditF
     ] })
   ] }) });
 }
-function FarmersPage() {
-  const { toast, show } = useToast();
-  const [searchParams, setSearchParams] = useSearchParams();
+function FarmersTab(props) {
+  const { show, groups, villages, setGroups, yearFilter, activeTab, onSwitchTab, updateUrl, initialFarmerId } = props;
   const navigate = useNavigate();
-  const getInitialLeftTab = () => {
-    const tab = searchParams.get("tab");
-    return tab === "farmers" ? "farmers" : "households";
-  };
-  const getInitialFarmerId = () => {
-    const id2 = searchParams.get("farmerId");
-    return id2 ? Number(id2) : null;
-  };
-  const getInitialHouseholdId = () => {
-    const id2 = searchParams.get("householdId");
-    return id2 ? Number(id2) : null;
-  };
-  const getInitialYear = () => {
-    const y2 = searchParams.get("year");
-    return y2 ? Number(y2) : (/* @__PURE__ */ new Date()).getFullYear();
-  };
-  const [leftTab, setLeftTab] = reactExports.useState(getInitialLeftTab);
   const [farmerList, setFarmerList] = reactExports.useState([]);
   const [farmerTotal, setFarmerTotal] = reactExports.useState(0);
   const [farmerPage, setFarmerPage] = reactExports.useState(1);
   const [farmerLoading, setFarmerLoading] = reactExports.useState(false);
   const [selectedFarmer, setSelectedFarmer] = reactExports.useState(null);
   const [selectedFarmerHousehold, setSelectedFarmerHousehold] = reactExports.useState(null);
+  const [search, setSearch] = reactExports.useState("");
+  const [villageFilter, setVillageFilter] = reactExports.useState("");
+  const [historyEventId, setHistoryEventId] = reactExports.useState(null);
+  const [historyDates, setHistoryDates] = reactExports.useState([]);
+  const [snapshotData, setSnapshotData] = reactExports.useState(null);
+  const [historyLoading, setHistoryLoading] = reactExports.useState(false);
+  const [expandedYears, setExpandedYears] = reactExports.useState(/* @__PURE__ */ new Set());
+  const [events, setEvents] = reactExports.useState([]);
+  const [detailTab, setDetailTab] = reactExports.useState("members");
+  const [createFarmerOpen, setCreateFarmerOpen] = reactExports.useState(false);
+  const [createFarmerForm, setCreateFarmerForm] = reactExports.useState({ real_name: "", id_card: "", gender: 1, phone: "", village_name: "", group_no: "", address: "", contract_area: "", remark: "" });
+  const [memberAddOpen, setMemberAddOpen] = reactExports.useState(false);
+  const [memberEditTarget, setMemberEditTarget] = reactExports.useState(null);
+  const [memberForm, setMemberForm] = reactExports.useState({ real_name: "", id_card: "", gender: "1", relation: "成员", is_head: false, phone: "", bank_card: "", bank_name: "", farmer_status: "1", restricted_identity: "0", event_date: "", village_id: 0, group_no: 1, village_name: "", group_name: "" });
+  const [memberImportOpen, setMemberImportOpen] = reactExports.useState(false);
+  const [splitOpen, setSplitOpen] = reactExports.useState(false);
+  const [splitStep, setSplitStep] = reactExports.useState(1);
+  const [splitSelected, setSplitSelected] = reactExports.useState([]);
+  const [splitNewHead, setSplitNewHead] = reactExports.useState(null);
+  const [splitForm, setSplitForm] = reactExports.useState({ household_name: "", split_year: String((/* @__PURE__ */ new Date()).getFullYear()), split_date: "", new_land_area: "", origin_land_area: "", description: "", evidence_type: "", evidence_note: "" });
+  const [eventOpen, setEventOpen] = reactExports.useState(false);
+  const [eventForm, setEventForm] = reactExports.useState({ event_type: "REMARK", event_year: String((/* @__PURE__ */ new Date()).getFullYear()), event_date: "", description: "", evidence_type: "NONE", evidence_note: "" });
+  const [editOpen, setEditOpen] = reactExports.useState(false);
+  const [editForm, setEditForm] = reactExports.useState({ household_name: "", contract_area: "", village_id: 0, group_no: 1, address: "", remark: "" });
+  const [importOpen, setImportOpen] = reactExports.useState(false);
+  const [templates, setTemplates] = reactExports.useState([]);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = reactExports.useState(false);
+  const [deleteTarget, setDeleteTarget] = reactExports.useState(null);
+  const [deleteLoading, setDeleteLoading] = reactExports.useState(false);
+  const [manualConfirmOpen, setManualConfirmOpen] = reactExports.useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = reactExports.useState(false);
+  const [confirmForm, setConfirmForm] = reactExports.useState({ operator: "", remark: "" });
+  const getHistoryDateByEventId = (eventId) => {
+    if (!eventId) return null;
+    const event = historyDates.find((e) => e.event_id === eventId);
+    return event?.date || null;
+  };
+  const getFirstEventByDate = (date) => {
+    if (!date) return null;
+    return historyDates.find((e) => e.date === date) || null;
+  };
+  const loadFarmers = reactExports.useCallback(async () => {
+    setFarmerLoading(true);
+    try {
+      const p2 = { page: farmerPage, page_size: 20 };
+      if (search) p2.search = search;
+      if (villageFilter) p2.village_name = villageFilter;
+      const r2 = await getFarmers(p2);
+      setFarmerList(r2.items);
+      setFarmerTotal(r2.total);
+    } finally {
+      setFarmerLoading(false);
+    }
+  }, [farmerPage, search, villageFilter]);
+  reactExports.useEffect(() => {
+    loadFarmers();
+  }, [loadFarmers]);
+  reactExports.useEffect(() => {
+    const t2 = setTimeout(() => {
+      setFarmerPage(1);
+    }, 350);
+    return () => clearTimeout(t2);
+  }, [search]);
+  reactExports.useEffect(() => {
+    getExcelTemplates("FARMER").then(setTemplates).catch(() => {
+    });
+  }, []);
+  reactExports.useEffect(() => {
+    if (initialFarmerId) {
+      openFarmer(initialFarmerId, true);
+    }
+  }, []);
+  const openFarmer = async (farmerId, skipUrlUpdate = false) => {
+    try {
+      const f2 = await getFarmer(farmerId);
+      setSelectedFarmer(f2);
+      setHistoryEventId(null);
+      setSnapshotData(null);
+      setEvents([]);
+      if (f2.household_id) {
+        try {
+          const hh2 = await getHouseholdDetail(f2.household_id, yearFilter);
+          setSelectedFarmerHousehold(hh2);
+          await loadHouseholdHistoryDates(f2.household_id);
+        } catch {
+          setSelectedFarmerHousehold(null);
+          setHistoryDates([]);
+        }
+      } else {
+        setSelectedFarmerHousehold(null);
+        setHistoryDates([]);
+      }
+      if (!skipUrlUpdate) {
+        updateUrl({ tab: "farmers", farmerId, householdId: null });
+      }
+    } catch (e) {
+      show(e.message, "err");
+    }
+  };
+  const loadHouseholdHistoryDates = reactExports.useCallback(async (householdId) => {
+    try {
+      const hd2 = await getHouseholdHistoryDates(householdId);
+      setHistoryDates(hd2.events);
+      const firstReal = hd2.events.find((e) => e.event_type !== "ORIGINAL");
+      if (firstReal) setExpandedYears(/* @__PURE__ */ new Set([firstReal.event_year]));
+    } catch {
+      setHistoryDates([]);
+    }
+  }, []);
+  const refreshDetail = async () => {
+    if (selectedFarmer?.household_id) {
+      try {
+        const hh2 = await getHouseholdDetail(selectedFarmer.household_id, yearFilter);
+        setSelectedFarmerHousehold(hh2);
+      } catch {
+        setSelectedFarmerHousehold(null);
+      }
+    }
+  };
+  const loadEvents = reactExports.useCallback(async () => {
+    const hhId = selectedFarmerHousehold?.id;
+    if (!hhId) return;
+    const r2 = await getHouseholdEvents(hhId);
+    setEvents(r2);
+  }, [selectedFarmerHousehold?.id]);
+  reactExports.useEffect(() => {
+    if (selectedFarmerHousehold) loadEvents();
+  }, [selectedFarmerHousehold?.id, loadEvents]);
+  const loadSnapshotAt = async (date, householdId, eventId) => {
+    const hhId = householdId ?? selectedFarmerHousehold?.id;
+    if (!hhId) return;
+    setHistoryLoading(true);
+    try {
+      let snap;
+      if (eventId !== void 0) {
+        snap = await getHouseholdSnapshotByEvent(hhId, eventId);
+        setHistoryEventId(eventId);
+      } else {
+        snap = await getHouseholdSnapshotAt(hhId, date);
+        const ev = getFirstEventByDate(date);
+        setHistoryEventId(ev?.event_id ?? null);
+      }
+      setSnapshotData(snap);
+    } catch (e) {
+      show(e.message, "err");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+  const exitHistory = () => {
+    setHistoryEventId(null);
+    setSnapshotData(null);
+  };
+  const toggleYear = (yr) => {
+    setExpandedYears((prev) => {
+      const next = new Set(prev);
+      if (next.has(yr)) next.delete(yr);
+      else next.add(yr);
+      return next;
+    });
+  };
+  const submitCreateFarmer = async () => {
+    if (!createFarmerForm.real_name.trim()) return show("请填写姓名", "err");
+    if (!createFarmerForm.id_card.trim()) return show("请填写身份证号", "err");
+    if (!createFarmerForm.village_name.trim()) return show("请选择所在村", "err");
+    if (!createFarmerForm.group_no) return show("请选择所在组", "err");
+    try {
+      const r2 = await createFarmer({
+        real_name: createFarmerForm.real_name,
+        id_card: createFarmerForm.id_card,
+        gender: createFarmerForm.gender,
+        phone: createFarmerForm.phone || void 0,
+        village_name: createFarmerForm.village_name,
+        group_no_str: createFarmerForm.group_no,
+        address: createFarmerForm.address || void 0,
+        land_area: createFarmerForm.contract_area ? Number(createFarmerForm.contract_area) : void 0,
+        farmer_status: 1,
+        remark: createFarmerForm.remark || void 0
+      });
+      show("✓ 农户创建成功");
+      setCreateFarmerOpen(false);
+      setCreateFarmerForm({ real_name: "", id_card: "", gender: 1, phone: "", village_name: "", group_no: "", address: "", contract_area: "", remark: "" });
+      loadFarmers();
+      openFarmer(r2.id, true);
+    } catch (e) {
+      show(e.message, "err");
+    }
+  };
+  const submitEdit = async () => {
+    const hhId = selectedFarmerHousehold?.id;
+    if (!hhId) return;
+    await updateHousehold(hhId, {
+      household_name: editForm.household_name,
+      contract_area: Number(editForm.contract_area) || void 0,
+      village_id: editForm.village_id || void 0,
+      group_no: editForm.group_no || void 0,
+      address: editForm.address || void 0,
+      remark: editForm.remark || void 0
+    });
+    show("✓ 已更新");
+    setEditOpen(false);
+    refreshDetail();
+  };
+  const submitMember = async () => {
+    const hhId = selectedFarmerHousehold?.id;
+    if (!hhId) return;
+    if (!memberForm.real_name.trim()) return show("请填写姓名", "err");
+    if (!memberEditTarget && !memberForm.id_card.trim()) return show("请填写身份证号", "err");
+    try {
+      if (memberEditTarget) {
+        await updateHouseholdMember(hhId, memberEditTarget.id, {
+          real_name: memberForm.real_name,
+          relation: memberForm.relation,
+          is_head: memberForm.is_head ? 1 : 0,
+          phone: memberForm.phone || void 0,
+          bank_card: memberForm.bank_card || void 0,
+          bank_name: memberForm.bank_name || void 0,
+          farmer_status: Number(memberForm.farmer_status),
+          restricted_identity: Number(memberForm.restricted_identity) || 0,
+          event_date: memberForm.event_date || void 0,
+          village_id: memberForm.village_id || void 0,
+          group_no: memberForm.group_no || void 0
+        });
+        show("✓ 成员信息已更新");
+      } else {
+        await addHouseholdMember(hhId, {
+          real_name: memberForm.real_name,
+          id_card: memberForm.id_card,
+          gender: Number(memberForm.gender),
+          relation: memberForm.relation,
+          is_head: memberForm.is_head ? 1 : 0,
+          phone: memberForm.phone || void 0,
+          bank_card: memberForm.bank_card || void 0,
+          bank_name: memberForm.bank_name || void 0,
+          farmer_status: 1,
+          restricted_identity: Number(memberForm.restricted_identity) || 0
+        });
+        show("✓ 成员已添加");
+      }
+      setMemberAddOpen(false);
+      setMemberEditTarget(null);
+      refreshDetail();
+    } catch (e) {
+      show(e.message, "err");
+    }
+  };
+  const openMemberEdit = (m2) => {
+    setMemberEditTarget(m2);
+    const hh2 = selectedFarmerHousehold;
+    const hm = m2;
+    const effVid = hm.own_village_id ?? hh2?.village_id;
+    const effGno = hm.own_group_no ?? hh2?.group_no;
+    const v2 = groups.find((g2) => g2.village_id === effVid);
+    const g = groups.find((g2) => g2.village_id === effVid && g2.group_no === effGno);
+    setMemberForm({
+      real_name: m2.real_name,
+      id_card: "",
+      gender: String(m2.gender),
+      relation: m2.relation || "成员",
+      is_head: m2.is_head === 1,
+      phone: "",
+      bank_card: "",
+      bank_name: "",
+      farmer_status: String(m2.farmer_status),
+      restricted_identity: String(m2.restricted_identity ?? 0),
+      event_date: "",
+      village_id: effVid ?? 0,
+      group_no: effGno ?? 1,
+      village_name: v2?.village_name ?? "",
+      group_name: g ? g.full_name.replace(g.village_name, "").replace("村", "") : `第${effGno ?? 1}组`
+    });
+    setMemberAddOpen(true);
+  };
+  const MEMBER_IMPORT_ALIAS = {
+    "身份证号*": "id_card",
+    "身份证号": "id_card",
+    "姓名*": "real_name",
+    "姓名": "real_name",
+    "是否户主": "is_head",
+    "与户主关系": "relation",
+    "手机号": "phone",
+    "银行卡号": "bank_card",
+    "开户行": "bank_name",
+    "状态": "farmer_status"
+  };
+  const handleMemberImport = async (rows) => {
+    const hhId = selectedFarmerHousehold?.id;
+    if (!hhId) return { created: 0, skipped: 0, errors: [] };
+    const mappedRows = rows.map((row) => {
+      const mapped = {};
+      for (const [key, val] of Object.entries(row)) {
+        const apiField = MEMBER_IMPORT_ALIAS[key] || key;
+        mapped[apiField] = val;
+      }
+      return mapped;
+    });
+    const res = await batchImportHouseholdMembers(hhId, mappedRows);
+    show(`✓ 新增 ${res.created} 条${res.skipped > 0 ? `，跳过 ${res.skipped} 条` : ""}`);
+    refreshDetail();
+    return res;
+  };
+  const submitSplit = async () => {
+    const hhId = selectedFarmerHousehold?.id;
+    if (!hhId || splitSelected.length === 0) return;
+    const members = selectedFarmerHousehold?.members || [];
+    let actualHeadId = splitNewHead;
+    let actualHouseholdName = splitForm.household_name;
+    if (!actualHeadId) {
+      actualHeadId = splitSelected[0];
+      const defaultHeadName = members.find((m2) => m2.id === actualHeadId)?.real_name || "";
+      if (!actualHouseholdName.trim()) {
+        actualHouseholdName = defaultHeadName + "户";
+      }
+      const confirmed = window.confirm(
+        `未选择新户户主，将默认选择「${defaultHeadName}」作为新户户主，户名为「${actualHouseholdName}」。
+
+确认继续吗？`
+      );
+      if (!confirmed) return;
+    }
+    if (!actualHouseholdName.trim()) return show("请填写新家庭户名称", "err");
+    try {
+      const r2 = await splitHousehold(hhId, {
+        split_year: Number(splitForm.split_year),
+        split_date: splitForm.split_date || null,
+        new_household_name: actualHouseholdName,
+        member_ids: splitSelected,
+        new_head_id: actualHeadId,
+        new_land_area: splitForm.new_land_area ? Number(splitForm.new_land_area) : null,
+        origin_land_area: splitForm.origin_land_area ? Number(splitForm.origin_land_area) : null,
+        description: splitForm.description || `分户：${splitSelected.length}名成员独立组建「${actualHouseholdName}」`,
+        evidence_type: splitForm.evidence_type || null,
+        evidence_note: splitForm.evidence_note || null
+      });
+      show(`✓ 分户成功，新户ID: ${r2.new_household_id}`);
+      setSplitOpen(false);
+      setSplitStep(1);
+      setSplitSelected([]);
+      setSplitNewHead(null);
+      refreshDetail();
+    } catch (e) {
+      show(e.message, "err");
+    }
+  };
+  const submitEvent = async () => {
+    const hhId = selectedFarmerHousehold?.id;
+    if (!hhId) return;
+    if (!eventForm.description.trim()) return show("请填写事件描述", "err");
+    await addHouseholdEvent(hhId, { ...eventForm, event_year: Number(eventForm.event_year) });
+    show("✓ 事件已记录");
+    setEventOpen(false);
+    loadEvents();
+  };
+  const handleManualConfirm = async () => {
+    const hhId = selectedFarmerHousehold?.id;
+    if (!hhId) return;
+    try {
+      await manualConfirmHousehold(hhId, {
+        operator: confirmForm.operator || void 0,
+        remark: confirmForm.remark || void 0
+      });
+      show("✓ 家庭户信息已确认");
+      setManualConfirmOpen(false);
+      setConfirmForm({ operator: "", remark: "" });
+      await refreshDetail();
+      await loadHouseholdHistoryDates(hhId);
+    } catch (e) {
+      show(e.message, "err");
+    }
+  };
+  const handleCancelConfirm = async () => {
+    const hhId = selectedFarmerHousehold?.id;
+    if (!hhId) return;
+    try {
+      await cancelManualConfirm(hhId, {
+        operator: confirmForm.operator || void 0,
+        remark: confirmForm.remark || void 0
+      });
+      show("✓ 已取消人工确认");
+      setCancelConfirmOpen(false);
+      setConfirmForm({ operator: "", remark: "" });
+      await refreshDetail();
+      await loadHouseholdHistoryDates(hhId);
+    } catch (e) {
+      show(e.message, "err");
+    }
+  };
+  const handleDeleteHousehold = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deleteHousehold(deleteTarget.id);
+      show(`家庭户「${deleteTarget.household_name}」已删除`, "ok");
+      setDeleteConfirmOpen(false);
+      setDeleteTarget(null);
+      if (selectedFarmerHousehold?.id === deleteTarget.id) {
+        setSelectedFarmerHousehold(null);
+      }
+    } catch (e) {
+      show(e.message, "err");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+  const handleImport = async (rows, _mapping, overwrite) => {
+    const toCreate = [];
+    const formatErrors = [];
+    rows.forEach((row, i) => {
+      const name = String(row["real_name"] || row["姓名*"] || row["姓名"] || "").trim();
+      const idCard = String(row["id_card"] || row["身份证号*"] || row["身份证号"] || "").trim();
+      if (!name || !idCard) {
+        formatErrors.push(`第${i + 2}行：姓名或身份证号为空`);
+        return;
+      }
+      const vn = String(row["village_name"] || row["所在村*"] || row["所在村"] || "").trim();
+      const gn = String(row["group_no"] || row["所在组*"] || row["所在组"] || "").trim();
+      if (!vn || !gn) {
+        formatErrors.push(`第${i + 2}行 ${name}：请填写所在村和所在组`);
+        return;
+      }
+      const info = parseIdCardInfo(idCard);
+      const statusMap = { "在册": 1, "注销": 2, "迁出": 3, "死亡": 4 };
+      const rawStatus = String(row["farmer_status"] || row["状态"] || "").trim();
+      toCreate.push({
+        real_name: name,
+        id_card: idCard,
+        gender: info?.gender ?? (String(row["gender"] || row["性别"] || "").includes("女") ? 2 : 1),
+        village_name: vn,
+        group_no: gn,
+        phone: String(row["phone"] || row["手机号"] || "").trim() || void 0,
+        bank_card: String(row["bank_card"] || row["银行卡号"] || "").trim() || void 0,
+        bank_name: String(row["bank_name"] || row["开户行"] || "").trim() || void 0,
+        address: String(row["address"] || row["地址"] || "").trim() || void 0,
+        land_area: Number(row["land_area"] || row["承包土地面积"]) || void 0,
+        farmer_status: statusMap[rawStatus] ?? 1
+      });
+    });
+    if (formatErrors.length > 0 && toCreate.length === 0) return { created: 0, skipped: 0, errors: formatErrors };
+    const res = await batchImportFarmers(toCreate, overwrite ?? false);
+    getVillageGroups().then(setGroups);
+    const allErrors = [...formatErrors, ...res.errors || []];
+    if (res.skipped > 0) allErrors.push(`已跳过 ${res.skipped} 条重复身份证（未开启覆盖）`);
+    loadFarmers();
+    return { ...res, errors: allErrors };
+  };
+  const detectExcelColumns$1 = async (columns, sampleRows) => {
+    try {
+      const raw = await detectExcelColumns(columns, "FARMER", sampleRows);
+      const cols = (raw.columns || []).map((d) => ({
+        excel_column: d.excel_column,
+        suggested_field: d.suggested_field,
+        confidence: d.confidence ?? d.suggested_confidence ?? 0,
+        alternatives: d.alternatives || []
+      }));
+      return { columns: cols, recommended_templates: raw.recommended_templates || [] };
+    } catch {
+      return { columns: columns.map((c) => ({ excel_column: c, suggested_field: null, confidence: 0, alternatives: [] })), recommended_templates: [] };
+    }
+  };
+  const saveColumnMappingTemplate = async (data) => {
+    const result = await saveExcelTemplate({ ...data, business_type: "FARMER" });
+    getExcelTemplates("FARMER").then(setTemplates).catch(() => {
+    });
+    return result;
+  };
+  const exportCurrentList = async () => {
+    const params = { page: 1, page_size: 5e3 };
+    if (search) params.search = search;
+    if (villageFilter) params.village_name = villageFilter;
+    const res = await getFarmers(params);
+    const rows = res.items.map((f2) => ({
+      "姓名": f2.real_name,
+      "身份证号": f2.id_card_masked,
+      "性别": f2.gender === 1 ? "男" : "女",
+      "所在村组": f2.village_full_name,
+      "手机号": f2.phone_masked || "",
+      "状态": FARMER_STATUS[f2.farmer_status]?.label ?? "未知"
+    }));
+    const ws = utils.json_to_sheet(rows);
+    ws["!cols"] = [12, 20, 6, 20, 14, 8].map((w2) => ({ wch: w2 }));
+    const wb2 = utils.book_new();
+    utils.book_append_sheet(wb2, ws, "农户列表");
+    const date = (/* @__PURE__ */ new Date()).toLocaleDateString("zh-CN").replace(/\//g, "");
+    writeFileSync(wb2, `农户列表_${date}.xlsx`);
+    show(`✓ 已导出 ${rows.length} 条记录`);
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-[32%] shrink-0 flex flex-col sticky top-[88px] self-start", style: { maxHeight: "calc(100vh - 104px)" }, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex mb-4 bg-warm/50 rounded-card p-1.5 shadow-card", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            onClick: () => onSwitchTab("households"),
+            className: `flex-1 py-2.5 text-sm font-medium rounded-btn transition-all
+              ${activeTab === "households" ? "bg-white text-primary shadow-card" : "text-text-muted hover:text-text-primary hover:bg-warm/30"}`,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "household", size: 16, className: "inline mr-1.5" }),
+              "家庭户"
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            onClick: () => onSwitchTab("farmers"),
+            className: `flex-1 py-2.5 text-sm font-medium rounded-btn transition-all
+              ${activeTab === "farmers" ? "bg-white text-primary shadow-card" : "text-text-muted hover:text-text-primary hover:bg-warm/30"}`,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "person", size: 16, className: "inline mr-1.5" }),
+              "农户"
+            ]
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 mb-3 flex-wrap", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            value: search,
+            onChange: (e) => setSearch(e.target.value),
+            placeholder: "搜索农户姓名或身份证…",
+            className: "flex-1 min-w-32 border border-border rounded-btn px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white shadow-card transition-all"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "select",
+          {
+            value: villageFilter,
+            onChange: (e) => {
+              setVillageFilter(e.target.value);
+              setFarmerPage(1);
+            },
+            className: "border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部村庄" }),
+              villages.map((v2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: v2, children: v2 }, v2))
+            ]
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => setCreateFarmerOpen(true), className: "px-4 py-2.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "create", size: 14, className: "inline mr-1" }),
+          "新建农户"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => setImportOpen(true), className: "px-4 py-2.5 text-sm border border-primary/30 text-primary bg-primary/[0.03] rounded-btn hover:bg-primary/10 shadow-card hover:shadow-card-hover transition-all font-medium", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "import", size: 14, className: "inline mr-1" }),
+          "导入农户"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: exportCurrentList, className: "px-4 py-2.5 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30 shadow-card hover:shadow-card-hover transition-all font-medium", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "export", size: 14, className: "inline mr-1" }),
+          "导出"
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 bg-warm-100 border border-border rounded-card overflow-hidden shadow-card flex flex-col min-h-0", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 overflow-y-auto", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          FarmerList,
+          {
+            farmers: farmerList,
+            loading: farmerLoading,
+            selectedId: selectedFarmer?.id ?? null,
+            onSelect: openFarmer
+          }
+        ) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-5 py-3 border-t border-border bg-warm/30 flex justify-between items-center text-meta text-text-muted shrink-0", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-medium", children: [
+            "共",
+            farmerTotal,
+            "人"
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1 items-center", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: farmerPage <= 1, onClick: () => setFarmerPage((p2) => p2 - 1), className: "px-3 py-1.5 border border-border rounded-btn disabled:opacity-40 hover:bg-warm/30 transition-colors disabled:hover:bg-white", children: "‹" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "px-2 font-mono text-sm", children: [
+              farmerPage,
+              "/",
+              Math.max(1, Math.ceil(farmerTotal / 20))
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: farmerPage * 20 >= farmerTotal, onClick: () => setFarmerPage((p2) => p2 + 1), className: "px-3 py-1.5 border border-border rounded-btn disabled:opacity-40 hover:bg-warm/30 transition-colors disabled:hover:bg-white", children: "›" })
+          ] })
+        ] })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 min-w-0 flex flex-col", children: selectedFarmer ? (
+      /* 选中农户：上半部分个人信息 + 下半部分家庭户信息 */
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 flex flex-col min-h-0", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          FarmerDetail,
+          {
+            selectedFarmer,
+            showAppSummary: true,
+            appSummary: selectedFarmerHousehold?.app_summary?.filter((a) => a.farmer_id === selectedFarmer.id),
+            groups,
+            onUpdate: () => openFarmer(selectedFarmer.id),
+            onNavigateToProject: (typeId, farmerName) => navigate(`/projects?subsidy_type_id=${typeId}&farmer_name=${encodeURIComponent(farmerName)}`)
+          }
+        ),
+        selectedFarmerHousehold && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-4 flex-1 min-h-0", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            HistorySidebar,
+            {
+              householdId: selectedFarmerHousehold.id,
+              historyEventId,
+              historyDates,
+              expandedYears,
+              onExitHistory: exitHistory,
+              onToggleYear: toggleYear,
+              onLoadSnapshotAt: loadSnapshotAt
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 min-h-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+            FarmerHouseholdDetail,
+            {
+              selectedFarmerHousehold,
+              historyEventId,
+              snapshotData,
+              historyDates,
+              historyLoading,
+              detailTab,
+              setDetailTab,
+              onExitHistory: exitHistory,
+              onLoadSnapshotAt: loadSnapshotAt,
+              selectedFarmerId: selectedFarmer?.id ?? null,
+              groups,
+              onOpenMemberEdit: openMemberEdit,
+              onOpenFarmer: openFarmer,
+              onOpenMemberAdd: () => {
+                const v2 = groups.find((g2) => g2.village_id === selectedFarmerHousehold?.village_id);
+                const g = groups.find((g2) => g2.village_id === selectedFarmerHousehold?.village_id && g2.group_no === selectedFarmerHousehold?.group_no);
+                setMemberForm({ real_name: "", id_card: "", gender: "1", relation: "成员", is_head: false, phone: "", bank_card: "", bank_name: "", farmer_status: "1", restricted_identity: "0", event_date: "", village_id: selectedFarmerHousehold?.village_id ?? 0, group_no: selectedFarmerHousehold?.group_no ?? 1, village_name: v2?.village_name ?? "", group_name: g ? g.full_name.replace(g.village_name, "").replace("村", "") : `第${selectedFarmerHousehold?.group_no ?? 1}组` });
+                setMemberAddOpen(true);
+              },
+              onOpenMemberImport: () => setMemberImportOpen(true),
+              onOpenEvent: () => setEventOpen(true),
+              getHistoryDateByEventId,
+              memberForm,
+              setMemberForm,
+              memberEditTarget
+            }
+          ) })
+        ] }),
+        !selectedFarmerHousehold && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 bg-white border border-border rounded-card flex items-center justify-center text-text-muted/50 shadow-card", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "household", size: 40, className: "mx-auto mb-3 text-border" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm", children: "该农户暂未关联家庭户" })
+        ] }) })
+      ] })
+    ) : (
+      /* 未选中任何内容 */
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 bg-white border border-border rounded-card flex items-center justify-center shadow-card", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "person", size: 48, className: "mx-auto mb-4 text-border" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-base font-medium text-text-muted", children: "请从左侧选择农户查看详情" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm text-text-muted/50 mt-2", children: "支持搜索、筛选和批量操作" })
+      ] }) })
+    ) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      CreateFarmerForm,
+      {
+        open: createFarmerOpen,
+        villages,
+        createFarmerForm,
+        setCreateFarmerForm,
+        onSubmit: submitCreateFarmer,
+        onClose: () => setCreateFarmerOpen(false)
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      MemberForm,
+      {
+        open: memberAddOpen,
+        memberEditTarget,
+        memberForm,
+        setMemberForm,
+        groups,
+        onSubmit: submitMember,
+        onClose: () => {
+          setMemberAddOpen(false);
+          setMemberEditTarget(null);
+        },
+        showToast: show,
+        setGroups
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      EditHouseholdForm,
+      {
+        open: editOpen,
+        editForm,
+        groups,
+        onSubmit: submitEdit,
+        onClose: () => setEditOpen(false),
+        setEditForm
+      }
+    ),
+    selectedFarmerHousehold && /* @__PURE__ */ jsxRuntimeExports.jsx(
+      MemberImport,
+      {
+        open: memberImportOpen,
+        householdName: selectedFarmerHousehold.household_name || "",
+        onImport: handleMemberImport,
+        onSuccess: refreshDetail,
+        onClose: () => setMemberImportOpen(false)
+      }
+    ),
+    selectedFarmerHousehold && /* @__PURE__ */ jsxRuntimeExports.jsx(
+      SplitWizardForm,
+      {
+        open: splitOpen,
+        splitStep,
+        splitSelected,
+        splitNewHead,
+        splitForm,
+        members: selectedFarmerHousehold.members || [],
+        householdName: selectedFarmerHousehold.household_name,
+        setSplitStep,
+        setSplitSelected,
+        setSplitNewHead,
+        setSplitForm,
+        onSubmit: submitSplit,
+        onClose: () => setSplitOpen(false)
+      }
+    ),
+    selectedFarmerHousehold && /* @__PURE__ */ jsxRuntimeExports.jsx(
+      EventForm,
+      {
+        open: eventOpen,
+        eventForm,
+        setEventForm,
+        onSubmit: submitEvent,
+        onClose: () => setEventOpen(false)
+      }
+    ),
+    manualConfirmOpen && selectedFarmerHousehold && /* @__PURE__ */ jsxRuntimeExports.jsx(
+      ConfirmForm,
+      {
+        open: manualConfirmOpen,
+        title: "人工确认家庭户信息",
+        description: '确认后，该家庭户将标记为"已人工确认"，并记录历史快照。表示该家庭户的信息已经过人工核对无误。',
+        confirmForm,
+        setConfirmForm,
+        onSubmit: handleManualConfirm,
+        onClose: () => setManualConfirmOpen(false),
+        submitText: "确认",
+        type: "manual_confirm",
+        detail: selectedFarmerHousehold
+      }
+    ),
+    cancelConfirmOpen && selectedFarmerHousehold && /* @__PURE__ */ jsxRuntimeExports.jsx(
+      ConfirmForm,
+      {
+        open: cancelConfirmOpen,
+        title: "取消人工确认",
+        description: '取消后，该家庭户的"已人工确认"标记将被移除。此操作也会记录在历史事件中。',
+        confirmForm,
+        setConfirmForm,
+        onSubmit: handleCancelConfirm,
+        onClose: () => setCancelConfirmOpen(false),
+        submitText: "确认取消",
+        type: "cancel_confirm",
+        detail: selectedFarmerHousehold
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      DeleteConfirmForm,
+      {
+        open: deleteConfirmOpen,
+        deleteTarget,
+        loading: deleteLoading,
+        onSubmit: handleDeleteHousehold,
+        onClose: () => setDeleteConfirmOpen(false)
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      FarmerImport,
+      {
+        open: importOpen,
+        templates,
+        onClose: () => setImportOpen(false),
+        onDetectColumns: detectExcelColumns$1,
+        onSaveTemplate: saveColumnMappingTemplate,
+        onImport: handleImport,
+        onSuccess: () => loadFarmers()
+      }
+    )
+  ] });
+}
+function HouseholdList({
+  households,
+  loading,
+  selectedId,
+  mergeMode,
+  batchConfirmMode,
+  mergeSelected,
+  batchSelected,
+  mergeSelectedHouseholds,
+  onSelect,
+  onToggleMerge,
+  onToggleBatch
+}) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+    mergeMode && mergeSelectedHouseholds.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border-b-2 border-orange-tag/20 bg-orange-tag/5", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-1.5 text-xs text-orange-tag font-semibold border-b border-orange-tag/10 flex items-center gap-1", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "已选（搜索不影响）" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "bg-orange-tag/15 text-amber-800 rounded-full px-1.5 py-0.5 ml-1", children: mergeSelectedHouseholds.length })
+      ] }),
+      mergeSelectedHouseholds.map((h, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-4 py-2.5 border-b border-orange-tag/10 flex items-center gap-2.5 bg-orange-tag/5", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs font-bold px-1.5 py-0.5 rounded shrink-0 ${i === 0 ? "bg-primary text-white" : "bg-orange-tag/15 text-amber-800"}`, children: i === 0 ? "目标" : `被合并${i}` }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold text-sm text-text-primary truncate", children: h.household_name }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs text-text-muted", children: [
+            h.head_name,
+            " · ",
+            h.member_count ?? "?",
+            "人 · ",
+            h.village_full_name
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => onToggleMerge(h),
+            className: "shrink-0 text-text-muted hover:text-red-500 transition-colors text-lg leading-none px-1",
+            children: "×"
+          }
+        )
+      ] }, `pinned-${h.id}`))
+    ] }),
+    loading && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center py-12 text-text-muted/50", children: "加载中…" }),
+    !loading && households.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center py-12 text-text-muted/50 text-sm", children: "暂无数据" }),
+    households.map((h) => {
+      const isSelected = mergeSelected.includes(h.id);
+      const isBatchSelected = batchSelected.includes(h.id);
+      if (mergeMode && isSelected) return null;
+      if (batchConfirmMode) {
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "div",
+          {
+            className: `px-5 py-4 border-b border-border/50 transition-all
+                ${h.is_manually_confirmed === 1 ? "bg-warm/30 opacity-60" : "hover:bg-blue-50 cursor-pointer"}
+                ${isBatchSelected && h.is_manually_confirmed !== 1 ? "bg-blue-50 border-l-4 border-l-blue-500" : ""}`,
+            children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  type: "checkbox",
+                  checked: isBatchSelected,
+                  onChange: () => h.is_manually_confirmed !== 1 && onToggleBatch(h),
+                  disabled: h.is_manually_confirmed === 1,
+                  className: "w-4 h-4 text-blue-600 rounded disabled:opacity-40"
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2.5 mb-1.5", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold text-base text-text-primary", children: h.household_name }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20", children: h.household_code }),
+                  h.is_manually_confirmed === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full", children: "✓已确认" }),
+                  h.is_overdrawn && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full", children: "⚠️超领" })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 text-xs text-text-muted", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: h.head_name ? `户主:${h.head_name}` : "无户主" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "bg-warm/30 px-2 py-0.5 rounded", children: [
+                    h.member_count,
+                    "人"
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: h.contracted_area > 0 ? `${h.contracted_area}亩` : "—" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-auto truncate max-w-[180px]", children: h.village_full_name })
+                ] })
+              ] })
+            ] })
+          },
+          h.id
+        );
+      }
+      if (mergeMode) {
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "div",
+          {
+            onClick: () => onToggleMerge(h),
+            className: `px-5 py-4 border-b border-border/50 cursor-pointer transition-all
+                ${isSelected ? "border-l-4 border-l-amber-500 bg-orange-tag/5" : "hover:bg-warm/30"}
+                ${h.is_overdrawn && !isSelected ? "bg-red-50/40" : ""}`,
+            children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "input",
+                {
+                  type: "checkbox",
+                  checked: isSelected,
+                  onChange: () => onToggleMerge(h),
+                  className: "w-4 h-4 text-orange-tag rounded"
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2.5 mb-1.5", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold text-base text-text-primary", children: h.household_name }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20", children: h.household_code }),
+                  h.is_manually_confirmed === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full", children: "✓已确认" }),
+                  h.is_overdrawn && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full", children: "⚠️超领" })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 text-xs text-text-muted", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: h.head_name ? `户主:${h.head_name}` : "无户主" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "bg-warm/30 px-2 py-0.5 rounded", children: [
+                    h.member_count,
+                    "人"
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: h.contracted_area > 0 ? `${h.contracted_area}亩` : "—" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-auto truncate max-w-[180px]", children: h.village_full_name })
+                ] })
+              ] })
+            ] })
+          },
+          h.id
+        );
+      }
+      return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          onClick: () => onSelect(h.id),
+          className: `px-5 py-4 border-b border-border/50 cursor-pointer transition-all hover:bg-warm/30
+              ${selectedId === h.id ? "border-l-4 border-l-primary" : ""}
+              ${h.is_overdrawn ? "bg-red-50/40" : ""}`,
+          style: selectedId === h.id ? {
+            backgroundImage: "url(images/focus.png)",
+            backgroundSize: "cover",
+            backgroundPosition: "center"
+          } : void 0,
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2.5 mb-1.5", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold text-base text-text-primary", children: h.household_name }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20", children: h.household_code }),
+              h.is_manually_confirmed === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full", children: "✓已确认" }),
+              h.is_overdrawn && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full", children: "⚠️超领" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 text-xs text-text-muted", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: h.head_name ? `户主:${h.head_name}` : "无户主" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "bg-warm/30 px-2 py-0.5 rounded", children: [
+                h.member_count,
+                "人"
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: h.contracted_area > 0 ? `${h.contracted_area}亩` : "—" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-auto truncate max-w-[180px]", children: h.village_full_name })
+            ] })
+          ]
+        },
+        h.id
+      );
+    })
+  ] });
+}
+function HouseholdDetailContent({
+  detail,
+  detailTab,
+  setDetailTab,
+  areaYear,
+  setAreaYear,
+  historyDate,
+  historyEventId,
+  historyDates,
+  snapshotData,
+  events,
+  historyDateIsNull,
+  onOpenMemberImport,
+  onOpenMemberAdd,
+  onOpenEvent,
+  onOpenFarmer,
+  onOpenMemberEdit,
+  onRemoveMember,
+  onOpenEdit,
+  onOpenSplit,
+  canSplit,
+  onOpenManualConfirm,
+  onOpenCancelConfirm,
+  onDelete,
+  onNavigateToProject,
+  onRefreshCache,
+  refreshingCache
+}) {
+  const appsByYear = {};
+  detail.app_summary.forEach((a) => {
+    if (!appsByYear[a.apply_year]) appsByYear[a.apply_year] = [];
+    appsByYear[a.apply_year].push(a);
+  });
+  const noCalcByYear = {};
+  detail.app_summary.forEach((a) => {
+    const area = Number(a.apply_area_no_calc || 0);
+    if (area > 0) noCalcByYear[a.apply_year] = (noCalcByYear[a.apply_year] || 0) + area;
+  });
+  const displayMembers = historyDate !== null && snapshotData?.snapshot ? snapshotData.snapshot.members : detail.members;
+  const defaultAreaUsage = {
+    contracted_area: detail.contracted_area || 0,
+    trust_out_area: 0,
+    trust_in_area: 0,
+    trust_in_arable_area: 0,
+    trust_in_cash_crop_area: 0,
+    cultivable_area: detail.contracted_area || 0,
+    used_area: 0,
+    remaining_area: detail.contracted_area || 0,
+    is_overdrawn: false,
+    overdraw_amount: 0,
+    has_trust_data: false,
+    subsidy_breakdown: [],
+    season_reference: {},
+    season_breakdown: {},
+    year_totals: {},
+    year_apply_totals: {},
+    year_payment_totals: {}
+  };
+  const areaUsage = historyDate !== null && snapshotData?.snapshot ? { contracted_area: snapshotData.snapshot.contract_area, trust_out_area: 0, trust_in_area: 0, trust_in_arable_area: 0, trust_in_cash_crop_area: 0, cultivable_area: snapshotData.snapshot.contract_area, used_area: 0, remaining_area: snapshotData.snapshot.contract_area, is_overdrawn: false, overdraw_amount: 0, has_trust_data: false, subsidy_breakdown: [], season_reference: {}, season_breakdown: {}, year_totals: {}, year_apply_totals: {}, year_payment_totals: {} } : detail.area_usage || defaultAreaUsage;
+  const calcSeasonMax = (yt) => {
+    if (!yt || Object.keys(yt).length === 0) return 0;
+    return Math.max(...Object.values(yt).filter((v2) => v2 > 0), 0);
+  };
+  const effectiveUsedArea = areaYear > 0 && areaUsage.year_totals?.[String(areaYear)] ? calcSeasonMax(areaUsage.year_totals[String(areaYear)]) : areaUsage.used_area;
+  const effectiveRemainingArea = Math.max(0, (areaUsage.cultivable_area ?? areaUsage.contracted_area) - effectiveUsedArea);
+  const effectiveIsOverdrawn = areaYear > 0 && areaUsage.year_totals?.[String(areaYear)] ? Object.values(areaUsage.year_totals[String(areaYear)]).some((v2) => (areaUsage.cultivable_area ?? areaUsage.contracted_area) > 0 && v2 > (areaUsage.cultivable_area ?? areaUsage.contracted_area) + 1e-3) : areaUsage.is_overdrawn;
+  const effectiveOverdrawAmount = Math.max(0, effectiveUsedArea - (areaUsage.cultivable_area ?? areaUsage.contracted_area));
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0 flex flex-col", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-main border border-border rounded-card overflow-hidden shadow-card mb-3 shrink-0", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: "px-5 py-3.5 flex items-center gap-4 relative border-b border-emerald-100",
+          style: {
+            backgroundImage: "url(images/household.png)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat"
+          },
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-10 h-10 rounded-card bg-primary/10 flex items-center justify-center text-lg font-bold text-primary shrink-0", children: "🏠" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 mb-0.5 flex-wrap", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-base font-bold text-primary-50", children: detail.household_name }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted text-xs font-mono", children: detail.household_code }),
+                detail.is_manually_confirmed === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-blue-500  px-1.5 py-0.5 rounded", children: "✓ 已确认" }),
+                effectiveIsOverdrawn && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-red-500  px-1.5 py-0.5 rounded", children: "⚠️ 超领" }),
+                historyDate !== null && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-amber-500/80  px-1.5 py-0.5 rounded", children: "⏳ 快照" })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-text-muted text-xs", children: [
+                "📍 ",
+                detail.village_full_name,
+                detail.address && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-1 text-text-muted", children: detail.address })
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-right shrink-0 mr-2", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-lg font-bold font-mono text-primary-50", children: historyDate !== null && snapshotData?.snapshot ? snapshotData.snapshot.contract_area > 0 ? `${snapshotData.snapshot.contract_area}亩` : "未设置" : detail.contracted_area > 0 ? `${detail.contracted_area}亩` : "未设置" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-text-muted text-xs", children: "承包面积" })
+            ] }),
+            historyDateIsNull && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col gap-1.5 shrink-0", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: onOpenEdit,
+                  className: "text-xs bg-[#DAA550]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
+                  children: "✏️ 编辑"
+                }
+              ),
+              detail.is_manually_confirmed === 1 ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: onOpenCancelConfirm,
+                  className: "text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-1.5 rounded-btn font-medium transition-colors",
+                  children: "↩️ 取消确认"
+                }
+              ) : /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: onOpenManualConfirm,
+                  className: "text-xs bg-[#2E7A60]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
+                  children: "✓ 人工确认"
+                }
+              ),
+              canSplit && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: onOpenSplit,
+                  className: "text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1.5 rounded-btn font-medium transition-colors",
+                  children: "🔀 分户"
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: () => alert("导出功能开发中"),
+                  className: "text-xs bg-blue-500 text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
+                  children: "📥 导出补贴"
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs(
+                "button",
+                {
+                  onClick: () => onRefreshCache(detail.id),
+                  disabled: refreshingCache,
+                  className: "text-xs bg-[#4FA080]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+                  children: [
+                    refreshingCache ? "⏳" : "🔄",
+                    " 刷新缓存"
+                  ]
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: onDelete,
+                  className: "text-xs bg-[#C04848]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
+                  children: "🗑️ 删除"
+                }
+              )
+            ] })
+          ]
+        }
+      ),
+      historyEventId !== null && (() => {
+        const currentEvent = historyDates.find((e) => e.event_id === historyEventId);
+        if (currentEvent?.description) {
+          const cfg = EVENT_TYPE_CFG[currentEvent.event_type] || EVENT_TYPE_CFG.REMARK;
+          return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-warm/30 border-b border-border px-5 py-3", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-lg shrink-0", children: cfg.icon }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-1", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `text-xs px-2 py-0.5 rounded font-medium ${cfg.color}`, children: cfg.label }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: currentEvent.date || `${currentEvent.event_year}年` })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-text-primary", children: currentEvent.description })
+            ] })
+          ] }) });
+        }
+        return null;
+      })(),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-4 py-3 bg-gradient-to-b from-stone-50 to-white border-b border-border bg-primary-100", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-2xl", children: "👥" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-lg font-bold text-text-primary", children: displayMembers.length }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: "人口" })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-10 bg-stone-200" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-2xl", children: "📐" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-lg font-bold font-mono text-text-primary", children: [
+              areaUsage.contracted_area,
+              " 亩",
+              (areaUsage.trust_in_area ?? 0) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-orange-500 text-sm ml-1", children: [
+                "+",
+                (areaUsage.trust_in_area ?? 0).toFixed(2),
+                "亩"
+              ] }),
+              (areaUsage.trust_out_area ?? 0) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-orange-400 text-sm ml-1", children: [
+                "-",
+                (areaUsage.trust_out_area ?? 0).toFixed(2),
+                "亩"
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: areaUsage.cultivable_area != null && areaUsage.cultivable_area !== areaUsage.contracted_area ? `可耕${areaUsage.cultivable_area.toFixed(2)}亩` : "承包面积" })
+          ] })
+        ] }),
+        detail.confirmed_area != null && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-10 bg-stone-200" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-2xl", children: "📋" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-lg font-bold font-mono text-blue-700", children: [
+                detail.confirmed_area,
+                " 亩"
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: "确权面积" })
+            ] })
+          ] }),
+          (() => {
+            const diff = Math.round((detail.confirmed_area - areaUsage.contracted_area) * 100) / 100;
+            if (Math.abs(diff) <= 1e-3) return null;
+            return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-10 bg-stone-200" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `flex items-center gap-1.5 px-2.5 py-1.5 rounded-btn border text-xs font-medium ${diff > 0 ? "bg-orange-50 border-orange-200 text-orange-700" : "bg-sky-50 border-sky-200 text-sky-700"}`, children: diff > 0 ? `确权多 ${diff}亩` : `承包多 ${Math.abs(diff)}亩` })
+            ] });
+          })()
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-10 bg-stone-200" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-2xl", children: "📊" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-lg font-bold font-mono " + (effectiveIsOverdrawn ? "text-red-500" : "text-primary"), children: [
+              effectiveUsedArea.toFixed(1),
+              " 亩"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: "已用面积" })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-10 bg-stone-200" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-2xl", children: "✨" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-lg font-bold font-mono " + (effectiveRemainingArea < 0 ? "text-red-500" : "text-blue-600"), children: [
+              effectiveRemainingArea.toFixed(1),
+              " 亩"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-text-muted", children: "剩余可申请" })
+          ] })
+        ] }),
+        effectiveIsOverdrawn && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-px h-10 bg-stone-200" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 bg-red-50 border border-red-200 rounded-btn px-3 py-1", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-lg", children: "⚠️" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-sm font-bold text-red-600", children: [
+                "超限 ",
+                effectiveOverdrawAmount.toFixed(1),
+                " 亩"
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-red-400", children: "请注意" })
+            ] })
+          ] })
+        ] })
+      ] }) }),
+      areaUsage && ((areaUsage.trust_out_area ?? 0) > 0 || (areaUsage.trust_in_area ?? 0) > 0) && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-main border-b border-border px-4 py-2", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4 text-xs flex-wrap", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted font-medium", children: "🔄 流转面积" }),
+        (areaUsage.trust_out_area ?? 0) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-orange-500", children: [
+          "流出: ",
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono font-bold", children: [
+            "-",
+            (areaUsage.trust_out_area ?? 0).toFixed(2),
+            "亩"
+          ] })
+        ] }),
+        (areaUsage.trust_in_area ?? 0) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-orange-500", children: [
+          "流入: ",
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono font-bold", children: [
+            "+",
+            (areaUsage.trust_in_area ?? 0).toFixed(2),
+            "亩"
+          ] })
+        ] }),
+        areaUsage.cultivable_area != null && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-muted", children: [
+          "可耕种: ",
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-mono font-bold", children: [
+            areaUsage.cultivable_area.toFixed(2),
+            "亩"
+          ] })
+        ] })
+      ] }) }),
+      detail.is_manually_confirmed === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-blue-50 border-b border-blue-100 px-4 py-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 text-xs text-blue-700", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-lg", children: "✅" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium", children: "已人工确认" }),
+        detail.manually_confirmed_at && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-blue-500", children: [
+          "· ",
+          new Date(detail.manually_confirmed_at).toLocaleString("zh-CN")
+        ] }),
+        detail.manually_confirmed_by && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-blue-500", children: [
+          "· 操作人: ",
+          detail.manually_confirmed_by
+        ] })
+      ] }) }),
+      areaUsage && areaUsage.season_breakdown && Object.keys(areaUsage.season_breakdown).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-main border-b border-border px-4 py-3", children: [
+        (() => {
+          const allYears = [...new Set(
+            (detail.app_summary || []).map((a) => a.apply_year)
+          )].sort((a, b) => b - a);
+          return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted font-medium", children: "📊 补贴面积使用情况" }),
+            allYears.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "select",
+              {
+                value: areaYear,
+                onChange: (e) => setAreaYear(Number(e.target.value)),
+                className: "border border-border rounded-btn px-2 py-1 text-xs outline-none focus:border-primary bg-main",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 0, children: "全部年份" }),
+                  allYears.map((y2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: y2, children: y2 }, y2))
+                ]
+              }
+            ),
+            areaYear !== 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-primary", children: [
+              "已筛选至 ",
+              areaYear,
+              " 年度"
+            ] })
+          ] });
+        })(),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
+          Object.entries(areaUsage.season_breakdown).map(([season, usage]) => {
+            if (season === "临时") return null;
+            let yearUsedArea = 0;
+            let yearApplyArea = 0;
+            let yearPaymentArea = 0;
+            if (areaYear === 0) {
+              yearUsedArea = usage.used_area || 0;
+              yearApplyArea = usage.apply_area || 0;
+              yearPaymentArea = usage.payment_area || 0;
+            } else {
+              yearUsedArea = areaUsage.year_totals?.[String(areaYear)]?.[season] || 0;
+              yearApplyArea = areaUsage.year_apply_totals?.[String(areaYear)]?.[season] || 0;
+              yearPaymentArea = areaUsage.year_payment_totals?.[String(areaYear)]?.[season] || 0;
+            }
+            const seasonRef = usage.reference_area ?? areaUsage.season_reference?.[season] ?? areaUsage.cultivable_area ?? areaUsage.contracted_area;
+            const pct2 = seasonRef > 0 ? Math.round(yearUsedArea / seasonRef * 100) : 0;
+            const paymentPct = seasonRef > 0 ? Math.round(yearPaymentArea / seasonRef * 100) : 0;
+            const applyPct = seasonRef > 0 ? Math.round((yearApplyArea - yearPaymentArea) / seasonRef * 100) : 0;
+            const isOverdrawn = yearUsedArea > seasonRef + 1e-3;
+            return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "border border-border rounded-btn overflow-hidden", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between px-3 py-2 " + (isOverdrawn ? "bg-red-50" : "bg-warm/30"), children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-bold " + (isOverdrawn ? "text-red-600" : "text-text-primary"), children: season }),
+                  isOverdrawn && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs bg-red-500  px-1.5 py-0.5 rounded", children: [
+                    "超 ",
+                    (yearUsedArea - seasonRef).toFixed(2),
+                    " 亩"
+                  ] })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-sm font-mono font-bold " + (isOverdrawn ? "text-red-500" : "text-primary"), children: [
+                    yearUsedArea.toFixed(2),
+                    " 亩"
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
+                    "/ ",
+                    seasonRef.toFixed(2),
+                    " 亩"
+                  ] }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted", children: [
+                    "(",
+                    pct2,
+                    "%)"
+                  ] }),
+                  (areaUsage.trust_in_area ?? 0) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-orange-500 text-sm font-mono font-bold pl-2 border-l border-border/50" })
+                ] })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-3 py-1.5 bg-main", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-warm/30 rounded-full h-1.5 overflow-hidden flex", children: [
+                  yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "div",
+                    {
+                      className: "h-full bg-emerald-400",
+                      style: { width: Math.min(100, paymentPct) + "%" }
+                    }
+                  ),
+                  yearApplyArea - yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "div",
+                    {
+                      className: "h-full bg-blue-400",
+                      style: { width: Math.min(100 - paymentPct, applyPct) + "%" }
+                    }
+                  )
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3 mt-1 text-xs text-text-muted", children: [
+                  yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-1", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-2 h-2 bg-emerald-400 rounded-full" }),
+                    "已发布 ",
+                    yearPaymentArea.toFixed(2),
+                    " 亩"
+                  ] }),
+                  yearApplyArea - yearPaymentArea > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "flex items-center gap-1", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-2 h-2 bg-blue-400 rounded-full" }),
+                    "预申请 ",
+                    (yearApplyArea - yearPaymentArea).toFixed(2),
+                    " 亩"
+                  ] })
+                ] })
+              ] })
+            ] }, season);
+          }),
+          (() => {
+            const hasNoCalc = Object.keys(noCalcByYear).length > 0;
+            if (!hasNoCalc) return null;
+            const noCalcTotal = areaYear === 0 ? Object.values(noCalcByYear).reduce((s, v2) => s + v2, 0) : noCalcByYear[areaYear] || 0;
+            if (noCalcTotal <= 0) return null;
+            return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "border border-border rounded-btn overflow-hidden opacity-70", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between px-3 py-2 bg-warm/30", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-bold text-text-muted", children: "不占用补贴面积" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-sm font-mono text-text-muted", children: [
+                noCalcTotal.toFixed(2),
+                " 亩"
+              ] })
+            ] }) });
+          })()
+        ] })
+      ] }),
+      detail.trust_records && detail.trust_records.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-main border-b border-border px-4 py-3", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { open: true, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("summary", { className: "text-xs text-text-muted font-medium cursor-pointer mb-2", children: [
+          "🔄 流转记录 (",
+          detail.trust_records.length,
+          "条)"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-1.5 max-h-48 overflow-y-auto", children: detail.trust_records.map((t2, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 text-xs py-1 border-b border-border/20 last:border-0", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `font-bold shrink-0 ${t2.direction === "流入" ? "text-emerald-600" : "text-orange-500"}`, children: t2.direction === "流入" ? "＋流入" : "－流出" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted shrink-0", children: t2.counterparty || "—" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-primary font-mono shrink-0", children: [
+            t2.area?.toFixed(2),
+            "亩"
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/50 shrink-0", children: t2.trust_type }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-muted/50 shrink-0", children: [
+            t2.trust_year,
+            "年"
+          ] }),
+          t2.subsidy_arable === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-emerald-600 shrink-0", children: "耕地✓" }),
+          t2.subsidy_cash_crop === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-blue-600 shrink-0", children: "作物✓" }),
+          t2.end_date && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-muted/50 shrink-0", children: [
+            "至",
+            t2.end_date
+          ] }),
+          t2.note && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-text-muted/40 truncate", children: t2.note })
+        ] }, t2.id || i)) })
+      ] }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex border-b border-border bg-warm/30 items-center", children: [
+        [
+          { id: "members", label: `👥 成员 (${displayMembers.length})` },
+          { id: "subsidy", label: `💰 补贴记录 (${detail.app_summary.length})` }
+        ].map((t2) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => setDetailTab(t2.id),
+            className: `px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+                ${detailTab === t2.id ? "border-emerald-600 text-primary bg-main" : "border-transparent text-text-muted hover:text-text-primary"}`,
+            children: t2.label
+          },
+          t2.id
+        )),
+        historyDateIsNull && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "ml-auto px-2 flex gap-1.5", children: detailTab === "members" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onOpenMemberImport, className: "text-xs border-2 border-green-500 bg-green-500 text-white px-2.5 py-1.5 rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-medium", children: "↑ 批量导入" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onOpenMemberAdd, className: "text-xs bg-primary  px-2.5 py-1.5 rounded-btn hover:bg-primary/90 transition-colors", children: "＋ 成员" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: onOpenEvent, className: "text-xs border border-border text-text-primary px-2.5 py-1.5 rounded-btn hover:bg-warm/30 transition-colors", children: "＋ 补录" })
+        ] }) })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 bg-main border border-border rounded-card overflow-hidden shadow-card", children: [
+      detailTab === "members" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 grid gap-2", children: [
+        displayMembers.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-center py-8 text-text-muted/50 text-sm", children: "暂无成员记录" }),
+        displayMembers.map((m2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `flex items-center gap-3 rounded-card px-4 py-3 border transition-all
+                ${m2.is_head ? "bg-primary/5 border-primary/20" : "bg-main border-border hover:border-border hover:bg-warm/30"}
+                ${m2.farmer_status !== 1 ? "opacity-60" : ""}`, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0
+                  ${m2.is_head ? "bg-primary/90 " : "bg-warm/30 text-text-muted"}`, children: m2.real_name.slice(-1) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 flex-wrap", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold text-text-primary", children: m2.real_name }),
+              m2.is_head === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: "户主", color: "green" }),
+              m2.relation && /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: m2.relation, color: "gray" }),
+              m2.farmer_status !== 1 && /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: FARMER_STATUS[m2.farmer_status]?.label ?? "异常", color: "red" }),
+              m2.restricted_identity === 1 && /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: RESTRICTED_IDENTITY[1]?.label, color: "red" })
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs text-text-muted mt-0.5", children: [
+              m2.gender === 1 ? "男" : "女",
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-2", children: m2.phone_masked || "—" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-2 font-mono", children: m2.id_card || m2.id_card_masked })
+            ] })
+          ] }),
+          historyDateIsNull && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1.5 shrink-0", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => onOpenFarmer(m2.id), className: "text-xs text-primary border border-primary/20 px-2 py-1 rounded-btn hover:bg-primary/5 transition-colors", children: "查看农户" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => onOpenMemberEdit(m2), className: "text-xs border border-border text-text-muted px-2 py-1 rounded-btn hover:border-border transition-colors", children: "编辑" }),
+            m2.is_head !== 1 && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => onRemoveMember(m2), className: "text-xs border border-amber-200 text-amber-600 px-2 py-1 rounded-btn hover:bg-amber-50 transition-colors", children: "移出" })
+          ] })
+        ] }, m2.id))
+      ] }),
+      detailTab === "subsidy" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        Object.keys(appsByYear).length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "py-10 text-center text-text-muted/50 text-sm", children: "暂无补贴记录" }),
+        Object.entries(appsByYear).sort((a, b) => Number(b[0]) - Number(a[0])).map(([yr, apps]) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-5 py-2 bg-warm/30 border-b border-border/50 text-xs font-bold text-text-muted", children: [
+            yr,
+            "年度 · ",
+            apps.length,
+            "条 · 合计 ¥",
+            apps.reduce((s, a) => s + (a.actual_amount || 0), 0).toFixed(2)
+          ] }),
+          apps.map((a, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 px-5 py-2.5 border-b border-border/50 hover:bg-warm/30 transition-colors", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-2 flex-wrap w-16 shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm text-text-muted", children: a.farmer_name }) }),
+            (a.apply_village_name || a.apply_group_display) && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted font-mono bg-warm/30 px-1.5 py-0.5 rounded", children: [
+              a.apply_village_name,
+              a.apply_group_display
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm flex-1", children: a.subsidy_name }),
+            a.proxy_info && (() => {
+              const proxy = a.proxy_info;
+              const labelType = proxy.type;
+              const targetId = labelType === "受益" ? proxy.proxy_farmer_id : proxy.beneficiary_farmer_id;
+              const canClick = targetId != null;
+              return /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "group relative", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(
+                  "button",
+                  {
+                    onClick: (e) => {
+                      e.stopPropagation();
+                      if (canClick) onOpenFarmer(targetId);
+                    },
+                    className: canClick ? "cursor-pointer hover:opacity-80" : "",
+                    children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded border border-amber-200", children: labelType })
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "left-0 top-full mt-1   text-xs px-2 py-1.5 rounded-btn shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10", children: [
+                  labelType === "受益" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                    "受益人: ",
+                    proxy.beneficiary_name,
+                    " → 代领人: ",
+                    proxy.proxy_name
+                  ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                    "代领人: ",
+                    proxy.proxy_name,
+                    " → 受益人: ",
+                    proxy.beneficiary_name
+                  ] }),
+                  proxy.remark && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-text-muted mt-0.5", children: proxy.remark }),
+                  canClick && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-primary/60 mt-0.5", children: "点击查看农户详情 →" })
+                ] })
+              ] });
+            })(),
+            (a.apply_area != null || a.apply_area_no_calc != null) && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted font-mono", title: `计入超限 ${a.apply_area || 0}亩 / 不计超限 ${a.apply_area_no_calc || 0}亩`, children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: Number(a.apply_area || 0).toFixed(2) }),
+              a.apply_area_no_calc ? /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-muted/50", children: [
+                "+",
+                Number(a.apply_area_no_calc).toFixed(2)
+              ] }) : null,
+              "亩"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-mono font-bold text-primary", children: a.actual_amount ? fmt$2(a.actual_amount) : "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: PAY_STATUS[a.pay_status]?.label || "—", color: PAY_STATUS[a.pay_status]?.color }),
+            onNavigateToProject && a.subsidy_type_id && /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                onClick: () => onNavigateToProject(a.subsidy_type_id, a.farmer_name),
+                className: "text-xs text-blue-600 border border-blue-200 px-2 py-1 rounded-btn hover:bg-blue-50 whitespace-nowrap shrink-0",
+                children: "↗ 查看明细"
+              }
+            )
+          ] }, i))
+        ] }, yr))
+      ] })
+    ] })
+  ] });
+}
+function HouseholdsTab(props) {
+  const { show, groups, villages, setGroups, yearFilter, setYearFilter, activeTab, onSwitchTab, onNavigateToFarmer, updateUrl, initialHouseholdId } = props;
+  const navigate = useNavigate();
   const [hhList, setHhList] = reactExports.useState([]);
   const [hhTotal, setHhTotal] = reactExports.useState(0);
   const [hhPage, setHhPage] = reactExports.useState(1);
@@ -43482,23 +44251,16 @@ function FarmersPage() {
   const [confirmedFilter, setConfirmedFilter] = reactExports.useState("");
   const [statusFilter, setStatusFilter] = reactExports.useState("1");
   const [subsidyOnly, setSubsidyOnly] = reactExports.useState(false);
-  const [yearFilter, setYearFilter] = reactExports.useState(getInitialYear);
-  const [batchConfirmMode, setBatchConfirmMode] = reactExports.useState(false);
-  const [batchSelected, setBatchSelected] = reactExports.useState([]);
-  const [batchSelectedHouseholds, setBatchSelectedHouseholds] = reactExports.useState([]);
-  const [batchConfirmLoading, setBatchConfirmLoading] = reactExports.useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = reactExports.useState(false);
-  const [deleteTarget, setDeleteTarget] = reactExports.useState(null);
-  const [deleteLoading, setDeleteLoading] = reactExports.useState(false);
+  const [showToolbar, setShowToolbar] = reactExports.useState(true);
   const [detail, setDetail] = reactExports.useState(null);
   const [detailTab, setDetailTab] = reactExports.useState("members");
   const [areaYear, setAreaYear] = reactExports.useState(yearFilter);
-  const [events, setEvents] = reactExports.useState([]);
   const [historyEventId, setHistoryEventId] = reactExports.useState(null);
   const [historyDates, setHistoryDates] = reactExports.useState([]);
   const [snapshotData, setSnapshotData] = reactExports.useState(null);
   const [historyLoading, setHistoryLoading] = reactExports.useState(false);
   const [expandedYears, setExpandedYears] = reactExports.useState(/* @__PURE__ */ new Set());
+  const [events, setEvents] = reactExports.useState([]);
   const getHistoryDateByEventId = (eventId) => {
     if (!eventId) return null;
     const event = historyDates.find((e) => e.event_id === eventId);
@@ -43508,17 +44270,192 @@ function FarmersPage() {
     if (!date) return null;
     return historyDates.find((e) => e.date === date) || null;
   };
-  const [groups, setGroups] = reactExports.useState([]);
-  const [villages, setVillages] = reactExports.useState([]);
   const [createHhOpen, setCreateHhOpen] = reactExports.useState(false);
   const [createHhForm, setCreateHhForm] = reactExports.useState({ household_name: "", village_group_id: 0, contract_area: "", address: "", remark: "" });
-  const [showToolbar, setShowToolbar] = reactExports.useState(true);
   const [mergeMode, setMergeMode] = reactExports.useState(false);
   const [mergeSelected, setMergeSelected] = reactExports.useState([]);
   const [mergeSelectedHouseholds, setMergeSelectedHouseholds] = reactExports.useState([]);
   const [mergeConfirmOpen, setMergeConfirmOpen] = reactExports.useState(false);
   const [mergeConfirmForm, setMergeConfirmForm] = reactExports.useState({ contract_area: "", remark: "" });
   const [mergeLoading, setMergeLoading] = reactExports.useState(false);
+  const [batchConfirmMode, setBatchConfirmMode] = reactExports.useState(false);
+  const [batchSelected, setBatchSelected] = reactExports.useState([]);
+  const [batchSelectedHouseholds, setBatchSelectedHouseholds] = reactExports.useState([]);
+  const [batchConfirmLoading, setBatchConfirmLoading] = reactExports.useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = reactExports.useState(false);
+  const [deleteTarget, setDeleteTarget] = reactExports.useState(null);
+  const [deleteLoading, setDeleteLoading] = reactExports.useState(false);
+  const [editOpen, setEditOpen] = reactExports.useState(false);
+  const [editForm, setEditForm] = reactExports.useState({ household_name: "", contract_area: "", village_id: 0, group_no: 1, address: "", remark: "" });
+  const [memberAddOpen, setMemberAddOpen] = reactExports.useState(false);
+  const [memberEditTarget, setMemberEditTarget] = reactExports.useState(null);
+  const [memberForm, setMemberForm] = reactExports.useState({ real_name: "", id_card: "", gender: "1", relation: "成员", is_head: false, phone: "", bank_card: "", bank_name: "", farmer_status: "1", restricted_identity: "0", event_date: "", village_id: 0, group_no: 1, village_name: "", group_name: "" });
+  const [memberImportOpen, setMemberImportOpen] = reactExports.useState(false);
+  const [splitOpen, setSplitOpen] = reactExports.useState(false);
+  const [splitStep, setSplitStep] = reactExports.useState(1);
+  const [splitSelected, setSplitSelected] = reactExports.useState([]);
+  const [splitNewHead, setSplitNewHead] = reactExports.useState(null);
+  const [splitForm, setSplitForm] = reactExports.useState({ household_name: "", split_year: String((/* @__PURE__ */ new Date()).getFullYear()), split_date: "", new_land_area: "", origin_land_area: "", description: "", evidence_type: "", evidence_note: "" });
+  const [eventOpen, setEventOpen] = reactExports.useState(false);
+  const [eventForm, setEventForm] = reactExports.useState({ event_type: "REMARK", event_year: String((/* @__PURE__ */ new Date()).getFullYear()), event_date: "", description: "", evidence_type: "NONE", evidence_note: "" });
+  const [manualConfirmOpen, setManualConfirmOpen] = reactExports.useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = reactExports.useState(false);
+  const [confirmForm, setConfirmForm] = reactExports.useState({ operator: "", remark: "" });
+  const [confirmedAreaImportOpen, setConfirmedAreaImportOpen] = reactExports.useState(false);
+  const [confirmedAreaRows, setConfirmedAreaRows] = reactExports.useState([]);
+  const [confirmedAreaImportResult, setConfirmedAreaImportResult] = reactExports.useState(null);
+  const [confirmedAreaImporting, setConfirmedAreaImporting] = reactExports.useState(false);
+  const [refreshingCache, setRefreshingCache] = reactExports.useState(false);
+  const [recalculatingArea, setRecalculatingArea] = reactExports.useState(false);
+  const loadHouseholds = reactExports.useCallback(async () => {
+    setHhLoading(true);
+    try {
+      const p2 = { page: hhPage, page_size: 20, year: yearFilter };
+      if (search) p2.search = search;
+      if (villageFilter) p2.village_name = villageFilter;
+      if (overdrawnOnly) p2.overdrawn_only = "1";
+      if (confirmedFilter) p2.confirmed_only = confirmedFilter;
+      if (statusFilter) p2.status = statusFilter;
+      if (subsidyOnly) p2.has_subsidy = "1";
+      const r2 = await getHouseholds(p2);
+      setHhList(r2.items);
+      setHhTotal(r2.total);
+    } finally {
+      setHhLoading(false);
+    }
+  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter, subsidyOnly]);
+  reactExports.useEffect(() => {
+    loadHouseholds();
+  }, [loadHouseholds]);
+  reactExports.useEffect(() => {
+    const t2 = setTimeout(() => {
+      setHhPage(1);
+    }, 350);
+    return () => clearTimeout(t2);
+  }, [search]);
+  reactExports.useEffect(() => {
+    if (initialHouseholdId) {
+      openDetail(initialHouseholdId, true);
+    }
+  }, []);
+  reactExports.useEffect(() => {
+    setAreaYear(yearFilter);
+  }, [yearFilter]);
+  reactExports.useEffect(() => {
+    if (!detail || historyEventId !== null) return;
+    const currentId = detail.id;
+    getHouseholdDetail(currentId, areaYear > 0 ? areaYear : void 0).then((d) => {
+      if (d.id === currentId) setDetail(d);
+    });
+  }, [areaYear]);
+  const openDetail = async (id2, skipUrlUpdate = false) => {
+    setAreaYear(yearFilter);
+    const d = await getHouseholdDetail(id2, yearFilter);
+    setDetail(d);
+    setDetailTab("members");
+    setEvents([]);
+    setHistoryEventId(null);
+    setSnapshotData(null);
+    setMergeMode(false);
+    setMergeSelected([]);
+    setMergeSelectedHouseholds([]);
+    setBatchConfirmMode(false);
+    setBatchSelected([]);
+    setBatchSelectedHouseholds([]);
+    await loadHouseholdHistoryDates(id2);
+    if (!skipUrlUpdate) {
+      updateUrl({ tab: "households", farmerId: null, householdId: id2 });
+    }
+  };
+  const loadHouseholdHistoryDates = reactExports.useCallback(async (householdId) => {
+    try {
+      const hd2 = await getHouseholdHistoryDates(householdId);
+      setHistoryDates(hd2.events);
+      const firstReal = hd2.events.find((e) => e.event_type !== "ORIGINAL");
+      if (firstReal) setExpandedYears(/* @__PURE__ */ new Set([firstReal.event_year]));
+    } catch {
+      setHistoryDates([]);
+    }
+  }, []);
+  const refreshDetail = async () => {
+    if (detail) {
+      const d = await getHouseholdDetail(detail.id, yearFilter);
+      setDetail(d);
+    }
+  };
+  const handleRefreshCache = async (householdId) => {
+    if (refreshingCache) return;
+    setRefreshingCache(true);
+    try {
+      const r2 = await refreshAreaCache(householdId);
+      show(r2.message);
+      if (householdId) {
+        refreshDetail();
+      } else {
+        loadHouseholds();
+        refreshDetail();
+      }
+    } catch (e) {
+      show(e.message, "err");
+    } finally {
+      setRefreshingCache(false);
+    }
+  };
+  const handleRecalcUnconfirmedArea = async () => {
+    if (recalculatingArea) return;
+    setRecalculatingArea(true);
+    try {
+      const r2 = await recalcUnconfirmedContractArea();
+      show(r2.message, "ok");
+      loadHouseholds();
+      refreshDetail();
+    } catch (e) {
+      show(e.message, "err");
+    } finally {
+      setRecalculatingArea(false);
+    }
+  };
+  const loadEvents = reactExports.useCallback(async () => {
+    if (!detail?.id) return;
+    const r2 = await getHouseholdEvents(detail.id);
+    setEvents(r2);
+  }, [detail?.id]);
+  reactExports.useEffect(() => {
+    if (detail) loadEvents();
+  }, [detail?.id, loadEvents]);
+  const loadSnapshotAt = async (date, householdId, eventId) => {
+    const hhId = householdId ?? detail?.id;
+    if (!hhId) return;
+    setHistoryLoading(true);
+    try {
+      let snap;
+      if (eventId !== void 0) {
+        snap = await getHouseholdSnapshotByEvent(hhId, eventId);
+        setHistoryEventId(eventId);
+      } else {
+        snap = await getHouseholdSnapshotAt(hhId, date);
+        const ev = getFirstEventByDate(date);
+        setHistoryEventId(ev?.event_id ?? null);
+      }
+      setSnapshotData(snap);
+    } catch (e) {
+      show(e.message, "err");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+  const exitHistory = () => {
+    setHistoryEventId(null);
+    setSnapshotData(null);
+  };
+  const toggleYear = (yr) => {
+    setExpandedYears((prev) => {
+      const next = new Set(prev);
+      if (next.has(yr)) next.delete(yr);
+      else next.add(yr);
+      return next;
+    });
+  };
   const toggleMergeHousehold = (h) => {
     const isSelected = mergeSelected.includes(h.id);
     if (isSelected) {
@@ -43535,6 +44472,37 @@ function FarmersPage() {
   const clearMergeSelection = () => {
     setMergeSelected([]);
     setMergeSelectedHouseholds([]);
+  };
+  const handleMergeConfirm = () => {
+    if (mergeSelectedHouseholds.length < 2) return show("请至少选择 2 个家庭户", "err");
+    const target = mergeSelectedHouseholds[0];
+    setMergeConfirmForm({ contract_area: target?.contracted_area?.toString() || "", remark: "" });
+    setMergeConfirmOpen(true);
+  };
+  const confirmMerge = async () => {
+    if (mergeSelectedHouseholds.length < 2) return show("请至少选择 2 个家庭户", "err");
+    const targetId = mergeSelectedHouseholds[0].id;
+    const sourceIds = mergeSelectedHouseholds.slice(1).map((h) => h.id).filter((id2) => id2 !== targetId);
+    if (sourceIds.length === 0) return show("目标户不能与被合并户相同", "err");
+    setMergeLoading(true);
+    try {
+      for (const srcId of sourceIds) {
+        await mergeHouseholds({
+          source_household_id: srcId,
+          target_household_id: targetId
+        });
+      }
+      show(`✓ 已合并 ${sourceIds.length} 个家庭户到目标户`);
+      setMergeConfirmOpen(false);
+      setMergeMode(false);
+      clearMergeSelection();
+      setHhPage(1);
+      await loadHouseholds();
+    } catch (e) {
+      show(e.message, "err");
+    } finally {
+      setMergeLoading(false);
+    }
   };
   const toggleBatchConfirm = (h) => {
     const isSelected = batchSelected.includes(h.id);
@@ -43582,7 +44550,6 @@ function FarmersPage() {
       await loadHouseholds();
       if (detail?.id === deleteTarget.id) {
         setDetail(null);
-        setSelectedFarmerHousehold(null);
       }
     } catch (e) {
       show(e.message, "err");
@@ -43590,226 +44557,200 @@ function FarmersPage() {
       setDeleteLoading(false);
     }
   };
-  const [createFarmerOpen, setCreateFarmerOpen] = reactExports.useState(false);
-  const [createFarmerForm, setCreateFarmerForm] = reactExports.useState({ real_name: "", id_card: "", gender: 1, phone: "", village_name: "", group_no: "", address: "", contract_area: "", remark: "" });
-  const [editOpen, setEditOpen] = reactExports.useState(false);
-  const [editForm, setEditForm] = reactExports.useState({ household_name: "", contract_area: "", village_id: 0, group_no: 1, address: "", remark: "" });
-  const [memberAddOpen, setMemberAddOpen] = reactExports.useState(false);
-  const [memberEditTarget, setMemberEditTarget] = reactExports.useState(null);
-  const [memberForm, setMemberForm] = reactExports.useState({ real_name: "", id_card: "", gender: "1", relation: "成员", is_head: false, phone: "", bank_card: "", bank_name: "", farmer_status: "1", restricted_identity: "0", event_date: "", village_id: 0, group_no: 1, village_name: "", group_name: "" });
-  const [memberImportOpen, setMemberImportOpen] = reactExports.useState(false);
-  const [splitOpen, setSplitOpen] = reactExports.useState(false);
-  const [splitStep, setSplitStep] = reactExports.useState(1);
-  const [splitSelected, setSplitSelected] = reactExports.useState([]);
-  const [splitNewHead, setSplitNewHead] = reactExports.useState(null);
-  const [splitForm, setSplitForm] = reactExports.useState({ household_name: "", split_year: String((/* @__PURE__ */ new Date()).getFullYear()), split_date: "", new_land_area: "", origin_land_area: "", description: "", evidence_type: "", evidence_note: "" });
-  const [eventOpen, setEventOpen] = reactExports.useState(false);
-  const [eventForm, setEventForm] = reactExports.useState({ event_type: "REMARK", event_year: String((/* @__PURE__ */ new Date()).getFullYear()), event_date: "", description: "", evidence_type: "NONE", evidence_note: "" });
-  const [importOpen, setImportOpen] = reactExports.useState(false);
-  const [templates, setTemplates] = reactExports.useState([]);
-  const [confirmedAreaImportOpen, setConfirmedAreaImportOpen] = reactExports.useState(false);
-  const [manualConfirmOpen, setManualConfirmOpen] = reactExports.useState(false);
-  const [cancelConfirmOpen, setCancelConfirmOpen] = reactExports.useState(false);
-  const [confirmForm, setConfirmForm] = reactExports.useState({ operator: "", remark: "" });
-  const [confirmedAreaRows, setConfirmedAreaRows] = reactExports.useState([]);
-  const [confirmedAreaImportResult, setConfirmedAreaImportResult] = reactExports.useState(null);
-  const [confirmedAreaImporting, setConfirmedAreaImporting] = reactExports.useState(false);
-  const loadFarmers = reactExports.useCallback(async () => {
-    setFarmerLoading(true);
+  const submitCreateHh = async () => {
+    if (!createHhForm.household_name.trim()) return show("请填写户名", "err");
+    if (!createHhForm.village_group_id) return show("请选择所在村组", "err");
     try {
-      const p2 = { page: farmerPage, page_size: 20 };
-      if (search) p2.search = search;
-      if (villageFilter) p2.village_name = villageFilter;
-      const r2 = await getFarmers(p2);
-      setFarmerList(r2.items);
-      setFarmerTotal(r2.total);
-    } finally {
-      setFarmerLoading(false);
-    }
-  }, [farmerPage, search, villageFilter]);
-  const loadHouseholds = reactExports.useCallback(async () => {
-    setHhLoading(true);
-    try {
-      const p2 = { page: hhPage, page_size: 20, year: yearFilter };
-      if (search) p2.search = search;
-      if (villageFilter) p2.village_name = villageFilter;
-      if (overdrawnOnly) p2.overdrawn_only = "1";
-      if (confirmedFilter) p2.confirmed_only = confirmedFilter;
-      if (statusFilter) p2.status = statusFilter;
-      if (subsidyOnly) p2.has_subsidy = "1";
-      const r2 = await getHouseholds(p2);
-      setHhList(r2.items);
-      setHhTotal(r2.total);
-    } finally {
-      setHhLoading(false);
-    }
-  }, [hhPage, search, yearFilter, villageFilter, overdrawnOnly, confirmedFilter, statusFilter, subsidyOnly]);
-  reactExports.useEffect(() => {
-    if (leftTab === "farmers") loadFarmers();
-    else loadHouseholds();
-  }, [leftTab, loadFarmers, loadHouseholds]);
-  reactExports.useEffect(() => {
-    getVillageGroups().then((g) => {
-      setGroups(g);
-      setVillages([...new Set(g.map((v2) => v2.village_name))]);
-    });
-    getExcelTemplates("FARMER").then(setTemplates).catch(() => {
-    });
-  }, []);
-  reactExports.useEffect(() => {
-    const t2 = setTimeout(() => {
-      if (leftTab === "farmers") setFarmerPage(1);
-      else setHhPage(1);
-    }, 350);
-    return () => clearTimeout(t2);
-  }, [search, leftTab]);
-  reactExports.useEffect(() => {
-    const farmerId = getInitialFarmerId();
-    const householdId = getInitialHouseholdId();
-    if (farmerId && leftTab === "farmers") {
-      openFarmer(farmerId, true);
-    } else if (householdId && leftTab === "households") {
-      openDetail(householdId, true);
-    }
-  }, []);
-  const updateUrl = reactExports.useCallback((params) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (params.tab) {
-      newParams.set("tab", params.tab);
-    }
-    if (params.farmerId !== void 0) {
-      if (params.farmerId) {
-        newParams.set("farmerId", String(params.farmerId));
-        newParams.delete("householdId");
-      } else {
-        newParams.delete("farmerId");
-      }
-    }
-    if (params.householdId !== void 0) {
-      if (params.householdId) {
-        newParams.set("householdId", String(params.householdId));
-        newParams.delete("farmerId");
-      } else {
-        newParams.delete("householdId");
-      }
-    }
-    if (params.year !== void 0) {
-      newParams.set("year", String(params.year));
-    }
-    setSearchParams(newParams, { replace: true });
-  }, [searchParams, setSearchParams]);
-  const loadHouseholdHistoryDates = reactExports.useCallback(async (householdId) => {
-    try {
-      const hd2 = await getHouseholdHistoryDates(householdId);
-      setHistoryDates(hd2.events);
-      const firstReal = hd2.events.find((e) => e.event_type !== "ORIGINAL");
-      if (firstReal) setExpandedYears(/* @__PURE__ */ new Set([firstReal.event_year]));
-    } catch {
-      setHistoryDates([]);
-    }
-  }, []);
-  const openFarmer = async (farmerId, skipUrlUpdate = false) => {
-    try {
-      const f2 = await getFarmer(farmerId);
-      setSelectedFarmer(f2);
-      setDetail(null);
-      setHistoryEventId(null);
-      setSnapshotData(null);
-      setEvents([]);
-      setMergeMode(false);
-      setMergeSelected([]);
-      setMergeSelectedHouseholds([]);
-      setBatchConfirmMode(false);
-      setBatchSelected([]);
-      setBatchSelectedHouseholds([]);
-      if (f2.household_id) {
-        try {
-          const hh2 = await getHouseholdDetail(f2.household_id, yearFilter);
-          setSelectedFarmerHousehold(hh2);
-          await loadHouseholdHistoryDates(f2.household_id);
-        } catch {
-          setSelectedFarmerHousehold(null);
-          setHistoryDates([]);
-        }
-      } else {
-        setSelectedFarmerHousehold(null);
-        setHistoryDates([]);
-      }
-      if (!skipUrlUpdate) {
-        updateUrl({ tab: "farmers", farmerId, householdId: null });
-      }
-    } catch (e) {
-      show(e.message, "err");
-    }
-  };
-  const openDetail = async (id2, skipUrlUpdate = false) => {
-    setAreaYear(yearFilter);
-    const d = await getHouseholdDetail(id2, yearFilter);
-    setDetail(d);
-    setDetailTab("members");
-    setEvents([]);
-    setSelectedFarmer(null);
-    setSelectedFarmerHousehold(null);
-    setHistoryEventId(null);
-    setSnapshotData(null);
-    setMergeMode(false);
-    setMergeSelected([]);
-    setMergeSelectedHouseholds([]);
-    setBatchConfirmMode(false);
-    setBatchSelected([]);
-    setBatchSelectedHouseholds([]);
-    await loadHouseholdHistoryDates(id2);
-    if (!skipUrlUpdate) {
-      updateUrl({ tab: "households", farmerId: null, householdId: id2 });
-    }
-  };
-  const [refreshingCache, setRefreshingCache] = reactExports.useState(false);
-  const handleRefreshCache = async (householdId) => {
-    if (refreshingCache) return;
-    setRefreshingCache(true);
-    try {
-      const r2 = await refreshAreaCache(householdId);
-      show(r2.message);
-      if (householdId) {
-        refreshDetail();
-      } else {
-        loadHouseholds();
-        refreshDetail();
-      }
-    } catch (e) {
-      show(e.message, "err");
-    } finally {
-      setRefreshingCache(false);
-    }
-  };
-  const [recalculatingArea, setRecalculatingArea] = reactExports.useState(false);
-  const handleRecalcUnconfirmedArea = async () => {
-    if (recalculatingArea) return;
-    setRecalculatingArea(true);
-    try {
-      const r2 = await recalcUnconfirmedContractArea();
-      show(r2.message, "ok");
+      const r2 = await createHousehold({
+        household_name: createHhForm.household_name,
+        village_group_id: createHhForm.village_group_id,
+        contract_area: Number(createHhForm.contract_area) || void 0,
+        address: createHhForm.address || void 0,
+        remark: createHhForm.remark || void 0
+      });
+      show("✓ 家庭户创建成功");
+      setCreateHhOpen(false);
+      setCreateHhForm({ household_name: "", village_group_id: 0, contract_area: "", address: "", remark: "" });
       loadHouseholds();
-      refreshDetail();
+      openDetail(r2.id);
     } catch (e) {
       show(e.message, "err");
-    } finally {
-      setRecalculatingArea(false);
     }
   };
-  const refreshDetail = async () => {
-    if (detail) {
-      const d = await getHouseholdDetail(detail.id, yearFilter);
-      setDetail(d);
-    }
-    if (selectedFarmer?.household_id) {
-      try {
-        const hh2 = await getHouseholdDetail(selectedFarmer.household_id, yearFilter);
-        setSelectedFarmerHousehold(hh2);
-      } catch {
-        setSelectedFarmerHousehold(null);
+  const submitEdit = async () => {
+    if (!detail?.id) return;
+    await updateHousehold(detail.id, {
+      household_name: editForm.household_name,
+      contract_area: Number(editForm.contract_area) || void 0,
+      village_id: editForm.village_id || void 0,
+      group_no: editForm.group_no || void 0,
+      address: editForm.address || void 0,
+      remark: editForm.remark || void 0
+    });
+    show("✓ 已更新");
+    setEditOpen(false);
+    refreshDetail();
+    loadHouseholds();
+  };
+  const submitMember = async () => {
+    if (!detail?.id) return;
+    if (!memberForm.real_name.trim()) return show("请填写姓名", "err");
+    if (!memberEditTarget && !memberForm.id_card.trim()) return show("请填写身份证号", "err");
+    try {
+      if (memberEditTarget) {
+        await updateHouseholdMember(detail.id, memberEditTarget.id, {
+          real_name: memberForm.real_name,
+          relation: memberForm.relation,
+          is_head: memberForm.is_head ? 1 : 0,
+          phone: memberForm.phone || void 0,
+          bank_card: memberForm.bank_card || void 0,
+          bank_name: memberForm.bank_name || void 0,
+          farmer_status: Number(memberForm.farmer_status),
+          restricted_identity: Number(memberForm.restricted_identity) || 0,
+          event_date: memberForm.event_date || void 0,
+          village_id: memberForm.village_id || void 0,
+          group_no: memberForm.group_no || void 0
+        });
+        show("✓ 成员信息已更新");
+      } else {
+        await addHouseholdMember(detail.id, {
+          real_name: memberForm.real_name,
+          id_card: memberForm.id_card,
+          gender: Number(memberForm.gender),
+          relation: memberForm.relation,
+          is_head: memberForm.is_head ? 1 : 0,
+          phone: memberForm.phone || void 0,
+          bank_card: memberForm.bank_card || void 0,
+          bank_name: memberForm.bank_name || void 0,
+          farmer_status: 1,
+          restricted_identity: Number(memberForm.restricted_identity) || 0
+        });
+        show("✓ 成员已添加");
       }
+      setMemberAddOpen(false);
+      setMemberEditTarget(null);
+      refreshDetail();
+      loadHouseholds();
+    } catch (e) {
+      show(e.message, "err");
     }
+  };
+  const removeMember = async (m2) => {
+    if (!detail?.id) return;
+    if (!confirm(`确认移出「${m2.real_name}」？移出后将标记为迁出，历史补贴记录保留。`)) return;
+    try {
+      await removeHouseholdMember(detail.id, m2.id);
+      show(`✓ 已移出「${m2.real_name}」`);
+      refreshDetail();
+      loadHouseholds();
+    } catch (e) {
+      show(e.message, "err");
+    }
+  };
+  const openMemberEdit = (m2) => {
+    setMemberEditTarget(m2);
+    const hm = m2;
+    const effVid = hm.own_village_id ?? detail?.village_id;
+    const effGno = hm.own_group_no ?? detail?.group_no;
+    const v2 = groups.find((g2) => g2.village_id === effVid);
+    const g = groups.find((g2) => g2.village_id === effVid && g2.group_no === effGno);
+    setMemberForm({
+      real_name: m2.real_name,
+      id_card: "",
+      gender: String(m2.gender),
+      relation: m2.relation || "成员",
+      is_head: m2.is_head === 1,
+      phone: "",
+      bank_card: "",
+      bank_name: "",
+      farmer_status: String(m2.farmer_status),
+      restricted_identity: String(m2.restricted_identity ?? 0),
+      event_date: "",
+      village_id: effVid ?? 0,
+      group_no: effGno ?? 1,
+      village_name: v2?.village_name ?? "",
+      group_name: g ? g.full_name.replace(g.village_name, "").replace("村", "") : `第${effGno ?? 1}组`
+    });
+    setMemberAddOpen(true);
+  };
+  const MEMBER_IMPORT_ALIAS = {
+    "身份证号*": "id_card",
+    "身份证号": "id_card",
+    "姓名*": "real_name",
+    "姓名": "real_name",
+    "是否户主": "is_head",
+    "与户主关系": "relation",
+    "手机号": "phone",
+    "银行卡号": "bank_card",
+    "开户行": "bank_name",
+    "状态": "farmer_status"
+  };
+  const handleMemberImport = async (rows) => {
+    if (!detail?.id) return { created: 0, skipped: 0, errors: [] };
+    const mappedRows = rows.map((row) => {
+      const mapped = {};
+      for (const [key, val] of Object.entries(row)) {
+        const apiField = MEMBER_IMPORT_ALIAS[key] || key;
+        mapped[apiField] = val;
+      }
+      return mapped;
+    });
+    const res = await batchImportHouseholdMembers(detail.id, mappedRows);
+    show(`✓ 新增 ${res.created} 条${res.skipped > 0 ? `，跳过 ${res.skipped} 条` : ""}`);
+    refreshDetail();
+    loadHouseholds();
+    return res;
+  };
+  const submitSplit = async () => {
+    if (!detail?.id || splitSelected.length === 0) return;
+    const members = detail?.members || [];
+    let actualHeadId = splitNewHead;
+    let actualHouseholdName = splitForm.household_name;
+    if (!actualHeadId) {
+      actualHeadId = splitSelected[0];
+      const defaultHeadName = members.find((m2) => m2.id === actualHeadId)?.real_name || "";
+      if (!actualHouseholdName.trim()) {
+        actualHouseholdName = defaultHeadName + "户";
+      }
+      const confirmed = window.confirm(
+        `未选择新户户主，将默认选择「${defaultHeadName}」作为新户户主，户名为「${actualHouseholdName}」。
+
+确认继续吗？`
+      );
+      if (!confirmed) return;
+    }
+    if (!actualHouseholdName.trim()) return show("请填写新家庭户名称", "err");
+    try {
+      const r2 = await splitHousehold(detail.id, {
+        split_year: Number(splitForm.split_year),
+        split_date: splitForm.split_date || null,
+        new_household_name: actualHouseholdName,
+        member_ids: splitSelected,
+        new_head_id: actualHeadId,
+        new_land_area: splitForm.new_land_area ? Number(splitForm.new_land_area) : null,
+        origin_land_area: splitForm.origin_land_area ? Number(splitForm.origin_land_area) : null,
+        description: splitForm.description || `分户：${splitSelected.length}名成员独立组建「${actualHouseholdName}」`,
+        evidence_type: splitForm.evidence_type || null,
+        evidence_note: splitForm.evidence_note || null
+      });
+      show(`✓ 分户成功，新户ID: ${r2.new_household_id}`);
+      setSplitOpen(false);
+      setSplitStep(1);
+      setSplitSelected([]);
+      setSplitNewHead(null);
+      refreshDetail();
+      loadHouseholds();
+    } catch (e) {
+      show(e.message, "err");
+    }
+  };
+  const submitEvent = async () => {
+    if (!detail?.id) return;
+    if (!eventForm.description.trim()) return show("请填写事件描述", "err");
+    await addHouseholdEvent(detail.id, { ...eventForm, event_year: Number(eventForm.event_year) });
+    show("✓ 事件已记录");
+    setEventOpen(false);
+    loadEvents();
   };
   const handleManualConfirm = async () => {
     if (!detail) return;
@@ -43845,145 +44786,6 @@ function FarmersPage() {
       show(e.message, "err");
     }
   };
-  const loadSnapshotAt = async (date, householdId, eventId) => {
-    const hhId = householdId ?? detail?.id ?? selectedFarmerHousehold?.id;
-    if (!hhId) return;
-    setHistoryLoading(true);
-    try {
-      let snap;
-      if (eventId !== void 0) {
-        snap = await getHouseholdSnapshotByEvent(hhId, eventId);
-        setHistoryEventId(eventId);
-      } else {
-        snap = await getHouseholdSnapshotAt(hhId, date);
-        const ev = getFirstEventByDate(date);
-        setHistoryEventId(ev?.event_id ?? null);
-      }
-      setSnapshotData(snap);
-    } catch (e) {
-      show(e.message, "err");
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
-  const exitHistory = () => {
-    setHistoryEventId(null);
-    setSnapshotData(null);
-  };
-  const loadEvents = reactExports.useCallback(async () => {
-    const hhId = detail?.id ?? selectedFarmerHousehold?.id;
-    if (!hhId) return;
-    const r2 = await getHouseholdEvents(hhId);
-    setEvents(r2);
-  }, [detail?.id, selectedFarmerHousehold?.id]);
-  reactExports.useEffect(() => {
-    if (detail || selectedFarmerHousehold) loadEvents();
-  }, [detail?.id, selectedFarmerHousehold?.id, loadEvents]);
-  reactExports.useEffect(() => {
-    setAreaYear(yearFilter);
-  }, [yearFilter]);
-  reactExports.useEffect(() => {
-    if (!detail || historyEventId !== null) return;
-    const currentId = detail.id;
-    getHouseholdDetail(currentId, areaYear > 0 ? areaYear : void 0).then((d) => {
-      if (d.id === currentId) setDetail(d);
-    });
-  }, [areaYear]);
-  const handleTabChange = (tab) => {
-    setLeftTab(tab);
-    setSelectedFarmer(null);
-    setDetail(null);
-    setSelectedFarmerHousehold(null);
-    setHistoryEventId(null);
-    setSnapshotData(null);
-    setHistoryDates([]);
-    setEvents([]);
-    setMergeMode(false);
-    setMergeSelected([]);
-    setMergeSelectedHouseholds([]);
-    setBatchConfirmMode(false);
-    setBatchSelected([]);
-    setBatchSelectedHouseholds([]);
-    updateUrl({ tab, farmerId: null, householdId: null });
-  };
-  const submitCreateHh = async () => {
-    if (!createHhForm.household_name.trim()) return show("请填写户名", "err");
-    if (!createHhForm.village_group_id) return show("请选择所在村组", "err");
-    try {
-      const r2 = await createHousehold({
-        household_name: createHhForm.household_name,
-        village_group_id: createHhForm.village_group_id,
-        contract_area: Number(createHhForm.contract_area) || void 0,
-        address: createHhForm.address || void 0,
-        remark: createHhForm.remark || void 0
-      });
-      show("✓ 家庭户创建成功");
-      setCreateHhOpen(false);
-      setCreateHhForm({ household_name: "", village_group_id: 0, contract_area: "", address: "", remark: "" });
-      if (leftTab === "households") loadHouseholds();
-      openDetail(r2.id);
-    } catch (e) {
-      show(e.message, "err");
-    }
-  };
-  const submitCreateFarmer = async () => {
-    if (!createFarmerForm.real_name.trim()) return show("请填写姓名", "err");
-    if (!createFarmerForm.id_card.trim()) return show("请填写身份证号", "err");
-    if (!createFarmerForm.village_name.trim()) return show("请选择所在村", "err");
-    if (!createFarmerForm.group_no) return show("请选择所在组", "err");
-    try {
-      const r2 = await createFarmer({
-        real_name: createFarmerForm.real_name,
-        id_card: createFarmerForm.id_card,
-        gender: createFarmerForm.gender,
-        phone: createFarmerForm.phone || void 0,
-        village_name: createFarmerForm.village_name,
-        group_no_str: createFarmerForm.group_no,
-        address: createFarmerForm.address || void 0,
-        land_area: createFarmerForm.contract_area ? Number(createFarmerForm.contract_area) : void 0,
-        farmer_status: 1,
-        remark: createFarmerForm.remark || void 0
-      });
-      show("✓ 农户创建成功");
-      setCreateFarmerOpen(false);
-      setCreateFarmerForm({ real_name: "", id_card: "", gender: 1, phone: "", village_name: "", group_no: "", address: "", contract_area: "", remark: "" });
-      if (leftTab === "farmers") loadFarmers();
-      openFarmer(r2.id, true);
-    } catch (e) {
-      show(e.message, "err");
-    }
-  };
-  const handleMergeConfirm = () => {
-    if (mergeSelectedHouseholds.length < 2) return show("请至少选择 2 个家庭户", "err");
-    const target = mergeSelectedHouseholds[0];
-    setMergeConfirmForm({ contract_area: target?.contracted_area?.toString() || "", remark: "" });
-    setMergeConfirmOpen(true);
-  };
-  const confirmMerge = async () => {
-    if (mergeSelectedHouseholds.length < 2) return show("请至少选择 2 个家庭户", "err");
-    const targetId = mergeSelectedHouseholds[0].id;
-    const sourceIds = mergeSelectedHouseholds.slice(1).map((h) => h.id).filter((id2) => id2 !== targetId);
-    if (sourceIds.length === 0) return show("目标户不能与被合并户相同", "err");
-    setMergeLoading(true);
-    try {
-      for (const srcId of sourceIds) {
-        await mergeHouseholds({
-          source_household_id: srcId,
-          target_household_id: targetId
-        });
-      }
-      show(`✓ 已合并 ${sourceIds.length} 个家庭户到目标户`);
-      setMergeConfirmOpen(false);
-      setMergeMode(false);
-      clearMergeSelection();
-      setHhPage(1);
-      await loadHouseholds();
-    } catch (e) {
-      show(e.message, "err");
-    } finally {
-      setMergeLoading(false);
-    }
-  };
   const submitConfirmedAreaImport = async () => {
     if (confirmedAreaRows.length === 0) return show("请先解析 Excel 文件", "err");
     setConfirmedAreaImporting(true);
@@ -43999,296 +44801,28 @@ function FarmersPage() {
       setConfirmedAreaImporting(false);
     }
   };
-  const submitEdit = async () => {
-    const hhId = detail?.id ?? selectedFarmerHousehold?.id;
-    if (!hhId) return;
-    await updateHousehold(hhId, {
-      household_name: editForm.household_name,
-      contract_area: Number(editForm.contract_area) || void 0,
-      village_id: editForm.village_id || void 0,
-      group_no: editForm.group_no || void 0,
-      address: editForm.address || void 0,
-      remark: editForm.remark || void 0
-    });
-    show("✓ 已更新");
-    setEditOpen(false);
-    refreshDetail();
-    if (leftTab === "households") loadHouseholds();
-  };
-  const submitMember = async () => {
-    const hhId = detail?.id ?? selectedFarmerHousehold?.id;
-    if (!hhId) return;
-    if (!memberForm.real_name.trim()) return show("请填写姓名", "err");
-    if (!memberEditTarget && !memberForm.id_card.trim()) return show("请填写身份证号", "err");
-    try {
-      if (memberEditTarget) {
-        await updateHouseholdMember(hhId, memberEditTarget.id, {
-          real_name: memberForm.real_name,
-          relation: memberForm.relation,
-          is_head: memberForm.is_head ? 1 : 0,
-          phone: memberForm.phone || void 0,
-          bank_card: memberForm.bank_card || void 0,
-          bank_name: memberForm.bank_name || void 0,
-          farmer_status: Number(memberForm.farmer_status),
-          restricted_identity: Number(memberForm.restricted_identity) || 0,
-          event_date: memberForm.event_date || void 0,
-          village_id: memberForm.village_id || void 0,
-          group_no: memberForm.group_no || void 0
-        });
-        show("✓ 成员信息已更新");
-      } else {
-        await addHouseholdMember(hhId, {
-          real_name: memberForm.real_name,
-          id_card: memberForm.id_card,
-          gender: Number(memberForm.gender),
-          relation: memberForm.relation,
-          is_head: memberForm.is_head ? 1 : 0,
-          phone: memberForm.phone || void 0,
-          bank_card: memberForm.bank_card || void 0,
-          bank_name: memberForm.bank_name || void 0,
-          farmer_status: 1,
-          restricted_identity: Number(memberForm.restricted_identity) || 0
-        });
-        show("✓ 成员已添加");
-      }
-      setMemberAddOpen(false);
-      setMemberEditTarget(null);
-      refreshDetail();
-      if (leftTab === "households") loadHouseholds();
-    } catch (e) {
-      show(e.message, "err");
-    }
-  };
-  const removeMember = async (m2) => {
-    const hhId = detail?.id ?? selectedFarmerHousehold?.id;
-    if (!hhId) return;
-    if (!confirm(`确认移出「${m2.real_name}」？移出后将标记为迁出，历史补贴记录保留。`)) return;
-    try {
-      await removeHouseholdMember(hhId, m2.id);
-      show(`✓ 已移出「${m2.real_name}」`);
-      refreshDetail();
-      if (leftTab === "households") loadHouseholds();
-    } catch (e) {
-      show(e.message, "err");
-    }
-  };
-  const openMemberEdit = (m2) => {
-    setMemberEditTarget(m2);
-    const hh2 = detail ?? selectedFarmerHousehold;
-    const hm = m2;
-    const effVid = hm.own_village_id ?? hh2?.village_id;
-    const effGno = hm.own_group_no ?? hh2?.group_no;
-    const v2 = groups.find((g2) => g2.village_id === effVid);
-    const g = groups.find((g2) => g2.village_id === effVid && g2.group_no === effGno);
-    setMemberForm({
-      real_name: m2.real_name,
-      id_card: "",
-      gender: String(m2.gender),
-      relation: m2.relation || "成员",
-      is_head: m2.is_head === 1,
-      phone: "",
-      bank_card: "",
-      bank_name: "",
-      farmer_status: String(m2.farmer_status),
-      restricted_identity: String(m2.restricted_identity ?? 0),
-      event_date: "",
-      village_id: effVid ?? 0,
-      group_no: effGno ?? 1,
-      village_name: v2?.village_name ?? "",
-      group_name: g ? g.full_name.replace(g.village_name, "").replace("村", "") : `第${effGno ?? 1}组`
-    });
-    setMemberAddOpen(true);
-  };
-  const MEMBER_IMPORT_ALIAS = {
-    "身份证号*": "id_card",
-    "身份证号": "id_card",
-    "姓名*": "real_name",
-    "姓名": "real_name",
-    "是否户主": "is_head",
-    "与户主关系": "relation",
-    "手机号": "phone",
-    "银行卡号": "bank_card",
-    "开户行": "bank_name",
-    "状态": "farmer_status"
-  };
-  const handleMemberImport = async (rows) => {
-    const hhId = detail?.id ?? selectedFarmerHousehold?.id;
-    if (!hhId) return { created: 0, skipped: 0, errors: [] };
-    const mappedRows = rows.map((row) => {
-      const mapped = {};
-      for (const [key, val] of Object.entries(row)) {
-        const apiField = MEMBER_IMPORT_ALIAS[key] || key;
-        mapped[apiField] = val;
-      }
-      return mapped;
-    });
-    const res = await batchImportHouseholdMembers(hhId, mappedRows);
-    show(`✓ 新增 ${res.created} 条${res.skipped > 0 ? `，跳过 ${res.skipped} 条` : ""}`);
-    refreshDetail();
-    if (leftTab === "households") loadHouseholds();
-    return res;
-  };
-  const submitSplit = async () => {
-    const hhId = detail?.id ?? selectedFarmerHousehold?.id;
-    if (!hhId || splitSelected.length === 0) return;
-    const members = (detail || selectedFarmerHousehold)?.members || [];
-    let actualHeadId = splitNewHead;
-    let actualHouseholdName = splitForm.household_name;
-    if (!actualHeadId) {
-      actualHeadId = splitSelected[0];
-      const defaultHeadName = members.find((m2) => m2.id === actualHeadId)?.real_name || "";
-      if (!actualHouseholdName.trim()) {
-        actualHouseholdName = defaultHeadName + "户";
-      }
-      const confirmed = window.confirm(
-        `未选择新户户主，将默认选择「${defaultHeadName}」作为新户户主，户名为「${actualHouseholdName}」。
-
-确认继续吗？`
-      );
-      if (!confirmed) return;
-    }
-    if (!actualHouseholdName.trim()) return show("请填写新家庭户名称", "err");
-    try {
-      const r2 = await splitHousehold(hhId, {
-        split_year: Number(splitForm.split_year),
-        split_date: splitForm.split_date || null,
-        new_household_name: actualHouseholdName,
-        member_ids: splitSelected,
-        new_head_id: actualHeadId,
-        new_land_area: splitForm.new_land_area ? Number(splitForm.new_land_area) : null,
-        origin_land_area: splitForm.origin_land_area ? Number(splitForm.origin_land_area) : null,
-        description: splitForm.description || `分户：${splitSelected.length}名成员独立组建「${actualHouseholdName}」`,
-        evidence_type: splitForm.evidence_type || null,
-        evidence_note: splitForm.evidence_note || null
-      });
-      show(`✓ 分户成功，新户ID: ${r2.new_household_id}`);
-      setSplitOpen(false);
-      setSplitStep(1);
-      setSplitSelected([]);
-      setSplitNewHead(null);
-      refreshDetail();
-      if (leftTab === "households") loadHouseholds();
-    } catch (e) {
-      show(e.message, "err");
-    }
-  };
-  const submitEvent = async () => {
-    const hhId = detail?.id ?? selectedFarmerHousehold?.id;
-    if (!hhId) return;
-    if (!eventForm.description.trim()) return show("请填写事件描述", "err");
-    await addHouseholdEvent(hhId, { ...eventForm, event_year: Number(eventForm.event_year) });
-    show("✓ 事件已记录");
-    setEventOpen(false);
-    loadEvents();
-  };
-  const handleImport = async (rows, _mapping, overwrite) => {
-    const toCreate = [];
-    const formatErrors = [];
-    rows.forEach((row, i) => {
-      const name = String(row["real_name"] || row["姓名*"] || row["姓名"] || "").trim();
-      const idCard = String(row["id_card"] || row["身份证号*"] || row["身份证号"] || "").trim();
-      if (!name || !idCard) {
-        formatErrors.push(`第${i + 2}行：姓名或身份证号为空`);
-        return;
-      }
-      const vn = String(row["village_name"] || row["所在村*"] || row["所在村"] || "").trim();
-      const gn = String(row["group_no"] || row["所在组*"] || row["所在组"] || "").trim();
-      if (!vn || !gn) {
-        formatErrors.push(`第${i + 2}行 ${name}：请填写所在村和所在组`);
-        return;
-      }
-      const info = parseIdCardInfo(idCard);
-      const statusMap = { "在册": 1, "注销": 2, "迁出": 3, "死亡": 4 };
-      const rawStatus = String(row["farmer_status"] || row["状态"] || "").trim();
-      toCreate.push({
-        real_name: name,
-        id_card: idCard,
-        gender: info?.gender ?? (String(row["gender"] || row["性别"] || "").includes("女") ? 2 : 1),
-        village_name: vn,
-        group_no: gn,
-        phone: String(row["phone"] || row["手机号"] || "").trim() || void 0,
-        bank_card: String(row["bank_card"] || row["银行卡号"] || "").trim() || void 0,
-        bank_name: String(row["bank_name"] || row["开户行"] || "").trim() || void 0,
-        address: String(row["address"] || row["地址"] || "").trim() || void 0,
-        land_area: Number(row["land_area"] || row["承包土地面积"]) || void 0,
-        farmer_status: statusMap[rawStatus] ?? 1
-      });
-    });
-    if (formatErrors.length > 0 && toCreate.length === 0) return { created: 0, skipped: 0, errors: formatErrors };
-    const res = await batchImportFarmers(toCreate, overwrite ?? false);
-    getVillageGroups().then((g) => {
-      setGroups(g);
-      setVillages([...new Set(g.map((v2) => v2.village_name))]);
-    });
-    const allErrors = [...formatErrors, ...res.errors || []];
-    if (res.skipped > 0) allErrors.push(`已跳过 ${res.skipped} 条重复身份证（未开启覆盖）`);
-    if (leftTab === "farmers") loadFarmers();
-    return { ...res, errors: allErrors };
-  };
-  const detectExcelColumns$1 = async (columns, sampleRows) => {
-    try {
-      const raw = await detectExcelColumns(columns, "FARMER", sampleRows);
-      const cols = (raw.columns || []).map((d) => ({
-        excel_column: d.excel_column,
-        suggested_field: d.suggested_field,
-        confidence: d.confidence ?? d.suggested_confidence ?? 0,
-        alternatives: d.alternatives || []
-      }));
-      return { columns: cols, recommended_templates: raw.recommended_templates || [] };
-    } catch {
-      return { columns: columns.map((c) => ({ excel_column: c, suggested_field: null, confidence: 0, alternatives: [] })), recommended_templates: [] };
-    }
-  };
-  const saveColumnMappingTemplate = async (data) => {
-    const result = await saveExcelTemplate({ ...data, business_type: "FARMER" });
-    getExcelTemplates("FARMER").then(setTemplates).catch(() => {
-    });
-    return result;
-  };
   const exportCurrentList = async () => {
-    if (leftTab === "farmers") {
-      const params = { page: 1, page_size: 5e3 };
-      if (search) params.search = search;
-      if (villageFilter) params.village_name = villageFilter;
-      const res = await getFarmers(params);
-      const rows = res.items.map((f2) => ({
-        "姓名": f2.real_name,
-        "身份证号": f2.id_card_masked,
-        "性别": f2.gender === 1 ? "男" : "女",
-        "所在村组": f2.village_full_name,
-        "手机号": f2.phone_masked || "",
-        "状态": FARMER_STATUS[f2.farmer_status]?.label ?? "未知"
-      }));
-      const ws = utils.json_to_sheet(rows);
-      ws["!cols"] = [12, 20, 6, 20, 14, 8].map((w2) => ({ wch: w2 }));
-      const wb2 = utils.book_new();
-      utils.book_append_sheet(wb2, ws, "农户列表");
-      const date = (/* @__PURE__ */ new Date()).toLocaleDateString("zh-CN").replace(/\//g, "");
-      writeFileSync(wb2, `农户列表_${date}.xlsx`);
-      show(`✓ 已导出 ${rows.length} 条记录`);
-    } else {
-      const params = { page: 1, page_size: 5e3, year: yearFilter };
-      if (search) params.search = search;
-      if (villageFilter) params.village_name = villageFilter;
-      const res = await getHouseholds(params);
-      const rows = res.items.map((h) => ({
-        "户编码": h.household_code,
-        "户名": h.household_name,
-        "户主": h.head_name,
-        "所在村组": h.village_full_name,
-        "成员数": h.member_count,
-        "承包面积": h.contracted_area || "",
-        "已用面积": h.used_area || "",
-        "状态": h.status === 1 ? "正常" : "注销"
-      }));
-      const ws = utils.json_to_sheet(rows);
-      ws["!cols"] = [10, 14, 8, 14, 8, 10, 10, 8].map((w2) => ({ wch: w2 }));
-      const wb2 = utils.book_new();
-      utils.book_append_sheet(wb2, ws, "家庭户列表");
-      const date = (/* @__PURE__ */ new Date()).toLocaleDateString("zh-CN").replace(/\//g, "");
-      writeFileSync(wb2, `家庭户列表_${date}.xlsx`);
-      show(`✓ 已导出 ${rows.length} 条记录`);
-    }
+    const params = { page: 1, page_size: 5e3, year: yearFilter };
+    if (search) params.search = search;
+    if (villageFilter) params.village_name = villageFilter;
+    const res = await getHouseholds(params);
+    const rows = res.items.map((h) => ({
+      "户编码": h.household_code,
+      "户名": h.household_name,
+      "户主": h.head_name,
+      "所在村组": h.village_full_name,
+      "成员数": h.member_count,
+      "承包面积": h.contracted_area || "",
+      "已用面积": h.used_area || "",
+      "状态": h.status === 1 ? "正常" : "注销"
+    }));
+    const ws = utils.json_to_sheet(rows);
+    ws["!cols"] = [10, 14, 8, 14, 8, 10, 10, 8].map((w2) => ({ wch: w2 }));
+    const wb2 = utils.book_new();
+    utils.book_append_sheet(wb2, ws, "家庭户列表");
+    const date = (/* @__PURE__ */ new Date()).toLocaleDateString("zh-CN").replace(/\//g, "");
+    writeFileSync(wb2, `家庭户列表_${date}.xlsx`);
+    show(`✓ 已导出 ${rows.length} 条记录`);
   };
   const exportOverdrawnDetail = async () => {
     try {
@@ -44323,23 +44857,15 @@ function FarmersPage() {
       show("导出超限明细失败：" + e.message, "err");
     }
   };
-  const toggleYear = (yr) => {
-    setExpandedYears((prev) => {
-      const next = new Set(prev);
-      if (next.has(yr)) next.delete(yr);
-      else next.add(yr);
-      return next;
-    });
-  };
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-5", children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-[32%] shrink-0 flex flex-col sticky top-[88px] self-start", style: { maxHeight: "calc(100vh - 104px)" }, children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex mb-4 bg-warm/50 rounded-card p-1.5 shadow-card", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs(
           "button",
           {
-            onClick: () => handleTabChange("households"),
+            onClick: () => onSwitchTab("households"),
             className: `flex-1 py-2.5 text-sm font-medium rounded-btn transition-all
-              ${leftTab === "households" ? "bg-white text-primary shadow-card" : "text-text-muted hover:text-text-primary hover:bg-warm/30"}`,
+              ${activeTab === "households" ? "bg-white text-primary shadow-card" : "text-text-muted hover:text-text-primary hover:bg-warm/30"}`,
             children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "household", size: 16, className: "inline mr-1.5" }),
               "家庭户"
@@ -44349,9 +44875,9 @@ function FarmersPage() {
         /* @__PURE__ */ jsxRuntimeExports.jsxs(
           "button",
           {
-            onClick: () => handleTabChange("farmers"),
+            onClick: () => onSwitchTab("farmers"),
             className: `flex-1 py-2.5 text-sm font-medium rounded-btn transition-all
-              ${leftTab === "farmers" ? "bg-white text-primary shadow-card" : "text-text-muted hover:text-text-primary hover:bg-warm/30"}`,
+              ${activeTab === "farmers" ? "bg-white text-primary shadow-card" : "text-text-muted hover:text-text-primary hover:bg-warm/30"}`,
             children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "person", size: 16, className: "inline mr-1.5" }),
               "农户"
@@ -44365,7 +44891,7 @@ function FarmersPage() {
           {
             value: search,
             onChange: (e) => setSearch(e.target.value),
-            placeholder: leftTab === "farmers" ? "搜索农户姓名或身份证…" : "搜索户名、户号或户主…",
+            placeholder: "搜索户名、户号或户主…",
             className: "flex-1 min-w-32 border border-border rounded-btn px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white shadow-card transition-all"
           }
         ),
@@ -44375,7 +44901,7 @@ function FarmersPage() {
             value: villageFilter,
             onChange: (e) => {
               setVillageFilter(e.target.value);
-              leftTab === "farmers" ? setFarmerPage(1) : setHhPage(1);
+              setHhPage(1);
             },
             className: "border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all",
             children: [
@@ -44384,75 +44910,73 @@ function FarmersPage() {
             ]
           }
         ),
-        leftTab === "households" && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "select",
+          {
+            value: yearFilter,
+            onChange: (e) => {
+              setYearFilter(Number(e.target.value));
+              setHhPage(1);
+              updateUrl({ year: Number(e.target.value) });
+            },
+            className: "border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all",
+            children: Array.from({ length: 21 }, (_, i) => (/* @__PURE__ */ new Date()).getFullYear() - 10 + i).map((y2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: y2, children: [
+              y2,
+              "年"
+            ] }, y2))
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "select",
+          {
+            value: statusFilter,
+            onChange: (e) => {
+              setStatusFilter(e.target.value);
+              setHhPage(1);
+            },
+            className: "border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部状态" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "1", children: "在册" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "2", children: "注销" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "3", children: "迁出" })
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "select",
+          {
+            value: confirmedFilter,
+            onChange: (e) => {
+              setConfirmedFilter(e.target.value);
+              setHhPage(1);
+            },
+            className: "border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部确认状态" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "1", children: "✓ 已确认" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "0", children: "✗ 未确认" })
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 cursor-pointer text-sm text-text-primary bg-white border border-border rounded-btn px-3 py-2.5 shadow-card hover:border-primary/30 transition-all", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "select",
+            "input",
             {
-              value: yearFilter,
+              type: "checkbox",
+              checked: subsidyOnly,
               onChange: (e) => {
-                setYearFilter(Number(e.target.value));
-                setHhPage(1);
-                updateUrl({ year: Number(e.target.value) });
-              },
-              className: "border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all",
-              children: Array.from({ length: 21 }, (_, i) => (/* @__PURE__ */ new Date()).getFullYear() - 10 + i).map((y2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: y2, children: [
-                y2,
-                "年"
-              ] }, y2))
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "select",
-            {
-              value: statusFilter,
-              onChange: (e) => {
-                setStatusFilter(e.target.value);
+                setSubsidyOnly(e.target.checked);
                 setHhPage(1);
               },
-              className: "border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部状态" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "1", children: "在册" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "2", children: "注销" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "3", children: "迁出" })
-              ]
+              className: "w-4 h-4 text-primary rounded"
             }
           ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(
-            "select",
-            {
-              value: confirmedFilter,
-              onChange: (e) => {
-                setConfirmedFilter(e.target.value);
-                setHhPage(1);
-              },
-              className: "border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all",
-              children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "全部确认状态" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "1", children: "✓ 已确认" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "0", children: "✗ 未确认" })
-              ]
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("label", { className: "flex items-center gap-2 cursor-pointer text-sm text-text-primary bg-white border border-border rounded-btn px-3 py-2.5 shadow-card hover:border-primary/30 transition-all", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                type: "checkbox",
-                checked: subsidyOnly,
-                onChange: (e) => {
-                  setSubsidyOnly(e.target.checked);
-                  setHhPage(1);
-                },
-                className: "w-4 h-4 text-primary rounded"
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "仅有补贴记录" })
-          ] })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "仅有补贴记录" })
         ] })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-3", children: [
-        leftTab === "households" && !mergeMode && !batchConfirmMode && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        !mergeMode && !batchConfirmMode && /* @__PURE__ */ jsxRuntimeExports.jsxs(
           "button",
           {
             onClick: () => setShowToolbar((v2) => !v2),
@@ -44464,7 +44988,7 @@ function FarmersPage() {
             ]
           }
         ),
-        showToolbar && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-2 flex-wrap", children: leftTab === "households" && !mergeMode && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        showToolbar && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-2 flex-wrap", children: !mergeMode && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-2 flex-wrap", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => setCreateHhOpen(true), className: "px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "create", size: 14, className: "inline mr-1" }),
@@ -44570,7 +45094,7 @@ function FarmersPage() {
           )
         ] }) })
       ] }),
-      leftTab === "households" && !mergeMode && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-primary/5 border border-primary/10 rounded-card px-4 py-2.5 mb-3 flex items-center gap-3 text-sm", children: [
+      !mergeMode && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-primary/5 border border-primary/10 rounded-card px-4 py-2.5 mb-3 flex items-center gap-3 text-sm", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "info", size: 16, className: "text-primary/60 shrink-0" }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-text-primary", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-0.5 rounded-btn font-medium mr-2", children: [
@@ -44580,7 +45104,7 @@ function FarmersPage() {
           "标签表示该家庭户信息已经通过人工确认核实"
         ] })
       ] }),
-      leftTab === "households" && mergeMode && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 w-full", children: [
+      mergeMode && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 w-full", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
           {
@@ -44609,7 +45133,7 @@ function FarmersPage() {
           }
         )
       ] }),
-      leftTab === "households" && batchConfirmMode && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 w-full", children: [
+      batchConfirmMode && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 w-full", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
           {
@@ -44641,63 +45165,30 @@ function FarmersPage() {
           }
         )
       ] }),
-      leftTab === "farmers" && /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => setCreateFarmerOpen(true), className: "px-4 py-2.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "create", size: 14, className: "inline mr-1" }),
-          "新建农户"
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: () => setImportOpen(true), className: "px-4 py-2.5 text-sm border border-primary/30 text-primary bg-primary/[0.03] rounded-btn hover:bg-primary/10 shadow-card hover:shadow-card-hover transition-all font-medium", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "import", size: 14, className: "inline mr-1" }),
-          "导入农户"
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { onClick: exportCurrentList, className: "px-4 py-2.5 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30 shadow-card hover:shadow-card-hover transition-all font-medium", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "export", size: 14, className: "inline mr-1" }),
-          "导出"
-        ] })
-      ] }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 bg-warm-100 border border-border rounded-card overflow-hidden shadow-card flex flex-col min-h-0", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 overflow-y-auto", children: [
-          leftTab === "farmers" && /* @__PURE__ */ jsxRuntimeExports.jsx(
-            FarmerList,
-            {
-              farmers: farmerList,
-              loading: farmerLoading,
-              selectedId: selectedFarmer?.id ?? null,
-              onSelect: openFarmer
-            }
-          ),
-          leftTab === "households" && /* @__PURE__ */ jsxRuntimeExports.jsx(
-            HouseholdList,
-            {
-              households: hhList,
-              loading: hhLoading,
-              selectedId: detail?.id ?? null,
-              mergeMode,
-              batchConfirmMode,
-              mergeSelected,
-              batchSelected,
-              mergeSelectedHouseholds,
-              onSelect: openDetail,
-              onToggleMerge: toggleMergeHousehold,
-              onToggleBatch: toggleBatchConfirm
-            }
-          )
-        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 overflow-y-auto", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          HouseholdList,
+          {
+            households: hhList,
+            loading: hhLoading,
+            selectedId: detail?.id ?? null,
+            mergeMode,
+            batchConfirmMode,
+            mergeSelected,
+            batchSelected,
+            mergeSelectedHouseholds,
+            onSelect: openDetail,
+            onToggleMerge: toggleMergeHousehold,
+            onToggleBatch: toggleBatchConfirm
+          }
+        ) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "px-5 py-3 border-t border-border bg-warm/30 flex justify-between items-center text-meta text-text-muted shrink-0", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-medium", children: [
             "共",
-            leftTab === "farmers" ? farmerTotal : hhTotal,
-            leftTab === "farmers" ? "人" : "户"
+            hhTotal,
+            "户"
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex gap-1 items-center", children: leftTab === "farmers" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: farmerPage <= 1, onClick: () => setFarmerPage((p2) => p2 - 1), className: "px-3 py-1.5 border border-border rounded-btn disabled:opacity-40 hover:bg-warm/30 transition-colors disabled:hover:bg-white", children: "‹" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "px-2 font-mono text-sm", children: [
-              farmerPage,
-              "/",
-              Math.max(1, Math.ceil(farmerTotal / 20))
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: farmerPage * 20 >= farmerTotal, onClick: () => setFarmerPage((p2) => p2 + 1), className: "px-3 py-1.5 border border-border rounded-btn disabled:opacity-40 hover:bg-warm/30 transition-colors disabled:hover:bg-white", children: "›" })
-          ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-1 items-center", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: hhPage <= 1, onClick: () => setHhPage((p2) => p2 - 1), className: "px-3 py-1.5 border border-border rounded-btn disabled:opacity-40 hover:bg-warm/30 transition-colors disabled:hover:bg-white", children: "‹" }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "px-2 font-mono text-sm", children: [
               hhPage,
@@ -44705,74 +45196,11 @@ function FarmersPage() {
               Math.max(1, Math.ceil(hhTotal / 20))
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("button", { disabled: hhPage * 20 >= hhTotal, onClick: () => setHhPage((p2) => p2 + 1), className: "px-3 py-1.5 border border-border rounded-btn disabled:opacity-40 hover:bg-warm/30 transition-colors disabled:hover:bg-white", children: "›" })
-          ] }) })
+          ] })
         ] })
       ] })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 min-w-0 flex flex-col", children: selectedFarmer ? (
-      /* 选中农户：上半部分个人信息 + 下半部分家庭户信息 */
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 flex flex-col min-h-0", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          FarmerDetail,
-          {
-            selectedFarmer,
-            showAppSummary: true,
-            appSummary: selectedFarmerHousehold?.app_summary?.filter((a) => a.farmer_id === selectedFarmer.id),
-            groups,
-            onUpdate: () => openFarmer(selectedFarmer.id),
-            onNavigateToProject: (typeId, farmerName) => navigate(`/projects?subsidy_type_id=${typeId}&farmer_name=${encodeURIComponent(farmerName)}`)
-          }
-        ),
-        selectedFarmerHousehold && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-4 flex-1 min-h-0", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            HistorySidebar,
-            {
-              householdId: selectedFarmerHousehold.id,
-              historyEventId,
-              historyDates,
-              expandedYears,
-              onExitHistory: exitHistory,
-              onToggleYear: toggleYear,
-              onLoadSnapshotAt: loadSnapshotAt
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 min-h-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-            FarmerHouseholdDetail,
-            {
-              selectedFarmerHousehold,
-              historyEventId,
-              snapshotData,
-              historyDates,
-              historyLoading,
-              detailTab,
-              setDetailTab,
-              onExitHistory: exitHistory,
-              onLoadSnapshotAt: loadSnapshotAt,
-              selectedFarmerId: selectedFarmer?.id ?? null,
-              groups,
-              onOpenMemberEdit: openMemberEdit,
-              onOpenFarmer: openFarmer,
-              onOpenMemberAdd: () => {
-                const v2 = groups.find((g2) => g2.village_id === detail?.village_id);
-                const g = groups.find((g2) => g2.village_id === detail?.village_id && g2.group_no === detail?.group_no);
-                setMemberForm({ real_name: "", id_card: "", gender: "1", relation: "成员", is_head: false, phone: "", bank_card: "", bank_name: "", farmer_status: "1", restricted_identity: "0", event_date: "", village_id: detail?.village_id ?? 0, group_no: detail?.group_no ?? 1, village_name: v2?.village_name ?? "", group_name: g ? g.full_name.replace(g.village_name, "").replace("村", "") : `第${detail?.group_no ?? 1}组` });
-                setMemberAddOpen(true);
-              },
-              onOpenMemberImport: () => setMemberImportOpen(true),
-              onOpenEvent: () => setEventOpen(true),
-              getHistoryDateByEventId,
-              memberForm,
-              setMemberForm,
-              memberEditTarget
-            }
-          ) })
-        ] }),
-        !selectedFarmerHousehold && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 bg-white border border-border rounded-card flex items-center justify-center text-text-muted/50 shadow-card", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "household", size: 40, className: "mx-auto mb-3 text-border" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm", children: "该农户暂未关联家庭户" })
-        ] }) })
-      ] })
-    ) : detail ? (
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 min-w-0 flex flex-col", children: detail ? (
       /* 选中家庭户：显示家庭户详情 */
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-4 flex-1 min-h-0", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -44809,7 +45237,9 @@ function FarmersPage() {
               setMemberAddOpen(true);
             },
             onOpenEvent: () => setEventOpen(true),
-            onOpenFarmer: openFarmer,
+            onOpenFarmer: (farmerId) => {
+              onNavigateToFarmer(farmerId);
+            },
             onOpenMemberEdit: openMemberEdit,
             onRemoveMember: removeMember,
             onOpenEdit: () => {
@@ -44845,12 +45275,8 @@ function FarmersPage() {
     ) : (
       /* 未选中任何内容 */
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 bg-white border border-border rounded-card flex items-center justify-center shadow-card", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: leftTab === "farmers" ? "person" : "household", size: 48, className: "mx-auto mb-4 text-border" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-base font-medium text-text-muted", children: [
-          "请从左侧选择",
-          leftTab === "farmers" ? "农户" : "家庭户",
-          "查看详情"
-        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "household", size: 48, className: "mx-auto mb-4 text-border" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-base font-medium text-text-muted", children: "请从左侧选择家庭户查看详情" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm text-text-muted/50 mt-2", children: "支持搜索、筛选和批量操作" })
       ] }) })
     ) }),
@@ -44863,17 +45289,6 @@ function FarmersPage() {
         setCreateHhForm,
         onSubmit: submitCreateHh,
         onClose: () => setCreateHhOpen(false)
-      }
-    ),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      CreateFarmerForm,
-      {
-        open: createFarmerOpen,
-        villages,
-        createFarmerForm,
-        setCreateFarmerForm,
-        onSubmit: submitCreateFarmer,
-        onClose: () => setCreateFarmerOpen(false)
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -44920,17 +45335,17 @@ function FarmersPage() {
         setGroups
       }
     ),
-    (detail || selectedFarmerHousehold) && /* @__PURE__ */ jsxRuntimeExports.jsx(
+    detail && /* @__PURE__ */ jsxRuntimeExports.jsx(
       MemberImport,
       {
         open: memberImportOpen,
-        householdName: (detail || selectedFarmerHousehold)?.household_name || "",
+        householdName: detail.household_name || "",
         onImport: handleMemberImport,
         onSuccess: refreshDetail,
         onClose: () => setMemberImportOpen(false)
       }
     ),
-    (detail || selectedFarmerHousehold) && /* @__PURE__ */ jsxRuntimeExports.jsx(
+    detail && /* @__PURE__ */ jsxRuntimeExports.jsx(
       SplitWizardForm,
       {
         open: splitOpen,
@@ -44938,8 +45353,8 @@ function FarmersPage() {
         splitSelected,
         splitNewHead,
         splitForm,
-        members: (detail || selectedFarmerHousehold)?.members || [],
-        householdName: (detail || selectedFarmerHousehold)?.household_name,
+        members: detail.members || [],
+        householdName: detail.household_name,
         setSplitStep,
         setSplitSelected,
         setSplitNewHead,
@@ -44948,7 +45363,7 @@ function FarmersPage() {
         onClose: () => setSplitOpen(false)
       }
     ),
-    (detail || selectedFarmerHousehold) && /* @__PURE__ */ jsxRuntimeExports.jsx(
+    detail && /* @__PURE__ */ jsxRuntimeExports.jsx(
       EventForm,
       {
         open: eventOpen,
@@ -45009,17 +45424,100 @@ function FarmersPage() {
         onSubmit: handleDeleteHousehold,
         onClose: () => setDeleteConfirmOpen(false)
       }
-    ),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      FarmerImport,
+    )
+  ] });
+}
+function FarmersPage() {
+  const { toast, show } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const getInitialLeftTab = () => {
+    const tab = searchParams.get("tab");
+    return tab === "farmers" ? "farmers" : "households";
+  };
+  const getInitialFarmerId = () => {
+    const id2 = searchParams.get("farmerId");
+    return id2 ? Number(id2) : null;
+  };
+  const getInitialHouseholdId = () => {
+    const id2 = searchParams.get("householdId");
+    return id2 ? Number(id2) : null;
+  };
+  const getInitialYear = () => {
+    const y2 = searchParams.get("year");
+    return y2 ? Number(y2) : (/* @__PURE__ */ new Date()).getFullYear();
+  };
+  const [leftTab, setLeftTab] = reactExports.useState(getInitialLeftTab);
+  const [yearFilter, setYearFilter] = reactExports.useState(getInitialYear);
+  const [groups, setGroups] = reactExports.useState([]);
+  const [villages, setVillages] = reactExports.useState([]);
+  reactExports.useEffect(() => {
+    getVillageGroups().then(setGroups);
+  }, []);
+  reactExports.useEffect(() => {
+    setVillages([...new Set(groups.map((v2) => v2.village_name))]);
+  }, [groups]);
+  const updateUrl = reactExports.useCallback((params) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (params.tab) {
+      newParams.set("tab", params.tab);
+    }
+    if (params.farmerId !== void 0) {
+      if (params.farmerId) {
+        newParams.set("farmerId", String(params.farmerId));
+        newParams.delete("householdId");
+      } else {
+        newParams.delete("farmerId");
+      }
+    }
+    if (params.householdId !== void 0) {
+      if (params.householdId) {
+        newParams.set("householdId", String(params.householdId));
+        newParams.delete("farmerId");
+      } else {
+        newParams.delete("householdId");
+      }
+    }
+    if (params.year !== void 0) {
+      newParams.set("year", String(params.year));
+    }
+    setSearchParams(newParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+  const handleTabChange = (tab) => {
+    setLeftTab(tab);
+    updateUrl({ tab, farmerId: null, householdId: null });
+  };
+  const handleNavigateToFarmer = reactExports.useCallback((farmerId) => {
+    setLeftTab("farmers");
+    updateUrl({ tab: "farmers", farmerId, householdId: null });
+  }, [updateUrl]);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-5", children: [
+    leftTab === "farmers" ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+      FarmersTab,
       {
-        open: importOpen,
-        templates,
-        onClose: () => setImportOpen(false),
-        onDetectColumns: detectExcelColumns$1,
-        onSaveTemplate: saveColumnMappingTemplate,
-        onImport: handleImport,
-        onSuccess: () => leftTab === "farmers" ? loadFarmers() : loadHouseholds()
+        show,
+        groups,
+        villages,
+        setGroups,
+        yearFilter,
+        activeTab: leftTab,
+        onSwitchTab: handleTabChange,
+        updateUrl,
+        initialFarmerId: getInitialFarmerId()
+      }
+    ) : /* @__PURE__ */ jsxRuntimeExports.jsx(
+      HouseholdsTab,
+      {
+        show,
+        groups,
+        villages,
+        setGroups,
+        yearFilter,
+        setYearFilter,
+        activeTab: leftTab,
+        onSwitchTab: handleTabChange,
+        onNavigateToFarmer: handleNavigateToFarmer,
+        updateUrl,
+        initialHouseholdId: getInitialHouseholdId()
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { ...toast })
