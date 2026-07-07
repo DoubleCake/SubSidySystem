@@ -234,11 +234,19 @@ export function registerHouseholdHandlers(): void {
           seasonTotals[r.season].payment += Number(r.payment_area)
         }
 
-        // 无论有无数据，4个季节始终展示
-        const ALL_SEASONS = ['大春', '小春', '全年单补', '临时']
+        // 从补贴项目中动态获取所有季节分类
+        let allSeasons: string[] = ['大春', '小春', '全年单补', '临时']
+        try {
+          const seasonRows = db().allRaw<{ season: string }>(
+            "SELECT DISTINCT season FROM subsidy_type WHERE season IS NOT NULL AND season != '' ORDER BY season"
+          )
+          if (seasonRows.length > 0) {
+            allSeasons = seasonRows.map(r => r.season)
+          }
+        } catch { /* keep defaults */ }
         const sb: Record<string, any> = {}
         let totalUsed = 0
-        for (const season of ALL_SEASONS) {
+        for (const season of allSeasons) {
           const totals = seasonTotals[season] || { used: 0, apply: 0, payment: 0 }
           const used = Math.round(totals.used * 100) / 100
           const remaining = Math.max(0, contractedArea - used)

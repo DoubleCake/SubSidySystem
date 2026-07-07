@@ -1378,10 +1378,19 @@ function registerHouseholdHandlers() {
           seasonTotals[r.season].apply += Number(r.apply_area);
           seasonTotals[r.season].payment += Number(r.payment_area);
         }
-        const ALL_SEASONS = ["大春", "小春", "全年单补", "临时"];
+        let allSeasons = ["大春", "小春", "全年单补", "临时"];
+        try {
+          const seasonRows = db2().allRaw(
+            "SELECT DISTINCT season FROM subsidy_type WHERE season IS NOT NULL AND season != '' ORDER BY season"
+          );
+          if (seasonRows.length > 0) {
+            allSeasons = seasonRows.map((r) => r.season);
+          }
+        } catch {
+        }
         const sb = {};
         let totalUsed = 0;
-        for (const season of ALL_SEASONS) {
+        for (const season of allSeasons) {
           const totals = seasonTotals[season] || { used: 0, apply: 0, payment: 0 };
           const used = Math.round(totals.used * 100) / 100;
           const remaining = Math.max(0, contractedArea - used);
