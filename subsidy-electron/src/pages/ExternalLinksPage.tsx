@@ -29,7 +29,6 @@ export default function ExternalLinksPage() {
 
   // ── 网站 ──
   const [sites, setSites] = useState<Site[]>([])
-  const [openSite, setOpenSite] = useState<Site|null>(null)
   const [siteModal, setSiteModal] = useState(false)
   const [editSite, setEditSite] = useState<Site|null>(null)
   const [siteForm, setSiteForm] = useState<Partial<Site>>({site_type:'link',sort_order:0,is_active:1})
@@ -196,20 +195,7 @@ export default function ExternalLinksPage() {
 
       {/* ── 外部网站 ── */}
       {tab==='sites'&&(
-        <>
-          {openSite&&(
-            <div className="mb-4 bg-white border border-border rounded-card overflow-hidden shadow-card">
-              <div className="flex items-center gap-3 px-4 py-2.5 bg-warm/50 border-b border-border text-text-primary text-sm">
-                <span className="font-semibold">{openSite.name}</span>
-                <span className="text-text-muted text-xs font-mono truncate flex-1">{openSite.url}</span>
-                <a href={openSite.url} target="_blank" rel="noopener noreferrer" className="text-xs bg-primary/10 hover:bg-primary/20 text-primary px-2.5 py-1 rounded">↗ 新标签页</a>
-                <button onClick={()=>setOpenSite(null)} className="text-text-muted hover:text-text-primary ml-2">✕</button>
-              </div>
-              <iframe src={openSite.url} className="w-full" style={{height:480}} title={openSite.name}
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups" />
-            </div>
-          )}
-          {sites.filter(s=>s.is_active).length===0
+        <>{sites.filter(s=>s.is_active).length===0
             ?<div className="text-center py-20 bg-white border border-border rounded-card text-text-muted/50">
                <div className="text-5xl mb-3">🌐</div>
                <p className="text-sm mb-3">暂无外部网站，点击右上角「管理网站」添加</p>
@@ -217,17 +203,14 @@ export default function ExternalLinksPage() {
             :<div className="grid grid-cols-3 gap-4">
                {sites.filter(s=>s.is_active).map(s=>(
                  <div key={s.id} className="bg-white border border-border rounded-card p-5 shadow-card hover:border-primary/30 hover:shadow-card transition-all cursor-pointer group"
-                   onClick={()=>setOpenSite(s)}>
+                   onClick={()=>window.open(s.url, '_blank')}>
                    <div className="flex items-start justify-between mb-3">
                      <div className="w-10 h-10 bg-primary/5 border border-primary/10 rounded-card flex items-center justify-center text-xl">🌐</div>
+                     <span className="text-xs text-text-muted/30 opacity-0 group-hover:opacity-100 transition-opacity">点击打开 →</span>
                    </div>
                    <h3 className="font-bold text-text-primary text-sm mb-1 group-hover:text-primary">{s.name}</h3>
                    {s.description&&<p className="text-xs text-text-muted mb-2">{s.description}</p>}
                    <p className="text-xs text-text-muted/50 font-mono truncate">{s.url}</p>
-                   <div className="mt-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                     <span className="text-xs text-primary">点击内嵌打开 →</span>
-                     <a href={s.url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="text-xs text-text-muted hover:text-text-primary">↗ 新标签</a>
-                   </div>
                  </div>
                ))}
              </div>
