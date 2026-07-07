@@ -22,8 +22,8 @@ export function registerHouseholdHandlers(): void {
       const values: unknown[] = []
 
       if (search) {
-        where += ` AND (hh.household_name LIKE ? OR hh.household_code LIKE ? OR head.real_name LIKE ?)`
-        values.push(`%${search}%`, `%${search}%`, `%${search}%`)
+        where += ` AND (hh.household_name LIKE ? OR hh.household_code LIKE ? OR head.real_name LIKE ? OR EXISTS (SELECT 1 FROM farmer_profile fp WHERE fp.household_id = hh.id AND (fp.real_name LIKE ? OR fp.id_card LIKE ?)))`
+        values.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`)
       }
       if (villageName) {
         where += ` AND v.village_name = ?`
