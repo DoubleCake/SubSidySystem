@@ -1173,7 +1173,7 @@ function registerHouseholdHandlers() {
   electron.ipcMain.handle("households:list", (_e, params = {}) => {
     try {
       const { page, pageSize, offset } = parsePagination(params);
-      const search = params.search || "";
+      const search = (params.search || "").trim();
       const villageName = params.village_name || "";
       const status = params.status != null ? Number(params.status) : null;
       const hasSubsidy = params.has_subsidy != null ? Number(params.has_subsidy) : 0;

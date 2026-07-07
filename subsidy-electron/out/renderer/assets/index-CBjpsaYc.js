@@ -43233,7 +43233,11 @@ function FarmersTab(props) {
           "input",
           {
             value: search,
-            onChange: (e) => setSearch(e.target.value),
+            onChange: (e) => setSearch(e.target.value.trimStart()),
+            onPaste: (e) => {
+              e.preventDefault();
+              setSearch(e.clipboardData.getData("text").trim());
+            },
             placeholder: "搜索姓名/身份证/手机号…",
             className: "flex-1 min-w-32 border border-border rounded-btn px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white shadow-card transition-all"
           }
@@ -44896,7 +44900,11 @@ function HouseholdsTab(props) {
           "input",
           {
             value: search,
-            onChange: (e) => setSearch(e.target.value),
+            onChange: (e) => setSearch(e.target.value.trimStart()),
+            onPaste: (e) => {
+              e.preventDefault();
+              setSearch(e.clipboardData.getData("text").trim());
+            },
             placeholder: "搜索户名/户编码/户主姓名…",
             className: "flex-1 min-w-32 border border-border rounded-btn px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white shadow-card transition-all"
           }

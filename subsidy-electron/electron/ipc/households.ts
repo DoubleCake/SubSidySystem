@@ -11,7 +11,7 @@ export function registerHouseholdHandlers(): void {
   ipcMain.handle('households:list', (_e, params: Record<string, unknown> = {}) => {
     try {
       const { page, pageSize, offset } = parsePagination(params)
-      const search = params.search as string || ''
+      const search = (params.search as string || '').trim()
       const villageName = params.village_name as string || ''
       const status = params.status != null ? Number(params.status) : null
       const hasSubsidy = params.has_subsidy != null ? Number(params.has_subsidy) : 0
