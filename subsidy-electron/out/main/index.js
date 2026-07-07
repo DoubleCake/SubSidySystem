@@ -1207,6 +1207,7 @@ function registerHouseholdHandlers() {
       const countRow = db2().getRaw(`
         SELECT COUNT(*) as cnt FROM family_household hh
         LEFT JOIN village v ON hh.village_id = v.id
+        LEFT JOIN farmer_profile head ON head.id = hh.head_farmer_id
         ${where}
       `, ...values);
       const rows = db2().allRaw(`
