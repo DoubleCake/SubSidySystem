@@ -43997,7 +43997,6 @@ function HouseholdDetailContent({
         })(),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
           Object.entries(areaUsage.season_breakdown).map(([season, usage]) => {
-            if (season === "临时") return null;
             let yearUsedArea = 0;
             let yearApplyArea = 0;
             let yearPaymentArea = 0;

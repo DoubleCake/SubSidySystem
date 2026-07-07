@@ -368,8 +368,6 @@ export function HouseholdDetailContent({
             })()}
             <div className="space-y-2">
               {Object.entries(areaUsage.season_breakdown).map(([season, usage]) => {
-                // 跳过"临时"（改为由下方的独立卡片显示不占用补贴面积数据）
-                if (season === '临时') return null
                 // 计算该季节在该年度的使用面积
                 let yearUsedArea = 0
                 let yearApplyArea = 0  // 预申请面积
