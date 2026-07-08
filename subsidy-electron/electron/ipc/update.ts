@@ -52,7 +52,7 @@ export function registerUpdateHandlers(): void {
     } catch (e) { return errorResponse(String(e)) }
   })
 
-  // ── 版本回退：下载指定版本安装包 ──
+  // ── 版本选择：下载指定版本的 NSIS 安装包 ──
   ipcMain.handle('update:downloadVersion', async (_e, payload: { version: string; url?: string }) => {
     try {
       const baseUrl = getUpdateServerUrl()
@@ -61,13 +61,13 @@ export function registerUpdateHandlers(): void {
       const cleanUrl = baseUrl.replace(/\/+$/, '')
       const downloadUrl = payload.url || `${cleanUrl}/SubsidySystem Setup ${payload.version}.exe`
 
-      const { autoUpdater } = require('electron-updater')
-      autoUpdater.allowDowngrade = true
-      autoUpdater.setFeedURL({ provider: 'generic', url: cleanUrl })
+      const { downloadVersionExe } = require('../updater')
+      const filePath = await downloadVersionExe(downloadUrl, payload.version)
 
-      // 直接使用 electron-updater 下载指定版本
-      await autoUpdater.downloadUpdate()
-      return success({ message: `版本 ${payload.version} 已下载，重启后安装` })
+      return success({
+        message: `版本 ${payload.version} 已下载，重启后安装`,
+        filePath,
+      })
     } catch (e) {
       return errorResponse(`下载失败: ${(e as Error).message}`)
     }

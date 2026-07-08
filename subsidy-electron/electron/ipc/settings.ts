@@ -5,7 +5,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, unlinkSync,
 import { join, basename } from 'path'
 import { formatGroupNo } from '../utils/format'
 import { getUpdateServerUrl, getAutoCheckUpdate, getLastUpdateCheck, setUpdateServerUrl, setAutoCheckUpdate } from '../store'
-import { checkForUpdatesAndInstall } from '../updater'
+// 更新检查已改为 settings:checkForUpdate 内联实现（仅版本对比，不自动下载）
 
 function getBackupDir(): string {
   const dir = join(app.getPath('userData'), 'backups')
@@ -298,8 +298,36 @@ export function registerSettingsHandlers(): void {
 
   ipcMain.handle('settings:checkForUpdate', async () => {
     try {
-      return success(await checkForUpdatesAndInstall())
-    } catch (e) { return errorResponse(String(e)) }
+      const url = getUpdateServerUrl()
+      if (!url) return success({ hasUpdate: false, message: '未配置更新服务器地址' })
+
+      const cleanUrl = url.replace(/\/+$/, '')
+      const { app } = require('electron')
+
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 8000)
+      const resp = await fetch(`${cleanUrl}/latest.yml`, { signal: controller.signal })
+      clearTimeout(timeout)
+
+      if (!resp.ok) return success({ hasUpdate: false, message: `服务器返回 HTTP ${resp.status}` })
+
+      const yml = await resp.text()
+      const m = yml.match(/version:\s*(\S+)/)
+      const serverVersion = m ? m[1] : ''
+      const currentVersion = app.getVersion()
+      const hasUpdate = serverVersion && serverVersion !== currentVersion
+
+      return success({
+        hasUpdate,
+        currentVersion,
+        serverVersion: serverVersion || '未知',
+        message: hasUpdate
+          ? `发现新版本 v${serverVersion}（当前 v${currentVersion}）`
+          : `已是最新版本 v${currentVersion}`,
+      })
+    } catch (e: any) {
+      return success({ hasUpdate: false, message: e.name === 'AbortError' ? '连接超时' : `连接失败: ${e.message}` })
+    }
   })
 
   // ── 获取村列表 ──

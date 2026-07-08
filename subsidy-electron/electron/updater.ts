@@ -231,3 +231,73 @@ export function registerUpdateEvents() {
     mainWindow?.webContents.send('update:error', error.message)
   })
 }
+
+/**
+ * 下载指定版本的 NSIS 安装包（不依赖 electron-updater 的 feed 机制）
+ * 直接 HTTP 下载 EXE，推送进度，完成后可调用 quitAndInstall
+ */
+export async function downloadVersionExe(downloadUrl: string, version: string): Promise<string> {
+  const { app } = require('electron')
+  const fs = require('fs')
+  const path = require('path')
+  const http = downloadUrl.startsWith('https') ? require('https') : require('http')
+
+  // URL 编码空格
+  const url = downloadUrl.replace(/ /g, '%20')
+  const tmpDir = app.getPath('temp')
+  const filePath = path.join(tmpDir, `SubsidySystem Setup ${version}.exe`)
+
+  mainWindow?.webContents.send('update:status', 'downloading')
+  mainWindow?.webContents.send('update:progress', { percent: 0, speedMB: '0.0 MB/s' })
+
+  return new Promise((resolve, reject) => {
+    http.get(url, (res: any) => {
+      // 处理重定向
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        const redirectUrl = res.headers.location.startsWith('http')
+          ? res.headers.location
+          : new URL(res.headers.location, url).href
+        res.resume()
+        return resolve(downloadVersionExe(redirectUrl, version))
+      }
+
+      if (res.statusCode !== 200) {
+        return reject(new Error(`HTTP ${res.statusCode}`))
+      }
+
+      const total = parseInt(res.headers['content-length'], 10) || 0
+      let downloaded = 0
+      const startTime = Date.now()
+
+      const file = fs.createWriteStream(filePath)
+      res.on('data', (chunk: Buffer) => {
+        downloaded += chunk.length
+        file.write(chunk)
+        if (total > 0) {
+          const pct = Math.round((downloaded / total) * 100)
+          const elapsed = (Date.now() - startTime) / 1000
+          const speed = elapsed > 0 ? downloaded / elapsed : 0
+          const speedMB = (speed / (1024 * 1024)).toFixed(1)
+          mainWindow?.webContents.send('update:progress', {
+            percent: pct,
+            speedMB: `${speedMB} MB/s`,
+            transferred: downloaded,
+            total,
+          })
+        }
+      })
+
+      res.on('end', () => {
+        file.end()
+        mainWindow?.webContents.send('update:status', 'downloaded')
+        resolve(filePath)
+      })
+
+      res.on('error', (err: Error) => {
+        file.close()
+        fs.unlink(filePath, () => {})
+        reject(err)
+      })
+    }).on('error', reject)
+  })
+}

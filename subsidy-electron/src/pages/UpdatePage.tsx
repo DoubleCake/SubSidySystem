@@ -75,28 +75,39 @@ export default function UpdatePage() {
     try {
       const r = await window.electronAPI.invoke<{ code: number; data: any }>('settings:checkForUpdate')
       const d = r?.data
-      if (d?.error) {
-        setError(d.error); setDetail(d.detail || ''); setSteps(d.steps || []); setStatus('error')
-      } else {
-        setStatus(d?.message || '')
-        setSteps(d?.steps || [])
-      }
+      setStatus(d?.message || '')
       setChecking(false)
       loadConfig()
+      // 自动加载版本历史
+      if (d?.hasUpdate) loadHistory()
+      else setHistory(null)
     } catch (e) {
       setError(String(e)); setStatus('error'); setChecking(false)
     }
   }
 
+  // 下载进度
+  const [progress, setProgress] = useState(0)
+  const [speedInfo, setSpeedInfo] = useState('')
+
+  useEffect(() => {
+    window.electronAPI.onUpdateProgress((p: any) => {
+      setProgress(p.percent || 0)
+      if (p.speedMB) setSpeedInfo(p.speedMB)
+    })
+  }, [])
+
   const downloadVersion = async (v: VersionItem) => {
-    if (!confirm(`确定要下载并安装版本 ${v.version}？\n${v.title || ''}`)) return
+    const changes = v.changes?.length ? '\n\n更新内容:\n' + v.changes.map(c => '• ' + c).join('\n') : ''
+    if (!confirm(`确定要安装版本 ${v.version}？\n\n${v.title || ''}${changes}`)) return
     setChecking(true)
     setStatus('downloading')
+    setProgress(0); setSpeedInfo('')
     try {
       const r = await window.electronAPI.invoke<{ code: number; data: any }>('update:downloadVersion', { version: v.version, url: v.downloadUrl })
-      if (r?.data?.error) setError(r.data.error)
-      else setStatus(r?.data?.message || `已下载 v${v.version}`)
-    } catch (e) { setError(String(e)) }
+      if (r?.data?.error) { setError(r.data.error); setStatus('error') }
+      else { setStatus('downloaded'); alert(r?.data?.message || `v${v.version} 下载完成，请重启应用完成安装`) }
+    } catch (e) { setError(String(e)); setStatus('error') }
     finally { setChecking(false) }
   }
 
@@ -104,6 +115,7 @@ export default function UpdatePage() {
     checking: { text: '检查中...', color: 'text-blue-600', bg: '#eff6ff' },
     'up-to-date': { text: '当前已是最新', color: 'text-green-600', bg: '#f0fdf4' },
     downloading: { text: '下载中...', color: 'text-amber-600', bg: '#fffbeb' },
+    downloaded: { text: '下载完成，重启后安装', color: 'text-green-600', bg: '#f0fdf4' },
     error: { text: '出错', color: 'text-red-600', bg: '#fef2f2' },
   }
 
@@ -159,6 +171,18 @@ export default function UpdatePage() {
           </div>
         )}
 
+        {/* 下载进度条 */}
+        {status === 'downloading' && progress > 0 && (
+          <div className="space-y-1">
+            <div className="w-full bg-border rounded-full h-2 overflow-hidden">
+              <div className="bg-primary h-full rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+            </div>
+            <div className="flex justify-between text-xs text-text-muted">
+              <span>{progress}%</span>
+              {speedInfo && <span>{speedInfo}</span>}
+            </div>
+          </div>
+        )}
         {status && (() => {
           const sl = stLabel[status] || { text: status, color: 'text-text-muted', bg: '#f5f5f5' }
           return <div className={`text-xs ${sl.color} rounded-btn px-3 py-2`} style={{ backgroundColor: sl.bg }}>{sl.text}</div>
@@ -197,12 +221,16 @@ export default function UpdatePage() {
                     {v.changes.map((c, j) => <li key={j}>{c}</li>)}
                   </ul>
                 )}
-                {/* 版本回退按钮 */}
+                {/* 安装/回退按钮 */}
                 {v.version !== config?.currentVersion && (
                   <button onClick={() => downloadVersion(v)}
                     disabled={checking}
-                    className="mt-2 text-xs text-primary border border-primary/30 px-3 py-1 rounded-btn hover:bg-primary/5 disabled:opacity-40">
-                    ⬇️ 切换到此版本
+                    className={`mt-2 text-xs px-3 py-1 rounded-btn disabled:opacity-40 font-medium ${
+                      v.version > (config?.currentVersion || '0')
+                        ? 'bg-primary text-white hover:bg-primary/90'
+                        : 'text-primary border border-primary/30 hover:bg-primary/5'
+                    }`}>
+                    {v.version > (config?.currentVersion || '0') ? '⬇️ 安装此版本' : '⬇️ 回退到此版本'}
                   </button>
                 )}
               </div>
