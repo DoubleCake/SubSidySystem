@@ -1,6 +1,21 @@
 {
   "versions": [
     {
+      "version": "0.0.10",
+      "date": "2026-07-08",
+      "title": "超限筛选修复 + 家庭户列表性能优化 + 外联页面简化",
+      "changes": [
+        "修复超限筛选：按季节计算，有效面积 = 申请面积 - 流转出 - 不补面积",
+        "家庭户列表性能大优化：标量子查询→LEFT JOIN派生表，查询从60+次降到2次",
+        "补齐5个缺失索引：beneficiary_id、is_manually_confirmed、land_trust等",
+        "外联查询页面简化：点击卡片直接浏览器打开，去iframe",
+        "补贴查询改为明文显示，村组信息正常展示",
+        "补齐external-links全套CRUD + query_record IPC handler",
+        "Dashboard容错：dashboardTodos失败不影响其他数据加载",
+        "家庭户列表支持按年度筛选面积超限"
+      ]
+    },
+    {
       "version": "0.0.8",
       "date": "2026-07-07",
       "title": "农户补贴记录关联修复 + 独立更新页面",
