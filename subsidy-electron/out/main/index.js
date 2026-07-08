@@ -2077,9 +2077,10 @@ function registerSubsidyHandlers() {
   });
   electron.ipcMain.handle("subsidies:createType", (_e, data) => {
     try {
-      const cols = Object.keys(data).join(", ");
-      const placeholders = Object.keys(data).map(() => "?").join(", ");
-      const values = Object.keys(data).map((k) => data[k]);
+      const keys = Object.keys(data).filter((k) => data[k] !== void 0 && data[k] !== null);
+      const cols = keys.join(", ");
+      const placeholders = keys.map(() => "?").join(", ");
+      const values = keys.map((k) => data[k]);
       const result = db2().runRaw(`INSERT INTO subsidy_type (${cols}) VALUES (${placeholders})`, ...values);
       return success({ id: result.lastInsertRowid });
     } catch (e) {

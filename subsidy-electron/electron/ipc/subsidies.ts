@@ -56,9 +56,10 @@ export function registerSubsidyHandlers(): void {
 
   ipcMain.handle('subsidies:createType', (_e, data: Record<string, unknown>) => {
     try {
-      const cols = Object.keys(data).join(', ')
-      const placeholders = Object.keys(data).map(() => '?').join(', ')
-      const values = Object.keys(data).map(k => data[k])
+      const keys = Object.keys(data).filter(k => data[k] !== undefined && data[k] !== null)
+      const cols = keys.join(', ')
+      const placeholders = keys.map(() => '?').join(', ')
+      const values = keys.map(k => data[k])
       const result = db().runRaw(`INSERT INTO subsidy_type (${cols}) VALUES (${placeholders})`, ...values)
       return success({ id: result.lastInsertRowid })
     } catch (e) {

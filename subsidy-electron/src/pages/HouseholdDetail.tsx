@@ -350,18 +350,14 @@ export function HouseholdDetailContent({
                   <span className="text-xs text-text-muted font-medium">📊 补贴面积使用情况</span>
                   {allYears.length > 0 && (
                     <select
-                      value={areaYear}
+                      value={areaYear || allYears[0]}
                       onChange={e => setAreaYear(Number(e.target.value))}
                       className="border border-border rounded-btn px-2 py-1 text-xs outline-none focus:border-primary bg-main"
                     >
-                      <option value={0}>全部年份</option>
                       {allYears.map(y => (
-                        <option key={y} value={y}>{y}</option>
+                        <option key={y} value={y}>{y}年</option>
                       ))}
                     </select>
-                  )}
-                  {areaYear !== 0 && (
-                    <span className="text-xs text-primary">已筛选至 {areaYear} 年度</span>
                   )}
                 </div>
               )

@@ -43976,23 +43976,18 @@ function HouseholdDetailContent({
           )].sort((a, b) => b - a);
           return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-2", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted font-medium", children: "📊 补贴面积使用情况" }),
-            allYears.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            allYears.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx(
               "select",
               {
-                value: areaYear,
+                value: areaYear || allYears[0],
                 onChange: (e) => setAreaYear(Number(e.target.value)),
                 className: "border border-border rounded-btn px-2 py-1 text-xs outline-none focus:border-primary bg-main",
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: 0, children: "全部年份" }),
-                  allYears.map((y2) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: y2, children: y2 }, y2))
-                ]
+                children: allYears.map((y2) => /* @__PURE__ */ jsxRuntimeExports.jsxs("option", { value: y2, children: [
+                  y2,
+                  "年"
+                ] }, y2))
               }
-            ),
-            areaYear !== 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-primary", children: [
-              "已筛选至 ",
-              areaYear,
-              " 年度"
-            ] })
+            )
           ] });
         })(),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
