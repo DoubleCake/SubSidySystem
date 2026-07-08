@@ -551,33 +551,30 @@ export function HouseholdDetailContent({
                       </span>
                     )}
                     <span className="text-sm flex-1">{a.subsidy_name}</span>
-                    {/* 代领标签 */}
+                    {/* 代领标签：根据当前记录的人是受益人还是代领人显示 */}
                     {a.proxy_info && (() => {
                       const proxy = a.proxy_info
-                      const labelType = String(proxy.type || '代领')
-                      const isBenefit = labelType.includes('受益')
+                      const farmerId = Number(a.farmer_id)
+                      // 当前记录的人就是受益人 → 显示"受益"；是代领人 → 显示"代领"
+                      const isBenefit = farmerId === Number(proxy.beneficiary_farmer_id)
                       return (
                         <span className="group relative shrink-0">
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
+                              // 点击跳转到对方
                               const targetId = isBenefit ? proxy.proxy_farmer_id : proxy.beneficiary_farmer_id
                               if (targetId) onOpenFarmer(targetId)
                             }}
                             className="cursor-pointer hover:brightness-90 transition-all"
-                            title={isBenefit
-                              ? `受益人: ${proxy.beneficiary_name || '?'} → 代领人: ${proxy.proxy_name || '?'}`
-                              : `代领人: ${proxy.proxy_name || '?'} → 受益人: ${proxy.beneficiary_name || '?'}`}
+                            title={`受益: ${proxy.beneficiary_name || '?'}\n代领: ${proxy.proxy_name || '?'}${proxy.remark ? '\n备注: ' + proxy.remark : ''}\n点击跳转 →`}
                           >
-                            <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full border ${
+                            <span className={`px-1.5 py-0.5 text-xs font-semibold rounded-full border ${
                               isBenefit
                                 ? 'bg-red-50 text-red-700 border-red-300'
                                 : 'bg-blue-50 text-blue-700 border-blue-300'
                             }`}>
-                              {isBenefit ? '🔴 受益' : '🔵 代领'}
-                              <span className="font-normal text-text-muted">
-                                {isBenefit ? proxy.proxy_name : proxy.beneficiary_name}
-                              </span>
+                              {isBenefit ? '受益' : '代领'}
                             </span>
                           </button>
                         </span>

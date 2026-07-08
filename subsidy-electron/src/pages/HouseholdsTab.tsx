@@ -926,7 +926,11 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
                 }}
                 onOpenEvent={() => setEventOpen(true)}
                 onOpenFarmer={(farmerId) => {
-                  onNavigateToFarmer(farmerId)
+                  // 跳转到该农户所在的家庭户详情
+                  const member = detail?.members?.find(m => m.id === farmerId)
+                  if (member?.household_id) {
+                    openDetail(member.household_id)
+                  }
                 }}
                 onOpenMemberEdit={openMemberEdit}
                 onRemoveMember={removeMember}
