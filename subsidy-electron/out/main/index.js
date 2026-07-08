@@ -2199,14 +2199,30 @@ function registerSubsidyHandlers() {
   });
   electron.ipcMain.handle("subsidies:listProxies", (_e, params = {}) => {
     try {
+      const subsidyTypeId = params.subsidy_type_id ? Number(params.subsidy_type_id) : 0;
+      const search = params.search?.trim() || "";
+      let where = "WHERE 1=1";
+      const vals = [];
+      if (subsidyTypeId) {
+        where += " AND sp.subsidy_type_id = ?";
+        vals.push(subsidyTypeId);
+      }
+      if (search) {
+        where += " AND (bf.real_name LIKE ? OR pf.real_name LIKE ? OR bf.id_card LIKE ? OR pf.id_card LIKE ?)";
+        vals.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+      }
       const rows = db2().allRaw(`
         SELECT sp.*,
-               bf.real_name as beneficiary_name, pf.real_name as proxy_name
+               bf.real_name as beneficiary_name, bf.id_card as beneficiary_id_card,
+               pf.real_name as proxy_name, pf.id_card as proxy_id_card,
+               st.subsidy_name
         FROM subsidy_proxy sp
         LEFT JOIN farmer_profile bf ON sp.beneficiary_farmer_id = bf.id
         LEFT JOIN farmer_profile pf ON sp.proxy_farmer_id = pf.id
+        LEFT JOIN subsidy_type st ON sp.subsidy_type_id = st.id
+        ${where}
         ORDER BY sp.id DESC
-      `);
+      `, ...vals);
       return success(rows);
     } catch (e) {
       return errorResponse(String(e));
