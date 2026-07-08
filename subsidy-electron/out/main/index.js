@@ -1173,6 +1173,7 @@ function registerHouseholdHandlers() {
   electron.ipcMain.handle("households:list", (_e, params = {}) => {
     try {
       const { page, pageSize, offset } = parsePagination(params);
+      const year = params.year ? Number(params.year) : null;
       const search = (params.search || "").trim();
       const villageName = params.village_name || "";
       const status = params.status != null ? Number(params.status) : null;
@@ -1180,66 +1181,79 @@ function registerHouseholdHandlers() {
       const overdrawnOnly = params.overdrawn_only != null ? Number(params.overdrawn_only) : 0;
       const confirmedOnly = params.confirmed_only || "";
       let where = "WHERE 1=1";
-      const values = [];
+      const whereValues = [];
       if (search) {
         where += ` AND (hh.household_name LIKE ? OR hh.household_code LIKE ? OR head.real_name LIKE ? OR EXISTS (SELECT 1 FROM farmer_profile fp WHERE fp.household_id = hh.id AND (fp.real_name LIKE ? OR fp.id_card LIKE ?)))`;
-        values.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+        whereValues.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
       }
       if (villageName) {
         where += ` AND v.village_name = ?`;
-        values.push(villageName);
+        whereValues.push(villageName);
       }
       if (status != null) {
         where += ` AND hh.status = ?`;
-        values.push(status);
+        whereValues.push(status);
       }
       if (hasSubsidy === 1) {
-        where += ` AND EXISTS (SELECT 1 FROM farmer_profile fp2 JOIN subsidy_application sa2 ON COALESCE(sa2.beneficiary_id,sa2.farmer_id) = fp2.id WHERE fp2.household_id = hh.id)`;
+        where += ` AND area.total > 0`;
       }
       if (overdrawnOnly === 1) {
-        where += ` AND (SELECT COALESCE(SUM(sa.apply_area),0) FROM subsidy_application sa JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id,sa.farmer_id) = fp2.id WHERE fp2.household_id = hh.id) > COALESCE(hh.contract_area, 0) AND hh.contract_area > 0`;
+        where += ` AND area.is_over > 0`;
       }
       if (confirmedOnly === "1") {
         where += ` AND hh.is_manually_confirmed = 1`;
       } else if (confirmedOnly === "0") {
         where += ` AND (hh.is_manually_confirmed IS NULL OR hh.is_manually_confirmed = 0)`;
       }
+      const yearFilter = year ? "WHERE sa.apply_year = ?" : "";
+      const areaYearValues = year ? [year] : [];
+      const areaSub = `LEFT JOIN (
+             SELECT household_id,
+                    COALESCE(SUM(season_effective), 0) as total,
+                    MAX(CASE WHEN season_effective > 0 AND hh_season.contract_area > 0 AND season_effective > hh_season.contract_area THEN 1 ELSE 0 END) as is_over
+             FROM (
+               SELECT fp2.household_id as household_id, st.season,
+                      COALESCE(SUM(sa.apply_area - COALESCE(sa.trust_area,0) - COALESCE(sa.no_subsidy_area,0)), 0) as season_effective
+               FROM subsidy_application sa
+               JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp2.id
+               LEFT JOIN subsidy_type st ON sa.subsidy_type_id = st.id
+               ${yearFilter}
+               GROUP BY fp2.household_id, st.season
+             ) ss
+             JOIN family_household hh_season ON hh_season.id = ss.household_id
+             GROUP BY household_id
+           ) area ON area.household_id = hh.id`;
       const countRow = db2().getRaw(`
         SELECT COUNT(*) as cnt FROM family_household hh
         LEFT JOIN village v ON hh.village_id = v.id
         LEFT JOIN farmer_profile head ON head.id = hh.head_farmer_id
+        ${areaSub}
         ${where}
-      `, ...values);
+      `, ...areaYearValues, ...whereValues);
       const rows = db2().allRaw(`
         SELECT hh.*, v.village_name,
                COALESCE(mc.cnt, 0) as member_count,
                head.real_name as head_name,
-               COALESCE(area.total, 0) as total_subsidy_area
+               COALESCE(area.total, 0) as total_subsidy_area,
+               COALESCE(area.is_over, 0) as is_overdrawn_flag
         FROM family_household hh
         LEFT JOIN village v ON hh.village_id = v.id
         LEFT JOIN (SELECT household_id, COUNT(*) as cnt FROM farmer_profile GROUP BY household_id) mc
           ON mc.household_id = hh.id
         LEFT JOIN farmer_profile head ON head.id = hh.head_farmer_id
-        LEFT JOIN (
-          SELECT fp2.household_id, COALESCE(SUM(sa.apply_area), 0) as total
-          FROM subsidy_application sa
-          JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp2.id
-          GROUP BY fp2.household_id
-        ) area ON area.household_id = hh.id
+        ${areaSub}
         ${where}
         ORDER BY hh.id DESC
         LIMIT ? OFFSET ?
-      `, ...values, pageSize, offset);
+      `, ...areaYearValues, ...whereValues, pageSize, offset);
       const items = rows.map((r) => {
-        const contractArea = Number(r.contract_area || 0);
-        const subsidyArea = Number(r.total_subsidy_area || 0);
-        const isOverdrawn = contractArea > 0 && subsidyArea > contractArea;
+        const isOverdrawn = Number(r.is_overdrawn_flag || 0) > 0;
         return {
           ...r,
           group_display: formatGroupNo(r.group_no),
           village_full_name: r.village_name ? `${r.village_name}${formatGroupNo(r.group_no)}` : "未知村组",
           is_overdrawn: isOverdrawn,
-          used_area: subsidyArea
+          used_area: Number(r.total_subsidy_area || 0)
         };
       });
       return successList(items, countRow?.cnt ?? 0, page, pageSize);
@@ -1566,7 +1580,7 @@ function registerHouseholdHandlers() {
   });
   electron.ipcMain.handle("households:refreshAreaCache", (_e, householdId) => {
     try {
-      return success({ message: "面积缓存刷新功能待实现" });
+      return success({ message: "面积数据已实时计算，无需手动刷新缓存" });
     } catch (e) {
       return errorResponse(String(e));
     }
@@ -1675,7 +1689,7 @@ function registerHouseholdHandlers() {
                COALESCE(SUM(sa.trust_area), 0) as total_trust_area,
                COALESCE(SUM(sa.actual_amount), 0) as total_amount
         FROM subsidy_application sa
-        JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
+        JOIN farmer_profile fp ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp.id
         WHERE fp.household_id = ?
         GROUP BY sa.apply_year
         ORDER BY sa.apply_year DESC
@@ -2080,7 +2094,7 @@ function registerSubsidyHandlers() {
       const safeData = {
         pay_status: 0,
         count_toward_area: 1,
-        season: "全年单补",
+        season: "临时",
         calc_mode: "fixed",
         ...data
       };
@@ -2200,17 +2214,70 @@ function registerSubsidyHandlers() {
   });
   electron.ipcMain.handle("subsidies:createProxy", (_e, data) => {
     try {
+      const beneficiaryId = Number(data.beneficiary_farmer_id);
+      const proxyId = Number(data.proxy_farmer_id);
+      const subsidyTypeId = Number(data.subsidy_type_id) || 0;
+      const applicationId = data.application_id ? Number(data.application_id) : null;
+      const paymentId = data.payment_id ? Number(data.payment_id) : null;
+      if (applicationId) {
+        db2().runRaw(
+          "UPDATE subsidy_application SET beneficiary_id = ?, is_proxy = 1 WHERE id = ?",
+          beneficiaryId,
+          applicationId
+        );
+      } else if (paymentId) {
+        db2().runRaw(
+          "UPDATE subsidy_payment SET beneficiary_id = ?, is_proxy = 1 WHERE id = ?",
+          beneficiaryId,
+          paymentId
+        );
+      } else if (subsidyTypeId) {
+        db2().runRaw(
+          "UPDATE subsidy_application SET beneficiary_id = ?, is_proxy = 1 WHERE farmer_id = ? AND subsidy_type_id = ?",
+          beneficiaryId,
+          proxyId,
+          subsidyTypeId
+        );
+        db2().runRaw(
+          "UPDATE subsidy_payment SET beneficiary_id = ?, is_proxy = 1 WHERE farmer_id = ? AND subsidy_type_id = ?",
+          beneficiaryId,
+          proxyId,
+          subsidyTypeId
+        );
+      }
       const result = db2().runRaw(`
-        INSERT INTO subsidy_proxy (subsidy_type_id, beneficiary_farmer_id, proxy_farmer_id, proxy_type, remark)
-        VALUES (?, ?, ?, ?, ?)
-      `, data.subsidy_type_id, data.beneficiary_farmer_id, data.proxy_farmer_id, data.proxy_type, data.remark);
-      return success({ id: result.lastInsertRowid });
+        INSERT INTO subsidy_proxy (subsidy_type_id, application_id, payment_id, beneficiary_farmer_id, proxy_farmer_id, proxy_type, remark)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, subsidyTypeId || null, applicationId, paymentId, beneficiaryId, proxyId, data.proxy_type || "代领", data.remark || "");
+      return success({ id: result.lastInsertRowid, message: "代领关系创建成功" });
     } catch (e) {
       return errorResponse(String(e));
     }
   });
   electron.ipcMain.handle("subsidies:deleteProxy", (_e, id) => {
     try {
+      const proxy = db2().getRaw(
+        "SELECT * FROM subsidy_proxy WHERE id = ?",
+        id
+      );
+      if (proxy) {
+        if (proxy.application_id) {
+          db2().runRaw("UPDATE subsidy_application SET beneficiary_id = farmer_id, is_proxy = 0 WHERE id = ?", proxy.application_id);
+        } else if (proxy.payment_id) {
+          db2().runRaw("UPDATE subsidy_payment SET beneficiary_id = farmer_id, is_proxy = 0 WHERE id = ?", proxy.payment_id);
+        } else if (proxy.subsidy_type_id) {
+          db2().runRaw(
+            "UPDATE subsidy_application SET beneficiary_id = farmer_id, is_proxy = 0 WHERE farmer_id = ? AND subsidy_type_id = ?",
+            proxy.proxy_farmer_id,
+            proxy.subsidy_type_id
+          );
+          db2().runRaw(
+            "UPDATE subsidy_payment SET beneficiary_id = farmer_id, is_proxy = 0 WHERE farmer_id = ? AND subsidy_type_id = ?",
+            proxy.proxy_farmer_id,
+            proxy.subsidy_type_id
+          );
+        }
+      }
       db2().runRaw("DELETE FROM subsidy_proxy WHERE id = ?", id);
       return success(null, "删除成功");
     } catch (e) {

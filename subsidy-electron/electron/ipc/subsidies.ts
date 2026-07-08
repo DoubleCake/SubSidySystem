@@ -60,7 +60,7 @@ export function registerSubsidyHandlers(): void {
       const safeData = {
         pay_status: 0,
         count_toward_area: 1,
-        season: '全年单补',
+        season: '临时',
         calc_mode: 'fixed',
         ...data,
       }
@@ -188,11 +188,42 @@ export function registerSubsidyHandlers(): void {
 
   ipcMain.handle('subsidies:createProxy', (_e, data: Record<string, unknown>) => {
     try {
+      const beneficiaryId = Number(data.beneficiary_farmer_id)
+      const proxyId = Number(data.proxy_farmer_id)
+      const subsidyTypeId = Number(data.subsidy_type_id) || 0
+      const applicationId = data.application_id ? Number(data.application_id) : null
+      const paymentId = data.payment_id ? Number(data.payment_id) : null
+
+      // 更新关联的补贴申请：将代领人的申请改为受益人
+      if (applicationId) {
+        db().runRaw(
+          'UPDATE subsidy_application SET beneficiary_id = ?, is_proxy = 1 WHERE id = ?',
+          beneficiaryId, applicationId
+        )
+      } else if (paymentId) {
+        db().runRaw(
+          'UPDATE subsidy_payment SET beneficiary_id = ?, is_proxy = 1 WHERE id = ?',
+          beneficiaryId, paymentId
+        )
+      } else if (subsidyTypeId) {
+        // 批量更新该补贴项目下代领人的所有申请
+        db().runRaw(
+          'UPDATE subsidy_application SET beneficiary_id = ?, is_proxy = 1 WHERE farmer_id = ? AND subsidy_type_id = ?',
+          beneficiaryId, proxyId, subsidyTypeId
+        )
+        db().runRaw(
+          'UPDATE subsidy_payment SET beneficiary_id = ?, is_proxy = 1 WHERE farmer_id = ? AND subsidy_type_id = ?',
+          beneficiaryId, proxyId, subsidyTypeId
+        )
+      }
+
+      // 创建代领关系记录
       const result = db().runRaw(`
-        INSERT INTO subsidy_proxy (subsidy_type_id, beneficiary_farmer_id, proxy_farmer_id, proxy_type, remark)
-        VALUES (?, ?, ?, ?, ?)
-      `, data.subsidy_type_id, data.beneficiary_farmer_id, data.proxy_farmer_id, data.proxy_type, data.remark)
-      return success({ id: result.lastInsertRowid })
+        INSERT INTO subsidy_proxy (subsidy_type_id, application_id, payment_id, beneficiary_farmer_id, proxy_farmer_id, proxy_type, remark)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, subsidyTypeId || null, applicationId, paymentId, beneficiaryId, proxyId, data.proxy_type || '代领', data.remark || '')
+
+      return success({ id: result.lastInsertRowid, message: '代领关系创建成功' })
     } catch (e) {
       return errorResponse(String(e))
     }
@@ -200,6 +231,22 @@ export function registerSubsidyHandlers(): void {
 
   ipcMain.handle('subsidies:deleteProxy', (_e, id: number) => {
     try {
+      const proxy = db().getRaw<{ application_id: number; payment_id: number; subsidy_type_id: number; beneficiary_farmer_id: number; proxy_farmer_id: number }>(
+        'SELECT * FROM subsidy_proxy WHERE id = ?', id
+      )
+      if (proxy) {
+        // 恢复关联的补贴申请/发放记录
+        if (proxy.application_id) {
+          db().runRaw("UPDATE subsidy_application SET beneficiary_id = farmer_id, is_proxy = 0 WHERE id = ?", proxy.application_id)
+        } else if (proxy.payment_id) {
+          db().runRaw("UPDATE subsidy_payment SET beneficiary_id = farmer_id, is_proxy = 0 WHERE id = ?", proxy.payment_id)
+        } else if (proxy.subsidy_type_id) {
+          db().runRaw("UPDATE subsidy_application SET beneficiary_id = farmer_id, is_proxy = 0 WHERE farmer_id = ? AND subsidy_type_id = ?",
+            proxy.proxy_farmer_id, proxy.subsidy_type_id)
+          db().runRaw("UPDATE subsidy_payment SET beneficiary_id = farmer_id, is_proxy = 0 WHERE farmer_id = ? AND subsidy_type_id = ?",
+            proxy.proxy_farmer_id, proxy.subsidy_type_id)
+        }
+      }
       db().runRaw('DELETE FROM subsidy_proxy WHERE id = ?', id)
       return success(null, '删除成功')
     } catch (e) {
