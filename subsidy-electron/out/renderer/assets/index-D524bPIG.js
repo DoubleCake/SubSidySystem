@@ -44164,37 +44164,22 @@ function HouseholdDetailContent({
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm flex-1", children: a.subsidy_name }),
             a.proxy_info && (() => {
               const proxy = a.proxy_info;
-              const labelType = proxy.type;
-              const targetId = labelType === "受益" ? proxy.proxy_farmer_id : proxy.beneficiary_farmer_id;
-              const canClick = targetId != null;
-              return /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "group relative", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(
-                  "button",
-                  {
-                    onClick: (e) => {
-                      e.stopPropagation();
-                      if (canClick) onOpenFarmer(targetId);
-                    },
-                    className: canClick ? "cursor-pointer hover:opacity-80" : "",
-                    children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded border border-amber-200", children: labelType })
-                  }
-                ),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "left-0 top-full mt-1   text-xs px-2 py-1.5 rounded-btn shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10", children: [
-                  labelType === "受益" ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                    "受益人: ",
-                    proxy.beneficiary_name,
-                    " → 代领人: ",
-                    proxy.proxy_name
-                  ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-                    "代领人: ",
-                    proxy.proxy_name,
-                    " → 受益人: ",
-                    proxy.beneficiary_name
-                  ] }),
-                  proxy.remark && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-text-muted mt-0.5", children: proxy.remark }),
-                  canClick && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-primary/60 mt-0.5", children: "点击查看农户详情 →" })
-                ] })
-              ] });
+              const isBenefit = String(proxy.type || "").includes("受益");
+              return /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "group relative shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "button",
+                {
+                  onClick: (e) => {
+                    e.stopPropagation();
+                    const targetId = isBenefit ? proxy.proxy_farmer_id : proxy.beneficiary_farmer_id;
+                    if (targetId) onOpenFarmer(targetId);
+                  },
+                  className: "cursor-pointer hover:brightness-90 transition-all",
+                  title: `受益: ${proxy.beneficiary_name || "?"}
+代领: ${proxy.proxy_name || "?"}${proxy.remark ? "\n备注: " + proxy.remark : ""}
+点击跳转 →`,
+                  children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `px-1.5 py-0.5 text-xs font-semibold rounded-full border ${isBenefit ? "bg-red-50 text-red-700 border-red-300" : "bg-blue-50 text-blue-700 border-blue-300"}`, children: isBenefit ? "受益" : "代领" })
+                }
+              ) });
             })(),
             (a.apply_area != null || a.apply_area_no_calc != null) && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-text-muted font-mono", title: `计入超限 ${a.apply_area || 0}亩 / 不计超限 ${a.apply_area_no_calc || 0}亩`, children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: Number(a.apply_area || 0).toFixed(2) }),
@@ -44206,10 +44191,10 @@ function HouseholdDetailContent({
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-mono font-bold text-primary", children: a.actual_amount ? fmt$2(a.actual_amount) : "—" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(Tag, { label: PAY_STATUS[a.pay_status]?.label || "—", color: PAY_STATUS[a.pay_status]?.color }),
-            onNavigateToProject && a.subsidy_type_id && /* @__PURE__ */ jsxRuntimeExports.jsx(
+            onNavigateToProject && /* @__PURE__ */ jsxRuntimeExports.jsx(
               "button",
               {
-                onClick: () => onNavigateToProject(a.subsidy_type_id, a.farmer_name),
+                onClick: () => onNavigateToProject(Number(a.subsidy_type_id) || 0, a.farmer_name),
                 className: "text-xs text-blue-600 border border-blue-200 px-2 py-1 rounded-btn hover:bg-blue-50 whitespace-nowrap shrink-0",
                 children: "↗ 查看明细"
               }
@@ -58378,7 +58363,7 @@ ${v2.title || ""}${changes}`)) return;
             "v",
             v2.version
           ] }),
-          v2.version === config?.currentVersion && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-primary text-white px-2 py-0.5 rounded", children: "当前" }),
+          v2.version === config?.currentVersion && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-orange-500 text-white px-2 py-0.5 rounded font-semibold", children: "当前" }),
           v2.version === history.latestVersion && v2.version !== config?.currentVersion && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs bg-amber-500 text-white px-2 py-0.5 rounded", children: "最新" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: v2.date }),
           v2.fileSize && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs text-text-muted", children: v2.fileSize })
@@ -58390,7 +58375,7 @@ ${v2.title || ""}${changes}`)) return;
           {
             onClick: () => downloadVersion(v2),
             disabled: checking,
-            className: `mt-2 text-xs px-3 py-1 rounded-btn disabled:opacity-40 font-medium ${v2.version > (config?.currentVersion || "0") ? "bg-primary text-white hover:bg-primary/90" : "text-primary border border-primary/30 hover:bg-primary/5"}`,
+            className: `mt-2 px-4 py-2 rounded-btn disabled:opacity-40 font-bold shadow-md transition-all ${v2.version > (config?.currentVersion || "0") ? "bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-200 text-sm border-2 border-emerald-600" : "text-text-muted border border-border bg-white hover:border-primary/30 text-xs"}`,
             children: v2.version > (config?.currentVersion || "0") ? "⬇️ 安装此版本" : "⬇️ 回退到此版本"
           }
         )

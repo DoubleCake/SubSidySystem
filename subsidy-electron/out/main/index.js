@@ -1304,23 +1304,21 @@ function registerHouseholdHandlers() {
         `, id);
         if (apps.length > 0) {
           const appIds = apps.map((a) => a.id);
-          const placeholders = appIds.map(() => "?").join(",");
+          const appPlaceholders = appIds.map(() => "?").join(",");
+          const appProxies = /* @__PURE__ */ new Map();
           try {
-            const proxies = db2().allRaw(`
+            const p1 = db2().allRaw(`
               SELECT sp.application_id, sp.proxy_type as type,
                      sp.beneficiary_farmer_id, sp.proxy_farmer_id,
-                     bf.real_name as beneficiary_name,
-                     pf.real_name as proxy_name,
-                     sp.remark
+                     bf.real_name as beneficiary_name, pf.real_name as proxy_name, sp.remark
               FROM subsidy_proxy sp
               LEFT JOIN farmer_profile bf ON bf.id = sp.beneficiary_farmer_id
               LEFT JOIN farmer_profile pf ON pf.id = sp.proxy_farmer_id
-              WHERE sp.application_id IN (${placeholders})
+              WHERE sp.application_id IN (${appPlaceholders})
             `, ...appIds);
-            const proxyMap = /* @__PURE__ */ new Map();
-            for (const p of proxies) {
-              proxyMap.set(p.application_id, {
-                type: p.type,
+            for (const p of p1) {
+              appProxies.set(Number(p.application_id), {
+                type: p.type || "代领",
                 beneficiary_farmer_id: p.beneficiary_farmer_id,
                 proxy_farmer_id: p.proxy_farmer_id,
                 beneficiary_name: p.beneficiary_name,
@@ -1328,13 +1326,48 @@ function registerHouseholdHandlers() {
                 remark: p.remark
               });
             }
-            appSummary = apps.map((a) => ({
-              ...a,
-              proxy_info: proxyMap.get(a.id) || null
-            }));
           } catch {
-            appSummary = apps;
           }
+          try {
+            const typeIds = [...new Set(apps.map((a) => a.subsidy_type_id).filter(Boolean))];
+            const farmerIds = [...new Set(apps.map((a) => a.farmer_id).filter(Boolean))];
+            if (typeIds.length > 0 && farmerIds.length > 0) {
+              const tPlaceholders = typeIds.map(() => "?").join(",");
+              const fPlaceholders = farmerIds.map(() => "?").join(",");
+              const p2 = db2().allRaw(`
+                SELECT sp.subsidy_type_id, sp.proxy_type as type,
+                       sp.beneficiary_farmer_id, sp.proxy_farmer_id,
+                       bf.real_name as beneficiary_name, pf.real_name as proxy_name, sp.remark
+                FROM subsidy_proxy sp
+                LEFT JOIN farmer_profile bf ON bf.id = sp.beneficiary_farmer_id
+                LEFT JOIN farmer_profile pf ON pf.id = sp.proxy_farmer_id
+                WHERE sp.application_id IS NULL
+                  AND sp.subsidy_type_id IN (${tPlaceholders})
+                  AND sp.beneficiary_farmer_id IN (${fPlaceholders})
+              `, ...typeIds, ...farmerIds);
+              for (const p of p2) {
+                for (const a of apps) {
+                  if (a.subsidy_type_id === p.subsidy_type_id && a.farmer_id === p.beneficiary_farmer_id) {
+                    if (!appProxies.has(Number(a.id))) {
+                      appProxies.set(Number(a.id), {
+                        type: p.type || "代领",
+                        beneficiary_farmer_id: p.beneficiary_farmer_id,
+                        proxy_farmer_id: p.proxy_farmer_id,
+                        beneficiary_name: p.beneficiary_name,
+                        proxy_name: p.proxy_name,
+                        remark: p.remark
+                      });
+                    }
+                  }
+                }
+              }
+            }
+          } catch {
+          }
+          appSummary = apps.map((a) => ({
+            ...a,
+            proxy_info: appProxies.get(Number(a.id)) || null
+          }));
         } else {
           appSummary = apps;
         }
@@ -2053,6 +2086,8 @@ function registerSubsidyHandlers() {
       if (status !== void 0 && status !== null) {
         query += " AND pay_status = ?";
         sqlParams.push(status);
+      } else {
+        query += " AND pay_status != 0";
       }
       query += " ORDER BY subsidy_year DESC";
       return success(db2().allRaw(query, ...sqlParams));
@@ -2063,14 +2098,12 @@ function registerSubsidyHandlers() {
   electron.ipcMain.handle("subsidies:listTypesWithStats", (_e, year) => {
     try {
       const params = [];
-      let stWhere = "";
+      let stWhere = " WHERE st.pay_status != 0";
       let saWhere = "";
       if (year) {
-        stWhere = " WHERE st.subsidy_year = ?";
+        stWhere += " AND st.subsidy_year = ?";
         saWhere = " AND sa.apply_year = ?";
         params.push(year, year);
-      } else {
-        if (year) params.push(year);
       }
       const rows = db2().allRaw(`
         SELECT st.*,
@@ -2213,8 +2246,8 @@ function registerSubsidyHandlers() {
       }
       const rows = db2().allRaw(`
         SELECT sp.*,
-               bf.real_name as beneficiary_name, bf.id_card as beneficiary_id_card,
-               pf.real_name as proxy_name, pf.id_card as proxy_id_card,
+               bf.real_name as beneficiary_farmer_name, bf.id_card as beneficiary_id_card,
+               pf.real_name as proxy_farmer_name, pf.id_card as proxy_id_card,
                st.subsidy_name
         FROM subsidy_proxy sp
         LEFT JOIN farmer_profile bf ON sp.beneficiary_farmer_id = bf.id
@@ -5067,6 +5100,75 @@ function registerVillageContactsHandlers() {
     }
   });
 }
+function registerUpdateHandlers() {
+  electron.ipcMain.handle("update:getVersionHistory", async () => {
+    try {
+      const baseUrl = getUpdateServerUrl();
+      if (!baseUrl) return errorResponse("未配置更新服务器地址");
+      const cleanUrl = baseUrl.replace(/\/+$/, "");
+      let versions = [];
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5e3);
+        const resp = await fetch(`${cleanUrl}/versions.json`, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (resp.ok) {
+          const data = await resp.json();
+          versions = data.versions || data || [];
+        }
+      } catch {
+      }
+      let latestVersion = "";
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5e3);
+        const resp = await fetch(`${cleanUrl}/latest.yml`, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (resp.ok) {
+          const yml = await resp.text();
+          const m = yml.match(/version:\s*(\S+)/);
+          if (m) latestVersion = m[1];
+        }
+      } catch {
+      }
+      return success({
+        currentVersion: electron.app.getVersion(),
+        latestVersion,
+        serverUrl: cleanUrl,
+        versions
+      });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("update:downloadVersion", async (_e, payload) => {
+    try {
+      const baseUrl = getUpdateServerUrl();
+      if (!baseUrl) return errorResponse("未配置更新服务器地址");
+      const cleanUrl = baseUrl.replace(/\/+$/, "");
+      const downloadUrl = payload.url || `${cleanUrl}/SubsidySystem Setup ${payload.version}.exe`;
+      const { downloadVersionExe } = require("../updater");
+      const filePath = await downloadVersionExe(downloadUrl, payload.version);
+      return success({
+        message: `版本 ${payload.version} 已下载，重启后安装`,
+        filePath
+      });
+    } catch (e) {
+      return errorResponse(`下载失败: ${e.message}`);
+    }
+  });
+  electron.ipcMain.handle("update:getLocalChangelog", () => {
+    try {
+      const changelogPath = path.join(electron.app.getAppPath(), "..", "CHANGELOG.md");
+      if (fs.existsSync(changelogPath)) {
+        return success({ content: fs.readFileSync(changelogPath, "utf-8") });
+      }
+      return success({ content: "" });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+}
 function registerAllIpcHandlers() {
   electron.ipcMain.handle("dialog:selectFile", async (_e, options) => {
     const result = await electron.dialog.showOpenDialog({
@@ -5105,6 +5207,7 @@ function registerAllIpcHandlers() {
   registerAuthHandlers();
   registerProjectProgressHandlers();
   registerVillageContactsHandlers();
+  registerUpdateHandlers();
 }
 let mainWindow$1 = null;
 function setUpdateWindow(win) {

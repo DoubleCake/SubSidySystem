@@ -15,7 +15,12 @@ export function registerSubsidyHandlers(): void {
       let query = 'SELECT * FROM subsidy_type WHERE 1=1'
       const sqlParams: unknown[] = []
       if (year) { query += ' AND subsidy_year = ?'; sqlParams.push(year) }
-      if (status !== undefined && status !== null) { query += ' AND pay_status = ?'; sqlParams.push(status) }
+      if (status !== undefined && status !== null) {
+        query += ' AND pay_status = ?'; sqlParams.push(status)
+      } else {
+        // 默认排除回收站中的项目 (pay_status != 0)
+        query += ' AND pay_status != 0'
+      }
       query += ' ORDER BY subsidy_year DESC'
       return success(db().allRaw(query, ...sqlParams))
     } catch (e) {
@@ -26,15 +31,12 @@ export function registerSubsidyHandlers(): void {
   ipcMain.handle('subsidies:listTypesWithStats', (_e, year?: any) => {
     try {
       const params: unknown[] = []
-      let stWhere = ''
+      let stWhere = ' WHERE st.pay_status != 0'
       let saWhere = ''
       if (year) {
-        stWhere = ' WHERE st.subsidy_year = ?'
+        stWhere += ' AND st.subsidy_year = ?'
         saWhere = ' AND sa.apply_year = ?'
         params.push(year, year)
-      } else {
-        // 无年份筛选时也要确保 JOIN 条件一致
-        if (year) params.push(year)
       }
       const rows = db().allRaw(`
         SELECT st.*,
