@@ -58250,34 +58250,46 @@ function UpdatePage() {
     try {
       const r2 = await window.electronAPI.invoke("settings:checkForUpdate");
       const d = r2?.data;
-      if (d?.error) {
-        setError(d.error);
-        setDetail(d.detail || "");
-        setSteps(d.steps || []);
-        setStatus("error");
-      } else {
-        setStatus(d?.message || "");
-        setSteps(d?.steps || []);
-      }
+      setStatus(d?.message || "");
       setChecking(false);
       loadConfig();
+      if (d?.hasUpdate) loadHistory();
+      else setHistory(null);
     } catch (e) {
       setError(String(e));
       setStatus("error");
       setChecking(false);
     }
   };
+  const [progress, setProgress] = reactExports.useState(0);
+  const [speedInfo, setSpeedInfo] = reactExports.useState("");
+  reactExports.useEffect(() => {
+    window.electronAPI.onUpdateProgress((p2) => {
+      setProgress(p2.percent || 0);
+      if (p2.speedMB) setSpeedInfo(p2.speedMB);
+    });
+  }, []);
   const downloadVersion = async (v2) => {
-    if (!confirm(`确定要下载并安装版本 ${v2.version}？
-${v2.title || ""}`)) return;
+    const changes = v2.changes?.length ? "\n\n更新内容:\n" + v2.changes.map((c) => "• " + c).join("\n") : "";
+    if (!confirm(`确定要安装版本 ${v2.version}？
+
+${v2.title || ""}${changes}`)) return;
     setChecking(true);
     setStatus("downloading");
+    setProgress(0);
+    setSpeedInfo("");
     try {
       const r2 = await window.electronAPI.invoke("update:downloadVersion", { version: v2.version, url: v2.downloadUrl });
-      if (r2?.data?.error) setError(r2.data.error);
-      else setStatus(r2?.data?.message || `已下载 v${v2.version}`);
+      if (r2?.data?.error) {
+        setError(r2.data.error);
+        setStatus("error");
+      } else {
+        setStatus("downloaded");
+        alert(r2?.data?.message || `v${v2.version} 下载完成，请重启应用完成安装`);
+      }
     } catch (e) {
       setError(String(e));
+      setStatus("error");
     } finally {
       setChecking(false);
     }
@@ -58286,6 +58298,7 @@ ${v2.title || ""}`)) return;
     checking: { text: "检查中...", color: "text-blue-600", bg: "#eff6ff" },
     "up-to-date": { text: "当前已是最新", color: "text-green-600", bg: "#f0fdf4" },
     downloading: { text: "下载中...", color: "text-amber-600", bg: "#fffbeb" },
+    downloaded: { text: "下载完成，重启后安装", color: "text-green-600", bg: "#f0fdf4" },
     error: { text: "出错", color: "text-red-600", bg: "#fef2f2" }
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-4xl mx-auto p-4 space-y-5", children: [
@@ -58335,6 +58348,16 @@ ${v2.title || ""}`)) return;
         )
       ] }),
       steps.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-gray-50 border border-border rounded-card p-3 text-xs space-y-0.5 font-mono max-h-36 overflow-y-auto", children: steps.map((s, i) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: s.includes("❌") ? "text-red-600" : s.includes("✅") ? "text-green-600" : "text-text-muted", children: s }, i)) }),
+      status === "downloading" && progress > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-1", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-full bg-border rounded-full h-2 overflow-hidden", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-primary h-full rounded-full transition-all duration-300", style: { width: `${progress}%` } }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-between text-xs text-text-muted", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+            progress,
+            "%"
+          ] }),
+          speedInfo && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: speedInfo })
+        ] })
+      ] }),
       status && (() => {
         const sl2 = stLabel[status] || { text: status, color: "text-text-muted", bg: "#f5f5f5" };
         return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `text-xs ${sl2.color} rounded-btn px-3 py-2`, style: { backgroundColor: sl2.bg }, children: sl2.text });
@@ -58367,8 +58390,8 @@ ${v2.title || ""}`)) return;
           {
             onClick: () => downloadVersion(v2),
             disabled: checking,
-            className: "mt-2 text-xs text-primary border border-primary/30 px-3 py-1 rounded-btn hover:bg-primary/5 disabled:opacity-40",
-            children: "⬇️ 切换到此版本"
+            className: `mt-2 text-xs px-3 py-1 rounded-btn disabled:opacity-40 font-medium ${v2.version > (config?.currentVersion || "0") ? "bg-primary text-white hover:bg-primary/90" : "text-primary border border-primary/30 hover:bg-primary/5"}`,
+            children: v2.version > (config?.currentVersion || "0") ? "⬇️ 安装此版本" : "⬇️ 回退到此版本"
           }
         )
       ] }, v2.version)) })

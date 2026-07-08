@@ -3062,185 +3062,6 @@ function setLastUpdateCheck(date) {
   s.lastUpdateCheck = date;
   writeSettings(s);
 }
-let mainWindow$1 = null;
-function setUpdateWindow(win) {
-  mainWindow$1 = win;
-}
-function configureUpdater(url) {
-  if (url) {
-    electronUpdater.autoUpdater.setFeedURL({
-      provider: "generic",
-      url: url.replace(/\/+$/, "")
-      // 去掉末尾斜杠
-    });
-  }
-}
-async function checkForUpdatesSilent() {
-  const url = getUpdateServerUrl();
-  if (!url) return;
-  configureUpdater(url);
-  try {
-    const result = await electronUpdater.autoUpdater.checkForUpdates();
-    if (result?.updateInfo?.version !== electronUpdater.autoUpdater.currentVersion) {
-      mainWindow$1?.webContents.send("update:available", {
-        version: result.updateInfo.version,
-        currentVersion: electronUpdater.autoUpdater.currentVersion
-      });
-    }
-  } catch (e) {
-    console.log("[Updater] 检查更新失败:", e.message);
-  }
-  setLastUpdateCheck((/* @__PURE__ */ new Date()).toISOString());
-}
-async function checkForUpdatesAndInstall() {
-  const url = getUpdateServerUrl();
-  if (!url) {
-    return { error: "未配置更新服务器地址，请在软件更新面板中填写" };
-  }
-  let cleanUrl = url.replace(/\/+$/, "");
-  if (cleanUrl.endsWith("latest.yml")) {
-    cleanUrl = cleanUrl.replace(/\/?latest\.yml$/, "");
-  }
-  const latestUrl = `${cleanUrl}/latest.yml`;
-  const steps = [];
-  steps.push(`🔍 正在连接: ${latestUrl}`);
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1e4);
-    const response = await fetch(latestUrl, { signal: controller.signal });
-    clearTimeout(timeout);
-    if (!response.ok) {
-      return {
-        error: `服务器返回 HTTP ${response.status}`,
-        steps: [...steps, `❌ 服务器响应: HTTP ${response.status}`],
-        detail: `请确认 ${latestUrl} 可正常访问
-常见原因:
-1. 服务器未启动或端口错误
-2. latest.yml 未上传到服务器目录
-3. 防火墙未开放端口`
-      };
-    }
-    const ymlContent = await response.text();
-    steps.push(`✅ 已连接服务器，获取到 latest.yml (${ymlContent.length} 字节)`);
-    let serverVersion = "";
-    const versionMatch = ymlContent.match(/version:\s*(\S+)/);
-    if (versionMatch) {
-      serverVersion = versionMatch[1];
-      steps.push(`服务器版本: ${serverVersion}`);
-    } else {
-      steps.push(`⚠️ latest.yml 中未找到版本号`);
-    }
-    const currentVersion = require("electron").app.getVersion();
-    steps.push(`当前版本: ${currentVersion}`);
-    if (!serverVersion || serverVersion === currentVersion) {
-      setLastUpdateCheck((/* @__PURE__ */ new Date()).toISOString());
-      return {
-        message: `当前已是最新版本 (v${currentVersion})`,
-        steps,
-        currentVersion,
-        serverVersion: serverVersion || "未知"
-      };
-    }
-    steps.push(`发现新版本 v${serverVersion}，开始下载...`);
-    configureUpdater(cleanUrl);
-    try {
-      const checkResult = await electronUpdater.autoUpdater.checkForUpdates();
-      if (!checkResult || !checkResult.updateInfo) {
-        return {
-          error: "无法获取更新信息",
-          steps: [...steps, "❌ checkForUpdates 返回空"],
-          detail: "服务器 latest.yml 格式可能不正确"
-        };
-      }
-      steps.push(`✅ 解析更新信息成功 (v${checkResult.updateInfo.version})`);
-      await electronUpdater.autoUpdater.downloadUpdate();
-      steps.push(`✅ 下载完成`);
-      setLastUpdateCheck((/* @__PURE__ */ new Date()).toISOString());
-      return {
-        message: `更新已下载 (v${currentVersion} → v${serverVersion})，重启后安装`,
-        steps,
-        currentVersion,
-        serverVersion
-      };
-    } catch (downloadErr) {
-      return {
-        error: `下载失败: ${downloadErr.message}`,
-        steps: [...steps, `❌ 下载失败: ${downloadErr.message}`],
-        detail: `请确认:
-1. exe 文件已上传到 ${cleanUrl}/
-2. latest.yml 中 url 字段与实际文件名一致
-3. sha512/文件大小正确`
-      };
-    }
-  } catch (e) {
-    if (e.name === "AbortError") {
-      return {
-        error: "连接超时 (10秒)",
-        steps: [...steps, "❌ 请求超时无响应"],
-        detail: `无法访问 ${latestUrl}
-请检查:
-1. 服务器是否在线 (ping ${cleanUrl.split("/")[2]})
-2. 地址和端口是否填写正确
-3. 防火墙/安全组是否开放端口`
-      };
-    }
-    return {
-      error: `网络连接失败`,
-      steps: [...steps, `❌ 无法连接: ${e.message || "未知错误"}`],
-      detail: `目标地址: ${latestUrl}
-失败原因: ${e.message}
-请确认:
-1. 网址格式正确 (如 http://8.137.8.78:8080/)
-2. 服务器已启动并监听该端口
-3. 本机可访问该地址`
-    };
-  }
-}
-function registerUpdateEvents() {
-  electronUpdater.autoUpdater.autoDownload = false;
-  electronUpdater.autoUpdater.autoInstallOnAppQuit = true;
-  electronUpdater.autoUpdater.on("checking-for-update", () => {
-    mainWindow$1?.webContents.send("update:status", "checking");
-  });
-  electronUpdater.autoUpdater.on("update-available", (info) => {
-    mainWindow$1?.webContents.send("update:status", "available");
-    mainWindow$1?.webContents.send("update:available", {
-      version: info.version,
-      currentVersion: electronUpdater.autoUpdater.currentVersion
-    });
-  });
-  electronUpdater.autoUpdater.on("update-not-available", () => {
-    mainWindow$1?.webContents.send("update:status", "up-to-date");
-  });
-  electronUpdater.autoUpdater.on("download-progress", (progress) => {
-    const speedMB = progress.bytesPerSecond ? (progress.bytesPerSecond / (1024 * 1024)).toFixed(1) : "0.0";
-    mainWindow$1?.webContents.send("update:progress", {
-      percent: Math.round(progress.percent),
-      speed: progress.bytesPerSecond,
-      speedMB: `${speedMB} MB/s`,
-      transferred: progress.transferred,
-      total: progress.total
-    });
-  });
-  electronUpdater.autoUpdater.on("update-downloaded", () => {
-    mainWindow$1?.webContents.send("update:status", "downloaded");
-    electron.dialog.showMessageBox({
-      type: "info",
-      title: "更新已下载",
-      message: "新版本已下载完成，是否立即重启安装？",
-      buttons: ["立即重启", "稍后"],
-      defaultId: 0
-    }).then(({ response }) => {
-      if (response === 0) {
-        electronUpdater.autoUpdater.quitAndInstall(true, true);
-      }
-    });
-  });
-  electronUpdater.autoUpdater.on("error", (error) => {
-    mainWindow$1?.webContents.send("update:status", "error");
-    mainWindow$1?.webContents.send("update:error", error.message);
-  });
-}
 function getBackupDir() {
   const dir = path.join(electron.app.getPath("userData"), "backups");
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -3520,9 +3341,28 @@ function registerSettingsHandlers() {
   });
   electron.ipcMain.handle("settings:checkForUpdate", async () => {
     try {
-      return success(await checkForUpdatesAndInstall());
+      const url = getUpdateServerUrl();
+      if (!url) return success({ hasUpdate: false, message: "未配置更新服务器地址" });
+      const cleanUrl = url.replace(/\/+$/, "");
+      const { app: app2 } = require("electron");
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8e3);
+      const resp = await fetch(`${cleanUrl}/latest.yml`, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!resp.ok) return success({ hasUpdate: false, message: `服务器返回 HTTP ${resp.status}` });
+      const yml = await resp.text();
+      const m = yml.match(/version:\s*(\S+)/);
+      const serverVersion = m ? m[1] : "";
+      const currentVersion = app2.getVersion();
+      const hasUpdate = serverVersion && serverVersion !== currentVersion;
+      return success({
+        hasUpdate,
+        currentVersion,
+        serverVersion: serverVersion || "未知",
+        message: hasUpdate ? `发现新版本 v${serverVersion}（当前 v${currentVersion}）` : `已是最新版本 v${currentVersion}`
+      });
     } catch (e) {
-      return errorResponse(String(e));
+      return success({ hasUpdate: false, message: e.name === "AbortError" ? "连接超时" : `连接失败: ${e.message}` });
     }
   });
   electron.ipcMain.handle("settings:listVillages", () => {
@@ -5265,6 +5105,81 @@ function registerAllIpcHandlers() {
   registerAuthHandlers();
   registerProjectProgressHandlers();
   registerVillageContactsHandlers();
+}
+let mainWindow$1 = null;
+function setUpdateWindow(win) {
+  mainWindow$1 = win;
+}
+function configureUpdater(url) {
+  if (url) {
+    electronUpdater.autoUpdater.setFeedURL({
+      provider: "generic",
+      url: url.replace(/\/+$/, "")
+      // 去掉末尾斜杠
+    });
+  }
+}
+async function checkForUpdatesSilent() {
+  const url = getUpdateServerUrl();
+  if (!url) return;
+  configureUpdater(url);
+  try {
+    const result = await electronUpdater.autoUpdater.checkForUpdates();
+    if (result?.updateInfo?.version !== electronUpdater.autoUpdater.currentVersion) {
+      mainWindow$1?.webContents.send("update:available", {
+        version: result.updateInfo.version,
+        currentVersion: electronUpdater.autoUpdater.currentVersion
+      });
+    }
+  } catch (e) {
+    console.log("[Updater] 检查更新失败:", e.message);
+  }
+  setLastUpdateCheck((/* @__PURE__ */ new Date()).toISOString());
+}
+function registerUpdateEvents() {
+  electronUpdater.autoUpdater.autoDownload = false;
+  electronUpdater.autoUpdater.autoInstallOnAppQuit = true;
+  electronUpdater.autoUpdater.on("checking-for-update", () => {
+    mainWindow$1?.webContents.send("update:status", "checking");
+  });
+  electronUpdater.autoUpdater.on("update-available", (info) => {
+    mainWindow$1?.webContents.send("update:status", "available");
+    mainWindow$1?.webContents.send("update:available", {
+      version: info.version,
+      currentVersion: electronUpdater.autoUpdater.currentVersion
+    });
+  });
+  electronUpdater.autoUpdater.on("update-not-available", () => {
+    mainWindow$1?.webContents.send("update:status", "up-to-date");
+  });
+  electronUpdater.autoUpdater.on("download-progress", (progress) => {
+    const speedMB = progress.bytesPerSecond ? (progress.bytesPerSecond / (1024 * 1024)).toFixed(1) : "0.0";
+    mainWindow$1?.webContents.send("update:progress", {
+      percent: Math.round(progress.percent),
+      speed: progress.bytesPerSecond,
+      speedMB: `${speedMB} MB/s`,
+      transferred: progress.transferred,
+      total: progress.total
+    });
+  });
+  electronUpdater.autoUpdater.on("update-downloaded", () => {
+    mainWindow$1?.webContents.send("update:status", "downloaded");
+    electron.dialog.showMessageBox({
+      type: "info",
+      title: "更新已下载",
+      message: "新版本已下载完成，是否立即重启安装？",
+      buttons: ["立即重启", "稍后"],
+      defaultId: 0
+    }).then(({ response }) => {
+      if (response === 0) {
+        electronUpdater.autoUpdater.quitAndInstall(true, true);
+      }
+    });
+  });
+  electronUpdater.autoUpdater.on("error", (error) => {
+    mainWindow$1?.webContents.send("update:status", "error");
+    mainWindow$1?.webContents.send("update:error", error.message);
+  });
 }
 function ensureAppUpdateYml() {
   try {
