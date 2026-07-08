@@ -207,7 +207,7 @@ export default function UpdatePage() {
                 <div className="flex items-center gap-3 mb-2">
                   <span className="font-mono font-bold text-primary">v{v.version}</span>
                   {v.version === config?.currentVersion && (
-                    <span className="text-xs bg-primary text-white px-2 py-0.5 rounded">当前</span>
+                    <span className="text-xs bg-orange-500 text-white px-2 py-0.5 rounded font-semibold">当前</span>
                   )}
                   {v.version === history.latestVersion && v.version !== config?.currentVersion && (
                     <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded">最新</span>
@@ -225,10 +225,10 @@ export default function UpdatePage() {
                 {v.version !== config?.currentVersion && (
                   <button onClick={() => downloadVersion(v)}
                     disabled={checking}
-                    className={`mt-2 text-xs px-3 py-1 rounded-btn disabled:opacity-40 font-medium ${
+                    className={`mt-2 px-4 py-2 rounded-btn disabled:opacity-40 font-bold shadow-md transition-all ${
                       v.version > (config?.currentVersion || '0')
-                        ? 'bg-primary text-white hover:bg-primary/90'
-                        : 'text-primary border border-primary/30 hover:bg-primary/5'
+                        ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-200 text-sm border-2 border-emerald-600'
+                        : 'text-text-muted border border-border bg-white hover:border-primary/30 text-xs'
                     }`}>
                     {v.version > (config?.currentVersion || '0') ? '⬇️ 安装此版本' : '⬇️ 回退到此版本'}
                   </button>

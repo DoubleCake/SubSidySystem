@@ -158,26 +158,26 @@ export function registerHouseholdHandlers(): void {
           ORDER BY sa.apply_year DESC, sa.id DESC
         `, id)
 
-        // 查询代领关系
+        // 查询代领关系：1) 按 application_id  2) 按 subsidy_type_id + beneficiary_farmer_id
         if (apps.length > 0) {
           const appIds = apps.map(a => a.id)
-          const placeholders = appIds.map(() => '?').join(',')
+          const appPlaceholders = appIds.map(() => '?').join(',')
+          const appProxies = new Map<number, unknown>()
+
           try {
-            const proxies = db().allRaw<Record<string, unknown>>(`
+            // 按 application_id 查
+            const p1 = db().allRaw<Record<string, unknown>>(`
               SELECT sp.application_id, sp.proxy_type as type,
                      sp.beneficiary_farmer_id, sp.proxy_farmer_id,
-                     bf.real_name as beneficiary_name,
-                     pf.real_name as proxy_name,
-                     sp.remark
+                     bf.real_name as beneficiary_name, pf.real_name as proxy_name, sp.remark
               FROM subsidy_proxy sp
               LEFT JOIN farmer_profile bf ON bf.id = sp.beneficiary_farmer_id
               LEFT JOIN farmer_profile pf ON pf.id = sp.proxy_farmer_id
-              WHERE sp.application_id IN (${placeholders})
+              WHERE sp.application_id IN (${appPlaceholders})
             `, ...appIds)
-            const proxyMap = new Map<unknown, unknown>()
-            for (const p of proxies) {
-              proxyMap.set(p.application_id, {
-                type: p.type,
+            for (const p of p1) {
+              appProxies.set(Number(p.application_id), {
+                type: p.type || '代领',
                 beneficiary_farmer_id: p.beneficiary_farmer_id,
                 proxy_farmer_id: p.proxy_farmer_id,
                 beneficiary_name: p.beneficiary_name,
@@ -185,11 +185,50 @@ export function registerHouseholdHandlers(): void {
                 remark: p.remark,
               })
             }
-            appSummary = apps.map(a => ({
-              ...a,
-              proxy_info: proxyMap.get(a.id) || null,
-            }))
-          } catch { appSummary = apps }
+          } catch { /* ignore */ }
+
+          // 按 subsidy_type_id + farmer_id 补查（代领关系可能在类型级别而非记录级别）
+          try {
+            const typeIds = [...new Set(apps.map(a => a.subsidy_type_id).filter(Boolean))]
+            const farmerIds = [...new Set(apps.map(a => a.farmer_id).filter(Boolean))]
+            if (typeIds.length > 0 && farmerIds.length > 0) {
+              const tPlaceholders = typeIds.map(() => '?').join(',')
+              const fPlaceholders = farmerIds.map(() => '?').join(',')
+              const p2 = db().allRaw<Record<string, unknown>>(`
+                SELECT sp.subsidy_type_id, sp.proxy_type as type,
+                       sp.beneficiary_farmer_id, sp.proxy_farmer_id,
+                       bf.real_name as beneficiary_name, pf.real_name as proxy_name, sp.remark
+                FROM subsidy_proxy sp
+                LEFT JOIN farmer_profile bf ON bf.id = sp.beneficiary_farmer_id
+                LEFT JOIN farmer_profile pf ON pf.id = sp.proxy_farmer_id
+                WHERE sp.application_id IS NULL
+                  AND sp.subsidy_type_id IN (${tPlaceholders})
+                  AND sp.beneficiary_farmer_id IN (${fPlaceholders})
+              `, ...typeIds, ...farmerIds)
+              for (const p of p2) {
+                // 将该类型+受益人的代领关系应用到所有匹配的补贴记录上
+                for (const a of apps) {
+                  if (a.subsidy_type_id === p.subsidy_type_id && a.farmer_id === p.beneficiary_farmer_id) {
+                    if (!appProxies.has(Number(a.id))) {
+                      appProxies.set(Number(a.id), {
+                        type: p.type || '代领',
+                        beneficiary_farmer_id: p.beneficiary_farmer_id,
+                        proxy_farmer_id: p.proxy_farmer_id,
+                        beneficiary_name: p.beneficiary_name,
+                        proxy_name: p.proxy_name,
+                        remark: p.remark,
+                      })
+                    }
+                  }
+                }
+              }
+            }
+          } catch { /* ignore */ }
+
+          appSummary = apps.map(a => ({
+            ...a,
+            proxy_info: appProxies.get(Number(a.id)) || null,
+          }))
         } else {
           appSummary = apps
         }

@@ -68,4 +68,5 @@ export function registerAllIpcHandlers(): void {
   registerAuthHandlers()
   registerProjectProgressHandlers()
   registerVillageContactsHandlers()
+  registerUpdateHandlers()
 }

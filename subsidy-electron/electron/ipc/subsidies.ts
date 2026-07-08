@@ -185,8 +185,8 @@ export function registerSubsidyHandlers(): void {
 
       const rows = db().allRaw(`
         SELECT sp.*,
-               bf.real_name as beneficiary_name, bf.id_card as beneficiary_id_card,
-               pf.real_name as proxy_name, pf.id_card as proxy_id_card,
+               bf.real_name as beneficiary_farmer_name, bf.id_card as beneficiary_id_card,
+               pf.real_name as proxy_farmer_name, pf.id_card as proxy_id_card,
                st.subsidy_name
         FROM subsidy_proxy sp
         LEFT JOIN farmer_profile bf ON sp.beneficiary_farmer_id = bf.id

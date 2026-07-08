@@ -554,33 +554,32 @@ export function HouseholdDetailContent({
                     {/* 代领标签 */}
                     {a.proxy_info && (() => {
                       const proxy = a.proxy_info
-                      // proxy_info.type 由后端设置：受益人记录="受益"，代领人记录="代领"
-                      const labelType = proxy.type
-                      // 点击跳转到另一方（不是当前记录所属的人）
-                      const targetId = labelType === '受益' ? proxy.proxy_farmer_id : proxy.beneficiary_farmer_id
-                      const canClick = targetId != null
+                      const labelType = String(proxy.type || '代领')
+                      const isBenefit = labelType.includes('受益')
                       return (
-                        <span className="group relative">
+                        <span className="group relative shrink-0">
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              if (canClick) onOpenFarmer(targetId)
+                              const targetId = isBenefit ? proxy.proxy_farmer_id : proxy.beneficiary_farmer_id
+                              if (targetId) onOpenFarmer(targetId)
                             }}
-                            className={canClick ? 'cursor-pointer hover:opacity-80' : ''}
+                            className="cursor-pointer hover:brightness-90 transition-all"
+                            title={isBenefit
+                              ? `受益人: ${proxy.beneficiary_name || '?'} → 代领人: ${proxy.proxy_name || '?'}`
+                              : `代领人: ${proxy.proxy_name || '?'} → 受益人: ${proxy.beneficiary_name || '?'}`}
                           >
-                            <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded border border-amber-200">
-                              {labelType}
+                            <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full border ${
+                              isBenefit
+                                ? 'bg-red-50 text-red-700 border-red-300'
+                                : 'bg-blue-50 text-blue-700 border-blue-300'
+                            }`}>
+                              {isBenefit ? '🔴 受益' : '🔵 代领'}
+                              <span className="font-normal text-text-muted">
+                                {isBenefit ? proxy.proxy_name : proxy.beneficiary_name}
+                              </span>
                             </span>
                           </button>
-                          <div className="left-0 top-full mt-1   text-xs px-2 py-1.5 rounded-btn shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                            {labelType === '受益'
-                              ? <>受益人: {proxy.beneficiary_name} → 代领人: {proxy.proxy_name}</>
-                              : <>代领人: {proxy.proxy_name} → 受益人: {proxy.beneficiary_name}</>}
-                            {proxy.remark && <div className="text-text-muted mt-0.5">{proxy.remark}</div>}
-                            {canClick && (
-                              <div className="text-primary/60 mt-0.5">点击查看农户详情 →</div>
-                            )}
-                          </div>
                         </span>
                       )
                     })()}
@@ -592,8 +591,8 @@ export function HouseholdDetailContent({
                     )}
                     <span className="text-sm font-mono font-bold text-primary">{a.actual_amount ? fmt(a.actual_amount) : '—'}</span>
                     <Tag label={PAY_STATUS[a.pay_status]?.label || '—'} color={PAY_STATUS[a.pay_status]?.color as 'green'} />
-                    {onNavigateToProject && a.subsidy_type_id && (
-                      <button onClick={() => onNavigateToProject(a.subsidy_type_id!, a.farmer_name)}
+                    {onNavigateToProject && (
+                      <button onClick={() => onNavigateToProject(Number(a.subsidy_type_id) || 0, a.farmer_name)}
                         className="text-xs text-blue-600 border border-blue-200 px-2 py-1 rounded-btn hover:bg-blue-50 whitespace-nowrap shrink-0">
                         ↗ 查看明细
                       </button>
