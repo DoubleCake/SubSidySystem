@@ -1559,10 +1559,6 @@ video {
   --tw-bg-opacity: 1;
   background-color: rgb(46 122 96 / var(--tw-bg-opacity, 1));
 }
-.bg-\[\#4FA080\] {
-  --tw-bg-opacity: 1;
-  background-color: rgb(79 160 128 / var(--tw-bg-opacity, 1));
-}
 .bg-\[\#C04848\] {
   --tw-bg-opacity: 1;
   background-color: rgb(192 72 72 / var(--tw-bg-opacity, 1));
@@ -1574,10 +1570,6 @@ video {
 .bg-\[\#e3e7ec\] {
   --tw-bg-opacity: 1;
   background-color: rgb(227 231 236 / var(--tw-bg-opacity, 1));
-}
-.bg-\[\#edeaed\] {
-  --tw-bg-opacity: 1;
-  background-color: rgb(237 234 237 / var(--tw-bg-opacity, 1));
 }
 .bg-\[\#f7edd8\] {
   --tw-bg-opacity: 1;

@@ -56,10 +56,18 @@ export function registerSubsidyHandlers(): void {
 
   ipcMain.handle('subsidies:createType', (_e, data: Record<string, unknown>) => {
     try {
-      const keys = Object.keys(data).filter(k => data[k] !== undefined && data[k] !== null)
+      // 确保必填字段有默认值
+      const safeData = {
+        pay_status: 0,
+        count_toward_area: 1,
+        season: '全年单补',
+        calc_mode: 'fixed',
+        ...data,
+      }
+      const keys = Object.keys(safeData).filter(k => safeData[k] !== undefined && safeData[k] !== null && safeData[k] !== '')
       const cols = keys.join(', ')
       const placeholders = keys.map(() => '?').join(', ')
-      const values = keys.map(k => data[k])
+      const values = keys.map(k => safeData[k])
       const result = db().runRaw(`INSERT INTO subsidy_type (${cols}) VALUES (${placeholders})`, ...values)
       return success({ id: result.lastInsertRowid })
     } catch (e) {

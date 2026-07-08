@@ -143,8 +143,6 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
   const [confirmedAreaImportResult, setConfirmedAreaImportResult] = useState<{ success: number; not_found: { id_card: string; real_name: string }[]; mismatch_name: { id_card: string; input_name: string; db_name: string }[]; errors: { id_card: string; reason: string }[] } | null>(null)
   const [confirmedAreaImporting, setConfirmedAreaImporting] = useState(false)
 
-  // ── 刷新缓存 ──
-  const [refreshingCache, setRefreshingCache] = useState(false)
   const [recalculatingArea, setRecalculatingArea] = useState(false)
 
   // ── 搜索防抖：延迟 300ms 再更新实际搜索词 ──
@@ -225,26 +223,6 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
     if (detail) {
       const d = await api.getHouseholdDetail(detail.id, yearFilter)
       setDetail(d)
-    }
-  }
-
-  // ── 刷新面积缓存 ──
-  const handleRefreshCache = async (householdId?: number) => {
-    if (refreshingCache) return
-    setRefreshingCache(true)
-    try {
-      const r = await api.refreshAreaCache(householdId)
-      show(r.message)
-      if (householdId) {
-        refreshDetail()
-      } else {
-        loadHouseholds()
-        refreshDetail()
-      }
-    } catch (e: unknown) {
-      show((e as Error).message, 'err')
-    } finally {
-      setRefreshingCache(false)
     }
   }
 
@@ -812,11 +790,6 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
                       className="px-3 py-2 text-sm border border-primary/20 text-primary bg-[#e3e7ec] rounded-btn hover:bg-primary/5 shadow-card hover:shadow-card-hover transition-all font-medium bg-primary/[0.02]">
                       <Icon name="confirm" size={14} className="inline mr-1" />批量确认
                     </button>
-                    <button onClick={() => handleRefreshCache()} disabled={refreshingCache}
-                      className="px-3 py-2 bg-[#edeaed]  hover:brightness-95 text-sm border-2 border-danger/30 text-danger bg-danger/5 rounded-btn hover:bg-danger/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-purple-700 ">
-                      <Icon name="refresh" size={14} className="inline mr-1" />
-                      {refreshingCache ? '刷新中…' : '刷新缓存'}
-                    </button>
                     <button onClick={handleRecalcUnconfirmedArea} disabled={recalculatingArea}
                       className="px-3 py-2 text-sm border-2 border-orange-tag/30 text-[#B8860B] bg-orange-tag/5 rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold">
                       <Icon name="area" size={14} className="inline mr-1" />
@@ -964,8 +937,6 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
                 onOpenCancelConfirm={() => { setConfirmForm({ operator: '', remark: '' }); setCancelConfirmOpen(true) }}
                 onDelete={() => { setDeleteTarget(detail); setDeleteConfirmOpen(true) }}
                 onNavigateToProject={(typeId, farmerName) => navigate(`/projects?subsidy_type_id=${typeId}&farmer_name=${encodeURIComponent(farmerName)}`)}
-                onRefreshCache={handleRefreshCache}
-                refreshingCache={refreshingCache}
               />
             </div>
           </div>

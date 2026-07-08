@@ -2077,10 +2077,17 @@ function registerSubsidyHandlers() {
   });
   electron.ipcMain.handle("subsidies:createType", (_e, data) => {
     try {
-      const keys = Object.keys(data).filter((k) => data[k] !== void 0 && data[k] !== null);
+      const safeData = {
+        pay_status: 0,
+        count_toward_area: 1,
+        season: "全年单补",
+        calc_mode: "fixed",
+        ...data
+      };
+      const keys = Object.keys(safeData).filter((k) => safeData[k] !== void 0 && safeData[k] !== null && safeData[k] !== "");
       const cols = keys.join(", ");
       const placeholders = keys.map(() => "?").join(", ");
-      const values = keys.map((k) => data[k]);
+      const values = keys.map((k) => safeData[k]);
       const result = db2().runRaw(`INSERT INTO subsidy_type (${cols}) VALUES (${placeholders})`, ...values);
       return success({ id: result.lastInsertRowid });
     } catch (e) {

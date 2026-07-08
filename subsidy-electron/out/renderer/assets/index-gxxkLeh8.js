@@ -8584,10 +8584,6 @@ const cancelManualConfirm = (householdId, data) => req(
 );
 const batchConfirmHouseholds = (data) => req("households:batchConfirm", data);
 const deleteHousehold = (householdId) => req("households:delete", householdId);
-const refreshAreaCache = (householdId) => req(
-  "households:refreshAreaCache",
-  householdId
-);
 const recalcUnconfirmedContractArea = () => req("households:recalcUnconfirmedContractArea");
 const previewHouseholdImport = (rows) => req("household-import:preview", rows);
 const executeHouseholdImport = (rows, defaultVillageName, defaultGroupNo) => req("household-import:execute", { rows, default_village_name: defaultVillageName, default_group_no: defaultGroupNo });
@@ -43688,9 +43684,7 @@ function HouseholdDetailContent({
   onOpenManualConfirm,
   onOpenCancelConfirm,
   onDelete,
-  onNavigateToProject,
-  onRefreshCache,
-  refreshingCache
+  onNavigateToProject
 }) {
   const appsByYear = {};
   detail.app_summary.forEach((a) => {
@@ -43801,18 +43795,6 @@ function HouseholdDetailContent({
                   onClick: () => alert("导出功能开发中"),
                   className: "text-xs bg-blue-500 text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all",
                   children: "📥 导出补贴"
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                "button",
-                {
-                  onClick: () => onRefreshCache(detail.id),
-                  disabled: refreshingCache,
-                  className: "text-xs bg-[#4FA080]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
-                  children: [
-                    refreshingCache ? "⏳" : "🔄",
-                    " 刷新缓存"
-                  ]
                 }
               ),
               /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -44305,7 +44287,6 @@ function HouseholdsTab(props) {
   const [confirmedAreaRows, setConfirmedAreaRows] = reactExports.useState([]);
   const [confirmedAreaImportResult, setConfirmedAreaImportResult] = reactExports.useState(null);
   const [confirmedAreaImporting, setConfirmedAreaImporting] = reactExports.useState(false);
-  const [refreshingCache, setRefreshingCache] = reactExports.useState(false);
   const [recalculatingArea, setRecalculatingArea] = reactExports.useState(false);
   const [debouncedSearch, setDebouncedSearch] = reactExports.useState("");
   reactExports.useEffect(() => {
@@ -44383,24 +44364,6 @@ function HouseholdsTab(props) {
     if (detail) {
       const d = await getHouseholdDetail(detail.id, yearFilter);
       setDetail(d);
-    }
-  };
-  const handleRefreshCache = async (householdId) => {
-    if (refreshingCache) return;
-    setRefreshingCache(true);
-    try {
-      const r2 = await refreshAreaCache(householdId);
-      show(r2.message);
-      if (householdId) {
-        refreshDetail();
-      } else {
-        loadHouseholds();
-        refreshDetail();
-      }
-    } catch (e) {
-      show(e.message, "err");
-    } finally {
-      setRefreshingCache(false);
     }
   };
   const handleRecalcUnconfirmedArea = async () => {
@@ -45063,18 +45026,6 @@ function HouseholdsTab(props) {
             /* @__PURE__ */ jsxRuntimeExports.jsxs(
               "button",
               {
-                onClick: () => handleRefreshCache(),
-                disabled: refreshingCache,
-                className: "px-3 py-2 bg-[#edeaed]  hover:brightness-95 text-sm border-2 border-danger/30 text-danger bg-danger/5 rounded-btn hover:bg-danger/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-purple-700 ",
-                children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { name: "refresh", size: 14, className: "inline mr-1" }),
-                  refreshingCache ? "刷新中…" : "刷新缓存"
-                ]
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "button",
-              {
                 onClick: handleRecalcUnconfirmedArea,
                 disabled: recalculatingArea,
                 className: "px-3 py-2 text-sm border-2 border-orange-tag/30 text-[#B8860B] bg-orange-tag/5 rounded-btn hover:bg-orange-tag/10 shadow-card transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed font-semibold",
@@ -45274,9 +45225,7 @@ function HouseholdsTab(props) {
               setDeleteTarget(detail);
               setDeleteConfirmOpen(true);
             },
-            onNavigateToProject: (typeId, farmerName) => navigate(`/projects?subsidy_type_id=${typeId}&farmer_name=${encodeURIComponent(farmerName)}`),
-            onRefreshCache: handleRefreshCache,
-            refreshingCache
+            onNavigateToProject: (typeId, farmerName) => navigate(`/projects?subsidy_type_id=${typeId}&farmer_name=${encodeURIComponent(farmerName)}`)
           }
         ) })
       ] })

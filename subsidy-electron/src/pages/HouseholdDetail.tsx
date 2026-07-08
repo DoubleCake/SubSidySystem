@@ -32,8 +32,6 @@ export interface HouseholdDetailContentProps {
   onOpenCancelConfirm: () => void
   onDelete: () => void
   onNavigateToProject?: (subsidyTypeId: number, farmerName: string) => void
-  onRefreshCache: (householdId: number) => void
-  refreshingCache: boolean
 }
 
 // ── 家庭户详情内容组件 ──
@@ -62,8 +60,6 @@ export function HouseholdDetailContent({
   onOpenCancelConfirm,
   onDelete,
   onNavigateToProject,
-  onRefreshCache,
-  refreshingCache,
 }: HouseholdDetailContentProps) {
   const appsByYear: Record<number, typeof detail.app_summary> = {}
   detail.app_summary.forEach(a => {
@@ -165,10 +161,6 @@ export function HouseholdDetailContent({
               <button onClick={() => alert('导出功能开发中')}
                 className="text-xs bg-blue-500 text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">
                 📥 导出补贴
-              </button>
-              <button onClick={() => onRefreshCache(detail.id)} disabled={refreshingCache}
-                className="text-xs bg-[#4FA080]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                {refreshingCache ? '⏳' : '🔄'} 刷新缓存
               </button>
               <button onClick={onDelete}
                 className="text-xs bg-[#C04848]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">🗑️ 删除</button>
