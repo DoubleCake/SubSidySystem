@@ -11,6 +11,7 @@ import type { SubsidyType, SubsidyTypeCreate } from '../types'
 import { years } from '../utils'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
+import Modal from '../components/Modal'
 import Tag from '../components/Tag'
 import SubsidyForms from './SubsidyForms'
 import SubsidyRecordsPage from './SubsidyRecordsPage'
@@ -48,6 +49,7 @@ export default function SubsidyProjectsPage() {
   const [editing, setEditing] = useState<SubsidyType | null>(null)
   const [form, setForm] = useState<Partial<SubsidyTypeCreate>>({ subsidy_year: thisYear, calc_mode: 'fixed' })
   const pendingCheckConfig = useRef<object | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<StatsType | null>(null)  // 删除确认弹窗（避免原生confirm阻塞React事件）
 
   // 更新URL参数和状态
   const handleYearChange = (year: number) => {
@@ -251,11 +253,7 @@ export default function SubsidyProjectsPage() {
                   className="px-3 py-1.5 text-xs border border-border text-text-muted rounded-btn hover:border-border text-center">
                   编辑项目
                 </button>
-                <button onClick={() => {
-                  if (confirm(`确定要删除项目「${t.subsidy_name}」吗？\n\n删除后项目将移入回收站，关联的申请记录会被保留。可在回收站中恢复。`)) {
-                    deleteProject(t.id)
-                  }
-                }}
+                <button onClick={() => setDeleteTarget(t)}
                   className="px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-btn hover:bg-red-50 text-center">
                   删除项目
                 </button>
@@ -312,6 +310,18 @@ export default function SubsidyProjectsPage() {
           )}
         </div>
       )}
+
+      {/* 删除确认弹窗（用Modal代替原生confirm，避免阻塞React事件系统） */}
+      <Modal
+        open={deleteTarget !== null}
+        title="确认删除"
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => { if (deleteTarget) { deleteProject(deleteTarget.id); setDeleteTarget(null) } }}
+        confirmText="确认删除"
+      >
+        <p className="text-sm text-text-primary">确定要删除项目「<span className="font-bold">{deleteTarget?.subsidy_name}</span>」吗？</p>
+        <p className="text-xs text-text-muted mt-2">删除后项目将移入回收站，关联的申请记录会被保留。可在回收站中恢复。</p>
+      </Modal>
 
       <Toast {...toast} />
     </div>
