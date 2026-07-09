@@ -12,13 +12,16 @@ export function registerSubsidyHandlers(): void {
     try {
       const year = typeof payload === 'object' && payload !== null ? payload.year : payload
       const status = typeof payload === 'object' && payload !== null ? payload.status : undefined
+      const showDeleted = typeof payload === 'object' && payload !== null ? payload.deleted : undefined
       let query = 'SELECT * FROM subsidy_type WHERE 1=1'
       const sqlParams: unknown[] = []
       if (year) { query += ' AND subsidy_year = ?'; sqlParams.push(year) }
-      if (status !== undefined && status !== null) {
-        query += ' AND pay_status = ?'; sqlParams.push(status)
+      if (status !== undefined && status !== null) { query += ' AND pay_status = ?'; sqlParams.push(status) }
+      // 回收站过滤：传deleted=1查看回收站，否则默认排除已删除
+      if (showDeleted == 1) {
+        query += ' AND is_deleted = 1'
       } else {
-        query += ' AND pay_status != 0'
+        query += ' AND is_deleted != 1'
       }
       query += ' ORDER BY subsidy_year DESC'
       return success(db().allRaw(query, ...sqlParams))
@@ -30,7 +33,7 @@ export function registerSubsidyHandlers(): void {
   ipcMain.handle('subsidies:listTypesWithStats', (_e, year?: any) => {
     try {
       const params: unknown[] = []
-      let stWhere = ' WHERE st.pay_status != 0'
+      let stWhere = ' WHERE st.is_deleted != 1'
       let saWhere = ''
       if (year) {
         stWhere += ' AND st.subsidy_year = ?'
@@ -452,8 +455,8 @@ export function registerSubsidyHandlers(): void {
 
   ipcMain.handle('subsidies:deleteType', (_e, typeId: number) => {
     try {
-      // 软删除：设 pay_status=0
-      db().runRaw("UPDATE subsidy_type SET pay_status = 0, updated_at = datetime('now','localtime') WHERE id = ?", typeId)
+      // 软删除：设 is_deleted=1
+      db().runRaw("UPDATE subsidy_type SET is_deleted = 1, updated_at = datetime('now','localtime') WHERE id = ?", typeId)
       return success({ message: '已移入回收站' })
     } catch (e) { return errorResponse(String(e)) }
   })
@@ -650,6 +653,14 @@ export function registerSubsidyHandlers(): void {
         ${where} ORDER BY sa.apply_village_name, fp.real_name
       `, ...vals)
       return success({ items: rows })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 恢复已删除项目 ──
+  ipcMain.handle('subsidies:restoreType', (_e, typeId: number) => {
+    try {
+      db().runRaw("UPDATE subsidy_type SET is_deleted = 0, updated_at = datetime('now','localtime') WHERE id = ?", typeId)
+      return success({ message: '恢复成功' })
     } catch (e) { return errorResponse(String(e)) }
   })
 

@@ -682,6 +682,7 @@ function runMigrations() {
     "ALTER TABLE subsidy_payment ADD COLUMN beneficiary_id INTEGER REFERENCES farmer_profile(id)",
     // subsidy_proxy 增量
     "ALTER TABLE subsidy_proxy ADD COLUMN subsidy_type_id INTEGER REFERENCES subsidy_type(id)",
+    "ALTER TABLE subsidy_type ADD COLUMN is_deleted SMALLINT DEFAULT 0",
     // large_farmer 增量
     "ALTER TABLE large_farmer ADD COLUMN farmer_grade VARCHAR(20)",
     "ALTER TABLE large_farmer ADD COLUMN credit_score SMALLINT",
@@ -2088,6 +2089,7 @@ function registerSubsidyHandlers() {
     try {
       const year = typeof payload === "object" && payload !== null ? payload.year : payload;
       const status = typeof payload === "object" && payload !== null ? payload.status : void 0;
+      const showDeleted = typeof payload === "object" && payload !== null ? payload.deleted : void 0;
       let query = "SELECT * FROM subsidy_type WHERE 1=1";
       const sqlParams = [];
       if (year) {
@@ -2097,8 +2099,11 @@ function registerSubsidyHandlers() {
       if (status !== void 0 && status !== null) {
         query += " AND pay_status = ?";
         sqlParams.push(status);
+      }
+      if (showDeleted == 1) {
+        query += " AND is_deleted = 1";
       } else {
-        query += " AND pay_status != 0";
+        query += " AND is_deleted != 1";
       }
       query += " ORDER BY subsidy_year DESC";
       return success(db2().allRaw(query, ...sqlParams));
@@ -2109,7 +2114,7 @@ function registerSubsidyHandlers() {
   electron.ipcMain.handle("subsidies:listTypesWithStats", (_e, year) => {
     try {
       const params = [];
-      let stWhere = " WHERE st.pay_status != 0";
+      let stWhere = " WHERE st.is_deleted != 1";
       let saWhere = "";
       if (year) {
         stWhere += " AND st.subsidy_year = ?";
@@ -2503,7 +2508,7 @@ function registerSubsidyHandlers() {
   });
   electron.ipcMain.handle("subsidies:deleteType", (_e, typeId) => {
     try {
-      db2().runRaw("UPDATE subsidy_type SET pay_status = 0, updated_at = datetime('now','localtime') WHERE id = ?", typeId);
+      db2().runRaw("UPDATE subsidy_type SET is_deleted = 1, updated_at = datetime('now','localtime') WHERE id = ?", typeId);
       return success({ message: "已移入回收站" });
     } catch (e) {
       return errorResponse(String(e));
@@ -2760,6 +2765,14 @@ function registerSubsidyHandlers() {
         ${where} ORDER BY sa.apply_village_name, fp.real_name
       `, ...vals);
       return success({ items: rows });
+    } catch (e) {
+      return errorResponse(String(e));
+    }
+  });
+  electron.ipcMain.handle("subsidies:restoreType", (_e, typeId) => {
+    try {
+      db2().runRaw("UPDATE subsidy_type SET is_deleted = 0, updated_at = datetime('now','localtime') WHERE id = ?", typeId);
+      return success({ message: "恢复成功" });
     } catch (e) {
       return errorResponse(String(e));
     }
