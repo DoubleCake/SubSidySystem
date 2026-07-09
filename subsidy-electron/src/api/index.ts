@@ -387,6 +387,9 @@ export const updateCheckConfig = (typeId: number, config: CheckConfig) =>
 export const restoreSubsidyType = (typeId: number) =>
   req<{ message: string }>('subsidies:restoreType', typeId)
 
+export const destroySubsidyType = (typeId: number) =>
+  req<{ message: string }>('subsidies:destroyType', typeId)
+
 export const savePrecheckHistory = (subsidy_type_id: number, year: number, precheck_result: unknown, error_types?: string[]) =>
   req<{ saved: number; batch_key: string }>('precheck:saveHistory', { subsidy_type_id, year, precheck_result, error_types })
 

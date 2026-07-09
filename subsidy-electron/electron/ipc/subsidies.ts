@@ -476,6 +476,20 @@ export function registerSubsidyHandlers(): void {
     } catch (e) { return errorResponse(String(e)) }
   })
 
+  // ── 彻底删除：物理删除已回收站中的项目及关联数据 ──
+  ipcMain.handle('subsidies:destroyType', (_e, typeId: number) => {
+    try {
+      // 确认只在回收站中（is_deleted=1）才能彻底删除
+      const st = db().allRaw("SELECT id FROM subsidy_type WHERE id = ? AND is_deleted = 1", typeId)
+      if (st.length === 0) return errorResponse('项目不存在或不在回收站中')
+
+      db().runRaw("DELETE FROM subsidy_application WHERE subsidy_type_id = ?", typeId)
+      db().runRaw("DELETE FROM subsidy_payment WHERE subsidy_type_id = ?", typeId)
+      db().runRaw("DELETE FROM subsidy_type WHERE id = ?", typeId)
+      return success({ message: '已彻底删除' })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
   ipcMain.handle('subsidies:exportApplications', (_e, subsidyTypeId: number) => {
     try {
       const rows = db().allRaw('SELECT * FROM subsidy_application WHERE subsidy_type_id = ?', subsidyTypeId)

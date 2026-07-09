@@ -50,6 +50,8 @@ export default function SubsidyProjectsPage() {
   const [form, setForm] = useState<Partial<SubsidyTypeCreate>>({ subsidy_year: thisYear, calc_mode: 'fixed' })
   const pendingCheckConfig = useRef<object | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<StatsType | null>(null)  // 删除确认弹窗（避免原生confirm阻塞React事件）
+  const [destroyTarget, setDestroyTarget] = useState<SubsidyType | null>(null)  // 彻底删除确认
+  const [destroying, setDestroying] = useState(false)
 
   // 更新URL参数和状态
   const handleYearChange = (year: number) => {
@@ -172,6 +174,20 @@ export default function SubsidyProjectsPage() {
       show('恢复失败：' + (error as Error).message, 'err')
     } finally {
       setRestoring(null)
+    }
+  }
+
+  const destroyProject = async (type_id: number) => {
+    setDestroying(true)
+    try {
+      await api.destroySubsidyType(type_id)
+      setDeletedTypes(prev => prev.filter(t => t.id !== type_id))
+      setDestroyTarget(null)
+      show('✓ 项目已彻底删除（含关联申请/发放记录）')
+    } catch (error) {
+      show('彻底删除失败：' + (error as Error).message, 'err')
+    } finally {
+      setDestroying(false)
     }
   }
 
@@ -304,6 +320,11 @@ export default function SubsidyProjectsPage() {
                     className="px-3 py-1.5 text-xs bg-emerald-500 text-white rounded-btn hover:bg-emerald-600 disabled:opacity-50 transition-all whitespace-nowrap">
                     {restoring === t.id ? '恢复中…' : '↩ 恢复项目'}
                   </button>
+                  <button
+                    onClick={() => setDestroyTarget(t)}
+                    className="px-3 py-1.5 text-xs border border-red-300 text-red-600 rounded-btn hover:bg-red-50 transition-all whitespace-nowrap">
+                    ⚠️ 彻底删除
+                  </button>
                 </div>
               ))}
             </div>
@@ -321,6 +342,21 @@ export default function SubsidyProjectsPage() {
       >
         <p className="text-sm text-text-primary">确定要删除项目「<span className="font-bold">{deleteTarget?.subsidy_name}</span>」吗？</p>
         <p className="text-xs text-text-muted mt-2">删除后项目将移入回收站，关联的申请记录会被保留。可在回收站中恢复。</p>
+      </Modal>
+
+      {/* 彻底删除确认弹窗 */}
+      <Modal
+        open={destroyTarget !== null}
+        title="⚠️ 彻底删除"
+        onClose={() => setDestroyTarget(null)}
+        onConfirm={() => { if (destroyTarget) destroyProject(destroyTarget.id) }}
+        confirmText="彻底删除"
+      >
+        <div className="bg-red-50 border border-red-200 rounded-btn p-3 mb-3">
+          <p className="text-sm text-red-700 font-bold">此操作不可恢复！</p>
+        </div>
+        <p className="text-sm text-text-primary">确定要彻底删除项目「<span className="font-bold">{destroyTarget?.subsidy_name}</span>」吗？</p>
+        <p className="text-xs text-text-muted mt-2">将同时删除该项目的<strong>所有申请记录和发放记录</strong>，无法恢复。</p>
       </Modal>
 
       <Toast {...toast} />
