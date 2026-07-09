@@ -2520,7 +2520,7 @@ function registerSubsidyHandlers() {
   electron.ipcMain.handle("subsidies:comparableTypes", (_e, payload) => {
     try {
       const { category, current_type_id } = payload;
-      let query = "SELECT id, subsidy_name, subsidy_year FROM subsidy_type WHERE 1=1";
+      let query = "SELECT id, subsidy_name, subsidy_year FROM subsidy_type WHERE (is_deleted IS NULL OR is_deleted != 1)";
       const params = [];
       if (category) {
         query += " AND category = ?";
