@@ -268,7 +268,7 @@ export default function SubsidyProjectsPage() {
         open={editOpen}
         editing={editing}
         form={form}
-        onFormChange={setForm}
+        onFormChange={updater => setForm(prev => ({ ...prev, ...updater }))}
         onSubmit={submitType}
         onClose={() => setEditOpen(false)}
         thisYear={thisYear}
