@@ -49665,8 +49665,9 @@ function SubsidyProjectsPage() {
   }, [yearFilter]);
   const loadDeletedTypes = async () => {
     try {
-      setDeletedTypes(await getDeletedSubsidyTypes(yearFilter));
-    } catch {
+      setDeletedTypes(await getDeletedSubsidyTypes());
+    } catch (e) {
+      console.error("加载回收站失败:", e);
     }
   };
   reactExports.useEffect(() => {

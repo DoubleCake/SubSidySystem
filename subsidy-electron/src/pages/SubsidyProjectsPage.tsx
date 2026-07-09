@@ -74,8 +74,8 @@ export default function SubsidyProjectsPage() {
   }, [yearFilter])
 
   const loadDeletedTypes = async () => {
-    try { setDeletedTypes(await api.getDeletedSubsidyTypes(yearFilter) as StatsType[]) }
-    catch { /* ignore */ }
+    try { setDeletedTypes(await api.getDeletedSubsidyTypes() as StatsType[]) }
+    catch (e) { console.error('加载回收站失败:', e) }
   }
 
   useEffect(() => { loadTypes() }, [loadTypes])

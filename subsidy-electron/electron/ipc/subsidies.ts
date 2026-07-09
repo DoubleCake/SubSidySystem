@@ -17,7 +17,7 @@ export function registerSubsidyHandlers(): void {
       let query = "SELECT * FROM subsidy_type WHERE COALESCE(is_deleted,0) = 0"
       const sqlParams: unknown[] = []
       if (showDeleted == 1) { query = "SELECT * FROM subsidy_type WHERE is_deleted = 1" }
-      if (year) { query += ' AND subsidy_year = ?'; sqlParams.push(year) }
+      else if (year) { query += ' AND subsidy_year = ?'; sqlParams.push(year) }
       if (status !== undefined && status !== null) { query += ' AND pay_status = ?'; sqlParams.push(status) }
       query += ' ORDER BY subsidy_year DESC'
       return success(db().allRaw(query, ...sqlParams))

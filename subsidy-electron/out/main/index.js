@@ -2096,8 +2096,7 @@ function registerSubsidyHandlers() {
       const sqlParams = [];
       if (showDeleted == 1) {
         query = "SELECT * FROM subsidy_type WHERE is_deleted = 1";
-      }
-      if (year) {
+      } else if (year) {
         query += " AND subsidy_year = ?";
         sqlParams.push(year);
       }
