@@ -2,7 +2,7 @@
  * 补贴项目表单组件
  * 包含新增/编辑补贴项目的Modal表单 + 预检查方案配置
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Modal from '../components/Modal'
 import type { SubsidyType, SubsidyTypeCreate } from '../types'
 import type { CheckConfig } from '../types'
@@ -80,10 +80,15 @@ export default function SubsidyForms({
     onCheckConfigChange?.(checkConfig)
   }, [checkConfig])
 
-  // 当 season / calc_mode 变化时更新默认配置（仅新建模式）
+  // 当 season / calc_mode 变化时更新默认配置（仅新建模式，用 ref 防抖）
+  const configTimer = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => {
     if (editing || !open) return
-    setCheckConfig(genDefaultConfig(form.season ?? '耕地地力保护', form.category, form.calc_mode ?? 'fixed'))
+    clearTimeout(configTimer.current)
+    configTimer.current = setTimeout(() => {
+      setCheckConfig(genDefaultConfig(form.season ?? '耕地地力保护', form.category, form.calc_mode ?? 'fixed'))
+    }, 200)
+    return () => clearTimeout(configTimer.current)
   }, [form.season, form.calc_mode, form.category])
 
   // 切换某个检查项的开关（处理两种层级：checks.xxx 和 check_trust_deduction）

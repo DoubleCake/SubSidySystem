@@ -45532,9 +45532,14 @@ function SubsidyForms({
   reactExports.useEffect(() => {
     onCheckConfigChange?.(checkConfig);
   }, [checkConfig]);
+  const configTimer = reactExports.useRef();
   reactExports.useEffect(() => {
     if (editing || !open) return;
-    setCheckConfig(genDefaultConfig(form.season ?? "耕地地力保护", form.category, form.calc_mode ?? "fixed"));
+    clearTimeout(configTimer.current);
+    configTimer.current = setTimeout(() => {
+      setCheckConfig(genDefaultConfig(form.season ?? "耕地地力保护", form.category, form.calc_mode ?? "fixed"));
+    }, 200);
+    return () => clearTimeout(configTimer.current);
   }, [form.season, form.calc_mode, form.category]);
   const toggleCheck = (key) => {
     setCheckConfig((prev) => {
