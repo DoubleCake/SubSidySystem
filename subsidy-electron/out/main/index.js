@@ -2145,8 +2145,9 @@ function registerSubsidyHandlers() {
       const safeData = {
         pay_status: 1,
         count_toward_area: 1,
-        season: "临时",
+        season: "全年单补",
         calc_mode: "fixed",
+        is_deleted: 0,
         ...data
       };
       const keys = Object.keys(safeData).filter((k) => safeData[k] !== void 0 && safeData[k] !== null && safeData[k] !== "");

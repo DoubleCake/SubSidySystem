@@ -61,11 +61,12 @@ export function registerSubsidyHandlers(): void {
   ipcMain.handle('subsidies:createType', (_e, data: Record<string, unknown>) => {
     try {
       // 确保必填字段有默认值
-      const safeData = {
+      const safeData: Record<string, unknown> = {
         pay_status: 1,
         count_toward_area: 1,
-        season: '临时',
+        season: '全年单补',
         calc_mode: 'fixed',
+        is_deleted: 0,
         ...data,
       }
       const keys = Object.keys(safeData).filter(k => safeData[k] !== undefined && safeData[k] !== null && safeData[k] !== '')
