@@ -15,7 +15,11 @@ export function registerSubsidyHandlers(): void {
       let query = 'SELECT * FROM subsidy_type WHERE 1=1'
       const sqlParams: unknown[] = []
       if (year) { query += ' AND subsidy_year = ?'; sqlParams.push(year) }
-      if (status !== undefined && status !== null) { query += ' AND pay_status = ?'; sqlParams.push(status) }
+      if (status !== undefined && status !== null) {
+        query += ' AND pay_status = ?'; sqlParams.push(status)
+      } else {
+        query += ' AND pay_status != 0'
+      }
       query += ' ORDER BY subsidy_year DESC'
       return success(db().allRaw(query, ...sqlParams))
     } catch (e) {
@@ -26,7 +30,7 @@ export function registerSubsidyHandlers(): void {
   ipcMain.handle('subsidies:listTypesWithStats', (_e, year?: any) => {
     try {
       const params: unknown[] = []
-      let stWhere = ' WHERE 1=1'
+      let stWhere = ' WHERE st.pay_status != 0'
       let saWhere = ''
       if (year) {
         stWhere += ' AND st.subsidy_year = ?'
@@ -55,7 +59,7 @@ export function registerSubsidyHandlers(): void {
     try {
       // 确保必填字段有默认值
       const safeData = {
-        pay_status: 0,
+        pay_status: 1,
         count_toward_area: 1,
         season: '临时',
         calc_mode: 'fixed',

@@ -43684,7 +43684,8 @@ function HouseholdDetailContent({
   onOpenManualConfirm,
   onOpenCancelConfirm,
   onDelete,
-  onNavigateToProject
+  onNavigateToProject,
+  onOpenHousehold
 }) {
   const appsByYear = {};
   detail.app_summary.forEach((a) => {
@@ -44164,16 +44165,18 @@ function HouseholdDetailContent({
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm flex-1", children: a.subsidy_name }),
             a.proxy_info && (() => {
               const proxy = a.proxy_info;
-              const isBenefit = String(proxy.type || "").includes("受益");
+              const farmerId = Number(a.farmer_id);
+              const isBenefit = farmerId === Number(proxy.beneficiary_farmer_id);
+              const targetHhId = isBenefit ? proxy.proxy_household_id : proxy.beneficiary_household_id;
               return /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "group relative shrink-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "button",
                 {
                   onClick: (e) => {
                     e.stopPropagation();
-                    const targetId = isBenefit ? proxy.proxy_farmer_id : proxy.beneficiary_farmer_id;
-                    if (targetId) onOpenFarmer(targetId);
+                    if (targetHhId) onOpenHousehold(Number(targetHhId));
                   },
-                  className: "cursor-pointer hover:brightness-90 transition-all",
+                  disabled: !targetHhId,
+                  className: "cursor-pointer hover:brightness-90 transition-all disabled:opacity-50 disabled:cursor-default",
                   title: `受益: ${proxy.beneficiary_name || "?"}
 代领: ${proxy.proxy_name || "?"}${proxy.remark ? "\n备注: " + proxy.remark : ""}
 点击跳转 →`,
@@ -44316,11 +44319,11 @@ function HouseholdsTab(props) {
       if (d.id === currentId) setDetail(d);
     });
   }, [areaYear]);
-  const openDetail = async (id2, skipUrlUpdate = false) => {
+  const openDetail = async (id2, skipUrlUpdate = false, initialTab = "members") => {
     setAreaYear(yearFilter);
     const d = await getHouseholdDetail(id2, yearFilter);
     setDetail(d);
-    setDetailTab("members");
+    setDetailTab(initialTab);
     setEvents([]);
     setHistoryEventId(null);
     setSnapshotData(null);
@@ -45183,6 +45186,14 @@ function HouseholdsTab(props) {
             onOpenEvent: () => setEventOpen(true),
             onOpenFarmer: (farmerId) => {
               onNavigateToFarmer(farmerId);
+            },
+            onOpenHousehold: (householdId) => {
+              setSearch("");
+              setHhPage(1);
+              setVillageFilter("");
+              setOverdrawnOnly(false);
+              setConfirmedFilter("");
+              openDetail(householdId, false, "subsidy");
             },
             onOpenMemberEdit: openMemberEdit,
             onRemoveMember: removeMember,
