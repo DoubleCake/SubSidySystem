@@ -42,6 +42,7 @@ export default function SubsidyProjectsPage() {
   const [showTrash, setShowTrash] = useState(false)  // 回收站模式
   const [deletedTypes, setDeletedTypes] = useState<SubsidyType[]>([])
   const [restoring, setRestoring] = useState<number | null>(null)  // 正在恢复的项目ID
+  const [formKey, setFormKey] = useState(0)  // 强制Modal重新挂载
   const [activeType, setActiveType] = useState<StatsType | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [editing, setEditing] = useState<SubsidyType | null>(null)
@@ -101,9 +102,10 @@ export default function SubsidyProjectsPage() {
     }
   }, [types, location.search])
 
-  const openAdd = () => { setEditing(null); setForm({ subsidy_year: yearFilter, calc_mode: 'fixed', season: '耕地地力保护' }); setEditOpen(true) }
+  const openAdd = () => { setEditing(null); setForm({ subsidy_year: yearFilter, calc_mode: 'fixed', season: '耕地地力保护' }); setFormKey(k => k + 1); setEditOpen(true) }
   const openEdit = (t: SubsidyType) => {
     setEditing(t)
+    setFormKey(k => k + 1)
     setForm({
       subsidy_name: t.subsidy_name,
       subsidy_year: t.subsidy_year,
@@ -265,6 +267,7 @@ export default function SubsidyProjectsPage() {
 
       {/* 新增/编辑弹窗 */}
       <SubsidyForms
+        key={formKey}
         open={editOpen}
         editing={editing}
         form={form}

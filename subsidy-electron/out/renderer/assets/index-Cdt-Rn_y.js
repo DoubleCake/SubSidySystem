@@ -49640,6 +49640,7 @@ function SubsidyProjectsPage() {
   const [showTrash, setShowTrash] = reactExports.useState(false);
   const [deletedTypes, setDeletedTypes] = reactExports.useState([]);
   const [restoring, setRestoring] = reactExports.useState(null);
+  const [formKey, setFormKey] = reactExports.useState(0);
   const [activeType, setActiveType] = reactExports.useState(null);
   const [editOpen, setEditOpen] = reactExports.useState(false);
   const [editing, setEditing] = reactExports.useState(null);
@@ -49699,10 +49700,12 @@ function SubsidyProjectsPage() {
   const openAdd = () => {
     setEditing(null);
     setForm({ subsidy_year: yearFilter, calc_mode: "fixed", season: "耕地地力保护" });
+    setFormKey((k2) => k2 + 1);
     setEditOpen(true);
   };
   const openEdit = (t2) => {
     setEditing(t2);
+    setFormKey((k2) => k2 + 1);
     setForm({
       subsidy_name: t2.subsidy_name,
       subsidy_year: t2.subsidy_year,
@@ -49918,7 +49921,8 @@ function SubsidyProjectsPage() {
         onCheckConfigChange: (cfg) => {
           pendingCheckConfig.current = cfg;
         }
-      }
+      },
+      formKey
     ),
     showTrash && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-6", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-3", children: [
