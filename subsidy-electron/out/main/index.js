@@ -683,8 +683,7 @@ function runMigrations() {
     "ALTER TABLE subsidy_payment ADD COLUMN beneficiary_id INTEGER REFERENCES farmer_profile(id)",
     // subsidy_proxy 增量
     "ALTER TABLE subsidy_proxy ADD COLUMN subsidy_type_id INTEGER REFERENCES subsidy_type(id)",
-    "ALTER TABLE subsidy_type ADD COLUMN is_deleted SMALLINT DEFAULT 0",
-    "UPDATE subsidy_type SET is_deleted = 0 WHERE is_deleted IS NULL",
+    // is_deleted 列通过下面的 PRAGMA 逻辑单独处理
     // large_farmer 增量
     "ALTER TABLE large_farmer ADD COLUMN farmer_grade VARCHAR(20)",
     "ALTER TABLE large_farmer ADD COLUMN credit_score SMALLINT",
@@ -701,6 +700,17 @@ function runMigrations() {
       db2.exec(stmt);
     } catch {
     }
+  }
+  try {
+    const cols = db2.allRaw("PRAGMA table_info('subsidy_type')");
+    const hasDeleted = cols.some((c) => c.name === "is_deleted");
+    if (!hasDeleted) {
+      db2.exec("ALTER TABLE subsidy_type ADD COLUMN is_deleted SMALLINT DEFAULT 0");
+      console.log("[Migrate] Added subsidy_type.is_deleted column");
+    }
+    db2.runRaw("UPDATE subsidy_type SET is_deleted = 0 WHERE is_deleted IS NULL");
+  } catch (e) {
+    console.error("[Migrate] Failed to ensure is_deleted column:", e);
   }
 }
 const DIGITS = "零一二三四五六七八九十";
