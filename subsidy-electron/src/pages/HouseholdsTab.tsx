@@ -193,10 +193,10 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
   }, [areaYear]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 打开户详情 ──
-  const openDetail = async (id: number, skipUrlUpdate = false) => {
+  const openDetail = async (id: number, skipUrlUpdate = false, initialTab = 'members') => {
     setAreaYear(yearFilter)
     const d = await api.getHouseholdDetail(id, yearFilter)
-    setDetail(d); setDetailTab('members'); setEvents([])
+    setDetail(d); setDetailTab(initialTab); setEvents([])
     setHistoryEventId(null); setSnapshotData(null)
     setMergeMode(false); setMergeSelected([]); setMergeSelectedHouseholds([])
     setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([])
@@ -925,12 +925,10 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
                   setMemberAddOpen(true)
                 }}
                 onOpenEvent={() => setEventOpen(true)}
-                onOpenFarmer={(farmerId) => {
-                  // 跳转到该农户所在的家庭户详情
-                  const member = detail?.members?.find(m => m.id === farmerId)
-                  if (member?.household_id) {
-                    openDetail(member.household_id)
-                  }
+                onOpenFarmer={(farmerId) => { onNavigateToFarmer(farmerId) }}
+                onOpenHousehold={(householdId) => {
+                  setSearch(''); setHhPage(1); setVillageFilter(''); setOverdrawnOnly(false); setConfirmedFilter('')
+                  openDetail(householdId, false, 'subsidy')
                 }}
                 onOpenMemberEdit={openMemberEdit}
                 onRemoveMember={removeMember}

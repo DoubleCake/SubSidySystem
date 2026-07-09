@@ -143,8 +143,8 @@ export function registerHouseholdHandlers(): void {
       let appSummary: unknown[] = []
       try {
         const apps = db().allRaw<Record<string, unknown>>(`
-          SELECT sa.id, sa.apply_year,
-                 COALESCE(sa.beneficiary_id, sa.farmer_id) as farmer_id,
+          SELECT DISTINCT sa.id, sa.apply_year,
+                 fp.id as farmer_id,
                  fp.real_name as farmer_name,
                  st.subsidy_name, st.calc_mode,
                  sa.apply_area, COALESCE(sa.apply_amount, 0) as apply_amount,
@@ -152,7 +152,10 @@ export function registerHouseholdHandlers(): void {
                  sa.pay_status, sa.apply_village_name, sa.apply_group_display,
                  sa.is_proxy, sa.subsidy_type_id, sa.apply_area_no_calc
           FROM subsidy_application sa
-          JOIN farmer_profile fp ON fp.id = COALESCE(sa.beneficiary_id, sa.farmer_id)
+          JOIN farmer_profile fp ON (
+            fp.id = COALESCE(sa.beneficiary_id, sa.farmer_id)
+            OR fp.id = sa.farmer_id
+          )
           JOIN subsidy_type st ON st.id = sa.subsidy_type_id
           WHERE fp.household_id = ?
           ORDER BY sa.apply_year DESC, sa.id DESC
@@ -169,7 +172,9 @@ export function registerHouseholdHandlers(): void {
             const p1 = db().allRaw<Record<string, unknown>>(`
               SELECT sp.application_id, sp.proxy_type as type,
                      sp.beneficiary_farmer_id, sp.proxy_farmer_id,
-                     bf.real_name as beneficiary_name, pf.real_name as proxy_name, sp.remark
+                     bf.real_name as beneficiary_name, bf.household_id as beneficiary_household_id,
+                     pf.real_name as proxy_name, pf.household_id as proxy_household_id,
+                     sp.remark
               FROM subsidy_proxy sp
               LEFT JOIN farmer_profile bf ON bf.id = sp.beneficiary_farmer_id
               LEFT JOIN farmer_profile pf ON pf.id = sp.proxy_farmer_id
@@ -181,7 +186,9 @@ export function registerHouseholdHandlers(): void {
                 beneficiary_farmer_id: p.beneficiary_farmer_id,
                 proxy_farmer_id: p.proxy_farmer_id,
                 beneficiary_name: p.beneficiary_name,
+                beneficiary_household_id: p.beneficiary_household_id,
                 proxy_name: p.proxy_name,
+                proxy_household_id: p.proxy_household_id,
                 remark: p.remark,
               })
             }
@@ -197,25 +204,30 @@ export function registerHouseholdHandlers(): void {
               const p2 = db().allRaw<Record<string, unknown>>(`
                 SELECT sp.subsidy_type_id, sp.proxy_type as type,
                        sp.beneficiary_farmer_id, sp.proxy_farmer_id,
-                       bf.real_name as beneficiary_name, pf.real_name as proxy_name, sp.remark
+                       bf.real_name as beneficiary_name, bf.household_id as beneficiary_household_id,
+                       pf.real_name as proxy_name, pf.household_id as proxy_household_id,
+                       sp.remark
                 FROM subsidy_proxy sp
                 LEFT JOIN farmer_profile bf ON bf.id = sp.beneficiary_farmer_id
                 LEFT JOIN farmer_profile pf ON pf.id = sp.proxy_farmer_id
                 WHERE sp.application_id IS NULL
                   AND sp.subsidy_type_id IN (${tPlaceholders})
-                  AND sp.beneficiary_farmer_id IN (${fPlaceholders})
-              `, ...typeIds, ...farmerIds)
+                  AND (sp.beneficiary_farmer_id IN (${fPlaceholders}) OR sp.proxy_farmer_id IN (${fPlaceholders}))
+              `, ...typeIds, ...farmerIds, ...farmerIds)
               for (const p of p2) {
-                // 将该类型+受益人的代领关系应用到所有匹配的补贴记录上
+                // 将该类型+受益人或代领人的代领关系应用到所有匹配的补贴记录上
                 for (const a of apps) {
-                  if (a.subsidy_type_id === p.subsidy_type_id && a.farmer_id === p.beneficiary_farmer_id) {
+                  if (a.subsidy_type_id === p.subsidy_type_id &&
+                      (a.farmer_id === p.beneficiary_farmer_id || a.farmer_id === p.proxy_farmer_id)) {
                     if (!appProxies.has(Number(a.id))) {
                       appProxies.set(Number(a.id), {
                         type: p.type || '代领',
                         beneficiary_farmer_id: p.beneficiary_farmer_id,
                         proxy_farmer_id: p.proxy_farmer_id,
                         beneficiary_name: p.beneficiary_name,
+                        beneficiary_household_id: p.beneficiary_household_id,
                         proxy_name: p.proxy_name,
+                        proxy_household_id: p.proxy_household_id,
                         remark: p.remark,
                       })
                     }

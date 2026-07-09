@@ -32,6 +32,7 @@ export interface HouseholdDetailContentProps {
   onOpenCancelConfirm: () => void
   onDelete: () => void
   onNavigateToProject?: (subsidyTypeId: number, farmerName: string) => void
+  onOpenHousehold?: (householdId: number) => void
 }
 
 // ── 家庭户详情内容组件 ──
@@ -60,6 +61,7 @@ export function HouseholdDetailContent({
   onOpenCancelConfirm,
   onDelete,
   onNavigateToProject,
+  onOpenHousehold,
 }: HouseholdDetailContentProps) {
   const appsByYear: Record<number, typeof detail.app_summary> = {}
   detail.app_summary.forEach(a => {
@@ -555,18 +557,18 @@ export function HouseholdDetailContent({
                     {a.proxy_info && (() => {
                       const proxy = a.proxy_info
                       const farmerId = Number(a.farmer_id)
-                      // 当前记录的人就是受益人 → 显示"受益"；是代领人 → 显示"代领"
                       const isBenefit = farmerId === Number(proxy.beneficiary_farmer_id)
+                      // 跳转到对方的家庭户
+                      const targetHhId = isBenefit ? proxy.proxy_household_id : proxy.beneficiary_household_id
                       return (
                         <span className="group relative shrink-0">
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              // 点击跳转到对方
-                              const targetId = isBenefit ? proxy.proxy_farmer_id : proxy.beneficiary_farmer_id
-                              if (targetId) onOpenFarmer(targetId)
+                              if (targetHhId) onOpenHousehold(Number(targetHhId))
                             }}
-                            className="cursor-pointer hover:brightness-90 transition-all"
+                            disabled={!targetHhId}
+                            className="cursor-pointer hover:brightness-90 transition-all disabled:opacity-50 disabled:cursor-default"
                             title={`受益: ${proxy.beneficiary_name || '?'}\n代领: ${proxy.proxy_name || '?'}${proxy.remark ? '\n备注: ' + proxy.remark : ''}\n点击跳转 →`}
                           >
                             <span className={`px-1.5 py-0.5 text-xs font-semibold rounded-full border ${
