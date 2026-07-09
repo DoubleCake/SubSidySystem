@@ -145,8 +145,9 @@ export default function SubsidyProjectsPage() {
     setDeleting(true)
     try {
       await window.electronAPI.invoke('subsidies:deleteType', type_id)
+      // 立即从本地状态移除
+      setTypes(prev => prev.filter(t => t.id !== type_id))
       show('✓ 项目已移入回收站')
-      loadTypes()
       if (showTrash) loadDeletedTypes()
     } catch (error) {
       show('删除失败：' + (error as Error).message, 'err')
@@ -159,8 +160,9 @@ export default function SubsidyProjectsPage() {
     setRestoring(type_id)
     try {
       await api.restoreSubsidyType(type_id)
+      // 从回收站状态移除
+      setDeletedTypes(prev => prev.filter(t => t.id !== type_id))
       show('✓ 项目已恢复')
-      loadDeletedTypes()
       loadTypes()
     } catch (error) {
       show('恢复失败：' + (error as Error).message, 'err')

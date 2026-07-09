@@ -49737,8 +49737,8 @@ function SubsidyProjectsPage() {
     setDeleting(true);
     try {
       await window.electronAPI.invoke("subsidies:deleteType", type_id);
+      setTypes((prev) => prev.filter((t2) => t2.id !== type_id));
       show("✓ 项目已移入回收站");
-      loadTypes();
       if (showTrash) loadDeletedTypes();
     } catch (error) {
       show("删除失败：" + error.message, "err");
@@ -49750,8 +49750,8 @@ function SubsidyProjectsPage() {
     setRestoring(type_id);
     try {
       await restoreSubsidyType(type_id);
+      setDeletedTypes((prev) => prev.filter((t2) => t2.id !== type_id));
       show("✓ 项目已恢复");
-      loadDeletedTypes();
       loadTypes();
     } catch (error) {
       show("恢复失败：" + error.message, "err");
