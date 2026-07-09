@@ -2089,11 +2089,14 @@ function registerSubsidyHandlers() {
   const db2 = () => getDb();
   electron.ipcMain.handle("subsidies:listTypes", (_e, payload) => {
     try {
-      const year = typeof payload === "object" && payload !== null ? payload.year : payload;
+      const year = typeof payload === "object" && payload !== null ? payload.year : void 0;
       const status = typeof payload === "object" && payload !== null ? payload.status : void 0;
       const showDeleted = typeof payload === "object" && payload !== null ? payload.deleted : void 0;
-      let query = "SELECT * FROM subsidy_type WHERE 1=1";
+      let query = "SELECT * FROM subsidy_type WHERE COALESCE(is_deleted,0) = 0";
       const sqlParams = [];
+      if (showDeleted == 1) {
+        query = "SELECT * FROM subsidy_type WHERE is_deleted = 1";
+      }
       if (year) {
         query += " AND subsidy_year = ?";
         sqlParams.push(year);
@@ -2101,11 +2104,6 @@ function registerSubsidyHandlers() {
       if (status !== void 0 && status !== null) {
         query += " AND pay_status = ?";
         sqlParams.push(status);
-      }
-      if (showDeleted == 1) {
-        query += " AND is_deleted = 1";
-      } else {
-        query += " AND (is_deleted IS NULL OR is_deleted != 1)";
       }
       query += " ORDER BY subsidy_year DESC";
       return success(db2().allRaw(query, ...sqlParams));
@@ -2116,7 +2114,7 @@ function registerSubsidyHandlers() {
   electron.ipcMain.handle("subsidies:listTypesWithStats", (_e, year) => {
     try {
       const params = [];
-      let stWhere = " WHERE (st.is_deleted IS NULL OR st.is_deleted != 1)";
+      let stWhere = " WHERE COALESCE(st.is_deleted,0) = 0";
       let saWhere = "";
       if (year) {
         stWhere += " AND st.subsidy_year = ?";
@@ -2150,7 +2148,9 @@ function registerSubsidyHandlers() {
         is_deleted: 0,
         ...data
       };
-      const keys = Object.keys(safeData).filter((k) => safeData[k] !== void 0 && safeData[k] !== null && safeData[k] !== "");
+      const keys = Object.keys(safeData).filter(
+        (k) => safeData[k] !== void 0 && safeData[k] !== null && safeData[k] !== ""
+      );
       const cols = keys.join(", ");
       const placeholders = keys.map(() => "?").join(", ");
       const values = keys.map((k) => safeData[k]);
@@ -2511,7 +2511,7 @@ function registerSubsidyHandlers() {
   });
   electron.ipcMain.handle("subsidies:deleteType", (_e, typeId) => {
     try {
-      db2().runRaw("UPDATE subsidy_type SET is_deleted = 1, updated_at = datetime('now','localtime') WHERE id = ?", typeId);
+      db2().runRaw("UPDATE subsidy_type SET is_deleted = 1 WHERE id = ?", typeId);
       return success({ message: "已移入回收站" });
     } catch (e) {
       return errorResponse(String(e));
@@ -2520,7 +2520,7 @@ function registerSubsidyHandlers() {
   electron.ipcMain.handle("subsidies:comparableTypes", (_e, payload) => {
     try {
       const { category, current_type_id } = payload;
-      let query = "SELECT id, subsidy_name, subsidy_year FROM subsidy_type WHERE (is_deleted IS NULL OR is_deleted != 1)";
+      let query = "SELECT id, subsidy_name, subsidy_year FROM subsidy_type WHERE COALESCE(is_deleted,0) = 0";
       const params = [];
       if (category) {
         query += " AND category = ?";
@@ -2538,7 +2538,7 @@ function registerSubsidyHandlers() {
   });
   electron.ipcMain.handle("subsidies:restoreType", (_e, typeId) => {
     try {
-      db2().runRaw("UPDATE subsidy_type SET is_deleted = 0, updated_at = datetime('now','localtime') WHERE id = ?", typeId);
+      db2().runRaw("UPDATE subsidy_type SET is_deleted = 0 WHERE id = ?", typeId);
       return success({ message: "恢复成功" });
     } catch (e) {
       return errorResponse(String(e));

@@ -8,32 +8,27 @@ export function registerSubsidyHandlers(): void {
 
   // ═══════════════════ 补贴类型 ═══════════════════
 
+  // ── 补贴类型列表（不含已删除）──
   ipcMain.handle('subsidies:listTypes', (_e, payload: any) => {
     try {
-      const year = typeof payload === 'object' && payload !== null ? payload.year : payload
+      const year = typeof payload === 'object' && payload !== null ? payload.year : undefined
       const status = typeof payload === 'object' && payload !== null ? payload.status : undefined
       const showDeleted = typeof payload === 'object' && payload !== null ? payload.deleted : undefined
-      let query = 'SELECT * FROM subsidy_type WHERE 1=1'
+      let query = "SELECT * FROM subsidy_type WHERE COALESCE(is_deleted,0) = 0"
       const sqlParams: unknown[] = []
+      if (showDeleted == 1) { query = "SELECT * FROM subsidy_type WHERE is_deleted = 1" }
       if (year) { query += ' AND subsidy_year = ?'; sqlParams.push(year) }
       if (status !== undefined && status !== null) { query += ' AND pay_status = ?'; sqlParams.push(status) }
-      // 回收站过滤：传deleted=1查看回收站，否则默认排除已删除
-      if (showDeleted == 1) {
-        query += ' AND is_deleted = 1'
-      } else {
-        query += ' AND (is_deleted IS NULL OR is_deleted != 1)'
-      }
       query += ' ORDER BY subsidy_year DESC'
       return success(db().allRaw(query, ...sqlParams))
-    } catch (e) {
-      return errorResponse(String(e))
-    }
+    } catch (e) { return errorResponse(String(e)) }
   })
 
+  // ── 补贴类型列表含统计（不含已删除）──
   ipcMain.handle('subsidies:listTypesWithStats', (_e, year?: any) => {
     try {
       const params: unknown[] = []
-      let stWhere = ' WHERE (st.is_deleted IS NULL OR st.is_deleted != 1)'
+      let stWhere = ' WHERE COALESCE(st.is_deleted,0) = 0'
       let saWhere = ''
       if (year) {
         stWhere += ' AND st.subsidy_year = ?'
@@ -53,14 +48,12 @@ export function registerSubsidyHandlers(): void {
         ORDER BY st.subsidy_year DESC
       `, ...params)
       return success(rows)
-    } catch (e) {
-      return errorResponse(String(e))
-    }
+    } catch (e) { return errorResponse(String(e)) }
   })
 
+  // ── 新建补贴类型 ──
   ipcMain.handle('subsidies:createType', (_e, data: Record<string, unknown>) => {
     try {
-      // 确保必填字段有默认值
       const safeData: Record<string, unknown> = {
         pay_status: 1,
         count_toward_area: 1,
@@ -69,15 +62,15 @@ export function registerSubsidyHandlers(): void {
         is_deleted: 0,
         ...data,
       }
-      const keys = Object.keys(safeData).filter(k => safeData[k] !== undefined && safeData[k] !== null && safeData[k] !== '')
+      const keys = Object.keys(safeData).filter(k =>
+        safeData[k] !== undefined && safeData[k] !== null && safeData[k] !== ''
+      )
       const cols = keys.join(', ')
       const placeholders = keys.map(() => '?').join(', ')
       const values = keys.map(k => safeData[k])
       const result = db().runRaw(`INSERT INTO subsidy_type (${cols}) VALUES (${placeholders})`, ...values)
       return success({ id: result.lastInsertRowid })
-    } catch (e) {
-      return errorResponse(String(e))
-    }
+    } catch (e) { return errorResponse(String(e)) }
   })
 
   ipcMain.handle('subsidies:updateType', (_e, payload: any) => {
@@ -454,18 +447,19 @@ export function registerSubsidyHandlers(): void {
     } catch (e) { return errorResponse(String(e)) }
   })
 
+  // ── 软删除：移入回收站 ──
   ipcMain.handle('subsidies:deleteType', (_e, typeId: number) => {
     try {
-      // 软删除：设 is_deleted=1
-      db().runRaw("UPDATE subsidy_type SET is_deleted = 1, updated_at = datetime('now','localtime') WHERE id = ?", typeId)
+      db().runRaw("UPDATE subsidy_type SET is_deleted = 1 WHERE id = ?", typeId)
       return success({ message: '已移入回收站' })
     } catch (e) { return errorResponse(String(e)) }
   })
 
+  // ── 对比项目列表（排除已删除）──
   ipcMain.handle('subsidies:comparableTypes', (_e, payload: any) => {
     try {
       const { category, current_type_id } = payload
-      let query = 'SELECT id, subsidy_name, subsidy_year FROM subsidy_type WHERE (is_deleted IS NULL OR is_deleted != 1)'
+      let query = "SELECT id, subsidy_name, subsidy_year FROM subsidy_type WHERE COALESCE(is_deleted,0) = 0"
       const params: unknown[] = []
       if (category) { query += ' AND category = ?'; params.push(category) }
       if (current_type_id) { query += ' AND id != ?'; params.push(current_type_id) }
@@ -474,9 +468,10 @@ export function registerSubsidyHandlers(): void {
     } catch (e) { return errorResponse(String(e)) }
   })
 
+  // ── 恢复：从回收站还原 ──
   ipcMain.handle('subsidies:restoreType', (_e, typeId: number) => {
     try {
-      db().runRaw("UPDATE subsidy_type SET is_deleted = 0, updated_at = datetime('now','localtime') WHERE id = ?", typeId)
+      db().runRaw("UPDATE subsidy_type SET is_deleted = 0 WHERE id = ?", typeId)
       return success({ message: '恢复成功' })
     } catch (e) { return errorResponse(String(e)) }
   })
