@@ -49946,10 +49946,6 @@ function SubsidyProjectsPage() {
         )
       ] }, t2.id)) })
     ] }),
-    deleting && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/20", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-white rounded-card shadow-xl border border-border px-8 py-6 flex flex-col items-center gap-3", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm text-text-muted", children: "删除项目中，请稍候…" })
-    ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Toast, { ...toast })
   ] });
 }

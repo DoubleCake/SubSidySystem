@@ -313,16 +313,6 @@ export default function SubsidyProjectsPage() {
         </div>
       )}
 
-      {/* 删除中遮罩 */}
-      {deleting && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/20">
-          <div className="bg-white rounded-card shadow-xl border border-border px-8 py-6 flex flex-col items-center gap-3">
-            <span className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-text-muted">删除项目中，请稍候…</span>
-          </div>
-        </div>
-      )}
-
       <Toast {...toast} />
     </div>
   )

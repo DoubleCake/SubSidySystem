@@ -1604,9 +1604,6 @@ video {
   --tw-bg-opacity: 1;
   background-color: rgb(248 245 240 / var(--tw-bg-opacity, 1));
 }
-.bg-black\/20 {
-  background-color: rgb(0 0 0 / 0.2);
-}
 .bg-black\/30 {
   background-color: rgb(0 0 0 / 0.3);
 }
@@ -2042,10 +2039,6 @@ video {
 .px-6 {
   padding-left: 1.5rem;
   padding-right: 1.5rem;
-}
-.px-8 {
-  padding-left: 2rem;
-  padding-right: 2rem;
 }
 .py-0\.5 {
   padding-top: 0.125rem;
