@@ -475,8 +475,7 @@ export function registerSubsidyHandlers(): void {
 
   ipcMain.handle('subsidies:restoreType', (_e, typeId: number) => {
     try {
-      // 恢复：设 pay_status=2
-      db().runRaw("UPDATE subsidy_type SET pay_status = 2, updated_at = datetime('now','localtime') WHERE id = ?", typeId)
+      db().runRaw("UPDATE subsidy_type SET is_deleted = 0, updated_at = datetime('now','localtime') WHERE id = ?", typeId)
       return success({ message: '恢复成功' })
     } catch (e) { return errorResponse(String(e)) }
   })
@@ -653,14 +652,6 @@ export function registerSubsidyHandlers(): void {
         ${where} ORDER BY sa.apply_village_name, fp.real_name
       `, ...vals)
       return success({ items: rows })
-    } catch (e) { return errorResponse(String(e)) }
-  })
-
-  // ── 恢复已删除项目 ──
-  ipcMain.handle('subsidies:restoreType', (_e, typeId: number) => {
-    try {
-      db().runRaw("UPDATE subsidy_type SET is_deleted = 0, updated_at = datetime('now','localtime') WHERE id = ?", typeId)
-      return success({ message: '恢复成功' })
     } catch (e) { return errorResponse(String(e)) }
   })
 

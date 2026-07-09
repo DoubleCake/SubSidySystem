@@ -2537,7 +2537,7 @@ function registerSubsidyHandlers() {
   });
   electron.ipcMain.handle("subsidies:restoreType", (_e, typeId) => {
     try {
-      db2().runRaw("UPDATE subsidy_type SET pay_status = 2, updated_at = datetime('now','localtime') WHERE id = ?", typeId);
+      db2().runRaw("UPDATE subsidy_type SET is_deleted = 0, updated_at = datetime('now','localtime') WHERE id = ?", typeId);
       return success({ message: "恢复成功" });
     } catch (e) {
       return errorResponse(String(e));
@@ -2767,14 +2767,6 @@ function registerSubsidyHandlers() {
         ${where} ORDER BY sa.apply_village_name, fp.real_name
       `, ...vals);
       return success({ items: rows });
-    } catch (e) {
-      return errorResponse(String(e));
-    }
-  });
-  electron.ipcMain.handle("subsidies:restoreType", (_e, typeId) => {
-    try {
-      db2().runRaw("UPDATE subsidy_type SET is_deleted = 0, updated_at = datetime('now','localtime') WHERE id = ?", typeId);
-      return success({ message: "恢复成功" });
     } catch (e) {
       return errorResponse(String(e));
     }
