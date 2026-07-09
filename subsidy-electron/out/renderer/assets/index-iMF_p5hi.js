@@ -8521,6 +8521,7 @@ const batchImportFarmers = (rows, overwrite = false) => req(
 const importFamilyRelations = (rows, splitVillages) => req("farmers:importRelations", { rows, splitVillages });
 const previewMultiHeadHouseholds = (villageNames, excelRows) => req("farmers:multiHeadPreview", { villageNames, excelRows });
 const getSubsidyTypes = (year, status) => req("subsidies:listTypes", { year, status });
+const getDeletedSubsidyTypes = (year) => req("subsidies:listTypes", { year, deleted: 1 });
 const getSubsidyTypesWithStats = (year) => req(
   "subsidies:listTypesWithStats",
   year
@@ -49664,7 +49665,7 @@ function SubsidyProjectsPage() {
   }, [yearFilter]);
   const loadDeletedTypes = async () => {
     try {
-      setDeletedTypes(await getSubsidyTypes(yearFilter, 0));
+      setDeletedTypes(await getDeletedSubsidyTypes(yearFilter));
     } catch {
     }
   };

@@ -74,7 +74,7 @@ export default function SubsidyProjectsPage() {
   }, [yearFilter])
 
   const loadDeletedTypes = async () => {
-    try { setDeletedTypes(await api.getSubsidyTypes(yearFilter, 0)) }
+    try { setDeletedTypes(await api.getDeletedSubsidyTypes(yearFilter) as StatsType[]) }
     catch { /* ignore */ }
   }
 
