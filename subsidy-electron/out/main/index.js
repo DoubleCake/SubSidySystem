@@ -684,6 +684,7 @@ function runMigrations() {
     // subsidy_proxy 增量
     "ALTER TABLE subsidy_proxy ADD COLUMN subsidy_type_id INTEGER REFERENCES subsidy_type(id)",
     "ALTER TABLE subsidy_type ADD COLUMN is_deleted SMALLINT DEFAULT 0",
+    "UPDATE subsidy_type SET is_deleted = 0 WHERE is_deleted IS NULL",
     // large_farmer 增量
     "ALTER TABLE large_farmer ADD COLUMN farmer_grade VARCHAR(20)",
     "ALTER TABLE large_farmer ADD COLUMN credit_score SMALLINT",
@@ -2104,7 +2105,7 @@ function registerSubsidyHandlers() {
       if (showDeleted == 1) {
         query += " AND is_deleted = 1";
       } else {
-        query += " AND is_deleted != 1";
+        query += " AND (is_deleted IS NULL OR is_deleted != 1)";
       }
       query += " ORDER BY subsidy_year DESC";
       return success(db2().allRaw(query, ...sqlParams));
@@ -2115,7 +2116,7 @@ function registerSubsidyHandlers() {
   electron.ipcMain.handle("subsidies:listTypesWithStats", (_e, year) => {
     try {
       const params = [];
-      let stWhere = " WHERE st.is_deleted != 1";
+      let stWhere = " WHERE (st.is_deleted IS NULL OR st.is_deleted != 1)";
       let saWhere = "";
       if (year) {
         stWhere += " AND st.subsidy_year = ?";

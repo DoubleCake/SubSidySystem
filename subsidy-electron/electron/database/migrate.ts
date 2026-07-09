@@ -560,6 +560,7 @@ export function runMigrations(): void {
     // subsidy_proxy 增量
     "ALTER TABLE subsidy_proxy ADD COLUMN subsidy_type_id INTEGER REFERENCES subsidy_type(id)",
     "ALTER TABLE subsidy_type ADD COLUMN is_deleted SMALLINT DEFAULT 0",
+    "UPDATE subsidy_type SET is_deleted = 0 WHERE is_deleted IS NULL",
     // large_farmer 增量
     "ALTER TABLE large_farmer ADD COLUMN farmer_grade VARCHAR(20)",
     "ALTER TABLE large_farmer ADD COLUMN credit_score SMALLINT",

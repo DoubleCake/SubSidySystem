@@ -21,7 +21,7 @@ export function registerSubsidyHandlers(): void {
       if (showDeleted == 1) {
         query += ' AND is_deleted = 1'
       } else {
-        query += ' AND is_deleted != 1'
+        query += ' AND (is_deleted IS NULL OR is_deleted != 1)'
       }
       query += ' ORDER BY subsidy_year DESC'
       return success(db().allRaw(query, ...sqlParams))
@@ -33,7 +33,7 @@ export function registerSubsidyHandlers(): void {
   ipcMain.handle('subsidies:listTypesWithStats', (_e, year?: any) => {
     try {
       const params: unknown[] = []
-      let stWhere = ' WHERE st.is_deleted != 1'
+      let stWhere = ' WHERE (st.is_deleted IS NULL OR st.is_deleted != 1)'
       let saWhere = ''
       if (year) {
         stWhere += ' AND st.subsidy_year = ?'
