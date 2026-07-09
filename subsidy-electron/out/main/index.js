@@ -207,6 +207,7 @@ function runMigrations() {
       pay_status SMALLINT NOT NULL DEFAULT 0,
       description TEXT,
       count_toward_area SMALLINT NOT NULL DEFAULT 1,
+      is_deleted SMALLINT NOT NULL DEFAULT 0,
       created_at DATETIME DEFAULT (datetime('now','localtime'))
     );
 
