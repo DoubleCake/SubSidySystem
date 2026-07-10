@@ -4,6 +4,7 @@
 import { ipcMain, app } from 'electron'
 import { getUpdateServerUrl } from '../store'
 import { success, errorResponse } from './response'
+import { downloadVersionExe } from '../updater'
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 
@@ -61,7 +62,6 @@ export function registerUpdateHandlers(): void {
       const cleanUrl = baseUrl.replace(/\/+$/, '')
       const downloadUrl = payload.url || `${cleanUrl}/SubsidySystem Setup ${payload.version}.exe`
 
-      const { downloadVersionExe } = require('../updater')
       const filePath = await downloadVersionExe(downloadUrl, payload.version)
 
       return success({

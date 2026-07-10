@@ -15,13 +15,30 @@
  *   3. 用户在软件中设置更新服务器地址
  */
 import { autoUpdater } from 'electron-updater'
-import { BrowserWindow, dialog } from 'electron'
+import { BrowserWindow, dialog, app, shell } from 'electron'
 import { getUpdateServerUrl, setLastUpdateCheck } from './store'
 
 let mainWindow: BrowserWindow | null = null
+let pendingInstallPath: string | null = null
 
 export function setUpdateWindow(win: BrowserWindow) {
   mainWindow = win
+}
+
+function showRestartDialog() {
+  if (!pendingInstallPath) return
+  dialog.showMessageBox({
+    type: 'info',
+    title: '更新已下载',
+    message: '新版本已下载完成，是否立即重启安装？',
+    buttons: ['立即重启', '稍后'],
+    defaultId: 0,
+  }).then(({ response }) => {
+    if (response === 0) {
+      shell.openPath(pendingInstallPath!)
+      setTimeout(() => app.quit(), 1000)
+    }
+  })
 }
 
 /**
@@ -208,22 +225,18 @@ export function registerUpdateEvents() {
 
   autoUpdater.on('update-downloaded', () => {
     mainWindow?.webContents.send('update:status', 'downloaded')
-    // 弹窗询问是否立即重启安装
-    // quitAndInstall(isSilent=true, isForceRunAfter=true):
-    //   isSilent: NSIS 安装包静默安装（不显示安装界面）
-    //   isForceRunAfter: 安装完成后强制启动新版本
-    dialog.showMessageBox({
-      type: 'info',
-      title: '更新已下载',
-      message: '新版本已下载完成，是否立即重启安装？',
-      buttons: ['立即重启', '稍后'],
-      defaultId: 0,
-    }).then(({ response }) => {
-      if (response === 0) {
-        // 静默安装 + 完成后强制启动新版本
-        autoUpdater.quitAndInstall(true, true)
-      }
-    })
+    // 如果用 autoUpdater 下载的，弹原生对话框
+    if (!pendingInstallPath) {
+      dialog.showMessageBox({
+        type: 'info',
+        title: '更新已下载',
+        message: '新版本已下载完成，是否立即重启安装？',
+        buttons: ['立即重启', '稍后'],
+        defaultId: 0,
+      }).then(({ response }) => {
+        if (response === 0) autoUpdater.quitAndInstall(true, true)
+      })
+    }
   })
 
   autoUpdater.on('error', (error) => {
@@ -242,10 +255,22 @@ export async function downloadVersionExe(downloadUrl: string, version: string): 
   const path = require('path')
   const http = downloadUrl.startsWith('https') ? require('https') : require('http')
 
-  // URL 编码空格
   const url = downloadUrl.replace(/ /g, '%20')
   const tmpDir = app.getPath('temp')
   const filePath = path.join(tmpDir, `SubsidySystem Setup ${version}.exe`)
+
+  // 如果本地已有完整安装包（>50MB），直接复用，不重复下载
+  if (fs.existsSync(filePath)) {
+    const stat = fs.statSync(filePath)
+    if (stat.size > 50 * 1024 * 1024) {
+      pendingInstallPath = filePath
+      mainWindow?.webContents.send('update:progress', { percent: 100, speedMB: '已缓存' })
+      mainWindow?.webContents.send('update:status', 'downloaded')
+      mainWindow?.webContents.send('update:downloadPath', filePath)
+      showRestartDialog()
+      return filePath
+    }
+  }
 
   mainWindow?.webContents.send('update:status', 'downloading')
   mainWindow?.webContents.send('update:progress', { percent: 0, speedMB: '0.0 MB/s' })
@@ -289,7 +314,21 @@ export async function downloadVersionExe(downloadUrl: string, version: string): 
 
       res.on('end', () => {
         file.end()
+        const finalSize = fs.statSync(filePath).size
+        const minSize = 50 * 1024 * 1024 // NSIS 安装包至少 50MB
+        if (finalSize < minSize) {
+          fs.unlink(filePath, () => {})
+          const errMsg = total === 0
+            ? `下载失败：服务器未返回文件大小（Content-Length），下载内容仅 ${(finalSize/1024).toFixed(0)}KB，可能该版本安装包不存在于服务器`
+            : `下载的文件不完整（${(finalSize/1024/1024).toFixed(1)}MB < ${(total/1024/1024).toFixed(1)}MB），请检查服务器`
+          reject(new Error(errMsg))
+          return
+        }
+        pendingInstallPath = filePath
         mainWindow?.webContents.send('update:status', 'downloaded')
+        mainWindow?.webContents.send('update:downloadPath', filePath)
+        // 弹重启对话框
+        showRestartDialog()
         resolve(filePath)
       })
 

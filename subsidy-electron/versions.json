@@ -1,92 +1,104 @@
-{
-  "versions": [
-    {
-      "version": "0.0.11",
-      "date": "2026-07-08",
-      "title": "代领关系显示修复 + 更新页面优化 + 家庭户补贴代领标签",
-      "changes": [
-        "修复代领关系页面受益人和代领人名称不显示",
-        "家庭户补贴记录新增代领标签：🔴受益 / 🔵代领，悬停显示详情，点击跳转",
-        "代领标签支持记录级和类型级两种代理关系匹配",
-        "更新页面：用户自选版本+更新日志+下载进度条",
-        "版本安装按钮改为醒目亮绿样式，当前版本橙色标签",
-        "补上 update handler 注册，修复版本历史加载报错",
-        "超限筛选修复：按季节计算有效面积"
-      ]
-    },
-    {
-      "version": "0.0.10",
-      "date": "2026-07-08",
-      "title": "超限筛选修复 + 家庭户列表性能优化 + 外联页面简化",
-      "changes": [
-        "修复超限筛选：按季节计算，有效面积 = 申请面积 - 流转出 - 不补面积",
-        "家庭户列表性能大优化：标量子查询→LEFT JOIN派生表，查询从60+次降到2次",
-        "补齐5个缺失索引：beneficiary_id、is_manually_confirmed、land_trust等",
-        "外联查询页面简化：点击卡片直接浏览器打开，去iframe",
-        "补贴查询改为明文显示，村组信息正常展示",
-        "补齐external-links全套CRUD + query_record IPC handler",
-        "Dashboard容错：dashboardTodos失败不影响其他数据加载",
-        "家庭户列表支持按年度筛选面积超限"
-      ]
-    },
-    {
-      "version": "0.0.8",
-      "date": "2026-07-07",
-      "title": "农户补贴记录关联修复 + 独立更新页面",
-      "changes": [
-        "修复 household/farmer 页面补贴记录显示",
-        "修复代领关系 proxy_info 不显示问题",
-        "新增独立软件更新页面(版本历史+回退)",
-        "应用启动自动生成 app-update.yml 解决更新缺文件"
-      ]
-    },
-    {
-      "version": "0.0.7",
-      "date": "2026-07-07",
-      "title": "移除设置子导航 + deploy.bat 纯 ASCII + 自动生成 app-update.yml",
-      "changes": [
-        "应用启动时自动生成 resources/app-update.yml",
-        "deploy.bat 纯 ASCII 重写，解决 cmd.exe GBK 编码错乱",
-        "移除系统设置页面下的冗余二级导航 tab",
-        "DEVELOPMENT.md 补充 .bat 编码经验文档"
-      ]
-    },
-    {
-      "version": "0.0.5",
-      "date": "2026-07-06",
-      "title": "40个缺失IPC handler补齐 + 项目进度页面",
-      "changes": [
-        "补齐用户管理/大户管理/村级联系人/补贴批处理等40个IPC通道",
-        "新增项目进度管理页面(project-progress)",
-        "农户详情页补充补贴记录和代领关系",
-        "家庭户成员信息不打码，显示原始值",
-        "新增仅显示有补贴记录家庭户筛选",
-        "header/footer图片原始尺寸显示，全屏不拉伸"
-      ]
-    },
-    {
-      "version": "0.0.4",
-      "date": "2026-07-06",
-      "title": "农户详情页补贴记录 + 英文exe名 + sha512修复",
-      "changes": [
-        "FarmerDetail页面显示补贴记录(applications)",
-        "exe文件改英文名 SubsidySystem.exe 解决URL编码问题",
-        "修复latest.yml sha512 base64换行导致YAML解析失败",
-        "electron-updater下载前补充checkForUpdates调用",
-        "部署脚本自动生成app-update.yml"
-      ]
-    },
-    {
-      "version": "0.0.1",
-      "date": "2026-07-05",
-      "title": "首个 Electron 版本",
-      "changes": [
-        "Electron 33 + React 18 + sql.js WASM SQLite",
-        "Python FastAPI 后端全部迁移到 IPC 通信",
-        "25张数据库表完全兼容",
-        "自动更新功能(electron-updater)",
-        "本地认证 admin/admin123"
-      ]
-    }
-  ]
+﻿{
+    "versions":  [
+                     {
+                         "version":  "0.0.12",
+                         "downloadUrl":  "",
+                         "date":  "2026-07-10",
+                         "changes":  [
+                                         "回收站新增「彻底删除」功能，可物理删除项目及关联数据",
+                                         "修复删除项目后新建表单无法填写的阻塞问题",
+                                         "用 Modal 替代原生 confirm 弹窗，避免阻塞 React 事件系统"
+                                     ],
+                         "title":  "回收站彻底删除 + 表单修复",
+                         "fileSize":  92543310
+                     },
+                     {
+                         "version":  "0.0.11",
+                         "date":  "2026-07-08",
+                         "title":  "代领关系显示修复 + 更新页面优化 + 家庭户补贴代领标签",
+                         "changes":  [
+                                         "修复代领关系页面受益人和代领人名称不显示",
+                                         "家庭户补贴记录新增代领标签：🔴受益 / 🔵代领，悬停显示详情，点击跳转",
+                                         "代领标签支持记录级和类型级两种代理关系匹配",
+                                         "更新页面：用户自选版本+更新日志+下载进度条",
+                                         "版本安装按钮改为醒目亮绿样式，当前版本橙色标签",
+                                         "补上 update handler 注册，修复版本历史加载报错",
+                                         "超限筛选修复：按季节计算有效面积"
+                                     ]
+                     },
+                     {
+                         "version":  "0.0.10",
+                         "date":  "2026-07-08",
+                         "title":  "超限筛选修复 + 家庭户列表性能优化 + 外联页面简化",
+                         "changes":  [
+                                         "修复超限筛选：按季节计算，有效面积 = 申请面积 - 流转出 - 不补面积",
+                                         "家庭户列表性能大优化：标量子查询→LEFT JOIN派生表，查询从60+次降到2次",
+                                         "补齐5个缺失索引：beneficiary_id、is_manually_confirmed、land_trust等",
+                                         "外联查询页面简化：点击卡片直接浏览器打开，去iframe",
+                                         "补贴查询改为明文显示，村组信息正常展示",
+                                         "补齐external-links全套CRUD + query_record IPC handler",
+                                         "Dashboard容错：dashboardTodos失败不影响其他数据加载",
+                                         "家庭户列表支持按年度筛选面积超限"
+                                     ]
+                     },
+                     {
+                         "version":  "0.0.8",
+                         "date":  "2026-07-07",
+                         "title":  "农户补贴记录关联修复 + 独立更新页面",
+                         "changes":  [
+                                         "修复 household/farmer 页面补贴记录显示",
+                                         "修复代领关系 proxy_info 不显示问题",
+                                         "新增独立软件更新页面(版本历史+回退)",
+                                         "应用启动自动生成 app-update.yml 解决更新缺文件"
+                                     ]
+                     },
+                     {
+                         "version":  "0.0.7",
+                         "date":  "2026-07-07",
+                         "title":  "移除设置子导航 + deploy.bat 纯 ASCII + 自动生成 app-update.yml",
+                         "changes":  [
+                                         "应用启动时自动生成 resources/app-update.yml",
+                                         "deploy.bat 纯 ASCII 重写，解决 cmd.exe GBK 编码错乱",
+                                         "移除系统设置页面下的冗余二级导航 tab",
+                                         "DEVELOPMENT.md 补充 .bat 编码经验文档"
+                                     ]
+                     },
+                     {
+                         "version":  "0.0.5",
+                         "date":  "2026-07-06",
+                         "title":  "40个缺失IPC handler补齐 + 项目进度页面",
+                         "changes":  [
+                                         "补齐用户管理/大户管理/村级联系人/补贴批处理等40个IPC通道",
+                                         "新增项目进度管理页面(project-progress)",
+                                         "农户详情页补充补贴记录和代领关系",
+                                         "家庭户成员信息不打码，显示原始值",
+                                         "新增仅显示有补贴记录家庭户筛选",
+                                         "header/footer图片原始尺寸显示，全屏不拉伸"
+                                     ]
+                     },
+                     {
+                         "version":  "0.0.4",
+                         "date":  "2026-07-06",
+                         "title":  "农户详情页补贴记录 + 英文exe名 + sha512修复",
+                         "changes":  [
+                                         "FarmerDetail页面显示补贴记录(applications)",
+                                         "exe文件改英文名 SubsidySystem.exe 解决URL编码问题",
+                                         "修复latest.yml sha512 base64换行导致YAML解析失败",
+                                         "electron-updater下载前补充checkForUpdates调用",
+                                         "部署脚本自动生成app-update.yml"
+                                     ]
+                     },
+                     {
+                         "version":  "0.0.1",
+                         "date":  "2026-07-05",
+                         "title":  "首个 Electron 版本",
+                         "changes":  [
+                                         "Electron 33 + React 18 + sql.js WASM SQLite",
+                                         "Python FastAPI 后端全部迁移到 IPC 通信",
+                                         "25张数据库表完全兼容",
+                                         "自动更新功能(electron-updater)",
+                                         "本地认证 admin/admin123"
+                                     ]
+                     }
+                 ]
 }

@@ -25,14 +25,10 @@ export default function UpdatePage() {
   const [url, setUrl] = useState('')
   const [config, setConfig] = useState<{ updateServerUrl: string; autoCheckUpdate: boolean; currentVersion: string } | null>(null)
 
-  // 更新检测状态
-  const [checking, setChecking] = useState(false)
   const [status, setStatus] = useState('')
-  const [steps, setSteps] = useState<string[]>([])
   const [error, setError] = useState('')
   const [detail, setDetail] = useState('')
 
-  // 本地 changelog
   const [localLog, setLocalLog] = useState('')
 
   useEffect(() => {
@@ -49,12 +45,19 @@ export default function UpdatePage() {
     } catch { /* ignore */ }
   }
 
-  const loadHistory = async () => {
+  const loadVersions = async () => {
     setLoading(true)
+    setError(''); setStatus('')
     try {
-      const r = await window.electronAPI.invoke<{ code: number; data: VersionHistory }>('update:getVersionHistory')
-      if (r?.data) setHistory(r.data)
-      // also load local changelog
+      // 同时获取版本历史和最新版本对比
+      const [hist, check] = await Promise.all([
+        window.electronAPI.invoke<{ code: number; data: VersionHistory }>('update:getVersionHistory'),
+        window.electronAPI.invoke<{ code: number; data: any }>('settings:checkForUpdate'),
+      ])
+      if (hist?.data) setHistory(hist.data)
+      if (check?.data) setStatus(check.data.message || '')
+      loadConfig()
+      // local changelog
       const l = await window.electronAPI.invoke<{ code: number; data: { content: string } }>('update:getLocalChangelog')
       if (l?.data) setLocalLog(l.data.content)
     } catch { /* ignore */ }
@@ -69,50 +72,37 @@ export default function UpdatePage() {
     } catch (e) { setError(String(e)) }
   }
 
-  const checkUpdate = async () => {
-    setChecking(true)
-    setError(''); setDetail(''); setSteps([]); setStatus('checking')
-    try {
-      const r = await window.electronAPI.invoke<{ code: number; data: any }>('settings:checkForUpdate')
-      const d = r?.data
-      setStatus(d?.message || '')
-      setChecking(false)
-      loadConfig()
-      // 自动加载版本历史
-      if (d?.hasUpdate) loadHistory()
-      else setHistory(null)
-    } catch (e) {
-      setError(String(e)); setStatus('error'); setChecking(false)
-    }
-  }
-
   // 下载进度
-  const [progress, setProgress] = useState(0)
-  const [speedInfo, setSpeedInfo] = useState('')
+  const [dlProgress, setDlProgress] = useState(0)
+  const [dlSpeed, setDlSpeed] = useState('')
+  const [downloadingVersion, setDownloadingVersion] = useState('')
 
   useEffect(() => {
     window.electronAPI.onUpdateProgress((p: any) => {
-      setProgress(p.percent || 0)
-      if (p.speedMB) setSpeedInfo(p.speedMB)
+      setDlProgress(p.percent || 0)
+      if (p.speedMB) setDlSpeed(p.speedMB)
+    })
+    window.electronAPI.onUpdateStatus((s: string) => {
+      if (s === 'downloaded') setDlProgress(100)
     })
   }, [])
 
   const downloadVersion = async (v: VersionItem) => {
     const changes = v.changes?.length ? '\n\n更新内容:\n' + v.changes.map(c => '• ' + c).join('\n') : ''
     if (!confirm(`确定要安装版本 ${v.version}？\n\n${v.title || ''}${changes}`)) return
-    setChecking(true)
+    setDownloadingVersion(v.version)
     setStatus('downloading')
-    setProgress(0); setSpeedInfo('')
+    setDlProgress(0); setDlSpeed('')
+    setError('')
     try {
       const r = await window.electronAPI.invoke<{ code: number; data: any }>('update:downloadVersion', { version: v.version, url: v.downloadUrl })
       if (r?.data?.error) { setError(r.data.error); setStatus('error') }
-      else { setStatus('downloaded'); alert(r?.data?.message || `v${v.version} 下载完成，请重启应用完成安装`) }
+      else setStatus('downloaded')
     } catch (e) { setError(String(e)); setStatus('error') }
-    finally { setChecking(false) }
+    finally { setDownloadingVersion('') }
   }
 
   const stLabel: Record<string, { text: string; color: string; bg: string }> = {
-    checking: { text: '检查中...', color: 'text-blue-600', bg: '#eff6ff' },
     'up-to-date': { text: '当前已是最新', color: 'text-green-600', bg: '#f0fdf4' },
     downloading: { text: '下载中...', color: 'text-amber-600', bg: '#fffbeb' },
     downloaded: { text: '下载完成，重启后安装', color: 'text-green-600', bg: '#f0fdf4' },
@@ -150,37 +140,27 @@ export default function UpdatePage() {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <button onClick={checkUpdate} disabled={checking || !url.trim()}
+          <button onClick={loadVersions} disabled={loading || !url.trim()}
             className="px-5 py-2.5 bg-primary-500 text-white rounded-btn hover:bg-primary/90 disabled:opacity-40 font-medium">
-            {checking ? '检查中...' : '🔍 检查更新'}
-          </button>
-          <button onClick={loadHistory} disabled={loading}
-            className="px-4 py-2 border border-border rounded-btn text-sm hover:bg-warm/30">
-            {loading ? '加载中...' : '📋 加载版本历史'}
+            {loading ? '加载中...' : '📋 加载版本列表'}
           </button>
         </div>
 
-        {/* 步骤日志 */}
-        {steps.length > 0 && (
-          <div className="bg-gray-50 border border-border rounded-card p-3 text-xs space-y-0.5 font-mono max-h-36 overflow-y-auto">
-            {steps.map((s, i) => (
-              <div key={i} className={s.includes('❌') ? 'text-red-600' : s.includes('✅') ? 'text-green-600' : 'text-text-muted'}>
-                {s}
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* 下载进度条 */}
-        {status === 'downloading' && progress > 0 && (
-          <div className="space-y-1">
-            <div className="w-full bg-border rounded-full h-2 overflow-hidden">
-              <div className="bg-primary h-full rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
-            </div>
-            <div className="flex justify-between text-xs text-text-muted">
-              <span>{progress}%</span>
-              {speedInfo && <span>{speedInfo}</span>}
-            </div>
+        {downloadingVersion && (
+          <div className="space-y-1 bg-amber-50 border border-amber-200 rounded-card p-3">
+            <div className="text-xs text-amber-700 mb-1 font-medium">正在下载 v{downloadingVersion} ...</div>
+            {dlProgress > 0 && (
+              <>
+                <div className="w-full bg-border rounded-full h-2 overflow-hidden">
+                  <div className="bg-amber-500 h-full rounded-full transition-all duration-300" style={{ width: `${dlProgress}%` }} />
+                </div>
+                <div className="flex justify-between text-xs text-text-muted">
+                  <span>{dlProgress}%</span>
+                  {dlSpeed && <span>{dlSpeed}</span>}
+                </div>
+              </>
+            )}
           </div>
         )}
         {status && (() => {
@@ -190,7 +170,6 @@ export default function UpdatePage() {
         {error && (
           <div className="text-xs text-red-600 bg-red-50 rounded-btn px-3 py-2">
             <div className="font-semibold">⚠️ {error}</div>
-            {detail && <div className="text-red-500 mt-1 whitespace-pre-wrap">{detail}</div>}
           </div>
         )}
       </div>
@@ -224,13 +203,13 @@ export default function UpdatePage() {
                 {/* 安装/回退按钮 */}
                 {v.version !== config?.currentVersion && (
                   <button onClick={() => downloadVersion(v)}
-                    disabled={checking}
-                    className={`mt-2 px-4 py-2 rounded-btn disabled:opacity-40 font-bold shadow-md transition-all ${
-                      v.version > (config?.currentVersion || '0')
-                        ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-200 text-sm border-2 border-emerald-600'
-                        : 'text-text-muted border border-border bg-white hover:border-primary/30 text-xs'
+                    disabled={!!downloadingVersion}
+                    className={`mt-2 px-4 py-2 rounded-btn disabled:opacity-60 font-bold shadow-md transition-all text-sm border-2 ${
+                      downloadingVersion === v.version
+                        ? 'bg-amber-500 text-white border-amber-600 shadow-amber-200 animate-pulse'
+                        : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-200 border-emerald-600'
                     }`}>
-                    {v.version > (config?.currentVersion || '0') ? '⬇️ 安装此版本' : '⬇️ 回退到此版本'}
+                    {downloadingVersion === v.version ? `⏳ 下载中 ${dlProgress}%` : '⬇️ 安装此版本'}
                   </button>
                 )}
               </div>

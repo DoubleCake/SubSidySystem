@@ -72,11 +72,15 @@ const electronAPI = {
   onUpdateError: (callback: (error: string) => void) => {
     ipcRenderer.on('update:error', (_e, error) => callback(error as string))
   },
+  onDownloadPath: (callback: (path: string) => void) => {
+    ipcRenderer.on('update:downloadPath', (_e, path) => callback(path as string))
+  },
   removeUpdateListeners: () => {
     ipcRenderer.removeAllListeners('update:status')
     ipcRenderer.removeAllListeners('update:available')
     ipcRenderer.removeAllListeners('update:progress')
     ipcRenderer.removeAllListeners('update:error')
+    ipcRenderer.removeAllListeners('update:downloadPath')
   }
 }
 
