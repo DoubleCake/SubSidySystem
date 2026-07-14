@@ -69,7 +69,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   const [searchPreApply, setSearchPreApply] = useState(farmerName || '')
   const [searchDisbursement, setSearchDisbursement] = useState('')
 
-  // 搜索触发计数器 — 搜索按钮点击时递增，强制 load 重新触发
+  // 搜索触发计数器 — 搜索按钮/排序/筛选变化时递增，强制 load 重新触发
   const [searchTrigger, setSearchTrigger] = useState(0)
 
   // 外部传入 farmerName 时，初始化搜索框内容
@@ -147,6 +147,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       setSortField(field); setSortDir('desc')
     }
     setPage(1)
+    setSearchTrigger(n => n + 1)
   }
 
   // 预检相关
@@ -255,6 +256,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       setFiltersDisbursement(prev => ({ ...prev, [field]: value }))
     }
     setPage(1)
+    setSearchTrigger(n => n + 1)
   }
 
   // 处理搜索变化
@@ -276,6 +278,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       setSearchDisbursement('')
     }
     setPage(1)
+    setSearchTrigger(n => n + 1)
   }
 
   // 批量选择相关函数

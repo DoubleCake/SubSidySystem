@@ -66,11 +66,11 @@ const DEFAULT_IMPORT_FIELDS = [
 ]
 
 const SORTABLE_COLS: Record<string, string> = {
-  '计入超限面积': 'apply_area', '不计超限面积': 'apply_area_no_calc',
+  '计入超限面积': 'apply_area',
   '承包地面积': 'contract_area', '代耕代种面积': 'trust_area',
   '不予补贴面积': 'no_subsidy_area', '申请金额': 'apply_amount', '发放金额': 'actual_amount',
 }
-const NARROW_COLS = new Set(['计入超限面积', '不计超限面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额'])
+const NARROW_COLS = new Set(['计入超限面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额'])
 const HEADERS = ['姓名', '身份证', '手机号', '所在村', '所在组', '计入超限面积', '不计超限面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额', '状态', '打款日期', '备注', '代领备注', '操作']
 
 // ── Props ──
