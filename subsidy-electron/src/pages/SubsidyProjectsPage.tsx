@@ -73,10 +73,10 @@ const FUND_COLORS: Record<string, string> = {
 // ── 迷你统计徽章 ──
 function StatBadge({ icon, label, value, color }: { icon: string; label: string; value: string | number; color?: string }) {
   return (
-    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/70 backdrop-blur-sm border border-white/60 shadow-sm">
-      <span className="text-sm">{icon}</span>
-      <span className="text-xs text-text-muted">{label}</span>
-      <span className={`text-sm font-bold ${color || 'text-text-primary'}`}>{value}</span>
+    <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/70 backdrop-blur-sm border border-white/60 shadow-sm">
+      <span className="text-xs">{icon}</span>
+      <span className="text-[10px] text-text-muted">{label}</span>
+      <span className={`text-xs font-bold ${color || 'text-text-primary'}`}>{value}</span>
     </div>
   )
 }
@@ -330,7 +330,7 @@ export default function SubsidyProjectsPage() {
       )}
 
       {/* ═══ 项目卡片列表 ═══ */}
-      <div className="grid gap-4">
+      <div className="grid gap-3">
         {types.map(t => {
           const s = getSeasonStyle(t.season)
           const totalActualNum = Number(t.total_actual || 0)
@@ -344,26 +344,26 @@ export default function SubsidyProjectsPage() {
               {/* 顶部彩色装饰条 */}
               <div className={`h-2 bg-gradient-to-r ${s.gradient}`} />
 
-              <div className="p-5">
+              <div className="p-4">
                 {/* 第一行：信息 + 操作 */}
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <div className="flex items-start gap-3 min-w-0 flex-1">
-                    <div className={`flex-shrink-0 w-12 h-12 rounded-2xl ${s.badge} flex items-center justify-center text-2xl`}>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-xl ${s.badge} flex items-center justify-center text-xl`}>
                       {s.icon}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-lg font-bold text-text-primary truncate">{t.subsidy_name}</h3>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-warm/60 text-text-muted text-xs font-medium">
-                          📅 {t.subsidy_year}年
+                        <h3 className="text-base font-bold text-text-primary truncate">{t.subsidy_name}</h3>
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-warm/60 text-text-muted text-[10px] font-medium">
+                          📅 {t.subsidy_year}
                         </span>
                         {t.season && (
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-medium ${s.badge}`}>
+                          <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-medium ${s.badge}`}>
                             {s.icon} {t.season}
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 mt-1 flex-wrap">
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         <span className="text-xs text-text-muted/60 flex items-center gap-1">
                           {t.calc_mode === 'per_mu' ? '📐' : '💰'}
                           {t.calc_mode === 'per_mu' ? '按亩计算' : '固定金额'}
@@ -385,33 +385,26 @@ export default function SubsidyProjectsPage() {
 
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button onClick={() => { setActiveType(t); updateUrlType(t.id) }}
-                      className={`px-4 py-2 rounded-xl text-sm font-semibold text-white shadow-md transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 bg-gradient-to-r ${s.gradient}`}>
+                      className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:shadow-md bg-gradient-to-r ${s.gradient}`}>
                       查看人员 →
                     </button>
                     <button onClick={() => navigate(`/project-progress?subsidy_type_id=${t.id}`)}
-                      className="px-3 py-2 rounded-xl border border-border bg-white/80 text-text-muted text-xs font-medium hover:bg-white hover:border-text-muted/30 hover:text-text-primary transition-all whitespace-nowrap">
+                      className="px-2.5 py-1.5 rounded-lg border border-border bg-white/70 text-[11px] text-text-muted hover:bg-white hover:border-text-muted/30 hover:text-text-primary transition-all whitespace-nowrap">
                       📋 进度
                     </button>
-                    <div className="relative group/more">
-                      <button className="px-2 py-2 rounded-xl border border-border bg-white/80 text-text-muted/50 hover:bg-white hover:text-text-muted transition-all text-sm">
-                        ⋯
-                      </button>
-                      <div className="absolute right-0 top-full mt-1 w-32 bg-white rounded-xl shadow-lg border border-border opacity-0 invisible group-hover/more:opacity-100 group-hover/more:visible transition-all duration-200 z-20 overflow-hidden">
-                        <button onClick={() => openEdit(t)}
-                          className="w-full flex items-center gap-2 px-3.5 py-2.5 text-sm text-text-muted hover:bg-blue-50 hover:text-blue-600 transition-colors">
-                          ✏️ 编辑
-                        </button>
-                        <button onClick={() => setDeleteTarget(t)}
-                          className="w-full flex items-center gap-2 px-3.5 py-2.5 text-sm text-text-muted hover:bg-red-50 hover:text-red-600 transition-colors">
-                          🗑️ 删除
-                        </button>
-                      </div>
-                    </div>
+                    <button onClick={() => openEdit(t)}
+                      className="px-2 py-1 rounded-md border border-border bg-white/70 text-[11px] text-text-muted hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all whitespace-nowrap">
+                      ✏️
+                    </button>
+                    <button onClick={() => setDeleteTarget(t)}
+                      className="px-2 py-1 rounded-md border border-border bg-white/70 text-[11px] text-text-muted hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all whitespace-nowrap">
+                      🗑️
+                    </button>
                   </div>
                 </div>
 
                 {/* 第二行：数据指标 */}
-                <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex flex-wrap gap-1.5 mb-2">
                   {standardAmt > 0 && (
                     <StatBadge icon="💰" label="标准" value={`¥${standardAmt.toFixed(2)}`} color={s.chart} />
                   )}
@@ -427,31 +420,31 @@ export default function SubsidyProjectsPage() {
 
                 {/* 第三行：进度条 */}
                 {totalApplyNum > 0 && (
-                  <div className="mb-3">
-                    <div className="flex items-center justify-between text-xs mb-1">
+                  <div className="mb-2">
+                    <div className="flex items-center justify-between text-[10px] mb-0.5">
                       <span className="text-text-muted/50">发放进度</span>
                       <span className={`font-bold ${s.chart}`}>{payProgress}%</span>
                     </div>
-                    <div className="h-2.5 rounded-full bg-warm/80 overflow-hidden">
+                    <div className="h-1.5 rounded-full bg-warm/80 overflow-hidden">
                       <div className={`h-full rounded-full bg-gradient-to-r ${s.gradient} transition-all duration-1000 ease-out`}
                         style={{ width: `${payProgress}%` }} />
                     </div>
                   </div>
                 )}
 
-                {/* 第四行：辅助信息 */}
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted/50">
-                  {t.apply_deadline && <span>🗓️ 截止：{t.apply_deadline}</span>}
-                  {t.description && <span className="truncate max-w-[300px]">📌 {t.description}</span>}
+                {/* 底部辅助 */}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-text-muted/50">
+                  {t.apply_deadline && <span>🗓️ {t.apply_deadline}</span>}
+                  {t.description && <span className="truncate max-w-[200px]">📌 {t.description}</span>}
                   {(t as { count_toward_area?: number }).count_toward_area === 1 && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-500 border border-amber-100">
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-500 border border-amber-100">
                       📐 累计面积
                     </span>
                   )}
                 </div>
 
-                {/* 扫描源目录 */}
-                <div className="mt-3 pt-3 border-t border-border/40">
+                {/* 扫描目录 */}
+                <div className="mt-2 pt-2 border-t border-border/30">
                   <ScanDirInput projectId={t.id} />
                 </div>
               </div>
@@ -544,16 +537,13 @@ function ScanDirInput({ projectId }: { projectId: number }) {
   const updatePath = (v: string) => { setPath(v); localStorage.setItem(`scan_${projectId}`, v) }
 
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className="flex items-center gap-1 shrink-0 text-text-muted/50">📁 本地路径:</span>
+    <div className="flex items-center gap-1.5 text-[10px]">
+      <span className="flex items-center gap-0.5 shrink-0 text-text-muted/40">📁</span>
       <input value={path} onChange={e => updatePath(e.target.value)}
         placeholder="D:\材料\2024耕地补贴"
-        className="flex-1 bg-white/60 border border-border/50 rounded-lg px-2.5 py-1 text-xs outline-none focus:border-emerald-300 focus:bg-white focus:shadow-sm transition-all placeholder:text-text-muted/20" />
+        className="flex-1 bg-white/50 border border-border/30 rounded px-1.5 py-0.5 text-[10px] outline-none focus:border-emerald-300 focus:bg-white transition-all placeholder:text-text-muted/20" />
       {path && (
-        <button onClick={() => updatePath('')} className="text-text-muted/30 hover:text-red-400 transition-colors shrink-0 text-sm">✕</button>
-      )}
-      {path && (
-        <span className="text-emerald-600 font-mono truncate max-w-[180px]" title={path}>📂 {path}</span>
+        <button onClick={() => updatePath('')} className="text-text-muted/20 hover:text-red-400 transition-colors shrink-0">✕</button>
       )}
     </div>
   )

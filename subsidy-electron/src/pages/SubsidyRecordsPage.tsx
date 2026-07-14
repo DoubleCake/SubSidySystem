@@ -706,148 +706,176 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   const [statsExpanded, setStatsExpanded] = useState(false)
   const [loadingStats, setLoadingStats] = useState(false)
 
+  // 计算季节配色
+  const seasonStyle = subsidyType.season ?
+    (subsidyType.season === '耕地地力保护' ? { gradient: 'from-emerald-500 to-teal-500', icon: '🌱', badge: 'bg-emerald-500' } :
+     subsidyType.season === '大春' ? { gradient: 'from-amber-500 to-orange-500', icon: '🌻', badge: 'bg-orange-500' } :
+     subsidyType.season === '小春' ? { gradient: 'from-sky-500 to-blue-500', icon: '🌾', badge: 'bg-blue-500' } :
+     subsidyType.season === '全年单补' ? { gradient: 'from-violet-500 to-purple-500', icon: '📋', badge: 'bg-purple-500' } :
+     subsidyType.season === '临时' ? { gradient: 'from-rose-500 to-pink-500', icon: '⚡', badge: 'bg-pink-500' } :
+     { gradient: 'from-gray-500 to-slate-500', icon: '📦', badge: 'bg-slate-500' }) :
+    { gradient: 'from-emerald-500 to-teal-500', icon: '📋', badge: 'bg-emerald-500' }
+
   return (
-    <div>
-      {/* 面包屑 */}
-      <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <button onClick={onBack} className="text-sm text-primary hover:underline">← 返回项目列表</button>
-        <span className="text-text-muted/50">|</span>
-        <span className="font-bold text-text-primary">{subsidyType.subsidy_name}</span>
-        <Tag label={`${subsidyType.subsidy_year}年`} color="gray" />
-        <Tag label={subsidyType.calc_mode === 'per_mu' ? '按亩计算' : '固定金额'} color={subsidyType.calc_mode === 'per_mu' ? 'blue' : 'purple'} />
-        {subsidyType.standard_amount && (
-          <span className="text-xs text-text-muted">标准：¥{Number(subsidyType.standard_amount).toFixed(2)}{subsidyType.standard_unit}</span>
-        )}
+    <div className="space-y-4">
+      {/* ═══ 顶部渐变横幅 ═══ */}
+      <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${seasonStyle.gradient} p-5 shadow-lg`}>
+        <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-white/10" />
+        <div className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full bg-white/5" />
+        <div className="relative z-10 flex items-center gap-4 flex-wrap">
+          <button onClick={onBack}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/15 backdrop-blur-sm text-white/90 text-xs hover:bg-white/25 transition-all">
+            ← 返回项目
+          </button>
+          <span className="text-white/40">|</span>
+          <span className={`flex-shrink-0 w-9 h-9 rounded-xl ${seasonStyle.badge} bg-white/20 backdrop-blur-sm flex items-center justify-center text-lg`}>
+            {seasonStyle.icon}
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold text-white drop-shadow-sm truncate">{subsidyType.subsidy_name}</h1>
+            <div className="flex items-center gap-2 text-[11px] text-white/70 mt-0.5 flex-wrap">
+              <span>📅 {subsidyType.subsidy_year}年</span>
+              <span>·</span>
+              <span>{subsidyType.calc_mode === 'per_mu' ? '📐 按亩计算' : '💰 固定金额'}</span>
+              {subsidyType.standard_amount && (
+                <><span>·</span><span>标准 ¥{Number(subsidyType.standard_amount).toFixed(2)}{subsidyType.standard_unit}</span></>
+              )}
+            </div>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <div className="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur-sm text-white text-center">
+              <div className="text-sm font-bold">{stats.totalFarmers}</div>
+              <div className="text-[9px] text-white/60">受益</div>
+            </div>
+            <div className="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur-sm text-white text-center">
+              <div className="text-sm font-bold">¥{(stats.totalAmount || 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
+              <div className="text-[9px] text-white/60">金额</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* 数据概览 - 可折叠下拉框 */}
-      <div className="mb-4 bg-white border border-border rounded-card shadow-card overflow-hidden">
-        <button
-          onClick={() => setStatsExpanded(prev => !prev)}
-          className="w-full flex items-center justify-between px-4 py-3 hover:bg-warm/30 transition-colors"
-        >
+      {/* ═══ 数据概览 — 折叠卡片 ═══ */}
+      <div className="bg-white rounded-xl border border-border/60 shadow-sm overflow-hidden">
+        <button onClick={() => setStatsExpanded(prev => !prev)}
+          className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-warm/30 transition-colors">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-text-primary">📊 数据概览</span>
-            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">预申请</span>
-            {statsExpanded && (
-              <span className="text-xs text-text-muted">发放总额 ¥{stats.totalAmount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })} · {stats.totalFarmers}人 · 总面积 {stats.totalArea}亩 · {stats.villageDistribution.length}个村</span>
-            )}
+            <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">预申请</span>
           </div>
-          <span className="text-text-muted text-sm">{statsExpanded ? '▲ 收起' : '▼ 展开'}</span>
+          <div className="flex items-center gap-3">
+            {!statsExpanded && stats.totalAmount > 0 && (
+              <span className="text-[11px] text-text-muted">
+                ¥{(stats.totalAmount || 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })} · {stats.villageDistribution.length}个村
+              </span>
+            )}
+            <span className="text-[11px] text-text-muted">{statsExpanded ? '▲ 收起' : '▼ 展开'}</span>
+          </div>
         </button>
 
         {statsExpanded && (
-          <div className="px-4 pb-4 border-t border-border/50">
+          <div className="px-4 pb-4 border-t border-border/30">
             {loadingStats ? (
-              <div className="py-10 text-center">
-                <div className="inline-flex items-center gap-2 text-text-muted/60">
-                  <span className="w-5 h-5 border-2 border-stone-300 border-t-primary rounded-full animate-spin" />
-                  <span className="text-sm">正在加载统计数据…</span>
-                </div>
+              <div className="flex items-center justify-center py-6 gap-2 text-text-muted/50 text-xs">
+                <span className="w-4 h-4 border-2 border-text-muted/20 border-t-primary rounded-full animate-spin" />
+                加载中…
               </div>
             ) : (
               <>
-            <div className="flex items-center justify-end gap-2 pt-3 mb-4">
+            <div className="flex items-center justify-end gap-2 pt-2.5 mb-3">
               {subsidyType.category && (
-                <select
-                  value={selectedCompareType ?? ''}
+                <select value={selectedCompareType ?? ''}
                   onChange={e => setSelectedCompareType(e.target.value ? Number(e.target.value) : null)}
-                  className="px-2 py-1 text-xs border border-border rounded bg-white"
-                >
+                  className="px-2 py-1 text-[11px] border border-border/60 rounded-lg bg-white outline-none">
                   <option value="">不对比</option>
                   {comparableTypes.map(t => (
                     <option key={t.id} value={t.id}>{t.subsidy_name} ({t.subsidy_year}年)</option>
                   ))}
                 </select>
               )}
-              <span className="text-xs text-text-muted">全镇数据统计</span>
+              <span className="text-[10px] text-text-muted">全镇数据统计</span>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <div className="bg-primary/5 border border-primary/10 rounded-card p-4">
-                <div className="text-sm text-primary mb-2">发放总额</div>
-                <div className="text-2xl font-bold font-mono text-primary">¥{stats.totalAmount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
-                <div className="text-sm text-primary mt-2">{stats.totalFarmers}人</div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100/60 rounded-xl p-3.5">
+                <div className="text-[11px] text-emerald-600 mb-1">发放总额</div>
+                <div className="text-xl font-bold font-mono text-emerald-700">
+                  ¥{(stats.totalAmount || 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+                </div>
+                <div className="text-[11px] text-emerald-500 mt-1">{stats.totalFarmers || 0}人 · {stats.totalArea.toFixed(1)}亩</div>
               </div>
-              <div className="bg-blue-50 border border-blue-100 rounded-card p-4">
-                <div className="text-sm text-blue-600 mb-2">涉及村庄</div>
-                <div className="text-2xl font-bold text-blue-700">{stats.villageDistribution.length}</div>
-                <div className="text-sm text-blue-600 mt-2">个村</div>
+              <div className="bg-gradient-to-br from-blue-50 to-sky-50 border border-blue-100/60 rounded-xl p-3.5">
+                <div className="text-[11px] text-blue-600 mb-1">涉及村庄</div>
+                <div className="text-xl font-bold text-blue-700">{stats.villageDistribution.length}</div>
+                <div className="text-[11px] text-blue-500 mt-1">个村</div>
               </div>
-              <div className="bg-purple-50 border border-purple-100 rounded-card p-4">
-                <div className="text-sm text-purple-600 mb-2">总面积</div>
-                <div className="text-2xl font-bold font-mono text-purple-700">{stats.totalArea.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}亩</div>
-                <div className="text-sm text-purple-600 mt-2">补贴面积合计</div>
+              <div className="bg-gradient-to-br from-purple-50 to-fuchsia-50 border border-purple-100/60 rounded-xl p-3.5">
+                <div className="text-[11px] text-purple-600 mb-1">总面积</div>
+                <div className="text-xl font-bold font-mono text-purple-700">
+                  {(stats.totalArea || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}
+                </div>
+                <div className="text-[11px] text-purple-500 mt-1">补贴面积合计</div>
               </div>
             </div>
+
+            {/* 年度对比 */}
+            {stats.yearComparison && (
+              <div className="mt-3 p-3 bg-amber-50/60 border border-amber-100/60 rounded-xl">
+                <div className="text-[11px] font-semibold text-amber-700 mb-2">📊 年度对比</div>
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div className="flex items-center gap-1.5 text-amber-600">
+                    <span className="text-green-600">+{stats.yearComparison.new_farmers_count}</span>新增
+                  </div>
+                  <div className="flex items-center gap-1.5 text-amber-600">
+                    <span className="text-red-600">{stats.yearComparison.removed_farmers_count}</span>退出
+                  </div>
+                  <div className="flex items-center gap-1.5 text-amber-600">
+                    面积 <span className="font-mono">{(stats.yearComparison.total_apply_area || 0).toFixed(1)}亩</span>
+                  </div>
+                </div>
+              </div>
+            )}
               </>
             )}
           </div>
         )}
       </div>
 
-      {/* 面积统计 - 可折叠下拉框 */}
-      <div className="mb-4 bg-white border border-border rounded-card shadow-card overflow-hidden">
-        <button
-          onClick={() => setAreaStatsExpanded(prev => !prev)}
-          className="w-full flex items-center justify-between px-4 py-3 hover:bg-warm/30 transition-colors"
-        >
+      {/* ═══ 面积统计 — 折叠卡片 ═══ */}
+      <div className="bg-white rounded-xl border border-border/60 shadow-sm overflow-hidden">
+        <button onClick={() => setAreaStatsExpanded(prev => !prev)}
+          className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-warm/30 transition-colors">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-text-primary">📐 面积统计</span>
-            {activeTab === 'disbursement' ? (
-              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">发放</span>
-            ) : activeTab === 'preApply' ? (
-              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">预申请</span>
-            ) : (
-              <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">预申请</span>
-            )}
-            {/* 分村依据切换 */}
-            <div className="flex items-center gap-0.5 bg-warm/30 rounded-btn p-0.5" onClick={e => e.stopPropagation()}>
-              <button
-                onClick={() => setAreaStatsGroupBy('excel')}
-                className={`px-2 py-0.5 text-[11px] rounded transition-all ${
-                  areaStatsGroupBy === 'excel'
-                    ? 'bg-white shadow-sm text-text-primary font-medium'
-                    : 'text-text-muted hover:text-text-primary'
-                }`}
-              >
-                📄 Excel
-              </button>
-              <button
-                onClick={() => setAreaStatsGroupBy('database')}
-                className={`px-2 py-0.5 text-[11px] rounded transition-all ${
-                  areaStatsGroupBy === 'database'
-                    ? 'bg-white shadow-sm text-text-primary font-medium'
-                    : 'text-text-muted hover:text-text-primary'
-                }`}
-              >
-                🗄️ 数据库
-              </button>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+              activeTab === 'disbursement' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'
+            }`}>
+              {activeTab === 'disbursement' ? '发放' : '预申请'}
+            </span>
+            <div className="flex items-center gap-0.5 bg-warm/40 rounded-md p-0.5" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setAreaStatsGroupBy('excel')}
+                className={`px-2 py-0.5 text-[10px] rounded transition-all ${
+                  areaStatsGroupBy === 'excel' ? 'bg-white shadow-sm text-text-primary font-medium' : 'text-text-muted hover:text-text-primary'
+                }`}>📄 Excel</button>
+              <button onClick={() => setAreaStatsGroupBy('database')}
+                className={`px-2 py-0.5 text-[10px] rounded transition-all ${
+                  areaStatsGroupBy === 'database' ? 'bg-white shadow-sm text-text-primary font-medium' : 'text-text-muted hover:text-text-primary'
+                }`}>🗄️ 数据库</button>
             </div>
-            {areaStatsExpanded && areaStats && (
-              <span className="text-xs text-text-muted">
-                合计：{areaStats.total.total_apply_area}亩 / {areaStats.by_village.length}个村
-              </span>
-            )}
           </div>
           <div className="flex items-center gap-2">
             {areaStats && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleExportAreaStats()
-                }}
-                className="px-3 py-1 text-xs bg-primary  rounded-btn hover:bg-primary/90"
-              >
-                ↓ 导出Excel
+              <button onClick={(e) => { e.stopPropagation(); handleExportAreaStats() }}
+                className="px-2.5 py-1 text-[10px] bg-primary/10 text-primary-600 rounded-md hover:bg-primary/20 transition-all">
+                ↓ 导出
               </button>
             )}
-            <span className="text-text-muted text-sm">{areaStatsExpanded ? '▲ 收起' : '▼ 展开'}</span>
+            <span className="text-[11px] text-text-muted">{areaStatsExpanded ? '▲ 收起' : '▼ 展开'}</span>
           </div>
         </button>
 
         {areaStatsExpanded && (
-          <div className="px-4 pb-4 border-t border-border/50">
+          <div className="px-4 pb-4 border-t border-border/30">
             {loadingAreaStats ? (
               <div className="py-10 text-center">
                 <div className="inline-flex items-center gap-2 text-text-muted/60">
@@ -934,96 +962,67 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         )}
       </div>
 
-      {/* Tab切换 */}
-      <div className="flex items-center gap-2 mb-4 border-b border-border">
-        <button
-          onClick={() => switchTab('preApply')}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'preApply' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text-primary'
-          }`}
-        >
-          📋 预申请列表
-        </button>
-        <button
-          onClick={() => switchTab('disbursement')}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'disbursement' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text-primary'
-          }`}
-        >
-          💰 发放信息列表
-        </button>
-        <button
-          onClick={() => switchTab('proxy')}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'proxy' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text-primary'
-          }`}
-        >
-          👥 代领关系
-        </button>
-        <button
-          onClick={() => switchTab('projectProgress')}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'projectProgress' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text-primary'
-          }`}
-        >
-          📊 项目管理
-        </button>
-        <button
-          onClick={() => switchTab('precheckHistory')}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'precheckHistory' ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text-primary'
-          }`}
-        >
-          📋 预检历史
-        </button>
-        <div className="ml-auto flex items-center gap-2">
+      {/* ═══ Tab切换 ═══ */}
+      <div className="flex items-center gap-1 border-b border-border/60">
+        {[
+          { key: 'preApply' as const, label: '📋 预申请列表' },
+          { key: 'disbursement' as const, label: '💰 发放信息列表' },
+          { key: 'proxy' as const, label: '👥 代领关系' },
+          { key: 'projectProgress' as const, label: '📊 项目管理' },
+          { key: 'precheckHistory' as const, label: '📋 预检历史' },
+        ].map(tab => (
+          <button key={tab.key} onClick={() => switchTab(tab.key)}
+            className={`px-3.5 py-2.5 text-xs font-medium border-b-2 transition-all ${
+              activeTab === tab.key
+                ? `border-emerald-500 text-emerald-700 bg-emerald-50/30`
+                : 'border-transparent text-text-muted hover:text-text-primary hover:border-gray-200'
+            }`}>
+            {tab.label}
+          </button>
+        ))}
+        <div className="ml-auto flex items-center gap-1.5 pb-1.5">
           {activeTab === 'preApply' && (
-            <button
-              onClick={runPreCheck}
-              disabled={preCheckLoading || apps.length === 0}
-              className={`px-3 py-1.5 text-sm rounded-btn flex items-center gap-1.5 ${
-                preCheckLoading ? 'bg-blue-100 border border-blue-200 text-blue-600' : 'bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100'
-              }`}
-            >
-              {preCheckLoading ? (
-                <><span className="w-3 h-3 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />预检中…</>
-              ) : '🔍 全部数据预检'}
+            <button onClick={runPreCheck} disabled={preCheckLoading || apps.length === 0}
+              className={`px-2.5 py-1.5 text-[11px] rounded-lg flex items-center gap-1 ${
+                preCheckLoading ? 'bg-blue-50 border border-blue-200 text-blue-500' : 'bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100'
+              }`}>
+              {preCheckLoading ? <><span className="w-3 h-3 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />预检中</> : '🔍 预检'}
             </button>
           )}
           {activeTab === 'proxy' && (
             <>
               <button onClick={() => setProxyImportOpen(true)}
-                className="px-3 py-1.5 text-sm border border-blue-200 text-blue-700 rounded-btn hover:bg-blue-50 flex items-center gap-1.5">
+                className="px-2.5 py-1.5 text-[11px] border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
                 ↑ Excel导入
               </button>
               <button onClick={() => setProxyAddOpen(true)}
-                className="px-3 py-1.5 text-sm bg-primary  rounded-btn hover:bg-primary/90">
-                ＋ 新增代领
+                className="px-2.5 py-1.5 text-[11px] bg-primary text-white rounded-lg hover:bg-primary/90">
+                ＋ 新增
               </button>
             </>
           )}
           {activeTab !== 'proxy' && activeTab !== 'precheckHistory' && (<>
-              <span className="text-xs text-text-muted">共 {total} 条</span>
-              <div className="flex gap-2 items-center">
+              <span className="text-[11px] text-text-muted">共 {total} 条</span>
+              <div className="flex gap-1.5 items-center">
                 {selectedIds.length > 0 && (
                   <button onClick={batchDelete}
-                    className="px-3 py-2 text-sm bg-red-600  rounded-btn hover:bg-red-700 flex items-center gap-1.5">
-                    🗑️ 删除选中 ({selectedIds.length})
+                    className="px-2.5 py-1.5 text-[11px] bg-red-500 text-white rounded-lg hover:bg-red-600">
+                    🗑️ 删除({selectedIds.length})
                   </button>
                 )}
                 {activeTab === 'disbursement' && (
                   <button onClick={runDisbursementCheck} disabled={checkingDisbursement}
-                    className="px-3 py-2 text-sm border-2 border-amber-300 bg-amber-50 text-amber-700 rounded-btn hover:bg-amber-100 hover:border-amber-400 transition-all font-medium whitespace-nowrap disabled:opacity-50 flex items-center gap-1.5">
-                    {checkingDisbursement ? '⏳' : '🔍'} 检查
+                    className="px-2.5 py-1.5 text-[11px] border border-amber-300 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 disabled:opacity-50">
+                    {checkingDisbursement ? '⏳' : '🔍'} 比对
                   </button>
                 )}
                 <button onClick={deleteAll} disabled={deletingAll}
-                  className={`px-3 py-2 text-sm rounded-btn flex items-center gap-1.5 ${deletingAll ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600/80 hover:bg-red-700'}`}>
-                  {deletingAll ? '⏳ 删除中...' : '🗑️ 删除全部'}
+                  className={`px-2.5 py-1.5 text-[11px] rounded-lg ${deletingAll ? 'bg-gray-300 cursor-not-allowed text-gray-500' : 'bg-red-500/80 hover:bg-red-600 text-white'}`}>
+                  {deletingAll ? '⏳ 删除中...' : '🗑️ 全部'}
                 </button>
                 <button onClick={() => setAddOpen(true)}
-                  className="px-3 py-2 text-sm border-2 border-green-500 bg-green-500 text-white rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-medium">
-                  ＋ 批量导入
+                  className="px-2.5 py-1.5 text-[11px] bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg shadow-sm hover:shadow-md transition-all">
+                  ＋ 导入
                 </button>
               </div>
             </>
@@ -1141,38 +1140,38 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         <ProjectProgressTab subsidyType={subsidyType} />
       )}
 
-      {/* 预检结果展示 */}
+      {/* ═══ 预检结果展示 ═══ */}
       {preCheckResults && activeTab === 'preApply' && (
-        <div className="mb-4 bg-white border border-border rounded-card overflow-hidden shadow-card">
-          <div className="px-4 py-3 border-b border-border/50 bg-warm/30 flex justify-between items-center">
-            <span className="font-semibold text-text-primary text-sm">🔍 数据预检结果</span>
-            <div className="flex gap-2 items-center">
+        <div className="bg-white rounded-xl border border-border/60 shadow-sm overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-border/30 bg-gradient-to-r from-blue-50/50 to-sky-50/50 flex items-center justify-between">
+            <span className="text-sm font-semibold text-text-primary">🔍 数据预检结果</span>
+            <div className="flex items-center gap-2">
               <button onClick={() => { setSelectedSheets(getDefaultSelectedSheets(preCheckResults)); setExportModalOpen(true) }}
-                className="px-3 py-1.5 text-xs bg-primary  rounded-btn hover:bg-primary/90">↓ 导出报告 Excel</button>
+                className="px-2.5 py-1 text-[11px] bg-primary text-white rounded-lg hover:bg-primary/90 transition-all">↓ 导出 Excel</button>
               <button onClick={() => setPreCheckResults(null)} className="text-xs text-text-muted hover:text-text-primary">✕ 关闭</button>
             </div>
           </div>
-          <div className="p-4 space-y-4">
-            <div className="grid grid-cols-5 gap-3">
-              <div className={`rounded-card p-3 text-center ${(preCheckResults.summary?.ok_rows || 0) > 0 ? 'bg-primary/5 border border-primary/10' : 'bg-warm/30 border border-border/50'}`}>
-                <div className="text-lg font-bold text-primary">{preCheckResults.summary?.ok_rows || 0}</div>
-                <div className="text-xs text-text-muted">通过</div>
+          <div className="p-4">
+            <div className="grid grid-cols-5 gap-2 mb-4">
+              <div className={`rounded-xl p-3 text-center border ${(preCheckResults.summary?.ok_rows || 0) > 0 ? 'bg-emerald-50 border-emerald-100/60' : 'bg-warm/30 border-border/50'}`}>
+                <div className="text-lg font-bold text-emerald-600">{preCheckResults.summary?.ok_rows || 0}</div>
+                <div className="text-[10px] text-text-muted">通过</div>
               </div>
-              <div className={`rounded-card p-3 text-center ${(preCheckResults.summary?.error_rows || 0) > 0 ? 'bg-red-50 border border-red-100' : 'bg-warm/30 border border-border/50'}`}>
-                <div className="text-lg font-bold text-red-600">{preCheckResults.summary?.error_rows || 0}</div>
-                <div className="text-xs text-text-muted">错误</div>
+              <div className={`rounded-xl p-3 text-center border ${(preCheckResults.summary?.error_rows || 0) > 0 ? 'bg-red-50 border-red-100/60' : 'bg-warm/30 border-border/50'}`}>
+                <div className="text-lg font-bold text-red-500">{preCheckResults.summary?.error_rows || 0}</div>
+                <div className="text-[10px] text-text-muted">错误</div>
               </div>
-              <div className={`rounded-card p-3 text-center ${(preCheckResults.summary?.area_anomalies || 0) > 0 ? 'bg-orange-50 border border-orange-100' : 'bg-warm/30 border border-border/50'}`}>
-                <div className="text-lg font-bold text-orange-600">{preCheckResults.summary?.area_anomalies || 0}</div>
-                <div className="text-xs text-text-muted">面积异常</div>
+              <div className={`rounded-xl p-3 text-center border ${(preCheckResults.summary?.area_anomalies || 0) > 0 ? 'bg-orange-50 border-orange-100/60' : 'bg-warm/30 border-border/50'}`}>
+                <div className="text-lg font-bold text-orange-500">{preCheckResults.summary?.area_anomalies || 0}</div>
+                <div className="text-[10px] text-text-muted">面积异常</div>
               </div>
-              <div className={`rounded-card p-3 text-center ${(preCheckResults.summary?.error_library_hits || 0) > 0 ? 'bg-red-100 border border-red-200' : 'bg-warm/30 border border-border/50'}`}>
-                <div className="text-lg font-bold text-red-700">{preCheckResults.summary?.error_library_hits || 0}</div>
-                <div className="text-xs text-text-muted">错误库命中</div>
+              <div className={`rounded-xl p-3 text-center border ${(preCheckResults.summary?.error_library_hits || 0) > 0 ? 'bg-rose-50 border-rose-100/60' : 'bg-warm/30 border-border/50'}`}>
+                <div className="text-lg font-bold text-rose-500">{preCheckResults.summary?.error_library_hits || 0}</div>
+                <div className="text-[10px] text-text-muted">错误库命中</div>
               </div>
-              <div className={`rounded-card p-3 text-center ${(preCheckResults.changed_farmers?.length || 0) > 0 ? 'bg-blue-50 border border-blue-100' : 'bg-warm/30 border border-border/50'}`}>
-                <div className="text-lg font-bold text-blue-600">{preCheckResults.changed_farmers?.length || 0}</div>
-                <div className="text-xs text-text-muted">字段变更</div>
+              <div className={`rounded-xl p-3 text-center border ${(preCheckResults.changed_farmers?.length || 0) > 0 ? 'bg-blue-50 border-blue-100/60' : 'bg-warm/30 border-border/50'}`}>
+                <div className="text-lg font-bold text-blue-500">{preCheckResults.changed_farmers?.length || 0}</div>
+                <div className="text-[10px] text-text-muted">字段变更</div>
               </div>
             </div>
 
