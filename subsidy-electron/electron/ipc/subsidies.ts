@@ -107,6 +107,35 @@ export function registerSubsidyHandlers(): void {
         where += ' AND (fp.real_name LIKE ? OR fp.id_card LIKE ?)'
         values.push(`%${search}%`, `%${search}%`)
       }
+      // 支付状态筛选
+      const payStatus = params.pay_status
+      if (payStatus !== undefined && payStatus !== null && payStatus !== '') {
+        where += ' AND sa.pay_status = ?'
+        values.push(Number(payStatus))
+      }
+      // 金额范围筛选 (actual_amount)
+      const minAmt = params.min_amount !== undefined ? Number(params.min_amount) : undefined
+      const maxAmt = params.max_amount !== undefined ? Number(params.max_amount) : undefined
+      if (minAmt !== undefined && !isNaN(minAmt)) { where += ' AND COALESCE(sa.actual_amount,0) >= ?'; values.push(minAmt) }
+      if (maxAmt !== undefined && !isNaN(maxAmt)) { where += ' AND COALESCE(sa.actual_amount,0) <= ?'; values.push(maxAmt) }
+      // 日期范围筛选 (pay_date)
+      const dateFrom = params.date_from as string || ''
+      const dateTo = params.date_to as string || ''
+      if (dateFrom) { where += ' AND sa.pay_date >= ?'; values.push(dateFrom) }
+      if (dateTo) { where += ' AND sa.pay_date <= ?'; values.push(dateTo) }
+
+      // 排序
+      const APP_SORT_MAP: Record<string, string> = {
+        apply_area: 'sa.apply_area', contract_area: 'sa.contract_area',
+        trust_area: 'sa.trust_area', no_subsidy_area: 'sa.no_subsidy_area',
+        apply_amount: 'sa.apply_amount', actual_amount: 'sa.actual_amount',
+      }
+      const sortField = params.sort_field as string || ''
+      const sortDir = (params.sort_dir as string || 'desc') === 'asc' ? 'ASC' : 'DESC'
+      let orderClause = 'ORDER BY sa.id DESC'
+      if (sortField && APP_SORT_MAP[sortField]) {
+        orderClause = `ORDER BY ${APP_SORT_MAP[sortField]} ${sortDir}, sa.id DESC`
+      }
 
       const countRow = db().getRaw<{ cnt: number }>(`
         SELECT COUNT(*) as cnt FROM subsidy_application sa
@@ -127,7 +156,7 @@ export function registerSubsidyHandlers(): void {
         LEFT JOIN village v ON hh.village_id = v.id
         LEFT JOIN subsidy_type st ON sa.subsidy_type_id = st.id
         ${where}
-        ORDER BY sa.id DESC
+        ${orderClause}
         LIMIT ? OFFSET ?
       `, ...values, pageSize, offset)
 
@@ -517,9 +546,38 @@ export function registerSubsidyHandlers(): void {
       if (subsidyTypeId) { where += ' AND sp.subsidy_type_id=?'; vals.push(subsidyTypeId) }
       if (paymentYear) { where += ' AND sp.payment_year=?'; vals.push(paymentYear) }
       if (search) { where += ' AND (fp.real_name LIKE ? OR hh.household_name LIKE ?)'; vals.push(`%${search}%`, `%${search}%`) }
+      // 支付状态筛选
+      const payStatus = params.pay_status
+      if (payStatus !== undefined && payStatus !== null && payStatus !== '') {
+        where += ' AND sp.pay_status = ?'
+        vals.push(Number(payStatus))
+      }
+      // 金额范围筛选 (amount)
+      const minAmt = params.min_amount !== undefined ? Number(params.min_amount) : undefined
+      const maxAmt = params.max_amount !== undefined ? Number(params.max_amount) : undefined
+      if (minAmt !== undefined && !isNaN(minAmt)) { where += ' AND COALESCE(sp.amount,0) >= ?'; vals.push(minAmt) }
+      if (maxAmt !== undefined && !isNaN(maxAmt)) { where += ' AND COALESCE(sp.amount,0) <= ?'; vals.push(maxAmt) }
+      // 日期范围筛选 (payment_date)
+      const dateFrom = params.date_from as string || ''
+      const dateTo = params.date_to as string || ''
+      if (dateFrom) { where += ' AND sp.payment_date >= ?'; vals.push(dateFrom) }
+      if (dateTo) { where += ' AND sp.payment_date <= ?'; vals.push(dateTo) }
+
+      // 排序
+      const PAY_SORT_MAP: Record<string, string> = {
+        apply_area: 'sp.apply_area', contract_area: 'sp.contract_area',
+        trust_area: 'sp.trust_area', no_subsidy_area: 'sp.no_subsidy_area',
+        apply_amount: 'sp.apply_amount', actual_amount: 'sp.amount',
+      }
+      const sortField = params.sort_field as string || ''
+      const sortDir = (params.sort_dir as string || 'desc') === 'asc' ? 'ASC' : 'DESC'
+      let orderClause = 'ORDER BY sp.id DESC'
+      if (sortField && PAY_SORT_MAP[sortField]) {
+        orderClause = `ORDER BY ${PAY_SORT_MAP[sortField]} ${sortDir}, sp.id DESC`
+      }
 
       const countRow = db().getRaw<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM subsidy_payment sp LEFT JOIN farmer_profile fp ON sp.beneficiary_id=fp.id LEFT JOIN family_household hh ON fp.household_id=hh.id ${where}`, ...vals)
-      const rows = db().allRaw(`SELECT sp.*, fp.real_name as farmer_name, hh.household_name, hh.household_code FROM subsidy_payment sp LEFT JOIN farmer_profile fp ON sp.beneficiary_id=fp.id LEFT JOIN family_household hh ON fp.household_id=hh.id ${where} ORDER BY sp.id DESC LIMIT ? OFFSET ?`, ...vals, pageSize, offset)
+      const rows = db().allRaw(`SELECT sp.*, fp.real_name as farmer_name, hh.household_name, hh.household_code FROM subsidy_payment sp LEFT JOIN farmer_profile fp ON sp.beneficiary_id=fp.id LEFT JOIN family_household hh ON fp.household_id=hh.id ${where} ${orderClause} LIMIT ? OFFSET ?`, ...vals, pageSize, offset)
       return successList(rows, countRow?.cnt ?? 0, page, pageSize)
     } catch (e) { return errorResponse(String(e)) }
   })

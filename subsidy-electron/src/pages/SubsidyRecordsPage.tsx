@@ -491,6 +491,8 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         if (search) params.search = search
         if (filters.payStatus) params.pay_status = filters.payStatus
         if (filters.village) params.village_name = filters.village
+        if (filters.minAmount) params.min_amount = Number(filters.minAmount)
+        if (filters.maxAmount) params.max_amount = Number(filters.maxAmount)
         if (filters.dateFrom) params.date_from = filters.dateFrom
         if (filters.dateTo) params.date_to = filters.dateTo
         if (sortField) { params.sort_field = sortField; params.sort_dir = sortDir }

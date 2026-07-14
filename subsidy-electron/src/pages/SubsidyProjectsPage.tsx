@@ -393,12 +393,12 @@ export default function SubsidyProjectsPage() {
                       📋 进度
                     </button>
                     <button onClick={() => openEdit(t)}
-                      className="px-2 py-1 rounded-md border border-border bg-white/70 text-[11px] text-text-muted hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all whitespace-nowrap">
-                      ✏️
+                      className="px-2.5 py-1 rounded-md border border-border bg-white/70 text-[11px] text-text-muted hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all whitespace-nowrap">
+                      ✏️ 编辑
                     </button>
                     <button onClick={() => setDeleteTarget(t)}
-                      className="px-2 py-1 rounded-md border border-border bg-white/70 text-[11px] text-text-muted hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all whitespace-nowrap">
-                      🗑️
+                      className="px-2.5 py-1 rounded-md border border-border bg-white/70 text-[11px] text-text-muted hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all whitespace-nowrap">
+                      🗑️ 删除
                     </button>
                   </div>
                 </div>
@@ -420,12 +420,12 @@ export default function SubsidyProjectsPage() {
 
                 {/* 第三行：进度条 */}
                 {totalApplyNum > 0 && (
-                  <div className="mb-2">
-                    <div className="flex items-center justify-between text-[10px] mb-0.5">
-                      <span className="text-text-muted/50">发放进度</span>
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-text-muted/60 font-medium">📈 发放进度</span>
                       <span className={`font-bold ${s.chart}`}>{payProgress}%</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-warm/80 overflow-hidden">
+                    <div className="h-2.5 rounded-full bg-warm/80 overflow-hidden shadow-inner">
                       <div className={`h-full rounded-full bg-gradient-to-r ${s.gradient} transition-all duration-1000 ease-out`}
                         style={{ width: `${payProgress}%` }} />
                     </div>
@@ -537,13 +537,16 @@ function ScanDirInput({ projectId }: { projectId: number }) {
   const updatePath = (v: string) => { setPath(v); localStorage.setItem(`scan_${projectId}`, v) }
 
   return (
-    <div className="flex items-center gap-1.5 text-[10px]">
-      <span className="flex items-center gap-0.5 shrink-0 text-text-muted/40">📁</span>
+    <div className="flex items-center gap-1.5 text-xs">
+      <span className="flex items-center gap-0.5 shrink-0 text-text-muted">📁 本地路径:</span>
       <input value={path} onChange={e => updatePath(e.target.value)}
         placeholder="D:\材料\2024耕地补贴"
-        className="flex-1 bg-white/50 border border-border/30 rounded px-1.5 py-0.5 text-[10px] outline-none focus:border-emerald-300 focus:bg-white transition-all placeholder:text-text-muted/20" />
+        className="flex-1 bg-white/80 border border-border/60 rounded px-2 py-0.5 text-xs outline-none focus:border-emerald-400 focus:bg-white transition-all placeholder:text-text-muted/30" />
       {path && (
-        <button onClick={() => updatePath('')} className="text-text-muted/20 hover:text-red-400 transition-colors shrink-0">✕</button>
+        <span className="text-text-muted font-mono truncate max-w-[200px]" title={path}>📂 {path}</span>
+      )}
+      {path && (
+        <button onClick={() => updatePath('')} className="text-text-muted/40 hover:text-red-500 transition-colors shrink-0">✕</button>
       )}
     </div>
   )
