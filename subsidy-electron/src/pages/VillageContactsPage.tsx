@@ -123,7 +123,7 @@ export default function VillageContactsPage({ embedded }: { embedded?: boolean }
 
       {/* 操作栏 */}
       <div className="bg-white border border-border rounded-card p-3 mb-4 flex items-center gap-3 flex-wrap">
-        <button onClick={openAdd} className="px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">＋ 新增</button>
+        <button onClick={openAdd} className="px-3 py-2 text-sm bg-primary-500  rounded-btn hover:bg-primary-500/90">＋ 新增</button>
         <button onClick={() => fileRef.current?.click()} className="px-3 py-2 text-sm border border-border rounded-btn hover:bg-warm/20">📥 导入</button>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleImport} className="hidden" />
         <label className="flex items-center gap-1 text-sm text-text-muted cursor-pointer select-none">
@@ -224,12 +224,12 @@ export default function VillageContactsPage({ embedded }: { embedded?: boolean }
               <div>
                 <label className="block text-sm text-text-muted mb-1">姓名 *</label>
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" placeholder="姓名" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" placeholder="姓名" />
               </div>
               <div>
                 <label className="block text-sm text-text-muted mb-1">电话</label>
                 <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" placeholder="手机号" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" placeholder="手机号" />
               </div>
               <div>
                 <label className="block text-sm text-text-muted mb-1">职务</label>
@@ -247,12 +247,12 @@ export default function VillageContactsPage({ embedded }: { embedded?: boolean }
               <div>
                 <label className="block text-sm text-text-muted mb-1">备注</label>
                 <input value={form.remark} onChange={e => setForm(f => ({ ...f, remark: e.target.value }))}
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" placeholder="备注信息" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" placeholder="备注信息" />
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm border border-border rounded-btn hover:bg-warm/20">取消</button>
-              <button onClick={submit} className="px-4 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">保存</button>
+              <button onClick={submit} className="px-4 py-2 text-sm bg-primary-500  rounded-btn hover:bg-primary-500/90">保存</button>
             </div>
           </div>
         </div>

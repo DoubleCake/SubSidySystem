@@ -37,11 +37,11 @@ type SeasonSummary = {
 const PS_CFG: Record<number, { label: string; cls: string; bar: string }> = {
   0: { label: '未发放', cls: 'bg-warm/60 text-text-muted',    bar: 'bg-border' },
   1: { label: '发放中', cls: 'bg-orange-tag/15 text-[#B8860B]', bar: 'bg-orange-tag' },
-  2: { label: '已完成', cls: 'bg-primary/10 text-primary',      bar: 'bg-primary' },
+  2: { label: '已完成', cls: 'bg-primary-500/10 text-primary',      bar: 'bg-primary-500' },
 }
 
 const SEASON_CFG: Record<string, { icon: string; color: string; bg: string; border: string; tag: string }> = {
-  '大春':   { icon: '🌾', color: 'text-primary', bg: 'bg-primary/5',  border: 'border-primary/20', tag: '主粮季' },
+  '大春':   { icon: '🌾', color: 'text-primary', bg: 'bg-primary-500/5',  border: 'border-primary-500/20', tag: '主粮季' },
   '小春':   { icon: '🌿', color: 'text-[#5B8C5A]',    bg: 'bg-green-50',     border: 'border-green-200',    tag: '冬作物' },
   '耕地地力保护': { icon: '📅', color: 'text-blue-700',   bg: 'bg-blue-50',     border: 'border-blue-200',    tag: '全年' },
   '临时':   { icon: '⚡', color: 'text-orange-tag',   bg: 'bg-amber-50',    border: 'border-amber-200',   tag: '临时专项' },
@@ -155,7 +155,7 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
         </div>
       )}
       {todos && todoItems.length === 0 && !loading && (
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-primary/5 border border-primary/10 rounded-card mb-4 text-body text-primary">
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-primary-500/5 border border-primary-500/10 rounded-card mb-4 text-body text-primary">
           <Icon name="check" size={16} />
           <span>{year} 年度数据状态正常，无待处理事项</span>
         </div>
@@ -363,7 +363,7 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <div className="flex-1 bg-warm rounded-full h-3 overflow-hidden">
-                    <div className="bg-primary/60 h-full rounded-full transition-all"
+                    <div className="bg-primary-500/60 h-full rounded-full transition-all"
                       style={{ width: `${Math.round(v.total_amount / maxV * 100)}%` }} />
                   </div>
                   <span className="text-meta font-mono text-text-muted w-8 text-right">

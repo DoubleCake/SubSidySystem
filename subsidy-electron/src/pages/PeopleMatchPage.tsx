@@ -147,13 +147,13 @@ export default function PeopleMatchPage() {
 张三\t红星村\t13800138001
 李四\t朝阳村\t13900139002
 ...`}
-          className="w-full h-40 border border-border rounded-btn p-3 text-sm font-mono outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 resize-y"
+          className="w-full h-40 border border-border rounded-btn p-3 text-sm font-mono outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary/10 resize-y"
         />
         <div className="flex gap-3 mt-3">
           <button
             onClick={handleMatch}
             disabled={loading || !input.trim()}
-            className="px-5 py-2.5 bg-primary text-white rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium text-sm"
+            className="px-5 py-2.5 bg-primary-500 text-white rounded-btn hover:bg-primary-500/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium text-sm"
           >
             {loading ? <><span className="animate-spin inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full mr-2" />匹配中…</> : '🔍 开始匹配'}
           </button>

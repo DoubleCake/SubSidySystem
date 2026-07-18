@@ -141,7 +141,7 @@ export default function BackupPage() {
               <div className="text-2xl font-bold font-mono text-text-primary">{info?.db_size_mb} MB</div>
               <div className="text-xs text-text-muted mt-1">数据库大小</div>
             </div>
-            <div className="bg-primary/5 rounded-card p-4 text-center">
+            <div className="bg-primary-500/5 rounded-card p-4 text-center">
               <div className="text-2xl font-bold font-mono text-primary">{info?.total_records.toLocaleString()}</div>
               <div className="text-xs text-text-muted mt-1">总记录数</div>
             </div>
@@ -169,7 +169,7 @@ export default function BackupPage() {
       <div className="grid grid-cols-2 gap-5 mb-5">
         {/* 导出备份 */}
         <div className="bg-white border border-border rounded-card overflow-hidden shadow-card">
-          <div className="px-5 py-3 bg-primary/5 border-b border-primary/10">
+          <div className="px-5 py-3 bg-primary-500/5 border-b border-primary-500/10">
             <span className="font-semibold text-primary text-sm">⬇️ 导出 / 备份</span>
           </div>
           <div className="p-5 space-y-3">
@@ -181,7 +181,7 @@ export default function BackupPage() {
                   <div className="font-semibold text-sm text-text-primary mb-1">下载数据库文件 (.db)</div>
                   <p className="text-xs text-text-muted mb-3">完整迁移首选。换电脑时把这个文件复制过去，直接放到新机器的项目目录即可，数据 100% 保留。</p>
                   <button onClick={downloadDb}
-                    className="w-full py-2 bg-primary  text-sm rounded-btn hover:bg-primary/90">
+                    className="w-full py-2 bg-primary-500  text-sm rounded-btn hover:bg-primary-500/90">
                     ⬇️ 下载 subsidy.db
                   </button>
                 </div>
@@ -196,7 +196,7 @@ export default function BackupPage() {
                   <div className="font-semibold text-sm text-text-primary mb-1">导出全量 Excel</div>
                   <p className="text-xs text-text-muted mb-3">包含5个Sheet：农户档案、家庭户、补贴记录、补贴项目、村组配置。适合归档上报，或在无法安装系统时查阅数据。</p>
                   <button onClick={exportExcel} disabled={exporting}
-                    className="w-full py-2 border border-primary/20 text-primary text-sm rounded-btn hover:bg-primary/5 disabled:opacity-60">
+                    className="w-full py-2 border border-primary-500/20 text-primary text-sm rounded-btn hover:bg-primary-500/5 disabled:opacity-60">
                     {exporting ? '生成中…' : '📊 导出 Excel（5 Sheet）'}
                   </button>
                 </div>
@@ -317,7 +317,7 @@ export default function BackupPage() {
                     <td className="px-4 py-2.5 text-sm text-text-muted">{b.created}</td>
                     <td className="px-4 py-2.5 flex gap-2">
                       <button onClick={() => window.electronAPI.invoke('settings:downloadBackup', b.filename)}
-                        className="text-xs text-primary border border-primary/20 px-2.5 py-1 rounded-btn hover:bg-primary/5">
+                        className="text-xs text-primary border border-primary-500/20 px-2.5 py-1 rounded-btn hover:bg-primary-500/5">
                         下载
                       </button>
                       <button onClick={() => deleteBackup(b.filename)}

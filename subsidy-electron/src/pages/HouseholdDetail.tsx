@@ -124,7 +124,7 @@ export function HouseholdDetailContent({
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
           }}>
-          <div className="w-10 h-10 rounded-card bg-primary/10 flex items-center justify-center text-lg font-bold text-primary shrink-0">🏠</div>
+          <div className="w-10 h-10 rounded-card bg-primary-500/10 flex items-center justify-center text-lg font-bold text-primary shrink-0">🏠</div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-4 mb-0.5 flex-wrap">
               <span className="text-base font-bold text-primary-50">{detail.household_name}</span>
@@ -346,7 +346,7 @@ export function HouseholdDetailContent({
                     <select
                       value={areaYear || allYears[0]}
                       onChange={e => setAreaYear(Number(e.target.value))}
-                      className="border border-border rounded-btn px-2 py-1 text-xs outline-none focus:border-primary bg-main"
+                      className="border border-border rounded-btn px-2 py-1 text-xs outline-none focus:border-primary-500 bg-main"
                     >
                       {allYears.map(y => (
                         <option key={y} value={y}>{y}年</option>
@@ -481,7 +481,7 @@ export function HouseholdDetailContent({
               {detailTab === 'members' && (
                 <>
                   <button onClick={onOpenMemberImport} className="text-xs border-2 border-green-500 bg-green-500 text-white px-2.5 py-1.5 rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-medium">↑ 批量导入</button>
-                  <button onClick={onOpenMemberAdd} className="text-xs bg-primary  px-2.5 py-1.5 rounded-btn hover:bg-primary/90 transition-colors">＋ 成员</button>
+                  <button onClick={onOpenMemberAdd} className="text-xs bg-primary-500  px-2.5 py-1.5 rounded-btn hover:bg-primary-500/90 transition-colors">＋ 成员</button>
                   <button onClick={onOpenEvent} className="text-xs border border-border text-text-primary px-2.5 py-1.5 rounded-btn hover:bg-warm/30 transition-colors">＋ 补录</button>
                 </>
               )}
@@ -498,10 +498,10 @@ export function HouseholdDetailContent({
             {displayMembers.length === 0 && <div className="text-center py-8 text-text-muted/50 text-sm">暂无成员记录</div>}
             {displayMembers.map(m => (
               <div key={m.id} className={`flex items-center gap-3 rounded-card px-4 py-3 border transition-all
-                ${m.is_head ? 'bg-primary/5 border-primary/20' : 'bg-main border-border hover:border-border hover:bg-warm/30'}
+                ${m.is_head ? 'bg-primary-500/5 border-primary-500/20' : 'bg-main border-border hover:border-border hover:bg-warm/30'}
                 ${m.farmer_status !== 1 ? 'opacity-60' : ''}`}>
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0
-                  ${m.is_head ? 'bg-primary/90 ' : 'bg-warm/30 text-text-muted'}`}>
+                  ${m.is_head ? 'bg-primary-500/90 ' : 'bg-warm/30 text-text-muted'}`}>
                   {m.real_name.slice(-1)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -520,7 +520,7 @@ export function HouseholdDetailContent({
                 </div>
                 {historyDateIsNull && (
                   <div className="flex gap-1.5 shrink-0">
-                    <button onClick={() => onOpenFarmer(m.id)} className="text-xs text-primary border border-primary/20 px-2 py-1 rounded-btn hover:bg-primary/5 transition-colors">查看农户</button>
+                    <button onClick={() => onOpenFarmer(m.id)} className="text-xs text-primary border border-primary-500/20 px-2 py-1 rounded-btn hover:bg-primary-500/5 transition-colors">查看农户</button>
                     <button onClick={() => onOpenMemberEdit(m)} className="text-xs border border-border text-text-muted px-2 py-1 rounded-btn hover:border-border transition-colors">编辑</button>
                     {m.is_head !== 1 && (
                       <button onClick={() => onRemoveMember(m)} className="text-xs border border-amber-200 text-amber-600 px-2 py-1 rounded-btn hover:bg-amber-50 transition-colors">移出</button>

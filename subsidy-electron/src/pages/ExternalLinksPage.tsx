@@ -188,15 +188,15 @@ export default function ExternalLinksPage() {
       <div className="flex items-center gap-2 mb-4">
         {[{id:'sites',label:'🌐 外部网站'},{id:'search',label:'🔍 系统内查询'},{id:'records',label:'📝 查询记录'}].map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id as typeof tab)}
-            className={`px-4 py-2 text-sm rounded-btn border transition-colors ${tab===t.id?'bg-primary text-white border-emerald-700':'bg-white border-border text-text-primary hover:border-border'}`}>
+            className={`px-4 py-2 text-sm rounded-btn border transition-colors ${tab===t.id?'bg-primary-500 text-white border-emerald-700':'bg-white border-border text-text-primary hover:border-border'}`}>
             {t.label}
           </button>
         ))}
         <div className="ml-auto flex gap-2">
           <button onClick={()=>{ setEditSite(null); setSiteForm({site_type:'link',sort_order:0,is_active:1}); setSiteModal(true) }}
-            className="text-xs border border-border text-text-muted px-3 py-1.5 rounded-btn hover:border-primary/30 hover:text-primary">⚙️ 管理网站</button>
+            className="text-xs border border-border text-text-muted px-3 py-1.5 rounded-btn hover:border-primary-500/30 hover:text-primary">⚙️ 管理网站</button>
           <button onClick={()=>setBatchOpen(true)}
-            className="text-sm bg-primary text-white px-4 py-2 rounded-btn hover:bg-primary/90">＋ 批量查询</button>
+            className="text-sm bg-primary-500 text-white px-4 py-2 rounded-btn hover:bg-primary-500/90">＋ 批量查询</button>
         </div>
       </div>
 
@@ -209,10 +209,10 @@ export default function ExternalLinksPage() {
              </div>
             :<div className="grid grid-cols-3 gap-4">
                {sites.filter(s=>s.is_active).map(s=>(
-                 <div key={s.id} className="bg-white border border-border rounded-card p-5 shadow-card hover:border-primary/30 hover:shadow-card transition-all cursor-pointer group"
+                 <div key={s.id} className="bg-white border border-border rounded-card p-5 shadow-card hover:border-primary-500/30 hover:shadow-card transition-all cursor-pointer group"
                    onClick={()=>window.open(s.url, '_blank')}>
                    <div className="flex items-start justify-between mb-3">
-                     <div className="w-10 h-10 bg-primary/5 border border-primary/10 rounded-card flex items-center justify-center text-xl">🌐</div>
+                     <div className="w-10 h-10 bg-primary-500/5 border border-primary-500/10 rounded-card flex items-center justify-center text-xl">🌐</div>
                      <span className="text-xs text-text-muted/30 opacity-0 group-hover:opacity-100 transition-opacity">点击打开 →</span>
                    </div>
                    <h3 className="font-bold text-text-primary text-sm mb-1 group-hover:text-primary">{s.name}</h3>
@@ -234,7 +234,7 @@ export default function ExternalLinksPage() {
               <div className="flex-1 min-w-48">
                 <label className="block text-xs text-text-muted mb-1">姓名 / 身份证号</label>
                 <input value={srch} onChange={e=>setSrch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&doSearch()}
-                  placeholder="输入姓名或身份证…" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"/>
+                  placeholder="输入姓名或身份证…" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"/>
               </div>
               <div>
                 <label className="block text-xs text-text-muted mb-1">年度</label>
@@ -261,7 +261,7 @@ export default function ExternalLinksPage() {
                 </select>
               </div>
               <button onClick={()=>{setSrchPage(1);doSearch()}}
-                className="px-4 py-2 bg-primary text-white text-sm rounded-btn hover:bg-primary/90">搜索</button>
+                className="px-4 py-2 bg-primary-500 text-white text-sm rounded-btn hover:bg-primary-500/90">搜索</button>
               <button onClick={()=>{setSrch('');setSrchYear('');setSrchTypeId('');setSrchVillage('');setSrchResults([]);setSrchTotal(0)}}
                 className="px-3 py-2 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30">清除</button>
             </div>
@@ -336,7 +336,7 @@ export default function ExternalLinksPage() {
           <div>
             <div className="flex gap-2 mb-3">
               <input value={recSearch} onChange={e=>{setRecSearch(e.target.value);setRecPage(1)}} placeholder="搜索记录内容/备注…"
-                className="border border-border rounded-btn px-3 py-1.5 text-sm outline-none focus:border-primary bg-white w-56"/>
+                className="border border-border rounded-btn px-3 py-1.5 text-sm outline-none focus:border-primary-500 bg-white w-56"/>
             </div>
             <div className="bg-white border border-border rounded-card overflow-hidden shadow-card">
               {recLoading&&<div className="text-center py-10 text-text-muted/50">加载中…</div>}
@@ -365,7 +365,7 @@ export default function ExternalLinksPage() {
                     </div>
                     <div className="flex gap-1 shrink-0">
                       <button onClick={()=>{setEditRecord(r);setRecForm({result_note:r.result_note||'',purpose:r.purpose||'',tags:r.tags||''})}}
-                        className="text-xs text-text-muted border border-border px-2.5 py-1 rounded-btn hover:text-primary hover:border-primary/20">编辑</button>
+                        className="text-xs text-text-muted border border-border px-2.5 py-1 rounded-btn hover:text-primary hover:border-primary-500/20">编辑</button>
                       <button onClick={()=>deleteRecord(r.id)} className="text-xs text-text-muted/50 border border-border px-2 py-1 rounded-btn hover:text-red-500 hover:border-red-200">删</button>
                     </div>
                   </div>
@@ -415,13 +415,13 @@ export default function ExternalLinksPage() {
             {editSite?.id && <div className="text-xs text-text-muted bg-warm/30 border border-border rounded px-3 py-1.5">正在编辑：{editSite.name}</div>}
             <div><label className="block text-xs text-text-muted mb-1">网站名称 *</label>
               <input value={siteForm.name??''} onChange={e=>setSiteForm(f=>({...f,name:e.target.value}))} placeholder="如：农经网、社保系统"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"/></div>
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"/></div>
             <div><label className="block text-xs text-text-muted mb-1">网址 *</label>
               <input value={siteForm.url??''} onChange={e=>setSiteForm(f=>({...f,url:e.target.value}))} placeholder="https://"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm font-mono outline-none focus:border-primary"/></div>
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm font-mono outline-none focus:border-primary-500"/></div>
             <div><label className="block text-xs text-text-muted mb-1">描述（可选）</label>
               <input value={siteForm.description??''} onChange={e=>setSiteForm(f=>({...f,description:e.target.value}))}
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"/></div>
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"/></div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className="block text-xs text-text-muted mb-1">排序</label>
                 <input type="number" value={siteForm.sort_order??0} onChange={e=>setSiteForm(f=>({...f,sort_order:Number(e.target.value)}))}
@@ -441,7 +441,7 @@ export default function ExternalLinksPage() {
             <div className="flex justify-between items-center mb-3">
               <p className="text-sm text-text-muted">已配置 {sites.length} 个网站</p>
               <button onClick={()=>{ setSiteForm({name:'',url:'',site_type:'link',sort_order:sites.length+1,is_active:1}); setSiteFormMode(true) }}
-                className="text-sm bg-primary text-white px-3 py-1.5 rounded-btn hover:bg-primary/90">＋ 新增网站</button>
+                className="text-sm bg-primary-500 text-white px-3 py-1.5 rounded-btn hover:bg-primary-500/90">＋ 新增网站</button>
             </div>
             <div className="space-y-2 max-h-80 overflow-y-auto">
               {sites.length===0&&<p className="text-center py-8 text-text-muted/50 text-sm">暂无网站，点击「＋新增网站」添加</p>}
@@ -462,7 +462,7 @@ export default function ExternalLinksPage() {
                       setEditSite(s)
                       setSiteForm({name:s.name,url:s.url,site_type:s.site_type,description:s.description||'',sort_order:s.sort_order,is_active:s.is_active})
                       setSiteFormMode(true)
-                    }} className="text-xs text-text-muted border border-border px-2 py-1 rounded hover:text-primary hover:border-primary/20">编辑</button>
+                    }} className="text-xs text-text-muted border border-border px-2 py-1 rounded hover:text-primary hover:border-primary-500/20">编辑</button>
                     <a href={s.url} target="_blank" rel="noopener noreferrer"
                       className="text-xs text-text-muted border border-border px-2 py-1 rounded hover:text-blue-600 hover:border-blue-200">↗</a>
                     <button onClick={()=>deleteSite(s.id)} className="text-xs text-red-400 border border-red-100 px-2 py-1 rounded hover:bg-red-50">删</button>
@@ -485,7 +485,7 @@ export default function ExternalLinksPage() {
             <label className="block text-xs text-text-muted mb-1">查询内容 *（每行一条）</label>
             <textarea rows={5} value={batchText} onChange={e=>setBatchText(e.target.value)}
               placeholder={"510123196503154231\n张三\n李四"}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm font-mono outline-none focus:border-primary resize-none"/>
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm font-mono outline-none focus:border-primary-500 resize-none"/>
             <p className="text-xs text-text-muted/50 mt-1">已输入 {batchText.split(/[\n,，;；]/).map(s=>s.trim()).filter(Boolean).length} 条 · 保存后将记录到查询记录，可随时查阅</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -502,10 +502,10 @@ export default function ExternalLinksPage() {
               </select></div>
             <div><label className="block text-xs text-text-muted mb-1">操作员</label>
               <input value={batchOperator} onChange={e=>setBatchOperator(e.target.value)}
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"/></div>
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"/></div>
             <div><label className="block text-xs text-text-muted mb-1">查询目的</label>
               <input value={batchPurpose} onChange={e=>setBatchPurpose(e.target.value)} placeholder="如：年度补贴核查"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"/></div>
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"/></div>
           </div>
           <div>
             <label className="block text-xs text-text-muted mb-1">标签</label>
@@ -517,7 +517,7 @@ export default function ExternalLinksPage() {
               ))}
             </div>
             <input value={batchTags} onChange={e=>setBatchTags(e.target.value)} placeholder="自由输入，逗号分隔"
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"/>
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"/>
           </div>
         </div>
       </Modal>
@@ -530,11 +530,11 @@ export default function ExternalLinksPage() {
           </div>}
           <div><label className="block text-xs text-text-muted mb-1">查询目的</label>
             <input value={recForm.purpose} onChange={e=>setRecForm(f=>({...f,purpose:e.target.value}))}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"/></div>
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"/></div>
           <div><label className="block text-xs text-text-muted mb-1">结果备注</label>
             <textarea rows={3} value={recForm.result_note} onChange={e=>setRecForm(f=>({...f,result_note:e.target.value}))}
               placeholder="记录查询结论…"
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none"/></div>
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none"/></div>
           <div>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {TAGS_PRESET.map(t=>(
@@ -543,7 +543,7 @@ export default function ExternalLinksPage() {
               ))}
             </div>
             <input value={recForm.tags} onChange={e=>setRecForm(f=>({...f,tags:e.target.value}))}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"/>
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"/>
           </div>
         </div>
       </Modal>
@@ -575,7 +575,7 @@ export default function ExternalLinksPage() {
               ))}
             </div>
             <input value={favorTags} onChange={e=>setFavorTags(e.target.value)} placeholder="自由输入，逗号分隔"
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"/>
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"/>
           </div>
         </div>
       </Modal>

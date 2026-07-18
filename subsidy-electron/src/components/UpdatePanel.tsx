@@ -117,7 +117,7 @@ export default function UpdatePanel() {
 
   return (
     <div className="bg-white border border-border rounded-card overflow-hidden shadow-card">
-      <div className="px-5 py-3 bg-primary/5 border-b border-primary/10">
+      <div className="px-5 py-3 bg-primary-500/5 border-b border-primary-500/10">
         <span className="font-semibold text-primary text-sm">🔄 软件更新</span>
         {config && <span className="ml-3 text-xs text-text-muted font-mono">v{config.currentVersion}</span>}
       </div>
@@ -131,10 +131,10 @@ export default function UpdatePanel() {
               value={url}
               onChange={e => setUrl(e.target.value)}
               placeholder="http://8.137.8.78:8080/"
-              className="flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono"
+              className="flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 font-mono"
             />
             <button onClick={saveConfig} disabled={saving}
-              className="px-4 py-2 bg-primary-500 text-white text-sm rounded-btn hover:bg-primary/90 disabled:opacity-50 whitespace-nowrap">
+              className="px-4 py-2 bg-primary-500 text-white text-sm rounded-btn hover:bg-primary-500/90 disabled:opacity-50 whitespace-nowrap">
               {saving ? '保存中...' : '保存'}
             </button>
           </div>
@@ -151,7 +151,7 @@ export default function UpdatePanel() {
           </label>
 
           <button onClick={checkForUpdate} disabled={checking || !url.trim()}
-            className="px-4 py-2 bg-primary-500 text-white text-sm rounded-btn hover:bg-primary/90 disabled:opacity-40 transition-all">
+            className="px-4 py-2 bg-primary-500 text-white text-sm rounded-btn hover:bg-primary-500/90 disabled:opacity-40 transition-all">
             {checking ? '检查中...' : '🔍 立即检查更新'}
           </button>
         </div>

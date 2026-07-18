@@ -129,7 +129,7 @@ export default function EligibilityRulePage({ subsidyTypeId, subsidyName }: Prop
           <p className="text-xs text-text-muted mt-0.5">「{subsidyName}」的发放资格条件，导入时自动校验</p>
         </div>
         <button onClick={() => openAdd()}
-          className="px-3 py-1.5 text-sm bg-primary  rounded-btn hover:bg-primary/90">
+          className="px-3 py-1.5 text-sm bg-primary-500  rounded-btn hover:bg-primary-500/90">
           ＋ 新增规则
         </button>
       </div>
@@ -141,7 +141,7 @@ export default function EligibilityRulePage({ subsidyTypeId, subsidyName }: Prop
           <div className="flex flex-wrap gap-2">
             {templates.map(t => (
               <button key={t.name} onClick={() => openAdd(t.preset)}
-                className="text-xs border border-primary/20 text-primary px-3 py-1.5 rounded-btn hover:bg-primary/5">
+                className="text-xs border border-primary-500/20 text-primary px-3 py-1.5 rounded-btn hover:bg-primary-500/5">
                 + {t.name}
               </button>
             ))}
@@ -171,7 +171,7 @@ export default function EligibilityRulePage({ subsidyTypeId, subsidyName }: Prop
                 {r.rule_desc && <p className="text-xs text-text-muted mb-2">{r.rule_desc}</p>}
                 <div className="flex flex-wrap gap-1.5">
                   {ruleDesc(r).map((line, i) => (
-                    <span key={i} className="text-xs bg-primary/5 border border-primary/20 text-primary px-2 py-0.5 rounded">
+                    <span key={i} className="text-xs bg-primary-500/5 border border-primary-500/20 text-primary px-2 py-0.5 rounded">
                       {line}
                     </span>
                   ))}
@@ -204,13 +204,13 @@ export default function EligibilityRulePage({ subsidyTypeId, subsidyName }: Prop
               <label className="block text-xs text-text-muted mb-1">规则名称 *</label>
               <input value={form.rule_name ?? ''} onChange={e => sf('rule_name', e.target.value)}
                 placeholder="如：在册状态检查、高龄条件检查"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div className="col-span-2">
               <label className="block text-xs text-text-muted mb-1">规则说明（给操作员看）</label>
               <input value={form.rule_desc ?? ''} onChange={e => sf('rule_desc', e.target.value)}
                 placeholder="简单描述这条规则的作用"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
           </div>
 
@@ -228,12 +228,12 @@ export default function EligibilityRulePage({ subsidyTypeId, subsidyName }: Prop
               <div>
                 <label className="block text-xs text-text-muted mb-1">最小年龄（岁）</label>
                 <input type="number" value={form.require_age_min ?? ''} onChange={e => sf('require_age_min', e.target.value ? Number(e.target.value) : null)}
-                  placeholder="不限" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  placeholder="不限" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
               </div>
               <div>
                 <label className="block text-xs text-text-muted mb-1">最大年龄（岁）</label>
                 <input type="number" value={form.require_age_max ?? ''} onChange={e => sf('require_age_max', e.target.value ? Number(e.target.value) : null)}
-                  placeholder="不限" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  placeholder="不限" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
               </div>
             </div>
           </div>
@@ -252,12 +252,12 @@ export default function EligibilityRulePage({ subsidyTypeId, subsidyName }: Prop
               <div>
                 <label className="block text-xs text-text-muted mb-1">最小面积（亩）</label>
                 <input type="number" step="0.01" value={form.require_min_area ?? ''} onChange={e => sf('require_min_area', e.target.value ? Number(e.target.value) : null)}
-                  placeholder="不限" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  placeholder="不限" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
               </div>
               <div>
                 <label className="block text-xs text-text-muted mb-1">最大面积（亩）</label>
                 <input type="number" step="0.01" value={form.require_max_area ?? ''} onChange={e => sf('require_max_area', e.target.value ? Number(e.target.value) : null)}
-                  placeholder="不限" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  placeholder="不限" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
               </div>
             </div>
             <div className="flex gap-4 mt-2">

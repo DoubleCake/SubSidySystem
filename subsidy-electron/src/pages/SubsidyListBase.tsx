@@ -382,7 +382,7 @@ export default function SubsidyListBase({
           </div>
           <div className="flex items-center gap-1 flex-1 min-w-[200px] max-w-[300px]">
             <input type="text" value={search} onChange={e => handleSearchChange(e.target.value)} placeholder="姓名/身份证" className="flex-1 border border-border rounded-btn px-2 py-1.5 text-xs outline-none" />
-            <button onClick={() => onSearch ? onSearch() : setPage(1)} className="px-2 py-1 text-xs bg-primary rounded-btn hover:bg-primary/90 text-white">搜索</button>
+            <button onClick={() => onSearch ? onSearch() : setPage(1)} className="px-2 py-1 text-xs bg-primary-500 rounded-btn hover:bg-primary-600 text-white">搜索</button>
           </div>
           <button onClick={clearFilters} className="text-xs text-text-muted hover:text-text-primary border border-border px-2 py-1 rounded" disabled={Object.values(filters).every(v => !v) && !search}>清除</button>
           <button onClick={handleExport} className="text-xs border border-emerald-300 text-emerald-700 px-2.5 py-1 rounded hover:bg-emerald-50 font-medium whitespace-nowrap">导出</button>
@@ -393,7 +393,7 @@ export default function SubsidyListBase({
           <thead>
             <tr className="bg-warm/30 border-b-2 border-border">
               <th className="px-2 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap">
-                <button onClick={toggleSelectAll} className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${apps.length > 0 && selectedIds.length === apps.length ? 'bg-primary/90 border-emerald-600 text-white' : 'border-stone-300 hover:border-emerald-400'}`}>
+                <button onClick={toggleSelectAll} className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${apps.length > 0 && selectedIds.length === apps.length ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-stone-300 hover:border-emerald-400'}`}>
                   {apps.length > 0 && selectedIds.length === apps.length && (
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                   )}
@@ -420,7 +420,7 @@ export default function SubsidyListBase({
             {!loading && apps && apps.map(a => (
               <tr key={a.id} className={`border-b border-border/50 hover:bg-warm/30 ${a.pay_status === 0 ? 'bg-amber-50/30' : ''}`}>
                 <td className="px-2 py-2 text-center">
-                  <button onClick={() => toggleSelect(a.id)} className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${selectedIds.includes(a.id) ? 'bg-primary/90 border-emerald-600 text-white' : 'border-stone-300 hover:border-emerald-400'}`}>
+                  <button onClick={() => toggleSelect(a.id)} className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${selectedIds.includes(a.id) ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-stone-300 hover:border-emerald-400'}`}>
                     {selectedIds.includes(a.id) && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
                   </button>
                 </td>
@@ -449,7 +449,7 @@ export default function SubsidyListBase({
                 <td className="px-2 py-2 text-xs text-text-muted max-w-[120px] truncate" title={a.proxy_remark || ''}>{a.proxy_remark || '—'}</td>
                 <td className="px-2 py-2">
                   <div className="flex gap-1">
-                    <button onClick={() => openEdit(a)} className="text-xs text-text-muted border border-border px-2 py-1 rounded hover:text-primary hover:border-primary/20">编辑</button>
+                    <button onClick={() => openEdit(a)} className="text-xs text-text-muted border border-border px-2 py-1 rounded hover:text-primary hover:border-primary-500/20">编辑</button>
                     <button onClick={() => navigate(`/proxy/application/${a.id}`, { state: { beneficiaryFarmerId: a.farmer_id, beneficiaryFarmerName: a.farmer_name } })} className={`text-xs px-2 py-1 rounded border ${a.is_proxy === 1 ? 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100' : 'text-text-muted border-border hover:text-text-primary hover:border-border'}`}>{a.is_proxy === 1 ? '代领中' : '代领'}</button>
                     <button onClick={() => setDeleteId(a.id)} className="text-xs text-red-400 border border-red-100 px-2 py-1 rounded hover:bg-red-50">删</button>
                   </div>
@@ -473,30 +473,30 @@ export default function SubsidyListBase({
       <Modal open={addOpen} title={`新增 · ${subsidyType.subsidy_name}`} onClose={() => setAddOpen(false)} onConfirm={submitAdd}>
         <div className="space-y-3">
           <div><label className="block text-xs text-text-muted mb-1">农户身份证号 *</label>
-            <input value={idInput} onChange={e => setIdInput(e.target.value)} placeholder="输入身份证号自动查找农户" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            <input value={idInput} onChange={e => setIdInput(e.target.value)} placeholder="输入身份证号自动查找农户" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             {farmerHint && <p className="text-xs mt-1" style={{ color: farmerId ? '#15803d' : '#dc2626' }}>{farmerHint}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             {subsidyType.calc_mode === 'per_mu' && (<>
               <div><label className="block text-xs text-text-muted mb-1">承包地面积(亩)</label>
-                <input type="number" step="0.01" value={form.contract_area ?? ''} onChange={e => { const ca = Number(e.target.value) || undefined; setForm(f => ({ ...f, contract_area: ca, apply_area: (ca || 0) + (f.trust_area || 0) || undefined })) }} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+                <input type="number" step="0.01" value={form.contract_area ?? ''} onChange={e => { const ca = Number(e.target.value) || undefined; setForm(f => ({ ...f, contract_area: ca, apply_area: (ca || 0) + (f.trust_area || 0) || undefined })) }} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
               <div><label className="block text-xs text-text-muted mb-1">代耕代种面积(亩)</label>
-                <input type="number" step="0.01" value={form.trust_area ?? ''} onChange={e => { const ta = Number(e.target.value) || undefined; setForm(f => ({ ...f, trust_area: ta, apply_area: (f.contract_area || 0) + (ta || 0) || undefined })) }} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+                <input type="number" step="0.01" value={form.trust_area ?? ''} onChange={e => { const ta = Number(e.target.value) || undefined; setForm(f => ({ ...f, trust_area: ta, apply_area: (f.contract_area || 0) + (ta || 0) || undefined })) }} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
               <div className="col-span-2 grid grid-cols-2 gap-3">
                 <div><label className="block text-xs text-text-muted mb-1">计入超限计算的补贴面积(亩) <span className="text-text-muted/50">— 可手动填写</span></label>
-                  <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+                  <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
                 <div><label className="block text-xs text-text-muted mb-1">不计入超限计算的补贴面积(亩)</label>
-                  <input type="number" step="0.01" value={(form as any).apply_area_no_calc ?? ''} onChange={e => setForm(f => ({ ...f, apply_area_no_calc: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+                  <input type="number" step="0.01" value={(form as any).apply_area_no_calc ?? ''} onChange={e => setForm(f => ({ ...f, apply_area_no_calc: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
               </div>
             </>)}
             <div><label className="block text-xs text-text-muted mb-1">不予补贴面积(亩)</label>
-              <input type="number" step="0.01" value={form.no_subsidy_area ?? ''} onChange={e => setForm(f => ({ ...f, no_subsidy_area: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+              <input type="number" step="0.01" value={form.no_subsidy_area ?? ''} onChange={e => setForm(f => ({ ...f, no_subsidy_area: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
             <div><label className="block text-xs text-text-muted mb-1">实发金额(元)</label>
-              <input type="number" step="0.01" value={form.actual_amount ?? ''} onChange={e => setForm(f => ({ ...f, actual_amount: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+              <input type="number" step="0.01" value={form.actual_amount ?? ''} onChange={e => setForm(f => ({ ...f, actual_amount: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
             <div><label className="block text-xs text-text-muted mb-1">打款日期</label>
-              <input type="date" value={form.pay_date ?? ''} onChange={e => setForm(f => ({ ...f, pay_date: e.target.value || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+              <input type="date" value={form.pay_date ?? ''} onChange={e => setForm(f => ({ ...f, pay_date: e.target.value || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
             <div><label className="block text-xs text-text-muted mb-1">备注</label>
-              <input value={form.remark ?? ''} onChange={e => setForm(f => ({ ...f, remark: e.target.value || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+              <input value={form.remark ?? ''} onChange={e => setForm(f => ({ ...f, remark: e.target.value || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
             {config.renderAddFields?.()}
           </div>
         </div>
@@ -507,29 +507,29 @@ export default function SubsidyListBase({
         <div className="grid grid-cols-2 gap-3">
           {subsidyType.calc_mode === 'per_mu' && (<>
             <div><label className="block text-xs text-text-muted mb-1">承包地面积(亩)</label>
-              <input type="number" step="0.01" value={form.contract_area ?? ''} onChange={e => { const ca = Number(e.target.value) || undefined; setForm(f => ({ ...f, contract_area: ca, apply_area: (ca || 0) + (f.trust_area || 0) || undefined })) }} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+              <input type="number" step="0.01" value={form.contract_area ?? ''} onChange={e => { const ca = Number(e.target.value) || undefined; setForm(f => ({ ...f, contract_area: ca, apply_area: (ca || 0) + (f.trust_area || 0) || undefined })) }} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
             <div><label className="block text-xs text-text-muted mb-1">代耕代种面积(亩)</label>
-              <input type="number" step="0.01" value={form.trust_area ?? ''} onChange={e => { const ta = Number(e.target.value) || undefined; setForm(f => ({ ...f, trust_area: ta, apply_area: (f.contract_area || 0) + (ta || 0) || undefined })) }} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+              <input type="number" step="0.01" value={form.trust_area ?? ''} onChange={e => { const ta = Number(e.target.value) || undefined; setForm(f => ({ ...f, trust_area: ta, apply_area: (f.contract_area || 0) + (ta || 0) || undefined })) }} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
             <div className="col-span-2 grid grid-cols-2 gap-3">
               <div><label className="block text-xs text-text-muted mb-1">计入超限计算的补贴面积(亩) <span className="text-text-muted/50">— 可手动填写</span></label>
-                <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+                <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
               <div><label className="block text-xs text-text-muted mb-1">不计入超限计算的补贴面积(亩)</label>
-                <input type="number" step="0.01" value={(form as any).apply_area_no_calc ?? ''} onChange={e => setForm(f => ({ ...f, apply_area_no_calc: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+                <input type="number" step="0.01" value={(form as any).apply_area_no_calc ?? ''} onChange={e => setForm(f => ({ ...f, apply_area_no_calc: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
             </div>
           </>)}
           <div><label className="block text-xs text-text-muted mb-1">不予补贴面积(亩)</label>
-            <input type="number" step="0.01" value={form.no_subsidy_area ?? ''} onChange={e => setForm(f => ({ ...f, no_subsidy_area: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+            <input type="number" step="0.01" value={form.no_subsidy_area ?? ''} onChange={e => setForm(f => ({ ...f, no_subsidy_area: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
           <div><label className="block text-xs text-text-muted mb-1">实发金额(元)</label>
-            <input type="number" step="0.01" value={form.actual_amount ?? ''} onChange={e => setForm(f => ({ ...f, actual_amount: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+            <input type="number" step="0.01" value={form.actual_amount ?? ''} onChange={e => setForm(f => ({ ...f, actual_amount: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
           <div><label className="block text-xs text-text-muted mb-1">发放状态</label>
             <select value={form.pay_status ?? 0} onChange={e => setForm(f => ({ ...f, pay_status: Number(e.target.value) }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
               <option value={0}>待发放</option><option value={1}>部分发放</option><option value={2}>已发放</option></select></div>
           <div><label className="block text-xs text-text-muted mb-1">打款日期</label>
-            <input type="date" value={form.pay_date ?? ''} onChange={e => setForm(f => ({ ...f, pay_date: e.target.value || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+            <input type="date" value={form.pay_date ?? ''} onChange={e => setForm(f => ({ ...f, pay_date: e.target.value || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
           <div className="col-span-2"><label className="block text-xs text-text-muted mb-1">备注</label>
-            <input value={form.remark ?? ''} onChange={e => setForm(f => ({ ...f, remark: e.target.value || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+            <input value={form.remark ?? ''} onChange={e => setForm(f => ({ ...f, remark: e.target.value || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
           <div className="col-span-2"><label className="block text-xs text-text-muted mb-1">代领备注</label>
-            <input value={form.proxy_remark ?? ''} onChange={e => setForm(f => ({ ...f, proxy_remark: e.target.value || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+            <input value={form.proxy_remark ?? ''} onChange={e => setForm(f => ({ ...f, proxy_remark: e.target.value || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
           {config.renderEditFields?.()}
         </div>
       </Modal>

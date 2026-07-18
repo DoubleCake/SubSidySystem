@@ -194,7 +194,7 @@ export default function ExcelTemplatePage() {
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id as typeof tab)}
             className={`flex items-center gap-1.5 px-4 py-2 text-sm rounded-btn border transition-colors
-              ${tab === t.id ? 'bg-primary  border-emerald-700' : 'bg-white border-border text-text-primary hover:border-border'}`}>
+              ${tab === t.id ? 'bg-primary-500  border-emerald-700' : 'bg-white border-border text-text-primary hover:border-border'}`}>
             {t.label}
             {t.count !== null && <span className={`text-xs px-1.5 py-0.5 rounded font-mono ${tab===t.id?'bg-white/20 ':'bg-warm/30 text-text-muted'}`}>{t.count}</span>}
           </button>
@@ -259,7 +259,7 @@ export default function ExcelTemplatePage() {
               <div className="bg-white border border-border rounded-card p-6 mb-4 shadow-card">
                 <h3 className="font-semibold text-text-primary mb-3">上传 Excel 文件进行列名识别</h3>
                 <div
-                  className="border-2 border-dashed border-border rounded-card p-10 text-center cursor-pointer hover:border-primary/30 hover:bg-primary/5/30 transition-colors"
+                  className="border-2 border-dashed border-border rounded-card p-10 text-center cursor-pointer hover:border-primary-500/30 hover:bg-primary-500/5/30 transition-colors"
                   onClick={() => document.getElementById('detect-file')?.click()}>
                   <div className="text-4xl mb-3">📊</div>
                   <p className="text-text-muted text-sm">拖拽或点击选择 Excel 文件</p>
@@ -297,7 +297,7 @@ export default function ExcelTemplatePage() {
                       {aiLoading ? '🤖 AI识别中…' : '🤖 AI辅助识别'}
                     </button>
                     <button onClick={() => setSaveOpen(true)}
-                      className="text-xs bg-primary  px-3 py-1.5 rounded-btn hover:bg-primary/90">
+                      className="text-xs bg-primary-500  px-3 py-1.5 rounded-btn hover:bg-primary-500/90">
                       💾 保存为模板
                     </button>
                     <button onClick={() => { setDetectResult(null); setMappings([]); setDetectFile(null) }}
@@ -340,7 +340,7 @@ export default function ExcelTemplatePage() {
                   const detected = detectResult.columns.find(c => c.excel_column === m.excel_column)
                   return (
                     <div key={idx} className={`px-4 py-3 border-b border-border/50 grid grid-cols-[220px_1fr_160px_80px] gap-4 items-center
-                      ${!m.system_field ? 'bg-amber-50/30' : m.auto_confirm ? 'bg-primary/5/20' : ''}`}>
+                      ${!m.system_field ? 'bg-amber-50/30' : m.auto_confirm ? 'bg-primary-500/5/20' : ''}`}>
                       <div>
                         <span className="text-sm font-semibold text-text-primary">{m.excel_column}</span>
                         {m.confidence !== undefined && m.confidence > 0 && (
@@ -357,7 +357,7 @@ export default function ExcelTemplatePage() {
                         value={m.system_field || ''}
                         onChange={e => setMappings(prev => prev.map((p,i) => i===idx ? {...p, system_field: e.target.value||null, auto_confirm: true} : p))}
                         className={`border rounded-btn px-2 py-1 text-sm outline-none bg-white
-                          ${m.system_field ? 'border-primary/30 text-primary' : 'border-amber-300 text-amber-600'}`}>
+                          ${m.system_field ? 'border-primary-500/30 text-primary' : 'border-amber-300 text-amber-600'}`}>
                         <option value="">— 忽略此列 —</option>
                         {systemFields.map(f => (
                           <option key={f.field} value={f.field}>
@@ -423,20 +423,20 @@ export default function ExcelTemplatePage() {
       {/* 保存模板弹窗 */}
       <Modal open={saveOpen} title="保存列映射模板" onClose={() => setSaveOpen(false)} onConfirm={saveTemplate}>
         <div className="space-y-3">
-          <div className="bg-primary/5 border border-primary/10 rounded-card p-3 text-xs text-primary">
+          <div className="bg-primary-500/5 border border-primary-500/10 rounded-card p-3 text-xs text-primary">
             将保存 {confirmed} 列的映射关系。下次相同格式的 Excel 可直接复用此模板。
           </div>
           <div><label className="block text-xs text-text-muted mb-1">模板名称 *</label>
             <input value={saveForm.name} onChange={e=>setSaveForm(f=>({...f,name:e.target.value}))}
               placeholder="如：红星村粮食直补导入模板"
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"/></div>
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"/></div>
           <div className="grid grid-cols-3 gap-2">
             <div><label className="block text-xs text-text-muted mb-1">适用年度</label>
               <input value={saveForm.year} onChange={e=>setSaveForm(f=>({...f,year:e.target.value}))} placeholder="如2025"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"/></div>
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"/></div>
             <div><label className="block text-xs text-text-muted mb-1">适用村组</label>
               <input value={saveForm.region} onChange={e=>setSaveForm(f=>({...f,region:e.target.value}))} placeholder="如红星村"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"/></div>
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"/></div>
             <div><label className="block text-xs text-text-muted mb-1">业务类型</label>
               <select value={saveForm.btype} onChange={e=>setSaveForm(f=>({...f,btype:e.target.value}))}
                 className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">

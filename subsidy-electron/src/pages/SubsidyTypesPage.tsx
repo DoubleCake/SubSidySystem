@@ -73,12 +73,12 @@ export default function SubsidyTypesPage() {
           {years.slice(0, 4).map(y => (
             <button key={y} onClick={() => setYearFilter(y)}
               className={`px-3 py-1.5 text-sm rounded-btn border transition-colors
-                ${yearFilter === y ? 'bg-primary text-white border-emerald-700' : 'bg-white border-border text-text-primary hover:border-border'}`}>
+                ${yearFilter === y ? 'bg-primary-500 text-white border-emerald-700' : 'bg-white border-border text-text-primary hover:border-border'}`}>
               {y}年
             </button>
           ))}
         </div>
-        <button onClick={openAdd} className="ml-auto px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">＋ 新增补贴类型</button>
+        <button onClick={openAdd} className="ml-auto px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary-500/90">＋ 新增补贴类型</button>
       </div>
 
       {/* 说明卡片 */}
@@ -119,7 +119,7 @@ export default function SubsidyTypesPage() {
                 </div>
                 {t.description && <p className="text-xs text-text-muted mt-2">{t.description}</p>}
               </div>
-              <button onClick={() => openEdit(t)} className="text-xs text-text-muted border border-border px-3 py-1.5 rounded-btn hover:text-primary hover:border-primary/20 shrink-0">编辑</button>
+              <button onClick={() => openEdit(t)} className="text-xs text-text-muted border border-border px-3 py-1.5 rounded-btn hover:text-primary hover:border-primary-500/20 shrink-0">编辑</button>
             </div>
           </div>
         ))}
@@ -138,7 +138,7 @@ export default function SubsidyTypesPage() {
               ].map(opt => (
                 <div key={opt.val} onClick={() => setForm(f => ({ ...f, calc_mode: opt.val as 'fixed' | 'per_mu' }))}
                   className={`border-2 rounded-card p-3 cursor-pointer transition-colors
-                    ${form.calc_mode === opt.val ? 'border-primary bg-primary/5' : 'border-border hover:border-border'}`}>
+                    ${form.calc_mode === opt.val ? 'border-primary-500 bg-primary-500/5' : 'border-border hover:border-border'}`}>
                   <div className="text-xl mb-1">{opt.icon}</div>
                   <div className="font-semibold text-sm text-text-primary">{opt.title}</div>
                   <div className="text-xs text-text-muted mt-0.5">{opt.desc}</div>
@@ -152,7 +152,7 @@ export default function SubsidyTypesPage() {
               <label className="block text-xs text-text-muted mb-1">补贴名称 *</label>
               <input value={form.subsidy_name ?? ''} onChange={e => setForm(f => ({ ...f, subsidy_name: e.target.value }))}
                 placeholder="如：粮食直补、农机购置补贴"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">补贴年度 *</label>
@@ -167,7 +167,7 @@ export default function SubsidyTypesPage() {
               </label>
               <input type="number" step="0.01" value={form.standard_amount ?? ''} onChange={e => setForm(f => ({ ...f, standard_amount: Number(e.target.value) || undefined }))}
                 placeholder={form.calc_mode === 'per_mu' ? '每亩多少元' : '每户/人多少元'}
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             {form.calc_mode === 'fixed' && (
               <div>
@@ -189,13 +189,13 @@ export default function SubsidyTypesPage() {
             <div>
               <label className="block text-xs text-text-muted mb-1">申请截止日期</label>
               <input type="date" value={form.apply_deadline ?? ''} onChange={e => setForm(f => ({ ...f, apply_deadline: e.target.value || undefined }))}
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div className="col-span-2">
               <label className="block text-xs text-text-muted mb-1">补贴说明 / 政策依据</label>
               <textarea rows={2} value={form.description ?? ''} onChange={e => setForm(f => ({ ...f, description: e.target.value || undefined }))}
                 placeholder="可填写政策文件编号或补贴说明"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" />
             </div>
           </div>
         </div>

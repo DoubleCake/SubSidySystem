@@ -41,7 +41,7 @@ export default function HouseholdList({
           </div>
           {mergeSelectedHouseholds.map((h, i) => (
             <div key={`pinned-${h.id}`} className="px-4 py-2.5 border-b border-orange-tag/10 flex items-center gap-2.5 bg-orange-tag/5">
-              <span className={`text-xs font-bold px-1.5 py-0.5 rounded shrink-0 ${i === 0 ? 'bg-primary text-white' : 'bg-orange-tag/15 text-amber-800'}`}>
+              <span className={`text-xs font-bold px-1.5 py-0.5 rounded shrink-0 ${i === 0 ? 'bg-primary-500 text-white' : 'bg-orange-tag/15 text-amber-800'}`}>
                 {i === 0 ? '目标' : `被合并${i}`}
               </span>
               <div className="flex-1 min-w-0">
@@ -76,8 +76,8 @@ export default function HouseholdList({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2.5 mb-1.5">
                     <span className="font-semibold text-base text-text-primary">{h.household_name}</span>
-                    <span className="text-xs font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20">{h.household_code}</span>
-                    {h.is_manually_confirmed === 1 && <span className="text-xs text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full">✓已确认</span>}
+                    <span className="text-xs font-mono text-primary bg-primary-500/5 px-2 py-0.5 rounded border border-primary-500/20">{h.household_code}</span>
+                    {h.is_manually_confirmed === 1 && <span className="text-xs text-primary font-medium bg-primary-500/10 px-2 py-0.5 rounded-full">✓已确认</span>}
                     {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
                   </div>
                   <div className="flex items-center gap-4 text-xs text-text-muted">
@@ -104,8 +104,8 @@ export default function HouseholdList({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2.5 mb-1.5">
                     <span className="font-semibold text-base text-text-primary">{h.household_name}</span>
-                    <span className="text-xs font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20">{h.household_code}</span>
-                    {h.is_manually_confirmed === 1 && <span className="text-xs text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full">✓已确认</span>}
+                    <span className="text-xs font-mono text-primary bg-primary-500/5 px-2 py-0.5 rounded border border-primary-500/20">{h.household_code}</span>
+                    {h.is_manually_confirmed === 1 && <span className="text-xs text-primary font-medium bg-primary-500/10 px-2 py-0.5 rounded-full">✓已确认</span>}
                     {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
                   </div>
                   <div className="flex items-center gap-4 text-xs text-text-muted">
@@ -123,7 +123,7 @@ export default function HouseholdList({
           <div key={h.id}
             onClick={() => onSelect(h.id)}
             className={`px-5 py-4 border-b border-border/50 cursor-pointer transition-all hover:bg-warm/30
-              ${selectedId === h.id ? 'border-l-4 border-l-primary' : ''}
+              ${selectedId === h.id ? 'border-l-4 border-l-primary-500' : ''}
               ${h.is_overdrawn ? 'bg-red-50/40' : ''}`}
             style={selectedId === h.id ? {
               backgroundImage: 'url(images/focus.png)',
@@ -132,8 +132,8 @@ export default function HouseholdList({
             } : undefined}>
             <div className="flex items-center gap-2.5 mb-1.5">
               <span className="font-semibold text-base text-text-primary">{h.household_name}</span>
-              <span className="text-xs font-mono text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/20">{h.household_code}</span>
-              {h.is_manually_confirmed === 1 && <span className="text-xs text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full">✓已确认</span>}
+              <span className="text-xs font-mono text-primary bg-primary-500/5 px-2 py-0.5 rounded border border-primary-500/20">{h.household_code}</span>
+              {h.is_manually_confirmed === 1 && <span className="text-xs text-primary font-medium bg-primary-500/10 px-2 py-0.5 rounded-full">✓已确认</span>}
               {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
             </div>
             <div className="flex items-center gap-4 text-xs text-text-muted">

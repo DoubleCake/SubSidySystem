@@ -108,7 +108,7 @@ export function SummaryPage() {
                 <td className="px-4 py-2.5 w-48">
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-warm/30 rounded-full h-1.5 overflow-hidden">
-                      <div className="bg-primary/50 h-full rounded-full"
+                      <div className="bg-primary-500/50 h-full rounded-full"
                         style={{ width: `${totalAll ? Math.round(v.total_amount / totalAll * 100) : 0}%` }} />
                     </div>
                     <span className="text-xs font-mono text-text-muted w-8">{totalAll ? Math.round(v.total_amount / totalAll * 100) : 0}%</span>
@@ -172,13 +172,13 @@ export function AIPage() {
           <div>
             <label className="block text-xs text-text-muted mb-1">分析问题</label>
             <textarea rows={5} value={question} onChange={e => setQuestion(e.target.value)}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" />
           </div>
           <div className="bg-amber-50 border border-amber-100 rounded-btn p-3 text-xs text-amber-700 leading-relaxed">
             ⚠️ 发送前自动脱敏：身份证保留前6后4 · 手机保留前3后4 · 银行卡仅保留后4位
           </div>
           <button onClick={run} disabled={loading}
-            className="w-full py-2 bg-primary text-white rounded-btn text-sm hover:bg-primary/90 disabled:opacity-60 transition-colors">
+            className="w-full py-2 bg-primary-500 text-white rounded-btn text-sm hover:bg-primary-500/90 disabled:opacity-60 transition-colors">
             {loading ? '分析中…' : '发送给 AI 分析'}
           </button>
         </div>
@@ -202,7 +202,7 @@ export function AIPage() {
           )}
           {!loading && !result && <div className="text-center py-16 text-text-muted/50 text-sm">点击左侧"发送给 AI 分析"开始</div>}
           {result && (
-            <pre className="whitespace-pre-wrap text-sm text-text-primary leading-relaxed font-sans bg-primary/5/50 border border-primary/10 rounded-card p-5">{result}</pre>
+            <pre className="whitespace-pre-wrap text-sm text-text-primary leading-relaxed font-sans bg-primary-500/5/50 border border-primary-500/10 rounded-card p-5">{result}</pre>
           )}
         </div>
       </div>

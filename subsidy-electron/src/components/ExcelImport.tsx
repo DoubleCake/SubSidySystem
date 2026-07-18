@@ -121,7 +121,7 @@ export default function ExcelImport({ open, onClose, title, templateHeaders, tem
               <div className={`flex items-center gap-1.5 text-xs font-medium transition-colors
                 ${isCur ? 'text-primary' : isPast ? 'text-text-muted' : 'text-text-muted/50'}`}>
                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs transition-colors
-                  ${isCur ? 'bg-primary ' : isPast ? 'bg-emerald-100 text-primary' : 'bg-warm/30 text-text-muted/50'}`}>
+                  ${isCur ? 'bg-primary-500 ' : isPast ? 'bg-emerald-100 text-primary' : 'bg-warm/30 text-text-muted/50'}`}>
                   {isPast ? '✓' : i + 1}
                 </div>
                 {s.label}
@@ -137,7 +137,7 @@ export default function ExcelImport({ open, onClose, title, templateHeaders, tem
           <div className="flex justify-between items-center mb-3">
             <p className="text-sm text-text-muted">请按模板格式准备 Excel 文件（.xlsx / .xls）</p>
             <button onClick={downloadTemplate}
-              className="text-xs text-primary border border-primary/20 px-3 py-1.5 rounded-btn hover:bg-primary/5 flex items-center gap-1">
+              className="text-xs text-primary border border-primary-500/20 px-3 py-1.5 rounded-btn hover:bg-primary-500/5 flex items-center gap-1">
               ↓ 下载模板
             </button>
           </div>
@@ -146,7 +146,7 @@ export default function ExcelImport({ open, onClose, title, templateHeaders, tem
             <div className="flex flex-wrap gap-1.5">
               {templateHeaders.map(h => (
                 <span key={h} className={`text-xs border px-2 py-0.5 rounded font-mono
-                  ${h.includes('*') ? 'bg-primary/5 border-primary/20 text-primary' : 'bg-white border-border text-text-muted'}`}>
+                  ${h.includes('*') ? 'bg-primary-500/5 border-primary-500/20 text-primary' : 'bg-white border-border text-text-muted'}`}>
                   {h}
                 </span>
               ))}
@@ -154,7 +154,7 @@ export default function ExcelImport({ open, onClose, title, templateHeaders, tem
           </div>
           <div
             className={`border-2 border-dashed rounded-card p-10 text-center cursor-pointer transition-colors
-              ${dragOver ? 'border-emerald-400 bg-primary/5' : 'border-border hover:border-border hover:bg-warm/30'}`}
+              ${dragOver ? 'border-emerald-400 bg-primary-500/5' : 'border-border hover:border-border hover:bg-warm/30'}`}
             onDragOver={e => { e.preventDefault(); setDragOver(true) }}
             onDragLeave={() => setDragOver(false)}
             onDrop={onDrop}
@@ -235,7 +235,7 @@ export default function ExcelImport({ open, onClose, title, templateHeaders, tem
             ].map(stage => (
               <div key={stage.label} className={`text-center py-2 rounded-btn text-xs transition-colors
                 ${progress >= stage.threshold
-                  ? 'bg-primary/5 text-primary border border-primary/20'
+                  ? 'bg-primary-500/5 text-primary border border-primary-500/20'
                   : 'bg-warm/30 text-text-muted/50 border border-border/50'}`}>
                 {progress >= stage.threshold ? '✓ ' : ''}{stage.label}
               </div>
@@ -249,7 +249,7 @@ export default function ExcelImport({ open, onClose, title, templateHeaders, tem
         <div className="text-center py-4">
           <div className="text-5xl mb-4">{result.errors.length === 0 ? '✅' : '⚠️'}</div>
           <div className="grid grid-cols-3 gap-4 mb-5">
-            <div className="bg-primary/5 border border-primary/10 rounded-card p-4">
+            <div className="bg-primary-500/5 border border-primary-500/10 rounded-card p-4">
               <div className="text-2xl font-bold text-primary">{result.created}</div>
               <div className="text-xs text-text-muted mt-1">成功导入</div>
             </div>
@@ -270,7 +270,7 @@ export default function ExcelImport({ open, onClose, title, templateHeaders, tem
               ))}
             </div>
           )}
-          <button onClick={handleClose} className="px-6 py-2 bg-primary  rounded-btn text-sm hover:bg-primary/90">
+          <button onClick={handleClose} className="px-6 py-2 bg-primary-500  rounded-btn text-sm hover:bg-primary-500/90">
             完成
           </button>
         </div>

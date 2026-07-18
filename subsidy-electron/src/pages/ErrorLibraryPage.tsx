@@ -212,19 +212,19 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
       {/* 工具栏 */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
-          placeholder="搜索姓名或身份证…" className="border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary w-56" />
+          placeholder="搜索姓名或身份证…" className="border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 w-56" />
         <select value={filterType} onChange={e => { setFilterType(e.target.value); setPage(1) }}
-          className="border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary">
+          className="border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500">
           <option value="">全部类型</option>
           {ERROR_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <select value={filterVillage} onChange={e => { setFilterVillage(e.target.value); setPage(1) }}
-          className="border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary">
+          className="border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500">
           <option value="">全部村</option>
           {filterOptions.villages.map(v => <option key={v} value={v}>{v}</option>)}
         </select>
         <select value={filterSubsidy} onChange={e => { setFilterSubsidy(e.target.value); setPage(1) }}
-          className="border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary">
+          className="border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500">
           <option value="">全部补贴分类</option>
           {filterOptions.subsidies.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
@@ -236,11 +236,11 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
           </button>
         )}
         <button onClick={() => setImportOpen(true)}
-          className="px-3 py-2 text-sm border border-primary/20 text-primary rounded-btn hover:bg-primary/5">
+          className="px-3 py-2 text-sm border border-primary-500/20 text-primary rounded-btn hover:bg-primary-500/5">
           Excel导入
         </button>
         <button onClick={openAdd}
-          className="px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
+          className="px-3 py-2 text-sm bg-primary-500  rounded-btn hover:bg-primary-500/90">
           ＋ 新增
         </button>
       </div>
@@ -254,7 +254,7 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
                 <button onClick={toggleSelectAll}
                   className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
                     items.length > 0 && selectedIds.length === items.length
-                      ? 'bg-primary/90 border-primary/90 ' : 'border-stone-300 hover:border-emerald-400'
+                      ? 'bg-primary-500/90 border-primary-500/90 ' : 'border-stone-300 hover:border-emerald-400'
                   }`}>
                   {items.length > 0 && selectedIds.length === items.length && (
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
@@ -287,7 +287,7 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
                   <button onClick={() => toggleSelect(item.id)}
                     className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
                       selectedIds.includes(item.id)
-                        ? 'bg-primary/90 border-primary/90 ' : 'border-stone-300 hover:border-emerald-400'
+                        ? 'bg-primary-500/90 border-primary-500/90 ' : 'border-stone-300 hover:border-emerald-400'
                     }`}>
                     {selectedIds.includes(item.id) && (
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
@@ -343,19 +343,19 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
             <div>
               <label className="block text-xs text-text-muted mb-1">姓名 *</label>
               <input value={form.real_name} onChange={e => setForm(f => ({ ...f, real_name: e.target.value }))}
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">身份证号 *</label>
               <input value={form.id_card} onChange={e => setForm(f => ({ ...f, id_card: e.target.value }))}
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 font-mono" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-text-muted mb-1">错误类型 *</label>
               <select value={form.error_type} onChange={e => setForm(f => ({ ...f, error_type: e.target.value }))}
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary">
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500">
                 <option value="">请选择</option>
                 {ERROR_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -363,7 +363,7 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
             <div>
               <label className="block text-xs text-text-muted mb-1">来源</label>
               <select value={form.source} onChange={e => setForm(f => ({ ...f, source: e.target.value }))}
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary">
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500">
                 {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
@@ -372,34 +372,34 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
             <div>
               <label className="block text-xs text-text-muted mb-1">所在村</label>
               <input value={form.village_name || ''} onChange={e => setForm(f => ({ ...f, village_name: e.target.value }))}
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">所在组</label>
               <input value={form.group_no || ''} onChange={e => setForm(f => ({ ...f, group_no: e.target.value }))}
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">补贴分类</label>
               <input value={form.subsidy_name || ''} onChange={e => setForm(f => ({ ...f, subsidy_name: e.target.value }))}
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
           </div>
           <div>
             <label className="block text-xs text-text-muted mb-1">错误原因 *</label>
             <textarea rows={3} value={form.error_reason} onChange={e => setForm(f => ({ ...f, error_reason: e.target.value }))}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-text-muted mb-1">发现日期</label>
               <input type="date" value={form.discovered_date || ''} onChange={e => setForm(f => ({ ...f, discovered_date: e.target.value }))}
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">备注</label>
               <input value={form.remark || ''} onChange={e => setForm(f => ({ ...f, remark: e.target.value }))}
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
           </div>
         </div>

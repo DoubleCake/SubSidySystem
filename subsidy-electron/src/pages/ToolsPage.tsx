@@ -86,7 +86,7 @@ export default function ToolsPage() {
             key={tool.path}
             onClick={() => navigate(tool.path)}
             className="bg-white rounded-card border border-border p-5 cursor-pointer
-                       hover:shadow-card hover:border-primary/30 hover:-translate-y-0.5
+                       hover:shadow-card hover:border-primary-500/30 hover:-translate-y-0.5
                        transition-all duration-200 group"
           >
             {/* 图标 */}

@@ -219,7 +219,7 @@ export default function AgriTaskPage() {
           {(meta?.statuses || []).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
         <button onClick={() => setShowCreate(true)}
-          className="ml-auto bg-primary/90 hover:bg-primary  text-sm px-4 py-1.5 rounded-btn">
+          className="ml-auto bg-primary-500/90 hover:bg-primary-500  text-sm px-4 py-1.5 rounded-btn">
           + 新建任务
         </button>
       </div>
@@ -279,7 +279,7 @@ export default function AgriTaskPage() {
         <div className="flex justify-center gap-2 mt-4">
           {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
             <button key={p} onClick={() => setPage(p)}
-              className={`w-8 h-8 text-sm rounded ${p === page ? 'bg-primary/90 ' : 'bg-white border border-border text-text-primary hover:border-primary/30'}`}>
+              className={`w-8 h-8 text-sm rounded ${p === page ? 'bg-primary-500/90 ' : 'bg-white border border-border text-text-primary hover:border-primary-500/30'}`}>
               {p}
             </button>
           ))}
@@ -294,7 +294,7 @@ export default function AgriTaskPage() {
             <label className="block text-xs text-text-muted mb-1">任务名称 *</label>
             <input value={form.task_name} onChange={e => setForm(f => ({ ...f, task_name: e.target.value }))}
               placeholder="如：2026年水稻种植任务"
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
           </div>
           <div>
             <label className="block text-xs text-text-muted mb-1">作物类型 *</label>
@@ -307,7 +307,7 @@ export default function AgriTaskPage() {
             <label className="block text-xs text-text-muted mb-1">总面积（亩）*</label>
             <input type="number" min="0" step="0.01" value={form.total_area}
               onChange={e => setForm(f => ({ ...f, total_area: e.target.value }))}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
           </div>
           <div>
             <label className="block text-xs text-text-muted mb-1">年度 *</label>
@@ -329,7 +329,7 @@ export default function AgriTaskPage() {
             <div className="grid grid-cols-2 gap-2">
               {(meta?.alloc_methods || []).map(m => (
                 <label key={m.value} className={`flex items-center gap-2 px-3 py-2 rounded-btn border cursor-pointer text-sm transition-colors
-                  ${form.alloc_method === m.value ? 'border-emerald-400 bg-primary/5 text-primary' : 'border-border hover:border-border'}`}>
+                  ${form.alloc_method === m.value ? 'border-emerald-400 bg-primary-500/5 text-primary' : 'border-border hover:border-border'}`}>
                   <input type="radio" name="alloc_method" value={m.value}
                     checked={form.alloc_method === m.value}
                     onChange={() => setForm(f => ({ ...f, alloc_method: m.value }))}
@@ -349,7 +349,7 @@ export default function AgriTaskPage() {
           <div className="col-span-2">
             <label className="block text-xs text-text-muted mb-1">任务说明</label>
             <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              rows={2} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
+              rows={2} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" />
           </div>
         </div>
       </Modal>
@@ -470,13 +470,13 @@ export default function AgriTaskPage() {
                 <button onClick={() => { setShowDetail(false); handlePreview(detail.id) }}
                   className="px-3 py-1.5 text-sm text-amber-600 border border-amber-200 rounded-btn hover:bg-amber-50">预览分配</button>
                 <button onClick={() => handleIssue(detail.id)}
-                  className="px-3 py-1.5 text-sm bg-primary/90  rounded-btn hover:bg-primary">下达任务</button>
+                  className="px-3 py-1.5 text-sm bg-primary-500/90  rounded-btn hover:bg-primary-500">下达任务</button>
               </>}
               {detail.status === 'ISSUED' && <>
                 <button onClick={() => handleRevoke(detail.id)}
                   className="px-3 py-1.5 text-sm text-text-muted border border-border rounded-btn hover:bg-warm/30">撤回</button>
                 <button onClick={() => handleDone(detail.id)}
-                  className="px-3 py-1.5 text-sm bg-primary/90  rounded-btn hover:bg-primary">标记完成</button>
+                  className="px-3 py-1.5 text-sm bg-primary-500/90  rounded-btn hover:bg-primary-500">标记完成</button>
               </>}
             </div>
           </div>

@@ -388,7 +388,7 @@ export default function LandTrustPage() {
               📥 批量导入撂荒地
             </button>
             <button onClick={openAdd}
-              className="px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
+              className="px-3 py-2 text-sm bg-primary-500  rounded-btn hover:bg-primary-500/90">
               ＋ 新增流转记录
             </button>
           </div>
@@ -524,7 +524,7 @@ export default function LandTrustPage() {
           <div className="relative mb-3">
             <input value={hhSearch} onChange={e => setHhSearch(e.target.value)}
               placeholder="输入户名、户主姓名搜索…"
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             {hhSearch.length > 0 && hhOpts.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-10 max-h-48 overflow-y-auto">
                 {hhOpts.map(h => (
@@ -585,7 +585,7 @@ export default function LandTrustPage() {
                     )}
                   </>
                 )}
-                <div className={`flex justify-between items-center py-2 rounded-btn px-2 ${summary.is_overdrawn ? 'bg-red-50' : 'bg-primary/5'}`}>
+                <div className={`flex justify-between items-center py-2 rounded-btn px-2 ${summary.is_overdrawn ? 'bg-red-50' : 'bg-primary-500/5'}`}>
                   <span className="text-xs font-semibold text-text-primary">可耕种面积（超领基准）</span>
                   <span className={`text-sm font-mono font-bold ${summary.is_overdrawn ? 'text-red-700' : 'text-primary'}`}>
                     {summary.cultivable_area}亩
@@ -653,7 +653,7 @@ export default function LandTrustPage() {
               {TRUST_TYPE_OPTS.map(o => (
                 <div key={o.val} onClick={() => sf('trust_type', o.val)}
                   className={`border-2 rounded-card p-2 cursor-pointer transition-colors text-center
-                    ${form.trust_type === o.val ? 'border-primary bg-primary/5' : 'border-border hover:border-border'}`}>
+                    ${form.trust_type === o.val ? 'border-primary-500 bg-primary-500/5' : 'border-border hover:border-border'}`}>
                   <div className="text-lg mb-0.5">{o.icon}</div>
                   <div className="text-xs font-semibold">{o.label}</div>
                   <div className="text-xs text-text-muted leading-tight mt-0.5 hidden xl:block">{o.desc}</div>
@@ -675,7 +675,7 @@ export default function LandTrustPage() {
                 <button key={o.val}
                   onClick={() => { sf('owner_type', o.val); sf('owner_household_id', null); sf('owner_entity_id', null); sf('owner_id_card', ''); setOwnerSearch(''); setOwnerVillageSearch(''); setOwnerOpts([]); setOwnerVillageOpts([]) }}
                   className={`px-2.5 py-1 text-xs rounded-btn transition-colors
-                    ${form.owner_type === o.val ? 'bg-primary ' : 'bg-white text-text-muted border border-border hover:border-primary/40'}`}>
+                    ${form.owner_type === o.val ? 'bg-primary-500 ' : 'bg-white text-text-muted border border-border hover:border-primary-500/40'}`}>
                   {o.val === 'household' ? '🏠 ' : o.val === 'village' ? '🏘 ' : '📋 '}{o.label}
                 </button>
               ))}
@@ -687,7 +687,7 @@ export default function LandTrustPage() {
                   <input value={ownerSearch}
                     onChange={e => { setOwnerSearch(e.target.value); sf('owner_household_id', null) }}
                     placeholder="输入户名或户主姓名搜索"
-                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
                   {!form.owner_household_id && ownerOpts.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
                       {ownerOpts.map(h => (
@@ -706,7 +706,7 @@ export default function LandTrustPage() {
                     onChange={e => { sf('owner_id_card', e.target.value); sf('owner_household_id', null) }}
                     onBlur={e => resolveIdCard(e.target.value, 'owner')}
                     placeholder="或直接输入身份证号自动匹配"
-                    className="flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" />
+                    className="flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 font-mono" />
                 </div>
               </div>
             )}
@@ -716,7 +716,7 @@ export default function LandTrustPage() {
                 <input value={ownerVillageSearch}
                   onChange={e => { setOwnerVillageSearch(e.target.value); sf('owner_entity_id', null) }}
                   placeholder={form.owner_type === 'village' ? '输入村名搜索…' : '输入村组名搜索…'}
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
                 {!form.owner_entity_id && ownerVillageOpts.length > 0 && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
                     {ownerVillageOpts.map(h => (
@@ -755,7 +755,7 @@ export default function LandTrustPage() {
                   <button key={o.val}
                     onClick={() => { sf('operator_type', o.val); sf('operator_household_id', null); sf('operator_entity_id', null); sf('operator_id_card', ''); setOperSearch(''); setOperVillageSearch(''); setOperOpts([]); setOperVillageOpts([]) }}
                     className={`px-2.5 py-1 text-xs rounded-btn transition-colors
-                      ${form.operator_type === o.val ? 'bg-primary ' : 'bg-white text-text-muted border border-border hover:border-primary/40'}`}>
+                      ${form.operator_type === o.val ? 'bg-primary-500 ' : 'bg-white text-text-muted border border-border hover:border-primary-500/40'}`}>
                     {o.val === 'household' ? '🏠 ' : o.val === 'village' ? '🏘 ' : '📋 '}{o.label}
                   </button>
                 ))}
@@ -767,7 +767,7 @@ export default function LandTrustPage() {
                     <input value={operSearch}
                       onChange={e => { setOperSearch(e.target.value); sf('operator_household_id', null) }}
                       placeholder="输入户名或户主姓名搜索（可不填）"
-                      className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                      className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
                     {!form.operator_household_id && operOpts.length > 0 && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
                         {operOpts.map(h => (
@@ -785,7 +785,7 @@ export default function LandTrustPage() {
                       onChange={e => { sf('operator_id_card', e.target.value); sf('operator_household_id', null) }}
                       onBlur={e => resolveIdCard(e.target.value, 'operator')}
                       placeholder="或直接输入身份证号自动匹配"
-                      className="flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" />
+                      className="flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 font-mono" />
                   </div>
                 </div>
               )}
@@ -795,7 +795,7 @@ export default function LandTrustPage() {
                   <input value={operVillageSearch}
                     onChange={e => { setOperVillageSearch(e.target.value); sf('operator_entity_id', null) }}
                     placeholder={form.operator_type === 'village' ? '输入村名搜索…' : '输入村组名搜索…'}
-                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
                   {!form.operator_entity_id && operVillageOpts.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
                       {operVillageOpts.map(h => (
@@ -830,19 +830,19 @@ export default function LandTrustPage() {
             <div>
               <label className="block text-xs text-text-muted mb-1">结束年度 <span className="text-text-muted/50">同起始则留空</span></label>
               <input type="number" value={form.trust_end_year || ''} onChange={e => sf('trust_end_year', e.target.value ? Number(e.target.value) : null)}
-                placeholder="同起始年度" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                placeholder="同起始年度" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">面积（亩）<span className="text-text-muted/50">可不填</span></label>
               <input type="number" step="0.01" value={form.area} onChange={e => sf('area', e.target.value)}
                 placeholder="如：3.5"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">年租金（元/亩）<span className="text-text-muted/50">可不填</span></label>
               <input type="number" step="0.01" value={form.annual_fee} onChange={e => sf('annual_fee', e.target.value)}
                 placeholder="无偿/不清楚可不填"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
           </div>
 
@@ -850,7 +850,7 @@ export default function LandTrustPage() {
             <label className="block text-xs text-text-muted mb-1">地块描述 <span className="text-text-muted/50">可不填（没有精确地块时用文字描述）</span></label>
             <input value={form.parcel_desc} onChange={e => sf('parcel_desc', e.target.value)}
               placeholder="如：东山坡靠路边那块、大门前三亩地"
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
           </div>
 
           {/* 数据可信度 + 是否纳入计算 */}
@@ -911,7 +911,7 @@ export default function LandTrustPage() {
           <div>
             <label className="block text-xs text-text-muted mb-1">备注</label>
             <textarea rows={2} value={form.note} onChange={e => sf('note', e.target.value)}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" />
           </div>
 
           {form.trust_type === 'IDLE' && (

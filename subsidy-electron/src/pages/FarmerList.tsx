@@ -22,7 +22,7 @@ export default function FarmerList({ farmers, loading, selectedId, onSelect }: F
         <div key={f.id}
           onClick={() => onSelect(f.id)}
           className={`px-5 py-4 border-b border-border/50 cursor-pointer transition-all hover:bg-warm/20
-            ${selectedId === f.id ? 'bg-primary/5 border-l-4 border-l-primary shadow-inner' : ''}`}>
+            ${selectedId === f.id ? 'bg-primary-500/5 border-l-4 border-l-primary-500 shadow-inner' : ''}`}>
           <div className="flex items-center gap-2.5 mb-1.5">
             <span className="font-semibold text-base text-text-primary">{f.real_name}</span>
             {f.is_head === 1 && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">户主</span>}

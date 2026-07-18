@@ -287,7 +287,7 @@ export default function FamilyRelationImportPage() {
             <h3 className="font-medium">导入结果</h3>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-primary/5 p-3 rounded">
+              <div className="bg-primary-500/5 p-3 rounded">
                 <div className="text-2xl font-bold text-primary">{result.stage1_updated}</div>
                 <div className="text-sm text-gray-600">成功更新记录</div>
               </div>

@@ -172,7 +172,7 @@ export function CreateHhForm({ open, groups, createHhForm, setCreateHhForm, onSu
         <div className="col-span-2">
           <label className="block text-xs text-text-muted mb-1">户名 *</label>
           <input value={createHhForm.household_name} onChange={e => setCreateHhForm(f => ({ ...f, household_name: e.target.value }))} placeholder="如：张三户"
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
         </div>
         <div>
           <label className="block text-xs text-text-muted mb-1">所在村组 *</label>
@@ -185,17 +185,17 @@ export function CreateHhForm({ open, groups, createHhForm, setCreateHhForm, onSu
         <div>
           <label className="block text-xs text-text-muted mb-1">承包土地面积（亩）</label>
           <input type="number" step="0.01" value={createHhForm.contract_area} onChange={e => setCreateHhForm(f => ({ ...f, contract_area: e.target.value }))}
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
         </div>
         <div className="col-span-2">
           <label className="block text-xs text-text-muted mb-1">地址</label>
           <input value={createHhForm.address} onChange={e => setCreateHhForm(f => ({ ...f, address: e.target.value }))}
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
         </div>
         <div className="col-span-2">
           <label className="block text-xs text-text-muted mb-1">备注</label>
           <textarea rows={2} value={createHhForm.remark} onChange={e => setCreateHhForm(f => ({ ...f, remark: e.target.value }))}
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" />
         </div>
       </div>
     </Modal>
@@ -211,13 +211,13 @@ export function CreateFarmerForm({ open, villages, createFarmerForm, setCreateFa
           <label className="block text-xs text-text-muted mb-1">姓名 *</label>
           <input value={createFarmerForm.real_name} onChange={e => setCreateFarmerForm(f => ({ ...f, real_name: e.target.value }))}
             placeholder="请输入姓名"
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
         </div>
         <div className="col-span-2">
           <label className="block text-xs text-text-muted mb-1">身份证号 *</label>
           <input value={createFarmerForm.id_card} onChange={e => setCreateFarmerForm(f => ({ ...f, id_card: e.target.value }))}
             placeholder="18位身份证号"
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
         </div>
         <div>
           <label className="block text-xs text-text-muted mb-1">性别</label>
@@ -231,7 +231,7 @@ export function CreateFarmerForm({ open, villages, createFarmerForm, setCreateFa
           <label className="block text-xs text-text-muted mb-1">手机号</label>
           <input value={createFarmerForm.phone} onChange={e => setCreateFarmerForm(f => ({ ...f, phone: e.target.value }))}
             placeholder="可选"
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
         </div>
         <div>
           <label className="block text-xs text-text-muted mb-1">所在村 *</label>
@@ -253,13 +253,13 @@ export function CreateFarmerForm({ open, villages, createFarmerForm, setCreateFa
           <label className="block text-xs text-text-muted mb-1">承包土地面积（亩）</label>
           <input type="number" step="0.01" value={createFarmerForm.contract_area} onChange={e => setCreateFarmerForm(f => ({ ...f, contract_area: e.target.value }))}
             placeholder="可选"
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
         </div>
         <div className="col-span-2">
           <label className="block text-xs text-text-muted mb-1">备注</label>
           <textarea rows={2} value={createFarmerForm.remark} onChange={e => setCreateFarmerForm(f => ({ ...f, remark: e.target.value }))}
             placeholder="可选"
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" />
         </div>
       </div>
     </Modal>
@@ -277,7 +277,7 @@ export function MergeConfirmForm({ open, mergeSelectedHouseholds, mergeConfirmFo
             {mergeSelectedHouseholds.map((h, i) => (
               <div key={h.id} className={`flex items-center gap-2 text-sm ${i === 0 ? 'text-primary font-medium' : 'text-text-primary'}`}>
                 {i === 0
-                  ? <span className="text-xs bg-primary/90  px-1.5 py-0.5 rounded">目标户</span>
+                  ? <span className="text-xs bg-primary-500/90  px-1.5 py-0.5 rounded">目标户</span>
                   : <span className="text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">被合并</span>}
                 <span>{h.household_name}</span>
                 <span className="text-xs text-text-muted">({h.head_name || '无户主'} · {h.member_count ?? '?'}人 · {h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'})</span>
@@ -289,7 +289,7 @@ export function MergeConfirmForm({ open, mergeSelectedHouseholds, mergeConfirmFo
           <label className="block text-xs text-text-muted mb-1">备注</label>
           <textarea rows={2} value={mergeConfirmForm.remark} onChange={e => setMergeConfirmForm(f => ({ ...f, remark: e.target.value }))}
             placeholder="可选"
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" />
         </div>
       </div>
     </Modal>
@@ -304,15 +304,15 @@ export function MemberForm({ open, memberEditTarget, memberForm, setMemberForm, 
       <div className="grid grid-cols-2 gap-3">
         <div><label className="block text-xs text-text-muted mb-1">姓名 *</label>
           <input value={memberForm.real_name} onChange={e => setMemberForm(f => ({ ...f, real_name: e.target.value }))}
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
         {!memberEditTarget && (
           <div><label className="block text-xs text-text-muted mb-1">身份证号 *</label>
             <input value={memberForm.id_card} onChange={e => setMemberForm(f => ({ ...f, id_card: e.target.value }))}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" /></div>
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 font-mono" /></div>
         )}
         <div><label className="block text-xs text-text-muted mb-1">与户主关系</label>
           <input value={memberForm.relation} onChange={e => setMemberForm(f => ({ ...f, relation: e.target.value }))} placeholder="如：本人、妻子、父亲"
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
         <div><label className="block text-xs text-text-muted mb-1">状态</label>
           <select value={memberForm.farmer_status} onChange={e => setMemberForm(f => ({ ...f, farmer_status: e.target.value }))}
             className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
@@ -342,7 +342,7 @@ export function MemberForm({ open, memberEditTarget, memberForm, setMemberForm, 
                 }
               }}
               placeholder="输入或选择村名"
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"
             />
             <datalist id="member-village-list">
               {[...new Map(groups.map(g => [g.village_id, g])).values()].map(g => (
@@ -382,7 +382,7 @@ export function MemberForm({ open, memberEditTarget, memberForm, setMemberForm, 
                 }
               }}
               placeholder="输入或选择组名"
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"
             />
             <datalist id="member-group-list">
               {groups.filter(g => g.village_id === memberForm.village_id).map(g => (
@@ -409,13 +409,13 @@ export function MemberForm({ open, memberEditTarget, memberForm, setMemberForm, 
           )}</div>
         <div><label className="block text-xs text-text-muted mb-1">变动时间（选填）</label>
           <input type="date" value={memberForm.event_date} onChange={e => setMemberForm(f => ({ ...f, event_date: e.target.value }))}
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
         <div><label className="block text-xs text-text-muted mb-1">手机号</label>
           <input value={memberForm.phone} onChange={e => setMemberForm(f => ({ ...f, phone: e.target.value }))}
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
         <div><label className="block text-xs text-text-muted mb-1">银行卡号</label>
           <input value={memberForm.bank_card} onChange={e => setMemberForm(f => ({ ...f, bank_card: e.target.value }))}
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" /></div>
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 font-mono" /></div>
         <div className="col-span-2 flex items-center gap-2 pt-1">
           <input type="checkbox" id="is_head_chk" checked={memberForm.is_head} onChange={e => setMemberForm(f => ({ ...f, is_head: e.target.checked }))} />
           <label htmlFor="is_head_chk" className="text-sm text-text-primary cursor-pointer">设为本户户主</label>
@@ -447,7 +447,7 @@ export function SplitWizardForm({ open, splitStep, splitSelected, splitNewHead, 
             <div key={i} className="flex items-center gap-1.5">
               {i > 0 && <div className={`w-8 h-px ${i < splitStep ? 'bg-emerald-400' : 'bg-stone-200'}`} />}
               <div className={`flex items-center gap-1.5 text-xs font-medium ${splitStep === i + 1 ? 'text-primary' : i + 1 < splitStep ? 'text-text-muted' : 'text-text-muted/50'}`}>
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${splitStep === i + 1 ? 'bg-primary ' : i + 1 < splitStep ? 'bg-emerald-100 text-primary' : 'bg-warm/30 text-text-muted/50'}`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${splitStep === i + 1 ? 'bg-primary-500 ' : i + 1 < splitStep ? 'bg-emerald-100 text-primary' : 'bg-warm/30 text-text-muted/50'}`}>
                   {i + 1 < splitStep ? '✓' : i + 1}
                 </div>
                 {label}
@@ -497,7 +497,7 @@ export function SplitWizardForm({ open, splitStep, splitSelected, splitNewHead, 
                 <label className="block text-xs text-text-muted mb-1">新家庭户名称 *</label>
                 <input value={splitForm.household_name} onChange={e => setSplitForm(f => ({ ...f, household_name: e.target.value }))}
                   placeholder={`${members.find(m => m.id === splitNewHead)?.real_name || ''}户`}
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
               </div>
               <div>
                 <label className="block text-xs text-text-muted mb-1">分户年度 *</label>
@@ -509,22 +509,22 @@ export function SplitWizardForm({ open, splitStep, splitSelected, splitNewHead, 
               <div>
                 <label className="block text-xs text-text-muted mb-1">分户日期</label>
                 <input type="date" value={splitForm.split_date} onChange={e => setSplitForm(f => ({ ...f, split_date: e.target.value }))}
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
               </div>
               <div>
                 <label className="block text-xs text-text-muted mb-1">新户土地面积（亩）</label>
                 <input type="number" step="0.01" value={splitForm.new_land_area} onChange={e => setSplitForm(f => ({ ...f, new_land_area: e.target.value }))}
-                  placeholder="可不填" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  placeholder="可不填" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
               </div>
               <div>
                 <label className="block text-xs text-text-muted mb-1">原户调整后面积（亩）</label>
                 <input type="number" step="0.01" value={splitForm.origin_land_area} onChange={e => setSplitForm(f => ({ ...f, origin_land_area: e.target.value }))}
-                  placeholder="不变则不填" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  placeholder="不变则不填" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs text-text-muted mb-1">分户原因/说明</label>
                 <textarea rows={2} value={splitForm.description} onChange={e => setSplitForm(f => ({ ...f, description: e.target.value }))}
-                  placeholder="如：子女独立成家" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
+                  placeholder="如：子女独立成家" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" />
               </div>
             </div>
           </div>
@@ -576,7 +576,7 @@ export function EventForm({ open, eventForm, setEventForm, onSubmit, onClose }: 
             </select></div>
           <div><label className="block text-xs text-text-muted mb-1">精确日期（可选）</label>
             <input type="date" value={eventForm.event_date} onChange={e => setEventForm(f => ({ ...f, event_date: e.target.value }))}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
           <div><label className="block text-xs text-text-muted mb-1">证明材料类型</label>
             <select value={eventForm.evidence_type} onChange={e => setEventForm(f => ({ ...f, evidence_type: e.target.value }))}
               className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
@@ -586,10 +586,10 @@ export function EventForm({ open, eventForm, setEventForm, onSubmit, onClose }: 
             </select></div>
           <div className="col-span-2"><label className="block text-xs text-text-muted mb-1">事件描述 *</label>
             <textarea rows={3} value={eventForm.description} onChange={e => setEventForm(f => ({ ...f, description: e.target.value }))}
-              placeholder="请描述发生了什么" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" /></div>
+              placeholder="请描述发生了什么" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" /></div>
           <div className="col-span-2"><label className="block text-xs text-text-muted mb-1">证明材料说明</label>
             <input value={eventForm.evidence_note} onChange={e => setEventForm(f => ({ ...f, evidence_note: e.target.value }))}
-              placeholder="如：村委证明第2024-08号" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+              placeholder="如：村委证明第2024-08号" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
         </div>
       </div>
     </Modal>
@@ -752,7 +752,7 @@ export function ConfirmedAreaImport({ open, confirmedAreaRows, setConfirmedAreaR
           {confirmedAreaImportResult && (
             <div className="space-y-2 text-sm">
               <div className="flex gap-3">
-                <span className="bg-primary/5 text-primary px-3 py-1 rounded-btn font-medium">成功 {confirmedAreaImportResult.success} 条</span>
+                <span className="bg-primary-500/5 text-primary px-3 py-1 rounded-btn font-medium">成功 {confirmedAreaImportResult.success} 条</span>
                 {confirmedAreaImportResult.not_found.length > 0 && <span className="bg-red-50 text-red-600 px-3 py-1 rounded-btn font-medium">未找到 {confirmedAreaImportResult.not_found.length} 条</span>}
                 {confirmedAreaImportResult.mismatch_name.length > 0 && <span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-btn font-medium">姓名不符 {confirmedAreaImportResult.mismatch_name.length} 条（已跳过）</span>}
                 {confirmedAreaImportResult.errors.length > 0 && <span className="bg-red-50 text-red-600 px-3 py-1 rounded-btn font-medium">错误 {confirmedAreaImportResult.errors.length} 条</span>}
@@ -794,7 +794,7 @@ export function ConfirmedAreaImport({ open, confirmedAreaRows, setConfirmedAreaR
               const url = URL.createObjectURL(blob)
               const a = document.createElement('a'); a.href = url; a.download = '确权面积对比.xlsx'; a.click()
               URL.revokeObjectURL(url)
-            }} className="px-4 py-2 text-sm bg-primary/90  rounded-btn hover:bg-primary/50">
+            }} className="px-4 py-2 text-sm bg-primary-500/90  rounded-btn hover:bg-primary-500/50">
               导出对比报告
             </button>
           )}
@@ -884,7 +884,7 @@ export function EditHouseholdForm({ open, editForm, groups, onSubmit, onClose, s
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2"><label className="block text-xs text-text-muted mb-1">户名</label>
           <input value={editForm.household_name} onChange={e => setEditForm(f => ({ ...f, household_name: e.target.value }))}
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
         <div><label className="block text-xs text-text-muted mb-1">所在村 *</label>
           <select value={editForm.village_id || ''} onChange={e => setEditForm(f => ({ ...f, village_id: Number(e.target.value) }))}
             className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">
@@ -910,13 +910,13 @@ export function EditHouseholdForm({ open, editForm, groups, onSubmit, onClose, s
         </div>
         <div><label className="block text-xs text-text-muted mb-1">承包土地面积（亩）</label>
           <input type="number" step="0.01" value={editForm.contract_area} onChange={e => setEditForm(f => ({ ...f, contract_area: e.target.value }))}
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
         <div><label className="block text-xs text-text-muted mb-1">地址</label>
           <input value={editForm.address} onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
         <div className="col-span-2"><label className="block text-xs text-text-muted mb-1">备注</label>
           <textarea rows={2} value={editForm.remark} onChange={e => setEditForm(f => ({ ...f, remark: e.target.value }))}
-            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" /></div>
+            className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" /></div>
       </div>
     </Modal>
   )

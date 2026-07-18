@@ -157,7 +157,7 @@ function Layout() {
                         <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
                           className={({ isActive }) =>
                             `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
-                            ${isActive ? 'text-primary font-semibold bg-primary/5' : 'text-text-primary hover:bg-warm/30'}`
+                            ${isActive ? 'text-primary font-semibold bg-primary-500/5' : 'text-text-primary hover:bg-warm/30'}`
                           }>
                           <Icon name={icon} size={16} className="text-text-muted" />
                           <span>{label}</span>
@@ -172,7 +172,7 @@ function Layout() {
                         <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
                           className={({ isActive }) =>
                             `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
-                            ${isActive ? 'text-primary font-semibold bg-primary/5' : 'text-text-primary hover:bg-warm/30'}`
+                            ${isActive ? 'text-primary font-semibold bg-primary-500/5' : 'text-text-primary hover:bg-warm/30'}`
                           }>
                           <Icon name={icon} size={16} className="text-text-muted" />
                           <span>{label}</span>
@@ -187,7 +187,7 @@ function Layout() {
                         <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
                           className={({ isActive }) =>
                             `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
-                            ${isActive ? 'text-primary font-semibold bg-primary/5' : 'text-text-primary hover:bg-warm/30'}`
+                            ${isActive ? 'text-primary font-semibold bg-primary-500/5' : 'text-text-primary hover:bg-warm/30'}`
                           }>
                           <Icon name={icon} size={16} className="text-text-muted" />
                           <span>{label}</span>
@@ -202,7 +202,7 @@ function Layout() {
                         <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
                           className={({ isActive }) =>
                             `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
-                            ${isActive ? 'text-primary font-semibold bg-primary/5' : 'text-text-primary hover:bg-warm/30'}`
+                            ${isActive ? 'text-primary font-semibold bg-primary-500/5' : 'text-text-primary hover:bg-warm/30'}`
                           }>
                           <Icon name={icon} size={16} className="text-text-muted" />
                           <span>{label}</span>

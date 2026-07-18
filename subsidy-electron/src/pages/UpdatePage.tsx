@@ -135,13 +135,13 @@ export default function UpdatePage() {
 
         <div className="flex gap-2">
           <input value={url} onChange={e => setUrl(e.target.value)} placeholder="http://8.137.8.78:8080/"
-            className="flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" />
-          <button onClick={saveUrl} className="px-4 py-2 bg-primary-500 text-white text-sm rounded-btn hover:bg-primary/90">保存</button>
+            className="flex-1 border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 font-mono" />
+          <button onClick={saveUrl} className="px-4 py-2 bg-primary-500 text-white text-sm rounded-btn hover:bg-primary-500/90">保存</button>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           <button onClick={loadVersions} disabled={loading || !url.trim()}
-            className="px-5 py-2.5 bg-primary-500 text-white rounded-btn hover:bg-primary/90 disabled:opacity-40 font-medium">
+            className="px-5 py-2.5 bg-primary-500 text-white rounded-btn hover:bg-primary-500/90 disabled:opacity-40 font-medium">
             {loading ? '加载中...' : '📋 加载版本列表'}
           </button>
         </div>
@@ -177,12 +177,12 @@ export default function UpdatePage() {
       {/* 版本历史 */}
       {history && history.versions.length > 0 && (
         <div className="bg-white border border-border rounded-card shadow-card overflow-hidden">
-          <div className="px-5 py-3 bg-primary/5 border-b border-primary/10 font-semibold text-primary text-sm">
+          <div className="px-5 py-3 bg-primary-500/5 border-b border-primary-500/10 font-semibold text-primary text-sm">
             📜 版本历史
           </div>
           <div className="divide-y divide-border/50">
             {history.versions.map((v, i) => (
-              <div key={v.version} className={`p-4 ${v.version === config?.currentVersion ? 'bg-primary/5' : ''}`}>
+              <div key={v.version} className={`p-4 ${v.version === config?.currentVersion ? 'bg-primary-500/5' : ''}`}>
                 <div className="flex items-center gap-3 mb-2">
                   <span className="font-mono font-bold text-primary">v{v.version}</span>
                   {v.version === config?.currentVersion && (

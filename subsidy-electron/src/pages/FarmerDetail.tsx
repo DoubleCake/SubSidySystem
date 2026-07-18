@@ -36,7 +36,7 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
   return (
     <div className="bg-white border border-border rounded-card overflow-hidden shadow-card mb-4">
       <div className="bg-gradient-to-r from-emerald-50 to-emerald-100/70 border-b border-emerald-100 px-6 py-5 flex items-center gap-5">
-        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary shrink-0">
+        <div className="w-14 h-14 rounded-full bg-primary-500/10 flex items-center justify-center text-2xl font-bold text-primary shrink-0">
           {fd.real_name.slice(-1)}
         </div>
         <div className="flex-1 min-w-0">
@@ -44,7 +44,7 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
             <span className="text-xl font-bold text-text-primary">{fd.real_name}</span>
             <span className="text-text-muted text-sm">{GENDER(fd.gender)}</span>
             {age && <span className="text-text-muted text-sm">{age} 岁</span>}
-            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">{FARMER_STATUS[fd.farmer_status]?.label ?? '未知'}</span>
+            <span className="text-xs bg-primary-500/10 text-primary px-2 py-0.5 rounded">{FARMER_STATUS[fd.farmer_status]?.label ?? '未知'}</span>
             {fd.is_head ? <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">户主</span> : <span className="text-xs bg-warm/50 text-text-muted px-2 py-0.5 rounded">{fd.relation || '成员'}</span>}
           </div>
           <div className="text-text-muted text-sm">📍 {fd.village_full_name}</div>
@@ -120,7 +120,7 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
               </tbody>
             </table>
           </div>
-          <div className="px-4 py-2 bg-primary/5 border-t border-primary/10 flex justify-end gap-6 text-sm">
+          <div className="px-4 py-2 bg-primary-500/5 border-t border-primary-500/10 flex justify-end gap-6 text-sm">
             <span className="text-text-muted">合计 {apps.length} 笔</span>
             <span className="font-bold font-mono text-primary">¥{totalAmt.toFixed(2)}</span>
           </div>
@@ -248,7 +248,7 @@ export function FarmerHouseholdDetail({
 
       {/* 顶部卡片 */}
       <div className="bg-gradient-to-r from-emerald-50 to-emerald-100/70 border-b border-emerald-100 px-5 py-3.5 flex items-center gap-4">
-        <div className="w-10 h-10 rounded-card bg-primary/10 flex items-center justify-center text-lg font-bold text-primary shrink-0">🏠</div>
+        <div className="w-10 h-10 rounded-card bg-primary-500/10 flex items-center justify-center text-lg font-bold text-primary shrink-0">🏠</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <span className="text-base font-bold text-text-primary">{hh.household_name}</span>
@@ -309,11 +309,11 @@ export function FarmerHouseholdDetail({
           <div className="ml-auto px-2 flex gap-1.5">
             {detailTab === 'members' && (
               <>
-                <button onClick={onOpenMemberImport} className="text-xs border border-primary/20 text-primary px-2.5 py-1 rounded-btn hover:bg-primary/5 transition-colors">↑ 批量导入</button>
+                <button onClick={onOpenMemberImport} className="text-xs border border-primary-500/20 text-primary px-2.5 py-1 rounded-btn hover:bg-primary-500/5 transition-colors">↑ 批量导入</button>
                 <button onClick={() => {
                   onOpenMemberAdd()
                 }}
-                  className="text-xs bg-primary text-white px-2.5 py-1 rounded-btn hover:bg-primary/90 transition-colors">＋ 成员</button>
+                  className="text-xs bg-primary-500 text-white px-2.5 py-1 rounded-btn hover:bg-primary-500/90 transition-colors">＋ 成员</button>
                 <button onClick={onOpenEvent} className="text-xs border border-border text-text-primary px-2.5 py-1 rounded-btn hover:bg-warm/30 transition-colors">＋ 补录</button>
               </>
             )}
@@ -329,10 +329,10 @@ export function FarmerHouseholdDetail({
             {displayMembers.length === 0 && <div className="text-center py-8 text-text-muted/50 text-sm">暂无成员记录</div>}
             {displayMembers.map(m => (
               <div key={m.id} className={`flex items-center gap-3 rounded-card px-4 py-3 border transition-colors
-                ${m.is_head ? 'bg-primary/5 border-primary/20' : 'bg-white border-border hover:border-border hover:bg-warm/30'}
+                ${m.is_head ? 'bg-primary-500/5 border-primary-500/20' : 'bg-white border-border hover:border-border hover:bg-warm/30'}
                 ${m.farmer_status !== 1 ? 'opacity-60' : ''}`}>
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0
-                  ${m.is_head ? 'bg-primary/90 text-white' : 'bg-warm/30 text-text-muted'}`}>
+                  ${m.is_head ? 'bg-primary-500/90 text-white' : 'bg-warm/30 text-text-muted'}`}>
                   {m.real_name.slice(-1)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -351,7 +351,7 @@ export function FarmerHouseholdDetail({
                 {historyEventId === null && (
                   <div className="flex gap-1.5 shrink-0">
                     {selectedFarmerId !== m.id && (
-                      <button onClick={() => onOpenFarmer(m.id)} className="text-xs text-primary border border-primary/20 px-2 py-1 rounded-btn hover:bg-primary/5 transition-colors">查看</button>
+                      <button onClick={() => onOpenFarmer(m.id)} className="text-xs text-primary border border-primary-500/20 px-2 py-1 rounded-btn hover:bg-primary-500/5 transition-colors">查看</button>
                     )}
                     <button onClick={() => onOpenMemberEdit(m)} className="text-xs border border-border text-text-muted px-2 py-1 rounded-btn hover:border-border transition-colors">编辑</button>
                   </div>
@@ -411,7 +411,7 @@ export function HistorySidebar({ householdId, historyEventId, historyDates, expa
         <div className="py-2 px-2 space-y-1 max-h-[50vh] overflow-y-auto">
           <button onClick={onExitHistory}
             className={`w-full py-2.5 rounded-btn text-xs font-medium transition-all text-left px-3
-              ${historyEventId === null ? 'bg-primary/90 text-white shadow-card' : 'text-text-muted hover:bg-warm/30'}`}>
+              ${historyEventId === null ? 'bg-primary-500/90 text-white shadow-card' : 'text-text-muted hover:bg-warm/30'}`}>
             当前
           </button>
           {(() => {

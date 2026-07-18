@@ -55,7 +55,7 @@ export default function UserManagementPage() {
 
       <div className="flex items-center gap-3 mb-4">
         {auth?.role === 'admin' && (
-          <button onClick={() => setAddOpen(true)} className="px-3 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90">
+          <button onClick={() => setAddOpen(true)} className="px-3 py-2 text-sm bg-primary-500  rounded-btn hover:bg-primary-500/90">
             ＋ 新增用户
           </button>
         )}

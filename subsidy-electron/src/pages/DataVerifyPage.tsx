@@ -256,11 +256,11 @@ export default function DataVerifyPage() {
           value={input}
           onChange={e => setInput(e.target.value)}
           placeholder={`姓名\t身份证号\n张三\t510123196503154231\n李四\t510123197802156789`}
-          className="w-full h-40 border border-border rounded-btn p-3 text-sm font-mono outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 resize-y"
+          className="w-full h-40 border border-border rounded-btn p-3 text-sm font-mono outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary/10 resize-y"
         />
         <div className="flex gap-2 mt-3 items-center">
           <button onClick={handleVerify} disabled={loading || !input.trim()}
-            className="px-5 py-2.5 bg-primary text-white rounded-btn hover:bg-primary/90 disabled:opacity-40 font-medium text-sm">
+            className="px-5 py-2.5 bg-primary-500 text-white rounded-btn hover:bg-primary-500/90 disabled:opacity-40 font-medium text-sm">
             {loading ? '验证中…' : '🔍 开始验证'}
           </button>
           {results.length > 0 && (

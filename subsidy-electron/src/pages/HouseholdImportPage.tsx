@@ -179,7 +179,7 @@ export default function HouseholdImportPage() {
             <div className="divide-y divide-stone-100 max-h-48 overflow-y-auto">
               {(preview.groups || []).map((g: any, i: number) => {
                 const al = g.action === 'create' ? '新建' : g.action === 'merge_one' ? '并入' : '合并多个户'
-                const ac = g.action === 'create' ? 'bg-primary/10 text-primary' : g.action === 'merge_one' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
+                const ac = g.action === 'create' ? 'bg-primary-500/10 text-primary' : g.action === 'merge_one' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
                 return (
                   <div key={i} className="px-4 py-2 flex items-center gap-3 text-sm">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ac}`}>{al}</span>
@@ -218,7 +218,7 @@ export default function HouseholdImportPage() {
             </div>
           )}
           <div className="flex gap-2">
-            <button onClick={() => { setResult(null); setOpen(true) }} className="text-sm bg-primary text-white px-4 py-2 rounded-btn">继续导入</button>
+            <button onClick={() => { setResult(null); setOpen(true) }} className="text-sm bg-primary-500 text-white px-4 py-2 rounded-btn">继续导入</button>
             <a href="/farmers" className="text-sm border border-border px-4 py-2 rounded-btn hover:bg-warm/30">前往户籍管理 →</a>
           </div>
         </div>

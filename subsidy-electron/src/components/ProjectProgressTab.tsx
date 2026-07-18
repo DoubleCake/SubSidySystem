@@ -418,7 +418,7 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
                         onDragEnd={handleDragEnd}
                         className={`flex items-center gap-3 px-4 py-3 border-b border-border/30 last:border-0
                           ${dragIdx === i ? 'opacity-40' : ''}
-                          ${dropIdx === i && dragIdx !== null && dropIdx !== dragIdx ? 'bg-primary/5 ring-1 ring-primary/30' : ''}
+                          ${dropIdx === i && dragIdx !== null && dropIdx !== dragIdx ? 'bg-primary-500/5 ring-1 ring-primary/30' : ''}
                           hover:bg-warm/20 transition-all`}>
                         <span className="text-text-muted/20 cursor-grab select-none text-xs" title="拖拽排序">⠿</span>
                         <div className="min-w-[80px]">
@@ -426,7 +426,7 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
                         </div>
                         <div className="flex-1 flex items-center gap-2">
                           <div className="flex-1 h-2 bg-warm/30 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full transition-all ${allDone ? 'bg-emerald-400' : 'bg-primary/50'}`}
+                            <div className={`h-full rounded-full transition-all ${allDone ? 'bg-emerald-400' : 'bg-primary-500/50'}`}
                               style={{ width: st.total > 0 ? Math.round(st.done / st.total * 100) + '%' : '0%' }} />
                           </div>
                           <span className={`font-mono font-bold text-[11px] min-w-[36px] text-right ${allDone ? 'text-emerald-600' : 'text-text-muted'}`}>
@@ -458,7 +458,7 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
                           {scanning === sn ? '⏳' : '🔍'} 扫描
                         </button>
                         <button onClick={() => copyStageSummary(sn)}
-                          className="shrink-0 px-2 py-1 text-[10px] border border-border rounded-btn text-text-muted hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
+                          className="shrink-0 px-2 py-1 text-[10px] border border-border rounded-btn text-text-muted hover:border-primary-500/40 hover:text-primary hover:bg-primary-500/5 transition-all"
                           title="复制完成情况到剪贴板">
                           📋 复制
                         </button>
@@ -507,7 +507,7 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
             return (
               <div key={rec.village_id}
                 className={`bg-white border rounded-card shadow-sm transition-all ${
-                  isExpanded ? 'border-primary/30' : 'border-border hover:border-primary/20'
+                  isExpanded ? 'border-primary-500/30' : 'border-border hover:border-primary-500/20'
                 } ${allDone ? 'bg-emerald-50/20' : ''} ${hasUrged ? 'ring-1 ring-amber-400' : ''}`}>
                 {/* ── 收起行 ── */}
                 <div className="flex items-center gap-3 px-4 py-2.5 cursor-pointer select-none"
@@ -628,7 +628,7 @@ export default function ProjectProgressTab({ subsidyType }: ProjectProgressTabPr
                                     }
                                   }}
                                   placeholder="备注…"
-                                  className="w-full border border-border rounded px-1.5 py-0.5 text-[10px] outline-none focus:border-primary bg-white" />
+                                  className="w-full border border-border rounded px-1.5 py-0.5 text-[10px] outline-none focus:border-primary-500 bg-white" />
                               ) : (
                                 <div
                                   onClick={() => setEditNoteModal({ villageId: rec.village_id, stageIdx: si, note: s.note || '' })}

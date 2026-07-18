@@ -373,7 +373,7 @@ export default function SettingsPage() {
               {[{ id: 'single', label: '新增单个组' }, { id: 'batch', label: '批量新增（一村多组）' }].map(m => (
                 <button key={m.id} onClick={() => setAddMode(m.id as 'single' | 'batch')}
                   className={`flex-1 py-2 text-sm rounded-btn border transition-colors
-                    ${addMode === m.id ? 'bg-primary  border-emerald-700' : 'bg-white border-border text-text-muted hover:border-border'}`}>
+                    ${addMode === m.id ? 'bg-primary-500  border-emerald-700' : 'bg-white border-border text-text-muted hover:border-border'}`}>
                   {m.label}
                 </button>
               ))}
@@ -384,7 +384,7 @@ export default function SettingsPage() {
                   <label className="block text-xs text-text-muted mb-1">村名 *</label>
                   <input value={addVillageName} onChange={e => setAddVillageName(e.target.value)}
                     list="existing-villages" placeholder="如：红星村"
-                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
                   <datalist id="existing-villages">{villages.map(v => <option key={v} value={v} />)}</datalist>
                   <p className="text-xs text-text-muted/50 mt-1">可输入已有村名，也可新建</p>
                 </div>
@@ -393,10 +393,10 @@ export default function SettingsPage() {
                   <input value={addGroupNo} onChange={e => setAddGroupNo(e.target.value)}
                     placeholder="如：一组、2组、第三组"
                     onKeyDown={e => e.key === 'Enter' && submitSingle()}
-                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
                 </div>
                 {addVillageName && addGroupNo && (
-                  <div className="col-span-2 bg-primary/5 border border-primary/10 rounded-btn px-4 py-2.5 text-sm text-primary">
+                  <div className="col-span-2 bg-primary-500/5 border border-primary-500/10 rounded-btn px-4 py-2.5 text-sm text-primary">
                     将创建：<strong>{addVillageName}{addGroupNo}</strong>
                   </div>
                 )}
@@ -407,17 +407,17 @@ export default function SettingsPage() {
                   <label className="block text-xs text-text-muted mb-1">村名 *</label>
                   <input value={batchVillage} onChange={e => setBatchVillage(e.target.value)}
                     list="existing-villages2" placeholder="如：红星村"
-                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
                   <datalist id="existing-villages2">{villages.map(v => <option key={v} value={v} />)}</datalist>
                 </div>
                 <div>
                   <label className="block text-xs text-text-muted mb-1">组号列表 *（逗号或换行分隔）</label>
                   <textarea rows={5} value={batchGroups} onChange={e => setBatchGroups(e.target.value)}
                     placeholder={'一组\n二组\n三组\n四组\n五组'}
-                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none font-mono" />
+                    className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none font-mono" />
                 </div>
                 {batchVillage && batchGroups && (
-                  <div className="bg-primary/5 border border-primary/10 rounded-btn px-4 py-2.5 text-sm text-primary">
+                  <div className="bg-primary-500/5 border border-primary-500/10 rounded-btn px-4 py-2.5 text-sm text-primary">
                     将为「{batchVillage}」创建{' '}
                     <strong>{batchGroups.split(/[,，\n]/).map(s => s.trim()).filter(Boolean).length}</strong> 个组
                   </div>
@@ -438,7 +438,7 @@ export default function SettingsPage() {
                 <input value={editLeaderName} onChange={e => { setEditLeaderName(e.target.value); searchFarmers(e.target.value) }}
                   onFocus={() => { if (leaderSearchResults.length > 0) setLeaderDropdownOpen(true) }}
                   onBlur={() => setTimeout(() => setLeaderDropdownOpen(false), 200)}
-                  placeholder="输入姓名或身份证号自动匹配农户…" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  placeholder="输入姓名或身份证号自动匹配农户…" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
                 {leaderDropdownOpen && leaderSearchResults.length > 0 && (
                   <div className="absolute z-50 top-full left-0 right-0 bg-white border border-border rounded-card shadow-xl mt-1 max-h-48 overflow-y-auto">
                     {leaderSearchResults.map(f => (
@@ -456,7 +456,7 @@ export default function SettingsPage() {
               <div>
                 <label className="block text-xs text-text-muted mb-1">📞 电话（匹配后自动填入，可手动修改）</label>
                 <input value={editLeaderPhone} onChange={e => setEditLeaderPhone(e.target.value)}
-                  placeholder="手机号" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  placeholder="手机号" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
               </div>
             </div>
           </Modal>
@@ -470,7 +470,7 @@ export default function SettingsPage() {
             </p>
             <textarea rows={12} value={batchLeaderText} onChange={e => setBatchLeaderText(e.target.value)}
               placeholder={`XX村\t一组\t张三\t138xxxx\nXX村\t二组\t李四\t139xxxx`}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none font-mono" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none font-mono" />
             <p className="text-xs text-text-muted mt-1">
               共 <strong>{batchLeaderText.split('\n').filter(l => l.trim()).length}</strong> 行
             </p>
@@ -545,7 +545,7 @@ function VillageGroupsLayout(props: {
             value={searchVillage}
             onChange={e => setSearchVillage(e.target.value)}
             placeholder="🔍 搜索村名…"
-            className="w-full border border-border rounded px-2 py-1.5 text-xs outline-none focus:border-primary/40"
+            className="w-full border border-border rounded px-2 py-1.5 text-xs outline-none focus:border-primary-500/40"
           />
         </div>
         {/* 统计 */}
@@ -570,7 +570,7 @@ function VillageGroupsLayout(props: {
                 key={vname}
                 onClick={() => onSelectVillage(vname)}
                 className={`w-full text-left px-3 py-2.5 text-sm flex items-center justify-between border-b border-border/20 transition-colors
-                  ${isSelected ? 'bg-primary/10 text-primary font-semibold border-l-[3px] border-l-primary' : 'hover:bg-warm/20 border-l-[3px] border-l-transparent'}`}
+                  ${isSelected ? 'bg-primary-500/10 text-primary font-semibold border-l-[3px] border-l-primary-500' : 'hover:bg-warm/20 border-l-[3px] border-l-transparent'}`}
               >
                 <span className="truncate">{vname}</span>
                 <span className="text-xs text-text-muted/50 ml-1 shrink-0">{glist.length}组</span>
@@ -581,7 +581,7 @@ function VillageGroupsLayout(props: {
         {/* 底部操作 */}
         <div className="p-2 border-t border-border flex gap-1.5">
           <button onClick={() => { props.setAddMode('single'); props.setAddOpen(true) }}
-            className="flex-1 text-xs bg-primary text-white rounded px-2 py-1.5 hover:bg-primary/90">
+            className="flex-1 text-xs bg-primary-500 text-white rounded px-2 py-1.5 hover:bg-primary-500/90">
             ＋ 新增
           </button>
           <button onClick={() => props.setBatchLeaderOpen(true)}
@@ -614,7 +614,7 @@ function VillageGroupsLayout(props: {
             <div className="bg-white border border-border rounded-card shadow-card p-4">
               <div className="flex items-center gap-3">
                 <h2 className="text-lg font-bold text-text-primary">{villageDetail.village_name}</h2>
-                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{villageDetail.groups.length}个组</span>
+                <span className="text-xs bg-primary-500/10 text-primary px-2 py-0.5 rounded-full">{villageDetail.groups.length}个组</span>
                 <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{villageDetail.household_count}户</span>
               </div>
             </div>
@@ -647,7 +647,7 @@ function VillageGroupsLayout(props: {
                       {c.farmer_id ? (
                         <button
                           onClick={() => navigate(`/farmers?id=${c.farmer_id}`)}
-                          className="ml-auto text-xs text-primary border border-primary/20 px-2 py-0.5 rounded hover:bg-primary/5"
+                          className="ml-auto text-xs text-primary border border-primary-500/20 px-2 py-0.5 rounded hover:bg-primary-500/5"
                           title="查看农户详情"
                         >
                           👤 农户
@@ -672,7 +672,7 @@ function VillageGroupsLayout(props: {
               <div className="grid grid-cols-2 gap-2">
                 {villageDetail.groups.map(g => (
                   <div key={g.id}
-                    className="bg-warm/20 border border-border/50 rounded-card p-3 hover:border-primary/20 transition-colors">
+                    className="bg-warm/20 border border-border/50 rounded-card p-3 hover:border-primary-500/20 transition-colors">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-sm font-bold text-text-primary">{g.group_no}</span>
                       <span className="text-xs bg-white border border-border/50 rounded-full px-2 py-0.5 font-medium">
@@ -933,7 +933,7 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
             下载模板
           </button>
           <button onClick={() => fileRef.current?.click()} disabled={importing}
-            className="text-xs px-3 py-1.5 bg-primary  rounded-btn hover:bg-primary/90 disabled:opacity-50">
+            className="text-xs px-3 py-1.5 bg-primary-500  rounded-btn hover:bg-primary-500/90 disabled:opacity-50">
             {importing ? '导入中...' : '批量导入 Excel'}
           </button>
           <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImport} />
@@ -997,7 +997,7 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
                     {isEdit ? (
                       <div className="flex gap-1">
                         <button onClick={() => handleSave(info.village_id)} disabled={saving === info.village_id}
-                          className="text-xs bg-primary/90  px-3 py-1 rounded hover:bg-primary disabled:opacity-50">
+                          className="text-xs bg-primary-500/90  px-3 py-1 rounded hover:bg-primary-500 disabled:opacity-50">
                           {saving === info.village_id ? '...' : '保存'}
                         </button>
                         <button onClick={() => {
@@ -1040,7 +1040,7 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
                 </div>
               ))}
             </div>
-            <button onClick={() => setRefModal(null)} className="mt-4 w-full text-sm bg-primary text-white py-2 rounded-btn">关闭</button>
+            <button onClick={() => setRefModal(null)} className="mt-4 w-full text-sm bg-primary-500 text-white py-2 rounded-btn">关闭</button>
           </div>
         </div>
       )}

@@ -611,9 +611,9 @@ export default function FarmersTab(props: FarmersTabProps) {
         <div className="flex gap-2 mb-3 flex-wrap">
           <input value={search} onChange={e => setSearch(e.target.value.trimStart())}
             onPaste={e => { e.preventDefault(); setSearch(e.clipboardData.getData('text').trim()) }} placeholder="搜索姓名/身份证/手机号…"
-            className="flex-1 min-w-32 border border-border rounded-btn px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white shadow-card transition-all" />
+            className="flex-1 min-w-32 border border-border rounded-btn px-3.5 py-2.5 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary/10 bg-white shadow-card transition-all" />
           <select value={villageFilter} onChange={e => { setVillageFilter(e.target.value); setFarmerPage(1) }}
-            className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all">
+            className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary-500 focus:ring-2 focus:ring-primary/10 transition-all">
             <option value="">全部村庄</option>
             {villages.map(v => <option key={v} value={v}>{v}</option>)}
           </select>
@@ -621,10 +621,10 @@ export default function FarmersTab(props: FarmersTabProps) {
 
         {/* 工具栏 - 操作按钮 */}
         <div className="flex items-center gap-2 mb-3">
-          <button onClick={() => setCreateFarmerOpen(true)} className="px-4 py-2.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
+          <button onClick={() => setCreateFarmerOpen(true)} className="px-4 py-2.5 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary-500/90 shadow-card hover:shadow-card-hover transition-all font-medium">
             <Icon name="create" size={14} className="inline mr-1" />新建农户
           </button>
-          <button onClick={() => setImportOpen(true)} className="px-4 py-2.5 text-sm border border-primary/30 text-primary bg-primary/[0.03] rounded-btn hover:bg-primary/10 shadow-card hover:shadow-card-hover transition-all font-medium">
+          <button onClick={() => setImportOpen(true)} className="px-4 py-2.5 text-sm border border-primary-500/30 text-primary bg-primary-500/[0.03] rounded-btn hover:bg-primary-500/10 shadow-card hover:shadow-card-hover transition-all font-medium">
             <Icon name="import" size={14} className="inline mr-1" />导入农户
           </button>
           <button onClick={exportCurrentList} className="px-4 py-2.5 text-sm border border-border text-text-muted rounded-btn hover:bg-warm/30 shadow-card hover:shadow-card-hover transition-all font-medium">

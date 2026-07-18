@@ -517,7 +517,7 @@ export default function ExcelImportWithMapping({
               <div className={`flex items-center gap-1.5 text-xs font-medium transition-colors
                 ${isCur ? 'text-primary' : isPast ? 'text-text-muted' : 'text-text-muted/50'}`}>
                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs transition-colors
-                  ${isCur ? 'bg-primary ' : isPast ? 'bg-emerald-100 text-primary' : 'bg-warm/30 text-text-muted/50'}`}>
+                  ${isCur ? 'bg-primary-500 ' : isPast ? 'bg-emerald-100 text-primary' : 'bg-warm/30 text-text-muted/50'}`}>
                   {isPast ? '✓' : i + 1}
                 </div>
                 {s.label}
@@ -543,7 +543,7 @@ export default function ExcelImportWithMapping({
               <div className="space-y-1">
                 {sheetNames.map(name => (
                   <button key={name} onClick={() => parseSheet(workbook, name)}
-                    className="w-full text-left px-4 py-3 border border-border rounded-btn hover:border-primary/40 hover:bg-primary/5 transition-colors flex items-center gap-3">
+                    className="w-full text-left px-4 py-3 border border-border rounded-btn hover:border-primary-500/40 hover:bg-primary-500/5 transition-colors flex items-center gap-3">
                     <span className="text-lg text-text-muted">📄</span>
                     <span className="text-sm text-text-primary font-medium">{name}</span>
                   </button>
@@ -559,7 +559,7 @@ export default function ExcelImportWithMapping({
               <div className="flex justify-between items-center mb-3">
                 <p className="text-sm text-text-muted">请按模板格式准备 Excel 文件（.xlsx / .xls）</p>
                 <button onClick={downloadTemplate}
-                  className="text-xs text-primary border border-primary/20 px-3 py-1.5 rounded-btn hover:bg-primary/5 flex items-center gap-1">
+                  className="text-xs text-primary border border-primary-500/20 px-3 py-1.5 rounded-btn hover:bg-primary-500/5 flex items-center gap-1">
                   ↓ 下载模板
                 </button>
               </div>
@@ -569,7 +569,7 @@ export default function ExcelImportWithMapping({
                   <div className="flex flex-wrap gap-1.5">
                     {templateHeaders.map(h => (
                       <span key={h} className={`text-xs border px-2 py-0.5 rounded font-mono
-                        ${h.includes('*') ? 'bg-primary/5 border-primary/20 text-primary' : 'bg-white border-border text-text-muted'}`}>
+                        ${h.includes('*') ? 'bg-primary-500/5 border-primary-500/20 text-primary' : 'bg-white border-border text-text-muted'}`}>
                         {h}
                       </span>
                     ))}
@@ -578,7 +578,7 @@ export default function ExcelImportWithMapping({
               )}
               <div
                 className={`border-2 border-dashed rounded-card p-10 text-center cursor-pointer transition-colors
-                  ${dragOver ? 'border-emerald-400 bg-primary/5' : 'border-border hover:border-border hover:bg-warm/30'}`}
+                  ${dragOver ? 'border-emerald-400 bg-primary-500/5' : 'border-border hover:border-border hover:bg-warm/30'}`}
                 onDragOver={e => { e.preventDefault(); setDragOver(true) }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={onDrop}
@@ -630,7 +630,7 @@ export default function ExcelImportWithMapping({
                   if (id) applyTemplate(id)
                   else setSelectedTemplateId('')
                 }}
-                className="border border-border rounded-btn px-3 py-1.5 text-sm bg-white outline-none focus:border-primary"
+                className="border border-border rounded-btn px-3 py-1.5 text-sm bg-white outline-none focus:border-primary-500"
               >
                 <option value="">— 手动配置 —</option>
                 {templates.map(t => (
@@ -672,7 +672,7 @@ export default function ExcelImportWithMapping({
                         }
                         setColumnMappings(newMappings)
                       }}
-                      className="flex-1 border rounded-btn px-3 py-1.5 text-sm outline-none bg-white focus:border-primary"
+                      className="flex-1 border rounded-btn px-3 py-1.5 text-sm outline-none bg-white focus:border-primary-500"
                     >
                       <option value="">— 忽略此列 —</option>
                       {systemFields.map(field => (
@@ -732,13 +732,13 @@ export default function ExcelImportWithMapping({
             <div className="mb-3">
               {!preCheckStatus && (
                 <button onClick={handlePreCheck}
-                  className="text-xs border border-primary/30 text-primary px-3 py-1.5 rounded-btn hover:bg-primary/5 transition-colors">
+                  className="text-xs border border-primary-500/30 text-primary px-3 py-1.5 rounded-btn hover:bg-primary-500/5 transition-colors">
                   🔍 预检查
                 </button>
               )}
               {preCheckStatus?.result === 'checking' && (
                 <div className="flex items-center gap-2 text-xs text-text-muted">
-                  <span className="inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  <span className="inline-block w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                   正在预检查…
                 </div>
               )}
@@ -920,7 +920,7 @@ export default function ExcelImportWithMapping({
             ].map(stage => (
               <div key={stage.label} className={`text-center py-2 rounded-btn text-xs transition-colors
                 ${progress >= stage.threshold
-                  ? 'bg-primary/5 text-primary border border-primary/20'
+                  ? 'bg-primary-500/5 text-primary border border-primary-500/20'
                   : 'bg-warm/30 text-text-muted/50 border border-border/50'}`}>
                 {progress >= stage.threshold ? '✓ ' : ''}{stage.label}
               </div>
@@ -934,7 +934,7 @@ export default function ExcelImportWithMapping({
         <div className="text-center py-4">
           <div className="text-5xl mb-4">{result.errors.length === 0 ? '✅' : '⚠️'}</div>
           <div className={`grid gap-4 mb-5 ${result.updated ? 'grid-cols-4' : 'grid-cols-3'}`}>
-            <div className="bg-primary/5 border border-primary/10 rounded-card p-4">
+            <div className="bg-primary-500/5 border border-primary-500/10 rounded-card p-4">
               <div className="text-2xl font-bold text-primary">{result.created}</div>
               <div className="text-xs text-text-muted mt-1">成功导入</div>
             </div>
@@ -969,7 +969,7 @@ export default function ExcelImportWithMapping({
               </button>
             </div>
           )}
-          <button onClick={handleClose} className="px-6 py-2 bg-primary  rounded-btn text-sm hover:bg-primary/90">
+          <button onClick={handleClose} className="px-6 py-2 bg-primary-500  rounded-btn text-sm hover:bg-primary-500/90">
             完成
           </button>
         </div>
@@ -978,7 +978,7 @@ export default function ExcelImportWithMapping({
       {/* 保存模板弹窗 */}
       <Modal open={saveTemplateOpen} title="保存字段映射模板" onClose={() => setSaveTemplateOpen(false)} onConfirm={handleSaveTemplate}>
         <div className="space-y-4">
-          <div className="bg-primary/5 border border-primary/10 rounded-card p-3 text-xs text-primary">
+          <div className="bg-primary-500/5 border border-primary-500/10 rounded-card p-3 text-xs text-primary">
             将保存 {columnMappings.filter(m => m.system_field).length} 列的映射关系。下次相同格式的 Excel 可直接复用此模板。
           </div>
           
@@ -988,7 +988,7 @@ export default function ExcelImportWithMapping({
               value={saveTemplateForm.name}
               onChange={(e) => setSaveTemplateForm(f => ({ ...f, name: e.target.value }))}
               placeholder="例如：补贴发放导入模板"
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"
             />
           </div>
           
@@ -999,7 +999,7 @@ export default function ExcelImportWithMapping({
                 value={saveTemplateForm.year}
                 onChange={(e) => setSaveTemplateForm(f => ({ ...f, year: e.target.value }))}
                 placeholder="例如：2025"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"
               />
             </div>
             <div>
@@ -1008,7 +1008,7 @@ export default function ExcelImportWithMapping({
                 value={saveTemplateForm.region}
                 onChange={(e) => setSaveTemplateForm(f => ({ ...f, region: e.target.value }))}
                 placeholder="例如：红星村"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary"
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500"
               />
             </div>
           </div>
@@ -1018,7 +1018,7 @@ export default function ExcelImportWithMapping({
             <select
               value={saveTemplateForm.business_type}
               onChange={(e) => setSaveTemplateForm(f => ({ ...f, business_type: e.target.value }))}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none focus:border-primary"
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none focus:border-primary-500"
             >
               <option value="SUBSIDY">补贴发放</option>
               <option value="FARMER">农户档案</option>

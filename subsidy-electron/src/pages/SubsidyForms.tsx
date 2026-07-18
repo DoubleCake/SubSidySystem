@@ -129,7 +129,7 @@ export default function SubsidyForms({
             {[['大春', '🌻'], ['小春', '🌾'], ['耕地地力保护', '📅'], ['临时', '📌']].map(([s, icon]) => (
               <div key={s} onClick={() => onFormChange({ ...form, season: s })}
                 className={`flex-1 border-2 rounded-btn p-2.5 cursor-pointer transition-colors text-center
-                  ${(form.season ?? '耕地地力保护') === s ? 'border-primary bg-emerald-50' : 'border-border hover:border-border'}`}>
+                  ${(form.season ?? '耕地地力保护') === s ? 'border-primary-500 bg-emerald-50' : 'border-border hover:border-border'}`}>
                 <div className="text-base mb-0.5">{icon}</div>
                 <div className={`text-xs font-medium ${(form.season ?? '耕地地力保护') === s ? 'text-primary' : ''}`}>{s}</div>
               </div>
@@ -141,7 +141,7 @@ export default function SubsidyForms({
             { val: 'per_mu', title: '按亩计算', desc: '每亩金额 × 土地面积', icon: '🌾' }].map(opt => (
             <div key={opt.val} onClick={() => onFormChange({ ...form, calc_mode: opt.val as 'fixed' | 'per_mu' })}
               className={`border-2 rounded-card p-3 cursor-pointer transition-colors
-                ${form.calc_mode === opt.val ? 'border-primary bg-emerald-50' : 'border-border hover:border-border'}`}>
+                ${form.calc_mode === opt.val ? 'border-primary-500 bg-emerald-50' : 'border-border hover:border-border'}`}>
               <div className="text-xl mb-1">{opt.icon}</div>
               <div className={`font-semibold text-sm ${form.calc_mode === opt.val ? 'text-primary' : ''}`}>{opt.title}</div>
               <div className="text-xs text-text-muted">{opt.desc}</div>
@@ -151,7 +151,7 @@ export default function SubsidyForms({
         <div className="grid grid-cols-2 gap-3">
           <div><label className="block text-xs text-text-muted mb-1">补贴名称 *</label>
             <input value={form.subsidy_name ?? ''} onChange={e => onFormChange({ ...form, subsidy_name: e.target.value })}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
           <div><label className="block text-xs text-text-muted mb-1">补贴年度 *</label>
             <select value={form.subsidy_year ?? thisYear} onChange={e => onFormChange({ ...form, subsidy_year: Number(e.target.value) })}
               className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">
@@ -159,7 +159,7 @@ export default function SubsidyForms({
             </select></div>
           <div><label className="block text-xs text-text-muted mb-1">{form.calc_mode === 'per_mu' ? '每亩金额(元)' : '标准金额(元)'}</label>
             <input type="number" step="0.01" value={form.standard_amount ?? ''} onChange={e => onFormChange({ ...form, standard_amount: Number(e.target.value) || undefined })}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" /></div>
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
           {form.calc_mode === 'fixed' && (
             <div><label className="block text-xs text-text-muted mb-1">发放单位</label>
               <select value={form.standard_unit ?? '元/户'} onChange={e => onFormChange({ ...form, standard_unit: e.target.value })}
@@ -178,7 +178,7 @@ export default function SubsidyForms({
           </div>
           <div className="col-span-2"><label className="block text-xs text-text-muted mb-1">补贴说明</label>
             <textarea rows={2} value={form.description ?? ''} onChange={e => onFormChange({ ...form, description: e.target.value || undefined })}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" /></div>
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" /></div>
         </div>
 
         {/* ── 预检查方案配置 ── */}
@@ -220,7 +220,7 @@ export default function SubsidyForms({
                         onClick={() => toggleCheck(item.key)}
                         title={item.desc}
                         className="px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer select-none transition-all
-                          bg-white text-text-muted border border-border hover:border-primary/40 hover:text-text-primary">
+                          bg-white text-text-muted border border-border hover:border-primary-500/40 hover:text-text-primary">
                         + {item.label}
                       </span>
                     ))}

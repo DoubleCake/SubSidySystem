@@ -403,7 +403,7 @@ export default function LargeFarmersPage() {
             className="border border-border rounded-btn px-3 py-2 text-sm outline-none flex-1 min-w-[160px]" />
           <span className="text-xs text-text-muted">共 {total} 条</span>
           <button onClick={openAddFarmer}
-            className="ml-auto px-3 py-2 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">
+            className="ml-auto px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary-500/90">
             ＋ 新增大户
           </button>
         </div>
@@ -429,7 +429,7 @@ export default function LargeFarmersPage() {
                 </td></tr>
               )}
               {list.map(f => (
-                <tr key={f.id} className={`border-b border-border/50 hover:bg-warm/30 cursor-pointer ${selectedFarmer?.id === f.id ? 'bg-primary/5' : ''}`}
+                <tr key={f.id} className={`border-b border-border/50 hover:bg-warm/30 cursor-pointer ${selectedFarmer?.id === f.id ? 'bg-primary-500/5' : ''}`}
                   onClick={() => loadFarmerDetail(f)}>
                   <td className="px-3 py-2.5">
                     <div className="text-sm font-semibold">{f.operator_name}</div>
@@ -501,7 +501,7 @@ export default function LargeFarmersPage() {
                     {years.map(y => <option key={y} value={y}>{y}年</option>)}
                   </select>
                 </div>
-                <button onClick={openAddTrust} className="text-xs px-2 py-1 bg-primary text-white rounded hover:bg-primary/90">
+                <button onClick={openAddTrust} className="text-xs px-2 py-1 bg-primary-500 text-white rounded hover:bg-primary-500/90">
                   ＋ 添加关联
                 </button>
               </div>
@@ -592,7 +592,7 @@ export default function LargeFarmersPage() {
               {OPERATOR_TYPE_OPTS.map(o => (
                 <div key={o.val} onClick={() => sff('operator_type', o.val)}
                   className={`border-2 rounded-card p-2 cursor-pointer transition-colors text-center
-                    ${farmerForm.operator_type === o.val ? 'border-primary bg-primary/5' : 'border-border hover:border-border'}`}>
+                    ${farmerForm.operator_type === o.val ? 'border-primary-500 bg-primary-500/5' : 'border-border hover:border-border'}`}>
                   <div className="text-lg mb-0.5">{o.icon}</div>
                   <div className="text-xs font-semibold">{o.label}</div>
                 </div>
@@ -605,19 +605,19 @@ export default function LargeFarmersPage() {
               <label className="block text-xs text-text-muted mb-1">经营者/主体名称 *</label>
               <input value={farmerForm.operator_name} onChange={e => sff('operator_name', e.target.value)}
                 placeholder="请填写"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">身份证号</label>
               <input value={farmerForm.id_card} onChange={e => sff('id_card', e.target.value)}
                 placeholder="负责人身份证"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">联系电话</label>
               <input value={farmerForm.phone} onChange={e => sff('phone', e.target.value)}
                 placeholder="联系电话"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
           </div>
 
@@ -634,7 +634,7 @@ export default function LargeFarmersPage() {
               <label className="block text-xs text-text-muted mb-1">组号</label>
               <input value={farmerForm.group_no} onChange={e => sff('group_no', e.target.value)}
                 placeholder="如：1"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
           </div>
 
@@ -643,13 +643,13 @@ export default function LargeFarmersPage() {
               <label className="block text-xs text-text-muted mb-1">自有承包面积（亩）</label>
               <input type="number" step="0.01" value={farmerForm.own_contract_area} onChange={e => sff('own_contract_area', e.target.value)}
                 placeholder="如：10.5"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">总经营面积（亩）</label>
               <input type="number" step="0.01" value={farmerForm.total_managed_area} onChange={e => sff('total_managed_area', e.target.value)}
                 placeholder="可通过代耕代种自动计算"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
           </div>
 
@@ -657,13 +657,13 @@ export default function LargeFarmersPage() {
             <label className="block text-xs text-text-muted mb-1">主要种植作物</label>
             <input value={farmerForm.main_crops} onChange={e => sff('main_crops', e.target.value)}
               placeholder="如：水稻、小麦、玉米"
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
           </div>
 
           <div>
             <label className="block text-xs text-text-muted mb-1">备注</label>
             <textarea rows={2} value={farmerForm.remark} onChange={e => sff('remark', e.target.value)}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" />
           </div>
         </div>
       </Modal>
@@ -678,7 +678,7 @@ export default function LargeFarmersPage() {
               <input value={ownerSearch}
                 onChange={e => { setOwnerSearch(e.target.value); sft('owner_household_id', null) }}
                 placeholder="输入户名或户主姓名搜索"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
               {ownerOpts.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-card shadow-lg z-20 max-h-40 overflow-y-auto">
                   {ownerOpts.map(h => (
@@ -707,7 +707,7 @@ export default function LargeFarmersPage() {
               <label className="block text-xs text-text-muted mb-1">面积（亩）*</label>
               <input type="number" step="0.01" value={trustForm.area} onChange={e => sft('area', e.target.value)}
                 placeholder="如：5.0"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">流转类型</label>
@@ -734,7 +734,7 @@ export default function LargeFarmersPage() {
                 <label className="block text-xs text-text-muted mb-1">地块所属组</label>
                 <input value={trustForm.parcel_group_no} onChange={e => sft('parcel_group_no', e.target.value)}
                   placeholder="如：1"
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
               </div>
             </div>
           </div>
@@ -744,13 +744,13 @@ export default function LargeFarmersPage() {
               <label className="block text-xs text-text-muted mb-1">地块描述</label>
               <input value={trustForm.parcel_desc} onChange={e => sft('parcel_desc', e.target.value)}
                 placeholder="如：东山坡地"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">地块位置</label>
               <input value={trustForm.parcel_location} onChange={e => sft('parcel_location', e.target.value)}
                 placeholder="如：村东头"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
           </div>
 
@@ -775,7 +775,7 @@ export default function LargeFarmersPage() {
               <label className="block text-xs text-text-muted mb-1">片区名称</label>
               <input value={trustForm.zone_name} onChange={e => sft('zone_name', e.target.value)}
                 placeholder="如：核心种植区"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
           </div>
 
@@ -784,13 +784,13 @@ export default function LargeFarmersPage() {
               <label className="block text-xs text-text-muted mb-1">年租金（元/亩）</label>
               <input type="number" step="0.01" value={trustForm.annual_fee} onChange={e => sft('annual_fee', e.target.value)}
                 placeholder="无偿可不填"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">总租金（元）</label>
               <input type="number" step="0.01" value={trustForm.total_fee} onChange={e => sft('total_fee', e.target.value)}
                 placeholder="可不填"
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
           </div>
 
@@ -815,7 +815,7 @@ export default function LargeFarmersPage() {
           <div>
             <label className="block text-xs text-text-muted mb-1">备注</label>
             <textarea rows={2} value={trustForm.note} onChange={e => sft('note', e.target.value)}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" />
           </div>
         </div>
       </Modal>

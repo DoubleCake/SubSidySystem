@@ -789,7 +789,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
                 ↑ Excel导入
               </button>
               <button onClick={() => setProxyAddOpen(true)}
-                className="px-2.5 py-1.5 text-[11px] bg-primary text-white rounded-lg hover:bg-primary/90">
+                className="px-2.5 py-1.5 text-[11px] bg-primary-500 text-white rounded-lg hover:bg-primary-500/90">
                 ＋ 新增
               </button>
             </>
@@ -994,7 +994,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
                 <div className="px-4 py-2.5 border-b border-border/30 bg-gradient-to-r from-blue-50/50 to-sky-50/50 flex items-center justify-between">
                   <span className="text-sm font-semibold text-text-primary">🔍 数据预检结果</span>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => { setSelectedSheets(getDefaultSelectedSheets(preCheckResults)); setExportModalOpen(true) }} className="px-2.5 py-1 text-[11px] bg-primary text-white rounded-lg hover:bg-primary/90 transition-all">↓ 导出 Excel</button>
+                    <button onClick={() => { setSelectedSheets(getDefaultSelectedSheets(preCheckResults)); setExportModalOpen(true) }} className="px-2.5 py-1 text-[11px] bg-primary-500 text-white rounded-lg hover:bg-primary-500/90 transition-all">↓ 导出 Excel</button>
                     <button onClick={() => setPreCheckResults(null)} className="text-xs text-text-muted hover:text-text-primary">✕ 关闭</button>
                   </div>
                 </div>
@@ -1212,7 +1212,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
                 <div className="px-4 py-2.5 border-b border-border/30 bg-gradient-to-r from-blue-50/50 to-sky-50/50 flex items-center justify-between">
                   <span className="text-sm font-semibold text-text-primary">🔍 数据预检结果</span>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => { setSelectedSheets(getDefaultSelectedSheets(preCheckResults)); setExportModalOpen(true) }} className="px-2.5 py-1 text-[11px] bg-primary text-white rounded-lg hover:bg-primary/90 transition-all">↓ 导出 Excel</button>
+                    <button onClick={() => { setSelectedSheets(getDefaultSelectedSheets(preCheckResults)); setExportModalOpen(true) }} className="px-2.5 py-1 text-[11px] bg-primary-500 text-white rounded-lg hover:bg-primary-500/90 transition-all">↓ 导出 Excel</button>
                     <button onClick={() => setPreCheckResults(null)} className="text-xs text-text-muted hover:text-text-primary">✕ 关闭</button>
                   </div>
                 </div>
@@ -1366,13 +1366,13 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
             <label className="block text-xs text-text-muted mb-1">被代领人身份证 *</label>
             <input value={proxyForm.beneficiary_id_card} onChange={e => setProxyForm(f => ({ ...f, beneficiary_id_card: e.target.value }))}
               placeholder="请输入被代领人身份证号"
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 font-mono" />
           </div>
           <div>
             <label className="block text-xs text-text-muted mb-1">代领人身份证 *</label>
             <input value={proxyForm.proxy_id_card} onChange={e => setProxyForm(f => ({ ...f, proxy_id_card: e.target.value }))}
               placeholder="请输入代领人身份证号"
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary font-mono" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 font-mono" />
           </div>
           <div>
             <label className="block text-xs text-text-muted mb-1">代领类型</label>
@@ -1388,7 +1388,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
             <label className="block text-xs text-text-muted mb-1">备注</label>
             <textarea rows={2} value={proxyForm.remark} onChange={e => setProxyForm(f => ({ ...f, remark: e.target.value }))}
               placeholder="可选"
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary resize-none" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" />
           </div>
         </div>
       </Modal>

@@ -203,7 +203,7 @@ export default function ProxyManagePage() {
                     value={searchKeyword}
                     onChange={(e) => setSearchKeyword(e.target.value)}
                     placeholder="输入姓名或身份证搜索"
-                    className="w-full border border-border rounded-btn px-4 py-2.5 text-sm outline-none focus:border-primary"
+                    className="w-full border border-border rounded-btn px-4 py-2.5 text-sm outline-none focus:border-primary-500"
                   />
                 </div>
 
@@ -212,7 +212,7 @@ export default function ProxyManagePage() {
                   <select
                     value={selectedProxyFarmerId}
                     onChange={(e) => setSelectedProxyFarmerId(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full border border-border rounded-btn px-4 py-2.5 text-sm outline-none focus:border-primary"
+                    className="w-full border border-border rounded-btn px-4 py-2.5 text-sm outline-none focus:border-primary-500"
                   >
                     <option value="">— 请选择代领人 —</option>
                     {filteredFarmers.map(farmer => (
@@ -230,7 +230,7 @@ export default function ProxyManagePage() {
                     value={proxyRemark}
                     onChange={(e) => setProxyRemark(e.target.value)}
                     placeholder="填写代领原因等说明"
-                    className="w-full border border-border rounded-btn px-4 py-2.5 text-sm outline-none focus:border-primary"
+                    className="w-full border border-border rounded-btn px-4 py-2.5 text-sm outline-none focus:border-primary-500"
                   />
                 </div>
 
@@ -244,7 +244,7 @@ export default function ProxyManagePage() {
                   <button
                     onClick={handleCreateProxy}
                     disabled={!selectedProxyFarmerId}
-                    className="flex-1 px-4 py-2.5 bg-primary text-white rounded-btn hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-2.5 bg-primary-500 text-white rounded-btn hover:bg-primary-500/90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     设置代领
                   </button>

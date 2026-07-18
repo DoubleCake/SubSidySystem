@@ -249,7 +249,7 @@ export default function PrecheckHistoryTab({ subsidyType, preCheckResults }: Pre
         <div className="flex flex-wrap gap-2 mb-4">
           {batches.map(b => (
             <div key={b.batch_key}
-              className="px-3 py-2 bg-white border border-border rounded-card text-xs cursor-pointer hover:border-primary/30"
+              className="px-3 py-2 bg-white border border-border rounded-card text-xs cursor-pointer hover:border-primary-500/30"
               onClick={() => { setSelectedBatch(b.batch_key); setPage(1) }}>
               <div className="font-medium text-text-primary mb-1">{b.batch_key}</div>
               <div className="text-text-muted">
@@ -329,7 +329,7 @@ export default function PrecheckHistoryTab({ subsidyType, preCheckResults }: Pre
                       <div className="flex gap-1 justify-center">
                         {isResolved ? (
                           <button onClick={() => handleUnresolve(item.id)}
-                            className="text-xs border border-border px-2 py-1 rounded text-text-muted hover:text-primary hover:border-primary/20">
+                            className="text-xs border border-border px-2 py-1 rounded text-text-muted hover:text-primary hover:border-primary-500/20">
                             取消
                           </button>
                         ) : (
@@ -382,7 +382,7 @@ export default function PrecheckHistoryTab({ subsidyType, preCheckResults }: Pre
                 return (
                   <label key={key}
                     className={`flex items-center gap-2.5 px-3 py-2 rounded border cursor-pointer text-sm
-                      ${selectedErrorTypes.includes(key) ? 'border-primary/40 bg-primary/5' : 'border-border'}`}>
+                      ${selectedErrorTypes.includes(key) ? 'border-primary-500/40 bg-primary-500/5' : 'border-border'}`}>
                     <input type="checkbox" checked={selectedErrorTypes.includes(key)}
                       onChange={() => setSelectedErrorTypes(prev =>
                         prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key]
@@ -399,7 +399,7 @@ export default function PrecheckHistoryTab({ subsidyType, preCheckResults }: Pre
                 取消
               </button>
               <button onClick={handleSave} disabled={selectedErrorTypes.length === 0}
-                className="px-4 py-1.5 text-sm bg-primary rounded-btn hover:bg-primary/90 disabled:opacity-50">
+                className="px-4 py-1.5 text-sm bg-primary-500 rounded-btn hover:bg-primary-500/90 disabled:opacity-50">
                 确定保存 ({selectedErrorTypes.reduce((s, k) => s + ((preCheckResults as unknown as Record<string, unknown[]>)[k]?.length || 0), 0)} 条)
               </button>
             </div>

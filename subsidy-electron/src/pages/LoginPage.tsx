@@ -102,7 +102,7 @@ export default function LoginPage() {
               检测到认证已关闭（AUTH_DISABLED），本地模式无需登录。
             </p>
             <button onClick={() => navigate('/')}
-              className="w-full py-2.5 bg-primary text-white rounded-btn font-medium hover:bg-primary/90">
+              className="w-full py-2.5 bg-primary-500 text-white rounded-btn font-medium hover:bg-primary-500/90">
               直接进入系统
             </button>
           </div>
@@ -112,15 +112,15 @@ export default function LoginPage() {
           <div>
             <label className="block text-xs text-text-muted mb-1">用户名</label>
             <input value={username} onChange={e => setUsername(e.target.value)} autoFocus
-              className="w-full border border-border rounded-btn px-3 py-2.5 text-sm outline-none focus:border-primary" />
+              className="w-full border border-border rounded-btn px-3 py-2.5 text-sm outline-none focus:border-primary-500" />
           </div>
           <div>
             <label className="block text-xs text-text-muted mb-1">密码</label>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-              className="w-full border border-border rounded-btn px-3 py-2.5 text-sm outline-none focus:border-primary" />
+              className="w-full border border-border rounded-btn px-3 py-2.5 text-sm outline-none focus:border-primary-500" />
           </div>
           <button type="submit" disabled={loading}
-            className="w-full py-2.5 bg-primary text-white rounded-btn font-medium hover:bg-primary/90 disabled:opacity-50">
+            className="w-full py-2.5 bg-primary-500 text-white rounded-btn font-medium hover:bg-primary-500/90 disabled:opacity-50">
             {loading ? '登录中…' : '登 录'}
           </button>
           <p className="text-xs text-text-muted text-center mt-2">默认账号: admin / admin123</p>

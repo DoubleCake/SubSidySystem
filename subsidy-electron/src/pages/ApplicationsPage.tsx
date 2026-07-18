@@ -160,7 +160,7 @@ export default function ApplicationsPage() {
           {[2024, 2023, 2022].map(y => (
             <button key={y} onClick={() => setYearFilter(y)}
               className={`px-3 py-1.5 text-sm rounded-btn border transition-colors
-                ${yearFilter === y ? 'bg-primary text-white border-emerald-700' : 'bg-white border-border text-text-primary hover:border-border'}`}>
+                ${yearFilter === y ? 'bg-primary-500 text-white border-emerald-700' : 'bg-white border-border text-text-primary hover:border-border'}`}>
               {y}年
             </button>
           ))}
@@ -177,9 +177,9 @@ export default function ApplicationsPage() {
           <option value="2">已发放</option><option value="3">驳回</option>
         </select>
         <div className="ml-auto flex gap-2">
-          <button onClick={() => setImportOpen(true)} className="px-3 py-1.5 text-sm border border-primary/20 text-primary rounded-btn hover:bg-primary/5">↑ Excel导入</button>
+          <button onClick={() => setImportOpen(true)} className="px-3 py-1.5 text-sm border border-primary-500/20 text-primary rounded-btn hover:bg-primary-500/5">↑ Excel导入</button>
           <button onClick={() => { setAddOpen(true); setIdInput(''); setFarmerHint(''); setFarmerId(null); setForm({ pay_status: 0 }) }}
-            className="px-3 py-1.5 text-sm bg-primary text-white rounded-btn hover:bg-primary/90">＋ 新增记录</button>
+            className="px-3 py-1.5 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary-500/90">＋ 新增记录</button>
         </div>
       </div>
 
@@ -208,7 +208,7 @@ export default function ApplicationsPage() {
                 <td className="px-3.5 py-2.5"><Tag label={PAY_STATUS[a.pay_status]?.label} color={PAY_STATUS[a.pay_status]?.color as 'green'} /></td>
                 <td className="px-3.5 py-2.5 text-xs font-mono text-text-muted">{a.pay_date ?? '—'}</td>
                 <td className="px-3.5 py-2.5">
-                  <button onClick={() => openEdit(a)} className="text-xs text-text-muted border border-border px-2.5 py-1 rounded-btn hover:text-primary hover:border-primary/20">编辑</button>
+                  <button onClick={() => openEdit(a)} className="text-xs text-text-muted border border-border px-2.5 py-1 rounded-btn hover:text-primary hover:border-primary-500/20">编辑</button>
                 </td>
               </tr>
             ))}
@@ -226,7 +226,7 @@ export default function ApplicationsPage() {
           <div>
             <label className="block text-xs text-text-muted mb-1">农户身份证号 *</label>
             <input value={idInput} onChange={e => setIdInput(e.target.value)} placeholder="输入身份证号自动查找农户"
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             {farmerHint && <p className="text-xs mt-1" style={{ color: farmerId ? '#15803d' : '#dc2626' }}>{farmerHint}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -256,18 +256,18 @@ export default function ApplicationsPage() {
               <div>
                 <label className="block text-xs text-text-muted mb-1">申请面积(亩) — 填后自动计算金额</label>
                 <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))}
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
               </div>
             )}
             <div>
               <label className="block text-xs text-text-muted mb-1">申请金额(元)</label>
               <input type="number" step="0.01" value={form.apply_amount ?? ''} onChange={e => setForm(f => ({ ...f, apply_amount: Number(e.target.value) || undefined }))}
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">实发金额(元)</label>
               <input type="number" step="0.01" value={form.actual_amount ?? ''} onChange={e => setForm(f => ({ ...f, actual_amount: Number(e.target.value) || undefined }))}
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
             <div>
               <label className="block text-xs text-text-muted mb-1">发放状态</label>
@@ -280,7 +280,7 @@ export default function ApplicationsPage() {
             <div>
               <label className="block text-xs text-text-muted mb-1">打款日期</label>
               <input type="date" value={form.pay_date ?? ''} onChange={e => setForm(f => ({ ...f, pay_date: e.target.value || undefined }))}
-                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+                className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
             </div>
           </div>
         </div>
@@ -293,7 +293,7 @@ export default function ApplicationsPage() {
           <div>
             <label className="block text-xs text-text-muted mb-1">实发金额(元)</label>
             <input type="number" step="0.01" value={form.actual_amount ?? ''} onChange={e => setForm(f => ({ ...f, actual_amount: Number(e.target.value) || undefined }))}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
           </div>
           <div>
             <label className="block text-xs text-text-muted mb-1">发放状态</label>
@@ -306,12 +306,12 @@ export default function ApplicationsPage() {
           <div>
             <label className="block text-xs text-text-muted mb-1">打款日期</label>
             <input type="date" value={form.pay_date ?? ''} onChange={e => setForm(f => ({ ...f, pay_date: e.target.value || undefined }))}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
           </div>
           <div>
             <label className="block text-xs text-text-muted mb-1">备注</label>
             <input value={form.remark ?? ''} onChange={e => setForm(f => ({ ...f, remark: e.target.value || undefined }))}
-              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary" />
+              className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
           </div>
         </div>
       </Modal>

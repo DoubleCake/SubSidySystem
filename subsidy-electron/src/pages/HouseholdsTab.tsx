@@ -721,32 +721,32 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
         <div className="flex gap-2 mb-3 flex-wrap">
           <input value={search} onChange={e => setSearch(e.target.value.trimStart())}
             onPaste={e => { e.preventDefault(); setSearch(e.clipboardData.getData('text').trim()) }} placeholder="搜索户名/户编码/户主姓名…"
-            className="flex-1 min-w-32 border border-border rounded-btn px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white shadow-card transition-all" />
+            className="flex-1 min-w-32 border border-border rounded-btn px-3.5 py-2.5 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary/10 bg-white shadow-card transition-all" />
           <select value={villageFilter} onChange={e => { setVillageFilter(e.target.value); setHhPage(1) }}
-            className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all">
+            className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary-500 focus:ring-2 focus:ring-primary/10 transition-all">
             <option value="">全部村庄</option>
             {villages.map(v => <option key={v} value={v}>{v}</option>)}
           </select>
           <select value={yearFilter} onChange={e => { setYearFilter(Number(e.target.value)); setHhPage(1); updateUrl({ year: Number(e.target.value) }) }}
-            className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all">
+            className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary-500 focus:ring-2 focus:ring-primary/10 transition-all">
             {Array.from({ length: 21 }, (_, i) => new Date().getFullYear() - 10 + i).map(y => (
               <option key={y} value={y}>{y}年</option>
             ))}
           </select>
           <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setHhPage(1) }}
-            className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all">
+            className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary-500 focus:ring-2 focus:ring-primary/10 transition-all">
             <option value="">全部状态</option>
             <option value="1">在册</option>
             <option value="2">注销</option>
             <option value="3">迁出</option>
           </select>
           <select value={confirmedFilter} onChange={e => { setConfirmedFilter(e.target.value); setHhPage(1) }}
-            className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all">
+            className="border border-border rounded-btn px-3 py-2.5 text-sm bg-white outline-none shadow-card focus:border-primary-500 focus:ring-2 focus:ring-primary/10 transition-all">
             <option value="">全部确认状态</option>
             <option value="1">✓ 已确认</option>
             <option value="0">✗ 未确认</option>
           </select>
-          <label className="flex items-center gap-2 cursor-pointer text-sm text-text-primary bg-white border border-border rounded-btn px-3 py-2.5 shadow-card hover:border-primary/30 transition-all">
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-text-primary bg-white border border-border rounded-btn px-3 py-2.5 shadow-card hover:border-primary-500/30 transition-all">
             <input type="checkbox" checked={subsidyOnly} onChange={e => { setSubsidyOnly(e.target.checked); setHhPage(1) }}
               className="w-4 h-4 text-primary rounded" />
             <span>仅有补贴记录</span>
@@ -770,7 +770,7 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
               {!mergeMode && (
                 <>
                   <div className="flex gap-2 flex-wrap">
-                    <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary/90 shadow-card hover:shadow-card-hover transition-all font-medium">
+                    <button onClick={() => setCreateHhOpen(true)} className="px-3 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary-500/90 shadow-card hover:shadow-card-hover transition-all font-medium">
                       <Icon name="create" size={14} className="inline mr-1" />创建新家庭户
                     </button>
                     <button onClick={() => { setMergeMode(true); setMergeSelected([]); setMergeSelectedHouseholds([]); setBatchConfirmMode(false); setBatchSelected([]); setBatchSelectedHouseholds([]); setHhPage(1) }}
@@ -787,7 +787,7 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
                       <Icon name="upload" size={14} className="inline mr-1" />导入确权面积
                     </button>
                     <button onClick={() => { setBatchConfirmMode(true); setBatchSelected([]); setBatchSelectedHouseholds([]); setMergeMode(false); setMergeSelected([]); setMergeSelectedHouseholds([]) }}
-                      className="px-3 py-2 text-sm border border-primary/20 text-primary bg-[#e3e7ec] rounded-btn hover:bg-primary/5 shadow-card hover:shadow-card-hover transition-all font-medium bg-primary/[0.02]">
+                      className="px-3 py-2 text-sm border border-primary-500/20 text-primary bg-[#e3e7ec] rounded-btn hover:bg-primary-500/5 shadow-card hover:shadow-card-hover transition-all font-medium bg-primary-500/[0.02]">
                       <Icon name="confirm" size={14} className="inline mr-1" />批量确认
                     </button>
                     <button onClick={handleRecalcUnconfirmedArea} disabled={recalculatingArea}
@@ -812,10 +812,10 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
 
         {/* 家庭户列表 - 标签说明 */}
         {!mergeMode && (
-          <div className="bg-primary/5 border border-primary/10 rounded-card px-4 py-2.5 mb-3 flex items-center gap-3 text-sm">
+          <div className="bg-primary-500/5 border border-primary-500/10 rounded-card px-4 py-2.5 mb-3 flex items-center gap-3 text-sm">
             <Icon name="info" size={16} className="text-primary/60 shrink-0" />
             <span className="text-text-primary">
-              <span className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-0.5 rounded-btn font-medium mr-2">
+              <span className="inline-flex items-center gap-1 bg-primary-500/10 text-primary px-2 py-0.5 rounded-btn font-medium mr-2">
                 <Icon name="confirm" size={12} />已确认
               </span>
               标签表示该家庭户信息已经通过人工确认核实
@@ -835,7 +835,7 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
             </span>
             <button onClick={handleMergeConfirm}
               disabled={mergeSelectedHouseholds.length < 2}
-              className="ml-auto px-4 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium">
+              className="ml-auto px-4 py-2 text-sm bg-primary-500  rounded-btn hover:bg-primary-500/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium">
               确认合并
             </button>
           </div>
@@ -854,7 +854,7 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
             </span>
             <button onClick={handleBatchConfirm}
               disabled={batchSelected.length === 0 || batchConfirmLoading}
-              className="ml-auto px-4 py-2 text-sm bg-primary  rounded-btn hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2">
+              className="ml-auto px-4 py-2 text-sm bg-primary-500  rounded-btn hover:bg-primary-500/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2">
               {batchConfirmLoading ? <><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>确认中...</> : '确认所选'}
             </button>
           </div>
