@@ -314,8 +314,8 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
         {/* 右侧：新增/待核实农户 */}
         <div className="space-y-3">
           {compare && [
-            { title: '新增农户', list: compare.new_farmers, icon: 'person' as const, color: 'green' as const },
-            { title: '待核实农户', list: compare.exit_farmers, icon: 'warning' as const, color: 'amber' as const },
+            { title: '新增农户', list: compare.new_farmers ?? [], icon: 'person' as const, color: 'green' as const },
+            { title: '待核实农户', list: compare.exit_farmers ?? [], icon: 'warning' as const, color: 'amber' as const },
           ].map(block => (
             <div key={block.title} className="bg-white border border-border rounded-card overflow-hidden shadow-card">
               <div className="px-4 py-2.5 border-b border-border bg-warm/30 flex justify-between items-center">

@@ -467,18 +467,20 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   const loadVillages = useCallback(async () => {
     setLoadingVillages(true)
     try {
+      const dataSource = activeTab === 'disbursement' ? 'payment' : 'application'
       const response = await window.electronAPI.invoke('subsidies:applicationVillages', {
         subsidy_type_id: subsidyType.id,
-        year: subsidyType.subsidy_year
+        year: subsidyType.subsidy_year,
+        data_source: dataSource,
       })
-      const data = response?.data ?? response
-      setVillages(data.villages || [])
+      const rows = response?.data ?? response
+      setVillages(Array.isArray(rows) ? [...new Set(rows.map(r => r.village_name).filter(Boolean))] : [])
     } catch (error) {
       console.error('加载村庄列表失败:', error)
     } finally {
       setLoadingVillages(false)
     }
-  }, [subsidyType.id, subsidyType.subsidy_year])
+  }, [subsidyType.id, subsidyType.subsidy_year, activeTab])
 
   // 加载数据
   const load = useCallback(async () => {
