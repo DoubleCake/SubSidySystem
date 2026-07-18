@@ -546,6 +546,9 @@ export function registerSubsidyHandlers(): void {
       if (subsidyTypeId) { where += ' AND sp.subsidy_type_id=?'; vals.push(subsidyTypeId) }
       if (paymentYear) { where += ' AND sp.payment_year=?'; vals.push(paymentYear) }
       if (search) { where += ' AND (fp.real_name LIKE ? OR hh.household_name LIKE ?)'; vals.push(`%${search}%`, `%${search}%`) }
+      // 村庄筛选
+      const villageName = params.village_name as string || ''
+      if (villageName) { where += ' AND v.village_name = ?'; vals.push(villageName) }
       // 支付状态筛选
       const payStatus = params.pay_status
       if (payStatus !== undefined && payStatus !== null && payStatus !== '') {
@@ -576,8 +579,9 @@ export function registerSubsidyHandlers(): void {
         orderClause = `ORDER BY ${PAY_SORT_MAP[sortField]} ${sortDir}, sp.id DESC`
       }
 
-      const countRow = db().getRaw<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM subsidy_payment sp LEFT JOIN farmer_profile fp ON sp.beneficiary_id=fp.id LEFT JOIN family_household hh ON fp.household_id=hh.id ${where}`, ...vals)
-      const rows = db().allRaw(`SELECT sp.*, fp.real_name as farmer_name, hh.household_name, hh.household_code FROM subsidy_payment sp LEFT JOIN farmer_profile fp ON sp.beneficiary_id=fp.id LEFT JOIN family_household hh ON fp.household_id=hh.id ${where} ${orderClause} LIMIT ? OFFSET ?`, ...vals, pageSize, offset)
+      const paymentJoins = ' FROM subsidy_payment sp LEFT JOIN farmer_profile fp ON sp.beneficiary_id=fp.id LEFT JOIN family_household hh ON fp.household_id=hh.id LEFT JOIN village v ON hh.village_id = v.id'
+      const countRow = db().getRaw<{ cnt: number }>(`SELECT COUNT(*) as cnt${paymentJoins} ${where}`, ...vals)
+      const rows = db().allRaw(`SELECT sp.*, fp.real_name as farmer_name, hh.household_name, hh.household_code, v.village_name${paymentJoins} ${where} ${orderClause} LIMIT ? OFFSET ?`, ...vals, pageSize, offset)
       return successList(rows, countRow?.cnt ?? 0, page, pageSize)
     } catch (e) { return errorResponse(String(e)) }
   })
