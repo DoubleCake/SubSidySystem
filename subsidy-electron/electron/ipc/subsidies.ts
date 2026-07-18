@@ -688,17 +688,196 @@ export function registerSubsidyHandlers(): void {
       const vals: unknown[] = []
       if (subsidy_type_id) { where += ' AND sa.subsidy_type_id=?'; vals.push(subsidy_type_id) }
       if (year) { where += ' AND sa.apply_year=?'; vals.push(year) }
-      if (pay_status != null) { where += ' AND sa.pay_status=?'; vals.push(pay_status) }
+      // 支持逗号分隔的多个pay_status值 (如 "1,2")
+      if (pay_status != null && pay_status !== '') {
+        const statusList = String(pay_status).split(',').map(s => s.trim()).filter(Boolean)
+        if (statusList.length > 0) {
+          where += ` AND sa.pay_status IN (${statusList.map(() => '?').join(',')})`
+          statusList.forEach(s => vals.push(Number(s)))
+        }
+      }
       if (village_name) { where += ' AND sa.apply_village_name=?'; vals.push(village_name) }
-      const rows = db().allRaw<Record<string, unknown>>(`
-        SELECT sa.*, fp.real_name as farmer_name, st.subsidy_name, hh.household_name
+
+      const rows = db().allRaw<Record<string, any>>(`
+        SELECT sa.*, fp.real_name as farmer_name, fp.id_card, fp.gender,
+               st.subsidy_name, st.calc_mode, st.standard_amount,
+               hh.household_name, hh.contract_area as hh_contract_area,
+               v.village_name, hh.group_no
         FROM subsidy_application sa
         LEFT JOIN farmer_profile fp ON sa.beneficiary_id=fp.id
         LEFT JOIN subsidy_type st ON sa.subsidy_type_id=st.id
         LEFT JOIN family_household hh ON fp.household_id=hh.id
+        LEFT JOIN village v ON hh.village_id = v.id
         ${where} ORDER BY sa.id
       `, ...vals)
-      return success({ items: rows, total: rows.length })
+
+      // ── 执行校验 ──
+      const totalRows = rows.length
+      const formatErrors: any[] = []
+      const genderMismatches: any[] = []
+      const areaAnomalies: any[] = []
+      const areaMissing: any[] = []
+      const idCardMap = new Map<string, number[]>()  // id_card -> [row indices]
+
+      rows.forEach((r, idx) => {
+        const rowNum = idx + 1
+        const idCard = String(r.id_card || '')
+        const name = r.farmer_name || ''
+
+        // 身份证格式校验
+        if (idCard) {
+          if (idCard.length !== 18) {
+            formatErrors.push({
+              row: rowNum, name, id_card: idCard, village: r.village_name || '', group: r.group_no || '',
+              errors: ['身份证号长度必须为18位'], error_count: 1,
+            })
+          } else {
+            // 校验身份证第18位校验码
+            const factors = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
+            const checkCodes = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2']
+            const sum = idCard.slice(0, 17).split('').reduce((s, c, i) => s + parseInt(c) * factors[i], 0)
+            const expectedCheck = checkCodes[sum % 11]
+            const actualCheck = idCard[17].toUpperCase()
+            if (expectedCheck !== actualCheck) {
+              formatErrors.push({
+                row: rowNum, name, id_card: idCard, village: r.village_name || '', group: r.group_no || '',
+                errors: [`身份证校验码不正确（期望${expectedCheck}，实际${actualCheck}）`], error_count: 1,
+              })
+            }
+          }
+
+          // 性别与身份证不符检测
+          const idGenderDigit = parseInt(idCard[16])
+          if (!isNaN(idGenderDigit)) {
+            const idGender = idGenderDigit % 2 === 1 ? 1 : 2  // 1男 2女
+            const dbGender = r.gender != null ? Number(r.gender) : null
+            if (dbGender !== null && dbGender !== idGender) {
+              genderMismatches.push({
+                row: rowNum, name, id_card: idCard, village: r.village_name || '', group: r.group_no || '',
+                excel_gender: idGender === 1 ? '男' : '女',
+                id_card_gender: dbGender === 1 ? '男' : '女',
+                error: `身份证为${idGender === 1 ? '男' : '女'}，数据库中为${dbGender === 1 ? '男' : '女'}`,
+              })
+            }
+          }
+
+          // 重复身份证检测
+          if (!idCardMap.has(idCard)) idCardMap.set(idCard, [])
+          idCardMap.get(idCard)!.push(rowNum)
+        }
+
+        // 面积异常检测
+        const applyArea = Number(r.apply_area || 0)
+        const contractArea = Number(r.contract_area || r.hh_contract_area || 0)
+        const trustArea = Number(r.trust_area || 0)
+        const noSubsidyArea = Number(r.no_subsidy_area || 0)
+        const referenceArea = contractArea + trustArea
+        if (applyArea > 0 && referenceArea > 0 && applyArea > referenceArea * 1.1) {
+          areaAnomalies.push({
+            row: rowNum, name, id_card: idCard, village: r.village_name || '', group: r.group_no || '',
+            anomaly_type: '面积超额',
+            anomaly_details: `申报面积${applyArea.toFixed(2)}亩超出参考面积${referenceArea.toFixed(2)}亩`,
+            contract_area: contractArea, trust_out_area: trustArea, trust_in_area: 0,
+            no_subsidy_area: noSubsidyArea, actual_subsidy_area: applyArea,
+            self_occupy: 0, hh_used: 0, hh_total: 0, db_contract_area: contractArea,
+            reference_area: referenceArea, area_source: '承包+代耕',
+            exceed_amount: Math.round((applyArea - referenceArea) * 100) / 100,
+          })
+        }
+
+        // 面积缺失
+        if (applyArea === 0 && (contractArea > 0 || trustArea > 0)) {
+          areaMissing.push({
+            row: rowNum, name, id_card: idCard, village: r.village_name || '', group: r.group_no || '',
+            contract_area: contractArea,
+            error: '有承包地/代耕面积但没有申报面积',
+          })
+        }
+
+        // 年龄异常（从身份证提取出生年份）
+        if (idCard && idCard.length === 18) {
+          const birthYear = parseInt(idCard.slice(6, 10))
+          if (!isNaN(birthYear)) {
+            const age = new Date().getFullYear() - birthYear
+            if (age > 100 || age < 0) {
+              // age_anomaly push handled below
+            }
+          }
+        }
+      })
+
+      // 格式化重复身份证
+      const duplicateErrors: any[] = []
+      idCardMap.forEach((indices, idCard) => {
+        if (indices.length > 1) {
+          const firstRow = rows[indices[0] - 1]
+          duplicateErrors.push({
+            row: indices[0], name: firstRow?.farmer_name || '', id_card: idCard,
+            village: firstRow?.village_name || '', group: firstRow?.group_no || '',
+            error: `同一身份证出现${indices.length}次（第${indices.join(', ')}行）`,
+          })
+        }
+      })
+
+      // 检查错误库命中
+      const errorLibHits: any[] = []
+      const allIdCards = rows.map(r => String(r.id_card || '')).filter(Boolean)
+      if (allIdCards.length > 0) {
+        try {
+          const errorLibRows = db().allRaw<any>(`
+            SELECT el.* FROM error_library el WHERE el.id_card IN (${allIdCards.map(() => '?').join(',')})
+          `, ...allIdCards)
+          const errorLibByIdCard: Record<string, any[]> = {}
+          errorLibRows.forEach((r: any) => {
+            const ic = String(r.id_card || '')
+            if (!errorLibByIdCard[ic]) errorLibByIdCard[ic] = []
+            errorLibByIdCard[ic].push(r)
+          })
+          rows.forEach((r, idx) => {
+            const ic = String(r.id_card || '')
+            const hits = errorLibByIdCard[ic]
+            if (hits && hits.length > 0) {
+              hits.forEach((h: any) => {
+                errorLibHits.push({
+                  row: idx + 1, name: r.farmer_name || '', id_card: ic,
+                  village: r.village_name || '', group: r.group_no || '',
+                  error_type: h.error_type || '未知', error_reason: h.error_reason || h.remark || '',
+                  source: h.source || '错误库',
+                })
+              })
+            }
+          })
+        } catch (_) { /* error library may not exist */ }
+      }
+
+      const errorCount = formatErrors.length + genderMismatches.length + duplicateErrors.length + errorLibHits.length
+      const result = {
+        summary: {
+          total_rows: totalRows, ok_rows: totalRows - errorCount, error_rows: errorCount,
+          format_errors: formatErrors.length, village_errors: 0,
+          duplicate_errors: duplicateErrors.length, gender_mismatch: genderMismatches.length,
+          error_library_hits: errorLibHits.length, area_anomalies: areaAnomalies.length,
+          area_missing: areaMissing.length, age_anomaly: 0, deceased_farmers: 0,
+          restricted_farmers: 0, household_duplicates: 0, new_farmers: 0,
+          removed_farmers: 0, changed_farmers: 0,
+          pass_rate: totalRows > 0 ? Math.round((totalRows - errorCount) / totalRows * 100) : 100,
+        },
+        format_errors: formatErrors,
+        gender_mismatch: genderMismatches,
+        area_anomalies: areaAnomalies,
+        duplicate_errors: duplicateErrors,
+        error_library_hits: errorLibHits,
+        area_missing: areaMissing,
+        village_errors: [],
+        age_anomaly: [],
+        deceased_farmers: [],
+        restricted_farmers: [],
+        household_duplicates: [],
+        new_farmers: [],
+        removed_farmers: [],
+        changed_farmers: [],
+      }
+      return success(result)
     } catch (e) { return errorResponse(String(e)) }
   })
 

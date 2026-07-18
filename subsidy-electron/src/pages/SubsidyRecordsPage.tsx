@@ -794,6 +794,12 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
             </>
           )}
           {(activeTab === 'preApply' || activeTab === 'disbursement') && (<>
+              <button onClick={runPreCheck} disabled={preCheckLoading || apps.length === 0}
+                className={`px-2.5 py-1.5 text-[11px] rounded-lg flex items-center gap-1 ${
+                  preCheckLoading ? 'bg-blue-50 border border-blue-200 text-blue-500' : 'bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100'
+                }`}>
+                {preCheckLoading ? <><span className="w-3 h-3 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />预检中</> : '🔍 预检'}
+              </button>
               <span className="text-[11px] text-text-muted">共 {total} 条</span>
               <div className="flex gap-1.5 items-center">
                 {selectedIds.length > 0 && (
@@ -944,12 +950,6 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
                 }`}>💰 正式分发</button>
             </div>
             <div className="flex-1" />
-            <button onClick={runPreCheck} disabled={preCheckLoading}
-              className={`px-3 py-1.5 text-xs rounded-lg flex items-center gap-1.5 ${
-                preCheckLoading ? 'bg-blue-50 border border-blue-200 text-blue-500' : 'bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100'
-              }`}>
-              {preCheckLoading ? <><span className="w-3 h-3 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />预检中</> : '🔍 执行数据预检'}
-            </button>
           </div>
 
           {/* 数据概览 */}

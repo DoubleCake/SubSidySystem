@@ -648,17 +648,12 @@ export default function ExcelImportWithMapping({
             </div>
             <div className="max-h-96 overflow-y-auto">
               {columnMappings.map((mapping, index) => {
-                const confidenceLabel = mapping.confidence != null && mapping.confidence > 0
-                  ? mapping.confidence >= 0.9 ? '高' : mapping.confidence >= 0.6 ? '中' : '低'
-                  : null
-                const confidenceColor = mapping.confidence != null && mapping.confidence >= 0.9
-                  ? 'bg-emerald-100 text-primary'
-                  : mapping.confidence != null && mapping.confidence >= 0.6
-                    ? 'bg-amber-100 text-amber-700'
-                    : 'bg-warm/30 text-text-muted'
+                const isAuto = mapping.confidence != null && mapping.confidence >= 0.6 && mapping.system_field
+                const isManual = mapping.system_field && !isAuto
+                const rowBg = isAuto ? 'bg-emerald-50/40' : isManual ? 'bg-blue-50/40' : !mapping.system_field ? 'bg-amber-50/30' : ''
+                const sourceTag = isAuto ? { label: '✓ 自动匹配', cls: 'bg-emerald-100 text-emerald-700' } : mapping.system_field ? { label: '👆 手动选择', cls: 'bg-blue-100 text-blue-700' } : null
                 return (
-                <div key={index} className={`px-4 py-3 border-b border-border/50 grid grid-cols-[200px_1fr_200px] gap-4 items-center
-                  ${!mapping.system_field ? 'bg-amber-50/30' : 'bg-primary/5/20'}`}>
+                <div key={index} className={`px-4 py-3 border-b border-border/50 grid grid-cols-[200px_1fr_200px] gap-4 items-center ${rowBg}`}>
                   <div>
                     <span className="font-medium text-text-primary">{mapping.excel_column}</span>
                   </div>
@@ -671,6 +666,10 @@ export default function ExcelImportWithMapping({
                       onChange={(e) => {
                         const newMappings = [...columnMappings]
                         newMappings[index].system_field = e.target.value || null
+                        // 用户手动选择后标记 confidence 为 0（手动）
+                        if (e.target.value && newMappings[index].confidence != null && newMappings[index].confidence! >= 0.6) {
+                          newMappings[index].confidence = 0.5
+                        }
                         setColumnMappings(newMappings)
                       }}
                       className="flex-1 border rounded-btn px-3 py-1.5 text-sm outline-none bg-white focus:border-primary"
@@ -682,9 +681,9 @@ export default function ExcelImportWithMapping({
                         </option>
                       ))}
                     </select>
-                    {confidenceLabel && mapping.system_field && (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${confidenceColor}`}>
-                        {confidenceLabel}
+                    {sourceTag && (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap ${sourceTag.cls}`}>
+                        {sourceTag.label}
                       </span>
                     )}
                   </div>
@@ -695,28 +694,23 @@ export default function ExcelImportWithMapping({
           </div>
 
           <div className="mt-4 bg-warm/30 border border-border/50 rounded-btn p-3">
-            <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-4 text-sm flex-wrap">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-primary/50"></div>
-                <span className="text-text-primary">已映射：{columnMappings.filter(m => m.system_field).length} 列</span>
+                <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                <span className="text-text-primary">自动匹配：{columnMappings.filter(m => m.confidence != null && m.confidence >= 0.6 && m.system_field).length} 列</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                <span className="text-text-primary">手动选择：{columnMappings.filter(m => m.system_field && !(m.confidence != null && m.confidence >= 0.6)).length} 列</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-amber-500"></div>
                 <span className="text-text-primary">未映射：{columnMappings.filter(m => !m.system_field).length} 列</span>
               </div>
               <div className="flex items-center gap-2 ml-auto">
-                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                <span className="text-text-primary">必填字段：{systemFields.filter(f => f.required).length} 个</span>
+                <span className="text-text-muted text-xs">必填字段 {systemFields.filter(f => f.required).length} 个</span>
               </div>
             </div>
-            {columnMappings.some(m => m.confidence != null && m.confidence > 0) && (
-              <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border text-xs text-text-muted">
-                <span>匹配置信度：</span>
-                <span className="flex items-center gap-1"><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-primary">高</span>≥90%</span>
-                <span className="flex items-center gap-1"><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">中</span>≥60%</span>
-                <span className="flex items-center gap-1"><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-warm/30 text-text-muted">低</span>&lt;60%</span>
-              </div>
-            )}
           </div>
         </div>
       )}
