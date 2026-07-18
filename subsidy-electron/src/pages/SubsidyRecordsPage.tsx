@@ -219,7 +219,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       new_farmers: number[]
       removed_farmers: number[]
     } | null
-  }>({
+  } | null>({
     totalAmount: 0,
     totalFarmers: 0,
     totalArea: 0,
@@ -654,10 +654,13 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   // 获取全部统计数据
   const loadStats = useCallback(async () => {
     setLoadingStats(true)
+    setStats(null)
     try {
+      const dataSource = activeTab === 'disbursement' ? 'payment' : 'application'
       const statsParams: Record<string, string | number> = {
         subsidy_type_id: subsidyType.id,
         year: subsidyType.subsidy_year,
+        data_source: dataSource,
       }
       if (selectedCompareType) {
         statsParams.compare_type_id = selectedCompareType
@@ -671,7 +674,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     } finally {
       setLoadingStats(false)
     }
-  }, [subsidyType.id, subsidyType.subsidy_year, selectedCompareType])
+  }, [subsidyType.id, subsidyType.subsidy_year, selectedCompareType, activeTab])
 
   // 加载面积统计数据
   const loadAreaStats = useCallback(async () => {
@@ -748,11 +751,11 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
           </div>
           <div className="ml-auto flex items-center gap-2">
             <div className="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur-sm text-white text-center">
-              <div className="text-sm font-bold">{stats.totalFarmers}</div>
+              <div className="text-sm font-bold">{stats?.totalFarmers ?? 0}</div>
               <div className="text-[9px] text-white/60">受益</div>
             </div>
             <div className="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur-sm text-white text-center">
-              <div className="text-sm font-bold">¥{(stats.totalAmount || 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
+              <div className="text-sm font-bold">¥{(stats?.totalAmount ?? 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
               <div className="text-[9px] text-white/60">金额</div>
             </div>
           </div>
@@ -827,68 +830,151 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       {/* Tab内容 */}
       {activeTab === 'preApply' && (
         <div className="space-y-4">
-          {/* ═══ 数据概览 ═══ */}
+          {/* ═══ 数据概览&面积统计 ═══ */}
           <div className="bg-white rounded-xl border border-border/60 shadow-sm overflow-hidden">
-            <button onClick={() => setStatsExpanded(prev => !prev)}
-              className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-warm/30 transition-colors">
+            <button onClick={() => { setStatsExpanded(prev => !prev); setAreaStatsExpanded(true) } }
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50/40 transition-colors">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-text-primary">📊 数据概览</span>
-                <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">预申请</span>
+                <span className="text-sm font-semibold text-text-primary">📊 数据概览 & 面积统计</span>
+                <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">预申请</span>
               </div>
-              <span className="text-[11px] text-text-muted">{statsExpanded ? '▲ 收起' : '▼ 展开'}</span>
+              <span className="text-[11px] text-text-muted">{statsExpanded && areaStatsExpanded ? '▲ 收起' : '▼ 展开'}</span>
             </button>
-            {statsExpanded && (
+            {statsExpanded && areaStatsExpanded && (
               <div className="px-4 pb-4 border-t border-border/30">
-                {loadingStats ? (<div className="flex items-center justify-center py-6 gap-2 text-text-muted/50 text-xs"><span className="w-4 h-4 border-2 border-text-muted/20 border-t-primary rounded-full animate-spin" />加载中…</div>) : (
-                  <><div className="flex items-center justify-end gap-2 pt-2.5 mb-3">
-                    {subsidyType.category && (<select value={selectedCompareType ?? ''} onChange={e => setSelectedCompareType(e.target.value ? Number(e.target.value) : null)} className="px-2 py-1 text-[11px] border border-border/60 rounded-lg bg-white outline-none"><option value="">不对比</option>{comparableTypes.map(t => (<option key={t.id} value={t.id}>{t.subsidy_name} ({t.subsidy_year}年)</option>))}</select>)}
-                    <span className="text-[10px] text-text-muted">全镇数据统计</span>
+                {loadingStats && loadingAreaStats ? (
+                  <div className="flex items-center justify-center py-8 gap-2 text-text-muted/50 text-xs">
+                    <span className="w-4 h-4 border-2 border-text-muted/20 border-t-blue-500 rounded-full animate-spin" />
+                    加载中…
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100/60 rounded-xl p-3.5">
-                      <div className="text-[11px] text-emerald-600 mb-1">申报总额</div>
-                      <div className="text-xl font-bold font-mono text-emerald-700">¥{(stats.totalAmount || 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
-                      <div className="text-[11px] text-emerald-500 mt-1">{stats.totalFarmers || 0}人</div>
+                ) : (
+                  <div className="pt-3">
+                    {/* 数据概览卡片 */}
+                    <div className="flex items-center justify-end gap-2 mb-3">
+                      {subsidyType.category && (
+                        <select value={selectedCompareType ?? ''} onChange={e => setSelectedCompareType(e.target.value ? Number(e.target.value) : null)}
+                          className="px-2 py-1 text-[11px] border border-border/60 rounded-lg bg-white outline-none focus:ring-1 focus:ring-blue-300">
+                          <option value="">不对比</option>
+                          {(comparableTypes || []).map(t => (
+                            <option key={t.id} value={t.id}>{t.subsidy_name} ({t.subsidy_year}年)</option>
+                          ))}
+                        </select>
+                      )}
+                      <span className="text-[10px] text-text-muted">全镇数据统计</span>
                     </div>
-                    <div className="bg-gradient-to-br from-blue-50 to-sky-50 border border-blue-100/60 rounded-xl p-3.5">
-                      <div className="text-[11px] text-blue-600 mb-1">涉及村庄</div>
-                      <div className="text-xl font-bold text-blue-700">{stats.villageDistribution.length}</div>
-                      <div className="text-[11px] text-blue-500 mt-1">个村</div>
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                      <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100/60 rounded-xl p-3.5">
+                        <div className="text-[11px] text-emerald-600 mb-1">申报总额</div>
+                        <div className="text-xl font-bold font-mono text-emerald-700">
+                          ¥{((stats?.totalAmount) || 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+                        </div>
+                        <div className="text-[11px] text-emerald-500 mt-1">{(stats?.totalFarmers) || 0}人</div>
+                      </div>
+                      <div className="bg-gradient-to-br from-blue-50 to-sky-50 border border-blue-100/60 rounded-xl p-3.5">
+                        <div className="text-[11px] text-blue-600 mb-1">涉及村庄</div>
+                        <div className="text-xl font-bold text-blue-700">{stats?.villageDistribution?.length ?? 0}</div>
+                        <div className="text-[11px] text-blue-500 mt-1">个村</div>
+                      </div>
+                      <div className="bg-gradient-to-br from-purple-50 to-fuchsia-50 border border-purple-100/60 rounded-xl p-3.5">
+                        <div className="text-[11px] text-purple-600 mb-1">总面积</div>
+                        <div className="text-xl font-bold font-mono text-purple-700">
+                          {((stats?.totalArea) || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}
+                        </div>
+                        <div className="text-[11px] text-purple-500 mt-1">亩</div>
+                      </div>
                     </div>
-                    <div className="bg-gradient-to-br from-purple-50 to-fuchsia-50 border border-purple-100/60 rounded-xl p-3.5">
-                      <div className="text-[11px] text-purple-600 mb-1">总面积</div>
-                      <div className="text-xl font-bold font-mono text-purple-700">{(stats.totalArea || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</div>
-                      <div className="text-[11px] text-purple-500 mt-1">亩</div>
+                    {stats?.yearComparison && (
+                      <div className="mt-1 mb-4 p-3 bg-amber-50/60 border border-amber-100/60 rounded-xl">
+                        <div className="text-[11px] font-semibold text-amber-700 mb-2">📊 年度对比</div>
+                        <div className="flex gap-4 text-xs">
+                          <span className="text-amber-600"><span className="text-green-600 font-bold">+{stats.yearComparison.new_farmers_count || 0}</span> 新增</span>
+                          <span className="text-amber-600"><span className="text-red-600 font-bold">{stats.yearComparison.removed_farmers_count || 0}</span> 退出</span>
+                          <span className="text-amber-600">面积 <span className="font-mono">{((stats.yearComparison.total_apply_area) || 0).toFixed(1)}亩</span></span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 面积统计 */}
+                    <div className="border-t border-border/40 pt-3 mt-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-text-primary">📐 面积统计</span>
+                          <div className="flex items-center gap-0.5 bg-gray-100 rounded-md p-0.5">
+                            <button onClick={() => setAreaStatsGroupBy('excel')}
+                              className={`px-2 py-0.5 text-[10px] rounded transition-all ${areaStatsGroupBy === 'excel' ? 'bg-white shadow-sm text-text-primary font-medium' : 'text-gray-400 hover:text-text-primary'}`}>📄 Excel</button>
+                            <button onClick={() => setAreaStatsGroupBy('database')}
+                              className={`px-2 py-0.5 text-[10px] rounded transition-all ${areaStatsGroupBy === 'database' ? 'bg-white shadow-sm text-text-primary font-medium' : 'text-gray-400 hover:text-text-primary'}`}>🗄️ 数据库</button>
+                          </div>
+                        </div>
+                        {areaStats && (
+                          <button onClick={handleExportAreaStats}
+                            className="px-2.5 py-1 text-[10px] bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-all">↓ 导出</button>
+                        )}
+                      </div>
+                      {loadingAreaStats ? (
+                        <div className="flex items-center justify-center py-6 gap-2 text-text-muted/50 text-xs">
+                          <span className="w-4 h-4 border-2 border-text-muted/20 border-t-indigo-500 rounded-full animate-spin" />
+                          计算中…
+                        </div>
+                      ) : areaStats ? (
+                        <>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="bg-gray-50 border-b border-border">
+                                  <th className="px-3 py-2 text-left font-medium text-text-primary">村名</th>
+                                  <th className="px-2 py-2 text-right font-medium text-text-primary">农户</th>
+                                  <th className="px-2 py-2 text-right font-medium text-text-primary">记录</th>
+                                  <th className="px-2 py-2 text-right font-medium text-text-primary">计入超限(亩)</th>
+                                  <th className="px-2 py-2 text-right font-medium text-text-primary">承包地(亩)</th>
+                                  <th className="px-2 py-2 text-right font-medium text-text-primary">代耕代种(亩)</th>
+                                  <th className="px-2 py-2 text-right font-medium text-text-primary">不予补贴(亩)</th>
+                                  <th className="px-2 py-2 text-right font-medium text-text-primary">金额(元)</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(areaStats.by_village || []).map((row, idx) => (
+                                  <tr key={idx} className="hover:bg-blue-50/30 border-b border-border/30">
+                                    <td className="px-3 py-2 text-text-primary">{row.village || '—'}</td>
+                                    <td className="px-2 py-2 text-right text-text-primary">{row.farmer_count ?? 0}</td>
+                                    <td className="px-2 py-2 text-right text-text-primary">{row.record_count ?? 0}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-text-primary">{(row.total_apply_area || 0).toFixed(2)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-text-primary">{(row.total_contract_area || 0).toFixed(2)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-text-primary">{(row.total_trust_area || 0).toFixed(2)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-text-primary">{(row.total_no_subsidy_area || 0).toFixed(2)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-indigo-600 font-medium">¥{(row.total_amount || 0).toFixed(2)}</td>
+                                  </tr>
+                                ))}
+                                {areaStats.total && (
+                                  <tr className="bg-indigo-50/40 font-semibold border-t-2 border-indigo-200">
+                                    <td className="px-3 py-2 text-text-primary">{areaStats.total.village || '全镇合计'}</td>
+                                    <td className="px-2 py-2 text-right text-text-primary">{areaStats.total.farmer_count ?? 0}</td>
+                                    <td className="px-2 py-2 text-right text-text-primary">{areaStats.total.record_count ?? 0}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-text-primary">{(areaStats.total.total_apply_area || 0).toFixed(2)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-text-primary">{(areaStats.total.total_contract_area || 0).toFixed(2)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-text-primary">{(areaStats.total.total_trust_area || 0).toFixed(2)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-text-primary">{(areaStats.total.total_no_subsidy_area || 0).toFixed(2)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-indigo-700">¥{(areaStats.total.total_amount || 0).toFixed(2)}</td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                          <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-text-muted">
+                            <span className="px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">预申请数据</span>
+                            <span className={`px-2 py-0.5 rounded-full font-medium ${areaStats.group_by === 'database' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {areaStats.group_by === 'database' ? '按数据库分村' : '按Excel分村'}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="py-6 text-center text-text-muted text-xs">暂无面积统计</div>
+                      )}
                     </div>
                   </div>
-                  {stats.yearComparison && (
-                    <div className="mt-3 p-3 bg-amber-50/60 border border-amber-100/60 rounded-xl"><div className="text-[11px] font-semibold text-amber-700 mb-2">📊 年度对比</div><div className="flex gap-4 text-xs"><span className="text-amber-600"><span className="text-green-600 font-bold">+{stats.yearComparison.new_farmers_count}</span> 新增</span><span className="text-amber-600"><span className="text-red-600 font-bold">{stats.yearComparison.removed_farmers_count}</span> 退出</span><span className="text-amber-600">面积 <span className="font-mono">{(stats.yearComparison.total_apply_area || 0).toFixed(1)}亩</span></span></div></div>
-                  )}
-                  </>)}
+                )}
               </div>
             )}
-          </div>
-
-          {/* ═══ 面积统计 ═══ */}
-          <div className="bg-white rounded-xl border border-border/60 shadow-sm overflow-hidden">
-            <button onClick={() => setAreaStatsExpanded(prev => !prev)}
-              className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-warm/30 transition-colors">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-text-primary">📐 面积统计</span>
-                <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">预申请</span>
-                <div className="flex items-center gap-0.5 bg-warm/40 rounded-md p-0.5" onClick={e => e.stopPropagation()}>
-                  <button onClick={() => setAreaStatsGroupBy('excel')} className={`px-2 py-0.5 text-[10px] rounded transition-all ${areaStatsGroupBy === 'excel' ? 'bg-white shadow-sm text-text-primary font-medium' : 'text-text-muted hover:text-text-primary'}`}>📄 Excel</button>
-                  <button onClick={() => setAreaStatsGroupBy('database')} className={`px-2 py-0.5 text-[10px] rounded transition-all ${areaStatsGroupBy === 'database' ? 'bg-white shadow-sm text-text-primary font-medium' : 'text-text-muted hover:text-text-primary'}`}>🗄️ 数据库</button>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">{areaStats && (<button onClick={(e) => { e.stopPropagation(); handleExportAreaStats() }} className="px-2.5 py-1 text-[10px] bg-primary/10 text-primary-600 rounded-md hover:bg-primary/20 transition-all">↓ 导出</button>)}<span className="text-[11px] text-text-muted">{areaStatsExpanded ? '▲ 收起' : '▼ 展开'}</span></div>
-            </button>
-            {areaStatsExpanded && (<div className="px-4 pb-4 border-t border-border/30">
-              {loadingAreaStats ? (<div className="flex items-center justify-center py-6 gap-2 text-text-muted/50 text-xs"><span className="w-4 h-4 border-2 border-text-muted/20 border-t-emerald-500 rounded-full animate-spin" />计算中…</div>) : areaStats ? (
-                <><div className="overflow-x-auto mt-4"><table className="w-full text-sm"><thead><tr className="bg-warm/30 border-b border-border"><th className="px-3 py-2 text-left font-medium text-text-primary text-sm">村名</th><th className="px-1.5 py-2 text-right font-medium text-text-primary text-sm">农户数</th><th className="px-1.5 py-2 text-right font-medium text-text-primary text-sm">记录数</th><th className="px-1.5 py-2 text-right font-medium text-text-primary text-[11px]">计入超限(亩)</th><th className="px-1.5 py-2 text-right font-medium text-text-primary text-[11px]">承包地(亩)</th><th className="px-1.5 py-2 text-right font-medium text-text-primary text-[11px]">代耕代种(亩)</th><th className="px-1.5 py-2 text-right font-medium text-text-primary text-[11px]">不予补贴(亩)</th><th className="px-1.5 py-2 text-right font-medium text-text-primary text-sm">金额(元)</th></tr></thead><tbody>{areaStats.by_village.map((row, idx) => (<tr key={idx} className="hover:bg-warm/30"><td className="px-3 py-2 text-text-primary">{row.village}</td><td className="px-1.5 py-2 text-right text-text-primary">{row.farmer_count}</td><td className="px-1.5 py-2 text-right text-text-primary">{row.record_count}</td><td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{(row.total_apply_area || 0).toFixed(2)}</td><td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{(row.total_contract_area || 0).toFixed(2)}</td><td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{(row.total_trust_area || 0).toFixed(2)}</td><td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{(row.total_no_subsidy_area || 0).toFixed(2)}</td><td className="px-1.5 py-2 text-right font-mono text-primary text-xs">¥{(row.total_amount || 0).toFixed(2)}</td></tr>))}<tr className="bg-warm/30 font-semibold"><td className="px-3 py-2 text-text-primary">{areaStats.total.village}</td><td className="px-1.5 py-2 text-right text-text-primary">{areaStats.total.farmer_count}</td><td className="px-1.5 py-2 text-right text-text-primary">{areaStats.total.record_count}</td><td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{(areaStats.total.total_apply_area || 0).toFixed(2)}</td><td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{(areaStats.total.total_contract_area || 0).toFixed(2)}</td><td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{(areaStats.total.total_trust_area || 0).toFixed(2)}</td><td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{(areaStats.total.total_no_subsidy_area || 0).toFixed(2)}</td><td className="px-1.5 py-2 text-right font-mono text-primary text-xs">¥{(areaStats.total.total_amount || 0).toFixed(2)}</td></tr></tbody></table></div>
-                <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-text-muted"><span className="px-2 py-0.5 rounded-full font-medium text-xs bg-blue-100 text-blue-700">预申请数据</span><span className={`px-2 py-0.5 rounded-full font-medium text-xs ${areaStats.group_by === 'database' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>{areaStats.group_by === 'database' ? '按数据库分村' : '按Excel分村'}</span></div></>
-              ) : (<div className="py-8 text-center text-text-muted">暂无数据</div>)}
-            </div>)}
           </div>
 
           {/* ═══ 预检结果 ═══ */}
@@ -971,68 +1057,142 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
 
       {activeTab === 'disbursement' && (
         <div className="space-y-4">
-          {/* ═══ 数据概览 ═══ */}
+          {/* ═══ 数据概览&面积统计 ═══ */}
           <div className="bg-white rounded-xl border border-border/60 shadow-sm overflow-hidden">
-            <button onClick={() => setStatsExpanded(prev => !prev)}
-              className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-warm/30 transition-colors">
+            <button onClick={() => { setStatsExpanded(prev => !prev); setAreaStatsExpanded(true) } }
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-green-50/40 transition-colors">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-text-primary">📊 数据概览</span>
-                <span className="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded font-medium">正式分发</span>
+                <span className="text-sm font-semibold text-text-primary">📊 数据概览 & 面积统计</span>
+                <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">正式分发</span>
               </div>
-              <span className="text-[11px] text-text-muted">{statsExpanded ? '▲ 收起' : '▼ 展开'}</span>
+              <span className="text-[11px] text-text-muted">{statsExpanded && areaStatsExpanded ? '▲ 收起' : '▼ 展开'}</span>
             </button>
-            {statsExpanded && (
+            {statsExpanded && areaStatsExpanded && (
               <div className="px-4 pb-4 border-t border-border/30">
-                {loadingStats ? (<div className="flex items-center justify-center py-6 gap-2 text-text-muted/50 text-xs"><span className="w-4 h-4 border-2 border-text-muted/20 border-t-primary rounded-full animate-spin" />加载中…</div>) : (
-                  <><div className="flex items-center justify-end gap-2 pt-2.5 mb-3">
-                    {subsidyType.category && (<select value={selectedCompareType ?? ''} onChange={e => setSelectedCompareType(e.target.value ? Number(e.target.value) : null)} className="px-2 py-1 text-[11px] border border-border/60 rounded-lg bg-white outline-none"><option value="">不对比</option>{comparableTypes.map(t => (<option key={t.id} value={t.id}>{t.subsidy_name} ({t.subsidy_year}年)</option>))}</select>)}
-                    <span className="text-[10px] text-text-muted">全镇数据统计</span>
+                {loadingStats && loadingAreaStats ? (
+                  <div className="flex items-center justify-center py-8 gap-2 text-text-muted/50 text-xs">
+                    <span className="w-4 h-4 border-2 border-text-muted/20 border-t-green-500 rounded-full animate-spin" />
+                    加载中…
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100/60 rounded-xl p-3.5">
-                      <div className="text-[11px] text-emerald-600 mb-1">发放总额</div>
-                      <div className="text-xl font-bold font-mono text-emerald-700">¥{(stats.totalAmount || 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
-                      <div className="text-[11px] text-emerald-500 mt-1">{stats.totalFarmers || 0}人</div>
+                ) : (
+                  <div className="pt-3">
+                    {/* 数据概览卡片 */}
+                    <div className="flex items-center justify-end gap-2 mb-3">
+                      <span className="text-[10px] text-text-muted">全镇数据统计</span>
                     </div>
-                    <div className="bg-gradient-to-br from-blue-50 to-sky-50 border border-blue-100/60 rounded-xl p-3.5">
-                      <div className="text-[11px] text-blue-600 mb-1">涉及村庄</div>
-                      <div className="text-xl font-bold text-blue-700">{stats.villageDistribution.length}</div>
-                      <div className="text-[11px] text-blue-500 mt-1">个村</div>
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                      <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100/60 rounded-xl p-3.5">
+                        <div className="text-[11px] text-emerald-600 mb-1">发放总额</div>
+                        <div className="text-xl font-bold font-mono text-emerald-700">
+                          ¥{((stats?.totalAmount) || 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+                        </div>
+                        <div className="text-[11px] text-emerald-500 mt-1">{(stats?.totalFarmers) || 0}人</div>
+                      </div>
+                      <div className="bg-gradient-to-br from-blue-50 to-sky-50 border border-blue-100/60 rounded-xl p-3.5">
+                        <div className="text-[11px] text-blue-600 mb-1">涉及村庄</div>
+                        <div className="text-xl font-bold text-blue-700">{stats?.villageDistribution?.length ?? 0}</div>
+                        <div className="text-[11px] text-blue-500 mt-1">个村</div>
+                      </div>
+                      <div className="bg-gradient-to-br from-purple-50 to-fuchsia-50 border border-purple-100/60 rounded-xl p-3.5">
+                        <div className="text-[11px] text-purple-600 mb-1">总面积</div>
+                        <div className="text-xl font-bold font-mono text-purple-700">
+                          {((stats?.totalArea) || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}
+                        </div>
+                        <div className="text-[11px] text-purple-500 mt-1">亩</div>
+                      </div>
                     </div>
-                    <div className="bg-gradient-to-br from-purple-50 to-fuchsia-50 border border-purple-100/60 rounded-xl p-3.5">
-                      <div className="text-[11px] text-purple-600 mb-1">总面积</div>
-                      <div className="text-xl font-bold font-mono text-purple-700">{(stats.totalArea || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</div>
-                      <div className="text-[11px] text-purple-500 mt-1">亩</div>
+                    {stats?.yearComparison && (
+                      <div className="mt-1 mb-4 p-3 bg-amber-50/60 border border-amber-100/60 rounded-xl">
+                        <div className="text-[11px] font-semibold text-amber-700 mb-2">📊 年度对比</div>
+                        <div className="flex gap-4 text-xs">
+                          <span className="text-amber-600"><span className="text-green-600 font-bold">+{stats.yearComparison.new_farmers_count || 0}</span> 新增</span>
+                          <span className="text-amber-600"><span className="text-red-600 font-bold">{stats.yearComparison.removed_farmers_count || 0}</span> 退出</span>
+                          <span className="text-amber-600">面积 <span className="font-mono">{((stats.yearComparison.total_apply_area) || 0).toFixed(1)}亩</span></span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 面积统计 */}
+                    <div className="border-t border-border/40 pt-3 mt-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-text-primary">📐 面积统计</span>
+                          <div className="flex items-center gap-0.5 bg-gray-100 rounded-md p-0.5">
+                            <button onClick={() => setAreaStatsGroupBy('excel')}
+                              className={`px-2 py-0.5 text-[10px] rounded transition-all ${areaStatsGroupBy === 'excel' ? 'bg-white shadow-sm text-text-primary font-medium' : 'text-gray-400 hover:text-text-primary'}`}>📄 Excel</button>
+                            <button onClick={() => setAreaStatsGroupBy('database')}
+                              className={`px-2 py-0.5 text-[10px] rounded transition-all ${areaStatsGroupBy === 'database' ? 'bg-white shadow-sm text-text-primary font-medium' : 'text-gray-400 hover:text-text-primary'}`}>🗄️ 数据库</button>
+                          </div>
+                        </div>
+                        {areaStats && (
+                          <button onClick={handleExportAreaStats}
+                            className="px-2.5 py-1 text-[10px] bg-green-50 text-green-600 rounded-md hover:bg-green-100 transition-all">↓ 导出</button>
+                        )}
+                      </div>
+                      {loadingAreaStats ? (
+                        <div className="flex items-center justify-center py-6 gap-2 text-text-muted/50 text-xs">
+                          <span className="w-4 h-4 border-2 border-text-muted/20 border-t-green-500 rounded-full animate-spin" />
+                          计算中…
+                        </div>
+                      ) : areaStats ? (
+                        <>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="bg-gray-50 border-b border-border">
+                                  <th className="px-3 py-2 text-left font-medium text-text-primary">村名</th>
+                                  <th className="px-2 py-2 text-right font-medium text-text-primary">农户</th>
+                                  <th className="px-2 py-2 text-right font-medium text-text-primary">记录</th>
+                                  <th className="px-2 py-2 text-right font-medium text-text-primary">计入超限(亩)</th>
+                                  <th className="px-2 py-2 text-right font-medium text-text-primary">承包地(亩)</th>
+                                  <th className="px-2 py-2 text-right font-medium text-text-primary">代耕代种(亩)</th>
+                                  <th className="px-2 py-2 text-right font-medium text-text-primary">不予补贴(亩)</th>
+                                  <th className="px-2 py-2 text-right font-medium text-text-primary">金额(元)</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(areaStats.by_village || []).map((row, idx) => (
+                                  <tr key={idx} className="hover:bg-green-50/30 border-b border-border/30">
+                                    <td className="px-3 py-2 text-text-primary">{row.village || '—'}</td>
+                                    <td className="px-2 py-2 text-right text-text-primary">{row.farmer_count ?? 0}</td>
+                                    <td className="px-2 py-2 text-right text-text-primary">{row.record_count ?? 0}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-text-primary">{(row.total_apply_area || 0).toFixed(2)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-text-primary">{(row.total_contract_area || 0).toFixed(2)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-text-primary">{(row.total_trust_area || 0).toFixed(2)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-text-primary">{(row.total_no_subsidy_area || 0).toFixed(2)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-green-600 font-medium">¥{(row.total_amount || 0).toFixed(2)}</td>
+                                  </tr>
+                                ))}
+                                {areaStats.total && (
+                                  <tr className="bg-green-50/40 font-semibold border-t-2 border-green-200">
+                                    <td className="px-3 py-2 text-text-primary">{areaStats.total.village || '全镇合计'}</td>
+                                    <td className="px-2 py-2 text-right text-text-primary">{areaStats.total.farmer_count ?? 0}</td>
+                                    <td className="px-2 py-2 text-right text-text-primary">{areaStats.total.record_count ?? 0}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-text-primary">{(areaStats.total.total_apply_area || 0).toFixed(2)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-text-primary">{(areaStats.total.total_contract_area || 0).toFixed(2)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-text-primary">{(areaStats.total.total_trust_area || 0).toFixed(2)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-text-primary">{(areaStats.total.total_no_subsidy_area || 0).toFixed(2)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-green-700">¥{(areaStats.total.total_amount || 0).toFixed(2)}</td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                          <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-text-muted">
+                            <span className="px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700">发放数据</span>
+                            <span className={`px-2 py-0.5 rounded-full font-medium ${areaStats.group_by === 'database' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {areaStats.group_by === 'database' ? '按数据库分村' : '按Excel分村'}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="py-6 text-center text-text-muted text-xs">暂无面积统计</div>
+                      )}
                     </div>
                   </div>
-                  {stats.yearComparison && (
-                    <div className="mt-3 p-3 bg-amber-50/60 border border-amber-100/60 rounded-xl"><div className="text-[11px] font-semibold text-amber-700 mb-2">📊 年度对比</div><div className="flex gap-4 text-xs"><span className="text-amber-600"><span className="text-green-600 font-bold">+{stats.yearComparison.new_farmers_count}</span> 新增</span><span className="text-amber-600"><span className="text-red-600 font-bold">{stats.yearComparison.removed_farmers_count}</span> 退出</span><span className="text-amber-600">面积 <span className="font-mono">{(stats.yearComparison.total_apply_area || 0).toFixed(1)}亩</span></span></div></div>
-                  )}
-                  </>)}
+                )}
               </div>
             )}
-          </div>
-
-          {/* ═══ 面积统计 ═══ */}
-          <div className="bg-white rounded-xl border border-border/60 shadow-sm overflow-hidden">
-            <button onClick={() => setAreaStatsExpanded(prev => !prev)}
-              className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-warm/30 transition-colors">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-text-primary">📐 面积统计</span>
-                <span className="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded font-medium">正式分发</span>
-                <div className="flex items-center gap-0.5 bg-warm/40 rounded-md p-0.5" onClick={e => e.stopPropagation()}>
-                  <button onClick={() => setAreaStatsGroupBy('excel')} className={`px-2 py-0.5 text-[10px] rounded transition-all ${areaStatsGroupBy === 'excel' ? 'bg-white shadow-sm text-text-primary font-medium' : 'text-text-muted hover:text-text-primary'}`}>📄 Excel</button>
-                  <button onClick={() => setAreaStatsGroupBy('database')} className={`px-2 py-0.5 text-[10px] rounded transition-all ${areaStatsGroupBy === 'database' ? 'bg-white shadow-sm text-text-primary font-medium' : 'text-text-muted hover:text-text-primary'}`}>🗄️ 数据库</button>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">{areaStats && (<button onClick={(e) => { e.stopPropagation(); handleExportAreaStats() }} className="px-2.5 py-1 text-[10px] bg-primary/10 text-primary-600 rounded-md hover:bg-primary/20 transition-all">↓ 导出</button>)}<span className="text-[11px] text-text-muted">{areaStatsExpanded ? '▲ 收起' : '▼ 展开'}</span></div>
-            </button>
-            {areaStatsExpanded && (<div className="px-4 pb-4 border-t border-border/30">
-              {loadingAreaStats ? (<div className="flex items-center justify-center py-6 gap-2 text-text-muted/50 text-xs"><span className="w-4 h-4 border-2 border-text-muted/20 border-t-emerald-500 rounded-full animate-spin" />计算中…</div>) : areaStats ? (
-                <><div className="overflow-x-auto mt-4"><table className="w-full text-sm"><thead><tr className="bg-warm/30 border-b border-border"><th className="px-3 py-2 text-left font-medium text-text-primary text-sm">村名</th><th className="px-1.5 py-2 text-right font-medium text-text-primary text-sm">农户数</th><th className="px-1.5 py-2 text-right font-medium text-text-primary text-sm">记录数</th><th className="px-1.5 py-2 text-right font-medium text-text-primary text-[11px]">计入超限(亩)</th><th className="px-1.5 py-2 text-right font-medium text-text-primary text-[11px]">承包地(亩)</th><th className="px-1.5 py-2 text-right font-medium text-text-primary text-[11px]">代耕代种(亩)</th><th className="px-1.5 py-2 text-right font-medium text-text-primary text-[11px]">不予补贴(亩)</th><th className="px-1.5 py-2 text-right font-medium text-text-primary text-sm">金额(元)</th></tr></thead><tbody>{areaStats.by_village.map((row, idx) => (<tr key={idx} className="hover:bg-warm/30"><td className="px-3 py-2 text-text-primary">{row.village}</td><td className="px-1.5 py-2 text-right text-text-primary">{row.farmer_count}</td><td className="px-1.5 py-2 text-right text-text-primary">{row.record_count}</td><td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{(row.total_apply_area || 0).toFixed(2)}</td><td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{(row.total_contract_area || 0).toFixed(2)}</td><td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{(row.total_trust_area || 0).toFixed(2)}</td><td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{(row.total_no_subsidy_area || 0).toFixed(2)}</td><td className="px-1.5 py-2 text-right font-mono text-primary text-xs">¥{(row.total_amount || 0).toFixed(2)}</td></tr>))}<tr className="bg-warm/30 font-semibold"><td className="px-3 py-2 text-text-primary">{areaStats.total.village}</td><td className="px-1.5 py-2 text-right text-text-primary">{areaStats.total.farmer_count}</td><td className="px-1.5 py-2 text-right text-text-primary">{areaStats.total.record_count}</td><td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{(areaStats.total.total_apply_area || 0).toFixed(2)}</td><td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{(areaStats.total.total_contract_area || 0).toFixed(2)}</td><td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{(areaStats.total.total_trust_area || 0).toFixed(2)}</td><td className="px-1.5 py-2 text-right font-mono text-text-primary text-xs">{(areaStats.total.total_no_subsidy_area || 0).toFixed(2)}</td><td className="px-1.5 py-2 text-right font-mono text-primary text-xs">¥{(areaStats.total.total_amount || 0).toFixed(2)}</td></tr></tbody></table></div>
-                <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-text-muted"><span className="px-2 py-0.5 rounded-full font-medium text-xs bg-green-100 text-green-700">发放数据</span><span className={`px-2 py-0.5 rounded-full font-medium text-xs ${areaStats.group_by === 'database' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>{areaStats.group_by === 'database' ? '按数据库分村' : '按Excel分村'}</span></div></>
-              ) : (<div className="py-8 text-center text-text-muted">暂无数据</div>)}
-            </div>)}
           </div>
 
           {/* ═══ 预检结果 ═══ */}
@@ -1110,6 +1270,18 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
             clearFilters={clearFilters}
             sortField={sortField} sortDir={sortDir} onSortChange={handleSortChange}
           />
+        </div>
+      )}
+
+      {activeTab === 'proxy' && (
+        <div className="space-y-4">
+          <ProxyList subsidyType={subsidyType} show={show} />
+        </div>
+      )}
+
+      {activeTab === 'precheckHistory' && (
+        <div className="space-y-4">
+          <PrecheckHistoryTab subsidyType={subsidyType} preCheckResults={preCheckResults} />
         </div>
       )}
 

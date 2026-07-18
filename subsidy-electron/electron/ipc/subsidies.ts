@@ -416,16 +416,28 @@ export function registerSubsidyHandlers(): void {
 
   ipcMain.handle('subsidies:areaStatsByVillage', (_e, payload: any) => {
     try {
-      const { subsidy_type_id, year, data_source } = payload
-      const tableName = data_source === 'payment' ? 'subsidy_payment' : 'subsidy_application'
+      const { subsidy_type_id, year, data_source, group_by } = payload
+      const table = data_source === 'payment' ? 'subsidy_payment' : 'subsidy_application'
+      const yearCol = data_source === 'payment' ? 'payment_year' : 'apply_year'
+      const amountCol = data_source === 'payment' ? 'amount' : 'actual_amount'
+
+      // 按真实 village 表或 Excel 导入的村名分组
+      const groupField = group_by === 'excel'
+        ? `COALESCE(sa.apply_village_name, '未知')`
+        : `COALESCE(v.village_name, sa.apply_village_name, '未知')`
+      const groupLabel = group_by === 'excel' ? 'excel' : 'database'
 
       let query = `
-        SELECT v.id as village_id, v.village_name,
-               COUNT(DISTINCT sa.beneficiary_id) as beneficiary_count,
-               COUNT(*) as application_count,
-               COALESCE(SUM(sa.apply_area), 0) as total_area,
-               COALESCE(SUM(sa.actual_amount), 0) as total_amount
-        FROM ${tableName} sa
+        SELECT
+          ${groupField} as village,
+          COUNT(DISTINCT sa.beneficiary_id) as farmer_count,
+          COUNT(*) as record_count,
+          COALESCE(SUM(sa.apply_area), 0) as total_apply_area,
+          COALESCE(SUM(sa.contract_area), 0) as total_contract_area,
+          COALESCE(SUM(sa.trust_area), 0) as total_trust_area,
+          COALESCE(SUM(sa.no_subsidy_area), 0) as total_no_subsidy_area,
+          COALESCE(SUM(sa.${amountCol}), 0) as total_amount
+        FROM ${table} sa
         LEFT JOIN farmer_profile fp ON sa.farmer_id = fp.id
         LEFT JOIN family_household hh ON fp.household_id = hh.id
         LEFT JOIN village v ON hh.village_id = v.id
@@ -433,31 +445,32 @@ export function registerSubsidyHandlers(): void {
       `
       const values: unknown[] = []
 
-      if (subsidy_type_id) {
-        query += ' AND sa.subsidy_type_id = ?'
-        values.push(subsidy_type_id)
-      }
-      if (year) {
-        query += ' AND sa.apply_year = ?'
-        values.push(year)
+      if (subsidy_type_id) { query += ' AND sa.subsidy_type_id = ?'; values.push(subsidy_type_id) }
+      if (year) { query += ` AND sa.${yearCol} = ?`; values.push(year) }
+
+      const rows = db().allRaw<Record<string, unknown>>(
+        query + ' GROUP BY village ORDER BY total_amount DESC',
+        ...values
+      )
+
+      // 计算合计行
+      const total = {
+        village: '全镇合计',
+        farmer_count: rows.reduce((s, r) => s + Number(r.farmer_count || 0), 0),
+        record_count: rows.reduce((s, r) => s + Number(r.record_count || 0), 0),
+        total_apply_area: rows.reduce((s, r) => s + Number(r.total_apply_area || 0), 0),
+        total_contract_area: rows.reduce((s, r) => s + Number(r.total_contract_area || 0), 0),
+        total_trust_area: rows.reduce((s, r) => s + Number(r.total_trust_area || 0), 0),
+        total_no_subsidy_area: rows.reduce((s, r) => s + Number(r.total_no_subsidy_area || 0), 0),
+        total_amount: rows.reduce((s, r) => s + Number(r.total_amount || 0), 0),
       }
 
-      // 如果查询 subsidy_payment 表但表不存在，回退到 subsidy_application
-      try {
-        const rows = db().allRaw<Record<string, unknown>>(
-          query + ' GROUP BY v.id ORDER BY total_area DESC',
-          ...values
-        )
-        return success(rows)
-      } catch {
-        // 回退到 subsidy_application
-        const fallbackQuery = query.replace(tableName, 'subsidy_application')
-        const rows = db().allRaw<Record<string, unknown>>(
-          fallbackQuery + ' GROUP BY v.id ORDER BY total_area DESC',
-          ...values
-        )
-        return success(rows)
-      }
+      return success({
+        by_village: rows,
+        total,
+        data_source: data_source || 'application',
+        group_by: groupLabel,
+      })
     } catch (e) {
       return errorResponse(String(e))
     }
@@ -647,9 +660,84 @@ export function registerSubsidyHandlers(): void {
   // ── 统计 ──
   ipcMain.handle('subsidies:applicationStats', (_e, params: any) => {
     try {
-      const { subsidy_type_id, year, compare_type_id } = params || {}
-      const rows = db().allRaw(`SELECT sa.apply_year, COUNT(*) as cnt, COALESCE(SUM(sa.apply_area),0) as total_area, COALESCE(SUM(sa.actual_amount),0) as total_amount FROM subsidy_application sa WHERE sa.subsidy_type_id=? ${year?'AND sa.apply_year=?':''} GROUP BY sa.apply_year ORDER BY sa.apply_year`, subsidy_type_id, ...(year?[year]:[]))
-      return success(rows)
+      const { subsidy_type_id, year, compare_type_id, data_source } = params || {}
+      const table = data_source === 'payment' ? 'subsidy_payment' : 'subsidy_application'
+      const yearCol = data_source === 'payment' ? 'payment_year' : 'apply_year'
+      const amountCol = data_source === 'payment' ? 'amount' : 'actual_amount'
+
+      // 基础统计
+      const baseRow = db().getRaw<{
+        total_amount: number; total_area: number; total_farmers: number
+      }>(`SELECT
+        COALESCE(SUM(sa.${amountCol}), 0) as total_amount,
+        COALESCE(SUM(sa.apply_area), 0) as total_area,
+        COUNT(DISTINCT sa.beneficiary_id) as total_farmers
+      FROM ${table} sa
+      WHERE sa.subsidy_type_id=? ${year ? `AND sa.${yearCol}=?` : ''}`,
+        subsidy_type_id, ...(year ? [year] : []))
+
+      // 村庄分布
+      const villageDist = db().allRaw<{
+        village: string; amount: number; count: number; area: number
+      }>(`SELECT
+        COALESCE(sa.apply_village_name, '未知') as village,
+        COALESCE(SUM(sa.${amountCol}), 0) as amount,
+        COUNT(DISTINCT sa.beneficiary_id) as count,
+        COALESCE(SUM(sa.apply_area), 0) as area
+      FROM ${table} sa
+      WHERE sa.subsidy_type_id=? ${year ? `AND sa.${yearCol}=?` : ''}
+      GROUP BY sa.apply_village_name ORDER BY amount DESC`,
+        subsidy_type_id, ...(year ? [year] : []))
+
+      // 年度对比（仅预申请支持）
+      let yearComparison = null
+      if (compare_type_id && data_source !== 'payment') {
+        const compareRow = db().getRaw<{
+          total_farmers: number; total_apply_area: number; compare_year: number; compare_type_name: string
+        }>(`SELECT
+          COUNT(DISTINCT sa.beneficiary_id) as total_farmers,
+          COALESCE(SUM(sa.apply_area), 0) as total_apply_area,
+          st.subsidy_year as compare_year,
+          st.subsidy_name as compare_type_name
+        FROM subsidy_application sa
+        JOIN subsidy_type st ON sa.subsidy_type_id = st.id
+        WHERE sa.subsidy_type_id=?`, compare_type_id)
+
+        if (compareRow) {
+          const currentIds = db().allRaw<{ beneficiary_id: number }>(
+            `SELECT DISTINCT beneficiary_id FROM ${table} WHERE subsidy_type_id=? ${year ? `AND ${yearCol}=?` : ''}`,
+            subsidy_type_id, ...(year ? [year] : []))
+          const currentSet = new Set(currentIds.map(r => r.beneficiary_id))
+
+          const compareIds = db().allRaw<{ beneficiary_id: number }>(
+            `SELECT DISTINCT beneficiary_id FROM subsidy_application WHERE subsidy_type_id=?`, compare_type_id)
+          const compareSet = new Set(compareIds.map(r => r.beneficiary_id))
+
+          const newFarmers = [...currentSet].filter(id => !compareSet.has(id))
+          const removedFarmers = [...compareSet].filter(id => !currentSet.has(id))
+
+          yearComparison = {
+            current_year: year || new Date().getFullYear(),
+            compare_year: compareRow.compare_year,
+            compare_type_id,
+            compare_type_name: compareRow.compare_type_name,
+            new_farmers_count: newFarmers.length,
+            removed_farmers_count: removedFarmers.length,
+            total_apply_area: compareRow.total_apply_area,
+            total_farmers: compareRow.total_farmers,
+            new_farmers: newFarmers,
+            removed_farmers: removedFarmers,
+          }
+        }
+      }
+
+      return success({
+        totalAmount: baseRow?.total_amount ?? 0,
+        totalFarmers: baseRow?.total_farmers ?? 0,
+        totalArea: baseRow?.total_area ?? 0,
+        villageDistribution: villageDist,
+        yearComparison,
+      })
     } catch (e) { return errorResponse(String(e)) }
   })
 
@@ -925,6 +1013,39 @@ export function registerSubsidyHandlers(): void {
         ${where} ORDER BY sa.apply_village_name, fp.real_name
       `, ...vals)
       return success({ items: rows })
+    } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 仪表盘待办统计 ──
+  ipcMain.handle('subsidies:dashboardTodos', (_e, params: any) => {
+    try {
+      const { year } = params || {}
+
+      // 未完成项目：pay_status != 2（ subsidy_type 表没有 is_deleted 列）
+      const incompleteProjects = db().getRaw<{ cnt: number }>(
+        `SELECT COUNT(*) as cnt FROM subsidy_type WHERE pay_status != 2`
+      )
+
+      // 待发放记录：预申请中 pay_status = 0
+      const pendingRecords = year
+        ? (db().getRaw<{ cnt: number }>(
+            `SELECT COUNT(*) as cnt FROM subsidy_application WHERE pay_status=0 AND apply_year=?`, year
+          )?.cnt ?? 0)
+        : (db().getRaw<{ cnt: number }>(
+            `SELECT COUNT(*) as cnt FROM subsidy_application WHERE pay_status=0`
+          )?.cnt ?? 0)
+
+      // 身份证异常农户（非18位）
+      const idCardErrors = db().getRaw<{ cnt: number }>(
+        `SELECT COUNT(*) as cnt FROM farmer_profile WHERE length(id_card) != 18`
+      )
+
+      return success({
+        incomplete_projects: incompleteProjects?.cnt ?? 0,
+        pending_records: pendingRecords,
+        overdrawn_households: 0,
+        id_card_errors: idCardErrors?.cnt ?? 0,
+      })
     } catch (e) { return errorResponse(String(e)) }
   })
 }

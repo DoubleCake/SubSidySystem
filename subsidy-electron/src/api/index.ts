@@ -166,11 +166,13 @@ export interface AreaStatsResponse {
   by_village: VillageAreaStats[]
   total: VillageAreaStats
   data_source: 'payment' | 'application'
+  group_by?: 'database' | 'excel'
 }
 
-export const getAreaStatsByVillage = (subsidyTypeId: number, year: number, dataSource?: 'payment' | 'application') => {
+export const getAreaStatsByVillage = (subsidyTypeId: number, year: number, dataSource?: 'payment' | 'application', groupBy?: string) => {
   const params: Record<string, unknown> = { subsidy_type_id: subsidyTypeId, year }
   if (dataSource) params.data_source = dataSource
+  if (groupBy) params.group_by = groupBy
   return req<AreaStatsResponse>('subsidies:areaStatsByVillage', params)
 }
 
