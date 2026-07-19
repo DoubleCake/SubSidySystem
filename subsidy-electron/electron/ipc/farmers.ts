@@ -370,4 +370,43 @@ export function registerFarmerHandlers(): void {
       return errorResponse(String(e))
     }
   })
+
+  // ── 身份信息验证 ──
+  ipcMain.handle('farmers:verifyNames', (_e, params: any) => {
+    try {
+      const rows: { name: string; id_card: string }[] = params?.rows || []
+
+      const results = rows.map(row => {
+        const ic = (row.id_card || '').trim().toUpperCase()
+        if (!ic || ic.length !== 18) {
+          return { match: 'invalid', db_name: null, db_village: null }
+        }
+
+        const farmer = db().getRaw<{ real_name: string; village_name: string }>(
+          `SELECT fp.real_name, COALESCE(v.village_name, '') as village_name
+           FROM farmer_profile fp
+           LEFT JOIN family_household hh ON fp.household_id = hh.id
+           LEFT JOIN village v ON hh.village_id = v.id
+           WHERE fp.id_card = ? LIMIT 1`, ic
+        )
+
+        if (!farmer) {
+          return { match: 'not_found', db_name: null, db_village: null }
+        }
+
+        const inputName = (row.name || '').trim()
+        const dbName = farmer.real_name || ''
+
+        if (inputName === dbName) {
+          return { match: 'ok', db_name: dbName, db_village: farmer.village_name }
+        }
+
+        return { match: 'mismatch', db_name: dbName, db_village: farmer.village_name }
+      })
+
+      return success({ results })
+    } catch (e) {
+      return errorResponse(String(e))
+    }
+  })
 }

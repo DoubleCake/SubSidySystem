@@ -109,7 +109,7 @@ export default function DataVerifyPage() {
           if (localResults[i].match === 'ok') {
             const v = res.results[vi++]
             if (v) {
-              localResults[i].match = v.match
+              localResults[i].match = v.match as MatchType
               localResults[i].db_name = v.db_name
               localResults[i].db_village = v.db_village
             }

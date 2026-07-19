@@ -7,8 +7,6 @@ interface SidebarItem {
 }
 
 const sidebarItems: SidebarItem[] = [
-  { type: 'link', label: '☰ 工具主页', to: '/tools' },
-  { type: 'divider' },
   { type: 'group', label: '⚙ 系统管理' },
   { type: 'link', label: '👤 用户管理', to: '/settings/users' },
   { type: 'link', label: '🏘 村组管理', to: '/settings/village-groups' },

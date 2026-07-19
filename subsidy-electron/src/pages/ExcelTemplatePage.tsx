@@ -194,7 +194,7 @@ export default function ExcelTemplatePage() {
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id as typeof tab)}
             className={`flex items-center gap-1.5 px-4 py-2 text-sm rounded-btn border transition-colors
-              ${tab === t.id ? 'bg-primary-500  border-emerald-700' : 'bg-white border-border text-text-primary hover:border-border'}`}>
+              ${tab === t.id ? 'bg-primary-500 text-white border-emerald-700' : 'bg-white border-border text-text-primary hover:border-border'}`}>
             {t.label}
             {t.count !== null && <span className={`text-xs px-1.5 py-0.5 rounded font-mono ${tab===t.id?'bg-white/20 ':'bg-warm/30 text-text-muted'}`}>{t.count}</span>}
           </button>
