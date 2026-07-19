@@ -835,7 +835,7 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
             </span>
             <button onClick={handleMergeConfirm}
               disabled={mergeSelectedHouseholds.length < 2}
-              className="ml-auto px-4 py-2 text-sm bg-primary-500  rounded-btn hover:bg-primary-500/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium">
+              className="ml-auto px-4 py-2 text-sm bg-emerald-500 text-white rounded-btn hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium">
               确认合并
             </button>
           </div>

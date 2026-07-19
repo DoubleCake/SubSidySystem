@@ -361,6 +361,7 @@ export interface HH {
   trust_out_area?: number; trust_in_area?: number; cultivable_area?: number
   used_area: number; remaining_area: number
   is_overdrawn: boolean; overdraw_amount: number
+  overdrawn_years?: number[]
   season_breakdown?: Record<string, SeasonUsage>
   member_count: number; status: number; address: string | null; remark: string | null
   is_manually_confirmed: number

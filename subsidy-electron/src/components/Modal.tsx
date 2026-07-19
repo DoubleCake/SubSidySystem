@@ -22,7 +22,7 @@ export default function Modal({ open, title, onClose, onConfirm, confirmText = '
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-16 px-4">
-      <div className="bg-white rounded-card shadow-card flex flex-col max-h-[80vh] overflow-hidden"
+      <div className="bg-white rounded-card shadow-card flex flex-col max-h-[80vh] overflow-hidden  "
         style={{ width: Math.min(width, window.innerWidth - 32) }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <h3 className="font-bold text-text-primary text-card-title">{title}</h3>
@@ -39,7 +39,8 @@ export default function Modal({ open, title, onClose, onConfirm, confirmText = '
               取消
             </button>
             <button onClick={onConfirm}
-              className="px-4 py-1.5 text-body bg-primary-500 !text-white rounded-btn hover:bg-primary-400 transition-all flex items-center gap-1.5 font-medium shadow-sm">
+              className="px-4 py-1.5 text-body bg-primary-500 rounded-btn hover:bg-primary-400 transition-all flex items-center gap-1.5 font-medium shadow-sm"
+              style={{ color: 'white' }}>
               <Icon name="confirm" size={14} />
               {confirmText}
             </button>

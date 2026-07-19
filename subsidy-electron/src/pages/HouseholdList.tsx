@@ -78,7 +78,9 @@ export default function HouseholdList({
                     <span className="font-semibold text-base text-text-primary">{h.household_name}</span>
                     <span className="text-xs font-mono text-primary bg-primary-500/5 px-2 py-0.5 rounded border border-primary-500/20">{h.household_code}</span>
                     {h.is_manually_confirmed === 1 && <span className="text-xs text-primary font-medium bg-primary-500/10 px-2 py-0.5 rounded-full">✓已确认</span>}
-                    {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
+                    {(h.overdrawn_years?.length ?? 0) > 0 && h.overdrawn_years!.map(y => (
+                      <span key={y} className="text-xs text-red-600 font-medium bg-red-100 px-1.5 py-0.5 rounded">{y}超领</span>
+                    ))}
                   </div>
                   <div className="flex items-center gap-4 text-xs text-text-muted">
                     <span>{h.head_name ? `户主:${h.head_name}` : '无户主'}</span>
@@ -106,7 +108,9 @@ export default function HouseholdList({
                     <span className="font-semibold text-base text-text-primary">{h.household_name}</span>
                     <span className="text-xs font-mono text-primary bg-primary-500/5 px-2 py-0.5 rounded border border-primary-500/20">{h.household_code}</span>
                     {h.is_manually_confirmed === 1 && <span className="text-xs text-primary font-medium bg-primary-500/10 px-2 py-0.5 rounded-full">✓已确认</span>}
-                    {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
+                    {(h.overdrawn_years?.length ?? 0) > 0 && h.overdrawn_years!.map(y => (
+                      <span key={y} className="text-xs text-red-600 font-medium bg-red-100 px-1.5 py-0.5 rounded">{y}超领</span>
+                    ))}
                   </div>
                   <div className="flex items-center gap-4 text-xs text-text-muted">
                     <span>{h.head_name ? `户主:${h.head_name}` : '无户主'}</span>
@@ -133,7 +137,9 @@ export default function HouseholdList({
               <span className="font-semibold text-base text-text-primary">{h.household_name}</span>
               <span className="text-xs font-mono text-primary bg-primary-500/5 px-2 py-0.5 rounded border border-primary-500/20">{h.household_code}</span>
               {h.is_manually_confirmed === 1 && <span className="text-xs text-primary font-medium bg-primary-500/10 px-2 py-0.5 rounded-full">✓已确认</span>}
-              {h.is_overdrawn && <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">⚠️超领</span>}
+              {(h.overdrawn_years?.length ?? 0) > 0 && h.overdrawn_years!.map(y => (
+                <span key={y} className="text-xs text-red-600 font-medium bg-red-100 px-1.5 py-0.5 rounded">{y}超领</span>
+              ))}
             </div>
             <div className="flex items-center gap-4 text-xs text-text-muted">
               <span>{h.head_name ? `户主:${h.head_name}` : '无户主'}</span>

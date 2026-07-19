@@ -53,10 +53,10 @@ export function registerHouseholdHandlers(): void {
       const areaSub = `LEFT JOIN (
              SELECT household_id,
                     COALESCE(SUM(season_effective), 0) as total,
-                    MAX(CASE WHEN season_effective > 0 AND hh_season.contract_area > 0 AND season_effective > hh_season.contract_area THEN 1 ELSE 0 END) as is_over
+                    MAX(CASE WHEN season_effective > 0 AND COALESCE(hh_season.confirmed_area, hh_season.contract_area, 0) > 0 AND season_effective > COALESCE(hh_season.confirmed_area, hh_season.contract_area, 0) THEN 1 ELSE 0 END) as is_over
              FROM (
                SELECT fp2.household_id as household_id, st.season,
-                      COALESCE(SUM(sa.apply_area - COALESCE(sa.trust_area,0) - COALESCE(sa.no_subsidy_area,0)), 0) as season_effective
+                      COALESCE(SUM(sa.apply_area - COALESCE(sa.apply_area_no_calc, 0) - COALESCE(sa.trust_area,0) - COALESCE(sa.no_subsidy_area,0)), 0) as season_effective
                FROM subsidy_application sa
                JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp2.id
                LEFT JOIN subsidy_type st ON sa.subsidy_type_id = st.id
@@ -100,8 +100,39 @@ export function registerHouseholdHandlers(): void {
           village_full_name: r.village_name ? `${r.village_name}${formatGroupNo(r.group_no as number)}` : '未知村组',
           is_overdrawn: isOverdrawn,
           used_area: Number(r.total_subsidy_area || 0),
-        }
+        } as Record<string, unknown>
       })
+
+      // 批量查询所有超领年份
+      if (items.length > 0) {
+        const hhIds = items.map(h => h.id as number)
+        const placeholders = hhIds.map(() => '?').join(',')
+        const overdrawnYears = db().allRaw<{ household_id: number; year: number }>(
+          `SELECT ss.household_id, ss.apply_year as year
+           FROM (
+             SELECT fp2.household_id, sa.apply_year,
+                    COALESCE(SUM(sa.apply_area - COALESCE(sa.apply_area_no_calc,0) - COALESCE(sa.trust_area,0) - COALESCE(sa.no_subsidy_area,0)), 0) as season_effective,
+                    COALESCE(hh2.confirmed_area, hh2.contract_area, 0) as ref_area
+             FROM subsidy_application sa
+             JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp2.id
+             JOIN family_household hh2 ON hh2.id = fp2.household_id
+             WHERE fp2.household_id IN (${placeholders})
+             GROUP BY fp2.household_id, sa.apply_year
+           ) ss
+           WHERE ss.season_effective > 0 AND ss.ref_area > 0 AND ss.season_effective > ss.ref_area
+           GROUP BY ss.household_id, ss.apply_year
+           ORDER BY ss.apply_year DESC`,
+          ...hhIds
+        )
+        const yearMap = new Map<number, number[]>()
+        for (const row of overdrawnYears) {
+          if (!yearMap.has(row.household_id)) yearMap.set(row.household_id, [])
+          yearMap.get(row.household_id)!.push(row.year)
+        }
+        for (const h of items) {
+          h.overdrawn_years = yearMap.get(h.id as number) || []
+        }
+      }
 
       return successList(items, countRow?.cnt ?? 0, page, pageSize)
     } catch (e) {
@@ -247,7 +278,7 @@ export function registerHouseholdHandlers(): void {
       } catch { /* table might not exist yet */ }
 
       // area_usage: 实时计算面积使用情况（按年份+季节汇总）
-      const contractedArea = Number(hh.contract_area || 0)
+      const contractedArea = Number(hh.confirmed_area || hh.contract_area || 0)
       let areaUsage = {
         contracted_area: contractedArea,
         trust_out_area: 0,
@@ -271,8 +302,8 @@ export function registerHouseholdHandlers(): void {
       try {
         const areaRows = db().allRaw<{ apply_year: number; season: string; used_area: number; apply_area: number; payment_area: number }>(`
           SELECT sa.apply_year, COALESCE(st.season, '全年单补') as season,
-                 COALESCE(SUM(sa.apply_area), 0) as used_area,
-                 COALESCE(SUM(sa.apply_area), 0) as apply_area,
+                 COALESCE(SUM(sa.apply_area - COALESCE(sa.apply_area_no_calc, 0)), 0) as used_area,
+                 COALESCE(SUM(sa.apply_area - COALESCE(sa.apply_area_no_calc, 0)), 0) as apply_area,
                  COALESCE(SUM(CASE WHEN sa.pay_status >= 2 THEN sa.apply_area ELSE 0 END), 0) as payment_area
           FROM subsidy_application sa
           JOIN farmer_profile fp ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp.id
@@ -554,19 +585,19 @@ export function registerHouseholdHandlers(): void {
                COALESCE(hh.contract_area, 0) as contracted_area,
                COALESCE(hh.cultivable_area, 0) as cultivable_area,
                COALESCE(area.total, 0) as used_area,
-               MAX(0, COALESCE(area.total, 0) - COALESCE(hh.contract_area, 0)) as overdraw_amount
+               MAX(0, COALESCE(area.total, 0) - COALESCE(hh.confirmed_area, hh.contract_area, 0)) as overdraw_amount
         FROM family_household hh
         LEFT JOIN village v ON hh.village_id = v.id
         LEFT JOIN farmer_profile head ON head.id = hh.head_farmer_id
         LEFT JOIN (
-          SELECT fp2.household_id, COALESCE(SUM(sa.apply_area), 0) as total
+          SELECT fp2.household_id, COALESCE(SUM(sa.apply_area - COALESCE(sa.apply_area_no_calc, 0)), 0) as total
           FROM subsidy_application sa
           JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp2.id
           WHERE sa.apply_year = ?
           GROUP BY fp2.household_id
         ) area ON area.household_id = hh.id
-        WHERE hh.contract_area IS NOT NULL AND hh.contract_area > 0
-          AND COALESCE(area.total, 0) > hh.contract_area
+        WHERE COALESCE(hh.confirmed_area, hh.contract_area, 0) > 0
+          AND COALESCE(area.total, 0) > COALESCE(hh.confirmed_area, hh.contract_area, 0)
         ORDER BY overdraw_amount DESC
       `, year)
 
