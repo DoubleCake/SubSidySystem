@@ -30,8 +30,8 @@ import SidebarNav from './components/SidebarNav'
 
 const mainNav = [
   { to: '/',             label: '首页',     icon: 'dashboard' as const, end: true },
-  { to: '/farmers',      label: '户籍管理',  icon: 'farmers' as const },
-  { to: '/projects',     label: '补贴项目',  icon: 'subsidies' as const },
+  { to: '/farmers',      label: '农户列表',  icon: 'farmers' as const },
+  { to: '/projects',     label: '补贴总览',  icon: 'subsidies' as const },
   { to: '/land',         label: '土地流转',  icon: 'land' as const },
   { to: '/large-farmers',label: '大户管理',  icon: 'household' as const },
   { to: '/links',        label: '补贴查询',  icon: 'link' as const },

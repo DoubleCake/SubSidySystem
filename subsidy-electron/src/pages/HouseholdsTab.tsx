@@ -854,7 +854,7 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
             </span>
             <button onClick={handleBatchConfirm}
               disabled={batchSelected.length === 0 || batchConfirmLoading}
-              className="ml-auto px-4 py-2 text-sm bg-primary-500  rounded-btn hover:bg-primary-500/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2">
+              className="ml-auto px-4 py-2 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary-500/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2">
               {batchConfirmLoading ? <><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>确认中...</> : '确认所选'}
             </button>
           </div>

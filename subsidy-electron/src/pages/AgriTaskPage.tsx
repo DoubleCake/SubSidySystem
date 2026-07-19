@@ -219,7 +219,7 @@ export default function AgriTaskPage() {
           {(meta?.statuses || []).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
         <button onClick={() => setShowCreate(true)}
-          className="ml-auto bg-primary-500/90 hover:bg-primary-500  text-sm px-4 py-1.5 rounded-btn">
+          className="ml-auto bg-primary-500/90  text-white hover:bg-primary-500  text-sm px-4 py-1.5 rounded-btn">
           + 新建任务
         </button>
       </div>

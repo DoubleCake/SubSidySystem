@@ -123,7 +123,6 @@ export default function HouseholdList({
           <div key={h.id}
             onClick={() => onSelect(h.id)}
             className={`px-5 py-4 border-b border-border/50 cursor-pointer transition-all hover:bg-warm/30
-              ${selectedId === h.id ? 'border-l-4 border-l-primary-500' : ''}
               ${h.is_overdrawn ? 'bg-red-50/40' : ''}`}
             style={selectedId === h.id ? {
               backgroundImage: 'url(images/focus.png)',

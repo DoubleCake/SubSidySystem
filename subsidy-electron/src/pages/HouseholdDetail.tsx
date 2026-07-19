@@ -130,7 +130,17 @@ export function HouseholdDetailContent({
               <span className="text-base font-bold text-primary-50">{detail.household_name}</span>
               <span className="text-text-muted text-xs font-mono">{detail.household_code}</span>
               {detail.is_manually_confirmed === 1 && <span className="text-xs bg-blue-500  px-1.5 py-0.5 rounded">✓ 已确认</span>}
-              {effectiveIsOverdrawn && <span className="text-xs bg-red-500  px-1.5 py-0.5 rounded">⚠️ 超领</span>}
+              {/* 所有超领年份逐一标记 */}
+              {areaUsage.year_totals && Object.entries(areaUsage.year_totals)
+                .filter(([, seasons]) => {
+                  const ref = areaUsage.cultivable_area ?? areaUsage.contracted_area
+                  return ref > 0 && Object.values(seasons).some((v: number) => v > ref + 0.001)
+                })
+                .sort(([a], [b]) => Number(b) - Number(a))
+                .map(([year]) => (
+                  <span key={year} className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">{year}超领</span>
+                ))}
+              {!effectiveIsOverdrawn && areaUsage.is_overdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">⚠️ 超领</span>}
               {historyDate !== null && <span className="text-xs bg-amber-500/80  px-1.5 py-0.5 rounded">⏳ 快照</span>}
             </div>
             <div className="text-text-muted text-xs">📍 {detail.village_full_name}

@@ -491,7 +491,7 @@ export function registerHouseholdHandlers(): void {
   ipcMain.handle('households:groupOptions', () => {
     try {
       const rows = db().allRaw<Record<string, unknown>>(`
-        SELECT DISTINCT v.village_name, vg.group_no
+        SELECT DISTINCT vg.village_id, v.village_name, vg.group_no
         FROM village_group vg
         JOIN village v ON vg.village_id = v.id
         ORDER BY v.village_name, vg.group_no
