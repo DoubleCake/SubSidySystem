@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { HashRouter, Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import FarmersPage from './pages/FarmersPage'
 import SubsidyProjectsPage from './pages/SubsidyProjectsPage'
@@ -26,42 +26,22 @@ import { healthCheck } from './api'
 import { useState } from 'react'
 import { QUOTES } from './utils/quotes'
 import Icon from './components/Icon'
+import SidebarNav from './components/SidebarNav'
 
 const mainNav = [
-  { to: '/',          label: '首页',     icon: 'dashboard' as const, end: true },
-  { to: '/farmers',   label: '户籍管理', icon: 'farmers' as const },
-  { to: '/projects',  label: '补贴项目', icon: 'subsidies' as const },
-  { to: '/links',     label: '补贴查询', icon: 'link' as const },
-  { to: '/tools',     label: '数据工具', icon: 'menu' as const },
-]
-
-// 系统设置下拉菜单分组
-const settingNavBiz = [  // 业务管理
-  { to: '/settings/land-trust',    label: '土地流转', icon: 'land' as const },
-  { to: '/settings/large-farmers', label: '大户管理', icon: 'household' as const },
-  { to: '/agri-tasks',             label: '任务分解', icon: 'tasks' as const },
-]
-
-const settingNavBasic = [  // 基础配置
-  { to: '/settings/village-groups', label: '村组管理',   icon: 'village' as const },
-]
-
-const settingNavData = [  // 数据工具
-  { to: '/settings/excel-templates', label: 'Excel模板', icon: 'export' as const },
-]
-
-const settingNavSystem = [  // 系统
-  { to: '/settings/users',          label: '用户管理',   icon: 'person' as const },
-  { to: '/settings/backup',         label: '备份迁移',   icon: 'download' as const },
-  { to: '/settings/update',         label: '软件更新',   icon: 'settings' as const },
+  { to: '/',             label: '首页',     icon: 'dashboard' as const, end: true },
+  { to: '/farmers',      label: '户籍管理',  icon: 'farmers' as const },
+  { to: '/projects',     label: '补贴项目',  icon: 'subsidies' as const },
+  { to: '/land',         label: '土地流转',  icon: 'land' as const },
+  { to: '/large-farmers',label: '大户管理',  icon: 'household' as const },
+  { to: '/links',        label: '补贴查询',  icon: 'link' as const },
+  { to: '/tools',        label: '数据工具',  icon: 'menu' as const },
 ]
 
 function Layout() {
   const auth = getAuth()
   const [online, setOnline]       = useState<boolean | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const settingsRef = useRef<HTMLDivElement>(null)
   const navigate    = useNavigate()
   const location    = useLocation()
 
@@ -78,8 +58,6 @@ function Layout() {
     if (!isAuthDisabled() && !auth && location.pathname !== '/login') navigate('/login', { replace: true })
   }, [auth, location.pathname, navigate, authChecked])
 
-  const isSettings = location.pathname.startsWith('/settings')
-
   // 随机选择一条语录和颜色主题
   const { quote } = useMemo(() => {
     const randomQuote = QUOTES[Math.floor(Math.random() * QUOTES.length)]
@@ -88,15 +66,6 @@ function Layout() {
 
   useEffect(() => {
     healthCheck().then(() => setOnline(true)).catch(() => setOnline(false))
-  }, [])
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (settingsRef.current && !settingsRef.current.contains(e.target as Node))
-        setSettingsOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
   }, [])
 
   return (
@@ -135,84 +104,6 @@ function Layout() {
                 <div className="w-px h-5 bg-white/20" />
               </>
             )}
-            {/* 设置下拉 */}
-            <div className="relative" ref={settingsRef}>
-              <button onClick={() => setSettingsOpen(o => !o)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-btn text-sm transition-colors
-                  ${isSettings ? 'bg-white/15 text-white font-semibold' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
-                <Icon name="settings" size={16} />
-                <span>系统设置</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                  className="w-3.5 h-3.5 transition-transform duration-150"
-                  style={{ transform: settingsOpen ? 'rotate(180deg)' : 'none' }}>
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-              {settingsOpen && (
-                <div className="absolute right-0 top-full mt-2 bg-white rounded-card shadow-card border border-border overflow-hidden w-52 z-50">
-                  {settingNavBiz.length > 0 && (
-                    <>
-                      <div className="px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30">业务管理</div>
-                      {settingNavBiz.map(({ to, label, icon }) => (
-                        <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
-                          className={({ isActive }) =>
-                            `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
-                            ${isActive ? 'text-primary font-semibold bg-primary-500/5' : 'text-text-primary hover:bg-warm/30'}`
-                          }>
-                          <Icon name={icon} size={16} className="text-text-muted" />
-                          <span>{label}</span>
-                        </NavLink>
-                      ))}
-                    </>
-                  )}
-                  {settingNavBasic.length > 0 && (
-                    <>
-                      <div className="px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30">基础配置</div>
-                      {settingNavBasic.map(({ to, label, icon }) => (
-                        <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
-                          className={({ isActive }) =>
-                            `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
-                            ${isActive ? 'text-primary font-semibold bg-primary-500/5' : 'text-text-primary hover:bg-warm/30'}`
-                          }>
-                          <Icon name={icon} size={16} className="text-text-muted" />
-                          <span>{label}</span>
-                        </NavLink>
-                      ))}
-                    </>
-                  )}
-                  {settingNavData.length > 0 && (
-                    <>
-                      <div className="px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30">数据工具</div>
-                      {settingNavData.map(({ to, label, icon }) => (
-                        <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
-                          className={({ isActive }) =>
-                            `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
-                            ${isActive ? 'text-primary font-semibold bg-primary-500/5' : 'text-text-primary hover:bg-warm/30'}`
-                          }>
-                          <Icon name={icon} size={16} className="text-text-muted" />
-                          <span>{label}</span>
-                        </NavLink>
-                      ))}
-                    </>
-                  )}
-                  {settingNavSystem.length > 0 && (
-                    <>
-                      <div className="px-3.5 py-2 text-meta text-text-muted border-b border-border bg-warm/30">系统</div>
-                      {settingNavSystem.map(({ to, label, icon }) => (
-                        <NavLink key={to} to={to} onClick={() => setSettingsOpen(false)}
-                          className={({ isActive }) =>
-                            `flex items-center gap-2.5 px-3.5 py-2.5 text-body transition-colors
-                            ${isActive ? 'text-primary font-semibold bg-primary-500/5' : 'text-text-primary hover:bg-warm/30'}`
-                          }>
-                          <Icon name={icon} size={16} className="text-text-muted" />
-                          <span>{label}</span>
-                        </NavLink>
-                      ))}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
             {/* 连接状态 */}
             <div className={`text-meta font-mono whitespace-nowrap flex items-center gap-1.5
               ${online === null ? 'text-white/60' : online === false ? 'text-red-300' : 'text-white/80'}`}>
@@ -227,7 +118,10 @@ function Layout() {
 
       <main className="flex-1">
         <div className="max-w-screen-xl mx-auto px-6 py-6 pb-10">
-          <Routes>
+          <div className="flex gap-6">
+            <SidebarNav />
+            <div className="flex-1 min-w-0">
+              <Routes>
             <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
             <Route path="/farmers"   element={<FarmersPage />} />
             <Route path="/match-people" element={<PeopleMatchPage />} />
@@ -235,6 +129,7 @@ function Layout() {
             <Route path="/project-progress" element={<ProjectProgressPage />} />
             <Route path="/agri-tasks" element={<AgriTaskPage />} />
             <Route path="/land"      element={<LandTrustPage />} />
+            <Route path="/large-farmers" element={<LargeFarmersPage />} />
             <Route path="/links"     element={<ExternalLinksPage />} />
             <Route path="/tools"     element={<ToolsPage />} />
             <Route path="/data-verify" element={<DataVerifyPage />} />
@@ -259,7 +154,9 @@ function Layout() {
                 <p className="text-body">页面不存在，<button className="text-primary hover:underline font-medium" onClick={() => navigate('/')}>返回首页</button></p>
               </div>
             } />
-          </Routes>
+            </Routes>
+            </div>
+          </div>
         </div>
       </main>
 
