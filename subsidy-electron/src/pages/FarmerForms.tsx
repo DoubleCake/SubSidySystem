@@ -277,7 +277,7 @@ export function MergeConfirmForm({ open, mergeSelectedHouseholds, mergeConfirmFo
             {mergeSelectedHouseholds.map((h, i) => (
               <div key={h.id} className={`flex items-center gap-2 text-sm ${i === 0 ? 'text-primary font-medium' : 'text-text-primary'}`}>
                 {i === 0
-                  ? <span className="text-xs bg-primary-500/90  px-1.5 py-0.5 rounded">目标户</span>
+                  ? <span className="text-xs bg-primary-500/90 text-white px-1.5 py-0.5 rounded">目标户</span>
                   : <span className="text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">被合并</span>}
                 <span>{h.household_name}</span>
                 <span className="text-xs text-text-muted">({h.head_name || '无户主'} · {h.member_count ?? '?'}人 · {h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'})</span>
