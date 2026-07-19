@@ -19,7 +19,10 @@ export default function UserManagementPage() {
   const [pwdForm, setPwdForm] = useState({ old_password: '', new_password: '' })
 
   const load = async () => {
-    try { setUsers(await window.electronAPI.invoke('auth:listUsers')) } catch { /* ignore */ }
+    try {
+      const r = await window.electronAPI.invoke('auth:listUsers')
+      setUsers(r?.data ?? r ?? [])
+    } catch { /* ignore */ }
   }
   useEffect(() => { load() }, [])
 
