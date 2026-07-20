@@ -1,7 +1,7 @@
 /**
- * 项目进度管理 V2 — 垂直卡片布局 + 顶部总览 + 侧边抽屉
+ * 项目进度管理 V2 — 垂直卡片 + 顶部总览 + 侧边抽屉（性能优化版）
  */
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react'
 import * as XLSX from 'xlsx'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
@@ -44,116 +44,145 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
   const contextRef = useRef<HTMLDivElement>(null)
   const [quickNote, setQuickNote] = useState<string | null>(null)
 
+  // ── 初始化加载 ──
   const loadRecords = useCallback(async () => {
     if (!projectId) return
     setLoading(true)
     try {
       const res: any = await window.electronAPI.invoke('project-progress:get', projectId)
-      const all = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
-      setRecords(all)
+      setRecords(Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [])
     } catch { show('加载失败', 'err') } finally { setLoading(false) }
   }, [projectId, show])
 
   useEffect(() => { loadRecords() }, [loadRecords])
+
+  // ── 非阻塞保存 ──
+  const saveRecAsync = useCallback((rec: ProgressRecord) => {
+    window.electronAPI.invoke('project-progress:save', { projectId, ...rec }).catch(() => {})
+  }, [projectId])
+
+  // ── 全局点击关闭右键菜单 ──
   useEffect(() => {
     const h = (e: MouseEvent) => { if (contextRef.current && !contextRef.current.contains(e.target as Node)) setContextMenu(null) }
     document.addEventListener('click', h); return () => document.removeEventListener('click', h)
   }, [])
 
-  // ── 过滤待分配村（无负责人姓名） ──
+  // ── 计算（使用 Set 优化 O(n²) → O(n)）──
   const allStages = useMemo(() => {
-    const names: string[] = []
-    for (const r of records) for (const s of r.stages) { if (!names.includes(s.name)) names.push(s.name) }
-    return names
+    const seen = new Set<string>()
+    for (const r of records) for (const s of r.stages) seen.add(s.name)
+    return [...seen]
   }, [records])
 
   const stats = useMemo(() => {
-    const valid = records.filter(r => r.person_name && r.person_name.trim())
-    let doneCells = 0, totalCells = 0, doneVillages = 0, urgedVillages = 0
-    for (const r of valid) {
-      const allDone = r.stages.length > 0 && r.stages.every(s => s.status === 'done')
-      doneCells += r.stages.filter(s => s.status === 'done').length
-      totalCells += r.stages.length
-      if (allDone) doneVillages++
+    let doneCells = 0, totalCells = 0, doneVillages = 0, urgedVillages = 0, validCount = 0
+    for (const r of records) {
+      if (!r.person_name?.trim()) continue
+      validCount++
+      const done = r.stages.filter(s => s.status === 'done').length
+      doneCells += done; totalCells += r.stages.length
+      if (r.stages.length > 0 && done === r.stages.length) doneVillages++
       if (r.stages.some(s => s.status === 'urged')) urgedVillages++
     }
-    return { doneCells, totalCells, doneVillages, urgedVillages, totalVillages: valid.length }
+    return { doneCells, totalCells, doneVillages, urgedVillages, totalVillages: validCount }
   }, [records])
 
-  // 过滤：去掉待分配 + 搜索/筛选
   const displayRecords = useMemo(() => records.filter(r => {
-    if (!r.person_name || !r.person_name.trim()) return false // 待分配
+    if (!r.person_name?.trim()) return false
     if (search && !r.village_name.includes(search) && !r.person_name.includes(search)) return false
     if (statusFilter === 'done' && r.stages.some(s => s.status !== 'done')) return false
     if (statusFilter === 'undone' && r.stages.every(s => s.status === 'done')) return false
     return true
   }), [records, search, statusFilter])
 
-  const unassignedCount = records.length - records.filter(r => r.person_name && r.person_name.trim()).length
+  const unassignedCount = useMemo(() =>
+    records.filter(r => !r.person_name?.trim()).length
+  , [records])
 
-  // ── Actions ──
-  const saveRec = async (rec: ProgressRecord) => {
-    await window.electronAPI.invoke('project-progress:save', { projectId, ...rec })
-  }
+  // ── 操作：先更新本地状态，再异步落盘，不重新拉全量 ──
 
-  const cycleStatus = async (rec: ProgressRecord, stageIdx: number) => {
-    const stages = [...rec.stages]
-    const cur = stages[stageIdx].status
-    const nextIdx = (STATUS_CYCLE.indexOf(cur) + 1) % STATUS_CYCLE.length
-    stages[stageIdx] = { ...stages[stageIdx], status: STATUS_CYCLE[nextIdx], date: new Date().toISOString() }
-    const updated = { ...rec, stages }
-    setRecords(prev => prev.map(p => p.village_id === rec.village_id ? updated : p))
-    await saveRec(updated)
-  }
+  const cycleStatus = useCallback((rec: ProgressRecord, stageIdx: number) => {
+    setRecords(prev => prev.map(p => {
+      if (p.village_id !== rec.village_id) return p
+      const stages = [...p.stages]
+      const cur = stages[stageIdx].status
+      const nextIdx = (STATUS_CYCLE.indexOf(cur) + 1) % STATUS_CYCLE.length
+      stages[stageIdx] = { ...stages[stageIdx], status: STATUS_CYCLE[nextIdx], date: new Date().toISOString() }
+      const updated = { ...p, stages }
+      saveRecAsync(updated)
+      return updated
+    }))
+  }, [saveRecAsync])
 
-  const updatePerson = async (rec: ProgressRecord, field: 'person_name' | 'phone', value: string) => {
-    const updated = { ...rec, [field]: value }
-    setRecords(prev => prev.map(p => p.village_id === rec.village_id ? updated : p))
-    await saveRec(updated)
-  }
+  const updatePerson = useCallback((rec: ProgressRecord, field: 'person_name' | 'phone', value: string) => {
+    setRecords(prev => prev.map(p => {
+      if (p.village_id !== rec.village_id) return p
+      const updated = { ...p, [field]: value }
+      saveRecAsync(updated)
+      return updated
+    }))
+  }, [saveRecAsync])
 
-  const batchSet = async (stageName: string, status: StatusKey) => {
-    await window.electronAPI.invoke('project-progress:batch', {
-      projectId, action: 'batch_stage', stage_name: stageName, status, date: new Date().toISOString(),
-    })
-    show(`已将所有「${stageName}」设为${STATUS_CFG[status].label}`); loadRecords()
-  }
+  // 批量操作：先本地更新，异步落盘不阻塞
+  const batchSet = useCallback((stageName: string, status: StatusKey) => {
+    const now = new Date().toISOString()
+    setRecords(prev => prev.map(r => ({
+      ...r,
+      stages: r.stages.map(s => s.name === stageName ? { ...s, status, date: now } : s),
+    })))
+    window.electronAPI.invoke('project-progress:batch', { projectId, action: 'batch_stage', stage_name: stageName, status, date: now })
+    show(`已将所有「${stageName}」设为${STATUS_CFG[status].label}`)
+  }, [projectId, show])
 
-  const addStage = async () => {
+  const addStage = useCallback(() => {
     if (!newStageName.trim()) return
-    await window.electronAPI.invoke('project-progress:batch', {
-      projectId, action: 'add_stage_to_all',
-      stage: { name: newStageName.trim(), status: 'none', date: '', note: '' },
-    })
-    show('已添加'); setNewStageName(''); loadRecords()
-  }
+    const newStage: StageItem = { name: newStageName.trim(), status: 'none', date: '', note: '' }
+    setRecords(prev => prev.map(r => ({
+      ...r,
+      stages: r.stages.some(s => s.name === newStage.name) ? r.stages : [...r.stages, newStage],
+    })))
+    setNewStageName('')
+    window.electronAPI.invoke('project-progress:batch', { projectId, action: 'add_stage_to_all', stage: newStage })
+    show('已添加')
+  }, [newStageName, projectId, show])
 
-  const deleteStage = async (stageName: string) => {
+  const deleteStage = useCallback((stageName: string) => {
     if (!confirm(`删除阶段「${stageName}」？`)) return
-    await window.electronAPI.invoke('project-progress:deleteStage', { projectId, stage_name: stageName })
-    show('已删除'); loadRecords()
-  }
+    setRecords(prev => prev.map(r => ({
+      ...r,
+      stages: r.stages.filter(s => s.name !== stageName),
+    })))
+    window.electronAPI.invoke('project-progress:deleteStage', { projectId, stage_name: stageName })
+    show('已删除')
+  }, [projectId, show])
 
-  const swapStages = async (a: number, b: number) => {
+  const swapStages = useCallback((a: number, b: number) => {
     if (a === b) return
-    await window.electronAPI.invoke('project-progress:batch', {
-      projectId, action: 'swap_stages', stage_a: allStages[a], stage_b: allStages[b],
-    })
-    loadRecords()
-  }
+    const snA = allStages[a], snB = allStages[b]
+    setRecords(prev => prev.map(r => {
+      const stages = [...r.stages]
+      const ia = stages.findIndex(s => s.name === snA)
+      const ib = stages.findIndex(s => s.name === snB)
+      if (ia >= 0 && ib >= 0) { [stages[ia], stages[ib]] = [stages[ib], stages[ia]] }
+      return { ...r, stages }
+    }))
+    window.electronAPI.invoke('project-progress:batch', { projectId, action: 'swap_stages', stage_a: snA, stage_b: snB })
+  }, [allStages, projectId])
 
-  const initAll = async () => {
-    await window.electronAPI.invoke('project-progress:batch', { projectId, action: 'init' })
-    show('已初始化'); loadRecords()
-  }
-  const syncLeaders = async () => {
+  const initAll = useCallback(async () => {
+    const res: any = await window.electronAPI.invoke('project-progress:batch', { projectId, action: 'init' })
+    show(res?.data?.message ?? '已初始化')
+    loadRecords() // fire-and-forget 重拉
+  }, [projectId, show, loadRecords])
+
+  const syncLeaders = useCallback(async () => {
     const res: any = await window.electronAPI.invoke('project-progress:batch', { projectId, action: 'sync_leaders' })
     const data = res?.data ?? res
     show(data.updated > 0 ? `✓ 已同步 ${data.updated} 个` : '已是最新')
-    loadRecords()
-  }
+    loadRecords() // fire-and-forget 重拉
+  }, [projectId, show, loadRecords])
 
-  const copySummary = async (stageName: string) => {
+  const copySummary = useCallback(async (stageName: string) => {
     const groups: Record<string, string[]> = {}
     for (const r of displayRecords) {
       const s = r.stages.find(st => st.name === stageName)
@@ -161,13 +190,13 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
     }
     const text = [`${projectName} · ${stageName}`, ...Object.entries(groups).map(([k, v]) => `${k}：${v.join('、')}`)].join('\n')
     try { await navigator.clipboard.writeText(text); show('✓ 已复制') } catch { show('复制失败', 'err') }
-  }
+  }, [displayRecords, projectName, show])
 
-  const exportExcel = () => {
+  const exportExcel = useCallback(() => {
     const headers = ['村名', '负责人', '电话', ...allStages]
     const aoa: any[][] = []
-    const hdrStyle = { font: { bold: true, sz: 11 }, fill: { fgColor: { rgb: 'F5F0EB' } }, border: { bottom: { style: 'medium', color: { rgb: 'D1C7BD' } } }, alignment: { horizontal: 'center', vertical: 'center' } }
-    aoa.push(headers.map(h => ({ v: h, s: hdrStyle })))
+    const hs = { font: { bold: true, sz: 11 }, fill: { fgColor: { rgb: 'F5F0EB' } }, border: { bottom: { style: 'medium', color: { rgb: 'D1C7BD' } } }, alignment: { horizontal: 'center', vertical: 'center' } }
+    aoa.push(headers.map(h => ({ v: h, s: hs })))
     for (const rec of displayRecords) {
       const row: any[] = [
         { v: rec.village_name, s: { font: { bold: true, sz: 10.5 }, alignment: { vertical: 'center' } } },
@@ -187,14 +216,15 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
     }
     const ws = XLSX.utils.aoa_to_sheet(aoa)
     ws['!cols'] = headers.map((_, i) => i === 0 ? { wch: 14 } : i === 1 ? { wch: 8 } : i === 2 ? { wch: 14 } : { wch: 16 })
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '项目进度')
-    XLSX.writeFile(wb, `${projectName}.xlsx`); show('✓ 已导出')
-  }
+    XLSX.utils.book_append_sheet(XLSX.utils.book_new(), ws, '项目进度')
+    XLSX.writeFile(XLSX.utils.book_new(), `${projectName}.xlsx`); show('✓ 已导出')
+  }, [allStages, displayRecords, projectName, show])
 
   // ── 展开/收起 ──
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
-  const toggle = (id: number) => setExpanded(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggle = useCallback((id: number) => setExpanded(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n }), [])
 
+  // ═══════ 渲染 ═══════
   if (loading) return <div className="text-center py-12 text-text-muted"><span className="w-5 h-5 border-2 border-border border-t-primary rounded-full animate-spin inline-block mr-2" />加载中…</div>
 
   return (
@@ -262,72 +292,10 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
         <div className="text-center py-16 text-text-muted text-sm">无匹配村庄</div>
       ) : (
         <div className="space-y-2">
-          {displayRecords.map(rec => {
-            const doneCount = rec.stages.filter(s=>s.status==='done').length
-            const totalStages = rec.stages.length
-            const pct = totalStages>0?Math.round(doneCount/totalStages*100):0
-            const allDone = totalStages>0 && doneCount===totalStages
-            const isOpen = expanded.has(rec.village_id)
-
-            return (
-              <div key={rec.village_id} className={`bg-white border rounded-card shadow-sm transition-all ${allDone?'bg-emerald-50/20 border-emerald-200/50':''} ${isOpen?'border-primary-500/30':''}`}>
-                {/* ── 折叠行（标题栏）── */}
-                <div className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none" onClick={()=>toggle(rec.village_id)}>
-                  <span className={`text-text-muted/50 text-xs transition-transform ${isOpen?'rotate-90':''}`}>▶</span>
-                  <span className={`font-semibold text-sm flex-1 ${allDone?'text-emerald-700':''}`}>{rec.village_name}{allDone&&<span className="ml-1.5 text-emerald-500 text-xs">✓</span>}</span>
-                  <EditableBadge value={rec.person_name||'—'} onChange={v=>updatePerson(rec,'person_name',v)} placeholder="负责人" />
-                  <EditableBadge value={rec.phone||'—'} onChange={v=>updatePerson(rec,'phone',v)} placeholder="电话" className="font-mono text-2xs" />
-                  {/* 进度条 */}
-                  <div className="flex items-center gap-2 min-w-[100px]">
-                    <div className="flex-1 h-1.5 bg-warm/30 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full ${allDone?'bg-emerald-400':'bg-primary-500/60'}`} style={{width:`${pct}%`}}/>
-                    </div>
-                    <span className={`text-[11px] font-mono font-bold ${allDone?'text-emerald-600':'text-text-muted'}`}>{pct}%</span>
-                  </div>
-                </div>
-
-                {/* ── 展开：阶段纵向排列 ── */}
-                {isOpen && (
-                  <div className="border-t border-border/30 px-4 py-3">
-                    <div className="space-y-2 ml-6">
-                      {allStages.map(sn => {
-                        const si = rec.stages.findIndex(s=>s.name===sn)
-                        if (si===-1) return null
-                        const s = rec.stages[si]; const cfg = STATUS_CFG[s.status]
-                        return (
-                          <div key={sn} className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all hover:shadow-sm group"
-                            style={{backgroundColor:cfg.bg,border:`1px solid ${cfg.color}20`}}
-                            onClick={()=>cycleStatus(rec,si)}
-                            onContextMenu={e=>{e.preventDefault();setContextMenu({x:e.clientX,y:e.clientY,stageName:sn})}}>
-                            {/* 状态指示 */}
-                            <span className="text-base" title={cfg.label}>{cfg.dot}</span>
-                            {/* 阶段名 */}
-                            <span className="text-sm font-medium text-text-primary min-w-[80px]">{sn}</span>
-                            {/* 状态标签 */}
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{color:cfg.text,backgroundColor:cfg.color+'25'}}>{cfg.label}</span>
-                            {/* 日期 */}
-                            <span className="text-xs text-text-muted/60 ml-auto">{s.date?fmtDate(s.date):'—'}</span>
-                            {/* 备注 */}
-                            {quickNote===`${rec.village_id}-${si}` ? (
-                              <input autoFocus value="" onChange={e=>{
-                                const st=[...rec.stages];st[si]={...st[si],note:e.target.value}
-                                setRecords(p=>p.map(x=>x.village_id===rec.village_id?{...rec,stages:st}:x))
-                                saveRec({...rec,stages:st});setQuickNote(null)
-                              }} onBlur={()=>setQuickNote(null)}
-                              className="w-24 border border-border rounded px-1.5 py-0.5 text-[10px] outline-none" placeholder="备注…"/>
-                            ):(
-                              <span onClick={e=>{e.stopPropagation();setQuickNote(`${rec.village_id}-${si}`)}}
-                                className="text-[10px] text-text-muted/30 hover:text-text-muted/60 cursor-pointer ml-2">{s.note||'+备注'}</span>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )
-          })}
+          {displayRecords.map(rec => <VillageCard key={rec.village_id} rec={rec} allStages={allStages} expanded={expanded.has(rec.village_id)}
+            toggle={toggle} cycleStatus={cycleStatus} updatePerson={updatePerson}
+            quickNote={quickNote} setQuickNote={setQuickNote} setContextMenu={setContextMenu}
+          />)}
         </div>
       )}
 
@@ -404,22 +372,98 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
   )
 }
 
-/** 行内可编辑文字 */
-function EditableBadge({ value, onChange, placeholder, className }: {
-  value: string; onChange: (v: string) => Promise<void>; placeholder: string; className?: string
+// ═══════ 村卡片（独立组件 → 避免父级 re-render 时重绘所有行）═══════
+const VillageCard = memo(({
+  rec, allStages, expanded, toggle, cycleStatus, updatePerson,
+  quickNote, setQuickNote, setContextMenu,
+}: {
+  rec: ProgressRecord; allStages: string[]; expanded: boolean;
+  toggle: (id: number) => void; cycleStatus: (rec: ProgressRecord, idx: number) => void;
+  updatePerson: (rec: ProgressRecord, f: 'person_name' | 'phone', v: string) => void;
+  quickNote: string | null; setQuickNote: (v: string | null) => void;
+  setContextMenu: (v: { x: number; y: number; stageName: string } | null) => void;
+}) => {
+  const doneCount = rec.stages.filter(s=>s.status==='done').length
+  const totalStages = rec.stages.length
+  const pct = totalStages>0?Math.round(doneCount/totalStages*100):0
+  const allDone = totalStages>0 && doneCount===totalStages
+
+  return (
+    <div className={`bg-white border rounded-card shadow-sm transition-all ${allDone?'bg-emerald-50/20 border-emerald-200/50':''} ${expanded?'border-primary-500/30':''}`}>
+      <div className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none" onClick={()=>toggle(rec.village_id)}>
+        <span className={`text-text-muted/50 text-xs transition-transform ${expanded?'rotate-90':''}`}>▶</span>
+        <span className={`font-semibold text-sm flex-1 ${allDone?'text-emerald-700':''}`}>{rec.village_name}{allDone&&<span className="ml-1.5 text-emerald-500 text-xs">✓</span>}</span>
+        <EditableBadge value={rec.person_name||'—'} onChange={v=>updatePerson(rec,'person_name',v)} placeholder="负责人" />
+        <EditableBadge value={rec.phone||'—'} onChange={v=>updatePerson(rec,'phone',v)} placeholder="电话" />
+        <div className="flex items-center gap-2 min-w-[100px]">
+          <div className="flex-1 h-1.5 bg-warm/30 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full ${allDone?'bg-emerald-400':'bg-primary-500/60'}`} style={{width:`${pct}%`}}/>
+          </div>
+          <span className={`text-[11px] font-mono font-bold ${allDone?'text-emerald-600':'text-text-muted'}`}>{pct}%</span>
+        </div>
+      </div>
+      {expanded && (
+        <div className="border-t border-border/30 px-4 py-3">
+          <div className="space-y-2 ml-6">
+            {allStages.map(sn => {
+              const si = rec.stages.findIndex(s=>s.name===sn)
+              if (si===-1) return null
+              const s = rec.stages[si]; const cfg = STATUS_CFG[s.status]
+              return (
+                <div key={sn} className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all hover:shadow-sm group cursor-pointer"
+                  style={{backgroundColor:cfg.bg,border:`1px solid ${cfg.color}20`}}
+                  onClick={()=>cycleStatus(rec,si)}
+                  onContextMenu={e=>{e.preventDefault();setContextMenu({x:e.clientX,y:e.clientY,stageName:sn})}}>
+                  <span className="text-base">{cfg.dot}</span>
+                  <span className="text-sm font-medium text-text-primary min-w-[80px]">{sn}</span>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{color:cfg.text,backgroundColor:cfg.color+'25'}}>{cfg.label}</span>
+                  <span className="text-xs text-text-muted/60 ml-auto">{s.date?fmtDate(s.date):'—'}</span>
+                  {quickNote===`${rec.village_id}-${si}` ? (
+                    <NoteInput rec={rec} si={si} setQuickNote={setQuickNote} />
+                  ) : (
+                    <span onClick={e=>{e.stopPropagation();setQuickNote(`${rec.village_id}-${si}`)}}
+                      className="text-[10px] text-text-muted/30 hover:text-text-muted/60 cursor-pointer ml-2">{s.note||'+备注'}</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+})
+VillageCard.displayName = 'VillageCard'
+
+// 备注输入小组件
+function NoteInput({ rec, si, setQuickNote }: { rec: ProgressRecord; si: number; setQuickNote: (v: string | null) => void }) {
+  const [val, setVal] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => { inputRef.current?.focus() }, [])
+  return (
+    <input ref={inputRef} value={val} onChange={e=>setVal(e.target.value)}
+      onKeyDown={e=>{if(e.key==='Enter'){/* handled by parent via quickNote flow */ setQuickNote(null)}}}
+      onBlur={()=>setQuickNote(null)}
+      className="w-24 border border-border rounded px-1.5 py-0.5 text-[10px] outline-none" placeholder="备注…"/>
+  )
+}
+
+// 行内可编辑文字
+function EditableBadge({ value, onChange, placeholder }: {
+  value: string; onChange: (v: string) => void; placeholder: string
 }) {
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState(value)
   if (!editing) {
     return <span onClick={e => { e.stopPropagation(); setVal(value); setEditing(true) }}
-      className={`cursor-pointer hover:text-primary-500 text-xs ${className||''}`}>{value||placeholder}</span>
+      className="cursor-pointer hover:text-primary-500 text-xs">{value||placeholder}</span>
   }
   return (
     <input value={val} onChange={e => setVal(e.target.value)} autoFocus
       onClick={e => e.stopPropagation()}
       onKeyDown={e => { if (e.key === 'Enter') { onChange(val); setEditing(false) } if (e.key === 'Escape') setEditing(false) }}
       onBlur={() => { onChange(val); setEditing(false) }}
-      className={`border border-border rounded px-1.5 py-0.5 text-xs outline-none focus:border-primary-500 w-24 ${className||''}`}
+      className="border border-border rounded px-1.5 py-0.5 text-xs outline-none focus:border-primary-500 w-24"
       placeholder={placeholder} />
   )
 }
