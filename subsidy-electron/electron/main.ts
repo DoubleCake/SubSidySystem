@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, shell, dialog } from 'electron'
 import { join, dirname } from 'path'
 import { existsSync, writeFileSync } from 'fs'
 import { initDatabase } from './database/connection'
@@ -69,13 +69,28 @@ function createWindow(): void {
   }
 }
 
+// 全局未捕获异常处理 — 防止程序悄无声息崩溃
+process.on('uncaughtException', (err) => {
+  console.error('[App] 未捕获异常:', err)
+  dialog.showErrorBox('程序异常', `应用遇到未处理的错误:\n${err.message}\n\n请截图并联系管理员。`)
+})
+process.on('unhandledRejection', (reason) => {
+  console.error('[App] 未处理的 Promise 拒绝:', reason)
+})
+
 app.whenReady().then(async () => {
-  ensureAppUpdateYml()
-  await initDatabase()
-  runMigrations()
-  registerAllIpcHandlers()
-  registerUpdateEvents()
-  createWindow()
+  try {
+    ensureAppUpdateYml()
+    await initDatabase()
+    runMigrations()
+    registerAllIpcHandlers()
+    registerUpdateEvents()
+    createWindow()
+  } catch (err) {
+    console.error('[App] 启动失败:', err)
+    dialog.showErrorBox('启动失败', `应用初始化出错:\n${(err as Error).message}\n\n请尝试重新安装或联系管理员。`)
+    app.quit()
+  }
 
   // 启动后自动检查更新（如果已配置服务器）
   setTimeout(() => {

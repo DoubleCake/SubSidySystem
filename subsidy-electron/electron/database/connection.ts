@@ -175,8 +175,14 @@ export async function initDatabase(dbPath?: string): Promise<void> {
   console.log(`[DB] 数据库路径: ${resolvedPath}`)
 
   // 使用 require 加载 sql.js（CJS 兼容）
-  const initSqlJs = require('sql.js')
-  const SQL = await initSqlJs()
+  let SQL: SqlJsStatic
+  try {
+    const initSqlJs = require('sql.js')
+    SQL = await initSqlJs()
+  } catch (e) {
+    console.error('[DB] sql.js WASM 加载失败:', e)
+    throw new Error(`数据库引擎加载失败，请确认应用安装完整。\n${(e as Error).message}`)
+  }
 
   let sqliteDb: SqlJsDatabase
   if (existsSync(resolvedPath)) {

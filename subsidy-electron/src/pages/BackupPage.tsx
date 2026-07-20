@@ -181,7 +181,7 @@ export default function BackupPage() {
                   <div className="font-semibold text-sm text-text-primary mb-1">下载数据库文件 (.db)</div>
                   <p className="text-xs text-text-muted mb-3">完整迁移首选。换电脑时把这个文件复制过去，直接放到新机器的项目目录即可，数据 100% 保留。</p>
                   <button onClick={downloadDb}
-                    className="w-full py-2 bg-primary-500  text-sm rounded-btn hover:bg-primary-500/90">
+                    className="w-full py-2 bg-primary-500 text-white  text-sm rounded-btn hover:bg-primary-500/90">
                     ⬇️ 下载 subsidy.db
                   </button>
                 </div>
