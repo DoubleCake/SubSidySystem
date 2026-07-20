@@ -231,7 +231,7 @@ export default function BackupPage() {
               <ul className="text-xs text-red-600 space-y-1 list-disc ml-3">
                 <li>恢复会<strong>完全替换</strong>当前数据库，操作不可撤销</li>
                 <li>恢复前系统会自动创建一个应急备份</li>
-                <li>恢复后需要重启后端服务才能生效</li>
+                <li>恢复后自动热重载，立即可用（无需重启）</li>
                 <li>只接受 .db 格式的 SQLite 数据库文件</li>
               </ul>
             </div>
@@ -332,9 +332,6 @@ export default function BackupPage() {
         }
       </div>
 
-      {/* 软件更新 */}
-      <div className="mt-5"><UpdatePanel /></div>
-
       {/* 迁移指南 */}
       <div className="bg-blue-50 border border-blue-100 rounded-card p-5 mt-5">
         <h3 className="font-semibold text-blue-800 text-sm mb-3">📖 换电脑迁移指南</h3>
@@ -343,18 +340,18 @@ export default function BackupPage() {
             <p className="font-semibold mb-1">方法一：迁移数据库文件（推荐）</p>
             <ol className="list-decimal ml-4 space-y-1">
               <li>在旧电脑点「下载 subsidy.db」</li>
-              <li>在新电脑安装好系统（Python环境+依赖）</li>
-              <li>把下载的 .db 文件放到新电脑项目根目录</li>
-              <li>启动后端，所有数据完整恢复</li>
+              <li>在新电脑安装 SubsidySystem 桌面应用</li>
+              <li>打开新电脑的应用 → 侧边栏「数据备份」→ 恢复数据库</li>
+              <li>选择下载的 .db 文件，恢复后立即生效</li>
             </ol>
           </div>
           <div>
-            <p className="font-semibold mb-1">方法二：整个项目文件夹复制</p>
+            <p className="font-semibold mb-1">方法二：直接替换数据库文件</p>
             <ol className="list-decimal ml-4 space-y-1">
-              <li>直接复制整个 subsidy_system/ 文件夹</li>
-              <li>新电脑安装 Python 3.10+</li>
-              <li>运行 <code className="bg-blue-100 px-1 rounded">pip install -r requirements.txt</code></li>
-              <li>运行 <code className="bg-blue-100 px-1 rounded">python main.py</code> 启动</li>
+              <li>下载 .db 文件</li>
+              <li>找到新电脑的用户数据目录（本页顶部显示路径）</li>
+              <li>关闭应用，用下载的文件替换目录中的 subsidy.db</li>
+              <li>重新启动应用</li>
             </ol>
           </div>
         </div>

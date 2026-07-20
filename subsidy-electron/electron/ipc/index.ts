@@ -45,6 +45,7 @@ export function registerAllIpcHandlers(): void {
   // ── 应用信息 ──
   ipcMain.handle('app:getUserDataPath', () => app.getPath('userData'))
   ipcMain.handle('app:getDbPath', () => getDbPath())
+  ipcMain.handle('app:relaunch', () => { app.relaunch(); app.quit() })
 
   // ── 文件操作 ──
   ipcMain.handle('fs:copyFile', (_e, { src, dest }: { src: string; dest: string }) => {

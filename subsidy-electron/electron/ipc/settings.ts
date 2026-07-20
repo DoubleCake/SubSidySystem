@@ -1,5 +1,5 @@
 import { ipcMain, app, dialog } from 'electron'
-import { getDb, getDbPath } from '../database/connection'
+import { getDb, getDbPath, reloadDatabase } from '../database/connection'
 import { success, errorResponse } from './response'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, unlinkSync, readFileSync } from 'fs'
 import { join, basename } from 'path'
@@ -261,14 +261,25 @@ export function registerSettingsHandlers(): void {
         srcDb.close()
       } catch { /* 统计失败，继续恢复 */ }
 
-      // 执行恢复
+      // 执行恢复：覆盖文件 + 热重载内存数据库
       copyFileSync(filePath, getDbPath())
 
+      let reloaded = false
+      try {
+        await reloadDatabase()
+        reloaded = true
+      } catch (re) {
+        console.error('[恢复] 热重载失败，需手动重启:', re)
+      }
+
       return success({
-        message: `数据库恢复完成！共 ${tables.length} 个表，${totalRecords} 条记录`,
+        message: reloaded
+          ? `数据库恢复完成，已立即生效！共 ${tables.length} 个表，${totalRecords} 条记录`
+          : `文件已覆盖，重启后生效。共 ${tables.length} 个表，${totalRecords} 条记录`,
         backup_created: basename(emergencyPath),
         source_file: basename(filePath),
         source_size_kb: Math.round(fileStat.size / 1024),
+        reloaded,
         tables_imported: tables.length,
         total_records: totalRecords,
         details: tables.map(t => `${t.name}: ${t.count} 条`),

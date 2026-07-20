@@ -174,11 +174,14 @@ export async function initDatabase(dbPath?: string): Promise<void> {
 
   console.log(`[DB] 数据库路径: ${resolvedPath}`)
 
-  // 使用 require 加载 sql.js（CJS 兼容）
   let SQL: SqlJsStatic
   try {
     const initSqlJs = require('sql.js')
-    SQL = await initSqlJs()
+    // 打包后 WASM 在 app.asar.unpacked/node_modules/sql.js/dist/
+    const sqlDir = require('path').dirname(require.resolve('sql.js'))
+    const wasmFile = require('path').join(sqlDir, 'sql-wasm.wasm')
+    console.log('[DB] WASM path:', wasmFile)
+    SQL = await initSqlJs({ locateFile: () => wasmFile })
   } catch (e) {
     console.error('[DB] sql.js WASM 加载失败:', e)
     throw new Error(`数据库引擎加载失败，请确认应用安装完整。\n${(e as Error).message}`)
@@ -210,6 +213,25 @@ export function getDbPath(): string {
   const portablePath = join(app.getAppPath(), '..', 'subsidy.db')
   if (existsSync(portablePath)) return portablePath
   return join(app.getPath('userData'), 'subsidy.db')
+}
+
+/**
+ * 热重载数据库文件（恢复/导入后调用，无需重启应用）
+ */
+export async function reloadDatabase(): Promise<void> {
+  const dbPath = getDbPath()
+  if (!existsSync(dbPath)) throw new Error('数据库文件不存在: ' + dbPath)
+
+  const initSqlJs = require('sql.js')
+  const sqlDir = require('path').dirname(require.resolve('sql.js'))
+  const wasmFile = require('path').join(sqlDir, 'sql-wasm.wasm')
+  const SQL = await initSqlJs({ locateFile: () => wasmFile })
+
+  const fileBuffer = readFileSync(dbPath)
+  const newSqliteDb = new SQL.Database(fileBuffer)
+  console.log(`[DB] 热重载数据库完成 (${(fileBuffer.length / 1024 / 1024).toFixed(1)} MB)`)
+
+  db = new SqlJsWrapper(newSqliteDb, dbPath)
 }
 
 export { SqlJsWrapper }
