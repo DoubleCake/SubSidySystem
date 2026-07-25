@@ -126,7 +126,7 @@ export const updateApplication = (id: number, data: Partial<ApplicationCreate>) 
 
 export const batchImportApplications = (rows: ApplicationCreate[]) =>
   req<{ created: number; skipped: number; errors: string[] }>(
-    'subsidies:batchImportApplications', rows
+    'subsidies:batchImportApplications', { rows }
   )
 
 // ── 代领关系 ──
