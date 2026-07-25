@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import * as XLSX from 'xlsx'
 import Modal from './Modal'
 
@@ -257,15 +257,33 @@ export default function ExcelImportWithMapping({
     XLSX.writeFile(wb, `${title}导入模板.xlsx`)
   }
 
+  // 映射后的数据（Excel原始值+系统字段键名）
+  const mappedData = useMemo(() => {
+    // 映射的列名列表（已映射的系统字段按映射表顺序排列）
+    const fields = columnMappings.filter(cm => cm.system_field).map(cm => cm.system_field!)
+    const mapping: Record<string, string> = {}
+    columnMappings.forEach(cm => { if (cm.system_field) mapping[cm.excel_column] = cm.system_field })
+    const mappedRows = rows.map(row => {
+      const mr: Record<string, unknown> = {}
+      columnMappings.forEach(cm => {
+        if (cm.system_field && row[cm.excel_column] !== undefined) {
+          mr[cm.system_field] = row[cm.excel_column]
+        }
+      })
+      return mr
+    })
+    return { fields, rows: mappedRows }
+  }, [rows, columnMappings])
+
   const handleMappingConfirm = () => {
     // 检查是否有必填字段未映射
     const requiredFields = systemFields.filter(f => f.required).map(f => f.field)
     const mappedRequiredFields = columnMappings
       .filter(m => m.system_field && requiredFields.includes(m.system_field))
       .map(m => m.system_field!)
-    
+
     const missingRequired = requiredFields.filter(f => !mappedRequiredFields.includes(f))
-    
+
     if (missingRequired.length > 0) {
       const fieldLabels = missingRequired.map(f => {
         const fieldInfo = systemFields.find(sf => sf.field === f)
@@ -274,9 +292,9 @@ export default function ExcelImportWithMapping({
       alert(`以下必填字段未映射：${fieldLabels.join('、')}`)
       return
     }
-    
+
     setStep('preview')
-    setPreCheckStatus(null) // 重置预检查状态
+    setPreCheckStatus(null)
   }
 
   // 预检查
@@ -313,32 +331,11 @@ export default function ExcelImportWithMapping({
     setProgress(0)
     setProgressMsg(`准备导入 ${rows.length} 条记录…`)
 
-    // 根据映射转换数据（多列映射同一字段时数值累加）
+    // 映射关系（Excel列名→系统字段）
     const mapping: Record<string, string> = {}
-    const dataToImport = rows.map(row => {
-      const mappedRow: Record<string, unknown> = {}
-      columnMappings.forEach(cm => {
-        if (cm.system_field && row[cm.excel_column] !== undefined) {
-          const existing = mappedRow[cm.system_field]
-          const newVal = row[cm.excel_column]
-          if (existing !== undefined) {
-            // 多列映射同一字段：数值累加，字符串拼接
-            const eNum = Number(existing), nNum = Number(newVal)
-            if (!isNaN(eNum) && !isNaN(nNum)) {
-              mappedRow[cm.system_field] = eNum + nNum
-            } else {
-              mappedRow[cm.system_field] = String(existing) + String(newVal)
-            }
-          } else {
-            mappedRow[cm.system_field] = newVal
-          }
-        }
-      })
-      return mappedRow
-    })
-    columnMappings.forEach(m => {
-      if (m.system_field) mapping[m.excel_column] = m.system_field
-    })
+    columnMappings.forEach(m => { if (m.system_field) mapping[m.excel_column] = m.system_field })
+    // 直接用已计算的映射后数据
+    const dataToImport = mappedData.rows
 
     // 分批导入，每批 200 行
     const BATCH_SIZE = 200
@@ -874,43 +871,27 @@ export default function ExcelImportWithMapping({
             <table className="w-full text-xs border-collapse">
               <thead className="bg-warm/30 sticky top-0">
                 <tr>
-                  {preCheckStatus?.result === 'done' && (
-                    <th className="px-1 py-2 text-center text-xs text-text-muted font-semibold border-b border-border w-6">检</th>
-                  )}
-                  {Object.keys(rows[0] || {}).slice(0, preCheckStatus?.result === 'done' ? 7 : 8).map(k => (
-                    <th key={k} className="px-3 py-2 text-left text-text-muted font-semibold border-b border-border whitespace-nowrap">
-                      {k}
-                      {columnMappings.find(m => m.excel_column === k)?.system_field && (
-                        <span className="ml-1 text-primary text-xs">
-                          → {columnMappings.find(m => m.excel_column === k)?.system_field}
-                        </span>
-                      )}
-                    </th>
-                  ))}
+                  <th className="px-2 py-2 text-center text-xs text-text-muted font-semibold border-b border-border w-8">#</th>
+                  {mappedData.fields.map(f => {
+                    const fieldInfo = systemFields.find(sf => sf.field === f)
+                    return (
+                      <th key={f} className="px-3 py-2 text-left text-text-muted font-semibold border-b border-border whitespace-nowrap">
+                        {fieldInfo?.label || f}
+                        <span className="ml-1 text-[10px] text-text-muted/40 font-mono">{f}</span>
+                      </th>
+                    )
+                  })}
                 </tr>
               </thead>
               <tbody>
-                {rows.slice(0, 30).map((row, i) => {
-                  const rowBg = preCheckStatus?.result === 'done'
-                    ? preCheckStatus.failedIndices.has(i) ? 'bg-red-50'
-                    : preCheckStatus.warningIndices.has(i) ? 'bg-amber-50'
-                    : 'bg-emerald-50/30'
-                    : ''
-                  return (
-                    <tr key={i} className={`border-b border-border/50 hover:bg-warm/30 ${rowBg}`}>
-                      {preCheckStatus?.result === 'done' && (
-                        <td className="px-1 py-1.5 text-center text-xs">
-                          {preCheckStatus.failedIndices.has(i) ? <span className="text-red-500">✗</span>
-                          : preCheckStatus.warningIndices.has(i) ? <span className="text-amber-500">!</span>
-                          : <span className="text-emerald-500">✓</span>}
-                        </td>
-                      )}
-                      {Object.values(row).slice(0, preCheckStatus?.result === 'done' ? 7 : 8).map((v, j) => (
-                        <td key={j} className="px-3 py-1.5 text-text-primary whitespace-nowrap font-mono">{String(v ?? '')}</td>
-                      ))}
-                    </tr>
-                  )
-                })}
+                {mappedData.rows.slice(0, 30).map((row, i) => (
+                  <tr key={i} className="border-b border-border/50 hover:bg-warm/30">
+                    <td className="px-2 py-1.5 text-center text-xs text-text-muted/50">{i + 1}</td>
+                    {mappedData.fields.map(f => (
+                      <td key={f} className="px-3 py-1.5 text-text-primary whitespace-nowrap font-mono">{String(row[f] ?? '')}</td>
+                    ))}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

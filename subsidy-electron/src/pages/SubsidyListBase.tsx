@@ -229,49 +229,33 @@ export default function SubsidyListBase({
   }
 
   // ── Excel 导入 ──
-  const handleImport = async (rows: Record<string, unknown>[], mapping?: Record<string, string>, overwrite?: boolean): Promise<{ created: number; skipped: number; errors: string[]; updated?: number }> => {
-    // 使用辅助函数：同时兼容已映射的系统字段和原始Excel字段
-    const get = (row: Record<string, unknown>, field: string, ...aliases: string[]) => {
-      // 1) 先查系统字段名（ExcelImportWithMapping已映射后的key）
-      if (row[field] != null) return row[field]
-      // 2) 再查原始Excel列名
-      for (const a of aliases) { if (row[a] != null) return row[a] }
-      // 3) 如果说有mapping，反向查找对应的Excel列
-      if (mapping) {
-        for (const [excelCol, sysField] of Object.entries(mapping)) {
-          if (sysField === field && row[excelCol] != null) return row[excelCol]
-        }
-      }
-      return undefined
-    }
-    const str = (row: Record<string, unknown>, field: string, ...aliases: string[]) =>
-      String(get(row, field, ...aliases) || '').trim()
-
+  const handleImport = async (rows: Record<string, unknown>[], _mapping?: Record<string, string>, overwrite?: boolean): Promise<{ created: number; skipped: number; errors: string[]; updated?: number }> => {
+    // rows 已经是 ExcelImportWithMapping 映射后的数据（key=系统字段名，value=Excel原始值）
     const toCreate: Record<string, unknown>[] = []
     const errors: string[] = []
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
-      const idCard = str(row, 'id_card', '身份证号*', '身份证号')
-      const realName = str(row, 'real_name', '姓名*', '姓名')
+      const idCard = String(row.id_card || '').trim()
+      const realName = String(row.real_name || '').trim()
       if (!idCard) { errors.push(`第${i + 1}行：缺少身份证号`); continue }
       if (!realName) { errors.push(`第${i + 1}行：缺少姓名`); continue }
 
-      const applyArea = Number(get(row, 'apply_area', '计入超限面积', '面积(亩)') || 0)
-      const applyAreaNoCalc = Number(get(row, 'apply_area_no_calc', '不计入超限面积') || 0) || undefined
+      const applyArea = Number(row.apply_area || 0)
       const data: Record<string, unknown> = {
         farmer_id: 0, beneficiary_id: 0,
         subsidy_type_id: subsidyType.id, apply_year: subsidyType.subsidy_year,
         payment_year: subsidyType.subsidy_year,
-        apply_area: applyArea, apply_area_no_calc: applyAreaNoCalc,
-        contract_area: Number(get(row, 'contract_area', '承包地面积(亩)') || 0) || undefined,
-        trust_area: Number(get(row, 'trust_area', '代耕代种面积(亩)') || 0) || undefined,
-        no_subsidy_area: Number(get(row, 'no_subsidy_area', '不予补贴面积') || 0) || undefined,
-        apply_village_name: str(row, 'apply_village_name', 'village_name', '所在村') || undefined,
-        apply_group_display: str(row, 'apply_group_display', 'group_no', '所在组') || undefined,
-        payment_village_name: str(row, 'payment_village_name', 'village_name', '所在村') || undefined,
-        payment_group_display: str(row, 'payment_group_display', 'group_no', '所在组') || undefined,
-        apply_amount: Number(get(row, 'apply_amount', 'actual_amount', '实发金额') || (applyArea * Number(subsidyType.standard_amount || 0))) || undefined,
-        remark: str(row, 'remark', '备注') || undefined,
+        apply_area: applyArea,
+        apply_area_no_calc: Number(row.apply_area_no_calc || 0) || undefined,
+        contract_area: Number(row.contract_area || 0) || undefined,
+        trust_area: Number(row.trust_area || 0) || undefined,
+        no_subsidy_area: Number(row.no_subsidy_area || 0) || undefined,
+        apply_village_name: String(row.apply_village_name || row.village_name || '').trim() || undefined,
+        apply_group_display: String(row.apply_group_display || row.group_no || '').trim() || undefined,
+        payment_village_name: String(row.payment_village_name || row.village_name || '').trim() || undefined,
+        payment_group_display: String(row.payment_group_display || row.group_no || '').trim() || undefined,
+        apply_amount: Number(row.apply_amount || row.actual_amount || 0) || (applyArea * Number(subsidyType.standard_amount || 0)) || undefined,
+        remark: String(row.remark || '').trim() || undefined,
       }
       toCreate.push(config.buildImportRow ? config.buildImportRow(data) : data)
     }
