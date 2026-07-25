@@ -108,7 +108,20 @@ export default function ExcelImportWithMapping({
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null)
   const [sheetNames, setSheetNames] = useState<string[]>([])
   const [selectedSheet, setSelectedSheet] = useState<string>('')
+  // 跳过行数：输入即时显示，实际解析延迟 300ms 防抖
+  const [skipRowsInput, setSkipRowsInput] = useState(0)
   const [skipRows, setSkipRows] = useState(0)
+  useEffect(() => {
+    const t = setTimeout(() => setSkipRows(skipRowsInput), 300)
+    return () => clearTimeout(t)
+  }, [skipRowsInput])
+
+  // Sheet 或跳行变化时实时重新解析
+  useEffect(() => {
+    if (!workbook || !selectedSheet) return
+    parseSheet(workbook, selectedSheet, skipRows)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSheet, skipRows])
 
   const [saveTemplateForm, setSaveTemplateForm] = useState({
     name: '',
@@ -133,12 +146,13 @@ export default function ExcelImportWithMapping({
     setSaveTemplateOpen(false)
     setWorkbook(null)
     setSheetNames([])
+    setSkipRowsInput(0)
     setSkipRows(0)
     setSelectedSheet('')
   }
 
   const handleClose = () => { reset(); onClose() }
-  const handleReset = () => { setWorkbook(null); setSheetNames([]); setSelectedSheet(''); setSkipRows(0); setRows([]); setStep('upload') }
+  const handleReset = () => { setWorkbook(null); setSheetNames([]); setSelectedSheet(''); setSkipRowsInput(0); setSkipRows(0); setRows([]); setStep('upload') }
 
   const parseFile = async (file: File) => {
     const reader = new FileReader()
@@ -148,9 +162,9 @@ export default function ExcelImportWithMapping({
         setWorkbook(wb)
         setSheetNames(wb.SheetNames)
         setSelectedSheet(wb.SheetNames[0] || '')
+        setSkipRowsInput(0)
         setSkipRows(0)
-        // 直接解析第一个 Sheet 并进入映射
-        parseSheet(wb, wb.SheetNames[0], 0)
+        setStep('mapping')
       } catch (error) {
         console.error('解析文件失败:', error)
         alert('解析Excel文件失败，请检查文件格式')
@@ -607,16 +621,12 @@ export default function ExcelImportWithMapping({
               </div>
               <div className="flex items-center gap-1.5">
                 <label className="text-[11px] text-text-muted">跳过</label>
-                <input type="number" min={0} max={20} value={skipRows}
-                  onChange={e => setSkipRows(Math.max(0, Number(e.target.value) || 0))}
+                <input type="number" min={0} max={20} value={skipRowsInput}
+                  onChange={e => setSkipRowsInput(Math.max(0, Number(e.target.value) || 0))}
                   className="w-14 border border-border rounded-btn px-2 py-1 text-xs outline-none text-center bg-white" />
                 <span className="text-[11px] text-text-muted">行</span>
+                {skipRowsInput > 0 && <span className="text-[10px] text-amber-600">从第{skipRowsInput+1}行起</span>}
               </div>
-              <button
-                onClick={() => parseSheet(workbook, selectedSheet, skipRows)}
-                className="text-xs bg-primary-500 text-white px-3 py-1 rounded-btn hover:bg-primary-500/90 font-medium">
-                🔄 重新解析
-              </button>
               {rows.length > 0 && (
                 <span className="text-[11px] text-text-muted ml-auto">
                   {rows.length} 行数据
