@@ -253,10 +253,14 @@ export default function SubsidyListBase({
       const area = applyAreaExplicit || (contractArea + trustArea || undefined)
       const amount = Number(row['actual_amount'] || row['实发金额']) || (totalArea ? totalArea * Number(subsidyType.standard_amount || 0) : undefined)
       const common = {
-        farmer_id: farmerId, id_card: idCard, real_name: realName,
-        village_name: String(row['village_name'] || row['所在村'] || '').trim() || undefined,
-        group_no: String(row['group_no'] || row['所在组'] || '').trim() || undefined,
+        farmer_id: farmerId, beneficiary_id: farmerId, id_card: idCard, real_name: realName,
+        applicant_name: realName,  // payment 表字段
+        apply_village_name: String(row['village_name'] || row['所在村'] || '').trim() || undefined,
+        apply_group_display: String(row['group_no'] || row['所在组'] || '').trim() || undefined,
+        payment_village_name: String(row['village_name'] || row['所在村'] || '').trim() || undefined,
+        payment_group_display: String(row['group_no'] || row['所在组'] || '').trim() || undefined,
         subsidy_type_id: subsidyType.id, apply_year: subsidyType.subsidy_year,
+        payment_year: subsidyType.subsidy_year,
         apply_area: area, apply_area_no_calc: applyAreaNoCalc,
         contract_area: contractArea || undefined, trust_area: trustArea || undefined,
         no_subsidy_area: noSubsidyArea,
@@ -291,6 +295,7 @@ export default function SubsidyListBase({
         return { ...(res2 as any), errors: [...errors, ...((res2 as any).errors || [])] }
       }
     } catch (_) { /* 规则引擎出错不阻断 */ }
+    if (!toCreate.length) return { created: 0, skipped: 0, errors: ['没有有效数据行'] }
     const res = isPayment
       ? await window.electronAPI.invoke('subsidies:batchImportPayments', { rows: toCreate, overwrite: overwrite || false })
       : await api.batchImportApplications(toCreate as any)

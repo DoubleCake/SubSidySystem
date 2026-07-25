@@ -413,6 +413,10 @@ export function registerSubsidyHandlers(): void {
 
   ipcMain.handle('subsidies:batchImportApplications', (_e, payload: any) => {
     try {
+      if (!payload || !Array.isArray(payload.rows)) {
+        console.error('[batchImportApplications] 无效的payload:', JSON.stringify(payload))
+        return errorResponse('导入数据格式异常：缺少 rows 数组，请联系管理员')
+      }
       const { rows } = payload
       const inserted: number[] = []
       const updated: number[] = []
@@ -420,6 +424,10 @@ export function registerSubsidyHandlers(): void {
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i]
+        if (!row || typeof row !== 'object') {
+          errors.push({ row: i, message: `第${i+1}条数据格式异常` })
+          continue
+        }
         try {
           // 检查是否已存在：同一年度、同一补贴类型、同一受益人
           const existing = db().getRaw<Record<string, unknown>>(`
@@ -803,9 +811,14 @@ export function registerSubsidyHandlers(): void {
   // ── 批量导入发放记录 ──
   ipcMain.handle('subsidies:batchImportPayments', (_e, payload: any) => {
     try {
+      if (!payload || !Array.isArray(payload.rows)) {
+        console.error('[batchImportPayments] 无效的payload:', JSON.stringify(payload))
+        return errorResponse('导入数据格式异常：缺少 rows 数组，请联系管理员')
+      }
       const { rows, overwrite } = payload
       let created = 0, skipped = 0
       for (const row of rows) {
+        if (!row || typeof row !== 'object') { skipped++; continue }
         if (overwrite) {
           // check duplicate by key fields
           const exist = db().getRaw<{ id: number }>(
