@@ -341,7 +341,15 @@ export default function SubsidyListBase({
   const detectExcelColumns = async (columns: string[], sampleRows: Record<string, unknown>[]) => {
     try {
       const raw = await api.detectExcelColumns(columns, 'SUBSIDY', sampleRows)
-      return { columns: (raw.columns || []).map((d) => ({ excel_column: d.excel_column, suggested_field: d.suggested_field, confidence: d.confidence ?? 0, alternatives: d.alternatives || [] })), recommended_templates: raw.recommended_templates || [] }
+      // 后端返回 { mapping: {colName: {column, confidence}} }，转换为columns数组
+      const mapping = raw.mapping || {}
+      const cols = Object.entries(mapping).map(([colName, info]: [string, any]) => ({
+        excel_column: colName,
+        suggested_field: info.column,
+        confidence: info.confidence ?? 0,
+        alternatives: [],
+      }))
+      return { columns: cols, recommended_templates: raw.recommended_templates || [] }
     } catch { return { columns: columns.map(col => ({ excel_column: col, suggested_field: null, confidence: 0, alternatives: [] })) } }
   }
 

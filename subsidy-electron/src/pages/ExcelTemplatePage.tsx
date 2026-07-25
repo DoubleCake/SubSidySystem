@@ -104,13 +104,14 @@ export default function ExcelTemplatePage() {
         const sampleRows = rows.slice(0, 3)
 
         const raw = await api.detectExcelColumns(columns, 'SUBSIDY', sampleRows)
+        const mapping = raw.mapping || {}
         const result: DetectResult = {
-          columns: raw.columns.map(c => ({
-            excel_column: c.excel_column,
-            suggested_field: c.suggested_field,
-            suggested_confidence: c.confidence,
+          columns: Object.entries(mapping).map(([colName, info]: [string, any]) => ({
+            excel_column: colName,
+            suggested_field: info.column,
+            suggested_confidence: info.confidence,
             match_type: null,
-            alternatives: c.alternatives,
+            alternatives: [],
             auto_confirm: false,
           })),
           recommended_templates: (raw.recommended_templates || []).map(t => ({ ...t, use_count: 0 })),
