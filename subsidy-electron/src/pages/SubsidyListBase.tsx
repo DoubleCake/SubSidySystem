@@ -230,30 +230,24 @@ export default function SubsidyListBase({
 
   // ── Excel 导入 ──
   const handleImport = async (rows: Record<string, unknown>[], mapping?: Record<string, string>, overwrite?: boolean): Promise<{ created: number; skipped: number; errors: string[]; updated?: number }> => {
+    // 纯数据映射 → 入库，不做校验（校验由 preCheck 负责）
     const toCreate: Record<string, unknown>[] = []
     const errors: string[] = []
-    const allIdCards = rows.map(r => String(r['身份证号*'] || r['身份证号'] || '').trim()).filter(Boolean)
-    let farmerMap: Record<string, number> = {}
-    if (allIdCards.length) {
-      try { const res = await api.batchLookupFarmers(allIdCards); farmerMap = res.results } catch { /* ignore */ }
-    }
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
       const idCard = String(row['id_card'] || row['身份证号*'] || row['身份证号'] || '').trim()
       const realName = String(row['real_name'] || row['姓名*'] || row['姓名'] || '').trim()
       if (!idCard) { errors.push(`第${i + 2}行：缺少身份证号`); continue }
       if (!realName) { errors.push(`第${i + 2}行：缺少姓名`); continue }
-      const farmerId = farmerMap[idCard] || 0
       const contractArea = Number(row['contract_area'] || row['承包地面积(亩)']) || 0
       const trustArea = Number(row['trust_area'] || row['代耕代种面积(亩)']) || 0
       const noSubsidyArea = Number(row['no_subsidy_area'] || row['不予补贴面积']) || undefined
       const applyAreaExplicit = Number(row['apply_area'] || row['计入超限面积'] || row['实际补贴面积'] || row['面积(亩)']) || 0
       const applyAreaNoCalc = Number(row['apply_area_no_calc'] || row['不计入超限面积'] || 0) || undefined
-      const totalArea = applyAreaExplicit + (applyAreaNoCalc || 0)
       const area = applyAreaExplicit || (contractArea + trustArea || undefined)
-      const amount = Number(row['actual_amount'] || row['实发金额']) || (totalArea ? totalArea * Number(subsidyType.standard_amount || 0) : undefined)
+      const amount = Number(row['actual_amount'] || row['实发金额']) || (area ? area * Number(subsidyType.standard_amount || 0) : undefined)
       const common = {
-        farmer_id: farmerId, beneficiary_id: farmerId,
+        farmer_id: 0, beneficiary_id: 0,
         subsidy_type_id: subsidyType.id, apply_year: subsidyType.subsidy_year,
         payment_year: subsidyType.subsidy_year,
         apply_area: area, apply_area_no_calc: applyAreaNoCalc,
@@ -268,41 +262,17 @@ export default function SubsidyListBase({
       const rowData = { ...common, apply_amount: amount, actual_amount: undefined, pay_status: 0, pay_date: undefined }
       toCreate.push(config.buildImportRow ? config.buildImportRow(rowData) : rowData)
     }
-    if (errors.length && !toCreate.length) return { created: 0, skipped: 0, errors }
-    if (!toCreate.length) return { created: 0, skipped: 0, errors: ['没有可导入的数据行'] }
-    // 资格检查
+    if (!toCreate.length) return { created: 0, skipped: 0, errors }
+
     const isPayment = config.apiBase.includes('payments')
-    try {
-      // 使用原始 Excel 行做资格检查（含有 id_card、real_name 等字段）
-      const chk = await api.checkEligibility({
-        subsidy_type_id: subsidyType.id, year: subsidyType.subsidy_year,
-        rows: rows.map((r, idx) => ({ id_card: String(r.id_card || r['身份证号*'] || r['身份证号'] || ''), real_name: String(r.real_name || r['姓名*'] || r['姓名'] || ''), apply_area: Number(r.apply_area || 0), _row_index: idx })),
-      })
-      const failedCount = chk.failed_list?.length || 0
-      const passedCount = chk.passed_list?.length || 0
-      if ((passedCount + failedCount) > 0 && failedCount > 0) {
-        const passedIndices = new Set(chk.passed_list?.map(p => p._row_index).filter(i => i != null) || [])
-        const passedRows = toCreate.filter((_, idx) => passedIndices.has(idx))
-        if (passedRows.length === 0) return { created: 0, skipped: 0, errors: [`规则检查：全部 ${failedCount} 条不通过`] }
-        const res2 = isPayment
-          ? await window.electronAPI.invoke('subsidies:batchImportPayments', { rows: passedRows, overwrite: overwrite || false })
-          : await api.batchImportApplications(passedRows as any)
-        const newMsg = (res2 as any).new_farmers ? `，新建农户 ${(res2 as any).new_farmers} 人` : ''
-        const updMsg = (res2 as any).updated ? `，覆盖 ${(res2 as any).updated} 条` : ''
-        show(`✓ 通过规则 ${passedCount} 条，导入 ${(res2 as any).created || 0} 条${updMsg}；规则拒绝 ${failedCount} 条${newMsg}`)
-        load()
-        return { ...(res2 as any), errors: [...errors, ...((res2 as any).errors || [])] }
-      }
-    } catch (_) { /* 规则引擎出错不阻断 */ }
-    if (!toCreate.length) return { created: 0, skipped: 0, errors: ['没有有效数据行'] }
     const res = isPayment
       ? await window.electronAPI.invoke('subsidies:batchImportPayments', { rows: toCreate, overwrite: overwrite || false })
       : await api.batchImportApplications(toCreate as any)
-    const newMsg = (res as any).new_farmers ? `，新建农户 ${(res as any).new_farmers} 人` : ''
-    const updMsg = (res as any).updated ? `，覆盖 ${(res as any).updated} 条` : ''
-    show(`✓ 导入 ${(res as any).created || 0} 条${updMsg}，跳过 ${(res as any).skipped || 0} 条${newMsg}`)
+    const result = (res as any)?.data ?? res
+    const final: any = { ...result, errors: [...errors, ...(result?.errors || [])] }
+    show(`✓ 导入 ${final.created || 0} 条，跳过 ${final.skipped || 0} 条`)
     load()
-    return { ...(res as any), errors: [...errors, ...((res as any).errors || [])] }
+    return final
   }
 
   // ── 导出 ──

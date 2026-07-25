@@ -16,7 +16,7 @@ export default function PreApplyList(props: Omit<SubsidyListBaseProps, 'config'>
     batchImportEndpoint: '/api/subsidies/applications/batch-import',
     onExport: (id: number) => api.exportApplications(id),
 
-    // 预检回调
+    // 导入预检：比对数据库（身份证+姓名+家庭户+规则）
     preCheck: async (rows, mapping) => {
       const mappedRows = rows.map((row, idx) => {
         const mapped: Record<string, unknown> = { ...row }
@@ -28,15 +28,14 @@ export default function PreApplyList(props: Omit<SubsidyListBaseProps, 'config'>
         mapped._row_index = idx
         return mapped
       })
-      const checkPayload = {
+      const chk = await api.precheckImport({
         subsidy_type_id: props.subsidyType.id, year: props.subsidyType.subsidy_year,
         rows: mappedRows.map(r => ({ id_card: String(r.id_card || r['身份证号*'] || r['身份证号'] || ''), real_name: String(r.real_name || r['姓名*'] || r['姓名'] || ''), apply_area: Number(r.apply_area || 0), _row_index: r._row_index })),
-      }
-      const chk = await api.checkEligibility(checkPayload)
+      })
       return {
-        passed_rows: (chk.passed_list || []).map(r => r._row_index).filter(i => i != null) as number[],
-        failed_rows: (chk.failed_list || []).map(r => ({ index: r._row_index ?? 0, real_name: r.real_name, id_card_masked: r.id_card_masked, issues: r.issues })),
-        warning_rows: (chk.warning_list || []).map(r => ({ index: r._row_index ?? 0, real_name: r.real_name, id_card_masked: r.id_card_masked, warnings: r.warnings })),
+        passed_rows: chk.passed_list.map(r => r._row_index).filter(i => i != null) as number[],
+        failed_rows: chk.failed_list.map(r => ({ index: r._row_index ?? 0, real_name: r.real_name, id_card_masked: r.id_card_masked, issues: [...r.issues, ...(r.warnings || [])] })),
+        warning_rows: chk.warning_list.map(r => ({ index: r._row_index ?? 0, real_name: r.real_name, id_card_masked: r.id_card_masked, warnings: r.warnings })),
       }
     },
 
