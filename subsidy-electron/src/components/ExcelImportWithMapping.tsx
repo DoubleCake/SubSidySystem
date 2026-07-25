@@ -108,6 +108,7 @@ export default function ExcelImportWithMapping({
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null)
   const [sheetNames, setSheetNames] = useState<string[]>([])
   const [selectedSheet, setSelectedSheet] = useState<string>('')
+  const [skipRows, setSkipRows] = useState(0)
 
   const [saveTemplateForm, setSaveTemplateForm] = useState({
     name: '',
@@ -132,6 +133,7 @@ export default function ExcelImportWithMapping({
     setSaveTemplateOpen(false)
     setWorkbook(null)
     setSheetNames([])
+    setSkipRows(0)
     setSelectedSheet('')
   }
 
@@ -144,16 +146,11 @@ export default function ExcelImportWithMapping({
         const wb = XLSX.read(e.target?.result, { type: 'array' })
         const names = wb.SheetNames
 
-        // 多 Sheet 时先让用户选择
-        if (names.length > 1) {
-          setWorkbook(wb)
-          setSheetNames(names)
-          setSelectedSheet('')
-          return // 等待用户选择 Sheet
-        }
-
-        // 仅一个 Sheet，直接解析
-        parseSheet(wb, names[0])
+        // 始终弹出 Sheet 选择器，让用户确认
+        setWorkbook(wb)
+        setSheetNames(names)
+        setSelectedSheet(names[0] || '')
+        setSkipRows(0)
       } catch (error) {
         console.error('解析文件失败:', error)
         alert('解析Excel文件失败，请检查文件格式')
@@ -162,20 +159,30 @@ export default function ExcelImportWithMapping({
     reader.readAsArrayBuffer(file)
   }
 
-  // 解析指定 Sheet 的数据
-  const parseSheet = async (wb: XLSX.WorkBook, sheetName: string) => {
+  // 解析指定 Sheet 的数据（支持跳过前N行）
+  const parseSheetData = (wb: XLSX.WorkBook, sheetName: string, skip: number) => {
     const ws = wb.Sheets[sheetName]
-    const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' })
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1')
+    const headerRowNum = range.s.r + skip
+    const newRange = XLSX.utils.encode_range({ s: { r: headerRowNum, c: range.s.c }, e: range.e })
+    const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { range: newRange, defval: '' })
 
     if (data.length === 0) {
-      alert(`Sheet「${sheetName}」为空或格式不正确`)
-      return
+      alert(`Sheet「${sheetName}」${skip > 0 ? `跳过前${skip}行后` : ''}为空或格式不正确`)
+      return null
     }
+    return data
+  }
+
+  const parseSheet = async (wb: XLSX.WorkBook, sheetName: string, skip: number) => {
+    const data = parseSheetData(wb, sheetName, skip)
+    if (!data) return
 
     const fileColumns = Object.keys(data[0])
     setRows(data)
     setWorkbook(null)
     setSheetNames([])
+    setSkipRows(0)
 
     // 先创建空映射并进入映射步骤
     const baseMappings: ColumnMapping[] = fileColumns.map(col => ({
@@ -531,28 +538,55 @@ export default function ExcelImportWithMapping({
       {step === 'upload' && (
         <div>
           {workbook && sheetNames.length > 0 ? (
-            /* 多Sheet选择 */
+            /* Sheet选择 + 跳行 */
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-2xl">📑</span>
                 <div>
-                  <h3 className="font-semibold text-text-primary">选择工作表</h3>
-                  <p className="text-xs text-text-muted">该Excel文件包含 {sheetNames.length} 个工作表，请选择要导入的Sheet</p>
+                  <h3 className="font-semibold text-text-primary">工作表设置</h3>
+                  <p className="text-xs text-text-muted">{sheetNames.length} 个Sheet · 已选: {selectedSheet}</p>
                 </div>
               </div>
-              <div className="space-y-1">
-                {sheetNames.map(name => (
-                  <button key={name} onClick={() => parseSheet(workbook, name)}
-                    className="w-full text-left px-4 py-3 border border-border rounded-btn hover:border-primary-500/40 hover:bg-primary-500/5 transition-colors flex items-center gap-3">
-                    <span className="text-lg text-text-muted">📄</span>
-                    <span className="text-sm text-text-primary font-medium">{name}</span>
-                  </button>
-                ))}
+
+              {/* Sheet 选择 */}
+              <div className="mb-3">
+                <label className="block text-xs text-text-muted mb-1.5">选择 Sheet <span className="text-red-400">*</span></label>
+                <select value={selectedSheet} onChange={e => setSelectedSheet(e.target.value)}
+                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">
+                  {sheetNames.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
               </div>
-              <button onClick={() => { setWorkbook(null); setSheetNames([]) }}
-                className="mt-4 text-xs text-text-muted hover:text-text-primary border border-border px-3 py-1.5 rounded-btn">
-                ← 重新选择文件
-              </button>
+
+              {/* 跳过行数 */}
+              <div className="mb-4">
+                <label className="block text-xs text-text-muted mb-1.5">
+                  跳过前几行
+                  <span className="text-text-muted/50 ml-1">（表格上方有合并标题/说明行时使用）</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <input type="number" min={0} max={20} value={skipRows}
+                    onChange={e => setSkipRows(Math.max(0, Number(e.target.value) || 0))}
+                    className="w-20 border border-border rounded-btn px-3 py-2 text-sm outline-none text-center bg-white" />
+                  <span className="text-xs text-text-muted">行</span>
+                  {skipRows > 0 && (
+                    <span className="text-xs text-amber-600">将跳过第 1~{skipRows} 行，以第 {skipRows + 1} 行为表头</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button onClick={() => parseSheet(workbook, selectedSheet, skipRows)}
+                  disabled={!selectedSheet}
+                  className="flex-1 px-4 py-2.5 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary-500/90 disabled:opacity-40 font-medium">
+                  ✓ 确认，开始导入
+                </button>
+                <button onClick={() => { setWorkbook(null); setSheetNames([]); setSkipRows(0) }}
+                  className="px-4 py-2.5 text-sm border border-border rounded-btn text-text-muted hover:bg-warm/30">
+                  ← 重新选择
+                </button>
+              </div>
             </div>
           ) : (
             <div>
