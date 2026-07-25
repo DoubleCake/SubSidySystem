@@ -38,7 +38,9 @@ export const batchLookupFarmers = (idCards: string[]) =>
   req<{ results: Record<string, number> }>('farmers:batchLookup', idCards)
 
 export const batchEnsureFarmers = (rows: { id_card: string; real_name: string; village_name?: string; group_no?: string }[]) =>
-  req<{ results: Record<string, number>; new_count: number }>('farmers:batchEnsure', rows)
+  req<{ results: Record<string, number>; info: Record<string, { village_id: number; village_group_id: number; village_name: string; group_no: number }>; new_count: number }>(
+    'farmers:batchEnsure', rows
+  )
 
 export const batchGetIdCards = (farmerIds: number[]) =>
   req<{ results: Record<string, string> }>('farmers:batchGetIdCards', farmerIds)

@@ -417,6 +417,7 @@ export function registerSubsidyHandlers(): void {
     'apply_amount', 'actual_amount', 'apply_area', 'apply_area_no_calc',
     'contract_area', 'trust_area', 'no_subsidy_area',
     'pay_status', 'pay_date', 'apply_village_id', 'apply_group_no',
+    'apply_village_id', 'apply_group_no',
     'apply_village_name', 'apply_group_display', 'bank_card_snapshot',
     'operator_id', 'remark', 'is_proxy',
   ])

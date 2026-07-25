@@ -239,11 +239,13 @@ export default function SubsidyListBase({
       group_no: String(r.group_no || '').trim() || undefined,
     })).filter(r => r.id_card)
     let farmerMap: Record<string, number> = {}
+    let villageInfo: Record<string, { village_id: number; village_name: string; group_no: number; village_group_id: number }> = {}
     let newFarmers = 0
     if (ensureRows.length) {
       try {
         const r = await api.batchEnsureFarmers(ensureRows)
         farmerMap = r.results
+        villageInfo = (r as any).info || {}
         newFarmers = r.new_count || 0
       } catch { /* ignore */ }
     }
@@ -258,9 +260,11 @@ export default function SubsidyListBase({
       if (!realName) { errors.push(`第${i + 1}行：缺少姓名`); continue }
 
       const farmerId = farmerMap[idCard] || 0
+      if (!farmerId) { errors.push(`第${i + 1}行：身份证号无效或无法匹配`); continue }
+      const vi = villageInfo[idCard]
       const applyArea = Number(row.apply_area || 0)
       const data: Record<string, unknown> = {
-        farmer_id: 0, beneficiary_id: 0,
+        farmer_id: farmerId, beneficiary_id: farmerId,
         subsidy_type_id: subsidyType.id, apply_year: subsidyType.subsidy_year,
         payment_year: subsidyType.subsidy_year,
         apply_area: applyArea,
@@ -268,10 +272,15 @@ export default function SubsidyListBase({
         contract_area: Number(row.contract_area || 0) || undefined,
         trust_area: Number(row.trust_area || 0) || undefined,
         no_subsidy_area: Number(row.no_subsidy_area || 0) || undefined,
-        apply_village_name: String(row.apply_village_name || row.village_name || '').trim() || undefined,
-        apply_group_display: String(row.apply_group_display || row.group_no || '').trim() || undefined,
-        payment_village_name: String(row.payment_village_name || row.village_name || '').trim() || undefined,
-        payment_group_display: String(row.payment_group_display || row.group_no || '').trim() || undefined,
+        // 优先用数字ID，降级用中文名
+        apply_village_id: vi?.village_id || undefined,
+        apply_group_no: vi?.group_no || undefined,
+        apply_village_name: vi?.village_name || String(row.village_name || '').trim() || undefined,
+        apply_group_display: vi ? `第${vi.group_no}组` : undefined,
+        payment_village_id: vi?.village_id || undefined,
+        payment_group_no: vi?.group_no || undefined,
+        payment_village_name: vi?.village_name || undefined,
+        payment_group_display: vi ? `第${vi.group_no}组` : undefined,
         apply_amount: Number(row.apply_amount || row.actual_amount || 0) || (applyArea * Number(subsidyType.standard_amount || 0)) || undefined,
         remark: String(row.remark || '').trim() || undefined,
       }
