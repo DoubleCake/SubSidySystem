@@ -672,12 +672,13 @@ export default function ExcelImportWithMapping({
               {columnMappings.map((mapping, index) => {
                 const isAuto = mapping.confidence != null && mapping.confidence >= 0.6 && mapping.system_field
                 const isManual = mapping.system_field && !isAuto
-                const rowBg = isAuto ? 'bg-emerald-50/40' : isManual ? 'bg-blue-50/40' : !mapping.system_field ? 'bg-amber-50/30' : ''
-                const sourceTag = isAuto ? { label: '✓ 自动匹配', cls: 'bg-emerald-100 text-emerald-700' } : mapping.system_field ? { label: '👆 手动选择', cls: 'bg-blue-100 text-blue-700' } : null
+                const rowBg = isAuto ? 'bg-emerald-100' : isManual ? 'bg-blue-100' : 'bg-amber-50'
+                const rowBorder = isAuto ? 'border-emerald-300' : isManual ? 'border-blue-300' : ''
+                const sourceTag = isAuto ? { label: '✓ 自动', cls: 'bg-emerald-500 text-white' } : isManual ? { label: '👆 手动', cls: 'bg-blue-500 text-white' } : mapping.system_field ? { label: '已映射', cls: 'bg-gray-400 text-white' } : null
                 return (
-                <div key={index} className={`px-4 py-3 border-b border-border/50 grid grid-cols-[200px_1fr_200px] gap-4 items-center ${rowBg}`}>
+                <div key={index} className={`px-4 py-3 border-b border-border/50 grid grid-cols-[200px_1fr_200px] gap-4 items-center ${rowBg} ${rowBorder}`}>
                   <div>
-                    <span className="font-medium text-text-primary">{mapping.excel_column}</span>
+                    <span className={`font-medium ${mapping.system_field ? 'text-text-primary' : 'text-text-muted'}`}>{mapping.excel_column}</span>
                   </div>
                   <div className="text-sm text-text-muted font-mono truncate">
                     {mapping.sample_value || '—'}
@@ -688,13 +689,13 @@ export default function ExcelImportWithMapping({
                       onChange={(e) => {
                         const newMappings = [...columnMappings]
                         newMappings[index].system_field = e.target.value || null
-                        // 用户手动选择后标记 confidence 为 0（手动）
                         if (e.target.value && newMappings[index].confidence != null && newMappings[index].confidence! >= 0.6) {
                           newMappings[index].confidence = 0.5
                         }
                         setColumnMappings(newMappings)
                       }}
-                      className="flex-1 border rounded-btn px-3 py-1.5 text-sm outline-none bg-white focus:border-primary-500"
+                      className={`flex-1 border rounded-btn px-3 py-1.5 text-sm outline-none focus:border-primary-500
+                        ${mapping.system_field ? 'border-emerald-400 bg-emerald-50/30 font-medium text-emerald-800' : 'bg-white border-border'}`}
                     >
                       <option value="">— 忽略此列 —</option>
                       {systemFields.map(field => (
