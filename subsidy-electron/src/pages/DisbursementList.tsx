@@ -26,50 +26,7 @@ export default function DisbursementList(props: Omit<SubsidyListBaseProps, 'conf
       pay_date: undefined,
     }),
 
-    // 导入预检：比对数据库 + 与预申请比对
-    preCheck: async (rows, mapping) => {
-      const mappedRows = rows.map((row, idx) => {
-        const mapped: Record<string, unknown> = { ...row }
-        if (mapping) {
-          for (const [excelCol, systemField] of Object.entries(mapping)) {
-            if (row[excelCol] !== undefined) mapped[systemField] = row[excelCol]
-          }
-        }
-        mapped._row_index = idx
-        return mapped
-      })
-      const chk = await api.precheckImport({
-        subsidy_type_id: props.subsidyType.id, year: props.subsidyType.subsidy_year,
-        rows: mappedRows.map(r => ({ id_card: String(r.id_card || r['身份证号*'] || r['身份证号'] || ''), real_name: String(r.real_name || r['姓名*'] || r['姓名'] || ''), apply_area: Number(r.apply_area || 0), _row_index: r._row_index })),
-      })
-
-      const preCheckResult = {
-        passed_rows: chk.passed_list.map(r => r._row_index).filter(i => i != null) as number[],
-        failed_rows: chk.failed_list.map(r => ({ index: r._row_index ?? 0, real_name: r.real_name, id_card_masked: r.id_card_masked, issues: [...r.issues, ...(r.warnings || [])] })),
-        warning_rows: chk.warning_list.map(r => ({ index: r._row_index ?? 0, real_name: r.real_name, id_card_masked: r.id_card_masked, warnings: r.warnings })),
-      }
-
-      try {
-        const appData = await api.exportApplications(props.subsidyType.id)
-        const appMap: Record<string, any> = {}
-        for (const a of (appData.items || [])) {
-          const ic = (a as any).id_card || ''; if (ic) appMap[ic] = { real_name: a.farmer_name, village: a.village, apply_area: Number(a.apply_area || 0) }
-        }
-        const impMap: Record<string, any> = {}
-        for (const r of mappedRows) {
-          const ic = String(r.id_card || '').trim(); if (ic) impMap[ic] = { real_name: String(r.real_name || ''), apply_area: Number(r.apply_area || 0) }
-        }
-        const appIds = new Set(Object.keys(appMap)), impIds = new Set(Object.keys(impMap))
-        return {
-          ...preCheckResult,
-          comparison: {
-            missing_from_import: [...appIds].filter(ic => !impIds.has(ic)).map(ic => ({ id_card: ic, ...appMap[ic] })),
-            new_in_import: [...impIds].filter(ic => !appIds.has(ic)).map(ic => ({ id_card: ic, ...impMap[ic] })),
-            area_changed: [...appIds].filter(ic => impIds.has(ic)).map(ic => ({ id_card: ic, real_name: appMap[ic].real_name, app_area: appMap[ic].apply_area, import_area: impMap[ic].apply_area, diff: impMap[ic].apply_area - appMap[ic].apply_area })).filter((a: any) => Math.abs(a.diff) > 0.001),
-          },
-        }
-      } catch { return preCheckResult }
-    },
+    // 预检在详情页执行（导入只做纯数据入库）
   }
 
   return <SubsidyListBase {...props} config={config} />

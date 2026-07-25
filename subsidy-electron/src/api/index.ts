@@ -541,11 +541,6 @@ export const checkEligibility = (data: { subsidy_type_id: number; year: number; 
     'eligibility:check', data
   )
 
-export const precheckImport = (data: { subsidy_type_id: number; year: number; rows: { id_card: string; real_name: string; apply_area: number; _row_index?: number }[] }) =>
-  req<{ passed_list: { _row_index: number; real_name: string; id_card_masked: string }[]; failed_list: { _row_index: number; real_name: string; id_card_masked: string; issues: string[]; warnings?: string[] }[]; warning_list: { _row_index: number; real_name: string; id_card_masked: string; warnings: string[] }[]; total: number }>(
-    'subsidies:precheckImport', data
-  )
-
 // ── 土地流转 ──
 export interface LandTrustRecord {
   id: number; owner_type?: string; owner_entity_id?: number | null
