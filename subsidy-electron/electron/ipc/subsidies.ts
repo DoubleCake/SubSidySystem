@@ -411,6 +411,16 @@ export function registerSubsidyHandlers(): void {
 
   // ═══════════════════ 批量导入申请 ═══════════════════
 
+  // subsidy_application 表允许的列
+  const APP_COLS = new Set([
+    'farmer_id', 'beneficiary_id', 'subsidy_type_id', 'apply_year',
+    'apply_amount', 'actual_amount', 'apply_area', 'apply_area_no_calc',
+    'contract_area', 'trust_area', 'no_subsidy_area',
+    'pay_status', 'pay_date', 'apply_village_id', 'apply_group_no',
+    'apply_village_name', 'apply_group_display', 'bank_card_snapshot',
+    'operator_id', 'remark', 'is_proxy',
+  ])
+
   ipcMain.handle('subsidies:batchImportApplications', (_e, payload: any) => {
     try {
       if (!payload || !Array.isArray(payload.rows)) {
@@ -428,27 +438,28 @@ export function registerSubsidyHandlers(): void {
           errors.push({ row: i, message: `第${i+1}条数据格式异常` })
           continue
         }
+        // 过滤掉表中不存在的列
+        const safe: Record<string, unknown> = {}
+        for (const k of Object.keys(row)) {
+          if (APP_COLS.has(k)) safe[k] = row[k]
+        }
         try {
           // 检查是否已存在：同一年度、同一补贴类型、同一受益人
           const existing = db().getRaw<Record<string, unknown>>(`
             SELECT id FROM subsidy_application
             WHERE apply_year = ? AND subsidy_type_id = ? AND beneficiary_id = ?
-          `, row.apply_year, row.subsidy_type_id, row.beneficiary_id)
+          `, safe.apply_year, safe.subsidy_type_id, safe.beneficiary_id)
 
           if (existing) {
-            // UPDATE
-            const keys = Object.keys(row).filter(k => row[k] !== undefined && k !== 'id')
+            const keys = Object.keys(safe).filter(k => safe[k] !== undefined && k !== 'id')
             const sets = keys.map(k => `${k} = ?`).join(', ')
-            const values = keys.map(k => row[k])
-            db().runRaw(`UPDATE subsidy_application SET ${sets}, updated_at = datetime('now','localtime') WHERE id = ?`, ...values, existing.id)
+            db().runRaw(`UPDATE subsidy_application SET ${sets}, updated_at = datetime('now','localtime') WHERE id = ?`, ...keys.map(k => safe[k]), existing.id)
             updated.push(existing.id as number)
           } else {
-            // INSERT
-            const cols = Object.keys(row).join(', ')
-            const placeholders = Object.keys(row).map(() => '?').join(', ')
-            const values = Object.keys(row).map(k => row[k])
-            const result = db().runRaw(`INSERT INTO subsidy_application (${cols}) VALUES (${placeholders})`, ...values)
-            inserted.push(result.lastInsertRowid)
+            const cols = Object.keys(safe).join(', ')
+            const vals = Object.keys(safe).map(k => safe[k])
+            db().runRaw(`INSERT INTO subsidy_application (${cols}) VALUES (${vals.map(() => '?').join(',')})`, ...vals)
+            inserted.push(db().getRaw<{ id: number }>('SELECT last_insert_rowid() as id')?.id ?? 0)
           }
         } catch (rowErr) {
           errors.push({ row: i + 1, message: String(rowErr) })
@@ -809,6 +820,15 @@ export function registerSubsidyHandlers(): void {
   })
 
   // ── 批量导入发放记录 ──
+  // subsidy_payment 表允许的列
+  const PAYMENT_COLS = new Set([
+    'farmer_id', 'beneficiary_id', 'subsidy_type_id', 'payment_year',
+    'amount', 'payment_date', 'payment_village_id', 'payment_group_no',
+    'payment_village_name', 'payment_group_display',
+    'apply_area', 'contract_area', 'trust_area', 'no_subsidy_area',
+    'bank_card', 'bank_name', 'operator_id', 'remark', 'pay_status', 'is_proxy',
+  ])
+
   ipcMain.handle('subsidies:batchImportPayments', (_e, payload: any) => {
     try {
       if (!payload || !Array.isArray(payload.rows)) {
@@ -819,20 +839,22 @@ export function registerSubsidyHandlers(): void {
       let created = 0, skipped = 0
       for (const row of rows) {
         if (!row || typeof row !== 'object') { skipped++; continue }
+        const safe: Record<string, unknown> = {}
+        for (const k of Object.keys(row)) {
+          if (PAYMENT_COLS.has(k)) safe[k] = row[k]
+        }
         if (overwrite) {
-          // check duplicate by key fields
           const exist = db().getRaw<{ id: number }>(
             'SELECT id FROM subsidy_payment WHERE subsidy_type_id=? AND beneficiary_id=? AND payment_year=?',
-            row.subsidy_type_id, row.beneficiary_id, row.payment_year)
+            safe.subsidy_type_id, safe.beneficiary_id, safe.payment_year)
           if (exist) { db().runRaw('DELETE FROM subsidy_payment WHERE id=?', exist.id); skipped++ }
         }
-        const cols = Object.keys(row).filter(k => row[k] !== undefined).join(',')
-        const ph = Object.keys(row).filter(k => row[k] !== undefined).map(() => '?').join(',')
-        const vals = Object.keys(row).filter(k => row[k] !== undefined).map(k => row[k])
-        db().runRaw(`INSERT INTO subsidy_payment (${cols}) VALUES (${ph})`, ...vals)
+        const cols = Object.keys(safe).filter(k => safe[k] !== undefined).join(',')
+        const vals = Object.keys(safe).filter(k => safe[k] !== undefined).map(k => safe[k])
+        db().runRaw(`INSERT INTO subsidy_payment (${cols}) VALUES (${vals.map(() => '?').join(',')})`, ...vals)
         created++
       }
-      return success({ message: `导入完成：新增${created}，覆盖${skipped}` })
+      return success({ message: `导入完成：新增${created}，覆盖${skipped}`, created, skipped, errors: [] })
     } catch (e) { return errorResponse(String(e)) }
   })
 

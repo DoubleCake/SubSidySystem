@@ -253,19 +253,17 @@ export default function SubsidyListBase({
       const area = applyAreaExplicit || (contractArea + trustArea || undefined)
       const amount = Number(row['actual_amount'] || row['实发金额']) || (totalArea ? totalArea * Number(subsidyType.standard_amount || 0) : undefined)
       const common = {
-        farmer_id: farmerId, beneficiary_id: farmerId, id_card: idCard, real_name: realName,
-        applicant_name: realName,  // payment 表字段
-        apply_village_name: String(row['village_name'] || row['所在村'] || '').trim() || undefined,
-        apply_group_display: String(row['group_no'] || row['所在组'] || '').trim() || undefined,
-        payment_village_name: String(row['village_name'] || row['所在村'] || '').trim() || undefined,
-        payment_group_display: String(row['group_no'] || row['所在组'] || '').trim() || undefined,
+        farmer_id: farmerId, beneficiary_id: farmerId,
         subsidy_type_id: subsidyType.id, apply_year: subsidyType.subsidy_year,
         payment_year: subsidyType.subsidy_year,
         apply_area: area, apply_area_no_calc: applyAreaNoCalc,
         contract_area: contractArea || undefined, trust_area: trustArea || undefined,
         no_subsidy_area: noSubsidyArea,
+        apply_village_name: String(row['village_name'] || row['所在村'] || '').trim() || undefined,
+        apply_group_display: String(row['group_no'] || row['所在组'] || '').trim() || undefined,
+        payment_village_name: String(row['village_name'] || row['所在村'] || '').trim() || undefined,
+        payment_group_display: String(row['group_no'] || row['所在组'] || '').trim() || undefined,
         remark: String(row['remark'] || row['备注'] || '').trim() || undefined,
-        proxy_remark: String(row['proxy_remark'] || row['代领备注'] || '').trim() || undefined,
       }
       const rowData = { ...common, apply_amount: amount, actual_amount: undefined, pay_status: 0, pay_date: undefined }
       toCreate.push(config.buildImportRow ? config.buildImportRow(rowData) : rowData)
