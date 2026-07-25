@@ -230,37 +230,50 @@ export default function SubsidyListBase({
 
   // ── Excel 导入 ──
   const handleImport = async (rows: Record<string, unknown>[], mapping?: Record<string, string>, overwrite?: boolean): Promise<{ created: number; skipped: number; errors: string[]; updated?: number }> => {
-    // 纯数据映射 → 入库，不做校验（校验由 preCheck 负责）
+    // 使用辅助函数：同时兼容已映射的系统字段和原始Excel字段
+    const get = (row: Record<string, unknown>, field: string, ...aliases: string[]) => {
+      // 1) 先查系统字段名（ExcelImportWithMapping已映射后的key）
+      if (row[field] != null) return row[field]
+      // 2) 再查原始Excel列名
+      for (const a of aliases) { if (row[a] != null) return row[a] }
+      // 3) 如果说有mapping，反向查找对应的Excel列
+      if (mapping) {
+        for (const [excelCol, sysField] of Object.entries(mapping)) {
+          if (sysField === field && row[excelCol] != null) return row[excelCol]
+        }
+      }
+      return undefined
+    }
+    const str = (row: Record<string, unknown>, field: string, ...aliases: string[]) =>
+      String(get(row, field, ...aliases) || '').trim()
+
     const toCreate: Record<string, unknown>[] = []
     const errors: string[] = []
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
-      const idCard = String(row['id_card'] || row['身份证号*'] || row['身份证号'] || '').trim()
-      const realName = String(row['real_name'] || row['姓名*'] || row['姓名'] || '').trim()
-      if (!idCard) { errors.push(`第${i + 2}行：缺少身份证号`); continue }
-      if (!realName) { errors.push(`第${i + 2}行：缺少姓名`); continue }
-      const contractArea = Number(row['contract_area'] || row['承包地面积(亩)']) || 0
-      const trustArea = Number(row['trust_area'] || row['代耕代种面积(亩)']) || 0
-      const noSubsidyArea = Number(row['no_subsidy_area'] || row['不予补贴面积']) || undefined
-      const applyAreaExplicit = Number(row['apply_area'] || row['计入超限面积'] || row['实际补贴面积'] || row['面积(亩)']) || 0
-      const applyAreaNoCalc = Number(row['apply_area_no_calc'] || row['不计入超限面积'] || 0) || undefined
-      const area = applyAreaExplicit || (contractArea + trustArea || undefined)
-      const amount = Number(row['actual_amount'] || row['实发金额']) || (area ? area * Number(subsidyType.standard_amount || 0) : undefined)
-      const common = {
+      const idCard = str(row, 'id_card', '身份证号*', '身份证号')
+      const realName = str(row, 'real_name', '姓名*', '姓名')
+      if (!idCard) { errors.push(`第${i + 1}行：缺少身份证号`); continue }
+      if (!realName) { errors.push(`第${i + 1}行：缺少姓名`); continue }
+
+      const applyArea = Number(get(row, 'apply_area', '计入超限面积', '面积(亩)') || 0)
+      const applyAreaNoCalc = Number(get(row, 'apply_area_no_calc', '不计入超限面积') || 0) || undefined
+      const data: Record<string, unknown> = {
         farmer_id: 0, beneficiary_id: 0,
         subsidy_type_id: subsidyType.id, apply_year: subsidyType.subsidy_year,
         payment_year: subsidyType.subsidy_year,
-        apply_area: area, apply_area_no_calc: applyAreaNoCalc,
-        contract_area: contractArea || undefined, trust_area: trustArea || undefined,
-        no_subsidy_area: noSubsidyArea,
-        apply_village_name: String(row['village_name'] || row['所在村'] || '').trim() || undefined,
-        apply_group_display: String(row['group_no'] || row['所在组'] || '').trim() || undefined,
-        payment_village_name: String(row['village_name'] || row['所在村'] || '').trim() || undefined,
-        payment_group_display: String(row['group_no'] || row['所在组'] || '').trim() || undefined,
-        remark: String(row['remark'] || row['备注'] || '').trim() || undefined,
+        apply_area: applyArea, apply_area_no_calc: applyAreaNoCalc,
+        contract_area: Number(get(row, 'contract_area', '承包地面积(亩)') || 0) || undefined,
+        trust_area: Number(get(row, 'trust_area', '代耕代种面积(亩)') || 0) || undefined,
+        no_subsidy_area: Number(get(row, 'no_subsidy_area', '不予补贴面积') || 0) || undefined,
+        apply_village_name: str(row, 'apply_village_name', 'village_name', '所在村') || undefined,
+        apply_group_display: str(row, 'apply_group_display', 'group_no', '所在组') || undefined,
+        payment_village_name: str(row, 'payment_village_name', 'village_name', '所在村') || undefined,
+        payment_group_display: str(row, 'payment_group_display', 'group_no', '所在组') || undefined,
+        apply_amount: Number(get(row, 'apply_amount', 'actual_amount', '实发金额') || (applyArea * Number(subsidyType.standard_amount || 0))) || undefined,
+        remark: str(row, 'remark', '备注') || undefined,
       }
-      const rowData = { ...common, apply_amount: amount, actual_amount: undefined, pay_status: 0, pay_date: undefined }
-      toCreate.push(config.buildImportRow ? config.buildImportRow(rowData) : rowData)
+      toCreate.push(config.buildImportRow ? config.buildImportRow(data) : data)
     }
     if (!toCreate.length) return { created: 0, skipped: 0, errors }
 
