@@ -457,10 +457,10 @@ export function registerSubsidyHandlers(): void {
 
       return success({
         total: rows.length,
-        inserted_count: inserted.length,
-        updated_count: updated.length,
-        error_count: errors.length,
-        errors,
+        created: inserted.length,
+        updated: updated.length,
+        skipped: 0,
+        errors: errors.map(e => `第${e.row}行：${e.message}`),
       })
     } catch (e) {
       return errorResponse(String(e))

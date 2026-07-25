@@ -359,8 +359,12 @@ export default function ExcelImportWithMapping({
         totalSkipped += res.skipped || 0
         totalUpdated += res.updated || 0
         if (res.errors?.length) {
-          // 将批次内行号转换为原始 Excel 行号（i 为批次偏移量）
-          const adjusted = res.errors.map(e => e.replace(/^第(\d+)行/, (_, n) => `第${parseInt(n) + i}行`))
+          // 兼容两种格式：字符串数组 或 {row, message} 对象数组
+          const adjusted = res.errors.map((e: any) => {
+            if (typeof e === 'string') return e.replace(/^第(\d+)行/, (_, n) => `第${parseInt(n) + i}行`)
+            if (e && e.row != null) return `第${e.row + i}行：${e.message || '未知错误'}`
+            return String(e)
+          })
           allErrors.push(...adjusted)
         }
       } catch (e: unknown) {
