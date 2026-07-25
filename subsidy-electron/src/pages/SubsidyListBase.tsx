@@ -231,11 +231,21 @@ export default function SubsidyListBase({
   // ── Excel 导入 ──
   const handleImport = async (rows: Record<string, unknown>[], _mapping?: Record<string, string>, overwrite?: boolean): Promise<{ created: number; skipped: number; errors: string[]; updated?: number }> => {
     // rows 已经是 ExcelImportWithMapping 映射后的数据（key=系统字段名，value=Excel原始值）
-    // 先批量查 farmer_profile 获取有效的 farmer_id（外键约束需要）
-    const allIdCards = rows.map(r => String(r.id_card || '').trim()).filter(Boolean)
+    // 批量确保农户存在（查到了用已有ID，查不到自动创建农户+家庭户）
+    const ensureRows = rows.map(r => ({
+      id_card: String(r.id_card || '').trim(),
+      real_name: String(r.real_name || '').trim(),
+      village_name: String(r.village_name || '').trim() || undefined,
+      group_no: String(r.group_no || '').trim() || undefined,
+    })).filter(r => r.id_card)
     let farmerMap: Record<string, number> = {}
-    if (allIdCards.length) {
-      try { const r = await api.batchLookupFarmers(allIdCards); farmerMap = r.results } catch { /* ignore */ }
+    let newFarmers = 0
+    if (ensureRows.length) {
+      try {
+        const r = await api.batchEnsureFarmers(ensureRows)
+        farmerMap = r.results
+        newFarmers = r.new_count || 0
+      } catch { /* ignore */ }
     }
 
     const toCreate: Record<string, unknown>[] = []
@@ -248,7 +258,6 @@ export default function SubsidyListBase({
       if (!realName) { errors.push(`第${i + 1}行：缺少姓名`); continue }
 
       const farmerId = farmerMap[idCard] || 0
-      if (!farmerId) { errors.push(`第${i + 1}行：身份证号未在系统中找到（${idCard}），请先在户籍管理中录入该农户`); continue }
       const applyArea = Number(row.apply_area || 0)
       const data: Record<string, unknown> = {
         farmer_id: 0, beneficiary_id: 0,
@@ -276,7 +285,8 @@ export default function SubsidyListBase({
       : await api.batchImportApplications(toCreate as any)
     const result = (res as any)?.data ?? res
     const final: any = { ...result, errors: [...errors, ...(result?.errors || [])] }
-    show(`✓ 导入 ${final.created || 0} 条，跳过 ${final.skipped || 0} 条`)
+    const newMsg = newFarmers > 0 ? `，自动创建了 ${newFarmers} 个新农户` : ''
+    show(`✓ 导入 ${final.created || 0} 条，跳过 ${final.skipped || 0} 条${newMsg}`)
     load()
     return final
   }

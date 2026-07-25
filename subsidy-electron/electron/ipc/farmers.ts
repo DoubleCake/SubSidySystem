@@ -409,4 +409,81 @@ export function registerFarmerHandlers(): void {
       return errorResponse(String(e))
     }
   })
+
+  // ── 导入时自动创建缺失农户 ──
+  ipcMain.handle('farmers:batchEnsure', (_e, rows: { id_card: string; real_name: string; village_name?: string; group_no?: string }[]) => {
+    try {
+      const results: Record<string, number> = {}
+      let newCount = 0
+
+      for (const row of rows) {
+        const idCard = (row.id_card || '').trim()
+        if (!idCard || idCard.length !== 18) continue
+
+        const existing = db().getRaw<{ id: number }>('SELECT id FROM farmer_profile WHERE id_card = ?', idCard)
+        if (existing) {
+          results[idCard] = existing.id
+          continue
+        }
+
+        // 自动创建农户（至少需要身份证号和姓名）
+        const info = parseIdCard(idCard)
+        const realName = row.real_name || '未知'
+
+        // 尝试匹配已有家庭户（同村同组）
+        let householdId = 0
+        if (row.village_name) {
+          const hh = db().getRaw<{ id: number }>(
+            `SELECT id FROM family_household WHERE village_id = (SELECT id FROM village WHERE village_name = ? LIMIT 1) LIMIT 1`,
+            row.village_name
+          )
+          if (hh) householdId = hh.id
+        }
+
+        // 无匹配家庭户 → 自动创建一个
+        if (!householdId) {
+          const villageName = row.village_name || '未分配'
+          const groupNo = Number(row.group_no) || 1
+          // 确保村庄存在
+          let vid = db().getRaw<{ id: number }>('SELECT id FROM village WHERE village_name = ?', villageName)?.id
+          if (!vid) {
+            const vr = db().runRaw('INSERT INTO village (village_name) VALUES (?)', villageName)
+            vid = vr.lastInsertRowid
+            // 创建默认村组
+            for (let g = 1; g <= 4; g++) {
+              db().runRaw('INSERT INTO village_group (village_id, group_no) VALUES (?, ?)', vid, g)
+            }
+          }
+          // 确保 village_group 存在
+          let vgId = db().getRaw<{ id: number }>('SELECT id FROM village_group WHERE village_id = ? AND group_no = ?', vid, groupNo)?.id
+          if (!vgId) {
+            vgId = db().runRaw('INSERT INTO village_group (village_id, group_no) VALUES (?, ?)', vid, groupNo).lastInsertRowid
+          }
+          const hhName = `${realName}户`
+          const hhR = db().runRaw(
+            'INSERT INTO family_household (household_code, household_name, village_id, group_no, status) VALUES (?, ?, ?, ?, 1)',
+            `AUTO-${idCard.slice(-4)}`, hhName, vid, groupNo
+          )
+          householdId = hhR.lastInsertRowid
+        }
+
+        const fields = ['real_name', 'gender', 'id_card', 'household_id', 'farmer_status']
+        const vals = [
+          realName,
+          info.gender ? String(info.gender) : '1',
+          idCard,
+          householdId,
+          1,
+        ]
+        const r = db().runRaw(
+          `INSERT INTO farmer_profile (${fields.join(',')}) VALUES (${fields.map(() => '?').join(',')})`,
+          ...vals
+        )
+        results[idCard] = r.lastInsertRowid
+        newCount++
+      }
+
+      return success({ results, new_count: newCount })
+    } catch (e) { return errorResponse(String(e)) }
+  })
 }
