@@ -273,9 +273,10 @@ export default function SubsidyListBase({
     // 资格检查
     const isPayment = config.apiBase.includes('payments')
     try {
+      // 使用原始 Excel 行做资格检查（含有 id_card、real_name 等字段）
       const chk = await api.checkEligibility({
         subsidy_type_id: subsidyType.id, year: subsidyType.subsidy_year,
-        rows: toCreate.map((r, idx) => ({ id_card: String(r.id_card || ''), real_name: String(r.real_name || ''), apply_area: Number(r.apply_area) || 0, _row_index: idx })),
+        rows: rows.map((r, idx) => ({ id_card: String(r.id_card || r['身份证号*'] || r['身份证号'] || ''), real_name: String(r.real_name || r['姓名*'] || r['姓名'] || ''), apply_area: Number(r.apply_area || 0), _row_index: idx })),
       })
       const failedCount = chk.failed_list?.length || 0
       const passedCount = chk.passed_list?.length || 0
