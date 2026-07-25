@@ -456,8 +456,8 @@ export function registerSubsidyHandlers(): void {
             db().runRaw(`UPDATE subsidy_application SET ${sets}, updated_at = datetime('now','localtime') WHERE id = ?`, ...keys.map(k => safe[k]), existing.id)
             updated.push(existing.id as number)
           } else {
-            const cols = Object.keys(safe).join(', ')
-            const vals = Object.keys(safe).map(k => safe[k])
+            const cols = Object.keys(safe).filter(k => safe[k] !== undefined).join(', ')
+            const vals = Object.keys(safe).filter(k => safe[k] !== undefined).map(k => safe[k])
             db().runRaw(`INSERT INTO subsidy_application (${cols}) VALUES (${vals.map(() => '?').join(',')})`, ...vals)
             inserted.push(db().getRaw<{ id: number }>('SELECT last_insert_rowid() as id')?.id ?? 0)
           }
