@@ -138,19 +138,19 @@ export default function ExcelImportWithMapping({
   }
 
   const handleClose = () => { reset(); onClose() }
+  const handleReset = () => { setWorkbook(null); setSheetNames([]); setSelectedSheet(''); setSkipRows(0); setRows([]); setStep('upload') }
 
   const parseFile = async (file: File) => {
     const reader = new FileReader()
     reader.onload = async e => {
       try {
         const wb = XLSX.read(e.target?.result, { type: 'array' })
-        const names = wb.SheetNames
-
-        // 始终弹出 Sheet 选择器，让用户确认
         setWorkbook(wb)
-        setSheetNames(names)
-        setSelectedSheet(names[0] || '')
+        setSheetNames(wb.SheetNames)
+        setSelectedSheet(wb.SheetNames[0] || '')
         setSkipRows(0)
+        // 直接解析第一个 Sheet 并进入映射
+        parseSheet(wb, wb.SheetNames[0], 0)
       } catch (error) {
         console.error('解析文件失败:', error)
         alert('解析Excel文件失败，请检查文件格式')
@@ -180,9 +180,7 @@ export default function ExcelImportWithMapping({
 
     const fileColumns = Object.keys(data[0])
     setRows(data)
-    setWorkbook(null)
-    setSheetNames([])
-    setSkipRows(0)
+    // 保留 workbook 以便映射页可切换 Sheet/跳行重新解析
 
     // 先创建空映射并进入映射步骤
     const baseMappings: ColumnMapping[] = fileColumns.map(col => ({
@@ -537,58 +535,7 @@ export default function ExcelImportWithMapping({
       {/* Step 1: 上传 / 选择Sheet */}
       {step === 'upload' && (
         <div>
-          {workbook && sheetNames.length > 0 ? (
-            /* Sheet选择 + 跳行 */
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-2xl">📑</span>
-                <div>
-                  <h3 className="font-semibold text-text-primary">工作表设置</h3>
-                  <p className="text-xs text-text-muted">{sheetNames.length} 个Sheet · 已选: {selectedSheet}</p>
-                </div>
-              </div>
-
-              {/* Sheet 选择 */}
-              <div className="mb-3">
-                <label className="block text-xs text-text-muted mb-1.5">选择 Sheet <span className="text-red-400">*</span></label>
-                <select value={selectedSheet} onChange={e => setSelectedSheet(e.target.value)}
-                  className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none bg-white">
-                  {sheetNames.map(name => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 跳过行数 */}
-              <div className="mb-4">
-                <label className="block text-xs text-text-muted mb-1.5">
-                  跳过前几行
-                  <span className="text-text-muted/50 ml-1">（表格上方有合并标题/说明行时使用）</span>
-                </label>
-                <div className="flex items-center gap-2">
-                  <input type="number" min={0} max={20} value={skipRows}
-                    onChange={e => setSkipRows(Math.max(0, Number(e.target.value) || 0))}
-                    className="w-20 border border-border rounded-btn px-3 py-2 text-sm outline-none text-center bg-white" />
-                  <span className="text-xs text-text-muted">行</span>
-                  {skipRows > 0 && (
-                    <span className="text-xs text-amber-600">将跳过第 1~{skipRows} 行，以第 {skipRows + 1} 行为表头</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <button onClick={() => parseSheet(workbook, selectedSheet, skipRows)}
-                  disabled={!selectedSheet}
-                  className="flex-1 px-4 py-2.5 text-sm bg-primary-500 text-white rounded-btn hover:bg-primary-500/90 disabled:opacity-40 font-medium">
-                  ✓ 确认，开始导入
-                </button>
-                <button onClick={() => { setWorkbook(null); setSheetNames([]); setSkipRows(0) }}
-                  className="px-4 py-2.5 text-sm border border-border rounded-btn text-text-muted hover:bg-warm/30">
-                  ← 重新选择
-                </button>
-              </div>
-            </div>
-          ) : (
+          {!workbook && (
             <div>
               <div className="flex justify-between items-center mb-3">
                 <p className="text-sm text-text-muted">请按模板格式准备 Excel 文件（.xlsx / .xls）</p>
@@ -640,12 +587,43 @@ export default function ExcelImportWithMapping({
                 className="text-xs border border-purple-200 text-purple-700 px-3 py-1.5 rounded-btn hover:bg-purple-50">
                 💾 保存为模板
               </button>
-              <button onClick={() => setStep('upload')}
-                className="text-xs border bg-danger-200 border-border text-white text-text-muted px-3 py-1.5 rounded-btn hover:bg-warm/30">
+              <button onClick={handleReset}
+                className="text-xs border border-border text-text-muted px-3 py-1.5 rounded-btn hover:bg-warm/30">
                 重新上传
               </button>
             </div>
           </div>
+
+          {/* Sheet 选择 + 跳行 + 重新解析（内嵌于映射页） */}
+          {workbook && sheetNames.length > 0 && (
+            <div className="mb-3 bg-warm/30 border border-border rounded-btn px-3 py-2 flex items-center gap-3 flex-wrap">
+              <span className="text-xs text-text-muted shrink-0">📑 数据源</span>
+              <div className="flex items-center gap-1.5">
+                <label className="text-[11px] text-text-muted">Sheet</label>
+                <select value={selectedSheet} onChange={e => setSelectedSheet(e.target.value)}
+                  className="border border-border rounded-btn px-2 py-1 text-xs outline-none bg-white">
+                  {sheetNames.map(name => <option key={name} value={name}>{name}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <label className="text-[11px] text-text-muted">跳过</label>
+                <input type="number" min={0} max={20} value={skipRows}
+                  onChange={e => setSkipRows(Math.max(0, Number(e.target.value) || 0))}
+                  className="w-14 border border-border rounded-btn px-2 py-1 text-xs outline-none text-center bg-white" />
+                <span className="text-[11px] text-text-muted">行</span>
+              </div>
+              <button
+                onClick={() => parseSheet(workbook, selectedSheet, skipRows)}
+                className="text-xs bg-primary-500 text-white px-3 py-1 rounded-btn hover:bg-primary-500/90 font-medium">
+                🔄 重新解析
+              </button>
+              {rows.length > 0 && (
+                <span className="text-[11px] text-text-muted ml-auto">
+                  {rows.length} 行数据
+                </span>
+              )}
+            </div>
+          )}
 
           {detecting && (
             <div className="mb-3 bg-blue-50 border border-blue-100 rounded-btn px-4 py-2.5 flex items-center gap-3">
