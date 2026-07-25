@@ -672,13 +672,13 @@ export default function ExcelImportWithMapping({
               {columnMappings.map((mapping, index) => {
                 const isAuto = mapping.confidence != null && mapping.confidence >= 0.6 && mapping.system_field
                 const isManual = mapping.system_field && !isAuto
-                const rowBg = isAuto ? 'bg-emerald-100' : isManual ? 'bg-blue-100' : 'bg-amber-50'
-                const rowBorder = isAuto ? 'border-emerald-300' : isManual ? 'border-blue-300' : ''
-                const sourceTag = isAuto ? { label: '✓ 自动', cls: 'bg-emerald-500 text-white' } : isManual ? { label: '👆 手动', cls: 'bg-blue-500 text-white' } : mapping.system_field ? { label: '已映射', cls: 'bg-gray-400 text-white' } : null
+                const isMapped = !!mapping.system_field
+                const rowBg = isMapped ? (isAuto ? 'bg-emerald-100 border-l-4 border-l-emerald-500' : 'bg-blue-100 border-l-4 border-l-blue-500') : 'bg-amber-50 border-l-4 border-l-amber-300'
+                const sourceTag = isAuto ? { label: '✓ 自动', cls: 'bg-emerald-500 text-white shadow-sm' } : isManual ? { label: '👆 手动', cls: 'bg-blue-500 text-white shadow-sm' } : null
                 return (
-                <div key={index} className={`px-4 py-3 border-b border-border/50 grid grid-cols-[200px_1fr_200px] gap-4 items-center ${rowBg} ${rowBorder}`}>
+                <div key={index} className={`px-4 py-3 border-b border-border/50 grid grid-cols-[200px_1fr_200px] gap-4 items-center ${rowBg} transition-colors`}>
                   <div>
-                    <span className={`font-medium ${mapping.system_field ? 'text-text-primary' : 'text-text-muted'}`}>{mapping.excel_column}</span>
+                    <span className={`text-sm ${isMapped ? 'font-semibold text-text-primary' : 'text-text-muted/60'}`}>{mapping.excel_column}</span>
                   </div>
                   <div className="text-sm text-text-muted font-mono truncate">
                     {mapping.sample_value || '—'}
@@ -694,8 +694,10 @@ export default function ExcelImportWithMapping({
                         }
                         setColumnMappings(newMappings)
                       }}
-                      className={`flex-1 border rounded-btn px-3 py-1.5 text-sm outline-none focus:border-primary-500
-                        ${mapping.system_field ? 'border-emerald-400 bg-emerald-50/30 font-medium text-emerald-800' : 'bg-white border-border'}`}
+                      className={`flex-1 border-2 rounded-btn px-3 py-1.5 text-sm outline-none transition-all
+                        ${isMapped
+                          ? 'border-emerald-400 bg-emerald-50 font-semibold text-emerald-800 shadow-sm'
+                          : 'border-stone-200 bg-white text-text-muted hover:border-stone-300'}`}
                     >
                       <option value="">— 忽略此列 —</option>
                       {systemFields.map(field => (
