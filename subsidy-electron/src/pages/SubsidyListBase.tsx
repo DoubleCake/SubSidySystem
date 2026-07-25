@@ -267,6 +267,7 @@ export default function SubsidyListBase({
       toCreate.push(config.buildImportRow ? config.buildImportRow(rowData) : rowData)
     }
     if (errors.length && !toCreate.length) return { created: 0, skipped: 0, errors }
+    if (!toCreate.length) return { created: 0, skipped: 0, errors: ['没有可导入的数据行'] }
     // 资格检查
     const isPayment = config.apiBase.includes('payments')
     try {
