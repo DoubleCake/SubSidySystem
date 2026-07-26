@@ -340,8 +340,8 @@ export default function ExcelImportWithMapping({
     // 直接用已计算的映射后数据
     const dataToImport = mappedData.rows
 
-    // 分批导入，每批 200 行
-    const BATCH_SIZE = 200
+    // 分批导入，每批 50 行（减少单次等待，让进度条更流畅）
+    const BATCH_SIZE = 50
     const totalBatches = Math.ceil(dataToImport.length / BATCH_SIZE)
     let totalCreated = 0, totalSkipped = 0, totalUpdated = 0
     const allErrors: string[] = []
