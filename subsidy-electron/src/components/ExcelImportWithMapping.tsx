@@ -331,6 +331,9 @@ export default function ExcelImportWithMapping({
     setProgress(0)
     setProgressMsg(`准备导入 ${rows.length} 条记录…`)
 
+    // 给 React 一帧时间渲染进度条 UI，否则页面看起来卡死
+    await new Promise(r => requestAnimationFrame(r))
+
     // 映射关系（Excel列名→系统字段）
     const mapping: Record<string, string> = {}
     columnMappings.forEach(m => { if (m.system_field) mapping[m.excel_column] = m.system_field })
@@ -349,6 +352,8 @@ export default function ExcelImportWithMapping({
       const pct = Math.round((i / dataToImport.length) * 90)
       setProgress(pct)
       setProgressMsg(`正在导入第 ${batchNum}/${totalBatches} 批（${i + 1}-${Math.min(i + BATCH_SIZE, dataToImport.length)}/${dataToImport.length}）…`)
+      // 让 React 更新进度条再开始下一批
+      await new Promise(r => requestAnimationFrame(r))
 
       try {
         const res = await onImport(batch, mapping, overwrite)
