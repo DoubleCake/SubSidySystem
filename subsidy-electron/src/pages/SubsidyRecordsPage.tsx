@@ -83,18 +83,10 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   const [filtersPreApply, setFiltersPreApply] = useState({
     village: '',
     payStatus: '',
-    minAmount: '',
-    maxAmount: '',
-    dateFrom: '',
-    dateTo: ''
   })
   const [filtersDisbursement, setFiltersDisbursement] = useState({
     village: '',
     payStatus: '',
-    minAmount: '',
-    maxAmount: '',
-    dateFrom: '',
-    dateTo: ''
   })
 
   // 当前激活的搜索和筛选（数据分析 tab 使用预申请数据源）
@@ -243,8 +235,8 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     setPage(1)
     setSearchPreApply('')
     setSearchDisbursement('')
-    setFiltersPreApply({ village: '', payStatus: '', minAmount: '', maxAmount: '', dateFrom: '', dateTo: '' })
-    setFiltersDisbursement({ village: '', payStatus: '', minAmount: '', maxAmount: '', dateFrom: '', dateTo: '' })
+    setFiltersPreApply({ village: '', payStatus: '' })
+    setFiltersDisbursement({ village: '', payStatus: '' })
   }, [subsidyType.id])
 
   // 处理筛选变化
@@ -270,10 +262,10 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   // 清除所有筛选
   const clearFilters = () => {
     if (activeTab === 'preApply') {
-      setFiltersPreApply({ village: '', payStatus: '', minAmount: '', maxAmount: '', dateFrom: '', dateTo: '' })
+      setFiltersPreApply({ village: '', payStatus: '' })
       setSearchPreApply('')
     } else {
-      setFiltersDisbursement({ village: '', payStatus: '', minAmount: '', maxAmount: '', dateFrom: '', dateTo: '' })
+      setFiltersDisbursement({ village: '', payStatus: '' })
       setSearchDisbursement('')
     }
     setPage(1)
@@ -495,10 +487,6 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         if (search) params.search = search
         if (filters.payStatus) params.pay_status = filters.payStatus
         if (filters.village) params.village_name = filters.village
-        if (filters.minAmount) params.min_amount = Number(filters.minAmount)
-        if (filters.maxAmount) params.max_amount = Number(filters.maxAmount)
-        if (filters.dateFrom) params.date_from = filters.dateFrom
-        if (filters.dateTo) params.date_to = filters.dateTo
         if (sortField) { params.sort_field = sortField; params.sort_dir = sortDir }
 
         const res = await window.electronAPI.invoke('subsidies:listPayments', params)
@@ -541,10 +529,6 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       if (search) params.search = search
       if (filters.payStatus) params.pay_status = filters.payStatus
       if (filters.village) params.village_name = filters.village
-      if (filters.minAmount) params.min_amount = filters.minAmount
-      if (filters.maxAmount) params.max_amount = filters.maxAmount
-      if (filters.dateFrom) params.date_from = filters.dateFrom
-      if (filters.dateTo) params.date_to = filters.dateTo
       if (sortField) { params.sort_field = sortField; params.sort_dir = sortDir }
 
       const res = await api.searchApplications(params)

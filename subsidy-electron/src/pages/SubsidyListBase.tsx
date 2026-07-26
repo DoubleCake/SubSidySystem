@@ -82,7 +82,7 @@ export interface SubsidyListBaseProps {
   loading: boolean
   selectedIds: number[]
   search: string
-  filters: { village: string; payStatus: string; minAmount: string; maxAmount: string; dateFrom: string; dateTo: string }
+  filters: { village: string; payStatus: string }
   villages: string[]
   loadingVillages: boolean
   templates: ExcelColumnTemplate[]
@@ -376,18 +376,6 @@ export default function SubsidyListBase({
             <option value="1">发放中</option>
             <option value="2">已完成</option>
           </select>
-          <div className="flex items-center gap-1 text-xs">
-            <span className="text-text-muted">金额:</span>
-            <input type="number" value={filters.minAmount} onChange={e => handleFilterChange('minAmount', e.target.value)} placeholder="最低" className="w-16 border border-border rounded px-1.5 py-1 text-xs outline-none" />
-            <span className="text-text-muted/50">-</span>
-            <input type="number" value={filters.maxAmount} onChange={e => handleFilterChange('maxAmount', e.target.value)} placeholder="最高" className="w-16 border border-border rounded px-1.5 py-1 text-xs outline-none" />
-          </div>
-          <div className="flex items-center gap-1 text-xs">
-            <span className="text-text-muted">日期:</span>
-            <input type="date" value={filters.dateFrom} onChange={e => handleFilterChange('dateFrom', e.target.value)} className="border border-border rounded px-1.5 py-1 text-xs outline-none" />
-            <span className="text-text-muted/50">-</span>
-            <input type="date" value={filters.dateTo} onChange={e => handleFilterChange('dateTo', e.target.value)} className="border border-border rounded px-1.5 py-1 text-xs outline-none" />
-          </div>
           <div className="flex items-center gap-1 flex-1 min-w-[200px] max-w-[300px]">
             <input type="text" value={search} onChange={e => handleSearchChange(e.target.value)} placeholder="姓名/身份证" className="flex-1 border border-border rounded-btn px-2 py-1.5 text-xs outline-none" />
             <button onClick={() => onSearch ? onSearch() : setPage(1)} className="px-2 py-1 text-xs bg-primary-500 rounded-btn hover:bg-primary-600 text-white">搜索</button>
