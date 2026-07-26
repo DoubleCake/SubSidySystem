@@ -410,69 +410,106 @@ export function registerFarmerHandlers(): void {
     }
   })
 
-  // ── 导入时自动创建缺失农户 ──
+  // ── 导入时自动创建缺失农户（批量版）──
   ipcMain.handle('farmers:batchEnsure', (_e, rows: { id_card: string; real_name: string; village_name?: string; group_no?: string }[]) => {
     try {
+      const validRows = rows.filter(r => (r.id_card || '').trim().length === 18)
+      if (!validRows.length) return success({ results: {}, info: {}, new_count: 0 })
+
+      const idCards = validRows.map(r => r.id_card.trim())
+      const placeholders = idCards.map(() => '?').join(',')
+
+      // ① 一次性查出所有已存在的农户
+      const existing = db().allRaw<Record<string, unknown>>(
+        `SELECT fp.id, fp.id_card, fp.household_id, hh.village_id, hh.group_no,
+                v.village_name
+         FROM farmer_profile fp
+         LEFT JOIN family_household hh ON fp.household_id = hh.id
+         LEFT JOIN village v ON hh.village_id = v.id
+         WHERE fp.id_card IN (${placeholders})`,
+        ...idCards
+      )
+      const existMap = new Map(existing.map(e => [e.id_card as string, e]))
+
       const results: Record<string, number> = {}
       const info: Record<string, { village_id: number; village_group_id: number; village_name: string; group_no: number }> = {}
       let newCount = 0
 
-      for (const row of rows) {
-        const idCard = (row.id_card || '').trim()
-        if (!idCard || idCard.length !== 18) continue
+      // 填充已有结果
+      for (const row of validRows) {
+        const ex = existMap.get(row.id_card)
+        if (ex) {
+          results[row.id_card] = ex.id as number
+          const vId = Number(ex.village_id || 0)
+          const gNo = Number(ex.group_no || 1)
+          const vgId = vId ? (db().getRaw<{ id: number }>(
+            'SELECT id FROM village_group WHERE village_id = ? AND group_no = ?', vId, gNo
+          )?.id ?? 0) : 0
+          info[row.id_card] = {
+            village_id: vId,
+            village_group_id: vgId,
+            village_name: (ex.village_name as string) || '',
+            group_no: gNo,
+          }
+        }
+      }
 
-        const existing = db().getRaw<{ id: number; household_id: number }>('SELECT fp.id, fp.household_id FROM farmer_profile fp WHERE fp.id_card = ?', idCard)
-        if (existing) {
-          results[idCard] = existing.id
-          const hh = db().getRaw<Record<string, unknown>>('SELECT village_id, group_no FROM family_household WHERE id = ?', existing.household_id)
-          if (hh) {
-            const v = db().getRaw<{ id: number; village_name: string }>('SELECT id, village_name FROM village WHERE id = ?', hh.village_id)
-            const vgId = db().getRaw<{ id: number }>('SELECT id FROM village_group WHERE village_id = ? AND group_no = ?', hh.village_id, hh.group_no)
-            info[idCard] = {
-              village_id: Number(hh.village_id),
-              village_group_id: vgId?.id ?? 0,
-              village_name: v?.village_name || '',
-              group_no: Number(hh.group_no) || 1,
+      // ② 集中处理缺失农户：先批量确保村庄
+      const missing = validRows.filter(r => !existMap.has(r.id_card))
+      if (missing.length) {
+        // 批量缓存村庄
+        const villageCache = new Map<string, { id: number; groups: Set<number> }>()
+        // 先查出所有已涉及的村庄
+        const missingVillages = [...new Set(missing.map(r => r.village_name || '未分配'))]
+        for (const vn of missingVillages) {
+          const v = db().getRaw<{ id: number }>('SELECT id FROM village WHERE village_name = ?', vn)
+          if (v) {
+            const groups = new Set(
+              db().allRaw<{ group_no: number }>('SELECT group_no FROM village_group WHERE village_id = ?', v.id).map(g => g.group_no)
+            )
+            villageCache.set(vn, { id: v.id, groups })
+          }
+        }
+
+        for (const row of missing) {
+          const idCard = row.id_card
+          const realName = row.real_name || '未知'
+          const villageName = row.village_name || '未分配'
+          const groupNo = Number(row.group_no || 1)
+
+          // 确保村庄+村组存在
+          let vc = villageCache.get(villageName)
+          if (!vc) {
+            const vid = db().runRaw('INSERT INTO village (village_name) VALUES (?)', villageName).lastInsertRowid
+            for (let g = 1; g <= 4; g++) {
+              db().runRaw('INSERT INTO village_group (village_id, group_no) VALUES (?, ?)', vid, g)
             }
+            vc = { id: vid, groups: new Set([1,2,3,4]) }
+            villageCache.set(villageName, vc)
           }
-          continue
-        }
-
-        // 自动创建农户（至少需要身份证号和姓名）
-        const parsedInfo = parseIdCard(idCard)
-        const realName = row.real_name || '未知'
-        const villageName = row.village_name || '未分配'
-        const groupNo = Number(row.group_no) || 1
-
-        // 确保 village 存在
-        let vid: number
-        const v = db().getRaw<{ id: number }>('SELECT id FROM village WHERE village_name = ?', villageName)
-        if (v) { vid = v.id } else {
-          vid = db().runRaw('INSERT INTO village (village_name) VALUES (?)', villageName).lastInsertRowid
-          for (let g = 1; g <= 4; g++) {
-            db().runRaw('INSERT INTO village_group (village_id, group_no) VALUES (?, ?)', vid, g)
+          if (!vc.groups.has(groupNo)) {
+            db().runRaw('INSERT INTO village_group (village_id, group_no) VALUES (?, ?)', vc.id, groupNo)
+            vc.groups.add(groupNo)
           }
+          const vgId = db().getRaw<{ id: number }>(
+            'SELECT id FROM village_group WHERE village_id = ? AND group_no = ?', vc.id, groupNo
+          )!.id
+
+          // 创建家庭户 + 农户
+          const parsedInfo = parseIdCard(idCard)
+          const hhId = db().runRaw(
+            'INSERT INTO family_household (household_code, household_name, village_id, group_no, status) VALUES (?,?,?,?,1)',
+            `AUTO-${idCard.slice(-4)}`, `${realName}户`, vc.id, groupNo
+          ).lastInsertRowid
+          const fId = db().runRaw(
+            'INSERT INTO farmer_profile (real_name, gender, id_card, household_id, farmer_status) VALUES (?,?,?,?,1)',
+            realName, parsedInfo.gender ? String(parsedInfo.gender) : '1', idCard, hhId
+          ).lastInsertRowid
+
+          results[idCard] = fId
+          info[idCard] = { village_id: vc.id, village_group_id: vgId, village_name: villageName, group_no: groupNo }
+          newCount++
         }
-        // 确保 village_group 存在
-        let vgId: number
-        const vg = db().getRaw<{ id: number }>('SELECT id FROM village_group WHERE village_id = ? AND group_no = ?', vid, groupNo)
-        if (vg) { vgId = vg.id } else {
-          vgId = db().runRaw('INSERT INTO village_group (village_id, group_no) VALUES (?, ?)', vid, groupNo).lastInsertRowid
-        }
-        // 创建家庭户
-        const hhR = db().runRaw(
-          'INSERT INTO family_household (household_code, household_name, village_id, group_no, status) VALUES (?, ?, ?, ?, 1)',
-          `AUTO-${idCard.slice(-4)}`, `${realName}户`, vid, groupNo
-        )
-        const householdId = hhR.lastInsertRowid
-        // 创建农户
-        const r = db().runRaw(
-          `INSERT INTO farmer_profile (real_name, gender, id_card, household_id, farmer_status) VALUES (?, ?, ?, ?, 1)`,
-          realName, parsedInfo.gender ? String(parsedInfo.gender) : '1', idCard, householdId
-        )
-        results[idCard] = r.lastInsertRowid
-        info[idCard] = { village_id: vid, village_group_id: vgId, village_name: villageName, group_no: groupNo }
-        newCount++
       }
 
       return success({ results, info, new_count: newCount })
