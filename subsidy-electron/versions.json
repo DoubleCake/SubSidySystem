@@ -1,6 +1,21 @@
 ﻿{
     "versions":  [
                      {
+                         "version":  "0.0.16",
+                         "downloadUrl":  "",
+                         "date":  "2026-07-27",
+                         "changes":  [
+                                         "Excel导入村组信息以Excel原始数据为准，不做DB转换",
+                                         "列表/导出查询优先显示Excel导入值再fallback DB值",
+                                         "表格视图移除发放金额、状态列，导出移除打款日期/发放金额/状态",
+                                         "不计超限面积支持排序",
+                                         "runRaw()修复：用getRowsModified()返回真实删除行数",
+                                         "导入进度条优化：分批逻辑移至handleImport，通过onProgress回调驱动"
+                                     ],
+                         "title":  "Excel导入数据保真 + 删除计数修复 + UI精简",
+                         "fileSize":  0
+                     },
+                     {
                          "version":  "0.0.15",
                          "downloadUrl":  "",
                          "date":  "2026-07-20",
