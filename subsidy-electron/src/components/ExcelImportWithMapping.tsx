@@ -52,7 +52,7 @@ interface Props {
       transform?: string
     }>
   }) => Promise<{ id: number }>
-  onImport: (rows: Record<string, unknown>[], mapping?: Record<string, string>, overwrite?: boolean) => Promise<{ created: number; updated?: number; skipped: number; errors: string[] }>
+  onImport: (rows: Record<string, unknown>[], mapping?: Record<string, string>, overwrite?: boolean, onProgress?: (pct: number, msg: string) => void) => Promise<{ created: number; updated?: number; skipped: number; errors: string[]; message?: string }>
   onSuccess: () => void
   preCheck?: (rows: Record<string, unknown>[], mapping?: Record<string, string>) => Promise<{
     passed_rows: number[]
@@ -92,7 +92,7 @@ export default function ExcelImportWithMapping({
 }: Props) {
   const [step, setStep] = useState<Step>('upload')
   const [rows, setRows] = useState<Record<string, unknown>[]>([])
-  const [result, setResult] = useState<{ created: number; updated?: number; skipped: number; errors: string[] } | null>(null)
+  const [result, setResult] = useState<{ created: number; updated?: number; skipped: number; errors: string[]; message?: string } | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [overwrite, setOverwrite] = useState(false)
   
@@ -326,64 +326,39 @@ export default function ExcelImportWithMapping({
     setPreCheckStatus(null)
   }
 
-  const handleImportConfirm = async () => {
+    const handleImportConfirm = async () => {
     setStep('importing')
     setProgress(0)
     setProgressMsg(`准备导入 ${rows.length} 条记录…`)
 
-    // 给 React 一帧时间渲染进度条 UI，否则页面看起来卡死
+    // 给 React 一帧时间渲染进度条 UI
     await new Promise(r => requestAnimationFrame(r))
 
     // 映射关系（Excel列名→系统字段）
     const mapping: Record<string, string> = {}
     columnMappings.forEach(m => { if (m.system_field) mapping[m.excel_column] = m.system_field })
-    // 直接用已计算的映射后数据
     const dataToImport = mappedData.rows
 
-    // 分批导入，每批 50 行（减少单次等待，让进度条更流畅）
-    const BATCH_SIZE = 50
-    const totalBatches = Math.ceil(dataToImport.length / BATCH_SIZE)
-    let totalCreated = 0, totalSkipped = 0, totalUpdated = 0
-    const allErrors: string[] = []
+    try {
+      const res = await onImport(dataToImport, mapping, overwrite, (pct: number, msg: string) => {
+        setProgress(pct)
+        setProgressMsg(msg)
+      })
 
-    for (let i = 0; i < dataToImport.length; i += BATCH_SIZE) {
-      const batch = dataToImport.slice(i, i + BATCH_SIZE)
-      const batchNum = Math.floor(i / BATCH_SIZE) + 1
-      const pct = Math.round((i / dataToImport.length) * 90)
-      setProgress(pct)
-      setProgressMsg(`正在导入第 ${batchNum}/${totalBatches} 批（${i + 1}-${Math.min(i + BATCH_SIZE, dataToImport.length)}/${dataToImport.length}）…`)
-      // 让 React 更新进度条再开始下一批
-      await new Promise(r => requestAnimationFrame(r))
-
-      try {
-        const res = await onImport(batch, mapping, overwrite)
-        totalCreated += res.created || 0
-        totalSkipped += res.skipped || 0
-        totalUpdated += res.updated || 0
-        if (res.errors?.length) {
-          // 兼容两种格式：字符串数组 或 {row, message} 对象数组
-          const adjusted = res.errors.map((e: any) => {
-            if (typeof e === 'string') return e.replace(/^第(\d+)行/, (_, n) => `第${parseInt(n) + i}行`)
-            if (e && e.row != null) return `第${e.row + i}行：${e.message || '未知错误'}`
-            return String(e)
-          })
-          allErrors.push(...adjusted)
-        }
-      } catch (e: unknown) {
-        const err = e as Error
-        allErrors.push(`第${batchNum}批导入失败: ${err.message}`)
-      }
+      setProgress(100)
+      setProgressMsg('导入完成！')
+      await new Promise(r => setTimeout(r, 400))
+      setResult({ created: res.created || 0, updated: res.updated, skipped: res.skipped || 0, errors: res.errors || [], message: res.message })
+      setStep('result')
+      if ((res.created || 0) > 0 || (res.updated || 0) > 0) onSuccess()
+    } catch (e: unknown) {
+      const err = e as Error
+      setResult({ created: 0, skipped: 0, errors: [`导入失败: ${err.message}`] })
+      setStep('result')
     }
-
-    setProgress(100)
-    setProgressMsg('导入完成！')
-    await new Promise(r => setTimeout(r, 400))
-    setResult({ created: totalCreated, updated: totalUpdated, skipped: totalSkipped, errors: allErrors })
-    setStep('result')
-    if (totalCreated > 0 || totalUpdated > 0) onSuccess()
   }
 
-  // ── 导出导入异常数据为 Excel ──
+    // ── 导出导入异常数据为 Excel ──
   const handleExportErrors = useCallback(() => {
     if (!result || result.errors.length === 0 || rows.length === 0) return
 
@@ -752,7 +727,6 @@ export default function ExcelImportWithMapping({
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm text-text-primary">
               共解析 <strong className="text-primary">{rows.length}</strong> 行，请确认后导入
-              <span className="ml-2 text-amber-600">（已应用字段映射）</span>
             </p>
             <button onClick={() => setStep('mapping')} className="text-xs text-text-muted hover:text-text-primary">
               ← 修改映射
@@ -882,7 +856,6 @@ export default function ExcelImportWithMapping({
                     return (
                       <th key={f} className="px-3 py-2 text-left text-text-muted font-semibold border-b border-border whitespace-nowrap">
                         {fieldInfo?.label || f}
-                        <span className="ml-1 text-[10px] text-text-muted/40 font-mono">{f}</span>
                       </th>
                     )
                   })}
@@ -948,6 +921,11 @@ export default function ExcelImportWithMapping({
       {step === 'result' && result && (
         <div className="text-center py-4">
           <div className="text-5xl mb-4">{result.errors.length === 0 ? '✅' : '⚠️'}</div>
+          {result.message && (
+            <div className="bg-blue-50 border border-blue-100 rounded-btn px-3 py-2 text-xs text-blue-700 mb-4">
+              {result.message}
+            </div>
+          )}
           <div className={`grid gap-4 mb-5 ${result.updated ? 'grid-cols-4' : 'grid-cols-3'}`}>
             <div className="bg-primary-500/5 border border-primary-500/10 rounded-card p-4">
               <div className="text-2xl font-bold text-primary">{result.created}</div>

@@ -149,7 +149,8 @@ export function registerSubsidyHandlers(): void {
       const rows = db().allRaw<Record<string, unknown>>(`
         SELECT sa.*, fp.real_name as farmer_name, fp.id_card, fp.phone,
                st.subsidy_name, st.season, st.calc_mode,
-               v.village_name as village, hh.group_no
+               COALESCE(NULLIF(sa.apply_village_name,''), v.village_name) as village,
+               COALESCE(NULLIF(sa.apply_group_display,''), CAST(hh.group_no AS TEXT)) as group_no
         FROM subsidy_application sa
         LEFT JOIN farmer_profile fp ON sa.farmer_id = fp.id
         LEFT JOIN family_household hh ON fp.household_id = hh.id
@@ -601,14 +602,32 @@ export function registerSubsidyHandlers(): void {
 
   ipcMain.handle('subsidies:exportApplications', (_e, subsidyTypeId: number) => {
     try {
-      const rows = db().allRaw('SELECT * FROM subsidy_application WHERE subsidy_type_id = ?', subsidyTypeId)
+      const rows = db().allRaw(`
+        SELECT sa.*, fp.real_name as farmer_name, fp.id_card, fp.phone,
+               COALESCE(NULLIF(sa.apply_village_name,''), v.village_name) as village,
+               COALESCE(NULLIF(sa.apply_group_display,''), CAST(hh.group_no AS TEXT)) as group_no
+        FROM subsidy_application sa
+        LEFT JOIN farmer_profile fp ON sa.farmer_id = fp.id
+        LEFT JOIN family_household hh ON fp.household_id = hh.id
+        LEFT JOIN village v ON hh.village_id = v.id
+        WHERE sa.subsidy_type_id = ?
+      `, subsidyTypeId)
       return success({ items: rows })
     } catch (e) { return errorResponse(String(e)) }
   })
 
   ipcMain.handle('subsidies:exportPayments', (_e, subsidyTypeId: number) => {
     try {
-      const rows = db().allRaw('SELECT * FROM subsidy_payment WHERE subsidy_type_id = ?', subsidyTypeId)
+      const rows = db().allRaw(`
+        SELECT sp.*, fp.real_name as farmer_name, fp.id_card, fp.phone,
+               COALESCE(NULLIF(sp.payment_village_name,''), v.village_name) as village,
+               COALESCE(NULLIF(sp.payment_group_display,''), CAST(hh.group_no AS TEXT)) as group_no
+        FROM subsidy_payment sp
+        LEFT JOIN farmer_profile fp ON sp.beneficiary_id = fp.id
+        LEFT JOIN family_household hh ON fp.household_id = hh.id
+        LEFT JOIN village v ON hh.village_id = v.id
+        WHERE sp.subsidy_type_id = ?
+      `, subsidyTypeId)
       return success({ items: rows })
     } catch (e) { return errorResponse(String(e)) }
   })
@@ -661,7 +680,10 @@ export function registerSubsidyHandlers(): void {
 
       const paymentJoins = ' FROM subsidy_payment sp LEFT JOIN farmer_profile fp ON sp.beneficiary_id=fp.id LEFT JOIN family_household hh ON fp.household_id=hh.id LEFT JOIN village v ON hh.village_id = v.id'
       const countRow = db().getRaw<{ cnt: number }>(`SELECT COUNT(*) as cnt${paymentJoins} ${where}`, ...vals)
-      const rows = db().allRaw(`SELECT sp.*, fp.real_name as farmer_name, hh.household_name, hh.household_code, v.village_name${paymentJoins} ${where} ${orderClause} LIMIT ? OFFSET ?`, ...vals, pageSize, offset)
+      const rows = db().allRaw(`SELECT sp.*, fp.real_name as farmer_name, hh.household_name, hh.household_code,
+        COALESCE(NULLIF(sp.payment_village_name,''), v.village_name) as village,
+        COALESCE(NULLIF(sp.payment_group_display,''), CAST(hh.group_no AS TEXT)) as group_no
+        ${paymentJoins} ${where} ${orderClause} LIMIT ? OFFSET ?`, ...vals, pageSize, offset)
       return successList(rows, countRow?.cnt ?? 0, page, pageSize)
     } catch (e) { return errorResponse(String(e)) }
   })
@@ -686,22 +708,22 @@ export function registerSubsidyHandlers(): void {
   ipcMain.handle('subsidies:batchDeleteApplications', (_e, payload: any) => {
     try {
       if (payload.delete_all) {
-        db().runRaw('DELETE FROM subsidy_application WHERE subsidy_type_id=?', payload.subsidy_type_id)
-        return success({ message: '已全部删除' })
+        const result = db().runRaw('DELETE FROM subsidy_application WHERE subsidy_type_id=?', payload.subsidy_type_id)
+        return success({ deleted: result.changes, message: `已全部删除 ${result.changes} 条` })
       }
       for (const id of (payload.ids || [])) db().runRaw('DELETE FROM subsidy_application WHERE id=?', id)
-      return success({ message: `已删除 ${(payload.ids||[]).length} 条` })
+      return success({ deleted: (payload.ids||[]).length, message: `已删除 ${(payload.ids||[]).length} 条` })
     } catch (e) { return errorResponse(String(e)) }
   })
 
   ipcMain.handle('subsidies:batchDeletePayments', (_e, payload: any) => {
     try {
       if (payload.delete_all) {
-        db().runRaw('DELETE FROM subsidy_payment WHERE subsidy_type_id=?', payload.subsidy_type_id)
-        return success({ message: '已全部删除' })
+        const result = db().runRaw('DELETE FROM subsidy_payment WHERE subsidy_type_id=?', payload.subsidy_type_id)
+        return success({ deleted: result.changes, message: `已全部删除 ${result.changes} 条` })
       }
       for (const id of (payload.ids || [])) db().runRaw('DELETE FROM subsidy_payment WHERE id=?', id)
-      return success({ message: `已删除 ${(payload.ids||[]).length} 条` })
+      return success({ deleted: (payload.ids||[]).length, message: `已删除 ${(payload.ids||[]).length} 条` })
     } catch (e) { return errorResponse(String(e)) }
   })
 

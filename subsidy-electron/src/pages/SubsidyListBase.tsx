@@ -4,13 +4,12 @@
  */
 import { useState, useEffect, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Tag from '../components/Tag'
 import Modal from '../components/Modal'
 import ExcelImportWithMapping from '../components/ExcelImportWithMapping'
 import * as XLSX from 'xlsx'
 import * as api from '../api'
 import type { ApplicationSearchResult, ApplicationCreate, ApplicationOut, ExcelColumnTemplate } from '../types'
-import { PAY_STATUS, fmt } from '../utils'
+import { fmt } from '../utils'
 
 // ── 配置接口 ──
 export interface SubsidyListConfig {
@@ -66,12 +65,12 @@ const DEFAULT_IMPORT_FIELDS = [
 ]
 
 const SORTABLE_COLS: Record<string, string> = {
-  '计入超限面积': 'apply_area',
+  '计入超限面积': 'apply_area', '不计超限面积': 'apply_area_no_calc',
   '承包地面积': 'contract_area', '代耕代种面积': 'trust_area',
-  '不予补贴面积': 'no_subsidy_area', '申请金额': 'apply_amount', '发放金额': 'actual_amount',
+  '不予补贴面积': 'no_subsidy_area', '申请金额': 'apply_amount',
 }
-const NARROW_COLS = new Set(['计入超限面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额'])
-const HEADERS = ['姓名', '身份证', '手机号', '所在村', '所在组', '计入超限面积', '不计超限面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '发放金额', '状态', '打款日期', '备注', '代领备注', '操作']
+const NARROW_COLS = new Set(['计入超限面积', '不计超限面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额'])
+const HEADERS = ['姓名', '身份证', '手机号', '所在村', '所在组', '计入超限面积', '不计超限面积', '承包地面积', '代耕代种面积', '不予补贴面积', '申请金额', '打款日期', '备注', '代领备注', '操作']
 
 // ── Props ──
 export interface SubsidyListBaseProps {
@@ -229,9 +228,9 @@ export default function SubsidyListBase({
   }
 
   // ── Excel 导入 ──
-  const handleImport = async (rows: Record<string, unknown>[], _mapping?: Record<string, string>, overwrite?: boolean): Promise<{ created: number; skipped: number; errors: string[]; updated?: number }> => {
-    // rows 已经是 ExcelImportWithMapping 映射后的数据（key=系统字段名，value=Excel原始值）
-    // 批量确保农户存在（查到了用已有ID，查不到自动创建农户+家庭户）
+  const handleImport = async (rows: Record<string, unknown>[], _mapping?: Record<string, string>, overwrite?: boolean, onProgress?: (pct: number, msg: string) => void): Promise<{ created: number; skipped: number; errors: string[]; updated?: number; message?: string }> => {
+    // 阶段1: 校验农户信息（0%~10%）
+    onProgress?.(2, '正在校验农户信息…')
     const ensureRows = rows.map(r => ({
       id_card: String(r.id_card || '').trim(),
       real_name: String(r.real_name || '').trim(),
@@ -249,7 +248,10 @@ export default function SubsidyListBase({
         newFarmers = r.new_count || 0
       } catch { /* ignore */ }
     }
+    onProgress?.(10, newFarmers > 0 ? `已校验，新建 ${newFarmers} 个农户` : '农户校验完成')
 
+    // 阶段2: 组装导入数据（10%~20%）
+    onProgress?.(12, '正在组装导入数据…')
     const toCreate: Record<string, unknown>[] = []
     const errors: string[] = []
     for (let i = 0; i < rows.length; i++) {
@@ -272,32 +274,68 @@ export default function SubsidyListBase({
         contract_area: Number(row.contract_area || 0) || undefined,
         trust_area: Number(row.trust_area || 0) || undefined,
         no_subsidy_area: Number(row.no_subsidy_area || 0) || undefined,
-        // 优先用数字ID，降级用中文名
         apply_village_id: vi?.village_id || undefined,
         apply_group_no: vi?.group_no || undefined,
-        apply_village_name: vi?.village_name || String(row.village_name || '').trim() || undefined,
-        apply_group_display: vi ? `第${vi.group_no}组` : undefined,
+        apply_village_name: String(row.village_name || '').trim() || undefined,
+        apply_group_display: String(row.group_no || '').trim() || undefined,
         payment_village_id: vi?.village_id || undefined,
         payment_group_no: vi?.group_no || undefined,
-        payment_village_name: vi?.village_name || undefined,
-        payment_group_display: vi ? `第${vi.group_no}组` : undefined,
+        payment_village_name: String(row.village_name || '').trim() || undefined,
+        payment_group_display: String(row.group_no || '').trim() || undefined,
         apply_amount: Number(row.apply_amount || row.actual_amount || 0) || (applyArea * Number(subsidyType.standard_amount || 0)) || undefined,
         remark: String(row.remark || '').trim() || undefined,
       }
       toCreate.push(config.buildImportRow ? config.buildImportRow(data) : data)
     }
-    if (!toCreate.length) return { created: 0, skipped: 0, errors }
+    if (!toCreate.length) {
+      onProgress?.(100, '完成（无有效数据）')
+      return { created: 0, skipped: 0, errors }
+    }
 
+    // 阶段3: 分批写入数据库（20%~90%）
     const isPayment = config.apiBase.includes('payments')
-    const res = isPayment
-      ? await window.electronAPI.invoke('subsidies:batchImportPayments', { rows: toCreate, overwrite: overwrite || false })
-      : await api.batchImportApplications(toCreate as any)
-    const result = (res as any)?.data ?? res
-    const final: any = { ...result, errors: [...errors, ...(result?.errors || [])] }
-    const newMsg = newFarmers > 0 ? `，自动创建了 ${newFarmers} 个新农户` : ''
-    show(`✓ 导入 ${final.created || 0} 条，跳过 ${final.skipped || 0} 条${newMsg}`)
+    const BATCH_SIZE = 50
+    let totalCreated = 0, totalSkipped = 0, totalUpdated = 0
+    const allErrors = [...errors]
+
+    for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
+      const batch = toCreate.slice(i, i + BATCH_SIZE)
+      const batchNum = Math.floor(i / BATCH_SIZE) + 1
+      const totalBatches = Math.ceil(toCreate.length / BATCH_SIZE)
+      const pct = 20 + Math.round((i / toCreate.length) * 70)
+      onProgress?.(pct, `正在写入 ${i + 1}-${Math.min(i + BATCH_SIZE, toCreate.length)}/${toCreate.length}`)
+      // 让 React 有时间渲染进度条
+      await new Promise(r => requestAnimationFrame(r))
+
+      try {
+        const res = isPayment
+          ? await window.electronAPI.invoke('subsidies:batchImportPayments', { rows: batch, overwrite: overwrite || false })
+          : await api.batchImportApplications(batch as any)
+        const result = (res as any)?.data ?? res
+        totalCreated += result.created || 0
+        totalSkipped += result.skipped || 0
+        totalUpdated += result.updated || 0
+        if (result.errors?.length) {
+          const adjusted = result.errors.map((e: any) => {
+            if (typeof e === 'string') return e.replace(/^第(\d+)行/, (_, n) => `第${parseInt(n) + i}行`)
+            if (e && e.row != null) return `第${e.row + i}行：${e.message || '未知错误'}`
+            return String(e)
+          })
+          allErrors.push(...adjusted)
+        }
+      } catch (e: unknown) {
+        const err = e as Error
+        allErrors.push(`批次${batchNum}写入失败: ${err.message}`)
+      }
+    }
+
+    // 阶段4: 刷新页面（90%~100%）
+    onProgress?.(95, '正在刷新列表…')
     load()
-    return final
+    await new Promise(r => setTimeout(r, 200))
+
+    const newMsg = newFarmers > 0 ? `自动创建了 ${newFarmers} 个新农户` : undefined
+    return { created: totalCreated, updated: totalUpdated, skipped: totalSkipped, errors: allErrors, message: newMsg }
   }
 
   // ── 导出 ──
@@ -312,8 +350,6 @@ export default function SubsidyListBase({
         '承包地面积': a.contract_area ?? '', '代耕代种面积': a.trust_area ?? '',
         '不予补贴面积': a.no_subsidy_area ?? '',
         '申请金额': a.apply_amount ? Number(a.apply_amount).toFixed(2) : '',
-        '发放金额': a.actual_amount ? Number(a.actual_amount).toFixed(2) : '',
-        '状态': PAY_STATUS[a.pay_status]?.label || '', '打款日期': a.pay_date ?? '',
         '备注': a.remark || '', '代领备注': a.proxy_remark || '',
       }))
       const ws = XLSX.utils.json_to_sheet(rows)
@@ -323,8 +359,6 @@ export default function SubsidyListBase({
       XLSX.writeFile(wb, `${exportPrefix}_${subsidyType.subsidy_name}_${new Date().toISOString().slice(0, 10)}.xlsx`)
     } catch (e) { show('导出失败：' + (e as Error).message, 'err') }
   }
-
-  const totalAmt = apps.reduce((s, a) => s + Number(a.actual_amount || 0), 0)
 
   // 模板
   const selectedTmpl = templates.find(t => t.id) || null
@@ -406,13 +440,13 @@ export default function SubsidyListBase({
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={16} className="text-center py-10">
+            {loading && <tr><td colSpan={14} className="text-center py-10">
               <div className="inline-flex items-center gap-2 text-text-muted/60">
                 <span className="w-5 h-5 border-2 border-stone-300 border-t-primary rounded-full animate-spin" />
                 <span className="text-sm">加载中…</span>
               </div>
             </td></tr>}
-            {!loading && (!apps || apps.length === 0) && (<tr><td colSpan={16} className="text-center py-10 text-text-muted/50 text-sm">暂无记录，通过「Excel 导入」或「＋ 新增一条」添加</td></tr>)}
+            {!loading && (!apps || apps.length === 0) && (<tr><td colSpan={14} className="text-center py-10 text-text-muted/50 text-sm">暂无记录，通过「Excel 导入」或「＋ 新增一条」添加</td></tr>)}
             {!loading && apps && apps.map(a => (
               <tr key={a.id} className={`border-b border-border/50 hover:bg-warm/30 ${a.pay_status === 0 ? 'bg-amber-50/30' : ''}`}>
                 <td className="px-2 py-2 text-center">
@@ -436,10 +470,6 @@ export default function SubsidyListBase({
                 <td className="px-1.5 py-2 text-xs font-mono text-text-muted text-right max-w-[55px]">{a.trust_area || '—'}</td>
                 <td className="px-1.5 py-2 text-xs font-mono text-red-400 text-right max-w-[55px]">{a.no_subsidy_area || '—'}</td>
                 <td className="px-1.5 py-2 text-xs font-mono text-text-muted text-right max-w-[55px]">{a.apply_amount ? `¥${fmt(a.apply_amount)}` : '—'}</td>
-                <td className="px-2 py-2 text-sm font-mono font-bold text-primary whitespace-nowrap">
-                  {a.actual_amount ? <span title={a.apply_amount && a.apply_amount !== a.actual_amount ? `申请：${fmt(a.apply_amount)}` : ''}>{fmt(a.actual_amount)}</span> : <span className="text-amber-500 font-normal text-xs">待发放</span>}
-                </td>
-                <td className="px-2 py-2"><Tag label={PAY_STATUS[a.pay_status]?.label || '—'} color={PAY_STATUS[a.pay_status]?.color as 'green'} /></td>
                 <td className="px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap">{a.pay_date ?? '—'}</td>
                 <td className="px-2 py-2 text-xs text-text-muted max-w-[120px] truncate" title={a.remark || ''}>{a.remark || '—'}</td>
                 <td className="px-2 py-2 text-xs text-text-muted max-w-[120px] truncate" title={a.proxy_remark || ''}>{a.proxy_remark || '—'}</td>
@@ -456,7 +486,6 @@ export default function SubsidyListBase({
         </table>
         <div className="px-4 py-2 border-t border-border/50 bg-warm/10 flex justify-between text-xs text-text-muted">
           <span>共{total}条</span>
-          <span className="font-mono font-bold text-primary">实发合计 ¥{totalAmt.toFixed(2)}</span>
           <div className="flex gap-1">
             <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="px-2.5 py-1 border border-border rounded disabled:opacity-40">‹</button>
             <span className="px-2 py-1">第{page}/{Math.max(1, Math.ceil(total / 20))}页</span>

@@ -42,7 +42,7 @@ class SqlJsWrapper {
     // 获取最后插入的 rowid
     const rows = this.db.exec('SELECT last_insert_rowid() as id')
     const lastId = Number(rows[0]?.values[0]?.[0] || 0)
-    return { changes: 1, lastInsertRowid: lastId }
+    return { changes, lastInsertRowid: lastId }
   }
 
   /** 执行查询，返回第一条记录 */
@@ -100,10 +100,11 @@ class SqlJsWrapper {
   /** 执行原始 SQL（INSERT/UPDATE/DELETE），自动保存 */
   runRaw(sql: string, ...params: unknown[]): { changes: number; lastInsertRowid: number } {
     this.db.run(sql, params)
+    const changes = this.db.getRowsModified()
     this.save()
     const rows = this.db.exec('SELECT last_insert_rowid() as id')
     const lastId = Number(rows[0]?.values[0]?.[0] || 0)
-    return { changes: 1, lastInsertRowid: lastId }
+    return { changes, lastInsertRowid: lastId }
   }
 
   /** 批量执行 SQL */
