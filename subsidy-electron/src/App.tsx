@@ -4,7 +4,6 @@ import FarmersPage from './pages/FarmersPage'
 import SubsidyProjectsPage from './pages/SubsidyProjectsPage'
 import DashboardPage from './pages/DashboardPage'
 import { AIPage } from './pages/SummaryAndAI'
-import SettingsPage from './pages/SettingsPage'
 import ExternalLinksPage from './pages/ExternalLinksPage'
 import BackupPage from './pages/BackupPage'
 import ExcelTemplatePage from './pages/ExcelTemplatePage'
@@ -18,6 +17,7 @@ import ProjectProgressPage from './pages/ProjectProgressPage'
 import WorkflowDocPage from './pages/WorkflowDocPage'
 import ToolsPage from './pages/ToolsPage'
 import DataVerifyPage from './pages/DataVerifyPage'
+import VillageContactsPage from './pages/VillageContactsPage'
 import UserManagementPage from './pages/UserManagementPage'
 import PeopleMatchPage from './pages/PeopleMatchPage'
 import UpdatePage from './pages/UpdatePage'
@@ -124,6 +124,7 @@ function Layout() {
               <Routes>
             <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
             <Route path="/farmers"   element={<FarmersPage />} />
+            <Route path="/village-contacts" element={<VillageContactsPage />} />
             <Route path="/match-people" element={<PeopleMatchPage />} />
             <Route path="/projects"  element={<SubsidyProjectsPage />} />
             <Route path="/project-progress" element={<ProjectProgressPage />} />
@@ -134,7 +135,6 @@ function Layout() {
             <Route path="/tools"     element={<ToolsPage />} />
             <Route path="/data-verify" element={<DataVerifyPage />} />
             <Route path="/ai"        element={<AIPage />} />
-            <Route path="/settings/village-groups" element={<SettingsPage />} />
             <Route path="/settings/backup" element={<BackupPage />} />
             <Route path="/settings/excel-templates" element={<ExcelTemplatePage />} />
             <Route path="/settings/land-trust" element={<LandTrustPage />} />

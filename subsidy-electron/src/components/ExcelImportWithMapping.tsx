@@ -183,7 +183,7 @@ export default function ExcelImportWithMapping({
     const range = XLSX.utils.decode_range(ws['!ref'] || 'A1')
     const headerRowNum = range.s.r + skip
     const newRange = XLSX.utils.encode_range({ s: { r: headerRowNum, c: range.s.c }, e: range.e })
-    const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { range: newRange, defval: '' })
+    const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { range: newRange, defval: '', raw: false })
 
     if (data.length === 0) {
       alert(`Sheet「${sheetName}」${skip > 0 ? `跳过前${skip}行后` : ''}为空或格式不正确`)

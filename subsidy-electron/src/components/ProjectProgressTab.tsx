@@ -74,10 +74,80 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
     return [...seen]
   }, [records])
 
+  // ── 文件夹绑定 + 自动扫描 ──
+  const [folderPath, setFolderPath] = useState('')
+  const [scanning, setScanning] = useState(false)
+  const configKey = `project_progress_${projectId}`
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const cfg = await window.electronAPI.invoke<{ folderPath?: string }>('progress:loadConfig', configKey)
+        if (cfg?.folderPath) setFolderPath(cfg.folderPath)
+      } catch { /* ignore */ }
+    })()
+  }, [configKey])
+
+  const saveFolder = async (fp: string) => {
+    await window.electronAPI.invoke('progress:saveConfig', configKey, { folderPath: fp })
+  }
+
+  const selectFolder = async () => {
+    const p = await window.electronAPI.invoke<string | null>('dialog:selectFolder')
+    if (p) { setFolderPath(p); saveFolder(p) }
+  }
+
+  const doScan = useCallback(async () => {
+    if (!folderPath || !allStages.length) return
+    setScanning(true)
+    try {
+      const villageNames = records.filter(r => r.person_name?.trim()).map(r => r.village_name)
+      const res = await window.electronAPI.invoke<{ stages: { stage: string; villages: string[] }[] }>(
+        'progress:scan', folderPath, allStages, villageNames
+      )
+      if (!res?.stages) return
+
+      const matchMap = new Map<string, Set<string>>()
+      for (const sr of res.stages) matchMap.set(sr.stage, new Set(sr.villages))
+
+      const now = new Date().toISOString()
+      let changed = 0
+      setRecords(prev => prev.map(r => {
+        let modified = false
+        const stages = r.stages.map(s => {
+          const matched = matchMap.get(s.name)
+          if (matched && matched.has(r.village_name) && s.status !== 'done') {
+            modified = true
+            changed++
+            return { ...s, status: 'done' as StatusKey, date: now }
+          }
+          return s
+        })
+        if (modified) {
+          const updated = { ...r, stages }
+          saveRecAsync(updated)
+          return updated
+        }
+        return r
+      }))
+
+      if (changed > 0) show(`✓ 扫描完成，自动标记 ${changed} 处为已完成`)
+      else show('扫描完成，无新增完成项')
+    } catch (e) { show('扫描失败: ' + (e as Error).message, 'err') }
+    finally { setScanning(false) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [folderPath, JSON.stringify(allStages), records, show])
+
+  // 文件夹变化后自动扫描
+  useEffect(() => {
+    if (!folderPath || !allStages.length) return
+    const t = setTimeout(() => doScan(), 800)
+    return () => clearTimeout(t)
+  }, [folderPath, allStages.length])
+
   const stats = useMemo(() => {
     let doneCells = 0, totalCells = 0, doneVillages = 0, urgedVillages = 0, validCount = 0
     for (const r of records) {
-      if (!r.person_name?.trim()) continue
       validCount++
       const done = r.stages.filter(s => s.status === 'done').length
       doneCells += done; totalCells += r.stages.length
@@ -88,7 +158,6 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
   }, [records])
 
   const displayRecords = useMemo(() => records.filter(r => {
-    if (!r.person_name?.trim()) return false
     if (search && !r.village_name.includes(search) && !r.person_name.includes(search)) return false
     if (statusFilter === 'done' && r.stages.some(s => s.status !== 'done')) return false
     if (statusFilter === 'undone' && r.stages.every(s => s.status === 'done')) return false
@@ -169,18 +238,21 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
     window.electronAPI.invoke('project-progress:batch', { projectId, action: 'swap_stages', stage_a: snA, stage_b: snB })
   }, [allStages, projectId])
 
-  const initAll = useCallback(async () => {
-    const res: any = await window.electronAPI.invoke('project-progress:batch', { projectId, action: 'init' })
-    show(res?.data?.message ?? '已初始化')
-    loadRecords() // fire-and-forget 重拉
-  }, [projectId, show, loadRecords])
+  // ── 操作：先更新本地状态，再异步落盘，不重新拉全量 ──
 
-  const syncLeaders = useCallback(async () => {
-    const res: any = await window.electronAPI.invoke('project-progress:batch', { projectId, action: 'sync_leaders' })
-    const data = res?.data ?? res
-    show(data.updated > 0 ? `✓ 已同步 ${data.updated} 个` : '已是最新')
-    loadRecords() // fire-and-forget 重拉
-  }, [projectId, show, loadRecords])
+  const [source, setSource] = useState<'application' | 'payment'>('application')
+  const [initializing, setInitializing] = useState(false)
+
+  const initAll = useCallback(async () => {
+    setInitializing(true)
+    try {
+      const res: any = await window.electronAPI.invoke('project-progress:batch', { projectId, action: 'init', data_source: source })
+      show(res?.data?.message ?? '已初始化')
+      await loadRecords()
+    } catch (e) { show('初始化失败: ' + (e as Error).message, 'err') }
+    finally { setInitializing(false) }
+  }, [projectId, source, show, loadRecords])
+
 
   const copySummary = useCallback(async (stageName: string) => {
     const groups: Record<string, string[]> = {}
@@ -265,7 +337,7 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
             </div>
           </div>
           {unassignedCount > 0 && (
-            <span className="text-xs text-text-muted/50">{unassignedCount} 村待分配（已隐藏）</span>
+            <span className="text-xs text-text-muted/50">{unassignedCount} 村待录入负责人</span>
           )}
         </div>
       </div>
@@ -278,16 +350,68 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
           className="border border-border rounded-btn px-2 py-1.5 text-xs outline-none bg-white">
           <option value="all">全部</option><option value="undone">有未完成</option><option value="done">全部完成</option>
         </select>
+
+        {/* 文件夹绑定 + 扫描 */}
+        <div className="flex items-center gap-1.5 border border-border/50 rounded-btn px-2 py-1 bg-warm/10">
+          <span className="text-[10px] text-text-muted shrink-0">📁</span>
+          <span className={`text-[11px] truncate max-w-[160px] ${folderPath ? 'text-text-primary font-mono' : 'text-text-muted/50'}`}
+            title={folderPath}>
+            {folderPath ? folderPath.split(/[/\\]/).pop() : '绑定文件夹'}
+          </span>
+          <button onClick={selectFolder} className="text-[10px] text-primary hover:underline shrink-0">选择</button>
+          {folderPath && <button onClick={() => { setFolderPath(''); saveFolder('') }} className="text-[10px] text-red-400 hover:underline shrink-0">✕</button>}
+        </div>
+        <button onClick={doScan} disabled={scanning || !folderPath}
+          className={`px-2 py-1.5 text-xs rounded-btn ${
+            scanning ? 'bg-blue-50 text-blue-400' : 'bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100'
+          } disabled:opacity-50 disabled:cursor-not-allowed`} title="自动扫描：文件夹/{阶段名}/ 中文件名含村名即标记完成">
+          {scanning ? '⏳' : '🔍'} 扫描
+        </button>
+
         <button onClick={()=>setDrawerOpen(true)} className="px-3 py-1.5 text-xs border border-primary-500/30 text-primary rounded-btn hover:bg-primary-500/5 font-medium">⚙ 阶段管理</button>
-        <button onClick={initAll} className="px-3 py-1.5 text-xs border border-border rounded-btn hover:bg-warm/30">🔄 初始化</button>
-        <button onClick={syncLeaders} className="px-3 py-1.5 text-xs border border-amber-200 text-amber-700 rounded-btn hover:bg-amber-50">👤 同步</button>
+
+        <div className="flex items-center gap-0 bg-white border border-border rounded-btn overflow-hidden text-xs" title="选择数据来源">
+          <button onClick={() => setSource('application')}
+            className={`px-2 py-1.5 transition-colors ${source === 'application' ? 'bg-primary-500 text-white font-medium' : 'text-text-muted hover:bg-warm/20'}`}>
+            📋预申请
+          </button>
+          <button onClick={() => setSource('payment')}
+            className={`px-2 py-1.5 transition-colors ${source === 'payment' ? 'bg-primary-500 text-white font-medium' : 'text-text-muted hover:bg-warm/20'}`}>
+            💰发放
+          </button>
+        </div>
+        <button onClick={initAll} disabled={initializing}
+          className={`px-3 py-1.5 text-xs border rounded-btn transition-colors
+            ${initializing ? 'bg-blue-50 border-blue-200 text-blue-500' : 'border-border hover:bg-warm/30'}`}>
+          {initializing ? (
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
+              初始化中…
+            </span>
+          ) : '🔄 初始化'}
+        </button>
         <button onClick={exportExcel} className="px-3 py-1.5 text-xs border border-green-200 text-green-700 rounded-btn hover:bg-green-50">📥 导出</button>
         <span className="ml-auto text-xs text-text-muted">{displayRecords.length} 村</span>
       </div>
 
+      {folderPath && (
+        <div className="mb-3 text-[11px] text-text-muted/60">
+          📁 扫描规则：{folderPath}<span className="text-primary font-mono">/{'{阶段名}'}/</span> 下文件名含村名 → 自动标记该村该阶段为「已完成」
+        </div>
+      )}
+
       {/* ═══════ 村卡片列表 ═══════ */}
       {records.length===0 ? (
-        <div className="text-center py-16 text-text-muted text-sm">暂无进度记录，<button onClick={initAll} className="text-primary underline">点击初始化</button></div>
+        <div className="text-center py-16 text-text-muted text-sm">
+          {initializing ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="w-4 h-4 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
+              正在初始化，请稍候…
+            </span>
+          ) : (
+            <>暂无进度记录，<button onClick={initAll} className="text-primary underline">点击初始化</button></>
+          )}
+        </div>
       ) : displayRecords.length===0 ? (
         <div className="text-center py-16 text-text-muted text-sm">无匹配村庄</div>
       ) : (

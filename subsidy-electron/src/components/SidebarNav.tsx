@@ -14,6 +14,7 @@ const sections: SidebarSection[] = [
     items: [
       { label: '农户列表', to: '/farmers' },
       { label: '大户管理', to: '/large-farmers' },
+      { label: '村组联系人', to: '/village-contacts' },
       { label: '人员匹配', to: '/match-people' },
       { label: '户籍导入', to: '/settings/household-import' },
       { label: '家庭关系导入', to: '/settings/family-relation-import' },
@@ -50,7 +51,6 @@ const sections: SidebarSection[] = [
 
 const systemItems = [
   { label: '👤 用户管理', to: '/settings/users' },
-  { label: '🏘 村组管理', to: '/settings/village-groups' },
   { label: '🔄 软件更新', to: '/settings/update' },
 ]
 

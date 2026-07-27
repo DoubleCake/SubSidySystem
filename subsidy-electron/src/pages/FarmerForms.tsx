@@ -723,7 +723,7 @@ export function ConfirmedAreaImport({ open, confirmedAreaRows, setConfirmedAreaR
                 const data = await file.arrayBuffer()
                 const wb = XLSX.read(data)
                 const ws = wb.Sheets[wb.SheetNames[0]]
-                const raw: Record<string, unknown>[] = XLSX.utils.sheet_to_json(ws, { defval: '' })
+                const raw: Record<string, unknown>[] = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false })
                 const rows = raw.map(r => {
                   const name = String(r['姓名'] ?? r['real_name'] ?? r['名字'] ?? '').trim()
                   const idCard = String(r['身份证号'] ?? r['id_card'] ?? r['身份证'] ?? '').trim()

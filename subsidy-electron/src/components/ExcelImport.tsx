@@ -33,7 +33,7 @@ export default function ExcelImport({ open, onClose, title, templateHeaders, tem
     reader.onload = e => {
       const wb = XLSX.read(e.target?.result, { type: 'array' })
       const ws = wb.Sheets[wb.SheetNames[0]]
-      const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' })
+      const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '', raw: false })
       setRows(data)
       setStep('preview')
     }

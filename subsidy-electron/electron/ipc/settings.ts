@@ -355,7 +355,20 @@ export function registerSettingsHandlers(): void {
       const v = db().getRaw<Record<string, unknown>>('SELECT * FROM village WHERE id=?', villageId)
       if (!v) return errorResponse('村不存在', 404)
       const groups = db().allRaw('SELECT * FROM village_group WHERE village_id=? ORDER BY group_no', villageId)
-      return success({ ...v, groups })
+      // 取当前负责人（至今）
+      const contacts = db().allRaw(
+        `SELECT vc.*, vg.group_no FROM village_contact vc
+         LEFT JOIN village_group vg ON vc.village_id = vg.village_id
+         WHERE vc.village_id=? AND vc.end_year IS NULL
+         ORDER BY vc.start_year DESC`,
+        villageId
+      )
+      const currentLeader = contacts.length > 0 ? contacts[0] : null
+      return success({
+        ...v, groups, contacts,
+        leader_name: currentLeader?.leader_name || '',
+        leader_phone: currentLeader?.leader_phone || '',
+      })
     } catch (e) { return errorResponse(String(e)) }
   })
 

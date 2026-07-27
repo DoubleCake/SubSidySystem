@@ -80,44 +80,66 @@ export function registerProjectProgressHandlers(): void {
 
       switch (action) {
         case 'init': {
-          // 从村庄表初始化所有村
-          const villages = db().allRaw<{ id: number; village_name: string; group_no: number }>(
-            'SELECT vg.*, v.village_name FROM village_group vg JOIN village v ON vg.village_id = v.id ORDER BY v.village_name, vg.group_no'
-          )
-          let added = 0
-          for (const v of villages) {
-            const exists = rows.find(r => r.village_id === v.id)
-            if (!exists) {
-              db().runRaw(
-                `INSERT INTO project_progress (subsidy_type_id, village_id, village_name, stages) VALUES (?,?,?,?)`,
-                projectId, v.id, `${v.village_name}${formatGroupNoSimple(v.group_no)}`, '[]'
-              )
-              added++
-            }
-          }
-          return success({ message: `已初始化 ${added} 个村` })
-        }
+          const dataSource = payload.data_source || 'application'
+          const table = dataSource === 'payment' ? 'subsidy_payment' : 'subsidy_application'
+          const nameCol = dataSource === 'payment' ? 'payment_village_name' : 'apply_village_name'
+          const groupCol = dataSource === 'payment' ? 'payment_group_display' : 'apply_group_display'
 
-        case 'sync_leaders': {
-          // 从村庄表同步负责人信息
-          let updated = 0
-          for (const r of rows) {
-            const leader = db().getRaw<{ real_name: string; phone: string }>(`
-              SELECT fp.real_name, fp.phone FROM farmer_profile fp
-              JOIN family_household hh ON fp.household_id = hh.id
-              WHERE hh.village_id = (SELECT village_id FROM village_group WHERE id = ?)
-              AND fp.relation = '本人'
-              LIMIT 1
-            `, r.village_id)
-            if (leader) {
-              db().runRaw(
-                `UPDATE project_progress SET person_name=?, phone=?, updated_at=datetime('now','localtime') WHERE id=?`,
-                leader.real_name || '', leader.phone || '', r.id
-              )
-              updated++
-            }
+          // ① 从补贴表取有数据的村（只按村名，不含组）
+          const entries = db().allRaw<{ village_name: string }>(`
+            SELECT DISTINCT ${nameCol} as village_name
+            FROM ${table}
+            WHERE subsidy_type_id = ? AND ${nameCol} IS NOT NULL AND ${nameCol} != ''
+            ORDER BY village_name
+          `, projectId)
+
+          // ② 建立村名→当前负责人缓存（village_contact 中 end_year IS NULL 的现任）
+          const leaderCache = new Map<string, { name: string; phone: string; title: string }>()
+          const allLeaders = db().allRaw<{ village_name: string; leader_name: string; leader_phone: string; leader_title: string }>(
+            `SELECT vc.village_name, vc.leader_name, vc.leader_phone, vc.leader_title
+             FROM village_contact vc WHERE vc.end_year IS NULL`
+          )
+          for (const l of allLeaders) {
+            if (l.leader_name?.trim()) leaderCache.set(l.village_name, { name: l.leader_name, phone: l.leader_phone || '', title: l.leader_title || '' })
           }
-          return success({ message: `已同步`, updated })
+
+          let added = 0, filled = 0
+          const seen = new Set(rows.map(r => r.village_name as string))
+
+          for (const e of entries) {
+            const vname = (e.village_name || '未知').trim()
+
+            const leader = leaderCache.get(vname)
+            const personName = leader?.name || ''
+            const personPhone = leader?.phone || ''
+
+            if (seen.has(vname)) {
+              // 已存在，更新负责人信息
+              if (personName) {
+                db().runRaw(
+                  `UPDATE project_progress SET person_name=?, phone=?, updated_at=datetime('now','localtime')
+                   WHERE subsidy_type_id=? AND village_name=?`,
+                  personName, personPhone, projectId, vname
+                )
+                filled++
+              }
+              continue
+            }
+
+            // 找 village id
+            const vObj = db().getRaw<{ id: number }>('SELECT id FROM village WHERE village_name=?', vname)
+
+            db().runRaw(
+              `INSERT INTO project_progress (subsidy_type_id, village_id, village_name, person_name, phone, stages)
+               VALUES (?,?,?,?,?,?)`,
+              projectId, vObj?.id || 0, vname, personName, personPhone, '[]'
+            )
+            added++
+            if (personName) filled++
+          }
+
+          const sourceLabel = dataSource === 'payment' ? '发放表' : '预申请表'
+          return success({ message: `从${sourceLabel}初始化：新增 ${added} 个村，${filled} 个已填负责人` })
         }
 
         case 'add_stage_to_all': {

@@ -99,7 +99,7 @@ export default function ExcelTemplatePage() {
       try {
         const wb = XLSX.read(e.target?.result, { type: 'array' })
         const ws = wb.Sheets[wb.SheetNames[0]]
-        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' }) as Record<string,unknown>[]
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false }) as Record<string,unknown>[]
         const columns = rows.length > 0 ? Object.keys(rows[0]) : []
         const sampleRows = rows.slice(0, 3)
 
@@ -141,7 +141,7 @@ export default function ExcelTemplatePage() {
       try {
         const wb = XLSX.read(e.target?.result, { type: 'array' })
         const ws = wb.Sheets[wb.SheetNames[0]]
-        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' }) as Record<string,unknown>[]
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false }) as Record<string,unknown>[]
         const columns = rows.length > 0 ? Object.keys(rows[0]) : []
         const r = await api.aiDetectColumns({ columns, business_type: 'SUBSIDY', sample_rows: rows.slice(0,3) })
         // 更新映射

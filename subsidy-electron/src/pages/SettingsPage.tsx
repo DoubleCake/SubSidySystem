@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import Modal from '../components/Modal'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
-import VillageContactsPage from './VillageContactsPage'
 import * as api from '../api'
 
 // ── 类型 ──────────────────────────────────
@@ -32,13 +31,14 @@ interface VillageDetail {
   household_count: number
   contacts: Array<{
     id: number
-    name: string
-    phone: string
-    position: string
-    is_agri_lead: boolean
-    sort_order: number
+    leader_name: string
+    leader_phone: string
+    leader_title: string
+    contact_name: string
+    contact_phone: string
+    start_year: number
+    end_year: number | null
     remark: string
-    farmer_id: number | null
   }>
   groups: Array<{
     id: number
@@ -101,7 +101,7 @@ const SOIL_OPTS       = ['优', '良', '一般', '差']
 
 // ══════════════════════════════════════════
 export default function SettingsPage() {
-  const [tab, setTab] = useState<'groups' | 'land' | 'contacts'>('groups')
+  const [tab, setTab] = useState<'groups' | 'land'>('groups')
   const { toast, show } = useToast()
   const navigate = useNavigate()
   const [groups, setGroups] = useState<VillageGroup[]>([])
@@ -324,7 +324,7 @@ export default function SettingsPage() {
       <div className="flex items-center gap-4 mb-5">
         <h1 className="text-xl font-bold text-text-primary">村组管理</h1>
         <div className="flex gap-1 bg-warm/30 p-1 rounded-btn text-sm">
-          {([['groups', '村组结构'], ['land', '土地基础信息'], ['contacts', '村组联系人']] as const).map(([t, label]) => (
+          {([['groups', '村组结构'], ['land', '土地基础信息']] as const).map(([t, label]) => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-1.5 rounded-md transition-colors ${tab === t
                 ? 'bg-white shadow text-primary font-medium'
@@ -476,8 +476,6 @@ export default function SettingsPage() {
             </p>
           </Modal>
         </>
-      ) : tab === 'contacts' ? (
-        <VillageContactsPage embedded />
       ) : (
         <LandInfoTab show={show} />
       )}
@@ -632,32 +630,24 @@ function VillageGroupsLayout(props: {
                     <div key={c.id}
                       className="flex items-center gap-2 bg-warm/20 border border-border/50 rounded-btn px-3 py-2">
                       <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                        c.position === '书记' ? 'bg-red-100 text-red-700' :
-                        c.position === '副书记' ? 'bg-orange-100 text-orange-700' :
-                        c.position === '副主任' ? 'bg-blue-100 text-blue-700' :
-                        c.position === '文书' ? 'bg-purple-100 text-purple-700' :
+                        c.leader_title === '村支书' ? 'bg-red-100 text-red-700' :
+                        c.leader_title === '副书记' ? 'bg-orange-100 text-orange-700' :
+                        c.leader_title === '副主任' ? 'bg-blue-100 text-blue-700' :
+                        c.leader_title === '文书' ? 'bg-purple-100 text-purple-700' :
                         'bg-gray-100 text-gray-600'
-                      }`}>{c.position || '干部'}</span>
-                      <span className="text-sm font-semibold text-text-primary">{c.name}</span>
-                      {c.phone && (
-                        <a href={`tel:${c.phone}`} className="text-xs text-blue-500 font-mono hover:underline">
-                          📞{c.phone}
+                      }`}>{c.leader_title || '干部'}</span>
+                      <span className="text-sm font-semibold text-text-primary">{c.leader_name}</span>
+                      {c.leader_phone && (
+                        <a href={`tel:${c.leader_phone}`} className="text-xs text-blue-500 font-mono hover:underline">
+                          📞{c.leader_phone}
                         </a>
                       )}
-                      {c.farmer_id ? (
-                        <button
-                          onClick={() => navigate(`/farmers?id=${c.farmer_id}`)}
-                          className="ml-auto text-xs text-primary border border-primary-500/20 px-2 py-0.5 rounded hover:bg-primary-500/5"
-                          title="查看农户详情"
-                        >
-                          👤 农户
-                        </button>
-                      ) : (
-                        <span className="ml-auto text-xs text-text-muted/40">未关联</span>
+                      {c.end_year === null && (
+                        <span className="text-[9px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full">现任</span>
                       )}
-                      {c.is_agri_lead && (
-                        <span className="text-[9px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full">⭐ 农业负责人</span>
-                      )}
+                      <span className="ml-auto text-xs text-text-muted/50 font-mono">
+                        {c.start_year}–{c.end_year ?? '至今'}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -872,7 +862,7 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
       const buf  = await file.arrayBuffer()
       const wb   = XLSX.read(buf, { type: 'array' })
       const ws   = wb.Sheets[wb.SheetNames[0]]
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' })
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '', raw: false })
 
       // 建立村名→village_id 映射
       const nameToId = new Map<string, number>(infos.map(i => [i.village_name, i.village_id]))

@@ -20,6 +20,7 @@ import PreApplyList from './PreApplyList'
 import DisbursementList from './DisbursementList'
 import ProxyList from './ProxyList'
 import PrecheckHistoryTab from '../components/PrecheckHistoryTab'
+import ProjectProgressTab from '../components/ProjectProgressTab'
 
 // 代领导入字段配置
 const PROXY_IMPORT_FIELDS = [
@@ -55,8 +56,8 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   const { toast, show } = useToast()
 
   // Tab状态管理
-  const [activeTab, setActiveTab] = useState<'preApply' | 'disbursement' | 'proxy' | 'precheckHistory'>('preApply')
-  const switchTab = (tab: 'preApply' | 'disbursement' | 'proxy' | 'precheckHistory') => {
+  const [activeTab, setActiveTab] = useState<'preApply' | 'disbursement' | 'proxy' | 'precheckHistory' | 'villageProgress'>('preApply')
+  const switchTab = (tab: 'preApply' | 'disbursement' | 'proxy' | 'precheckHistory' | 'villageProgress') => {
     setActiveTab(tab)
     if (tab !== 'precheckHistory') {
       setPage(1)
@@ -755,6 +756,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
           { key: 'disbursement' as const, label: '💰 正式分发' },
           { key: 'proxy' as const, label: '👥 代领关系' },
           { key: 'precheckHistory' as const, label: '📋 预检历史' },
+          { key: 'villageProgress' as const, label: '📊 进度查看' },
         ].map(tab => (
           <button key={tab.key} onClick={() => switchTab(tab.key)}
             className={`px-3.5 py-2.5 text-xs font-medium border-b-2 transition-all ${
@@ -1268,6 +1270,12 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       {activeTab === 'precheckHistory' && (
         <div className="space-y-4">
           <PrecheckHistoryTab subsidyType={subsidyType} preCheckResults={preCheckResults} />
+        </div>
+      )}
+
+      {activeTab === 'villageProgress' && (
+        <div className="space-y-4">
+          <ProjectProgressTab subsidyType={{ id: subsidyType.id, subsidy_name: subsidyType.subsidy_name, subsidy_year: subsidyType.subsidy_year }} />
         </div>
       )}
 

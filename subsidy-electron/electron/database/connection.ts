@@ -12,6 +12,7 @@ type SqlJsDatabase = {
   prepare(sql: string): SqlJsStatement
   export(): Uint8Array
   close(): void
+  getRowsModified(): number
 }
 type SqlJsStatement = {
   bind(params?: unknown[]): boolean
@@ -38,6 +39,7 @@ class SqlJsWrapper {
     // 将命名参数转为位置参数
     const { query, positionalParams } = this.convertNamedParams(sql, params)
     this.db.run(query, positionalParams)
+    const changes = this.db.getRowsModified()
     this.save()
     // 获取最后插入的 rowid
     const rows = this.db.exec('SELECT last_insert_rowid() as id')
