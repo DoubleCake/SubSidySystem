@@ -52,7 +52,7 @@ interface Props {
       transform?: string
     }>
   }) => Promise<{ id: number }>
-  onImport: (rows: Record<string, unknown>[], mapping?: Record<string, string>, overwrite?: boolean, onProgress?: (pct: number, msg: string) => void) => Promise<{ created: number; updated?: number; skipped: number; errors: string[]; message?: string }>
+  onImport: (rows: Record<string, unknown>[], mapping?: Record<string, string>, overwrite?: boolean, onProgress?: (s: { stage: string; text: string; written?: number; total?: number }) => void) => Promise<{ created: number; updated?: number; skipped: number; errors: string[]; message?: string }>
   onSuccess: () => void
   preCheck?: (rows: Record<string, unknown>[], mapping?: Record<string, string>) => Promise<{
     passed_rows: number[]
@@ -131,17 +131,21 @@ export default function ExcelImportWithMapping({
   })
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | ''>('')
 
-  // 进度条状态
-  const [progress, setProgress] = useState(0)
-  const [progressMsg, setProgressMsg] = useState('')
+  // 导入进度状态（方案A：不确定进度条+实时计数）
+  const [importStage, setImportStage] = useState('')
+  const [statusText, setStatusText] = useState('')
+  const [written, setWritten] = useState(0)
+  const [importTotal, setImportTotal] = useState(0)
 
   const reset = () => {
     setStep('upload')
     setRows([])
     setResult(null)
     setColumnMappings([])
-    setProgress(0)
-    setProgressMsg('')
+    setImportStage('')
+    setStatusText('')
+    setWritten(0)
+    setImportTotal(0)
     setSelectedTemplateId('')
     setSaveTemplateOpen(false)
     setWorkbook(null)
@@ -328,8 +332,10 @@ export default function ExcelImportWithMapping({
 
     const handleImportConfirm = async () => {
     setStep('importing')
-    setProgress(0)
-    setProgressMsg(`准备导入 ${rows.length} 条记录…`)
+    setImportStage('validating')
+    setStatusText('准备导入…')
+    setWritten(0)
+    setImportTotal(rows.length)
 
     // 给 React 一帧时间渲染进度条 UI
     await new Promise(r => requestAnimationFrame(r))
@@ -340,13 +346,15 @@ export default function ExcelImportWithMapping({
     const dataToImport = mappedData.rows
 
     try {
-      const res = await onImport(dataToImport, mapping, overwrite, (pct: number, msg: string) => {
-        setProgress(pct)
-        setProgressMsg(msg)
+      const res = await onImport(dataToImport, mapping, overwrite, (s) => {
+        setImportStage(s.stage)
+        setStatusText(s.text)
+        if (s.written != null) setWritten(s.written)
+        if (s.total != null) setImportTotal(s.total)
       })
 
-      setProgress(100)
-      setProgressMsg('导入完成！')
+      setImportStage('done')
+      setStatusText('导入完成！')
       await new Promise(r => setTimeout(r, 400))
       setResult({ created: res.created || 0, updated: res.updated, skipped: res.skipped || 0, errors: res.errors || [], message: res.message })
       setStep('result')
@@ -877,42 +885,54 @@ export default function ExcelImportWithMapping({
         </div>
       )}
 
-      {/* Step 5: 进度条 */}
+      {/* Step 5: 进度条（方案A：不确定动画+实时计数） */}
       {step === 'importing' && (
-        <div className="py-6">
+        <div className="py-8">
           <div className="text-center mb-6">
-            <div className="text-4xl mb-3">⏳</div>
-            <p className="text-text-primary text-sm font-medium">{progressMsg}</p>
-            <p className="text-text-muted text-xs mt-1">正在处理 {rows.length} 条记录，请勿关闭页面</p>
+            <div className="text-4xl mb-4">⏳</div>
+            <p className="text-text-primary text-sm font-medium">{statusText || '准备导入…'}</p>
+            <p className="text-text-muted text-xs mt-1">
+              正在处理 {importTotal || rows.length} 条记录，请勿关闭页面
+            </p>
           </div>
 
-          {/* 主进度条 */}
-          <div className="bg-warm/30 rounded-full h-4 overflow-hidden mb-3 shadow-inner">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-300 ease-out relative overflow-hidden"
-              style={{ width: `${progress}%` }}>
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
-            </div>
-          </div>
-          <div className="flex justify-between items-center text-xs text-text-muted">
-            <span>{progressMsg.includes('完成') ? '✅ 完成' : '处理中…'}</span>
-            <span className="font-mono font-bold text-primary">{progress}%</span>
+          {/* 不确定进度条 — 无限循环滑动动画，不依赖百分比 */}
+          <div className="bg-warm/30 rounded-full h-3 overflow-hidden mb-6 shadow-inner">
+            <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-400"
+              style={{ animation: 'import-slide 1.5s ease-in-out infinite' }} />
           </div>
 
-          {/* 分段状态指示 */}
-          <div className="mt-5 grid grid-cols-3 gap-2">
+          {/* 实时写入计数 */}
+          <div className="text-center mb-5">
+            {written > 0 && (
+              <span className="text-xs text-text-muted">
+                已写入 <strong className="text-primary font-mono">{written}</strong>/{importTotal || rows.length} 条
+              </span>
+            )}
+          </div>
+
+          {/* 阶段指示器 */}
+          <div className="space-y-1">
             {[
-              { label: '数据校验', threshold: 30 },
-              { label: '写入数据库', threshold: 60 },
-              { label: '完成确认', threshold: 95 },
-            ].map(stage => (
-              <div key={stage.label} className={`text-center py-2 rounded-btn text-xs transition-colors
-                ${progress >= stage.threshold
-                  ? 'bg-primary-500/5 text-primary border border-primary-500/20'
-                  : 'bg-warm/30 text-text-muted/50 border border-border/50'}`}>
-                {progress >= stage.threshold ? '✓ ' : ''}{stage.label}
-              </div>
-            ))}
+              { key: 'validating', label: '校验农户信息' },
+              { key: 'writing',    label: `写入数据库${written > 0 ? ` — 已处理 ${written}/${importTotal || rows.length} 条` : ''}` },
+              { key: 'done',       label: '导入完成' },
+            ].map(item => {
+              const order = ['validating', 'writing', 'done']
+              const curIdx = order.indexOf(importStage)
+              const itemIdx = order.indexOf(item.key)
+              const done = curIdx > itemIdx || importStage === 'done'
+              const active = curIdx === itemIdx && importStage !== 'done'
+              return (
+                <div key={item.key} className={`flex items-center gap-2.5 px-3 py-1.5 rounded text-xs transition-colors
+                  ${done ? 'text-emerald-600' : active ? 'text-primary bg-primary-500/5 font-medium' : 'text-text-muted/30'}`}>
+                  <span className="w-4 text-center shrink-0">
+                    {done ? '✓' : active ? <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse" /> : '○'}
+                  </span>
+                  {item.label}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

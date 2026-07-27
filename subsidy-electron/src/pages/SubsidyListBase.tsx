@@ -228,9 +228,9 @@ export default function SubsidyListBase({
   }
 
   // ── Excel 导入 ──
-  const handleImport = async (rows: Record<string, unknown>[], _mapping?: Record<string, string>, overwrite?: boolean, onProgress?: (pct: number, msg: string) => void): Promise<{ created: number; skipped: number; errors: string[]; updated?: number; message?: string }> => {
-    // 阶段1: 校验农户信息（0%~10%）
-    onProgress?.(2, '正在校验农户信息…')
+  const handleImport = async (rows: Record<string, unknown>[], _mapping?: Record<string, string>, overwrite?: boolean, onProgress?: (s: { stage: string; text: string; written?: number; total?: number }) => void): Promise<{ created: number; skipped: number; errors: string[]; updated?: number; message?: string }> => {
+    // 阶段1: 校验农户信息
+    onProgress?.({ stage: 'validating', text: '正在校验农户信息…', total: rows.length })
     const ensureRows = rows.map(r => ({
       id_card: String(r.id_card || '').trim(),
       real_name: String(r.real_name || '').trim(),
@@ -248,10 +248,9 @@ export default function SubsidyListBase({
         newFarmers = r.new_count || 0
       } catch { /* ignore */ }
     }
-    onProgress?.(10, newFarmers > 0 ? `已校验，新建 ${newFarmers} 个农户` : '农户校验完成')
 
-    // 阶段2: 组装导入数据（10%~20%）
-    onProgress?.(12, '正在组装导入数据…')
+    // 阶段2: 组装导入数据
+    onProgress?.({ stage: 'validating', text: '正在组装导入数据…', total: rows.length })
     const toCreate: Record<string, unknown>[] = []
     const errors: string[] = []
     for (let i = 0; i < rows.length; i++) {
@@ -288,11 +287,12 @@ export default function SubsidyListBase({
       toCreate.push(config.buildImportRow ? config.buildImportRow(data) : data)
     }
     if (!toCreate.length) {
-      onProgress?.(100, '完成（无有效数据）')
+      onProgress?.({ stage: 'done', text: '完成（无有效数据）', written: 0, total: 0 })
       return { created: 0, skipped: 0, errors }
     }
 
-    // 阶段3: 分批写入数据库（20%~90%）
+    // 阶段3: 分批写入数据库
+    onProgress?.({ stage: 'writing', text: '正在写入数据库…', written: 0, total: toCreate.length })
     const isPayment = config.apiBase.includes('payments')
     const BATCH_SIZE = 50
     let totalCreated = 0, totalSkipped = 0, totalUpdated = 0
@@ -301,11 +301,10 @@ export default function SubsidyListBase({
     for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
       const batch = toCreate.slice(i, i + BATCH_SIZE)
       const batchNum = Math.floor(i / BATCH_SIZE) + 1
-      const totalBatches = Math.ceil(toCreate.length / BATCH_SIZE)
-      const pct = 20 + Math.round((i / toCreate.length) * 70)
-      onProgress?.(pct, `正在写入 ${i + 1}-${Math.min(i + BATCH_SIZE, toCreate.length)}/${toCreate.length}`)
-      // 让 React 有时间渲染进度条
+      const processed = Math.min(i + BATCH_SIZE, toCreate.length)
+      // 让 React 有时间渲染
       await new Promise(r => requestAnimationFrame(r))
+      onProgress?.({ stage: 'writing', text: `正在写入第 ${batchNum} 批…`, written: processed, total: toCreate.length })
 
       try {
         const res = isPayment
@@ -329,8 +328,8 @@ export default function SubsidyListBase({
       }
     }
 
-    // 阶段4: 刷新页面（90%~100%）
-    onProgress?.(95, '正在刷新列表…')
+    // 阶段4: 刷新页面
+    onProgress?.({ stage: 'writing', text: '正在刷新列表…', written: toCreate.length, total: toCreate.length })
     load()
     await new Promise(r => setTimeout(r, 200))
 

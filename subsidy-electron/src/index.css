@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 导入进度条滑动动画 */
+@keyframes import-slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
 :root {
   --primary: #1A4D3A;
   --secondary: #2C6B52;
