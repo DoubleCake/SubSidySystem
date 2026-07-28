@@ -59,14 +59,21 @@ export function registerAllIpcHandlers(): void {
   ipcMain.handle('app:getDbPath', () => getDbPath())
   ipcMain.handle('app:relaunch', () => { app.relaunch(); app.quit() })
 
-  // ── 数据库状态检查与重载 ──
+  // ── 数据库状态与首次运行 ──
   ipcMain.handle('db:status', () => {
     try {
       const { getDb } = require('../database/connection')
-      getDb() // throws if not initialized
-      return { ok: true }
+      const db = getDb()
+      if (!db) return { ok: false, firstRun: false }
+      // 检查 users 表是否存在且有数据
+      let hasUsers = false
+      try {
+        const row = db.getRaw<{ cnt: number }>('SELECT COUNT(*) as cnt FROM users')
+        hasUsers = (row?.cnt ?? 0) > 0
+      } catch { /* users 表不存在 */ }
+      return { ok: true, firstRun: !hasUsers }
     } catch {
-      return { ok: false }
+      return { ok: false, firstRun: false }
     }
   })
 
@@ -74,6 +81,35 @@ export function registerAllIpcHandlers(): void {
     try {
       await initDatabase()
       runMigrations()
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: (e as Error).message }
+    }
+  })
+
+  // ── 首次运行设置（绕过登录直接创建管理员） ──
+  ipcMain.handle('auth:setup', (_e, username: string, password: string) => {
+    try {
+      const { getDb } = require('../database/connection')
+      const d = getDb()
+      if (!d) return { ok: false, error: '数据库未就绪' }
+      // 确保表存在
+      d.runRaw(`
+        CREATE TABLE IF NOT EXISTS users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT NOT NULL UNIQUE,
+          password TEXT NOT NULL,
+          display_name TEXT DEFAULT '',
+          role TEXT DEFAULT 'user',
+          is_active INTEGER DEFAULT 1,
+          created_at TEXT DEFAULT (datetime('now','localtime'))
+        )
+      `)
+      const exist = d.getRaw<{ id: number }>('SELECT id FROM users WHERE username=?', username)
+      if (!exist) {
+        d.runRaw("INSERT INTO users (username, password, display_name, role) VALUES (?,?,?,?)",
+          username, password, '管理员', 'admin')
+      }
       return { ok: true }
     } catch (e) {
       return { ok: false, error: (e as Error).message }

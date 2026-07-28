@@ -80,14 +80,13 @@ process.on('unhandledRejection', (reason) => {
 
 app.whenReady().then(async () => {
   // 数据库初始化 — 失败不阻塞应用启动
-  let dbError: string | null = null
   try {
     ensureAppUpdateYml()
     await initDatabase()
     try { runMigrations() } catch (e) { console.error('[App] 数据库迁移失败:', e) }
+    console.log('[App] 数据库就绪')
   } catch (err) {
     console.error('[App] 数据库初始化失败，应用将以离线模式运行:', err)
-    dbError = (err as Error).message
   }
 
   // 无论数据库是否成功，都注册 handler 并创建窗口

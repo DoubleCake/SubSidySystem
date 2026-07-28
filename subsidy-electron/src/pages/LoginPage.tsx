@@ -50,7 +50,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [authDisabled, setAuthDisabledLocal] = useState(false)
 
-  // 检测认证是否关闭
+  // 检测认证是否关闭（DB 异常时也跳过鉴权）
   useEffect(() => {
     window.electronAPI.invoke<{ code: number; data: { auth_enabled: boolean } }>('auth:status')
       .then(result => {
@@ -59,7 +59,9 @@ export default function LoginPage() {
         setAuthDisabledLocal(disabled)
       })
       .catch(() => {
-        // Electron IPC 异常时默认开启认证
+        // DB 挂了，同样跳过鉴权
+        setAuthDisabled(true)
+        setAuthDisabledLocal(true)
       })
   }, [])
 

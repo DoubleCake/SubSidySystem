@@ -42,34 +42,64 @@ function Layout() {
   const auth = getAuth()
   const [online, setOnline]       = useState<boolean | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
-  const [dbOk, setDbOk]           = useState(true)
+  const [dbOk, setDbOk]           = useState<boolean | null>(null)
+  const [isFirstRun, setIsFirstRun] = useState(false)
   const [dbReloading, setDbReloading] = useState(false)
+
+  // 首次运行设置
+  const [setupOpen, setSetupOpen]     = useState(false)
+  const [setupUser, setSetupUser]     = useState('admin')
+  const [setupPass, setSetupPass]     = useState('admin123')
+  const [setupLoading, setSetupLoading] = useState(false)
+  const [setupError, setSetupError]   = useState('')
+
   const navigate    = useNavigate()
   const location    = useLocation()
 
-  // 定期检测数据库状态
-  useEffect(() => {
-    const check = async () => {
-      const res = await window.electronAPI.invoke<{ ok: boolean }>('db:status').catch(() => ({ ok: false }))
-      setDbOk(res?.ok ?? false)
-    }
-    check()
-    const timer = setInterval(check, 10000)
-    return () => clearInterval(timer)
-  }, [])
+  // 定期检测数据库状态（含首次运行检测）
+  const checkDb = async () => {
+    const res = await window.electronAPI.invoke<{ ok: boolean; firstRun?: boolean }>('db:status').catch(() => ({ ok: false, firstRun: false }))
+    const ok = res?.ok ?? false
+    setDbOk(ok)
+    if (ok && res?.firstRun) { setIsFirstRun(true); setSetupOpen(true) }
+    else { setIsFirstRun(false) }
+  }
+  useEffect(() => { checkDb(); const t = setInterval(checkDb, 10000); return () => clearInterval(t) }, [])
 
-  // 启动时检测认证状态（与 LoginPage 共享模块变量）
+  // 数据库就绪后检测认证
   useEffect(() => {
+    if (!dbOk) { setAuthDisabled(true); setAuthChecked(true); return }
     window.electronAPI.invoke<{ code: number; data: { auth_enabled: boolean } }>('auth:status')
       .then(result => { setAuthDisabled(!result?.data?.auth_enabled); setAuthChecked(true) })
-      .catch(() => setAuthChecked(true))
-  }, [])
+      .catch(() => { setAuthDisabled(true); setAuthChecked(true) })
+  }, [dbOk])
 
-  // 鉴权：非登录页且未登录则跳转（认证关闭时跳过）
+  // 鉴权
   useEffect(() => {
     if (!authChecked) return
     if (!isAuthDisabled() && !auth && location.pathname !== '/login') navigate('/login', { replace: true })
-  }, [auth, location.pathname, navigate, authChecked])
+    if (isFirstRun && dbOk && setupOpen) navigate('/', { replace: true })
+  }, [auth, location.pathname, navigate, authChecked, isFirstRun, dbOk, setupOpen])
+
+  // 完成首次设置
+  const handleSetup = async () => {
+    if (!setupUser.trim() || !setupPass.trim()) { setSetupError('用户名和密码不能为空'); return }
+    setSetupLoading(true); setSetupError('')
+    try {
+      const res = await window.electronAPI.invoke<{ ok: boolean; error?: string }>('auth:setup', setupUser.trim(), setupPass)
+      if (!res?.ok) throw new Error(res?.error || '设置失败')
+      setSetupOpen(false)
+      setIsFirstRun(false)
+      // 重新检测 DB 状态（会返回 firstRun=false）
+      await checkDb()
+      showToast('✓ 管理员账号创建成功，请登录')
+      navigate('/login', { replace: true })
+    } catch (e) { setSetupError((e as Error).message) }
+    finally { setSetupLoading(false) }
+  }
+
+  const [toastMsg, setToastMsg] = useState('')
+  const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(''), 3000) }
 
   // 随机选择一条语录和颜色主题
   const { quote } = useMemo(() => {
@@ -129,15 +159,14 @@ function Layout() {
 
       </nav>
 
-      {/* 数据库异常横幅 */}
-      {!dbOk && (
+      {/* 数据库异常横幅（dbOk===null 时不显示，等待首次检测） */}
+      {dbOk === false && (
         <div className="bg-red-500 text-white px-6 py-2.5 flex items-center justify-center gap-4 text-sm">
           <span>⚠️ 数据库未就绪，数据相关功能暂不可用</span>
-          <button
-            onClick={async () => {
+          <button onClick={async () => {
               setDbReloading(true)
               const res = await window.electronAPI.invoke<{ ok: boolean; error?: string }>('db:reload').catch(() => ({ ok: false }))
-              setDbOk(res?.ok ?? false)
+              if (res?.ok) { await checkDb() } else { setDbOk(false) }
               setDbReloading(false)
             }}
             disabled={dbReloading}
@@ -145,6 +174,47 @@ function Layout() {
           >
             {dbReloading ? '重试中…' : '🔄 重试连接数据库'}
           </button>
+        </div>
+      )}
+
+      {/* 首次运行设置向导 */}
+      {setupOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
+            <div className="text-center mb-6">
+              <div className="text-5xl mb-3">🌾</div>
+              <h2 className="text-xl font-bold text-text-primary">欢迎使用农户补贴管理系统</h2>
+              <p className="text-sm text-text-muted mt-2">首次使用，请设置管理员账号</p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-text-muted mb-1">用户名</label>
+                <input value={setupUser} onChange={e => setSetupUser(e.target.value)}
+                  className="w-full border border-border rounded-btn px-3 py-2.5 text-sm outline-none focus:border-primary-500"
+                  autoFocus />
+              </div>
+              <div>
+                <label className="block text-xs text-text-muted mb-1">密码</label>
+                <input type="password" value={setupPass} onChange={e => setSetupPass(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSetup() }}
+                  className="w-full border border-border rounded-btn px-3 py-2.5 text-sm outline-none focus:border-primary-500" />
+              </div>
+              <p className="text-xs text-text-muted/60">默认建议：admin / admin123，可自行修改</p>
+              {setupError && <div className="bg-red-50 border border-red-100 rounded-btn px-3 py-2 text-sm text-red-600">{setupError}</div>}
+              <button onClick={handleSetup} disabled={setupLoading}
+                className="w-full py-2.5 bg-primary-500 text-white rounded-btn font-medium hover:bg-primary-600 disabled:opacity-50 text-sm">
+                {setupLoading ? '设置中…' : '确认设置'}
+              </button>
+              <p className="text-xs text-text-muted/40 text-center">设置完成后请重新登录</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 全局 toast */}
+      {toastMsg && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-primary-500 text-white px-5 py-2.5 rounded-btn shadow-lg text-sm animate-pulse">
+          {toastMsg}
         </div>
       )}
 
