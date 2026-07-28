@@ -3,6 +3,18 @@ import { getDb } from '../database/connection'
 import { formatGroupNo } from '../utils/format'
 import { maskIdCard, maskPhone, maskBankCard } from '../utils/masking'
 import { parsePagination, successList, success, errorResponse } from './response'
+import { safeUpdate } from '../utils/sql-guard'
+
+const HH_COLS = [
+  'household_name', 'village_id', 'group_no', 'address',
+  'contract_area', 'confirmed_area', 'status', 'remark',
+  'is_manually_confirmed', 'manually_confirmed_at', 'manually_confirmed_by',
+]
+
+const MEMBER_COLS = [
+  'real_name', 'gender', 'id_card', 'phone', 'bank_card', 'bank_name',
+  'relation', 'farmer_status', 'own_village_id', 'own_group_no', 'remark',
+]
 
 export function registerHouseholdHandlers(): void {
   const db = () => getDb()
@@ -443,15 +455,11 @@ export function registerHouseholdHandlers(): void {
   ipcMain.handle('households:update', (_e, payload: any) => {
     try {
       const { id, ...data } = payload
-      const keys = Object.keys(data).filter(k => data[k] !== undefined)
-      if (keys.length === 0) return errorResponse('无更新数据')
-      const sets = keys.map(k => `${k} = ?`).join(', ')
-      const values = keys.map(k => data[k])
-      db().runRaw(`UPDATE family_household SET ${sets}, updated_at = datetime('now','localtime') WHERE id = ?`, ...values, id)
+      if (!id) return errorResponse('缺少家庭户ID')
+      const changed = safeUpdate('family_household', id, data, HH_COLS)
+      if (!changed) return errorResponse('无更新数据')
       return success(null, '更新成功')
-    } catch (e) {
-      return errorResponse(String(e))
-    }
+    } catch (e) { return errorResponse('更新家庭户失败') }
   })
 
   // ── 删除 ──
@@ -485,15 +493,11 @@ export function registerHouseholdHandlers(): void {
   ipcMain.handle('households:updateMember', (_e, payload: any) => {
     try {
       const { householdId, farmerId, ...data } = payload
-      const keys = Object.keys(data).filter(k => data[k] !== undefined)
-      if (keys.length === 0) return errorResponse('无更新数据')
-      const sets = keys.map(k => `${k} = ?`).join(', ')
-      const values = keys.map(k => data[k])
-      db().runRaw(`UPDATE farmer_profile SET ${sets}, updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?`, ...values, farmerId, householdId)
+      if (!farmerId) return errorResponse('缺少成员ID')
+      const changed = safeUpdate('farmer_profile', farmerId, data, MEMBER_COLS)
+      if (!changed) return errorResponse('无更新数据')
       return success(null, '更新成功')
-    } catch (e) {
-      return errorResponse(String(e))
-    }
+    } catch (e) { return errorResponse('更新成员失败') }
   })
 
   ipcMain.handle('households:removeMember', (_e, payload: any) => {

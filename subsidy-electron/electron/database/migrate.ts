@@ -1,4 +1,5 @@
 import { getDb } from './connection'
+import { hashPassword } from '../utils/crypto'
 
 /**
  * 数据库自动迁移 — 创建表和索引
@@ -582,14 +583,14 @@ export function runMigrations(): void {
   //  对应 Python main.py 中 migrate_db() 的全部增量迁移
   // ═══════════════════════════════════════════
 
-  // ── 确保默认管理员存在 ──
+  // ── 确保默认管理员存在（密码哈希存储） ──
   try {
     const admin = db.getRaw<{ id: number }>('SELECT id FROM users WHERE username=?', 'admin')
     if (!admin) {
       db.runRaw("INSERT INTO users (username, password, display_name, role) VALUES (?,?,?,?)",
-        'admin', 'admin123', '管理员', 'admin')
+        'admin', hashPassword('admin123'), '管理员', 'admin')
     }
-  } catch { /* users 表可能不存在，auth handler 中会处理 */ }
+  } catch { /* users 表可能不存在 */ }
 
   const alterStatements = [
     // family_household 增量

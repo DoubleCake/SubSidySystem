@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell, dialog } from 'electron'
 import { join, dirname } from 'path'
-import { existsSync, writeFileSync } from 'fs'
-import { initDatabase } from './database/connection'
+import { existsSync, writeFileSync, copyFileSync, mkdirSync } from 'fs'
+import { initDatabase, getDbPath } from './database/connection'
 import { runMigrations } from './database/migrate'
 import { registerAllIpcHandlers } from './ipc/index'
 import { registerUpdateEvents, setUpdateWindow, checkForUpdatesSilent } from './updater'
@@ -85,6 +85,7 @@ app.whenReady().then(async () => {
     await initDatabase()
     try { runMigrations() } catch (e) { console.error('[App] 数据库迁移失败:', e) }
     console.log('[App] 数据库就绪')
+    startAutoBackup()  // 启动定时备份
   } catch (err) {
     console.error('[App] 数据库初始化失败，应用将以离线模式运行:', err)
   }
@@ -107,6 +108,50 @@ app.whenReady().then(async () => {
     }
   })
 })
+
+/**
+ * 定时备份 — 每4小时自动备份到 userData/backups/
+ */
+function startAutoBackup() {
+  const BACKUP_INTERVAL = 4 * 60 * 60 * 1000 // 4 小时
+  const MAX_BACKUPS = 7 // 保留最近 7 个
+
+  const doBackup = () => {
+    try {
+      const dbPath = getDbPath()
+      if (!existsSync(dbPath)) return
+
+      const backupDir = join(app.getPath('userData'), 'backups')
+      if (!existsSync(backupDir)) mkdirSync(backupDir, { recursive: true })
+
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+      const dest = join(backupDir, `subsidy_auto_${ts}.db`)
+      copyFileSync(dbPath, dest)
+      console.log('[AutoBackup]', dest)
+
+      // 清理旧备份
+      try {
+        const { readdirSync, statSync, unlinkSync } = require('fs')
+        const files = readdirSync(backupDir)
+          .filter((f: string) => f.startsWith('subsidy_auto_'))
+          .map((f: string) => ({ name: f, mtime: statSync(join(backupDir, f)).mtimeMs }))
+          .sort((a: any, b: any) => b.mtime - a.mtime)
+
+        for (let i = MAX_BACKUPS; i < files.length; i++) {
+          unlinkSync(join(backupDir, files[i].name))
+        }
+      } catch { /* 清理失败不阻塞 */ }
+    } catch (e) {
+      console.error('[AutoBackup] 备份失败:', e)
+    }
+  }
+
+  // 启动后 5 分钟执行首次备份，之后每 4 小时
+  setTimeout(() => {
+    doBackup()
+    setInterval(doBackup, BACKUP_INTERVAL)
+  }, 5 * 60 * 1000)
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

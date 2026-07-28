@@ -78,6 +78,17 @@ window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Pr
   }
 }
 
+// 全局未捕获 Promise 拒绝 — 避免静默失败
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('[Renderer] 未处理的 Promise 拒绝:', event.reason)
+  event.preventDefault()
+})
+
+// 全局错误 — 避免白屏
+window.addEventListener('error', (event) => {
+  console.error('[Renderer] 全局错误:', event.message)
+})
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

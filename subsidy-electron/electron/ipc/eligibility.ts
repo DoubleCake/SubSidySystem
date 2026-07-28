@@ -1,6 +1,14 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../database/connection'
 import { success, errorResponse } from './response'
+import { safeInsert, safeUpdate } from '../utils/sql-guard'
+
+const ELIGIBILITY_COLS = [
+  'subsidy_type_id', 'rule_name', 'rule_desc',
+  'require_farmer_status', 'require_age_min', 'require_age_max',
+  'require_land_type', 'require_min_area', 'require_max_area',
+  'is_active',
+]
 
 export function registerEligibilityHandlers(): void {
   const db = () => getDb()
@@ -17,12 +25,9 @@ export function registerEligibilityHandlers(): void {
 
   ipcMain.handle('eligibility:create', (_e, data: Record<string, unknown>) => {
     try {
-      const cols = Object.keys(data).join(', ')
-      const placeholders = Object.keys(data).map(() => '?').join(', ')
-      const values = Object.keys(data).map(k => data[k])
-      const result = db().runRaw(`INSERT INTO subsidy_eligibility_rule (${cols}) VALUES (${placeholders})`, ...values)
-      return success({ id: result.lastInsertRowid })
-    } catch (e) { return errorResponse(String(e)) }
+      const id = safeInsert('subsidy_eligibility_rule', data, ELIGIBILITY_COLS)
+      return success({ id })
+    } catch (e) { return errorResponse('创建规则失败') }
   })
 
   // ── 批量资格检查 ──
@@ -80,6 +85,33 @@ export function registerEligibilityHandlers(): void {
       }
 
       return success({ passed_list: passed, failed_list: failed, total: rows.length })
-    } catch (e) { return errorResponse(String(e)) }
+    } catch (e) { return errorResponse('资格检查失败') }
+  })
+
+  ipcMain.handle('eligibility:update', (_e, payload: any) => {
+    try {
+      const { id, ...data } = payload
+      if (!id) return errorResponse('缺少规则ID')
+      safeUpdate('subsidy_eligibility_rule', id, data, ELIGIBILITY_COLS)
+      return success(null, '更新成功')
+    } catch (e) { return errorResponse('更新规则失败') }
+  })
+
+  ipcMain.handle('eligibility:delete', (_e, id: number) => {
+    try {
+      db().runRaw('DELETE FROM subsidy_eligibility_rule WHERE id=?', id)
+      return success({ message: '已删除' })
+    } catch (e) { return errorResponse('删除规则失败') }
+  })
+
+  ipcMain.handle('eligibility:ruleTemplates', () => {
+    try {
+      const templates = [
+        { name: '面积异常', desc: '申请面积超过承包地面积2倍以上', preset: { require_max_area: 0 } },
+        { name: '年龄不符', desc: '发放给非适龄农户（18-65）', preset: { require_age_min: 18, require_age_max: 65 } },
+        { name: '在册农户', desc: '仅允许在册状态农户', preset: { require_farmer_status: 1 } },
+      ]
+      return success(templates)
+    } catch (e) { return errorResponse('获取模板失败') }
   })
 }

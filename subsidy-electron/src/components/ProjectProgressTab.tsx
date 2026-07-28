@@ -38,6 +38,9 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'undone' | 'done'>('all')
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
+  const [tableStageFilter, setTableStageFilter] = useState('')
+  const [tableStatusFilter, setTableStatusFilter] = useState<string>('')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [newStageName, setNewStageName] = useState('')
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; stageName: string } | null>(null)
@@ -159,10 +162,17 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
 
   const displayRecords = useMemo(() => records.filter(r => {
     if (search && !r.village_name.includes(search) && !r.person_name.includes(search)) return false
-    if (statusFilter === 'done' && r.stages.some(s => s.status !== 'done')) return false
-    if (statusFilter === 'undone' && r.stages.every(s => s.status === 'done')) return false
+    // 表格视图的阶段/状态筛选
+    if (viewMode === 'table' && tableStageFilter) {
+      const s = r.stages.find(s => s.name === tableStageFilter)
+      if (!s) return false
+      if (tableStatusFilter && s.status !== tableStatusFilter) return false
+    } else {
+      if (statusFilter === 'done' && r.stages.some(s => s.status !== 'done')) return false
+      if (statusFilter === 'undone' && r.stages.every(s => s.status === 'done')) return false
+    }
     return true
-  }), [records, search, statusFilter])
+  }), [records, search, statusFilter, viewMode, tableStageFilter, tableStatusFilter])
 
   const unassignedCount = useMemo(() =>
     records.filter(r => !r.person_name?.trim()).length
@@ -346,10 +356,40 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 搜索村名/负责人…"
           className="border border-border rounded-btn px-3 py-1.5 text-xs outline-none focus:border-primary-500 bg-white w-44" />
-        <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value as any)}
-          className="border border-border rounded-btn px-2 py-1.5 text-xs outline-none bg-white">
-          <option value="all">全部</option><option value="undone">有未完成</option><option value="done">全部完成</option>
-        </select>
+
+        {/* 视图切换 */}
+        <div className="flex items-center gap-0 bg-white border border-border rounded-btn overflow-hidden text-xs">
+          <button onClick={() => setViewMode('cards')}
+            className={`px-2 py-1.5 transition-colors ${viewMode === 'cards' ? 'bg-primary-500 text-white font-medium' : 'text-text-muted hover:bg-warm/20'}`}>
+            🗂 卡片
+          </button>
+          <button onClick={() => setViewMode('table')}
+            className={`px-2 py-1.5 transition-colors ${viewMode === 'table' ? 'bg-primary-500 text-white font-medium' : 'text-text-muted hover:bg-warm/20'}`}>
+            📊 表格
+          </button>
+        </div>
+
+        {viewMode === 'cards' ? (
+          <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value as any)}
+            className="border border-border rounded-btn px-2 py-1.5 text-xs outline-none bg-white">
+            <option value="all">全部</option><option value="undone">有未完成</option><option value="done">全部完成</option>
+          </select>
+        ) : (
+          <>
+            <select value={tableStageFilter} onChange={e => { setTableStageFilter(e.target.value); setTableStatusFilter('') }}
+              className="border border-border rounded-btn px-2 py-1.5 text-xs outline-none bg-white">
+              <option value="">全部阶段</option>
+              {allStages.map(sn => <option key={sn} value={sn}>{sn}</option>)}
+            </select>
+            {tableStageFilter && (
+              <select value={tableStatusFilter} onChange={e => setTableStatusFilter(e.target.value)}
+                className="border border-border rounded-btn px-2 py-1.5 text-xs outline-none bg-white">
+                <option value="">全部状态</option>
+                {STATUS_ORDER.map(sk => <option key={sk} value={sk}>{STATUS_CFG[sk].label}</option>)}
+              </select>
+            )}
+          </>
+        )}
 
         {/* 文件夹绑定 + 扫描 */}
         <div className="flex items-center gap-1.5 border border-border/50 rounded-btn px-2 py-1 bg-warm/10">
@@ -400,7 +440,7 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
         </div>
       )}
 
-      {/* ═══════ 村卡片列表 ═══════ */}
+      {/* ═══════ 视图区（卡片 / 表格） ═══════ */}
       {records.length===0 ? (
         <div className="text-center py-16 text-text-muted text-sm">
           {initializing ? (
@@ -414,6 +454,82 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
         </div>
       ) : displayRecords.length===0 ? (
         <div className="text-center py-16 text-text-muted text-sm">无匹配村庄</div>
+      ) : viewMode === 'table' ? (
+        /* ═══════ 表格视图 ═══════ */
+        <div className="bg-white border border-border rounded-card overflow-hidden shadow-card">
+          <div className="px-4 py-2 bg-blue-50/50 border-b border-blue-100 text-[11px] text-text-muted flex items-center gap-3">
+            <span>💡 点击状态按钮可循环切换</span>
+            <span className="text-blue-300">|</span>
+            <span>右键表头可批量操作</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-xs">
+              <thead>
+                <tr className="bg-warm/30 border-b-2 border-border">
+                  <th className="text-left px-3 py-2.5 font-semibold text-text-muted sticky left-0 bg-warm/30 z-10 min-w-[90px]">村名</th>
+                  <th className="text-left px-2 py-2.5 font-semibold text-text-muted min-w-[60px]">负责人</th>
+                  {allStages.map(sn => (
+                    <th key={sn} className="text-center px-2 py-2.5 font-semibold text-text-muted whitespace-nowrap min-w-[70px] cursor-context-menu"
+                      onContextMenu={e => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, stageName: sn }) }}>
+                      {sn}
+                    </th>
+                  ))}
+                  <th className="text-center px-2 py-2.5 font-semibold text-text-muted">进度</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/30">
+                {displayRecords.map(rec => {
+                  const doneCount = rec.stages.filter(s => s.status === 'done').length
+                  const total = rec.stages.length
+                  const rate = total > 0 ? Math.round(doneCount / total * 100) : 0
+                  const allDone = total > 0 && doneCount === total
+                  return (
+                    <tr key={rec.village_id}
+                      className={`hover:bg-warm/20 transition-colors ${allDone ? 'bg-emerald-50/30' : ''}`}>
+                      <td className="px-3 py-2 font-medium text-text-primary sticky left-0 bg-white whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          {rec.village_name}
+                          {allDone && <span className="text-[10px] bg-emerald-500 text-white px-1 py-0.5 rounded-full font-medium">完成</span>}
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 text-text-muted max-w-[80px] truncate" title={rec.person_name || '未录入'}>
+                        {rec.person_name || <span className="text-text-muted/30">—</span>}
+                      </td>
+                      {allStages.map(sn => {
+                        const s = rec.stages.find(st => st.name === sn)
+                        const sk = s?.status || 'none'
+                        const cfg = STATUS_CFG[sk]
+                        return (
+                          <td key={sn} className="text-center px-1 py-1.5">
+                            <button onClick={() => {
+                              const idx = rec.stages.findIndex(st => st.name === sn)
+                              if (idx >= 0) cycleStatus(rec, idx)
+                            }}
+                              className="px-2 py-1 text-[10px] font-bold rounded border cursor-pointer transition-colors hover:brightness-90 min-w-[44px]"
+                              style={{ backgroundColor: cfg.bg, borderColor: cfg.color + '40', color: cfg.text }}
+                              title={`${sn}: ${cfg.label}${s?.date ? ' ' + s.date.slice(0, 10) : ''}`}>
+                              {cfg.label}
+                            </button>
+                          </td>
+                        )
+                      })}
+                      <td className="text-center px-2 py-2">
+                        <span className={`text-xs font-mono font-bold ${
+                          rate === 100 ? 'text-emerald-600' : rate >= 50 ? 'text-amber-600' : 'text-text-muted'
+                        }`}>
+                          {doneCount}/{total}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 py-2 border-t border-border/50 bg-warm/10 text-xs text-text-muted flex justify-between items-center">
+            <span>共 {displayRecords.length} 村</span>
+          </div>
+        </div>
       ) : (
         <div className="space-y-2">
           {displayRecords.map(rec => <VillageCard key={rec.village_id} rec={rec} allStages={allStages} expanded={expanded.has(rec.village_id)}

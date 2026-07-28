@@ -27,6 +27,7 @@ import { useState } from 'react'
 import { QUOTES } from './utils/quotes'
 import Icon from './components/Icon'
 import SidebarNav from './components/SidebarNav'
+import ErrorBoundary from './components/ErrorBoundary'
 
 const mainNav = [
   { to: '/',             label: '首页',     icon: 'dashboard' as const, end: true },
@@ -223,6 +224,7 @@ function Layout() {
           <div className="flex gap-6">
             <SidebarNav />
             <div className="flex-1 min-w-0">
+              <ErrorBoundary>
               <Routes>
             <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
             <Route path="/farmers"   element={<FarmersPage />} />
@@ -257,6 +259,7 @@ function Layout() {
               </div>
             } />
             </Routes>
+              </ErrorBoundary>
             </div>
           </div>
         </div>

@@ -4,6 +4,14 @@ import { formatGroupNo } from '../utils/format'
 import { parseIdCard } from '../utils/id-card'
 import { maskIdCard, maskPhone, maskBankCard } from '../utils/masking'
 import { parsePagination, successList, success, errorResponse } from './response'
+import { safeUpdate } from '../utils/sql-guard'
+import logger from '../utils/logger'
+
+const FARMER_COLS = [
+  'household_id', 'real_name', 'gender', 'id_card', 'phone',
+  'bank_card', 'bank_name', 'relation', 'farmer_status',
+  'own_village_id', 'own_group_no', 'remark',
+]
 
 export function registerFarmerHandlers(): void {
   const db = () => getDb()
@@ -167,6 +175,7 @@ export function registerFarmerHandlers(): void {
       const vals = fields.map(f => data[f] ?? null)
       const placeholders = fields.map(() => '?').join(', ')
       const result = db().runRaw(`INSERT INTO farmer_profile (${fields.join(', ')}) VALUES (${placeholders})`, ...vals)
+      logger.audit('新增农户', data.real_name as string || '', 'farmer_profile', { id: result.lastInsertRowid })
       return success({ id: result.lastInsertRowid })
     } catch (e) {
       return errorResponse(String(e))
@@ -177,15 +186,11 @@ export function registerFarmerHandlers(): void {
   ipcMain.handle('farmers:update', (_e, payload: any) => {
     try {
       const { id, ...data } = payload
-      const keys = Object.keys(data).filter(k => data[k] !== undefined && k !== 'id')
-      if (!keys.length) return errorResponse('无更新数据')
-      const sets = keys.map(k => `${k} = ?`).join(', ')
-      const vals = keys.map(k => data[k])
-      db().runRaw(`UPDATE farmer_profile SET ${sets}, updated_at = datetime('now','localtime') WHERE id = ?`, ...vals, id)
+      if (!id) return errorResponse('缺少农户ID')
+      const changed = safeUpdate('farmer_profile', id, data, FARMER_COLS)
+      if (!changed) return errorResponse('无更新数据')
       return success(null, '更新成功')
-    } catch (e) {
-      return errorResponse(String(e))
-    }
+    } catch (e) { return errorResponse('更新农户失败') }
   })
 
   // ── 注销 ──

@@ -2,8 +2,9 @@ import { ipcMain, dialog, app } from 'electron'
 import { copyFileSync, existsSync, readdirSync, statSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join, dirname, basename } from 'path'
 import type { Stats } from 'fs'
-import { initDatabase } from '../database/connection'
+import { initDatabase, getDb } from '../database/connection'
 import { runMigrations } from '../database/migrate'
+import { hashPassword } from '../utils/crypto'
 import { registerFarmerHandlers } from './farmers'
 import { registerHouseholdHandlers } from './households'
 import { registerSubsidyHandlers } from './subsidies'
@@ -62,15 +63,12 @@ export function registerAllIpcHandlers(): void {
   // ── 数据库状态与首次运行 ──
   ipcMain.handle('db:status', () => {
     try {
-      const { getDb } = require('../database/connection')
-      const db = getDb()
-      if (!db) return { ok: false, firstRun: false }
-      // 检查 users 表是否存在且有数据
+      const wrapper = getDb()
       let hasUsers = false
       try {
-        const row = db.getRaw<{ cnt: number }>('SELECT COUNT(*) as cnt FROM users')
+        const row = wrapper.getRaw<{ cnt: number }>('SELECT COUNT(*) as cnt FROM users')
         hasUsers = (row?.cnt ?? 0) > 0
-      } catch { /* users 表不存在 */ }
+      } catch { /* users 表不存在, 视为首次运行 */ }
       return { ok: true, firstRun: !hasUsers }
     } catch {
       return { ok: false, firstRun: false }
@@ -90,11 +88,9 @@ export function registerAllIpcHandlers(): void {
   // ── 首次运行设置（绕过登录直接创建管理员） ──
   ipcMain.handle('auth:setup', (_e, username: string, password: string) => {
     try {
-      const { getDb } = require('../database/connection')
-      const d = getDb()
-      if (!d) return { ok: false, error: '数据库未就绪' }
+      const wrapper = getDb()
       // 确保表存在
-      d.runRaw(`
+      wrapper.runRaw(`
         CREATE TABLE IF NOT EXISTS users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           username TEXT NOT NULL UNIQUE,
@@ -105,10 +101,10 @@ export function registerAllIpcHandlers(): void {
           created_at TEXT DEFAULT (datetime('now','localtime'))
         )
       `)
-      const exist = d.getRaw<{ id: number }>('SELECT id FROM users WHERE username=?', username)
+      const exist = wrapper.getRaw<{ id: number }>('SELECT id FROM users WHERE username=?', username)
       if (!exist) {
-        d.runRaw("INSERT INTO users (username, password, display_name, role) VALUES (?,?,?,?)",
-          username, password, '管理员', 'admin')
+        wrapper.runRaw("INSERT INTO users (username, password, display_name, role) VALUES (?,?,?,?)",
+          username, hashPassword(password), '管理员', 'admin')
       }
       return { ok: true }
     } catch (e) {
