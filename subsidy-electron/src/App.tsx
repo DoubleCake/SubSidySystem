@@ -42,8 +42,21 @@ function Layout() {
   const auth = getAuth()
   const [online, setOnline]       = useState<boolean | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
+  const [dbOk, setDbOk]           = useState(true)
+  const [dbReloading, setDbReloading] = useState(false)
   const navigate    = useNavigate()
   const location    = useLocation()
+
+  // 定期检测数据库状态
+  useEffect(() => {
+    const check = async () => {
+      const res = await window.electronAPI.invoke<{ ok: boolean }>('db:status').catch(() => ({ ok: false }))
+      setDbOk(res?.ok ?? false)
+    }
+    check()
+    const timer = setInterval(check, 10000)
+    return () => clearInterval(timer)
+  }, [])
 
   // 启动时检测认证状态（与 LoginPage 共享模块变量）
   useEffect(() => {
@@ -115,6 +128,25 @@ function Layout() {
         </div>
 
       </nav>
+
+      {/* 数据库异常横幅 */}
+      {!dbOk && (
+        <div className="bg-red-500 text-white px-6 py-2.5 flex items-center justify-center gap-4 text-sm">
+          <span>⚠️ 数据库未就绪，数据相关功能暂不可用</span>
+          <button
+            onClick={async () => {
+              setDbReloading(true)
+              const res = await window.electronAPI.invoke<{ ok: boolean; error?: string }>('db:reload').catch(() => ({ ok: false }))
+              setDbOk(res?.ok ?? false)
+              setDbReloading(false)
+            }}
+            disabled={dbReloading}
+            className="px-3 py-1 bg-white text-red-600 rounded-btn text-xs font-bold hover:bg-red-50 disabled:opacity-50"
+          >
+            {dbReloading ? '重试中…' : '🔄 重试连接数据库'}
+          </button>
+        </div>
+      )}
 
       <main className="flex-1">
         <div className="max-w-screen-xl mx-auto px-6 py-6 pb-10">

@@ -504,6 +504,16 @@ export function runMigrations(): void {
       created_at TEXT DEFAULT (datetime('now','localtime'))
     );
 
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      display_name TEXT DEFAULT '',
+      role TEXT DEFAULT 'user',
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now','localtime'))
+    );
+
     CREATE TABLE IF NOT EXISTS project_progress (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       subsidy_type_id INTEGER NOT NULL,
@@ -572,6 +582,15 @@ export function runMigrations(): void {
   //  对应 Python main.py 中 migrate_db() 的全部增量迁移
   // ═══════════════════════════════════════════
 
+  // ── 确保默认管理员存在 ──
+  try {
+    const admin = db.getRaw<{ id: number }>('SELECT id FROM users WHERE username=?', 'admin')
+    if (!admin) {
+      db.runRaw("INSERT INTO users (username, password, display_name, role) VALUES (?,?,?,?)",
+        'admin', 'admin123', '管理员', 'admin')
+    }
+  } catch { /* users 表可能不存在，auth handler 中会处理 */ }
+
   const alterStatements = [
     // family_household 增量
     "ALTER TABLE family_household ADD COLUMN confirmed_area DECIMAL(10,2)",
@@ -617,6 +636,11 @@ export function runMigrations(): void {
     "ALTER TABLE village_contact ADD COLUMN leader_title TEXT DEFAULT ''",
     "ALTER TABLE village_contact ADD COLUMN contact_name TEXT DEFAULT ''",
     "ALTER TABLE village_contact ADD COLUMN contact_phone TEXT DEFAULT ''",
+    // query_record 增量（external-links）
+    "ALTER TABLE query_record ADD COLUMN purpose TEXT",
+    "ALTER TABLE query_record ADD COLUMN operator TEXT DEFAULT '操作员'",
+    "ALTER TABLE query_record ADD COLUMN tags TEXT",
+    "ALTER TABLE query_record ADD COLUMN result_note TEXT",
   ]
 
   for (const stmt of alterStatements) {

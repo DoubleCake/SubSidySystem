@@ -2,6 +2,8 @@ import { ipcMain, dialog, app } from 'electron'
 import { copyFileSync, existsSync, readdirSync, statSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join, dirname, basename } from 'path'
 import type { Stats } from 'fs'
+import { initDatabase } from '../database/connection'
+import { runMigrations } from '../database/migrate'
 import { registerFarmerHandlers } from './farmers'
 import { registerHouseholdHandlers } from './households'
 import { registerSubsidyHandlers } from './subsidies'
@@ -56,6 +58,27 @@ export function registerAllIpcHandlers(): void {
   ipcMain.handle('app:getUserDataPath', () => app.getPath('userData'))
   ipcMain.handle('app:getDbPath', () => getDbPath())
   ipcMain.handle('app:relaunch', () => { app.relaunch(); app.quit() })
+
+  // ── 数据库状态检查与重载 ──
+  ipcMain.handle('db:status', () => {
+    try {
+      const { getDb } = require('../database/connection')
+      getDb() // throws if not initialized
+      return { ok: true }
+    } catch {
+      return { ok: false }
+    }
+  })
+
+  ipcMain.handle('db:reload', async () => {
+    try {
+      await initDatabase()
+      runMigrations()
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: (e as Error).message }
+    }
+  })
 
   // ── 文件操作 ──
   ipcMain.handle('fs:copyFile', (_e, { src, dest }: { src: string; dest: string }) => {

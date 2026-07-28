@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { join } from 'path'
+import { join, dirname } from 'path'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 
 // sql.js 类型
@@ -121,15 +121,26 @@ class SqlJsWrapper {
     // format_group_no will be handled in application code
   }
 
-  /** 保存到磁盘 */
+  /** 保存到磁盘，目录/文件被删除时自动重建 */
   private save(): void {
     try {
+      const dir = dirname(this.dbPath)
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
       const data = this.db.export()
       const buffer = Buffer.from(data)
       writeFileSync(this.dbPath, buffer)
     } catch (e) {
-      console.error('保存数据库失败:', e)
+      console.error('[DB] 保存数据库失败:', e)
     }
+  }
+
+  /** 检查数据库文件是否可访问 */
+  isFileAccessible(): boolean {
+    try {
+      if (!existsSync(this.dbPath)) return false
+      const test = readFileSync(this.dbPath, { length: 16 })
+      return test.length > 0
+    } catch { return false }
   }
 
   /** 关闭数据库 */

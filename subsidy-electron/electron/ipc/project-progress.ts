@@ -7,24 +7,6 @@ import { join } from 'path'
 export function registerProjectProgressHandlers(): void {
   const db = () => getDb()
 
-  // ensure table
-  try {
-    db().runRaw(`
-      CREATE TABLE IF NOT EXISTS project_progress (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        subsidy_type_id INTEGER NOT NULL,
-        village_id INTEGER NOT NULL,
-        village_name TEXT DEFAULT '',
-        person_name TEXT DEFAULT '',
-        phone TEXT DEFAULT '',
-        stages TEXT DEFAULT '[]',
-        note TEXT DEFAULT '',
-        updated_at TEXT DEFAULT (datetime('now','localtime')),
-        UNIQUE(subsidy_type_id, village_id)
-      )
-    `)
-  } catch { /* ignore */ }
-
   // ── 获取某个项目的所有村进度 ──
   ipcMain.handle('project-progress:get', (_e, projectId: number) => {
     try {

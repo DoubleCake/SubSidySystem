@@ -79,18 +79,23 @@ process.on('unhandledRejection', (reason) => {
 })
 
 app.whenReady().then(async () => {
+  // 数据库初始化 — 失败不阻塞应用启动
+  let dbError: string | null = null
   try {
     ensureAppUpdateYml()
     await initDatabase()
-    runMigrations()
-    registerAllIpcHandlers()
-    registerUpdateEvents()
-    createWindow()
+    try { runMigrations() } catch (e) { console.error('[App] 数据库迁移失败:', e) }
   } catch (err) {
-    console.error('[App] 启动失败:', err)
-    dialog.showErrorBox('启动失败', `应用初始化出错:\n${(err as Error).message}\n\n请尝试重新安装或联系管理员。`)
-    app.quit()
+    console.error('[App] 数据库初始化失败，应用将以离线模式运行:', err)
+    dbError = (err as Error).message
   }
+
+  // 无论数据库是否成功，都注册 handler 并创建窗口
+  try { registerAllIpcHandlers() } catch (e) { console.error('[App] IPC 注册失败:', e) }
+  registerUpdateEvents()
+  createWindow()
+
+  // 数据库问题不弹窗阻塞，由前端横幅提示并提供重试按钮
 
   // 启动后自动检查更新（如果已配置服务器）
   setTimeout(() => {

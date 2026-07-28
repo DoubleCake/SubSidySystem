@@ -3,50 +3,13 @@ import { getDb } from '../database/connection'
 import { success, errorResponse } from './response'
 
 export function registerExternalLinksHandlers(): void {
-  const db = () => getDb()
-
-  // 确保表存在
-  db().exec(`
-    CREATE TABLE IF NOT EXISTS external_site (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      url TEXT NOT NULL,
-      category TEXT,
-      icon TEXT,
-      sort_order INTEGER DEFAULT 0,
-      is_active INTEGER DEFAULT 1
-    );
-
-    CREATE TABLE IF NOT EXISTS query_record (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      site_id INTEGER,
-      site_name VARCHAR(100) NOT NULL,
-      query_type VARCHAR(50) NOT NULL,
-      query_input TEXT NOT NULL,
-      query_count INTEGER NOT NULL DEFAULT 0,
-      is_active INTEGER DEFAULT 1,
-      created_at DATETIME DEFAULT (datetime('now','localtime'))
-    );
-  `)
-
-  // 补充 query_record 缺失的列（向前兼容旧表）
-  const cols = db().allRaw<{ name: string }>("PRAGMA table_info('query_record')")
-  const colNames = cols.map(c => c.name)
-  const addCol = (name: string, def: string) => {
-    if (!colNames.includes(name)) {
-      db().runRaw(`ALTER TABLE query_record ADD COLUMN ${name} ${def}`)
-    }
-  }
-  addCol('purpose', 'TEXT')
-  addCol('operator', 'TEXT DEFAULT \'操作员\'')
-  addCol('tags', 'TEXT')
-  addCol('result_note', 'TEXT')
+  // 表结构由 migrate.ts + alterStatements 统一管理
 
   // ═══════════════════ 外部网站 CRUD ═══════════════════
 
   ipcMain.handle('external-links:list', () => {
     try {
-      const rows = db().allRaw<Record<string, unknown>>(
+      const rows = getDb().allRaw<Record<string, unknown>>(
         'SELECT * FROM external_site WHERE is_active = 1 ORDER BY sort_order'
       )
       return success(rows)
@@ -57,7 +20,7 @@ export function registerExternalLinksHandlers(): void {
     try {
       const cols = Object.keys(data).join(', ')
       const vals = Object.keys(data).map(() => '?').join(', ')
-      const result = db().runRaw(
+      const result = getDb().runRaw(
         `INSERT INTO external_site (${cols}) VALUES (${vals})`,
         ...Object.values(data)
       )
@@ -69,7 +32,7 @@ export function registerExternalLinksHandlers(): void {
     try {
       const { id, ...data } = payload
       const sets = Object.keys(data).map(k => `${k} = ?`).join(', ')
-      db().runRaw(
+      getDb().runRaw(
         `UPDATE external_site SET ${sets} WHERE id = ?`,
         ...Object.values(data), id
       )
@@ -79,7 +42,7 @@ export function registerExternalLinksHandlers(): void {
 
   ipcMain.handle('external-links:deleteSite', (_e, id: number) => {
     try {
-      db().runRaw('DELETE FROM external_site WHERE id = ?', id)
+      getDb().runRaw('DELETE FROM external_site WHERE id = ?', id)
       return success(null)
     } catch (e) { return errorResponse(String(e)) }
   })
@@ -102,11 +65,11 @@ export function registerExternalLinksHandlers(): void {
         values.push(s, s, s, s, s)
       }
 
-      const countRow = db().getRaw<{ cnt: number }>(
+      const countRow = getDb().getRaw<{ cnt: number }>(
         `SELECT COUNT(*) as cnt FROM query_record ${where}`, ...values
       )
 
-      const rows = db().allRaw<Record<string, unknown>>(
+      const rows = getDb().allRaw<Record<string, unknown>>(
         `SELECT * FROM query_record ${where} ORDER BY id DESC LIMIT ? OFFSET ?`,
         ...values, pageSize, offset
       )
@@ -144,7 +107,7 @@ export function registerExternalLinksHandlers(): void {
 
       const cols = Object.keys(d).join(', ')
       const vals = Object.keys(d).map(() => '?').join(', ')
-      const result = db().runRaw(
+      const result = getDb().runRaw(
         `INSERT INTO query_record (${cols}) VALUES (${vals})`,
         ...Object.values(d)
       )
@@ -158,7 +121,7 @@ export function registerExternalLinksHandlers(): void {
       const d: Record<string, unknown> = { ...data }
       // 处理 tags 和 result_note 等直接字段
       const sets = Object.keys(d).map(k => `${k} = ?`).join(', ')
-      db().runRaw(
+      getDb().runRaw(
         `UPDATE query_record SET ${sets} WHERE id = ?`,
         ...Object.values(d), id
       )
@@ -168,7 +131,7 @@ export function registerExternalLinksHandlers(): void {
 
   ipcMain.handle('external-links:deleteRecord', (_e, id: number) => {
     try {
-      db().runRaw('DELETE FROM query_record WHERE id = ?', id)
+      getDb().runRaw('DELETE FROM query_record WHERE id = ?', id)
       return success(null)
     } catch (e) { return errorResponse(String(e)) }
   })
@@ -177,13 +140,13 @@ export function registerExternalLinksHandlers(): void {
 
   ipcMain.handle('external-links:stats', () => {
     try {
-      const totalRow = db().getRaw<{ total_records: number; total_items: number }>(
+      const totalRow = getDb().getRaw<{ total_records: number; total_items: number }>(
         "SELECT COUNT(*) as total_records, COALESCE(SUM(query_count),0) as total_items FROM query_record"
       )
-      const byType = db().allRaw<{ type: string; times: number; total_items: number }>(
+      const byType = getDb().allRaw<{ type: string; times: number; total_items: number }>(
         "SELECT query_type as type, COUNT(*) as times, COALESCE(SUM(query_count),0) as total_items FROM query_record GROUP BY query_type ORDER BY times DESC"
       )
-      const bySite = db().allRaw<{ site: string; times: number }>(
+      const bySite = getDb().allRaw<{ site: string; times: number }>(
         "SELECT site_name as site, COUNT(*) as times FROM query_record GROUP BY site_name ORDER BY times DESC"
       )
       return success({

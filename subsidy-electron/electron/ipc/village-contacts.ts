@@ -35,8 +35,6 @@ function closePreviousGroup(villageGroupId: number, currentYear: number) {
 
 // ── 注册 ──
 export function registerVillageContactsHandlers(): void {
-  ensureTables()
-
   // ═══════ 村负责人 ═══════
 
   // 列表（按村分组 + 时间线）

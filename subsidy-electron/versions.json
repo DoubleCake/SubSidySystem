@@ -13,7 +13,7 @@
                                          "🧹 删除分散在handler中的建表逻辑，统一由 migrate.ts 管理"
                                      ],
                          "title":  "数据库迁移修复 + 旧库恢复兼容 + 进度管理优化",
-                         "fileSize":  0
+                         "fileSize":  92545425
                      },
                      {
                          "version":  "0.0.18",

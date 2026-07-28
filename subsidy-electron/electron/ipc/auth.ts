@@ -8,30 +8,7 @@ import { success, errorResponse } from './response'
 let authEnabled = true
 let tokenCounter = 1
 
-function ensureUsersTable() {
-  try {
-    getDb().runRaw(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL UNIQUE,
-        password TEXT NOT NULL,
-        display_name TEXT DEFAULT '',
-        role TEXT DEFAULT 'user',
-        is_active INTEGER DEFAULT 1,
-        created_at TEXT DEFAULT (datetime('now','localtime'))
-      )
-    `)
-    // 确保默认管理员存在
-    const admin = getDb().getRaw<{ id: number }>('SELECT id FROM users WHERE username=?', 'admin')
-    if (!admin) {
-      getDb().runRaw("INSERT INTO users (username, password, display_name, role) VALUES (?,?,?,?)",
-        'admin', 'admin123', '管理员', 'admin')
-    }
-  } catch { /* ignore */ }
-}
-
 export function registerAuthHandlers(): void {
-  ensureUsersTable()
 
   ipcMain.handle('auth:status', () => {
     try {

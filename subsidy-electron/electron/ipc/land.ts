@@ -36,12 +36,7 @@ export function registerLandHandlers(): void {
     } catch (e) { return errorResponse(String(e)) }
   })
 
-  // ── 大户管理 ──
-  function ensureLargeFarmerTables() {
-    try { db().runRaw('CREATE TABLE IF NOT EXISTS large_farmer (id INTEGER PRIMARY KEY AUTOINCREMENT, farmer_name TEXT, household_id INTEGER, household_name TEXT, village_name TEXT, land_area REAL, remark TEXT, created_at TEXT DEFAULT (datetime(\'now\',\'localtime\')))') } catch {}
-    try { db().runRaw('CREATE TABLE IF NOT EXISTS large_farmer_trust (id INTEGER PRIMARY KEY AUTOINCREMENT, large_farmer_id INTEGER, trust_type TEXT, land_area REAL, trust_year INTEGER, start_date TEXT, end_date TEXT, remark TEXT, created_at TEXT DEFAULT (datetime(\'now\',\'localtime\')))') } catch {}
-  }
-  ensureLargeFarmerTables()
+  // 表结构由 migrate.ts 统一管理（large_farmer / large_farmer_trust / large_farmer_parcel / large_farmer_contract_reminder）
 
   ipcMain.handle('land:listLargeFarmers', (_e, params: Record<string, unknown> = {}) => {
     try {
