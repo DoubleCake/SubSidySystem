@@ -1,6 +1,23 @@
 ﻿{
     "versions":  [
                      {
+                         "version":  "0.0.21",
+                         "downloadUrl":  "",
+                         "date":  "2026-07-28",
+                         "changes":  [
+                                         "🔒 密码改为PBKDF2-SHA512哈希存储，旧明文密码自动升级",
+                                         "🔒 SQL列名白名单校验，防动态SQL注入（safeUpdate/safeInsert）",
+                                         "🛡 前端ErrorBoundary，渲染崩溃显示重试界面不再白屏",
+                                         "📝 审计日志系统：用户登录/新增农户等操作自动记录",
+                                         "💾 每4小时自动备份数据库到backups/，保留最近7个",
+                                         "📊 进度管理新增表格视图，支持阶段/状态组合筛选",
+                                         "🔧 补全agri-tasks 9个+eligibility 3个缺失IPC handler",
+                                         "🔧 输入校验增强，统一错误信息不泄露内部细节"
+                                     ],
+                         "title":  "P0 安全加固 — 密码哈希+SQL防注入+自动备份+审计日志",
+                         "fileSize":  0
+                     },
+                     {
                          "version":  "0.0.20",
                          "downloadUrl":  "",
                          "date":  "2026-07-28",
