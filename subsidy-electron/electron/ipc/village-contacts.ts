@@ -10,38 +10,6 @@ import { ipcMain } from 'electron'
 import { getDb } from '../database/connection'
 import { success, successList, errorResponse } from './response'
 
-// ── 表结构确保 ──
-function ensureTables() {
-  const db = getDb()
-
-  // village_contact 升级：加时间轴列
-  const cols = db.allRaw<{ name: string }>("PRAGMA table_info('village_contact')")
-  const colNames = cols.map(c => c.name)
-  if (!colNames.includes('start_year')) {
-    db.runRaw('ALTER TABLE village_contact ADD COLUMN start_year INTEGER')
-    db.runRaw("UPDATE village_contact SET start_year = 2024 WHERE start_year IS NULL")
-  }
-  if (!colNames.includes('end_year')) {
-    db.runRaw('ALTER TABLE village_contact ADD COLUMN end_year INTEGER')
-  }
-
-  // 新建 village_group_contact 表
-  db.runRaw(`
-    CREATE TABLE IF NOT EXISTS village_group_contact (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      village_id INTEGER NOT NULL,
-      village_group_id INTEGER NOT NULL,
-      group_no INTEGER NOT NULL DEFAULT 1,
-      leader_name TEXT DEFAULT '',
-      leader_phone TEXT DEFAULT '',
-      start_year INTEGER NOT NULL,
-      end_year INTEGER,
-      remark TEXT DEFAULT '',
-      created_at TEXT DEFAULT (datetime('now','localtime'))
-    )
-  `)
-}
-
 // ── 工具：把上一个"至今"记录的 end_year 封口 ──
 function closePreviousVillage(villageId: number, currentYear: number) {
   const db = getDb()

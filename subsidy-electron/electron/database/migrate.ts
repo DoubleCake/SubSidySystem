@@ -475,6 +475,47 @@ export function runMigrations(): void {
       sort_order INTEGER DEFAULT 0,
       is_active INTEGER DEFAULT 1
     );
+
+    CREATE TABLE IF NOT EXISTS village_contact (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      village_id INTEGER NOT NULL UNIQUE,
+      village_name TEXT DEFAULT '',
+      leader_name TEXT DEFAULT '',
+      leader_phone TEXT DEFAULT '',
+      leader_title TEXT DEFAULT '',
+      contact_name TEXT DEFAULT '',
+      contact_phone TEXT DEFAULT '',
+      start_year INTEGER,
+      end_year INTEGER,
+      remark TEXT DEFAULT '',
+      updated_at TEXT DEFAULT (datetime('now','localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS village_group_contact (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      village_id INTEGER NOT NULL,
+      village_group_id INTEGER NOT NULL,
+      group_no INTEGER NOT NULL DEFAULT 1,
+      leader_name TEXT DEFAULT '',
+      leader_phone TEXT DEFAULT '',
+      start_year INTEGER NOT NULL,
+      end_year INTEGER,
+      remark TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now','localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS project_progress (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subsidy_type_id INTEGER NOT NULL,
+      village_id INTEGER NOT NULL,
+      village_name TEXT DEFAULT '',
+      person_name TEXT DEFAULT '',
+      phone TEXT DEFAULT '',
+      stages TEXT DEFAULT '[]',
+      note TEXT DEFAULT '',
+      updated_at TEXT DEFAULT (datetime('now','localtime')),
+      UNIQUE(subsidy_type_id, village_id)
+    );
   `)
 
   // ═══════════════════════════════════════════
@@ -570,6 +611,12 @@ export function runMigrations(): void {
     "ALTER TABLE large_farmer_trust ADD COLUMN is_demonstration SMALLINT DEFAULT 0",
     "ALTER TABLE large_farmer_trust ADD COLUMN zone_name VARCHAR(100)",
     "ALTER TABLE large_farmer_trust ADD COLUMN reminder_sent SMALLINT DEFAULT 0",
+    // village_contact 旧表升级（v0.0.16/17 创建的无时间列版本）
+    "ALTER TABLE village_contact ADD COLUMN start_year INTEGER",
+    "ALTER TABLE village_contact ADD COLUMN end_year INTEGER",
+    "ALTER TABLE village_contact ADD COLUMN leader_title TEXT DEFAULT ''",
+    "ALTER TABLE village_contact ADD COLUMN contact_name TEXT DEFAULT ''",
+    "ALTER TABLE village_contact ADD COLUMN contact_phone TEXT DEFAULT ''",
   ]
 
   for (const stmt of alterStatements) {
