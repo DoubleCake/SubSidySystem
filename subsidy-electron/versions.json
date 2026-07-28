@@ -1,6 +1,21 @@
 ﻿{
     "versions":  [
                      {
+                         "version":  "0.0.19",
+                         "downloadUrl":  "",
+                         "date":  "2026-07-28",
+                         "changes":  [
+                                         "🔧 数据库迁移集中管理：新表统一在启动时创建，修复旧数据库恢复后崩溃",
+                                         "🔧 数据库恢复后自动调用 runMigrations 补建缺失表",
+                                         "🔧 项目进度初始化改为村级别，合并初始化+同步为一步",
+                                         "🔧 进度查看displayRecords不再过滤无负责人村",
+                                         "🔧 runRaw() + run() 使用 getRowsModified() 返回真实行数",
+                                         "🧹 删除分散在handler中的建表逻辑，统一由 migrate.ts 管理"
+                                     ],
+                         "title":  "数据库迁移修复 + 旧库恢复兼容 + 进度管理优化",
+                         "fileSize":  0
+                     },
+                     {
                          "version":  "0.0.18",
                          "downloadUrl":  "",
                          "date":  "2026-07-27",
