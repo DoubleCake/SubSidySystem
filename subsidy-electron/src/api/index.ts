@@ -7,6 +7,7 @@ import type {
   HH, HHDetail, HHEvent, HistoryDateEvent, SnapshotAtResponse,
   HouseholdCreate, MemberCreate, MemberUpdate, MemberMoveRequest,
   SubsidyProxyOut, SubsidyProxyCreate,
+  PrecheckRecordItem, PrecheckRecordBatch,
 } from '../types'
 
 // ── Electron IPC 调用封装 ──
@@ -380,10 +381,8 @@ export const previewHouseholdImport = (rows: HouseholdImportRow[]) =>
 export const executeHouseholdImport = (rows: HouseholdImportRow[], defaultVillageName?: string, defaultGroupNo?: string) =>
   req<HouseholdImportResult>('household-import:execute', { rows, default_village_name: defaultVillageName, default_group_no: defaultGroupNo })
 
-// ── 预检历史 ──
+// ── 预检记录 ──
 export interface CheckConfig { checks: Record<string, boolean> }
-export interface PrecheckHistoryItem { id: number; subsidy_type_id: number; year: number; error_type: string; error_detail: string; status: string; created_at: string }
-export interface PrecheckHistoryBatch { batch_key: string; count: number; created_at: string }
 
 export const getCheckConfig = (typeId: number) =>
   req<{ check_config: CheckConfig; raw: string | null }>('subsidies:getCheckConfig', typeId)
@@ -397,25 +396,22 @@ export const restoreSubsidyType = (typeId: number) =>
 export const destroySubsidyType = (typeId: number) =>
   req<{ message: string }>('subsidies:destroyType', typeId)
 
-export const savePrecheckHistory = (subsidy_type_id: number, year: number, precheck_result: unknown, error_types?: string[]) =>
-  req<{ saved: number; batch_key: string }>('precheck:saveHistory', { subsidy_type_id, year, precheck_result, error_types })
+export const savePrecheckRecord = (subsidy_type_id: number, year: number, items: Array<{ error_type: string; farmer_name: string; id_card: string; village: string; group_no: string; error_message: string }>) =>
+  req<{ saved: number; batch_key: string }>('precheck:saveRecord', { subsidy_type_id, year, items })
 
-export const getPrecheckHistory = (params: Record<string, string | number>) =>
-  req<PageResult<PrecheckHistoryItem>>('precheck:listHistory', params)
+export const getPrecheckBatches = (subsidy_type_id: number, year: number) =>
+  req<{ batches: PrecheckRecordBatch[] }>('precheck:listBatches', { subsidy_type_id, year })
 
-export const getPrecheckHistoryBatches = (subsidy_type_id: number, year: number) =>
-  req<{ batches: PrecheckHistoryBatch[] }>('precheck:listBatches', { subsidy_type_id, year })
+export const getPrecheckRecords = (params: Record<string, string | number>) =>
+  req<PageResult<PrecheckRecordItem>>('precheck:listRecords', params)
 
-export const resolvePrecheckHistory = (id: number) =>
-  req('precheck:resolveHistory', id)
+export const togglePrecheckRecord = (id: number) =>
+  req<{ status: string }>('precheck:toggleRecord', id)
 
-export const unresolvePrecheckHistory = (id: number) =>
-  req('precheck:unresolveHistory', id)
+export const deletePrecheckRecord = (id: number) =>
+  req<null>('precheck:deleteRecord', id)
 
-export const deletePrecheckHistory = (id: number) =>
-  req('precheck:deleteHistory', id)
-
-export const autoResolvePrecheckHistory = (subsidy_type_id: number, year: number) =>
+export const autoResolvePrecheck = (subsidy_type_id: number, year: number) =>
   req<{ resolved_count: number; total: number }>('precheck:autoResolve', { subsidy_type_id, year })
 
 export const exportApplications = (subsidyTypeId: number) =>

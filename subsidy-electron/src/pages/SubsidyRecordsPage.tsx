@@ -20,6 +20,7 @@ import PreApplyList from './PreApplyList'
 import DisbursementList from './DisbursementList'
 import ProxyList from './ProxyList'
 import PrecheckHistoryTab from '../components/PrecheckHistoryTab'
+import PrecheckConfigPanel from '../components/PrecheckConfigPanel'
 import ProjectProgressTab from '../components/ProjectProgressTab'
 
 // 代领导入字段配置
@@ -107,7 +108,6 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
 
   // 表单相关状态
   const [addOpen, setAddOpen] = useState(false)
-  const [importOpen, setImportOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<ApplicationOut | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [templates, setTemplates] = useState<ExcelColumnTemplate[]>([])
@@ -145,6 +145,73 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   // 预检相关
   const [preCheckLoading, setPreCheckLoading] = useState(false)
   const [preCheckResults, setPreCheckResults] = useState<CheckResult | null>(null)
+  const [showPrecheckConfig, setShowPrecheckConfig] = useState(false)
+  const [savingPrecheck, setSavingPrecheck] = useState(false)
+  const [autoResolving, setAutoResolving] = useState(false)
+  const [precheckRefreshKey, setPrecheckRefreshKey] = useState(0)
+
+  // ── 保存当前预检结果 ──
+  const handleSavePrecheck = async () => {
+    if (!preCheckResults) {
+      show('⚠ 没有可保存的预检结果，请先执行预检', 'err')
+      return
+    }
+    setSavingPrecheck(true)
+    try {
+      // 在前端把预检结果拍平为简单数组，避免 IPC 传大型嵌套对象丢失数据
+      const errorTypes = ['format_errors','village_errors','duplicate_errors','gender_mismatch','error_library_hits','area_anomalies','area_missing','age_anomaly','deceased_farmers','restricted_farmers','household_duplicates','new_farmers','removed_farmers','changed_farmers']
+      const items: Array<{ error_type: string; farmer_name: string; id_card: string; village: string; group_no: string; error_message: string }> = []
+
+      for (const etype of errorTypes) {
+        const arr = (preCheckResults as any)[etype]
+        if (!Array.isArray(arr)) continue
+        for (const item of arr) {
+          let msg = ''
+          if (Array.isArray(item.errors)) msg = item.errors.join('；')
+          else if (item.error) msg = String(item.error)
+          else if (item.error_reason) msg = String(item.error_reason)
+          else if (item.anomaly_details) msg = String(item.anomaly_details)
+          else if (item.note) msg = String(item.note)
+          else if (Array.isArray(item.changes)) msg = item.changes.join('；')
+          else msg = etype
+
+          items.push({
+            error_type: etype,
+            farmer_name: String(item.name || item.farmer_name || ''),
+            id_card: String(item.id_card || ''),
+            village: String(item.village || ''),
+            group_no: String(item.group || item.group_no || ''),
+            error_message: msg,
+          })
+        }
+      }
+
+      if (items.length === 0) {
+        show('⚠ 没有可保存的错误记录', 'err')
+        setSavingPrecheck(false)
+        return
+      }
+
+      const res = await api.savePrecheckRecord(subsidyType.id, subsidyType.subsidy_year, items)
+      show(`✓ 已保存 ${res.saved} 条记录，批次：${res.batch_key}`)
+      setPrecheckRefreshKey(k => k + 1)
+    } catch (e) {
+      console.error('[savePrecheck]', e)
+      show('保存失败：' + String(e).replace('Error: ', '').slice(0, 60), 'err')
+    }
+    finally { setSavingPrecheck(false) }
+  }
+
+  // ── 自动比对 ──
+  const handleAutoResolve = async () => {
+    setAutoResolving(true)
+    try {
+      const res = await api.autoResolvePrecheck(subsidyType.id, subsidyType.subsidy_year)
+      show(`✓ 自动比对完成，已解决 ${res.resolved_count} 条`)
+      setPrecheckRefreshKey(k => k + 1)
+    } catch { show('自动比对失败', 'err') }
+    finally { setAutoResolving(false) }
+  }
 
   // 发放 vs 预申请比对
   const [checkingDisbursement, setCheckingDisbursement] = useState(false)
@@ -755,7 +822,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
           { key: 'preApply' as const, label: '📋 预申请数据' },
           { key: 'disbursement' as const, label: '💰 正式分发' },
           { key: 'proxy' as const, label: '👥 代领关系' },
-          { key: 'precheckHistory' as const, label: '📋 预检历史' },
+          { key: 'precheckHistory' as const, label: '📋 预检管理' },
           { key: 'villageProgress' as const, label: '📊 进度查看' },
         ].map(tab => (
           <button key={tab.key} onClick={() => switchTab(tab.key)}
@@ -768,6 +835,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
           </button>
         ))}
         <div className="ml-auto flex items-center gap-1.5 pb-1.5">
+          {/* Proxy tab 的操作按钮 */}
           {activeTab === 'proxy' && (
             <>
               <button onClick={() => setProxyImportOpen(true)}
@@ -780,36 +848,21 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
               </button>
             </>
           )}
-          {(activeTab === 'preApply' || activeTab === 'disbursement') && (<>
+          {/* 预检按钮 — 仅预申请/发放 tab */}
+          {(activeTab === 'preApply' || activeTab === 'disbursement') && (
+            <>
               <button onClick={runPreCheck} disabled={preCheckLoading || apps.length === 0}
                 className={`px-2.5 py-1.5 text-[11px] rounded-lg flex items-center gap-1 ${
                   preCheckLoading ? 'bg-blue-50 border border-blue-200 text-blue-500' : 'bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100'
                 }`}>
                 {preCheckLoading ? <><span className="w-3 h-3 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />预检中</> : '🔍 预检'}
               </button>
-              <span className="text-[11px] text-text-muted">共 {total} 条</span>
-              <div className="flex gap-1.5 items-center">
-                {selectedIds.length > 0 && (
-                  <button onClick={batchDelete}
-                    className="px-2.5 py-1.5 text-[11px] bg-red-500 text-white rounded-lg hover:bg-red-600">
-                    🗑️ 删除({selectedIds.length})
-                  </button>
-                )}
-                {activeTab === 'disbursement' && (
-                  <button onClick={runDisbursementCheck} disabled={checkingDisbursement}
-                    className="px-2.5 py-1.5 text-[11px] border border-amber-300 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 disabled:opacity-50">
-                    {checkingDisbursement ? '⏳' : '🔍'} 比对
-                  </button>
-                )}
-                <button onClick={deleteAll} disabled={deletingAll}
-                  className={`px-2.5 py-1.5 text-[11px] rounded-lg ${deletingAll ? 'bg-gray-300 cursor-not-allowed text-gray-500' : 'bg-red-500/80 hover:bg-red-600 text-white'}`}>
-                  {deletingAll ? '⏳ 删除中...' : '🗑️ 全部'}
+              {activeTab === 'disbursement' && (
+                <button onClick={runDisbursementCheck} disabled={checkingDisbursement}
+                  className="px-2.5 py-1.5 text-[11px] border border-amber-300 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 disabled:opacity-50">
+                  {checkingDisbursement ? '⏳' : '🔍'} 比对
                 </button>
-                <button onClick={() => setAddOpen(true)}
-                  className="px-2.5 py-1.5 text-[11px] bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg shadow-sm hover:shadow-md transition-all">
-                  ＋ 导入
-                </button>
-              </div>
+              )}
             </>
           )}
         </div>
@@ -980,8 +1033,20 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
                 <div className="px-4 py-2.5 border-b border-border/30 bg-gradient-to-r from-blue-50/50 to-sky-50/50 flex items-center justify-between">
                   <span className="text-sm font-semibold text-text-primary">🔍 数据预检结果</span>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => { setSelectedSheets(getDefaultSelectedSheets(preCheckResults)); setExportModalOpen(true) }} className="px-2.5 py-1 text-[11px] bg-primary-500 text-white rounded-lg hover:bg-primary-500/90 transition-all">↓ 导出 Excel</button>
-                    <button onClick={() => setPreCheckResults(null)} className="text-xs text-text-muted hover:text-text-primary">✕ 关闭</button>
+                    <button onClick={handleSavePrecheck} disabled={savingPrecheck}
+                      className={`px-2.5 py-1 text-[11px] rounded-lg flex items-center gap-1 ${
+                        savingPrecheck ? 'bg-blue-100 text-blue-600' : 'bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100'
+                      }`}>
+                      {savingPrecheck ? '⏳' : '💾'} 保存
+                    </button>
+                    <button onClick={handleAutoResolve} disabled={autoResolving}
+                      className={`px-2.5 py-1 text-[11px] rounded-lg flex items-center gap-1 ${
+                        autoResolving ? 'bg-green-100 text-green-600' : 'bg-green-50 border border-green-200 text-green-700 hover:bg-green-100'
+                      }`}>
+                      {autoResolving ? '⏳' : '🔄'} 比对
+                    </button>
+                    <button onClick={() => { setSelectedSheets(getDefaultSelectedSheets(preCheckResults)); setExportModalOpen(true) }} className="px-2.5 py-1 text-[11px] bg-primary-500 text-white rounded-lg hover:bg-primary-500/90 transition-all">↓ 导出</button>
+                    <button onClick={() => setPreCheckResults(null)} className="text-xs text-text-muted hover:text-text-primary">✕</button>
                   </div>
                 </div>
                 <div className="p-4">
@@ -1039,6 +1104,22 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
             handleSearchChange={handleSearchChange}
             clearFilters={clearFilters}
             sortField={sortField} sortDir={sortDir} onSortChange={handleSortChange}
+            toolbarActions={<>
+              {selectedIds.length > 0 && (
+                <button onClick={batchDelete}
+                  className="text-xs bg-red-500 text-white px-2.5 py-1 rounded hover:bg-red-600 whitespace-nowrap">
+                  🗑 删除({selectedIds.length})
+                </button>
+              )}
+              <button onClick={deleteAll} disabled={deletingAll}
+                className={`text-xs px-2.5 py-1 rounded whitespace-nowrap ${deletingAll ? 'bg-gray-300 cursor-not-allowed text-gray-500' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}>
+                {deletingAll ? '⏳ 删除中…' : '🗑 全部删除'}
+              </button>
+              <button onClick={() => setAddOpen(true)}
+                className="text-xs bg-primary-500 text-white px-2.5 py-1 rounded hover:bg-primary-600 whitespace-nowrap">
+                ＋ 导入
+              </button>
+            </>}
           />
         </div>
       )}
@@ -1198,8 +1279,20 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
                 <div className="px-4 py-2.5 border-b border-border/30 bg-gradient-to-r from-blue-50/50 to-sky-50/50 flex items-center justify-between">
                   <span className="text-sm font-semibold text-text-primary">🔍 数据预检结果</span>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => { setSelectedSheets(getDefaultSelectedSheets(preCheckResults)); setExportModalOpen(true) }} className="px-2.5 py-1 text-[11px] bg-primary-500 text-white rounded-lg hover:bg-primary-500/90 transition-all">↓ 导出 Excel</button>
-                    <button onClick={() => setPreCheckResults(null)} className="text-xs text-text-muted hover:text-text-primary">✕ 关闭</button>
+                    <button onClick={handleSavePrecheck} disabled={savingPrecheck}
+                      className={`px-2.5 py-1 text-[11px] rounded-lg flex items-center gap-1 ${
+                        savingPrecheck ? 'bg-blue-100 text-blue-600' : 'bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100'
+                      }`}>
+                      {savingPrecheck ? '⏳' : '💾'} 保存
+                    </button>
+                    <button onClick={handleAutoResolve} disabled={autoResolving}
+                      className={`px-2.5 py-1 text-[11px] rounded-lg flex items-center gap-1 ${
+                        autoResolving ? 'bg-green-100 text-green-600' : 'bg-green-50 border border-green-200 text-green-700 hover:bg-green-100'
+                      }`}>
+                      {autoResolving ? '⏳' : '🔄'} 比对
+                    </button>
+                    <button onClick={() => { setSelectedSheets(getDefaultSelectedSheets(preCheckResults)); setExportModalOpen(true) }} className="px-2.5 py-1 text-[11px] bg-primary-500 text-white rounded-lg hover:bg-primary-500/90 transition-all">↓ 导出</button>
+                    <button onClick={() => setPreCheckResults(null)} className="text-xs text-text-muted hover:text-text-primary">✕</button>
                   </div>
                 </div>
                 <div className="p-4">
@@ -1257,6 +1350,22 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
             handleSearchChange={handleSearchChange}
             clearFilters={clearFilters}
             sortField={sortField} sortDir={sortDir} onSortChange={handleSortChange}
+            toolbarActions={<>
+              {selectedIds.length > 0 && (
+                <button onClick={batchDelete}
+                  className="text-xs bg-red-500 text-white px-2.5 py-1 rounded hover:bg-red-600 whitespace-nowrap">
+                  🗑 删除({selectedIds.length})
+                </button>
+              )}
+              <button onClick={deleteAll} disabled={deletingAll}
+                className={`text-xs px-2.5 py-1 rounded whitespace-nowrap ${deletingAll ? 'bg-gray-300 cursor-not-allowed text-gray-500' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}>
+                {deletingAll ? '⏳ 删除中…' : '🗑 全部删除'}
+              </button>
+              <button onClick={() => setAddOpen(true)}
+                className="text-xs bg-primary-500 text-white px-2.5 py-1 rounded hover:bg-primary-600 whitespace-nowrap">
+                ＋ 导入
+              </button>
+            </>}
           />
         </div>
       )}
@@ -1269,7 +1378,23 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
 
       {activeTab === 'precheckHistory' && (
         <div className="space-y-4">
-          <PrecheckHistoryTab subsidyType={subsidyType} preCheckResults={preCheckResults} />
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowPrecheckConfig(false)}
+              className={`px-3 py-1.5 text-xs rounded-btn ${!showPrecheckConfig ? 'bg-primary-500 text-white' : 'border border-border text-text-muted hover:bg-warm/20'}`}>
+              📋 预检管理
+            </button>
+            <button onClick={() => setShowPrecheckConfig(true)}
+              className={`px-3 py-1.5 text-xs rounded-btn ${showPrecheckConfig ? 'bg-primary-500 text-white' : 'border border-border text-text-muted hover:bg-warm/20'}`}>
+              ⚙ 规则配置
+            </button>
+          </div>
+          {showPrecheckConfig ? (
+            <div className="bg-white border border-border rounded-card p-4">
+              <PrecheckConfigPanel />
+            </div>
+          ) : (
+            <PrecheckHistoryTab subsidyType={subsidyType} preCheckResults={preCheckResults} refreshKey={precheckRefreshKey} />
+          )}
         </div>
       )}
 

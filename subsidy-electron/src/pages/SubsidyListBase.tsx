@@ -119,6 +119,8 @@ export interface SubsidyListBaseProps {
   handleSearchChange: (value: string) => void
   clearFilters: () => void
   config: SubsidyListConfig
+  /** 额外工具栏内容（删除/导入等按钮，由父组件注入） */
+  toolbarActions?: ReactNode
 }
 
 export default function SubsidyListBase({
@@ -129,7 +131,7 @@ export default function SubsidyListBase({
   setTemplates, setLoadingVillages, setVillages,
   show, load, onSearch, handleFilterChange, handleSearchChange, clearFilters,
   sortField, sortDir, onSortChange,
-  config,
+  config, toolbarActions,
 }: SubsidyListBaseProps) {
   const navigate = useNavigate()
   const { apiBase, importTitle, exportPrefix, batchImportEndpoint, onExport, extraToolbar, preCheck, importFields } = config
@@ -416,6 +418,7 @@ export default function SubsidyListBase({
           <button onClick={clearFilters} className="text-xs text-text-muted hover:text-text-primary border border-border px-2 py-1 rounded" disabled={Object.values(filters).every(v => !v) && !search}>清除</button>
           <button onClick={handleExport} className="text-xs border border-emerald-300 text-emerald-700 px-2.5 py-1 rounded hover:bg-emerald-50 font-medium whitespace-nowrap">导出</button>
           {extraToolbar?.({ selectedIds, load, show })}
+          {toolbarActions}
         </div>
 
         <table className="w-full border-collapse min-w-[950px]">

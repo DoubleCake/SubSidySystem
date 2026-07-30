@@ -1,10 +1,10 @@
 /**
- * 预检报告导出工具（调用后端API）
- * 用于 PreCheckPage 和 SubsidyProjectsPage 的预检结果导出
+ * 预检报告导出工具 — 纯前端生成 Excel，不经过 IPC
  */
+import * as XLSX from 'xlsx'
 import type { CheckResult } from '../types'
 
-// Sheet 选项配置（与后端 export_utils.py 中的 SHEET_CONFIGS 保持一致）
+// Sheet 选项配置
 export const PRECHECK_SHEET_OPTIONS = [
   { key: 'summary', label: '汇总', hasCount: false },
   { key: 'format_errors', label: '格式错误', hasCount: true },
@@ -25,159 +25,144 @@ export const PRECHECK_SHEET_OPTIONS = [
 
 export type SheetKey = typeof PRECHECK_SHEET_OPTIONS[number]['key']
 
-// 后端支持的 sheet 映射（英文key -> 中文名称）
-const SHEET_KEY_TO_NAME: Record<SheetKey, string> = {
-  summary: '汇总',
-  format_errors: '格式错误',
-  village_errors: '村组不存在',
-  duplicate_errors: '重复身份证',
-  gender_mismatch: '性别不符',
-  error_library_hits: '错误库命中',
-  area_anomalies: '面积异常',
-  area_missing: '承包面积缺失',
-  age_anomaly: '年龄异常',
-  deceased_farmers: '死亡农户',
-  restricted_farmers: '受限身份农户',
-  household_duplicates: '同一家庭多成员申请',
-  new_farmers: '新增农户',
-  removed_farmers: '减少农户',
-  changed_farmers: '字段变更',
+// 字段名中文翻译
+const CN: Record<string, string> = {
+  row: '行号', name: '姓名', farmer_name: '姓名', real_name: '姓名',
+  id_card: '身份证号', id_card_masked: '身份证号(脱敏)',
+  village: '村', group: '组', group_no: '组',
+  error: '错误描述', errors: '错误详情', error_message: '错误描述',
+  error_type: '错误类型', error_reason: '错误原因', source: '来源',
+  anomaly_type: '异常类型', anomaly_details: '异常详情',
+  contract_area: '承包面积', trust_out_area: '流出面积',
+  trust_in_area: '流入面积', no_subsidy_area: '不计补贴面积',
+  actual_subsidy_area: '实际补贴面积', exceed_amount: '超额(亩)',
+  reference_area: '参考面积', area_source: '面积来源',
+  hh_used: '户已用面积', hh_total: '户总面积',
+  db_contract_area: '数据库承包面积', self_occupy: '自用面积',
+  age: '年龄', birth_year: '出生年份',
+  gender: '性别', excel_gender: 'Excel性别', id_card_gender: '身份证性别',
+  household_id: '家庭户ID', total_count: '成员总数',
+  other_members: '其他成员', excel_remark: 'Excel备注',
+  db_existing_apps: '已有申请',
+  note: '备注', changes: '变更内容', farmer_id: '农户ID',
+  deceased_farmers: '死亡农户', restricted_farmers: '受限身份农户',
+  existing_apps: '已有申请', death_date: '死亡日期',
+  village_group_id: '村组ID', db_name: '数据库姓名',
+  db_village: '数据库村', db_group: '数据库组',
 }
 
-// 后端实际支持的 sheet 名称（export_precheck_report_with_options 中的 all_sheets）
-const BACKEND_SUPPORTED_SHEETS = new Set([
-  '汇总',
-  '错误库命中',
-  '格式错误',
-  '村组不存在',
-  '重复身份证',
-  '性别不符',
-  '面积异常',
-  '承包面积缺失',
-  '年龄异常',
-  '死亡农户',
-  '受限身份农户',
-  '同一家庭多成员申请',
-  '新增农户',
-  '减少农户',
-  '字段变更',
-])
+function t(key: string) { return CN[key] || key }
 
-/**
- * 将英文 sheet key 转换为后端支持的中文名称
- * 过滤掉后端不支持的 sheet
- */
-function mapSheetsToBackend(selectedSheets: SheetKey[]): string[] {
-  const mapped = selectedSheets
-    .map(key => SHEET_KEY_TO_NAME[key])
-    .filter(name => BACKEND_SUPPORTED_SHEETS.has(name))
-  return mapped.length > 0 ? mapped : ['汇总']
+/** 展平值：数组 → 字符串，对象 → JSON */
+function flat(v: unknown): string {
+  if (v == null) return ''
+  if (Array.isArray(v)) return v.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join('；')
+  if (typeof v === 'object') return JSON.stringify(v)
+  return String(v)
 }
 
-/**
- * 导出预检报告到 Excel（通过后端API，使用 openpyxl 生成，样式更美观）
- * @param result 预检结果
- * @param fileName 文件名（不含扩展名和日期）
- */
-export async function exportPrecheckReport(result: CheckResult, fileName = '预检查报告') {
-  try {
-    const response = await window.electronAPI.invoke('subsidies:exportPrecheck', {
-      result,
-      file_name: fileName
-    })
-
-    if (!response || response.code !== 0) {
-      throw new Error('导出失败')
+/** 从数组中收集所有 key 作为表头 */
+function collectKeys(arr: Record<string, unknown>[]): string[] {
+  const seen = new Set<string>()
+  const keys: string[] = []
+  for (const item of arr) {
+    for (const k of Object.keys(item)) {
+      if (!seen.has(k)) { seen.add(k); keys.push(k) }
     }
-
-    // 从响应数据获取文件名和blob数据
-    const data = response.data
-    const dateStr = new Date().toISOString().slice(0, 10)
-    const downloadFileName = data?.filename || `${fileName}_${dateStr}.xlsx`
-
-    // 创建下载链接（base64数据）
-    const byteCharacters = atob(data?.file_data || '')
-    const byteNumbers = new Array(byteCharacters.length)
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i)
-    }
-    const byteArray = new Uint8Array(byteNumbers)
-    const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = downloadFileName
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-  } catch (error) {
-    console.error('导出失败:', error)
-    alert('导出失败，请重试')
   }
+  return keys
+}
+
+/** 触发浏览器下载 Blob */
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = filename
+  document.body.appendChild(a); a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 2000)
 }
 
 /**
- * 带选项导出预检报告
- * @param result 预检结果
+ * 生成预检报告 Excel 并下载
+ * @param result 预检结果对象
  * @param options 导出选项
- * @param fileName 文件名（不含扩展名和日期）
+ * @param fileName 文件名前缀
  */
-export async function exportPrecheckReportWithOptions(
+export function exportPrecheckReportWithOptions(
   result: CheckResult,
-  options: {
-    splitByVillage: boolean
-    selectedSheets: SheetKey[]
-  },
-  fileName = '预检查报告'
+  options: { splitByVillage: boolean; selectedSheets: SheetKey[] },
+  fileName = '预检查报告',
 ) {
-  try {
-    // 映射 sheet key 为后端支持的中文名称
-    const backendSheets = mapSheetsToBackend(options.selectedSheets)
+  const { splitByVillage, selectedSheets } = options
+  if (!result) { alert('没有可导出的预检数据'); return }
 
-    const response = await window.electronAPI.invoke('subsidies:exportPrecheckWithOptions', {
-      result,
-      file_name: fileName,
-      split_by_village: options.splitByVillage,
-      selected_sheets: backendSheets
-    })
+  const wb = XLSX.utils.book_new()
+  const dateStr = new Date().toISOString().slice(0, 10)
 
-    if (!response || response.code !== 0) {
-      throw new Error('导出失败')
+  for (const key of selectedSheets) {
+    if (key === 'summary') {
+      const s = result.summary || {}
+      const rows = Object.entries(s).map(([k, v]) => ({
+        '指标': t(k),
+        '数值': typeof v === 'number' ? (v % 1 === 0 ? v : Number(v.toFixed(2))) : v,
+      }))
+      const ws = XLSX.utils.json_to_sheet(rows)
+      XLSX.utils.book_append_sheet(wb, ws, '汇总')
+      continue
     }
 
-    // 从响应数据获取文件名和blob数据
-    const data = response.data
-    const dateStr = new Date().toISOString().slice(0, 10)
-    const downloadFileName = data?.filename || (
-      options.splitByVillage
-        ? `${fileName}_${dateStr}.zip`
-        : `${fileName}_${dateStr}.xlsx`
-    )
+    const data = (result as unknown as Record<string, unknown>)[key] as Record<string, unknown>[] | undefined
+    if (!Array.isArray(data) || data.length === 0) continue
 
-    // 创建下载链接（base64数据）
-    const byteCharacters = atob(data?.file_data || '')
-    const byteNumbers = new Array(byteCharacters.length)
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i)
+    const sheetLabel = PRECHECK_SHEET_OPTIONS.find(o => o.key === key)?.label || key
+
+    if (splitByVillage) {
+      const byVillage: Record<string, Record<string, unknown>[]> = {}
+      for (const item of data) {
+        const v = String(item.village || '未知村')
+        if (!byVillage[v]) byVillage[v] = []
+        byVillage[v].push(item)
+      }
+      for (const [vname, items] of Object.entries(byVillage)) {
+        const keys = collectKeys(items)
+        const rows = items.map(item => {
+          const row: Record<string, unknown> = {}
+          for (const k of keys) row[t(k)] = flat(item[k])
+          return row
+        })
+        const ws = XLSX.utils.json_to_sheet(rows)
+        const safeName = `${vname}-${sheetLabel}`.slice(0, 31)
+        XLSX.utils.book_append_sheet(wb, ws, safeName)
+      }
+    } else {
+      const keys = collectKeys(data)
+      const rows = data.map(item => {
+        const row: Record<string, unknown> = {}
+        for (const k of keys) row[t(k)] = flat(item[k])
+        return row
+      })
+      const ws = XLSX.utils.json_to_sheet(rows)
+      XLSX.utils.book_append_sheet(wb, ws, sheetLabel.slice(0, 31))
     }
-    const byteArray = new Uint8Array(byteNumbers)
-    const mimeType = options.splitByVillage
-      ? 'application/zip'
-      : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    const blob = new Blob([byteArray], { type: mimeType })
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = downloadFileName
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-  } catch (error) {
-    console.error('导出失败:', error)
-    alert('导出失败，请重试')
   }
+
+  if (wb.SheetNames.length === 0) {
+    const ws = XLSX.utils.aoa_to_sheet([['提示', '所选检查项没有可导出的数据']])
+    XLSX.utils.book_append_sheet(wb, ws, '空')
+  }
+
+  const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  downloadBlob(blob, `${fileName}_${dateStr}.xlsx`)
+}
+
+/**
+ * 导出预检报告（简化版，导出所有有数据的 sheet）
+ */
+export function exportPrecheckReport(result: CheckResult, fileName = '预检查报告') {
+  const selected = getDefaultSelectedSheets(result)
+  exportPrecheckReportWithOptions(result, { splitByVillage: false, selectedSheets: selected }, fileName)
 }
 
 /**
@@ -185,30 +170,13 @@ export async function exportPrecheckReportWithOptions(
  */
 export function getVillagesFromResult(result: CheckResult): string[] {
   const villages = new Set<string>()
-
-  // 从各类错误中收集村名
-  const collectFromArray = (arr: any[] | undefined) => {
-    if (!arr) return
-    arr.forEach((item: any) => {
-      if (item.village) villages.add(item.village)
-    })
+  const collect = (arr?: Record<string, unknown>[]) => {
+    arr?.forEach(item => { if (item.village) villages.add(String(item.village)) })
   }
-
-  collectFromArray(result.format_errors as any[])
-  collectFromArray(result.village_errors as any[])
-  collectFromArray(result.duplicate_errors as any[])
-  collectFromArray(result.gender_mismatch as any[])
-  collectFromArray(result.error_library_hits as any[])
-  collectFromArray(result.area_anomalies as any[])
-  collectFromArray(result.area_missing as any[])
-  collectFromArray(result.age_anomaly as any[])
-  collectFromArray(result.deceased_farmers as any[])
-  collectFromArray(result.restricted_farmers as any[])
-  collectFromArray(result.household_duplicates as any[])
-  collectFromArray(result.new_farmers as any[])
-  collectFromArray(result.removed_farmers as any[])
-  collectFromArray(result.changed_farmers as any[])
-
+  for (const opt of PRECHECK_SHEET_OPTIONS) {
+    if (opt.key === 'summary') continue
+    collect((result as unknown as Record<string, unknown>)[opt.key] as Record<string, unknown>[] | undefined)
+  }
   return Array.from(villages).sort()
 }
 
@@ -217,14 +185,10 @@ export function getVillagesFromResult(result: CheckResult): string[] {
  */
 export function getDefaultSelectedSheets(result: CheckResult): SheetKey[] {
   const selected: SheetKey[] = ['summary']
-
-  PRECHECK_SHEET_OPTIONS.forEach(opt => {
-    if (!opt.hasCount) return
-    const data = result[opt.key as keyof CheckResult] as any[] | undefined
-    if (data && data.length > 0) {
-      selected.push(opt.key as SheetKey)
-    }
-  })
-
+  for (const opt of PRECHECK_SHEET_OPTIONS) {
+    if (!opt.hasCount) continue
+    const data = (result as unknown as Record<string, unknown>)[opt.key] as unknown[] | undefined
+    if (data && data.length > 0) selected.push(opt.key as SheetKey)
+  }
   return selected
 }

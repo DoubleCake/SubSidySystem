@@ -527,6 +527,33 @@ export function runMigrations(): void {
       updated_at TEXT DEFAULT (datetime('now','localtime')),
       UNIQUE(subsidy_type_id, village_id)
     );
+
+    CREATE TABLE IF NOT EXISTS precheck_rule_config (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      rule_key TEXT NOT NULL UNIQUE,
+      rule_name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      threshold_json TEXT DEFAULT '{}',
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now','localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS precheck_record (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subsidy_type_id INTEGER NOT NULL,
+      apply_year INTEGER NOT NULL,
+      batch_key TEXT NOT NULL,
+      error_type TEXT NOT NULL,
+      farmer_name TEXT DEFAULT '',
+      id_card TEXT DEFAULT '',
+      village TEXT DEFAULT '',
+      group_no TEXT DEFAULT '',
+      error_message TEXT DEFAULT '',
+      status TEXT DEFAULT 'open',
+      fixed_at TEXT,
+      created_at TEXT DEFAULT (datetime('now','localtime'))
+    );
   `)
 
   // ═══════════════════════════════════════════
@@ -591,6 +618,33 @@ export function runMigrations(): void {
         'admin', hashPassword('admin123'), '管理员', 'admin')
     }
   } catch { /* users 表可能不存在 */ }
+
+  // ── 确保默认预检规则存在 ──
+  try {
+    const count = db.getRaw<{ cnt: number }>('SELECT COUNT(*) as cnt FROM precheck_rule_config')
+    if ((count?.cnt ?? 0) === 0) {
+      const defaults = [
+        ['format_errors', '格式错误', '身份证长度/校验码/必填字段', 1, '{}', 1],
+        ['village_errors', '村组不存在', '填写的村名在数据库中不存在', 1, '{}', 2],
+        ['duplicate_errors', '重复身份证', 'Excel内部同一身份证出现多次', 1, '{}', 3],
+        ['gender_mismatch', '性别不符', '身份证第17位与数据库性别不一致', 1, '{}', 4],
+        ['error_library_hits', '错误库命中', '身份证在错误库中有记录', 1, '{}', 5],
+        ['area_anomalies', '面积异常', '申报面积超出参考面积阈值', 1, '{"ratio":1.1}', 6],
+        ['area_missing', '承包面积缺失', '有申报面积但数据库中无承包地记录', 1, '{}', 7],
+        ['age_anomaly', '年龄异常', '年龄不在合理范围内', 0, '{"min":16,"max":100}', 8],
+        ['deceased_farmers', '死亡农户', '已标记为离世的农户', 1, '{}', 9],
+        ['restricted_farmers', '受限身份农户', '公务员/事业人员等不可享受补贴', 1, '{}', 10],
+        ['household_duplicates', '同一家庭多成员', '同一家庭户多人申请同一补贴', 1, '{}', 11],
+        ['new_farmers', '新增农户', 'Excel中有但数据库中不存在的农户', 1, '{}', 12],
+        ['removed_farmers', '减少农户', '数据库中在册但Excel中未出现的农户', 1, '{}', 13],
+        ['changed_farmers', '字段变更', '姓名/村组等信息与数据库不一致', 1, '{}', 14],
+      ]
+      for (const [key, name, desc, enabled, json, order] of defaults) {
+        db.runRaw(`INSERT OR IGNORE INTO precheck_rule_config (rule_key, rule_name, description, enabled, threshold_json, sort_order)
+                   VALUES (?,?,?,?,?,?)`, key, name, desc, Number(enabled), json, Number(order))
+      }
+    }
+  } catch { /* precheck_rule_config 表可能不存在 */ }
 
   const alterStatements = [
     // family_household 增量

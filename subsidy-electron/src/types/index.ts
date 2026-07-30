@@ -550,3 +550,13 @@ export interface CheckResult {
   changed_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; db_name: string; db_village: string; db_group: string; changes: string[]; farmer_id: number }>
   year_compare: Record<string, unknown>
 }
+
+export interface PrecheckRecordItem {
+  id: number; subsidy_type_id: number; apply_year: number; batch_key: string
+  error_type: string; farmer_name: string; id_card: string; village: string; group_no: string
+  error_message: string; status: 'open' | 'fixed'; fixed_at: string | null; created_at: string
+}
+
+export interface PrecheckRecordBatch {
+  batch_key: string; total: number; fixed_count: number; created_at: string
+}
