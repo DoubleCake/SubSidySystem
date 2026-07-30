@@ -1,6 +1,24 @@
 ﻿{
     "versions":  [
                      {
+                         "version":  "0.0.22",
+                         "downloadUrl":  "",
+                         "date":  "2026-07-30",
+                         "changes":  [
+                                         "⚡ 导入性能：事务模式+N次磁盘写入→1次，500条数据秒级完成",
+                                         "⚡ 导入流程：去掉50条分批+IPC往返+requestAnimationFrame空转",
+                                         "🔄 预检记录全新重写：批次卡片+展开明细，前端拍平数据不再丢字段",
+                                         "🔄 预检记录状态：open/fixed替代active/resolved，自动比对已修正",
+                                         "📥 预检导出改为纯前端xlsx生成，不再走IPC，数据零丢失",
+                                         "🧹 左侧栏删除重复的项目进度入口，统一从项目详情进入",
+                                         "🧹 删除/导入按钮移至表格工具栏，与搜索/导出同排",
+                                         "🔧 预检保存fix：precheck_history→precheck_record，IPC不再传大对象",
+                                         "🔧 connection.ts新增beginTransaction/commitTransaction事务封装"
+                                     ],
+                         "title":  "导入性能 + 预检记录重写 + 导出纯前端",
+                         "fileSize":  92549750
+                     },
+                     {
                          "version":  "0.0.21",
                          "downloadUrl":  "",
                          "date":  "2026-07-28",
