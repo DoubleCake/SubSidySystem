@@ -434,38 +434,43 @@ export function registerSubsidyHandlers(): void {
       const updated: number[] = []
       const errors: { row: number; message: string }[] = []
 
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i]
-        if (!row || typeof row !== 'object') {
-          errors.push({ row: i, message: `第${i+1}条数据格式异常` })
-          continue
-        }
-        // 过滤掉表中不存在的列
-        const safe: Record<string, unknown> = {}
-        for (const k of Object.keys(row)) {
-          if (APP_COLS.has(k)) safe[k] = row[k]
-        }
-        try {
-          // 检查是否已存在：同一年度、同一补贴类型、同一受益人
-          const existing = db().getRaw<Record<string, unknown>>(`
-            SELECT id FROM subsidy_application
-            WHERE apply_year = ? AND subsidy_type_id = ? AND beneficiary_id = ?
-          `, safe.apply_year, safe.subsidy_type_id, safe.beneficiary_id)
-
-          if (existing) {
-            const keys = Object.keys(safe).filter(k => safe[k] !== undefined && k !== 'id')
-            const sets = keys.map(k => `${k} = ?`).join(', ')
-            db().runRaw(`UPDATE subsidy_application SET ${sets}, updated_at = datetime('now','localtime') WHERE id = ?`, ...keys.map(k => safe[k]), existing.id)
-            updated.push(existing.id as number)
-          } else {
-            const cols = Object.keys(safe).filter(k => safe[k] !== undefined).join(', ')
-            const vals = Object.keys(safe).filter(k => safe[k] !== undefined).map(k => safe[k])
-            db().runRaw(`INSERT INTO subsidy_application (${cols}) VALUES (${vals.map(() => '?').join(',')})`, ...vals)
-            inserted.push(db().getRaw<{ id: number }>('SELECT last_insert_rowid() as id')?.id ?? 0)
+      db().beginTransaction()
+      try {
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i]
+          if (!row || typeof row !== 'object') {
+            errors.push({ row: i, message: `第${i+1}条数据格式异常` })
+            continue
           }
-        } catch (rowErr) {
-          errors.push({ row: i + 1, message: String(rowErr) })
+          // 过滤掉表中不存在的列
+          const safe: Record<string, unknown> = {}
+          for (const k of Object.keys(row)) {
+            if (APP_COLS.has(k)) safe[k] = row[k]
+          }
+          try {
+            // 检查是否已存在：同一年度、同一补贴类型、同一受益人
+            const existing = db().getRaw<Record<string, unknown>>(`
+              SELECT id FROM subsidy_application
+              WHERE apply_year = ? AND subsidy_type_id = ? AND beneficiary_id = ?
+            `, safe.apply_year, safe.subsidy_type_id, safe.beneficiary_id)
+
+            if (existing) {
+              const keys = Object.keys(safe).filter(k => safe[k] !== undefined && k !== 'id')
+              const sets = keys.map(k => `${k} = ?`).join(', ')
+              db().runRaw(`UPDATE subsidy_application SET ${sets}, updated_at = datetime('now','localtime') WHERE id = ?`, ...keys.map(k => safe[k]), existing.id)
+              updated.push(existing.id as number)
+            } else {
+              const cols = Object.keys(safe).filter(k => safe[k] !== undefined).join(', ')
+              const vals = Object.keys(safe).filter(k => safe[k] !== undefined).map(k => safe[k])
+              db().runRaw(`INSERT INTO subsidy_application (${cols}) VALUES (${vals.map(() => '?').join(',')})`, ...vals)
+              inserted.push(db().getRaw<{ id: number }>('SELECT last_insert_rowid() as id')?.id ?? 0)
+            }
+          } catch (rowErr) {
+            errors.push({ row: i + 1, message: String(rowErr) })
+          }
         }
+      } finally {
+        db().commitTransaction()
       }
 
       return success({
@@ -860,22 +865,28 @@ export function registerSubsidyHandlers(): void {
       }
       const { rows, overwrite } = payload
       let created = 0, skipped = 0
-      for (const row of rows) {
-        if (!row || typeof row !== 'object') { skipped++; continue }
-        const safe: Record<string, unknown> = {}
-        for (const k of Object.keys(row)) {
-          if (PAYMENT_COLS.has(k)) safe[k] = row[k]
+
+      db().beginTransaction()
+      try {
+        for (const row of rows) {
+          if (!row || typeof row !== 'object') { skipped++; continue }
+          const safe: Record<string, unknown> = {}
+          for (const k of Object.keys(row)) {
+            if (PAYMENT_COLS.has(k)) safe[k] = row[k]
+          }
+          if (overwrite) {
+            const exist = db().getRaw<{ id: number }>(
+              'SELECT id FROM subsidy_payment WHERE subsidy_type_id=? AND beneficiary_id=? AND payment_year=?',
+              safe.subsidy_type_id, safe.beneficiary_id, safe.payment_year)
+            if (exist) { db().runRaw('DELETE FROM subsidy_payment WHERE id=?', exist.id); skipped++ }
+          }
+          const cols = Object.keys(safe).filter(k => safe[k] !== undefined).join(',')
+          const vals = Object.keys(safe).filter(k => safe[k] !== undefined).map(k => safe[k])
+          db().runRaw(`INSERT INTO subsidy_payment (${cols}) VALUES (${vals.map(() => '?').join(',')})`, ...vals)
+          created++
         }
-        if (overwrite) {
-          const exist = db().getRaw<{ id: number }>(
-            'SELECT id FROM subsidy_payment WHERE subsidy_type_id=? AND beneficiary_id=? AND payment_year=?',
-            safe.subsidy_type_id, safe.beneficiary_id, safe.payment_year)
-          if (exist) { db().runRaw('DELETE FROM subsidy_payment WHERE id=?', exist.id); skipped++ }
-        }
-        const cols = Object.keys(safe).filter(k => safe[k] !== undefined).join(',')
-        const vals = Object.keys(safe).filter(k => safe[k] !== undefined).map(k => safe[k])
-        db().runRaw(`INSERT INTO subsidy_payment (${cols}) VALUES (${vals.map(() => '?').join(',')})`, ...vals)
-        created++
+      } finally {
+        db().commitTransaction()
       }
       return success({ message: `导入完成：新增${created}，覆盖${skipped}`, created, skipped, errors: [] })
     } catch (e) { return errorResponse(String(e)) }

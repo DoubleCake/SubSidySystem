@@ -28,10 +28,24 @@ type SqlJsStatement = {
 class SqlJsWrapper {
   private db: SqlJsDatabase
   private dbPath: string
+  private _inTransaction = false
 
   constructor(db: SqlJsDatabase, dbPath: string) {
     this.db = db
     this.dbPath = dbPath
+  }
+
+  /** 开始事务 — 暂停自动保存，手动调用 commitTransaction 时才保存 */
+  beginTransaction(): void {
+    this._inTransaction = true
+    this.db.run('BEGIN')
+  }
+
+  /** 提交事务 — 一次性保存数据库到磁盘 */
+  commitTransaction(): void {
+    this.db.run('COMMIT')
+    this._inTransaction = false
+    this.save()
   }
 
   /** 执行 SQL（INSERT/UPDATE/DELETE），自动保存 */
@@ -121,8 +135,9 @@ class SqlJsWrapper {
     // format_group_no will be handled in application code
   }
 
-  /** 保存到磁盘，目录/文件被删除时自动重建 */
+  /** 保存到磁盘，目录/文件被删除时自动重建。事务中跳过 */
   private save(): void {
+    if (this._inTransaction) return
     try {
       const dir = dirname(this.dbPath)
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true })

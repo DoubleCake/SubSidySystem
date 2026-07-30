@@ -293,41 +293,23 @@ export default function SubsidyListBase({
       return { created: 0, skipped: 0, errors }
     }
 
-    // 阶段3: 分批写入数据库
+    // 阶段3: 一次性写入数据库
     onProgress?.({ stage: 'writing', text: '正在写入数据库…', written: 0, total: toCreate.length })
     const isPayment = config.apiBase.includes('payments')
-    const BATCH_SIZE = 50
     let totalCreated = 0, totalSkipped = 0, totalUpdated = 0
     const allErrors = [...errors]
 
-    for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
-      const batch = toCreate.slice(i, i + BATCH_SIZE)
-      const batchNum = Math.floor(i / BATCH_SIZE) + 1
-      const processed = Math.min(i + BATCH_SIZE, toCreate.length)
-      // 让 React 有时间渲染
-      await new Promise(r => requestAnimationFrame(r))
-      onProgress?.({ stage: 'writing', text: `正在写入第 ${batchNum} 批…`, written: processed, total: toCreate.length })
-
-      try {
-        const res = isPayment
-          ? await window.electronAPI.invoke('subsidies:batchImportPayments', { rows: batch, overwrite: overwrite || false })
-          : await api.batchImportApplications(batch as any)
-        const result = (res as any)?.data ?? res
-        totalCreated += result.created || 0
-        totalSkipped += result.skipped || 0
-        totalUpdated += result.updated || 0
-        if (result.errors?.length) {
-          const adjusted = result.errors.map((e: any) => {
-            if (typeof e === 'string') return e.replace(/^第(\d+)行/, (_, n) => `第${parseInt(n) + i}行`)
-            if (e && e.row != null) return `第${e.row + i}行：${e.message || '未知错误'}`
-            return String(e)
-          })
-          allErrors.push(...adjusted)
-        }
-      } catch (e: unknown) {
-        const err = e as Error
-        allErrors.push(`批次${batchNum}写入失败: ${err.message}`)
-      }
+    try {
+      const res = isPayment
+        ? await window.electronAPI.invoke('subsidies:batchImportPayments', { rows: toCreate, overwrite: overwrite || false })
+        : await api.batchImportApplications(toCreate as any)
+      const result = (res as any)?.data ?? res
+      totalCreated += result.created || 0
+      totalSkipped += result.skipped || 0
+      totalUpdated += result.updated || 0
+      if (result.errors?.length) allErrors.push(...result.errors)
+    } catch (e: unknown) {
+      allErrors.push('写入失败: ' + (e as Error).message)
     }
 
     // 阶段4: 刷新页面
