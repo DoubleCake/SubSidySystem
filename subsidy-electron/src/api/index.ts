@@ -667,7 +667,7 @@ export const matchPeople = (rows: { name: string; village: string; phone: string
 
 // ── 村组列表（非分组选项） ──
 export const getVillages = () =>
-  req<{ village_name: string }[]>('settings:villages')
+  req<{ village_name: string }[]>('settings:listVillages')
 
 // ── 家庭户批量组建 ──
 export const batchBuildHouseholdsFromList = (rows: Record<string, unknown>[]) =>
