@@ -3,7 +3,6 @@
  * 管理规模经营主体信息，以及与普通农户的代耕代种关联
  */
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
 import Modal from '../components/Modal'
 import Tag from '../components/Tag'
 import { useToast } from '../hooks/useToast'
@@ -150,7 +149,12 @@ const emptyTrustForm = () => ({
 
 export default function LargeFarmersPage() {
   const { toast, show } = useToast()
-  const navigate = useNavigate()
+
+  // 资料文件夹
+  const [sharedFolder, setSharedFolder] = useState('')
+  useEffect(() => {
+    window.electronAPI.invoke('settings:getLargeFarmerFolder').then((v: unknown) => setSharedFolder(String(v || '')))
+  }, [])
 
   // 列表筛选
   const [villageFilter, setVillageFilter] = useState<number | ''>('')
@@ -376,18 +380,6 @@ export default function LargeFarmersPage() {
     <div className="grid grid-cols-[1fr_440px] gap-4">
       {/* ── 左列：大户列表 ── */}
       <div>
-        {/* 一级Tab切换：土地与大户 */}
-        <div className="flex items-center gap-1 mb-4 border-b border-border">
-          <button onClick={() => navigate('/land')}
-            className="px-4 py-2 text-sm text-text-muted hover:text-text-primary border-b-2 border-transparent hover:border-border">
-            土地流转
-          </button>
-          <button onClick={() => {}}
-            className="px-4 py-2 text-sm font-semibold border-b-2 border-emerald-600 text-primary">
-            大户管理
-          </button>
-        </div>
-
         {/* 工具栏 */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
           <select value={villageFilter} onChange={e => { setVillageFilter(e.target.value ? Number(e.target.value) : ''); setPage(1) }}
@@ -410,9 +402,40 @@ export default function LargeFarmersPage() {
           </button>
         </div>
 
-        {/* 说明栏 */}
-        <div className="bg-blue-50 border border-blue-100 rounded-card px-4 py-3 mb-4 text-xs text-blue-700">
-          <p>管理种植大户、家庭农场、合作社等规模经营主体信息。点击右侧「代耕代种」标签可管理与普通农户的关联关系。</p>
+        {/* 资料文件夹 */}
+        <div className="bg-white border border-border rounded-card px-4 py-3 mb-4 flex items-center gap-3">
+          <span className="text-sm font-semibold text-text-primary whitespace-nowrap">📁 大户资料文件夹</span>
+          {sharedFolder ? (
+            <>
+              <span className="text-sm text-blue-600 truncate flex-1 bg-blue-50 border border-blue-100 rounded px-3 py-1.5"
+                title={sharedFolder}>{sharedFolder}</span>
+              <button onClick={() => window.electronAPI.invoke('shell:openFolder', sharedFolder)}
+                className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-btn hover:bg-blue-600 whitespace-nowrap">📂 打开</button>
+              <button onClick={async () => {
+                const f = await window.electronAPI.invoke('dialog:selectFolder')
+                const fp = String(f || '')
+                if (fp) {
+                  await window.electronAPI.invoke('settings:setLargeFarmerFolder', fp)
+                  setSharedFolder(fp)
+                  show('✓ 资料文件夹已更新')
+                }
+              }}
+                className="px-3 py-1.5 text-sm border border-border rounded-btn hover:bg-warm/20 text-text-muted whitespace-nowrap">更换</button>
+            </>
+          ) : (
+            <button onClick={async () => {
+              const f = await window.electronAPI.invoke('dialog:selectFolder')
+              const fp = String(f || '')
+              if (fp) {
+                await window.electronAPI.invoke('settings:setLargeFarmerFolder', fp)
+                setSharedFolder(fp)
+                show('✓ 资料文件夹已绑定')
+              }
+            }}
+              className="px-4 py-2 text-sm border-2 border-dashed border-border rounded-btn text-text-muted hover:border-blue-300 hover:text-blue-600 transition-colors">
+              ＋ 绑定资料文件夹
+            </button>
+          )}
         </div>
 
         {/* 列表 */}

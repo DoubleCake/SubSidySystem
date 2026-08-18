@@ -72,7 +72,8 @@ export default function PrecheckHistoryTab({ subsidyType, refreshKey }: Props) {
   useEffect(() => { loadBatches() }, [loadBatches])
   useEffect(() => {
     if (expandedBatch) loadRecords(expandedBatch)
-  }, [expandedBatch, statusFilter, typeFilter, loadRecords])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedBatch, loadRecords])
 
   const handleToggle = async (id: number) => {
     try {

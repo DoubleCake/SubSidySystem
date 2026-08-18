@@ -398,7 +398,7 @@ export default function LandTrustPage() {
         <div className="bg-blue-50 border border-blue-100 rounded-card px-4 py-3 mb-4 text-xs text-blue-700 space-y-0.5">
           <p>流转记录是<strong>一年一签</strong>，每年需要更新。面积信息影响补贴超领预警的计算。</p>
           <p>所有字段均可选填，信息不完善时可只填流出方、年度和类型。</p>
-          <p>可通过右上角切换查看<strong>普通流转</strong>或<strong>大户流转</strong>记录。</p>
+          <p>列表同时展示<strong>普通流转</strong>与<strong>大户流转</strong>记录，大户流转仅可查看。</p>
         </div>
 
         {/* 列表 */}

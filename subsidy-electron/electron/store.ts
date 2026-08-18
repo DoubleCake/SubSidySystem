@@ -10,12 +10,14 @@ interface UserSettings {
   updateServerUrl: string
   autoCheckUpdate: boolean
   lastUpdateCheck: string | null
+  largeFarmerFolder: string
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
   updateServerUrl: 'http://8.137.8.78:8080/',
   autoCheckUpdate: true,
   lastUpdateCheck: null,
+  largeFarmerFolder: '',
 }
 
 function getConfigPath(): string {
@@ -77,5 +79,15 @@ export function getLastUpdateCheck(): string | null {
 export function setLastUpdateCheck(date: string): void {
   const s = getSettings()
   s.lastUpdateCheck = date
+  writeSettings(s)
+}
+
+export function getLargeFarmerFolder(): string {
+  return getSettings().largeFarmerFolder || ''
+}
+
+export function setLargeFarmerFolder(folder: string): void {
+  const s = getSettings()
+  s.largeFarmerFolder = folder
   writeSettings(s)
 }

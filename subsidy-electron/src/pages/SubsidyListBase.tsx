@@ -121,6 +121,8 @@ export interface SubsidyListBaseProps {
   config: SubsidyListConfig
   /** 额外工具栏内容（删除/导入等按钮，由父组件注入） */
   toolbarActions?: ReactNode
+  /** 数据变更回调（导入/删除成功后触发统计刷新） */
+  onDataChanged?: () => void
 }
 
 export default function SubsidyListBase({
@@ -131,7 +133,7 @@ export default function SubsidyListBase({
   setTemplates, setLoadingVillages, setVillages,
   show, load, onSearch, handleFilterChange, handleSearchChange, clearFilters,
   sortField, sortDir, onSortChange,
-  config, toolbarActions,
+  config, toolbarActions, onDataChanged,
 }: SubsidyListBaseProps) {
   const navigate = useNavigate()
   const { apiBase, importTitle, exportPrefix, batchImportEndpoint, onExport, extraToolbar, preCheck, importFields } = config
@@ -164,13 +166,13 @@ export default function SubsidyListBase({
   const submitAdd = async () => {
     if (config.onSubmitAdd) {
       const ok = await config.onSubmitAdd()
-      if (ok) { setAddOpen(false); load() }
+      if (ok) { setAddOpen(false); onDataChanged?.(); load() }
       return
     }
     if (!farmerId) return show('请输入有效身份证号', 'err')
     try {
       await api.createApplication({ ...form, farmer_id: farmerId } as ApplicationCreate)
-      show('✓ 记录创建成功'); setAddOpen(false); load()
+      show('✓ 记录创建成功'); setAddOpen(false); onDataChanged?.(); load()
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
@@ -186,7 +188,7 @@ export default function SubsidyListBase({
         no_subsidy_area: form.no_subsidy_area, pay_date: form.pay_date,
         remark: form.remark, pay_status: form.pay_status,
       })
-      show('✓ 更新成功'); setEditTarget(null); load()
+      show('✓ 更新成功'); setEditTarget(null); onDataChanged?.(); load()
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
@@ -219,7 +221,7 @@ export default function SubsidyListBase({
       } else {
         await window.electronAPI.invoke('subsidies:deleteApplication', id)
       }
-      show('✓ 已删除'); setDeleteId(null); load()
+      show('✓ 已删除'); setDeleteId(null); onDataChanged?.(); load()
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
 
@@ -314,6 +316,7 @@ export default function SubsidyListBase({
 
     // 阶段4: 刷新页面
     onProgress?.({ stage: 'writing', text: '正在刷新列表…', written: toCreate.length, total: toCreate.length })
+    onDataChanged?.()
     load()
     await new Promise(r => setTimeout(r, 200))
 

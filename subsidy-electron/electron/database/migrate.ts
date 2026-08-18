@@ -73,6 +73,7 @@ export function runMigrations(): void {
       description TEXT,
       count_toward_area SMALLINT NOT NULL DEFAULT 1,
       is_deleted SMALLINT NOT NULL DEFAULT 0,
+      prev_year_type_id INTEGER REFERENCES subsidy_type(id),
       created_at DATETIME DEFAULT (datetime('now','localtime'))
     );
 
@@ -239,11 +240,16 @@ export function runMigrations(): void {
 
     CREATE TABLE IF NOT EXISTS land_trust (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      owner_household_id INTEGER NOT NULL REFERENCES family_household(id),
+      owner_type VARCHAR(20) NOT NULL DEFAULT 'household',
+      owner_household_id INTEGER REFERENCES family_household(id),
+      owner_entity_id INTEGER,
+      operator_type VARCHAR(20) NOT NULL DEFAULT 'household',
       operator_household_id INTEGER REFERENCES family_household(id),
+      operator_entity_id INTEGER,
       trust_type VARCHAR(20) NOT NULL DEFAULT 'ENTRUST',
       area DECIMAL(10,2),
       trust_year SMALLINT NOT NULL,
+      trust_end_year INTEGER,
       start_date DATE,
       end_date DATE,
       annual_fee DECIMAL(10,2),
@@ -252,6 +258,8 @@ export function runMigrations(): void {
       parcel_desc VARCHAR(200),
       data_reliability VARCHAR(20) NOT NULL DEFAULT 'VILLAGE_CONFIRM',
       affect_subsidy_calc SMALLINT NOT NULL DEFAULT 1,
+      subsidy_arable SMALLINT NOT NULL DEFAULT 1,
+      subsidy_cash_crop SMALLINT NOT NULL DEFAULT 1,
       verified_by VARCHAR(50),
       verified_date DATE,
       note TEXT,
@@ -715,5 +723,78 @@ export function runMigrations(): void {
     db.runRaw("UPDATE subsidy_type SET is_deleted = 0 WHERE is_deleted IS NULL")
   } catch (e) {
     console.error('[Migrate] Failed to ensure is_deleted column:', e)
+  }
+
+  // ── 确保 subsidy_type.prev_year_type_id 列存在（年度同类补贴关系链）──
+  try {
+    const cols = db.allRaw<{ name: string }>("PRAGMA table_info('subsidy_type')")
+    const hasPrevYear = cols.some(c => c.name === 'prev_year_type_id')
+    if (!hasPrevYear) {
+      db.exec("ALTER TABLE subsidy_type ADD COLUMN prev_year_type_id INTEGER REFERENCES subsidy_type(id)")
+      console.log('[Migrate] Added subsidy_type.prev_year_type_id column')
+    }
+  } catch (e) {
+    console.error('[Migrate] Failed to ensure prev_year_type_id column:', e)
+  }
+
+  // ── land_trust 表结构升级：支持村/村组主体 + 补贴享受类型 + 结束年度 ──
+  // 旧库（无 owner_type 列）需要重建表，因为 SQLite 无法用 ALTER 修改列/加非空约束
+  try {
+    const landCols = db.allRaw<{ name: string }>("PRAGMA table_info('land_trust')")
+    if (landCols.length > 0 && !landCols.some(c => c.name === 'owner_type')) {
+      db.exec('PRAGMA foreign_keys = OFF')
+      db.exec(`
+        CREATE TABLE land_trust_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          owner_type VARCHAR(20) NOT NULL DEFAULT 'household',
+          owner_household_id INTEGER REFERENCES family_household(id),
+          owner_entity_id INTEGER,
+          operator_type VARCHAR(20) NOT NULL DEFAULT 'household',
+          operator_household_id INTEGER REFERENCES family_household(id),
+          operator_entity_id INTEGER,
+          trust_type VARCHAR(20) NOT NULL DEFAULT 'ENTRUST',
+          area DECIMAL(10,2),
+          trust_year SMALLINT NOT NULL,
+          trust_end_year INTEGER,
+          start_date DATE,
+          end_date DATE,
+          annual_fee DECIMAL(10,2),
+          payment_method VARCHAR(20),
+          fee_note TEXT,
+          parcel_desc VARCHAR(200),
+          data_reliability VARCHAR(20) NOT NULL DEFAULT 'VILLAGE_CONFIRM',
+          affect_subsidy_calc SMALLINT NOT NULL DEFAULT 1,
+          subsidy_arable SMALLINT NOT NULL DEFAULT 1,
+          subsidy_cash_crop SMALLINT NOT NULL DEFAULT 1,
+          verified_by VARCHAR(50),
+          verified_date DATE,
+          note TEXT,
+          operator VARCHAR(50),
+          is_active SMALLINT NOT NULL DEFAULT 1,
+          created_at DATETIME DEFAULT (datetime('now','localtime')),
+          updated_at DATETIME DEFAULT (datetime('now','localtime'))
+        )
+      `)
+      // 旧列集合：重建时保留能映射的数据列
+      const oldCols = landCols.map(c => c.name).filter(n =>
+        ['id','owner_household_id','operator_household_id','trust_type','area','trust_year',
+         'start_date','end_date','annual_fee','payment_method','fee_note','parcel_desc',
+         'data_reliability','affect_subsidy_calc','verified_by','verified_date','note',
+         'operator','is_active','created_at','updated_at'].includes(n)
+      )
+      const colList = oldCols.join(', ')
+      if (oldCols.length > 0) {
+        db.exec(`INSERT INTO land_trust_new (${colList}) SELECT ${colList} FROM land_trust`)
+      }
+      db.exec('DROP TABLE land_trust')
+      db.exec('ALTER TABLE land_trust_new RENAME TO land_trust')
+      db.exec('CREATE INDEX IF NOT EXISTS ix_land_trust_owner_hh ON land_trust(owner_household_id)')
+      db.exec('CREATE INDEX IF NOT EXISTS ix_land_trust_operator_hh ON land_trust(operator_household_id)')
+      db.exec('PRAGMA foreign_keys = ON')
+      console.log('[Migrate] land_trust 表已升级：支持村/村组主体 + 补贴享受类型')
+    }
+  } catch (e) {
+    console.error('[Migrate] Failed to upgrade land_trust table:', e)
+    try { db.exec('PRAGMA foreign_keys = ON') } catch { /* ignore */ }
   }
 }

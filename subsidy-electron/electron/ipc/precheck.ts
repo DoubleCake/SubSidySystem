@@ -383,7 +383,8 @@ export function registerPrecheckHandlers(): void {
       const errorCount = formatErrors.length + villageErrors.length + duplicateErrors.length +
         genderMismatches.length + errorLibHits.length + areaAnomalies.length +
         areaMissing.length + ageAnomalies.length + deceasedFarmers.length +
-        restrictedFarmers.length + householdDuplicates.length
+        restrictedFarmers.length + householdDuplicates.length +
+        newFarmers.length + removedFarmers.length + changedFarmers.length
 
       return success({
         summary: {
@@ -445,7 +446,7 @@ export function registerPrecheckHandlers(): void {
     } catch (e) { return errorResponse('重置失败') }
   })
 
-  // ═══════ 保存预检记录（前端已拍平为简单数组） ═══════
+  // ═══════ 保存预检记录（事务批处理） ═══════
   ipcMain.handle('precheck:saveRecord', (_e, payload: any) => {
     try {
       const { subsidy_type_id, year, items } = payload
@@ -454,19 +455,24 @@ export function registerPrecheckHandlers(): void {
       const batchKey = `precheck_${subsidy_type_id}_${year}_${new Date().toISOString().slice(0, 16).replace('T', '_')}`
       let saved = 0
 
-      for (const item of items) {
-        db().runRaw(
-          `INSERT INTO precheck_record (subsidy_type_id, apply_year, batch_key, error_type, farmer_name, id_card, village, group_no, error_message)
-           VALUES (?,?,?,?,?,?,?,?,?)`,
-          subsidy_type_id || 0, year || 0, batchKey,
-          String(item.error_type || ''),
-          String(item.farmer_name || ''),
-          String(item.id_card || ''),
-          String(item.village || ''),
-          String(item.group_no || ''),
-          String(item.error_message || '')
-        )
-        saved++
+      db().beginTransaction()
+      try {
+        for (const item of items) {
+          db().runRaw(
+            `INSERT INTO precheck_record (subsidy_type_id, apply_year, batch_key, error_type, farmer_name, id_card, village, group_no, error_message)
+             VALUES (?,?,?,?,?,?,?,?,?)`,
+            subsidy_type_id || 0, year || 0, batchKey,
+            String(item.error_type || ''),
+            String(item.farmer_name || ''),
+            String(item.id_card || ''),
+            String(item.village || ''),
+            String(item.group_no || ''),
+            String(item.error_message || '')
+          )
+          saved++
+        }
+      } finally {
+        db().commitTransaction()
       }
 
       console.log(`[precheck] 保存记录: ${saved} 条, 批次: ${batchKey}`)
@@ -543,7 +549,7 @@ export function registerPrecheckHandlers(): void {
     } catch { return errorResponse('删除失败') }
   })
 
-  // ── 自动比对：身份证不在当前数据中的 open 记录 → 自动标记 fixed ──
+  // ── 自动比对（事务批处理） ──
   ipcMain.handle('precheck:autoResolve', (_e, payload: any) => {
     try {
       const { subsidy_type_id, year } = payload || {}
@@ -573,15 +579,21 @@ export function registerPrecheckHandlers(): void {
 
       const cardSet = new Set(currentCards)
       let fixed = 0
-      const now = new Date().toISOString().slice(0, 19)
-      for (const r of openRecords) {
-        if (r.id_card && !cardSet.has(r.id_card)) {
-          db().runRaw(
-            `UPDATE precheck_record SET status='fixed', fixed_at=? WHERE id=?`,
-            now, r.id
-          )
-          fixed++
+
+      db().beginTransaction()
+      try {
+        const now = new Date().toISOString().slice(0, 19)
+        for (const r of openRecords) {
+          if (r.id_card && !cardSet.has(r.id_card)) {
+            db().runRaw(
+              `UPDATE precheck_record SET status='fixed', fixed_at=? WHERE id=?`,
+              now, r.id
+            )
+            fixed++
+          }
         }
+      } finally {
+        db().commitTransaction()
       }
 
       console.log(`[precheck] 自动比对: ${fixed}/${openRecords.length} 条已自动修正`)

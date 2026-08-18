@@ -1,241 +1,33 @@
-﻿{
-    "versions":  [
-                     {
-                         "version":  "0.0.22",
-                         "downloadUrl":  "",
-                         "date":  "2026-07-30",
-                         "changes":  [
-                                         "⚡ 导入性能大幅提升：数据库事务模式，500条秒级完成",
-                                         "🔄 预检功能重写：记录可保存/标记修正/自动比对，不再丢数据",
-                                         "📥 预检导出改为纯前端生成Excel",
-                                         "🧹 删除/导入按钮移至表格工具栏",
-                                         "🔧 修复获取村列表channel名错误",
-                                     ],
-                         "title":  "导入性能优化 + 预检功能重写",
-                         "fileSize":  92549750
-                     },
-                     {
-                         "version":  "0.0.21",
-                         "downloadUrl":  "",
-                         "date":  "2026-07-28",
-                         "changes":  [
-                                         "🔒 密码改为PBKDF2-SHA512哈希存储，旧明文密码自动升级",
-                                         "🔒 SQL列名白名单校验，防动态SQL注入（safeUpdate/safeInsert）",
-                                         "🛡 前端ErrorBoundary，渲染崩溃显示重试界面不再白屏",
-                                         "📝 审计日志系统：用户登录/新增农户等操作自动记录",
-                                         "💾 每4小时自动备份数据库到backups/，保留最近7个",
-                                         "📊 进度管理新增表格视图，支持阶段/状态组合筛选",
-                                         "🔧 补全agri-tasks 9个+eligibility 3个缺失IPC handler",
-                                         "🔧 输入校验增强，统一错误信息不泄露内部细节"
-                                     ],
-                         "title":  "P0 安全加固 — 密码哈希+SQL防注入+自动备份+审计日志",
-                         "fileSize":  92549750
-                     },
-                     {
-                         "version":  "0.0.20",
-                         "downloadUrl":  "",
-                         "date":  "2026-07-28",
-                         "changes":  [
-                                         "🆕 首次运行自动弹出管理员设置向导，默认建议 admin/admin123",
-                                         "🆕 数据库异常时应用正常运行，顶部红色横幅+一键重试连接",
-                                         "🆕 数据库离线时自动跳过登录鉴权，不阻塞用户进入",
-                                         "🔧 DB初始化/WASM缺失/文件损坏不再导致应用崩溃或弹窗",
-                                         "🔧 每10秒自动检测DB状态，恢复后横幅自动消失",
-                                         "🔧 所有handler中注册时立即getDb()调用已清除，统一延迟到回调"
-                                     ],
-                         "title":  "数据库解耦 + 首次运行向导 + 离线容错",
-                         "fileSize":  92546336
-                     },
-                     {
-                         "version":  "0.0.19",
-                         "downloadUrl":  "",
-                         "date":  "2026-07-28",
-                         "changes":  [
-                                         "🔧 数据库迁移集中管理：新表统一在启动时创建，修复旧数据库恢复后崩溃",
-                                         "🔧 数据库恢复后自动调用 runMigrations 补建缺失表",
-                                         "🔧 项目进度初始化改为村级别，合并初始化+同步为一步",
-                                         "🔧 进度查看displayRecords不再过滤无负责人村",
-                                         "🔧 runRaw() + run() 使用 getRowsModified() 返回真实行数",
-                                         "🧹 删除分散在handler中的建表逻辑，统一由 migrate.ts 管理"
-                                     ],
-                         "title":  "数据库迁移修复 + 旧库恢复兼容 + 进度管理优化",
-                         "fileSize":  92545278
-                     },
-                     {
-                         "version":  "0.0.18",
-                         "downloadUrl":  "",
-                         "date":  "2026-07-27",
-                         "changes":  [
-                                         "🆕 村组联系人历史时间线：村负责人/组组长按年份管理，自动封口",
-                                         "🆕 项目详情页新增「进度查看」tab，嵌入项目进度管理V2",
-                                         "🆕 进度管理绑定本地文件夹，自动扫描文件含村名标记完成",
-                                         "🆕 Excel模板导入村组联系人（村负责人/组组长各一模板）",
-                                         "🔧 身份证Excel导入精度修复：强制取显示文本，修复末位变0",
-                                         "🔧 导入村名/组名以Excel原始数据为准，不再被DB数据覆盖",
-                                         "🔧 搜索框IME汉字输入修复：移除onPaste preventDefault",
-                                         "🧹 表格移除发放金额/状态列，导出精简列",
-                                         "🧹 移除旧村组管理路由，村组联系人移至户籍管理下"
-                                     ],
-                         "title":  "村组联系人时间线 + 项目进度重写 + Excel导入修复",
-                         "fileSize":  92545250
-                     },
-                     {
-                         "version":  "0.0.17",
-                         "downloadUrl":  "",
-                         "date":  "2026-07-27",
-                         "changes":  [
-                                         "导入进度条重构：不确定性滑动动画+实时写入计数+阶段指示器",
-                                         "不再显示虚假百分比，改用CSS滑动动画进度条",
-                                         "每批写入完成后实时更新「已写入 N/总数」",
-                                         "阶段指示：校对→写入→完成，清晰展示当前进度"
-                                     ],
-                         "title":  "导入进度条重构 — 不确定动画+实时计数",
-                         "fileSize":  0
-                     },
-                     {
-                         "version":  "0.0.16",
-                         "downloadUrl":  "",
-                         "date":  "2026-07-27",
-                         "changes":  [
-                                         "Excel导入村组信息以Excel原始数据为准，不做DB转换",
-                                         "列表/导出查询优先显示Excel导入值再fallback DB值",
-                                         "表格视图移除发放金额、状态列，导出移除打款日期/发放金额/状态",
-                                         "不计超限面积支持排序",
-                                         "runRaw()修复：用getRowsModified()返回真实删除行数",
-                                         "导入进度条优化：分批逻辑移至handleImport，通过onProgress回调驱动"
-                                     ],
-                         "title":  "Excel导入数据保真 + 删除计数修复 + UI精简",
-                         "fileSize":  92549660
-                     },
-                     {
-                         "version":  "0.0.15",
-                         "downloadUrl":  "",
-                         "date":  "2026-07-20",
-                         "changes":  {
-
-                                     },
-                         "title":  "",
-                         "fileSize":  92549238
-                     },
-                     {
-                         "version":  "0.0.14",
-                         "downloadUrl":  "",
-                         "date":  "2026-07-20",
-                         "changes":  {
-
-                                     },
-                         "title":  "",
-                         "fileSize":  92549728
-                     },
-                     {
-                         "version":  "0.0.13",
-                         "downloadUrl":  "",
-                         "date":  "2026-07-10",
-                         "changes":  {
-
-                                     },
-                         "title":  "",
-                         "fileSize":  92543309
-                     },
-                     {
-                         "version":  "0.0.12",
-                         "downloadUrl":  "",
-                         "date":  "2026-07-10",
-                         "changes":  [
-                                         "回收站新增「彻底删除」功能，可物理删除项目及关联数据",
-                                         "修复删除项目后新建表单无法填写的阻塞问题",
-                                         "用 Modal 替代原生 confirm 弹窗，避免阻塞 React 事件系统"
-                                     ],
-                         "title":  "回收站彻底删除 + 表单修复",
-                         "fileSize":  92543310
-                     },
-                     {
-                         "version":  "0.0.11",
-                         "date":  "2026-07-08",
-                         "title":  "代领关系显示修复 + 更新页面优化 + 家庭户补贴代领标签",
-                         "changes":  [
-                                         "修复代领关系页面受益人和代领人名称不显示",
-                                         "家庭户补贴记录新增代领标签：🔴受益 / 🔵代领，悬停显示详情，点击跳转",
-                                         "代领标签支持记录级和类型级两种代理关系匹配",
-                                         "更新页面：用户自选版本+更新日志+下载进度条",
-                                         "版本安装按钮改为醒目亮绿样式，当前版本橙色标签",
-                                         "补上 update handler 注册，修复版本历史加载报错",
-                                         "超限筛选修复：按季节计算有效面积"
-                                     ]
-                     },
-                     {
-                         "version":  "0.0.10",
-                         "date":  "2026-07-08",
-                         "title":  "超限筛选修复 + 家庭户列表性能优化 + 外联页面简化",
-                         "changes":  [
-                                         "修复超限筛选：按季节计算，有效面积 = 申请面积 - 流转出 - 不补面积",
-                                         "家庭户列表性能大优化：标量子查询→LEFT JOIN派生表，查询从60+次降到2次",
-                                         "补齐5个缺失索引：beneficiary_id、is_manually_confirmed、land_trust等",
-                                         "外联查询页面简化：点击卡片直接浏览器打开，去iframe",
-                                         "补贴查询改为明文显示，村组信息正常展示",
-                                         "补齐external-links全套CRUD + query_record IPC handler",
-                                         "Dashboard容错：dashboardTodos失败不影响其他数据加载",
-                                         "家庭户列表支持按年度筛选面积超限"
-                                     ]
-                     },
-                     {
-                         "version":  "0.0.8",
-                         "date":  "2026-07-07",
-                         "title":  "农户补贴记录关联修复 + 独立更新页面",
-                         "changes":  [
-                                         "修复 household/farmer 页面补贴记录显示",
-                                         "修复代领关系 proxy_info 不显示问题",
-                                         "新增独立软件更新页面(版本历史+回退)",
-                                         "应用启动自动生成 app-update.yml 解决更新缺文件"
-                                     ]
-                     },
-                     {
-                         "version":  "0.0.7",
-                         "date":  "2026-07-07",
-                         "title":  "移除设置子导航 + deploy.bat 纯 ASCII + 自动生成 app-update.yml",
-                         "changes":  [
-                                         "应用启动时自动生成 resources/app-update.yml",
-                                         "deploy.bat 纯 ASCII 重写，解决 cmd.exe GBK 编码错乱",
-                                         "移除系统设置页面下的冗余二级导航 tab",
-                                         "DEVELOPMENT.md 补充 .bat 编码经验文档"
-                                     ]
-                     },
-                     {
-                         "version":  "0.0.5",
-                         "date":  "2026-07-06",
-                         "title":  "40个缺失IPC handler补齐 + 项目进度页面",
-                         "changes":  [
-                                         "补齐用户管理/大户管理/村级联系人/补贴批处理等40个IPC通道",
-                                         "新增项目进度管理页面(project-progress)",
-                                         "农户详情页补充补贴记录和代领关系",
-                                         "家庭户成员信息不打码，显示原始值",
-                                         "新增仅显示有补贴记录家庭户筛选",
-                                         "header/footer图片原始尺寸显示，全屏不拉伸"
-                                     ]
-                     },
-                     {
-                         "version":  "0.0.4",
-                         "date":  "2026-07-06",
-                         "title":  "农户详情页补贴记录 + 英文exe名 + sha512修复",
-                         "changes":  [
-                                         "FarmerDetail页面显示补贴记录(applications)",
-                                         "exe文件改英文名 SubsidySystem.exe 解决URL编码问题",
-                                         "修复latest.yml sha512 base64换行导致YAML解析失败",
-                                         "electron-updater下载前补充checkForUpdates调用",
-                                         "部署脚本自动生成app-update.yml"
-                                     ]
-                     },
-                     {
-                         "version":  "0.0.1",
-                         "date":  "2026-07-05",
-                         "title":  "首个 Electron 版本",
-                         "changes":  [
-                                         "Electron 33 + React 18 + sql.js WASM SQLite",
-                                         "Python FastAPI 后端全部迁移到 IPC 通信",
-                                         "25张数据库表完全兼容",
-                                         "自动更新功能(electron-updater)",
-                                         "本地认证 admin/admin123"
-                                     ]
-                     }
-                 ]
+{
+    "versions": [
+        {
+            "version": "0.0.23",
+            "downloadUrl": "",
+            "date": "2026-08-18",
+            "changes": {
+                "新增「年度同类补贴关系链」：补贴项目可设置上一年同类补贴，自动连成多年补贴链",
+                "新增「数据分析」页面：按农户/家庭户查看整条链多年补贴变化（趋势图、明细矩阵、个体下钻）",
+                "明细矩阵支持村/组筛选、波动差值筛选（最大最小数值差）、排序分页、搜索、Excel 导出",
+                "土地流转台账增强：普通/大户流转合并查询、家庭户身份证自动关联"
+            },
+            "title": "年度补贴链 + 数据分析",
+            "fileSize": 0
+        },
+        {
+            "version": "0.0.22",
+            "downloadUrl": "",
+            "date": "2026-07-30",
+            "changes": {},
+            "title": "",
+            "fileSize": 92554328
+        },
+        {
+            "version": "0.0.21",
+            "downloadUrl": "",
+            "date": "2026-07-30",
+            "changes": {},
+            "title": "",
+            "fileSize": 92554513
+        }
+    ]
 }

@@ -1,6 +1,7 @@
-import { ipcMain, dialog, app } from 'electron'
+import { ipcMain, dialog, app, shell } from 'electron'
 import { copyFileSync, existsSync, readdirSync, statSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join, dirname, basename } from 'path'
+import { getLargeFarmerFolder, setLargeFarmerFolder } from '../store'
 import type { Stats } from 'fs'
 import { initDatabase, getDb } from '../database/connection'
 import { runMigrations } from '../database/migrate'
@@ -8,6 +9,7 @@ import { hashPassword } from '../utils/crypto'
 import { registerFarmerHandlers } from './farmers'
 import { registerHouseholdHandlers } from './households'
 import { registerSubsidyHandlers } from './subsidies'
+import { registerSubsidyTrendHandlers } from './subsidyTrend'
 import { registerAiHandlers } from './ai'
 import { registerLandHandlers } from './land'
 import { registerSettingsHandlers } from './settings'
@@ -53,6 +55,18 @@ export function registerAllIpcHandlers(): void {
       properties: ['openDirectory'],
     })
     return result.canceled ? null : result.filePaths[0] || null
+  })
+
+  // ── 系统文件浏览器 ──
+  ipcMain.handle('shell:openFolder', (_e, folderPath: string) => {
+    shell.openPath(folderPath)
+  })
+
+  // ── 大户管理资料文件夹 ──
+  ipcMain.handle('settings:getLargeFarmerFolder', () => getLargeFarmerFolder())
+  ipcMain.handle('settings:setLargeFarmerFolder', (_e, folder: string) => {
+    setLargeFarmerFolder(folder)
+    return folder
   })
 
   // ── 应用信息 ──
@@ -194,6 +208,7 @@ export function registerAllIpcHandlers(): void {
   registerFarmerHandlers()
   registerHouseholdHandlers()
   registerSubsidyHandlers()
+  registerSubsidyTrendHandlers()
   registerAiHandlers()
   registerLandHandlers()
   registerSettingsHandlers()

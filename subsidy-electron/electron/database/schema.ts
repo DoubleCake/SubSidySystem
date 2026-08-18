@@ -73,6 +73,7 @@ export const subsidyType = sqliteTable('subsidy_type', {
   payStatus: integer('pay_status').notNull().default(0),
   description: text('description'),
   countTowardArea: integer('count_toward_area').notNull().default(1),
+  prevYearTypeId: integer('prev_year_type_id'),
   createdAt: text('created_at').default(sql`(datetime('now','localtime'))`),
 })
 
@@ -269,11 +270,16 @@ export const excelImportLog = sqliteTable('excel_import_log', {
 
 export const landTrust = sqliteTable('land_trust', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  ownerHouseholdId: integer('owner_household_id').notNull().references(() => familyHousehold.id),
+  ownerType: text('owner_type', { length: 20 }).notNull().default('household'),
+  ownerHouseholdId: integer('owner_household_id').references(() => familyHousehold.id),
+  ownerEntityId: integer('owner_entity_id'),
+  operatorType: text('operator_type', { length: 20 }).notNull().default('household'),
   operatorHouseholdId: integer('operator_household_id').references(() => familyHousehold.id),
+  operatorEntityId: integer('operator_entity_id'),
   trustType: text('trust_type', { length: 20 }).notNull().default('ENTRUST'),
   area: numeric('area'),
   trustYear: integer('trust_year').notNull(),
+  trustEndYear: integer('trust_end_year'),
   startDate: text('start_date'),
   endDate: text('end_date'),
   annualFee: numeric('annual_fee'),
@@ -282,6 +288,8 @@ export const landTrust = sqliteTable('land_trust', {
   parcelDesc: text('parcel_desc', { length: 200 }),
   dataReliability: text('data_reliability', { length: 20 }).notNull().default('VILLAGE_CONFIRM'),
   affectSubsidyCalc: integer('affect_subsidy_calc').notNull().default(1),
+  subsidyArable: integer('subsidy_arable').notNull().default(1),
+  subsidyCashCrop: integer('subsidy_cash_crop').notNull().default(1),
   verifiedBy: text('verified_by', { length: 50 }),
   verifiedDate: text('verified_date'),
   note: text('note'),

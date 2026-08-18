@@ -3,7 +3,7 @@
  * ================================
  * 醒目、活泼、信息全面，忽略原有UI规范
  */
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import * as api from '../api'
 import type { SubsidyType, SubsidyTypeCreate } from '../types'
@@ -17,7 +17,11 @@ import SubsidyRecordsPage from './SubsidyRecordsPage'
 type StatsType = SubsidyType & {
   app_count: number; beneficiary_count: number
   total_apply: number; total_actual: number
+  prev_year_type_id?: number | null
 }
+
+// 全量项目类型（含年度链关联字段）
+type AllType = SubsidyType & { prev_year_type_id?: number | null }
 
 // ══════════════════════════════════════════
 //  缤纷配色 — 每个季节一种主色调
@@ -81,6 +85,86 @@ function StatBadge({ icon, label, value, color }: { icon: string; label: string;
   )
 }
 
+// ── 上一年同类补贴关联（年度关系链设置）──
+function PrevYearLink({ type, allTypes, onChanged }: {
+  type: StatsType
+  allTypes: AllType[]
+  onChanged: () => void
+}) {
+  const { show } = useToast()
+  const [sel, setSel] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const prevYear = type.subsidy_year - 1
+  const currentPrev = type.prev_year_type_id ?? null
+  const currentPrevType = currentPrev != null
+    ? allTypes.find(t => t.id === currentPrev)
+    : undefined
+
+  // 候选：上一年 + 优先同 category（无则同 season）
+  const candidates = useMemo(() => {
+    let list = allTypes.filter(c => c.subsidy_year === prevYear && c.id !== type.id)
+    if (type.category) {
+      const sameCat = list.filter(c => c.category === type.category)
+      if (sameCat.length) list = sameCat
+      else if (type.season) list = list.filter(c => c.season === type.season)
+    }
+    return list
+  }, [allTypes, prevYear, type.category, type.season, type.id])
+
+  // 默认选择：已关联值优先，否则自动建议（名称包含匹配 → 第一个候选）
+  useEffect(() => {
+    if (sel !== '') return
+    if (currentPrev != null) { setSel(String(currentPrev)); return }
+    const name = type.subsidy_name
+    const best = candidates.find(c => c.subsidy_name.includes(name) || name.includes(c.subsidy_name))
+      ?? candidates[0]
+    if (best) setSel(String(best.id))
+  }, [candidates, currentPrev, type.subsidy_name, sel])
+
+  const save = async (prevId: number | null) => {
+    setSaving(true)
+    try {
+      await api.setPrevYearType(type.id, prevId)
+      show(prevId == null ? '✓ 已清除年度关联' : `✓ 已关联上一年同类：${allTypes.find(t => t.id === prevId)?.subsidy_name || ''}`)
+      onChanged()
+    } catch (e) { show((e as Error).message, 'err') }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+      <span className="text-text-muted/60 flex items-center gap-1">🔗 上一年同类</span>
+      {currentPrevType ? (
+        <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center gap-1.5">
+          {currentPrevType.subsidy_year}年 · {currentPrevType.subsidy_name}
+          <button onClick={() => save(null)} disabled={saving}
+            className="text-indigo-400 hover:text-red-500 transition-colors" title="清除关联">✕</button>
+        </span>
+      ) : (
+        <span className="text-text-muted/50">未关联</span>
+      )}
+      {candidates.length > 0 && (
+        <>
+          <select value={sel} onChange={e => setSel(e.target.value)}
+            className="px-1.5 py-0.5 text-[11px] border border-border/60 rounded-md bg-white outline-none focus:ring-1 focus:ring-indigo-300 max-w-[220px]">
+            <option value="">— 选择上一年项目 —</option>
+            {candidates.map(c => (
+              <option key={c.id} value={c.id}>{c.subsidy_year}年 · {c.subsidy_name}</option>
+            ))}
+          </select>
+          <button onClick={() => { const v = Number(sel); if (sel && v) save(v) }}
+            disabled={saving || !sel}
+            className="px-2 py-0.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-40 transition-all">
+            关联
+          </button>
+        </>
+      )}
+      {currentPrevType && <span className="text-text-muted/40 text-[10px]">在「数据分析」页可查看整条链趋势</span>}
+    </div>
+  )
+}
+
 // ══════════════════════════════════════════
 //  主页
 // ══════════════════════════════════════════
@@ -111,6 +195,15 @@ export default function SubsidyProjectsPage() {
   const [deleteTarget, setDeleteTarget] = useState<StatsType | null>(null)
   const [destroyTarget, setDestroyTarget] = useState<SubsidyType | null>(null)
   const [destroying, setDestroying] = useState(false)
+  // 全量项目（供年度同类关联下拉使用）
+  const [allTypes, setAllTypes] = useState<AllType[]>([])
+
+  const loadAllTypes = useCallback(async () => {
+    try { setAllTypes(await api.getSubsidyTypes() as AllType[]) }
+    catch { /* 忽略 */ }
+  }, [])
+
+  useEffect(() => { loadAllTypes() }, [loadAllTypes])
 
   const handleYearChange = (year: number) => {
     setYearFilter(year)
@@ -441,6 +534,11 @@ export default function SubsidyProjectsPage() {
                       📐 累计面积
                     </span>
                   )}
+                </div>
+
+                {/* 上一年同类补贴关联 */}
+                <div className="mt-2 pt-2 border-t border-border/30">
+                  <PrevYearLink type={t} allTypes={allTypes} onChanged={() => { loadTypes(); loadAllTypes() }} />
                 </div>
 
                 {/* 扫描目录 */}

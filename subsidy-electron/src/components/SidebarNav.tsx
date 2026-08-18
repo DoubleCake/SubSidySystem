@@ -25,6 +25,7 @@ const sections: SidebarSection[] = [
     label: '💰 补贴管理',
     items: [
       { label: '项目总览', to: '/projects' },
+      { label: '项目年度分析', to: '/analysis' },
       { label: '补贴查询', to: '/links' },
     ],
   },

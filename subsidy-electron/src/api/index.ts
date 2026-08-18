@@ -117,6 +117,60 @@ export const createSubsidyType = (data: SubsidyTypeCreate) =>
 export const updateSubsidyType = (id: number, data: Partial<SubsidyTypeCreate>) =>
   req('subsidies:updateType', { id, ...data })
 
+// ── 年度同类补贴关系链 ──
+export interface ChainInfo {
+  chain_id: number
+  chain_name: string
+  year_from: number
+  year_to: number
+  years: Array<{ type_id: number; subsidy_name: string; subsidy_year: number; season: string | null; category: string | null }>
+}
+
+export interface ChainYearSummary {
+  year: number
+  total_records: number
+  total_farmers: number
+  total_households: number
+  total_area: number
+  total_amount: number
+  new_farmers: number
+  removed_farmers: number
+  new_households: number
+  removed_households: number
+}
+
+export interface ChainDetailItem {
+  id_card?: string
+  real_name?: string
+  household_id?: number | null
+  household_name: string
+  village: string
+  /** 组信息（如 "1组" / "一组"） */
+  group?: string
+  /** 家庭户模式：该户当前在册成员（农户模式为空） */
+  members?: Array<{ real_name: string; id_card: string | null }>
+  per_year: Record<number, { area: number; amount: number }>
+}
+
+export interface ChainDetail {
+  years: Array<{ type_id: number; subsidy_name: string; subsidy_year: number }>
+  summary: ChainYearSummary[]
+  farmers: ChainDetailItem[]
+  households: ChainDetailItem[]
+}
+
+/** 保存/清除某补贴项目"上一年同类补贴"关联（prevYearTypeId 传 null 表示清除） */
+export const setPrevYearType = (typeId: number, prevYearTypeId: number | null) =>
+  req<{ ok: boolean }>('subsidies:setPrevYearType', { type_id: typeId, prev_year_type_id: prevYearTypeId })
+
+/** 所有已形成年度关系链的补贴项目分组 */
+export const listChains = () =>
+  req<ChainInfo[]>('subsidies:listChains')
+
+/** 一条链的完整数据（逐年聚合 + 农户/家庭户明细） */
+export const chainDetail = (typeId: number, dataSource: 'application' | 'payment') =>
+  req<ChainDetail>('subsidies:chainDetail', { type_id: typeId, data_source: dataSource })
+
 // ── 补贴申请 ──
 export const getApplications = (params: Record<string, string | number>) =>
   req<PageResult<ApplicationOut>>('subsidies:listApplications', params)
@@ -555,6 +609,15 @@ export interface LandTrustRecord {
   parcel_desc: string | null; data_reliability: string; reliability_label: string
   affect_subsidy_calc: number; subsidy_arable?: number; subsidy_cash_crop?: number
   note: string | null; operator: string | null; is_active: number
+  // 来源 + 大户流转扩展（land:list 合并两表返回）
+  source_type?: 'normal' | 'large_farmer'
+  large_farmer_name?: string
+  large_farmer_type?: string
+  large_farmer_type_label?: string
+  parcel_village_name?: string
+  parcel_group_no?: number
+  is_high_standard?: number
+  is_demonstration?: number
 }
 
 export const getLandTrusts = (params: Record<string, string | number>) =>
@@ -588,9 +651,11 @@ export const resolveLandByIdCard = (q: string) =>
 export const getLandAreaSummary = (householdId: number, year: number) =>
   req<{
     contracted_area: number; trust_out_area: number; trust_in_area: number
+    trust_in_arable_area: number; trust_in_cash_crop_area: number
     cultivable_area: number; applied_area: number
     is_overdrawn: boolean; overdraw_amount: number
-    has_trust_data: boolean; subsidy_breakdown: { subsidy_name: string; applied_area: number; actual_amount: number }[]
+    cultivable_note: string; has_trust_data: boolean
+    subsidy_breakdown: { subsidy_name: string; applied_area: number; actual_amount: number }[]
     trust_records: LandTrustRecord[]
   }>('land:areaSummary', { householdId, year })
 

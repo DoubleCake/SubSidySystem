@@ -150,6 +150,9 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   const [autoResolving, setAutoResolving] = useState(false)
   const [precheckRefreshKey, setPrecheckRefreshKey] = useState(0)
 
+  // 数据变更后刷新统计的触发器
+  const [statsRefreshKey, setStatsRefreshKey] = useState(0)
+
   // ── 保存当前预检结果 ──
   const handleSavePrecheck = async () => {
     if (!preCheckResults) {
@@ -375,6 +378,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       if (data?.code !== undefined && data.code !== 0) throw new Error('批量删除失败')
       show(`✓ 已删除 ${selectedIds.length} 条记录`)
       setSelectedIds([])
+      setStatsRefreshKey(k => k + 1)
       load()
     } catch (error) {
       console.error('批量删除失败:', error)
@@ -401,6 +405,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       const result = response?.data ?? response
       show(`✓ 已删除全部 ${result.deleted} 条记录`)
       setSelectedIds([])
+      setStatsRefreshKey(k => k + 1)
       load()
     } catch (error) {
       console.error('删除全部失败:', error)
@@ -728,7 +733,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     } finally {
       setLoadingStats(false)
     }
-  }, [subsidyType.id, subsidyType.subsidy_year, selectedCompareType, activeTab])
+  }, [subsidyType.id, subsidyType.subsidy_year, selectedCompareType, activeTab, statsRefreshKey])
 
   // 加载面积统计数据
   const loadAreaStats = useCallback(async () => {
@@ -743,7 +748,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
     } finally {
       setLoadingAreaStats(false)
     }
-  }, [subsidyType.id, subsidyType.subsidy_year, activeTab, areaStatsGroupBy, show])
+  }, [subsidyType.id, subsidyType.subsidy_year, activeTab, areaStatsGroupBy, show, statsRefreshKey])
 
   // 导出面积统计Excel
   const handleExportAreaStats = () => {
@@ -1104,6 +1109,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
             handleSearchChange={handleSearchChange}
             clearFilters={clearFilters}
             sortField={sortField} sortDir={sortDir} onSortChange={handleSortChange}
+            onDataChanged={() => setStatsRefreshKey(k => k + 1)}
             toolbarActions={<>
               {selectedIds.length > 0 && (
                 <button onClick={batchDelete}
@@ -1350,6 +1356,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
             handleSearchChange={handleSearchChange}
             clearFilters={clearFilters}
             sortField={sortField} sortDir={sortDir} onSortChange={handleSortChange}
+            onDataChanged={() => setStatsRefreshKey(k => k + 1)}
             toolbarActions={<>
               {selectedIds.length > 0 && (
                 <button onClick={batchDelete}
