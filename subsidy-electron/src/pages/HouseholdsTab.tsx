@@ -704,18 +704,16 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
   return (
     <>
       {/* ── 左侧：Tab + 列表 ── */}
-      <div className="w-[32%] shrink-0 flex flex-col sticky top-[88px] self-start" style={{ maxHeight: 'calc(100vh - 104px)' }}>
+      <div className="w-[338px] shrink-0 flex flex-col sticky top-[88px] self-start" style={{ maxHeight: 'calc(100vh - 104px)' }}>
         {/* Tab 切换 */}
-        <div className="flex mb-4 bg-warm/50 rounded-card p-1.5 shadow-card">
-          <button onClick={() => onSwitchTab('households')}
-            className={`flex-1 py-2.5 text-sm font-medium rounded-btn transition-all
-              ${activeTab === 'households' ? 'bg-white text-primary shadow-card' : 'text-text-muted hover:text-text-primary hover:bg-warm/30'}`}>
-            <Icon name="household" size={16} className="inline mr-1.5" />家庭户
-          </button>
+        <div className="flex items-center gap-5 mb-3 border-b border-border px-1">
           <button onClick={() => onSwitchTab('farmers')}
-            className={`flex-1 py-2.5 text-sm font-medium rounded-btn transition-all
-              ${activeTab === 'farmers' ? 'bg-white text-primary shadow-card' : 'text-text-muted hover:text-text-primary hover:bg-warm/30'}`}>
-            <Icon name="person" size={16} className="inline mr-1.5" />农户
+            className={`pb-2 text-sm transition-colors border-b-2 ${activeTab === 'farmers' ? 'border-primary text-primary font-semibold' : 'border-transparent text-text-muted hover:text-text-primary'}`}>
+            <Icon name="person" size={15} className="inline mr-1" />农户
+          </button>
+          <button onClick={() => onSwitchTab('households')}
+            className={`pb-2 text-sm transition-colors border-b-2 ${activeTab === 'households' ? 'border-primary text-primary font-semibold' : 'border-transparent text-text-muted hover:text-text-primary'}`}>
+            <Icon name="household" size={15} className="inline mr-1" />家庭户
           </button>
         </div>
 

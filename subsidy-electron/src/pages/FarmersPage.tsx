@@ -97,35 +97,45 @@ export default function FarmersPage() {
   }, [updateUrl])
 
   return (
-    <div className="flex gap-5">
-      {leftTab === 'farmers' ? (
-        <FarmersTab
-          show={show}
-          groups={groups}
-          villages={villages}
-          setGroups={setGroups}
-          yearFilter={yearFilter}
-          activeTab={leftTab}
-          onSwitchTab={handleTabChange}
-          updateUrl={updateUrl}
-          initialFarmerId={getInitialFarmerId()}
-        />
-      ) : (
-        <HouseholdsTab
-          show={show}
-          groups={groups}
-          villages={villages}
-          setGroups={setGroups}
-          yearFilter={yearFilter}
-          setYearFilter={setYearFilter}
-          activeTab={leftTab}
-          onSwitchTab={handleTabChange}
-          onNavigateToFarmer={handleNavigateToFarmer}
-          updateUrl={updateUrl}
-          initialHouseholdId={getInitialHouseholdId()}
-        />
-      )}
-      <Toast {...toast} />
+    <div className="space-y-4">
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-[20px] font-bold text-primary leading-tight">户籍管理</h1>
+          <div className="text-meta text-text-muted mt-1">左侧选择人员或家庭户，右侧查看档案与关联信息</div>
+        </div>
+        <div className="text-meta text-text-muted">农户与家庭户共用一套户籍台账</div>
+      </div>
+
+      <div className="flex gap-4">
+        {leftTab === 'farmers' ? (
+          <FarmersTab
+            show={show}
+            groups={groups}
+            villages={villages}
+            setGroups={setGroups}
+            yearFilter={yearFilter}
+            activeTab={leftTab}
+            onSwitchTab={handleTabChange}
+            updateUrl={updateUrl}
+            initialFarmerId={getInitialFarmerId()}
+          />
+        ) : (
+          <HouseholdsTab
+            show={show}
+            groups={groups}
+            villages={villages}
+            setGroups={setGroups}
+            yearFilter={yearFilter}
+            setYearFilter={setYearFilter}
+            activeTab={leftTab}
+            onSwitchTab={handleTabChange}
+            onNavigateToFarmer={handleNavigateToFarmer}
+            updateUrl={updateUrl}
+            initialHouseholdId={getInitialHouseholdId()}
+          />
+        )}
+        <Toast {...toast} />
+      </div>
     </div>
   )
 }
