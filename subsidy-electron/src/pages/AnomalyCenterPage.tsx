@@ -1,22 +1,26 @@
 /**
  * 异常中心
- * 超领 / 重复领取 / 多人领取 / 死亡后领取
- * 手动扫描生成；支持标记已核对、忽略、恢复待核实。
+ *
+ * 超领 / 重复领取 / 多人领取 / 死亡后领取 四类异常的统一核对入口。
+ * 扫描为手动触发，重复扫描不会重复生成；核对/忽略状态会保留。
+ *
+ * 注：身份证按用户要求明文显示（与 CLAUDE.md 脱敏约定冲突，已确认）。
  */
 import { useCallback, useEffect, useState } from 'react'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 import { getAuth } from './LoginPage'
 
-type ApiRes<T> = { code: number; data?: T; message?: string }
+interface ApiRes<T> { code: number; data?: T; message?: string }
 
 interface AnomalyRow {
   id: number
   type_code: string
-  type_name?: string
-  category?: string
-  household_code?: string | null
+  type_name?: string | null
+  household_id?: number | null
   household_name?: string | null
+  household_code?: string | null
+  farmer_id?: number | null
   real_name?: string | null
   id_card?: string | null
   year?: number | null
@@ -42,40 +46,46 @@ interface StatsData {
 }
 
 const TYPE_CFG: Record<string, { label: string; cls: string }> = {
-  OVER_AREA: { label: '超领', cls: 'bg-red-50 text-red-600 border-red-200' },
-  DUPLICATE_CLAIM: { label: '重复领取', cls: 'bg-orange-50 text-orange-700 border-orange-200' },
-  MULTI_CLAIM: { label: '多人领取', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-  DEATH_CLAIM: { label: '死亡后领取', cls: 'bg-purple-50 text-purple-700 border-purple-200' },
+  OVER_AREA:       { label: '超领',       cls: 'bg-danger/10 text-danger' },
+  DUPLICATE_CLAIM: { label: '重复领取',   cls: 'bg-[#F6EEDC] text-[#8A6620]' },
+  MULTI_CLAIM:     { label: '多人领取',   cls: 'bg-[#EDF3EF] text-[#2C6B52]' },
+  DEATH_CLAIM:     { label: '死亡后领取', cls: 'bg-[#FBF8F3] text-[#7A5A3A]' },
 }
 
 const STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  open: { label: '待核实', cls: 'bg-amber-50 text-amber-700' },
-  confirmed: { label: '已核对', cls: 'bg-emerald-50 text-emerald-700' },
-  ignored: { label: '已忽略', cls: 'bg-slate-100 text-slate-500' },
+  open:      { label: '待核实', cls: 'bg-[#F6EEDC] text-[#8A6620]' },
+  confirmed: { label: '已核对', cls: 'bg-[#EDF3EF] text-[#2C6B52]' },
+  ignored:   { label: '已忽略', cls: 'bg-[#F1EDE4] text-[#6B6B60]' },
 }
 
 const SEVERITY_CFG: Record<string, { label: string; cls: string }> = {
-  high: { label: '高', cls: 'bg-red-500 text-white' },
-  medium: { label: '中', cls: 'bg-amber-500 text-white' },
-  low: { label: '低', cls: 'bg-slate-400 text-white' },
+  high:   { label: '高', cls: 'bg-danger/10 text-danger' },
+  medium: { label: '中', cls: 'bg-[#F6EEDC] text-[#8A6620]' },
+  low:    { label: '低', cls: 'bg-[#F1EDE4] text-[#6B6B60]' },
 }
 
 async function call<T>(channel: string, data?: unknown): Promise<T> {
   const res = await window.electronAPI.invoke<ApiRes<T>>(channel, data)
-  if (!res || res.code !== 0 || res.data === undefined) throw new Error(res?.message || '请求失败')
-  return res.data
+  if (!res || res.code !== 0) throw new Error(res?.message || '请求失败')
+  return res.data as T
 }
 
-const thisYear = new Date().getFullYear()
-const years = Array.from({ length: 8 }, (_, i) => thisYear - i + 1)
+const nowYear = new Date().getFullYear()
+const YEARS = Array.from({ length: 6 }, (_, i) => nowYear + 1 - i)
+
+function fmtNum(v: number | null | undefined) {
+  if (v === null || v === undefined) return '—'
+  return Number(v).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+}
 
 export default function AnomalyCenterPage() {
   const { toast, show } = useToast()
-  const [year, setYear] = useState(thisYear)
+
+  const [year, setYear] = useState(nowYear)
+  const [status, setStatus] = useState<'open' | 'confirmed' | 'ignored' | ''>('open')
   const [typeCode, setTypeCode] = useState('')
-  const [status, setStatus] = useState('open')
-  const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [data, setData] = useState<ListData | null>(null)
   const [stats, setStats] = useState<StatsData | null>(null)
@@ -86,7 +96,7 @@ export default function AnomalyCenterPage() {
     setLoading(true)
     try {
       const [list, st] = await Promise.all([
-        call<ListData>('anomalies:list', { year, type_code: typeCode, status, search, page, page_size: 20 }),
+        call<ListData>('anomalies:list', { year, status: status || undefined, type_code: typeCode || undefined, search: search || undefined, page, page_size: 20 }),
         call<StatsData>('anomalies:stats', { year }),
       ])
       setData(list)
@@ -96,7 +106,7 @@ export default function AnomalyCenterPage() {
     } finally {
       setLoading(false)
     }
-  }, [year, typeCode, status, search, page, show])
+  }, [year, status, typeCode, search, page, show])
 
   useEffect(() => { load() }, [load])
 
@@ -138,104 +148,110 @@ export default function AnomalyCenterPage() {
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.page_size)) : 1
   const typeOptions = stats?.by_type ?? []
+  const openCount = stats?.status.open ?? 0
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Toast msg={toast?.msg} type={toast?.type} />
 
-      <div className="flex items-end justify-between">
+      {/* 页头 */}
+      <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-[20px] font-bold text-primary leading-tight">异常中心</h1>
           <div className="text-meta text-text-muted mt-1">超领、重复领取、多人领取、死亡后领取 · 手动扫描生成，重复扫描不会重复生成</div>
         </div>
-        <div className="text-meta text-text-muted">待核实 <b className="text-danger text-sm">{stats?.status.open ?? 0}</b> 条</div>
-      </div>
-
-      <div className="bg-white border border-border rounded-card p-5">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
           <select value={year} onChange={e => { setYear(Number(e.target.value)); setPage(1) }}
-            className="border border-border rounded-btn px-3 py-1.5 text-sm bg-white outline-none">
-            {years.map(y => <option key={y} value={y}>{y} 年度</option>)}
+            className="h-[30px] border border-border rounded-btn px-2.5 text-xs bg-white outline-none">
+            {YEARS.map(y => <option key={y} value={y}>{y} 年度</option>)}
           </select>
           <button onClick={handleScan} disabled={scanning}
-            className="px-4 py-1.5 ui-btn-primary text-sm disabled:opacity-50">
+            className="h-[30px] px-3 ui-btn-primary text-xs disabled:opacity-50">
             {scanning ? '扫描中…' : '扫描生成异常'}
           </button>
         </div>
+      </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-          <button onClick={() => { setStatus('open'); setPage(1) }}
-            className={`text-left border rounded-btn p-3 ${status === 'open' ? 'border-amber-300 bg-amber-50/60' : 'border-border'}`}>
-            <div className="text-xs text-text-muted">待核实</div>
-            <div className="text-xl font-bold text-amber-600">{stats?.status.open ?? 0}</div>
-          </button>
-          <button onClick={() => { setStatus('confirmed'); setPage(1) }}
-            className={`text-left border rounded-btn p-3 ${status === 'confirmed' ? 'border-emerald-300 bg-emerald-50/60' : 'border-border'}`}>
-            <div className="text-xs text-text-muted">已核对</div>
-            <div className="text-xl font-bold text-emerald-600">{stats?.status.confirmed ?? 0}</div>
-          </button>
-          <button onClick={() => { setStatus('ignored'); setPage(1) }}
-            className={`text-left border rounded-btn p-3 ${status === 'ignored' ? 'border-slate-300 bg-slate-50' : 'border-border'}`}>
-            <div className="text-xs text-text-muted">已忽略</div>
-            <div className="text-xl font-bold text-slate-500">{stats?.status.ignored ?? 0}</div>
-          </button>
-          <button onClick={() => { setStatus(''); setTypeCode(''); setPage(1) }}
-            className={`text-left border rounded-btn p-3 ${!status && !typeCode ? 'border-primary-300 bg-primary-500/5' : 'border-border'}`}>
-            <div className="text-xs text-text-muted">全部</div>
-            <div className="text-xl font-bold text-primary">{stats?.total ?? 0}</div>
-          </button>
-        </div>
+      {/* 统计卡 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+        <button onClick={() => { setStatus('open'); setPage(1) }}
+          className={`text-left border rounded-card px-3.5 py-2.5 transition-colors ${status === 'open' ? 'border-[#E8D8B8] bg-[#FDFAF3]' : 'border-border bg-white hover:border-[#E8D8B8]'}`}>
+          <div className="text-[11px] text-text-muted">待核实</div>
+          <div className="text-[20px] font-bold font-mono text-[#8A6620]">{openCount}</div>
+        </button>
+        <button onClick={() => { setStatus('confirmed'); setPage(1) }}
+          className={`text-left border rounded-card px-3.5 py-2.5 transition-colors ${status === 'confirmed' ? 'border-[#C9DCC9] bg-[#F7FAF7]' : 'border-border bg-white hover:border-[#C9DCC9]'}`}>
+          <div className="text-[11px] text-text-muted">已核对</div>
+          <div className="text-[20px] font-bold font-mono text-[#2C6B52]">{stats?.status.confirmed ?? 0}</div>
+        </button>
+        <button onClick={() => { setStatus('ignored'); setPage(1) }}
+          className={`text-left border rounded-card px-3.5 py-2.5 transition-colors ${status === 'ignored' ? 'border-[#DCD6C8] bg-[#FAF8F2]' : 'border-border bg-white hover:border-[#DCD6C8]'}`}>
+          <div className="text-[11px] text-text-muted">已忽略</div>
+          <div className="text-[20px] font-bold font-mono text-[#6B6B60]">{stats?.status.ignored ?? 0}</div>
+        </button>
+        <button onClick={() => { setStatus(''); setTypeCode(''); setPage(1) }}
+          className={`text-left border rounded-card px-3.5 py-2.5 transition-colors ${!status && !typeCode ? 'border-primary-500/30 bg-[#F3F7F4]' : 'border-border bg-white hover:border-primary-500/30'}`}>
+          <div className="text-[11px] text-text-muted">全部</div>
+          <div className="text-[20px] font-bold font-mono text-primary">{stats?.total ?? 0}</div>
+        </button>
+      </div>
 
-        <div className="flex flex-wrap gap-2 mt-4">
-          <button onClick={() => { setTypeCode(''); setPage(1) }}
-            className={`px-3 py-1 rounded-full text-xs border ${!typeCode ? 'bg-primary-500 text-white border-primary-500' : 'border-border text-text-muted hover:bg-warm/40'}`}>
-            全部类型
-          </button>
-          {typeOptions.map(t => {
-            const cfg = TYPE_CFG[t.type_code] || { label: t.type_name, cls: '' }
-            return (
-              <button key={t.type_code} onClick={() => { setTypeCode(t.type_code); setPage(1) }}
-                className={`px-3 py-1 rounded-full text-xs border ${typeCode === t.type_code ? 'bg-primary-500 text-white border-primary-500' : cfg.cls || 'border-border'}`}>
-                {cfg.label} {t.cnt}{t.open_cnt > 0 ? `（待核实 ${t.open_cnt}）` : ''}
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 mt-4">
-          <select value={status} onChange={e => { setStatus(e.target.value); setPage(1) }}
-            className="border border-border rounded-btn px-2.5 py-1.5 text-sm bg-white outline-none">
+      {/* 类型筛选 + 搜索 */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <button onClick={() => { setTypeCode(''); setPage(1) }}
+          className={`px-2.5 py-[3px] rounded-full text-[10.5px] border transition-colors ${!typeCode ? 'bg-primary text-[#F7F3E7] border-primary' : 'bg-white border-border text-text-muted hover:border-primary/30'}`}>
+          全部类型
+        </button>
+        {typeOptions.map(t => {
+          const cfg = TYPE_CFG[t.type_code] || { label: t.type_name, cls: '' }
+          const active = typeCode === t.type_code
+          return (
+            <button key={t.type_code} onClick={() => { setTypeCode(t.type_code); setPage(1) }}
+              className={`px-2.5 py-[3px] rounded-full text-[10.5px] border transition-colors whitespace-nowrap ${
+                active ? 'border-primary bg-primary text-[#F7F3E7]' : `border-border bg-white hover:border-primary/30 ${cfg.cls.split(' ').pop()}`
+              }`}>
+              {cfg.label} {t.cnt}{t.open_cnt > 0 ? `（待核实 ${t.open_cnt}）` : ''}
+            </button>
+          )
+        })}
+        <div className="ml-auto flex items-center gap-1.5">
+          <select value={status} onChange={e => { setStatus(e.target.value as typeof status); setPage(1) }}
+            className="h-[28px] border border-border rounded-btn px-2 text-[11px] bg-white outline-none">
             <option value="">全部状态</option>
             <option value="open">待核实</option>
             <option value="confirmed">已核对</option>
             <option value="ignored">已忽略</option>
           </select>
-          <input value={searchInput} onChange={e => setSearchInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') { setSearch(searchInput.trim()); setPage(1) } }}
-            placeholder="户名 / 户编码 / 姓名"
-            className="border border-border rounded-btn px-2.5 py-1.5 text-sm outline-none focus:border-primary-500 w-56" />
+          <div className="flex items-center gap-1.5 border border-border rounded-btn px-2 h-[28px] w-[180px] bg-white">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9A9588" strokeWidth="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" /></svg>
+            <input value={searchInput} onChange={e => setSearchInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { setSearch(searchInput.trim()); setPage(1) } }}
+              placeholder="户名 / 姓名"
+              className="flex-1 text-[11px] outline-none bg-transparent" />
+          </div>
           <button onClick={() => { setSearch(searchInput.trim()); setPage(1) }}
-            className="px-3 py-1.5 border border-border rounded-btn text-sm text-text-secondary hover:bg-warm/30">搜索</button>
-          {loading && <span className="text-xs text-text-muted">加载中…</span>}
+            className="h-[28px] px-2.5 border border-border rounded-btn text-[11px] text-text-secondary hover:bg-warm/30 transition-colors">搜索</button>
+          {loading && <span className="text-[10px] text-text-muted">加载中…</span>}
         </div>
       </div>
 
-      <div className="bg-white border border-border rounded-card overflow-hidden">
+      {/* 表格 */}
+      <div className="bg-white border border-border rounded-card overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full border-collapse text-[11.5px]">
             <thead>
-              <tr className="bg-warm/30 text-text-muted border-b border-border">
-                <th className="text-left px-3 py-2.5">类型</th>
-                <th className="text-left px-3 py-2.5">对象</th>
-                <th className="text-left px-3 py-2.5">年度/季节</th>
-                <th className="text-left px-3 py-2.5">异常说明</th>
-                <th className="text-right px-3 py-2.5">实际</th>
-                <th className="text-right px-3 py-2.5">参考</th>
-                <th className="text-right px-3 py-2.5">差额</th>
-                <th className="text-left px-3 py-2.5">严重度</th>
-                <th className="text-left px-3 py-2.5">状态</th>
-                <th className="text-left px-3 py-2.5">核实</th>
-                <th className="text-left px-3 py-2.5">操作</th>
+              <tr className="bg-[#F6F1E7] text-text-muted text-[10.5px] text-left border-b border-border">
+                <th className="font-medium px-3 py-2">类型</th>
+                <th className="font-medium px-1.5 py-2">对象</th>
+                <th className="font-medium px-1.5 py-2">年度 / 季节</th>
+                <th className="font-medium px-1.5 py-2">异常说明</th>
+                <th className="font-medium px-1.5 py-2 text-right">实际</th>
+                <th className="font-medium px-1.5 py-2 text-right">参考</th>
+                <th className="font-medium px-1.5 py-2 text-right">差额</th>
+                <th className="font-medium px-1.5 py-2">级别</th>
+                <th className="font-medium px-1.5 py-2">状态</th>
+                <th className="font-medium px-1.5 py-2">核实</th>
+                <th className="font-medium px-3 py-2 text-right">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -244,40 +260,40 @@ export default function AnomalyCenterPage() {
                 const s = STATUS_CFG[row.status]
                 const sv = SEVERITY_CFG[row.severity]
                 return (
-                  <tr key={row.id} className="border-b border-border/60 hover:bg-warm/20">
-                    <td className="px-3 py-2.5">
-                      <span className={`px-2 py-0.5 rounded-full border text-xs ${t.cls}`}>{t.label}</span>
+                  <tr key={row.id} className="border-b border-[#F2EDE3] align-top hover:bg-[#F7FAF8] transition-colors">
+                    <td className="px-3 py-2">
+                      <span className={`inline-block px-1.5 py-[1px] rounded-[3px] text-[9.5px] ${t.cls}`}>{t.label}</span>
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-1.5 py-2">
                       {row.household_name
-                        ? <span>{row.household_name}<span className="text-text-muted"> {row.household_code}</span></span>
-                        : <span>{row.real_name || '—'}<span className="text-text-muted font-mono ml-1">{row.id_card}</span></span>}
+                        ? <div><div className="font-semibold">{row.household_name}</div><div className="text-[9.5px] text-text-muted font-mono">{row.household_code}</div></div>
+                        : <div><div className="font-semibold">{row.real_name || '—'}</div><div className="text-[9.5px] text-text-muted font-mono">{row.id_card}</div></div>}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">{row.year || '—'}{row.season ? ` / ${row.season}` : ''}</td>
-                    <td className="px-3 py-2.5 max-w-[280px]">
-                      <div className="font-medium text-text-primary">{row.title}</div>
-                      {row.detail && <div className="text-text-muted mt-0.5" title={row.detail}>{row.detail}</div>}
+                    <td className="px-1.5 py-2 text-text-secondary whitespace-nowrap">{row.year || '—'}{row.season ? ` / ${row.season}` : ' / —'}</td>
+                    <td className="px-1.5 py-2 max-w-[280px]">
+                      <div className="font-medium">{row.title}</div>
+                      {row.detail && <div className="text-[9.5px] text-text-muted mt-0.5 truncate" title={row.detail}>{row.detail}</div>}
                     </td>
-                    <td className="px-3 py-2.5 text-right font-mono">{row.metric_value ?? '—'}</td>
-                    <td className="px-3 py-2.5 text-right font-mono">{row.reference_value ?? '—'}</td>
-                    <td className="px-3 py-2.5 text-right font-mono text-red-600">{row.diff_value ?? '—'}</td>
-                    <td className="px-3 py-2.5"><span className={`px-1.5 py-0.5 rounded text-xs ${sv.cls}`}>{sv.label}</span></td>
-                    <td className="px-3 py-2.5"><span className={`px-2 py-0.5 rounded text-xs ${s.cls}`}>{s.label}</span></td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className="px-1.5 py-2 text-right font-mono">{fmtNum(row.metric_value)}</td>
+                    <td className="px-1.5 py-2 text-right font-mono">{fmtNum(row.reference_value)}</td>
+                    <td className="px-1.5 py-2 text-right font-mono text-danger font-bold">{row.diff_value != null && row.diff_value > 0 ? '+' : ''}{fmtNum(row.diff_value)}</td>
+                    <td className="px-1.5 py-2"><span className={`inline-block px-1.5 py-[1px] rounded-[2px] text-[9.5px] ${sv.cls}`}>{sv.label}</span></td>
+                    <td className="px-1.5 py-2"><span className={`inline-block px-1.5 py-[1px] rounded-full text-[9.5px] ${s.cls}`}>{s.label}</span></td>
+                    <td className="px-1.5 py-2 whitespace-nowrap">
                       {row.verified_by
-                        ? <span>{row.verified_by}<span className="text-text-muted"> {row.verified_at?.slice(0, 16)}</span></span>
-                        : '—'}
+                        ? <div><div>{row.verified_by}</div><div className="text-[9.5px] text-text-muted">{row.verified_at?.slice(5, 16).replace('T', ' ')}</div></div>
+                        : <span className="text-[#C9C2B2]">—</span>}
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <div className="flex gap-1.5">
+                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1">
                         {row.status !== 'confirmed' && (
-                          <button onClick={() => handleVerify(row, 'confirmed')} className="text-emerald-600 hover:underline">核对</button>
+                          <button onClick={() => handleVerify(row, 'confirmed')} className="text-[11px] text-[#2C6B52] font-semibold hover:underline">核对</button>
                         )}
                         {row.status !== 'ignored' && (
-                          <button onClick={() => handleVerify(row, 'ignored')} className="text-slate-500 hover:underline">忽略</button>
+                          <button onClick={() => handleVerify(row, 'ignored')} className="text-[11px] text-text-muted hover:underline">忽略</button>
                         )}
                         {row.status !== 'open' && (
-                          <button onClick={() => handleVerify(row, 'open')} className="text-text-muted hover:underline">恢复</button>
+                          <button onClick={() => handleVerify(row, 'open')} className="text-[11px] text-text-muted hover:underline">恢复</button>
                         )}
                       </div>
                     </td>
@@ -285,21 +301,21 @@ export default function AnomalyCenterPage() {
                 )
               })}
               {(data?.items || []).length === 0 && (
-                <tr><td colSpan={11} className="py-10 text-center text-text-muted">
-                  {scanning ? '扫描中…' : '暂无异常记录，点击“扫描生成异常”'}
+                <tr><td colSpan={11} className="py-12 text-center text-text-muted text-xs">
+                  {scanning ? '扫描中…' : '暂无异常记录，点击右上角「扫描生成异常」'}
                 </td></tr>
               )}
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-text-muted">
-          <span>共 {data?.total ?? 0} 条</span>
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between px-3 py-2 border-t border-border text-[10.5px] text-text-muted">
+          <span>共 {data?.total ?? 0} 条 · 当前筛选：{status ? STATUS_CFG[status].label : '全部状态'}</span>
+          <div className="flex items-center gap-1">
             <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-              className="px-2.5 py-1 border border-border rounded disabled:opacity-40">上一页</button>
-            <span>{page} / {totalPages}</span>
+              className="h-6 px-2 border border-border rounded-[3px] bg-white disabled:opacity-40">上一页</button>
+            <span className="px-1.5">{page} / {totalPages}</span>
             <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
-              className="px-2.5 py-1 border border-border rounded disabled:opacity-40">下一页</button>
+              className="h-6 px-2 border border-border rounded-[3px] bg-white disabled:opacity-40">下一页</button>
           </div>
         </div>
       </div>
