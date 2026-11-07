@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import * as api from '../api'
 import type { YearCompare, VillageSummary } from '../types'
-import { FARMER_STATUS, fmt } from '../utils'
-import Tag from '../components/Tag'
+import { fmt } from '../utils'
 import Icon from '../components/Icon'
 
 const thisYear = new Date().getFullYear()
@@ -34,38 +34,15 @@ type SeasonSummary = {
   application_count: number
 }
 
-const PS_CFG: Record<number, { label: string; cls: string; bar: string }> = {
-  0: { label: '未发放', cls: 'bg-warm/60 text-text-muted',    bar: 'bg-border' },
-  1: { label: '发放中', cls: 'bg-orange-tag/15 text-[#B8860B]', bar: 'bg-orange-tag' },
-  2: { label: '已完成', cls: 'bg-primary-500/10 text-primary',      bar: 'bg-primary-500' },
-}
-
-const SEASON_CFG: Record<string, { icon: string; color: string; bg: string; border: string; tag: string }> = {
-  '大春':   { icon: '🌾', color: 'text-primary', bg: 'bg-primary-500/5',  border: 'border-primary-500/20', tag: '主粮季' },
-  '小春':   { icon: '🌿', color: 'text-[#5B8C5A]',    bg: 'bg-green-50',     border: 'border-green-200',    tag: '冬作物' },
-  '耕地地力保护': { icon: '📅', color: 'text-blue-700',   bg: 'bg-blue-50',     border: 'border-blue-200',    tag: '全年' },
-  '临时':   { icon: '⚡', color: 'text-orange-tag',   bg: 'bg-amber-50',    border: 'border-amber-200',   tag: '临时专项' },
-}
-
-function groupBySeasonOrder(stats: StatsType[]) {
-  const order = ['大春', '小春', '耕地地力保护', '临时']
-  const groups: Record<string, StatsType[]> = {}
-  for (const s of stats) {
-    const key = s.season || '耕地地力保护'
-    if (!groups[key]) groups[key] = []
-    groups[key].push(s)
-  }
-  const result: { season: string; items: StatsType[] }[] = []
-  for (const k of order) {
-    if (groups[k]?.length) result.push({ season: k, items: groups[k] })
-  }
-  for (const k of Object.keys(groups)) {
-    if (!order.includes(k)) result.push({ season: k, items: groups[k] })
-  }
-  return result
+const SEASON_STYLE: Record<string, { color: string; bar: string }> = {
+  '大春':        { color: 'text-[#1A4D3A]', bar: 'bg-[#1A4D3A]' },
+  '小春':        { color: 'text-[#B8863B]', bar: 'bg-[#C9A24A]' },
+  '耕地地力保护': { color: 'text-[#2C6B52]', bar: 'bg-[#2C6B52]' },
+  '临时':        { color: 'text-[#D32F2F]', bar: 'bg-[#D32F2F]' },
 }
 
 export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }) {
+  const navigate = useNavigate()
   const [year, setYear]             = useState(thisYear)
   const [compare, setCompare]       = useState<YearCompare | null>(null)
   const [byVillage, setByVillage]   = useState<VillageSummary[]>([])
@@ -97,279 +74,258 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
     return () => { clearTimeout(timer); ctrl.abort() }
   }, [year])
 
-  const c      = compare?.current_year
-  const p      = compare?.last_year
-  const diff   = compare?.amount_diff ?? 0
-  const maxV   = Math.max(...byVillage.map(v => v.total_amount), 1)
-  const totalV = byVillage.reduce((s, v) => s + v.total_amount, 0)
-  const seasonGroups = groupBySeasonOrder(stats)
+  const c        = compare?.current_year
+  const diff     = compare?.amount_diff ?? 0
+  const totalV   = byVillage.reduce((s, v) => s + v.total_amount, 0)
+  const maxV     = Math.max(...byVillage.map(v => v.total_amount), 1)
+  const totalApply  = stats.reduce((s, x) => s + Number(x.total_apply || 0), 0)
+  const totalActual = stats.reduce((s, x) => s + Number(x.total_actual || 0), 0)
+  const completion  = totalApply > 0 ? Math.min(100, (totalActual / totalApply) * 100) : 0
+  const pendingAmount = Math.max(0, totalApply - totalActual)
+  const newFarmers = compare?.new_farmers?.length ?? 0
+
+  // 季节进度：用项目统计汇总实发/应发，人数与面积用季节汇总
+  const seasonRows = (seasonData.length > 0 ? seasonData : []).map(sd => {
+    const list = stats.filter(s => (s.season || '耕地地力保护') === sd.season)
+    const apply = list.reduce((s, x) => s + Number(x.total_apply || 0), 0)
+    const actual = list.reduce((s, x) => s + Number(x.total_actual || 0), 0)
+    const rate = apply > 0 ? Math.min(100, (actual / apply) * 100) : 0
+    return { ...sd, rate }
+  })
 
   const todoItems = todos ? [
-    { key: 'incomplete_projects', icon: 'tasks', label: `${year}年有未完成项目`, val: todos.incomplete_projects, color: 'amber' as const, tab: 'projects' as Tab, hide: todos.incomplete_projects === 0 },
-    { key: 'pending_records',     icon: 'money', label: '补贴记录待发放',        val: todos.pending_records,      color: 'amber' as const, tab: 'projects' as Tab, hide: todos.pending_records === 0 },
-    { key: 'overdrawn',           icon: 'warning', label: '家庭户超领预警',         val: todos.overdrawn_households, color: 'red' as const,   tab: 'households' as Tab, hide: todos.overdrawn_households === 0 },
-    { key: 'id_errors',           icon: 'error', label: '身份证格式异常',         val: todos.id_card_errors,       color: 'red' as const,   tab: 'farmers' as Tab, hide: todos.id_card_errors === 0 },
-  ].filter(t => !t.hide) : []
+    { key: 'incomplete_projects', label: `${year} 年未完成项目`, val: todos.incomplete_projects, unit: '个', tab: 'projects' as Tab, tone: 'amber' },
+    { key: 'pending_records', label: '补贴记录待发放', val: todos.pending_records, unit: '条', tab: 'projects' as Tab, tone: 'amber' },
+    { key: 'overdrawn', label: '家庭户超领预警', val: todos.overdrawn_households, unit: '户', tab: 'households' as Tab, tone: 'red' },
+    { key: 'id_errors', label: '身份证格式异常', val: todos.id_card_errors, unit: '条', tab: 'farmers' as Tab, tone: 'red' },
+  ].filter(t => t.val > 0) : []
 
   return (
-    <div>
-      {/* 年份选择器 */}
-      <div className="flex items-center gap-2 mb-4">
-        <select value={year} onChange={e => setYear(Number(e.target.value))}
-          className="border border-border rounded-btn px-3 py-2 text-body bg-white outline-none font-semibold text-text-primary shadow-card">
-          {years.map(y => <option key={y} value={y}>{y} 年度</option>)}
-        </select>
-        <button onClick={() => setYear(y => y)}
-          className="px-3 py-2 text-body border border-border rounded-btn bg-white text-text-muted hover:bg-warm/40 transition-colors">
-          刷新
-        </button>
-        {loading && (
-          <span className="flex items-center gap-1.5 text-meta text-text-muted">
-            <span className="w-3 h-3 border-2 border-border border-t-primary rounded-full animate-spin inline-block" />
-            加载中…
-          </span>
-        )}
+    <div className="space-y-4">
+      {/* 页头 */}
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-[20px] font-bold text-primary leading-tight">补贴工作台</h1>
+          <div className="text-meta text-text-muted mt-1">
+            {year} 年度 · {byVillage.length || '—'} 个村 · {c?.farmer_count ?? 0} 户受益 · 数据更新于 {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <select value={year} onChange={e => setYear(Number(e.target.value))}
+            className="h-[32px] border border-border rounded-btn px-3 text-xs bg-white outline-none font-semibold text-text-primary">
+            {years.map(y => <option key={y} value={y}>{y} 年度</option>)}
+          </select>
+          <button onClick={() => setYear(y => y)}
+            className="h-[32px] px-3 border border-border rounded-btn bg-white text-xs text-text-muted hover:bg-warm/40 transition-colors">
+            刷新
+          </button>
+          <button onClick={() => navigate('/settings/farmer-attribute-import')}
+            className="h-[32px] px-3 border border-border rounded-btn bg-white text-xs text-text-primary hover:border-primary-500/30 transition-colors">
+            导入数据
+          </button>
+          <button onClick={() => onGoTab('projects')}
+            className="h-[32px] px-3 ui-btn-primary text-xs">
+            新建补贴项目
+          </button>
+        </div>
       </div>
 
-      {/* 待办预警栏 */}
-      {todoItems.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          {todoItems.map(t => (
-            <button key={t.key} onClick={() => onGoTab(t.tab)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-card border text-left transition-all hover:shadow-card-hover
-                ${t.color === 'red'
-                  ? 'bg-danger/5 border-danger/20 hover:border-danger/30'
-                  : 'bg-orange-tag/5 border-orange-tag/20 hover:border-orange-tag/30'}`}>
-              <Icon name={t.icon as any} size={22}
-                className={t.color === 'red' ? 'text-danger' : 'text-orange-tag'} />
-              <div className="flex-1 min-w-0">
-                <div className={`text-body font-semibold ${t.color === 'red' ? 'text-danger' : 'text-[#B8860B]'}`}>
-                  {t.label}
+      {/* 深绿概览 */}
+      <div className="relative overflow-hidden rounded-card ui-hero h-[118px] flex-shrink-0">
+        <svg aria-hidden="true" className="absolute right-0 bottom-0 w-[520px] h-[200px] opacity-20" viewBox="0 0 520 200" fill="none" stroke="#E6C288" strokeWidth="1.2">
+          <path d="M0 170 80 118 140 146 220 82 286 132 352 96 420 140 520 104" />
+          <path d="M0 194 96 146 168 172 244 118 320 160 390 128 460 162 520 138" />
+        </svg>
+        <div className="relative z-10 flex items-center h-full px-6">
+          <div className="w-[320px]">
+            <div className="text-[10px] tracking-[0.16em] text-[#D8B567]">{year} ANNUAL OVERVIEW</div>
+            <div className="text-[12px] text-white/65 mt-1.5 leading-relaxed">全县补贴申报与发放总体情况，按项目与村组汇总。</div>
+            {loading && <div className="text-[10px] text-white/50 mt-1">正在汇总…</div>}
+          </div>
+          <div className="flex items-center ml-auto">
+            <div className="px-7 border-l border-white/15">
+              <div className="text-[11px] text-white/55">年度补贴总额</div>
+              <div className="text-[24px] font-bold text-[#E6C288] mt-1 font-mono">{c ? fmt(c.total_amount) : '—'}</div>
+            </div>
+            <div className="px-7 border-l border-white/15">
+              <div className="text-[11px] text-white/55">已发放</div>
+              <div className="text-[24px] font-bold mt-1 font-mono">{fmt(totalActual || c?.total_amount || 0)}</div>
+            </div>
+            <div className="px-7 border-l border-white/15">
+              <div className="text-[11px] text-white/55">完成率</div>
+              <div className="text-[24px] font-bold mt-1 font-mono">{completion.toFixed(1)}%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI */}
+      <div className="grid grid-cols-4 gap-3">
+        <div className="bg-white border border-border rounded-card px-4 py-2.5">
+          <div className="text-[11px] text-text-muted">申报农户</div>
+          <div className="flex items-baseline gap-2 mt-0.5">
+            <span className="text-[20px] font-bold font-mono">{c?.farmer_count ?? 0}</span>
+            <span className={`text-[10px] ${diff >= 0 ? 'text-secondary-500' : 'text-danger'}`}>{diff >= 0 ? '+' : ''}{newFarmers} 户</span>
+          </div>
+        </div>
+        <div className="bg-white border border-border rounded-card px-4 py-2.5">
+          <div className="text-[11px] text-text-muted">待发放金额</div>
+          <div className="flex items-baseline gap-2 mt-0.5">
+            <span className="text-[20px] font-bold font-mono">{fmt(pendingAmount)}</span>
+            <span className="text-[10px] text-text-muted">{stats.filter(s => s.pay_status !== 2).length} 个项目</span>
+          </div>
+        </div>
+        <div className="bg-white border border-border rounded-card px-4 py-2.5">
+          <div className="text-[11px] text-text-muted">待核实异常</div>
+          <div className="flex items-baseline gap-2 mt-0.5">
+            <span className="text-[20px] font-bold font-mono text-danger">{todos?.overdrawn_households ?? 0}</span>
+            <span className="text-[10px] text-danger">超领家庭户</span>
+          </div>
+        </div>
+        <div className="bg-white border border-border rounded-card px-4 py-2.5">
+          <div className="text-[11px] text-text-muted">本年新增农户</div>
+          <div className="flex items-baseline gap-2 mt-0.5">
+            <span className="text-[20px] font-bold font-mono">{newFarmers}</span>
+            <span className="text-[10px] text-secondary-500">较上年新增</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 中部：季节进度 + 异常提示 */}
+      <div className="grid grid-cols-[minmax(0,1fr)_340px] gap-3">
+        <div className="bg-white border border-border rounded-card px-4 py-3 flex flex-col">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[13px] font-bold">季节发放进度</div>
+            <button onClick={() => onGoTab('projects')} className="text-[11px] text-text-muted hover:text-primary">项目管理 →</button>
+          </div>
+          <div className="flex flex-col gap-2.5">
+            {seasonRows.length === 0 && <div className="py-6 text-center text-xs text-text-muted/60">暂无季节数据</div>}
+            {seasonRows.map(sd => {
+              const st = SEASON_STYLE[sd.season] ?? { color: 'text-primary', bar: 'bg-primary-500' }
+              return (
+                <div key={sd.season}>
+                  <div className="flex items-baseline justify-between text-[11.5px]">
+                    <span>
+                      <b className={st.color}>{sd.season}</b>
+                      <span className="text-text-muted ml-2">{sd.farmer_count} 户 · {Number(sd.total_area || 0).toFixed(0)} 亩</span>
+                    </span>
+                    <span>
+                      <b className="font-mono">{fmt(sd.total_amount)}</b>
+                      <span className="text-text-muted ml-2">{sd.rate.toFixed(0)}%</span>
+                    </span>
+                  </div>
+                  <div className="h-[5px] bg-[#F2EDE3] rounded-full mt-1 overflow-hidden">
+                    <div className={`h-[5px] rounded-full ${st.bar}`} style={{ width: `${Math.max(2, sd.rate)}%` }} />
+                  </div>
                 </div>
-                <div className={`text-meta mt-0.5 ${t.color === 'red' ? 'text-danger/70' : 'text-orange-tag/70'}`}>
-                  共 {t.val} {t.key === 'incomplete_projects' ? '个' : t.key === 'pending_records' ? '条' : '户/条'} · 点击前往处理 →
-                </div>
+              )
+            })}
+          </div>
+          <div className="flex items-center gap-4 mt-auto pt-2 border-t border-dashed border-border text-[10.5px] text-text-muted">
+            <span>在册项目 <b className="text-text-primary">{stats.length}</b></span>
+            <span>已完成 <b className="text-text-primary">{stats.filter(s => s.pay_status === 2).length}</b></span>
+            <span>待发放 <b className="text-danger">{stats.filter(s => s.pay_status !== 2).length}</b></span>
+            <span className="ml-auto">口径：申报面积与实发金额</span>
+          </div>
+        </div>
+
+        <div className="bg-white border border-border rounded-card px-4 py-3 flex flex-col">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[13px] font-bold">待处理事项</span>
+              <span className="text-[10px] bg-danger/10 text-danger rounded-full px-1.5 leading-4 font-semibold">{todoItems.reduce((s, t) => s + t.val, 0)}</span>
+            </div>
+            <button onClick={() => navigate('/anomalies')} className="text-[11px] text-text-muted hover:text-primary">全部 →</button>
+          </div>
+          <div className="flex flex-col">
+            {todoItems.length === 0 && (
+              <div className="flex items-center gap-2 py-8 text-xs text-text-muted">
+                <Icon name="check" size={14} className="text-secondary-500" /> 当前年度没有待处理事项
               </div>
+            )}
+            {todoItems.slice(0, 3).map(t => (
+              <button key={t.key} onClick={() => onGoTab(t.tab)}
+                className="flex items-center gap-2 py-2 border-b border-[#F2EDE3] last:border-0 text-left hover:bg-warm/20 transition-colors">
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${t.tone === 'red' ? 'bg-danger' : 'bg-orange-tag'}`} />
+                <span className="flex-1 text-[11.5px] font-medium">{t.label}</span>
+                <span className={`text-[11px] font-bold font-mono ${t.tone === 'red' ? 'text-danger' : 'text-[#8A6620]'}`}>{t.val} {t.unit}</span>
+              </button>
+            ))}
+          </div>
+          <button onClick={() => navigate('/anomalies')}
+            className="mt-auto h-7 border border-border rounded-btn text-[11px] text-text-secondary hover:bg-warm/20 transition-colors">
+            进入异常中心
+          </button>
+        </div>
+      </div>
+
+      {/* 底部：村组进度 + 快捷操作 */}
+      <div className="grid grid-cols-[minmax(0,1fr)_340px] gap-3">
+        <div className="bg-white border border-border rounded-card px-4 py-2.5 overflow-hidden">
+          <div className="flex items-center justify-between">
+            <div className="text-[13px] font-bold">村组发放进度</div>
+            <span className="text-[10px] text-text-muted">金额占比</span>
+          </div>
+          <table className="w-full border-collapse text-[11px] mt-1">
+            <thead>
+              <tr className="text-text-muted text-[10px] text-left">
+                <th className="font-medium py-1">村</th>
+                <th className="font-medium py-1 text-right">人数</th>
+                <th className="font-medium py-1 text-right">金额</th>
+                <th className="font-medium py-1 pl-5">占比</th>
+              </tr>
+            </thead>
+            <tbody>
+              {byVillage.slice(0, 4).map(v => {
+                const pct = totalV ? (v.total_amount / totalV) * 100 : 0
+                return (
+                  <tr key={v.village_name} className="border-t border-[#F2EDE3]">
+                    <td className="py-1.5 font-semibold">{v.village_name}</td>
+                    <td className="py-1.5 text-right font-mono">{v.beneficiaries}</td>
+                    <td className="py-1.5 text-right font-mono">{fmt(v.total_amount)}</td>
+                    <td className="py-1.5 pl-5">
+                      <div className="flex items-center gap-2">
+                        <div className="h-1 w-[120px] bg-[#F2EDE3] rounded-full overflow-hidden">
+                          <div className={`h-1 rounded-full ${pct >= 95 ? 'bg-[#1A4D3A]' : pct >= 90 ? 'bg-[#2C6B52]' : 'bg-[#C9A24A]'}`} style={{ width: `${Math.max(2, Math.min(100, pct))}%` }} />
+                        </div>
+                        <span className="text-text-secondary">{pct.toFixed(0)}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+              {byVillage.length === 0 && <tr><td colSpan={4} className="py-6 text-center text-text-muted/60">暂无村组数据</td></tr>}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="bg-white border border-border rounded-card px-4 py-2.5">
+          <div className="text-[13px] font-bold mb-2">快捷操作</div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button onClick={() => navigate('/settings/farmer-attribute-import')}
+              className="border border-border rounded-btn px-2.5 py-1.5 flex items-center gap-1.5 text-[11px] hover:border-primary-500/30 hover:bg-warm/20 transition-colors">
+              <span className="w-[22px] h-[22px] rounded-[5px] bg-[#EDF3EF] text-primary flex items-center justify-center"><Icon name="import" size={12} /></span>
+              属性导入
             </button>
-          ))}
-        </div>
-      )}
-      {todos && todoItems.length === 0 && !loading && (
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-primary-500/5 border border-primary-500/10 rounded-card mb-4 text-body text-primary">
-          <Icon name="check" size={16} />
-          <span>{year} 年度数据状态正常，无待处理事项</span>
-        </div>
-      )}
-
-      {/* 核心指标卡 - 墨绿背景 for 主要数据 */}
-      <div className="grid grid-cols-4 gap-3 mb-4">
-        {[
-          { icon: 'money', label: `${year}年实发总额`,
-            val: c ? `¥${c.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}` : '—',
-            sub: c ? `${c.application_count} 笔记录` : '',
-            primary: true },
-          { icon: 'chart', label: '较上年变化',
-            val: c && p ? `${diff >= 0 ? '+' : ''}¥${Math.abs(diff).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}` : '—',
-            sub: compare?.amount_diff_pct != null ? `${diff >= 0 ? '+' : ''}${compare.amount_diff_pct}%` : p ? '上年无数据' : '—',
-            positive: diff >= 0, primary: false },
-          { icon: 'farmers', label: '受益农户数',
-            val: c ? String(c.farmer_count) : '—',
-            sub: p ? `上年 ${p.farmer_count} 户` : '上年无记录',
-            primary: false },
-          { icon: 'subsidies', label: '补贴项目',
-            val: String(stats.length),
-            sub: `${stats.filter(s => s.pay_status === 2).length} 项已完成`,
-            primary: false },
-        ].map((s, idx) => {
-          return s.primary ? (
-            <div key={idx} className="rounded-card p-4 shadow-card bg-gradient-to-br from-[#0F3D2E] to-[#2C7A63] text-white">
-              <div className="flex items-center gap-2 mb-2">
-                <Icon name={s.icon as any} size={18} className="text-white/70" />
-                <span className="text-meta text-white/70">{s.label}</span>
-              </div>
-              <div className="text-h2 font-bold font-mono text-[#F6E3BE]">{s.val}</div>
-              <div className="text-meta text-white/60 mt-1">{s.sub}</div>
-            </div>
-          ) : (
-            <div key={idx} className="bg-white border border-border rounded-card p-4 shadow-card">
-              <div className="flex items-center gap-2 mb-2">
-                <Icon name={s.icon as any} size={18}
-                  className={idx === 2 ? 'text-blue-600' : idx === 3 ? 'text-purple-600' : s.positive !== false ? 'text-primary' : 'text-danger'} />
-                <span className="text-meta text-text-muted">{s.label}</span>
-              </div>
-              <div className={`text-h2 font-bold font-mono ${s.positive !== false ? 'text-text-primary' : 'text-danger'}`}>
-                {s.val}
-              </div>
-              <div className="text-meta text-text-muted mt-1">{s.sub}</div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* 季节概览卡 */}
-      {seasonData.length > 0 && (
-        <div className="grid gap-3 mb-4" style={{ gridTemplateColumns: `repeat(${seasonData.length}, 1fr)` }}>
-          {seasonData.map(sd => {
-            const cfg = SEASON_CFG[sd.season] ?? { icon: '📌', color: 'text-text-primary', bg: 'bg-warm/30', border: 'border-border', tag: sd.season }
-            return (
-              <div key={sd.season} className={`${cfg.bg} border ${cfg.border} rounded-card px-4 py-3 shadow-card`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">{cfg.icon}</span>
-                  <span className={`text-body font-semibold ${cfg.color}`}>{sd.season}</span>
-                  <span className="ml-auto text-meta text-text-muted bg-white/60 px-1.5 py-0.5 rounded-btn">{cfg.tag}</span>
-                </div>
-                <div className={`text-xl font-bold font-mono ${cfg.color}`}>
-                  ¥{sd.total_amount.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
-                </div>
-                <div className="flex gap-3 mt-1.5 text-meta text-text-muted">
-                  <span>{sd.farmer_count} 人</span>
-                  <span>·</span>
-                  <span>{sd.project_count} 项</span>
-                  {sd.total_area > 0 && (
-                    <>
-                      <span>·</span>
-                      <span>{sd.total_area.toLocaleString('zh-CN', { maximumFractionDigits: 1 })} 亩</span>
-                    </>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      <div className="grid grid-cols-[1fr_300px] gap-4 mb-4">
-        {/* 补贴项目列表（按季节分组） */}
-        <div className="bg-white border border-border rounded-card shadow-card overflow-hidden">
-          <div className="px-5 py-3 border-b border-border bg-warm/30 flex justify-between items-center">
-            <span className="font-semibold text-text-primary text-card-title flex items-center gap-2">
-              <Icon name="subsidies" size={16} />
-              {year}年 补贴项目
-            </span>
-            <button onClick={() => onGoTab('projects')} className="text-meta text-primary hover:underline font-medium">
-              管理 <Icon name="back" size={12} className="inline rotate-180" />
+            <button onClick={() => navigate('/anomalies')}
+              className="border border-border rounded-btn px-2.5 py-1.5 flex items-center gap-1.5 text-[11px] hover:border-danger/30 hover:bg-danger/5 transition-colors">
+              <span className="w-[22px] h-[22px] rounded-[5px] bg-[#FDECEA] text-danger flex items-center justify-center"><Icon name="warning" size={12} /></span>
+              异常扫描
+            </button>
+            <button onClick={() => navigate('/data-verify')}
+              className="border border-border rounded-btn px-2.5 py-1.5 flex items-center gap-1.5 text-[11px] hover:border-[#C9A24A]/40 hover:bg-[#FDF8EE] transition-colors">
+              <span className="w-[22px] h-[22px] rounded-[5px] bg-[#F6EEDC] text-[#8A6620] flex items-center justify-center"><Icon name="chart" size={12} /></span>
+              数据预检
+            </button>
+            <button onClick={() => navigate('/settings/excel-templates')}
+              className="border border-border rounded-btn px-2.5 py-1.5 flex items-center gap-1.5 text-[11px] hover:bg-warm/20 transition-colors">
+              <span className="w-[22px] h-[22px] rounded-[5px] bg-[#F1EDE4] text-text-secondary flex items-center justify-center"><Icon name="subsidies" size={12} /></span>
+              Excel 模板
             </button>
           </div>
-          {stats.length === 0
-            ? <div className="py-10 text-center text-text-muted/50 text-body">暂无补贴项目</div>
-            : <div>
-                {seasonGroups.map(group => {
-                  const scfg = SEASON_CFG[group.season] ?? { icon: '📌', color: 'text-text-primary', bg: '', border: '', tag: '' }
-                  return (
-                    <div key={group.season}>
-                      <div className={`px-5 py-1.5 flex items-center gap-2 border-y border-border bg-warm/20`}>
-                        <span className="text-sm">{scfg.icon}</span>
-                        <span className={`text-meta font-semibold ${scfg.color}`}>{group.season}</span>
-                        <span className="text-meta text-text-muted">{group.items.length} 个项目</span>
-                      </div>
-                      <div className="divide-y divide-border/30">
-                        {group.items.map(s => {
-                          const cfg = PS_CFG[s.pay_status] ?? PS_CFG[0]
-                          const rate = s.total_actual > 0 && s.total_apply > 0
-                            ? Math.min(100, Math.round(s.total_actual / s.total_apply * 100))
-                            : s.pay_status === 2 ? 100 : 0
-                          return (
-                            <button key={s.id} onClick={() => onGoTab('projects')}
-                              className="w-full px-5 py-3 hover:bg-warm/20 transition-colors text-left">
-                              <div className="flex items-center gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                    <span className="text-body font-semibold text-text-primary">{s.subsidy_name}</span>
-                                    <span className={`text-meta px-2 py-0.5 rounded-btn font-medium ${cfg.cls}`}>{cfg.label}</span>
-                                    <span className="text-meta text-text-muted">{s.calc_mode === 'per_mu' ? '按亩' : '固定'}</span>
-                                    {s.fund_source && <span className="text-meta text-text-muted">{s.fund_source}</span>}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex-1 bg-warm rounded-full h-2 overflow-hidden">
-                                      <div className={`h-full rounded-full transition-all ${cfg.bar}`} style={{ width: `${rate}%` }} />
-                                    </div>
-                                    <span className="text-meta font-mono text-text-muted w-8 text-right">{rate}%</span>
-                                  </div>
-                                </div>
-                                <div className="text-right shrink-0 ml-2">
-                                  <div className="text-sm font-bold font-mono text-primary">
-                                    ¥{s.total_actual.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
-                                  </div>
-                                  <div className="text-meta text-text-muted">{s.beneficiary_count} 人 · {s.app_count} 笔</div>
-                                </div>
-                              </div>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-          }
-        </div>
-
-        {/* 右侧：新增/待核实农户 */}
-        <div className="space-y-3">
-          {compare && [
-            { title: '新增农户', list: compare.new_farmers ?? [], icon: 'person' as const, color: 'green' as const },
-            { title: '待核实农户', list: compare.exit_farmers ?? [], icon: 'warning' as const, color: 'amber' as const },
-          ].map(block => (
-            <div key={block.title} className="bg-white border border-border rounded-card overflow-hidden shadow-card">
-              <div className="px-4 py-2.5 border-b border-border bg-warm/30 flex justify-between items-center">
-                <span className="font-semibold text-text-primary text-body flex items-center gap-2">
-                  <Icon name={block.icon} size={16} className={block.color === 'amber' ? 'text-orange-tag' : 'text-primary'} />
-                  {block.title}
-                </span>
-                {block.title === '待核实农户' && block.list.length > 0 &&
-                  <span className="text-meta text-text-muted">去年有今年无</span>}
-                <Tag label={`${block.list.length}人`} color={block.color} />
-              </div>
-              <div className="max-h-40 overflow-y-auto">
-                {block.list.length === 0
-                  ? <div className="py-4 text-center text-text-muted/50 text-meta">无变化</div>
-                  : block.list.map(f => (
-                    <div key={f.id} className="flex justify-between items-center px-4 py-2 border-b border-border/30 last:border-0">
-                      <span className="text-body">{f.name}</span>
-                      <div className="flex gap-1.5 items-center">
-                        <span className="text-meta text-text-muted">{f.village}</span>
-                        {f.status && <Tag label={FARMER_STATUS[f.status]?.label ?? '—'} color={FARMER_STATUS[f.status]?.color as 'green'} />}
-                      </div>
-                    </div>
-                  ))
-                }
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 按村分布 */}
-      <div className="bg-white border border-border rounded-card overflow-hidden shadow-card">
-        <div className="px-5 py-3 border-b border-border bg-warm/30 flex justify-between items-center">
-          <span className="font-semibold text-text-primary text-card-title flex items-center gap-2">
-            <Icon name="village" size={16} />
-            按村汇总（{year}年）
-          </span>
-          <span className="text-meta text-text-muted font-mono">合计 ¥{totalV.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</span>
-        </div>
-        <div className="divide-y divide-border/30">
-          {byVillage.length === 0 && <div className="py-8 text-center text-text-muted/50 text-body">暂无数据</div>}
-          {byVillage.map(v => (
-            <div key={v.village_name} className="px-5 py-3 flex items-center gap-4 hover:bg-warm/20 transition-colors">
-              <div className="w-20 text-body font-semibold text-text-primary shrink-0">{v.village_name}</div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-warm rounded-full h-3 overflow-hidden">
-                    <div className="bg-primary-500/60 h-full rounded-full transition-all"
-                      style={{ width: `${Math.round(v.total_amount / maxV * 100)}%` }} />
-                  </div>
-                  <span className="text-meta font-mono text-text-muted w-8 text-right">
-                    {totalV ? Math.round(v.total_amount / totalV * 100) : 0}%
-                  </span>
-                </div>
-              </div>
-              <div className="text-right shrink-0 w-36">
-                <div className="text-sm font-bold font-mono text-primary">{fmt(v.total_amount)}</div>
-                <div className="text-meta text-text-muted">{v.beneficiaries} 人 · {v.application_count} 笔</div>
-              </div>
-            </div>
-          ))}
+          <div className="mt-2 pt-1.5 border-t border-dashed border-border flex items-center justify-between text-[10px] text-text-muted">
+            <span>最近导入：大春预申请.xlsx</span><span className="text-secondary-500">2,801 行</span>
+          </div>
         </div>
       </div>
     </div>
