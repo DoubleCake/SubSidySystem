@@ -9,6 +9,13 @@ interface SidebarSection {
 
 const sections: SidebarSection[] = [
   {
+    id: 'v2',
+    label: '🎨 新版界面',
+    items: [
+      { label: '家庭户（画布）', to: '/v2/households' },
+    ],
+  },
+  {
     id: 'farmers',
     label: '👥 户籍管理',
     items: [
