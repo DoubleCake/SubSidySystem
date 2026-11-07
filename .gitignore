@@ -10,8 +10,13 @@ lerna-debug.log*
 out/
 dist/
 build/
-static/
+# 仅忽略旧 Python 版根目录的 static 构建产物；subsidy-electron/static 是源码图片，必须入库
+/static/
 *.db
+
+# 本地会话配置 / 权限修复产物
+.claude/settings.local.json
+.acl-recovery/
 
 # IDE
 .vscode/
