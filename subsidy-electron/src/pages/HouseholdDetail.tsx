@@ -113,332 +113,169 @@ export function HouseholdDetailContent({
     : areaUsage.is_overdrawn
   const effectiveOverdrawAmount = Math.max(0, effectiveUsedArea - (areaUsage.cultivable_area ?? areaUsage.contracted_area))
 
+  const refArea = (areaUsage.cultivable_area ?? areaUsage.contracted_area) || 0
+  const overYears = Object.entries(areaUsage.year_totals || {})
+    .filter(([, seasons]) => refArea > 0 && Object.values(seasons).some((v: number) => v > refArea + 0.001))
+    .sort(([a], [b]) => Number(b) - Number(a))
+    .map(([year]) => year)
+  const activeMembers = displayMembers.filter(m => m.farmer_status === 1).length
+  const areaYears = [...new Set((detail.app_summary || []).map((a: { apply_year: number }) => a.apply_year))].sort((a, b) => b - a)
+
   return (
     <div className="flex-1 min-w-0 flex flex-col">
-      {/* 顶部卡片 */}
-      <div className="bg-main border border-border rounded-card overflow-hidden shadow-card mb-3 shrink-0">
-        <div className="px-5 py-3.5 flex items-center gap-4 relative border-b border-emerald-100"
-          style={{
-            backgroundImage: 'url(images/household.png)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-          }}>
-          <div className="w-10 h-10 rounded-card bg-primary-500/10 flex items-center justify-center text-lg font-bold text-primary shrink-0">🏠</div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-4 mb-0.5 flex-wrap">
-              <span className="text-base font-bold text-primary-50">{detail.household_name}</span>
-              <span className="text-text-muted text-xs font-mono">{detail.household_code}</span>
-              {detail.is_manually_confirmed === 1 && <span className="text-xs bg-blue-500  px-1.5 py-0.5 rounded">✓ 已确认</span>}
-              {/* 所有超领年份逐一标记 */}
-              {areaUsage.year_totals && Object.entries(areaUsage.year_totals)
-                .filter(([, seasons]) => {
-                  const ref = areaUsage.cultivable_area ?? areaUsage.contracted_area
-                  return ref > 0 && Object.values(seasons).some((v: number) => v > ref + 0.001)
-                })
-                .sort(([a], [b]) => Number(b) - Number(a))
-                .map(([year]) => (
-                  <span key={year} className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">{year}超领</span>
-                ))}
-              {!effectiveIsOverdrawn && areaUsage.is_overdrawn && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">⚠️ 超领</span>}
-              {historyDate !== null && <span className="text-xs bg-amber-500/80  px-1.5 py-0.5 rounded">⏳ 快照</span>}
+      {/* 户档案头 */}
+      <div className="bg-white border border-border rounded-card overflow-hidden shadow-card mb-2.5 shrink-0">
+        <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-[#F2EDE3]">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-[38px] h-[38px] rounded-card bg-primary text-[#E6C288] flex items-center justify-center text-[14px] font-bold shrink-0">
+              {detail.household_name?.slice(0, 1) || '户'}
             </div>
-            <div className="text-text-muted text-xs">📍 {detail.village_full_name}
-              {detail.address && <span className="ml-1 text-text-muted">{detail.address}</span>}
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h2 className="text-[18px] font-bold text-primary m-0 leading-tight">{detail.household_name}</h2>
+                <span className="text-[10px] border border-border rounded-[3px] px-1.5 py-[1px] text-[#8C877A] font-mono">{detail.household_code}</span>
+                {overYears.length > 0
+                  ? <span className="text-[10px] bg-[#FDECEA] text-danger rounded-full px-1.5 py-[1px]">超领 {overYears.length} 项</span>
+                  : <span className="text-[10px] bg-[#EDF3EF] text-[#2C6B52] rounded-full px-1.5 py-[1px]">面积正常</span>}
+                {detail.is_manually_confirmed === 1 && <span className="text-[10px] bg-[#EDF3EF] text-[#2C6B52] rounded-[3px] px-1.5 py-[1px]">已确认</span>}
+                {historyDate !== null && <span className="text-[10px] bg-[#F6EEDC] text-[#8A6620] rounded-[3px] px-1.5 py-[1px]">快照</span>}
+              </div>
+              <div className="text-[11px] text-[#8C877A] mt-[3px] truncate">
+                {detail.village_full_name}
+                {detail.address ? ` · ${detail.address}` : ''}
+                <span className="mx-1.5">·</span>
+                {displayMembers.length} 名成员 · 在册 {activeMembers}
+                {detail.manually_confirmed_at && <><span className="mx-1.5">·</span>人工确认 {detail.manually_confirmed_at.slice(0, 10)}</>}
+              </div>
             </div>
-          </div>
-          <div className="text-right shrink-0 mr-2">
-            <div className="text-lg font-bold font-mono text-primary-50">
-              {historyDate !== null && snapshotData?.snapshot
-                ? (snapshotData.snapshot.contract_area > 0 ? `${snapshotData.snapshot.contract_area}亩` : '未设置')
-                : (detail.contracted_area > 0 ? `${detail.contracted_area}亩` : '未设置')}
-            </div>
-            <div className="text-text-muted text-xs">参考面积</div>
           </div>
           {historyDateIsNull && (
-            <div className="flex flex-col gap-1.5 shrink-0">
-              <button onClick={onOpenEdit}
-                className="text-xs bg-[#DAA550]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">✏️ 编辑</button>
-              {detail.is_manually_confirmed === 1 ? (
-                <button onClick={onOpenCancelConfirm}
-                  className="text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-1.5 rounded-btn font-medium transition-colors">↩️ 取消确认</button>
-              ) : (
-                <button onClick={onOpenManualConfirm}
-                  className="text-xs bg-[#2E7A60]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">✓ 人工确认</button>
-              )}
+            <div className="flex items-center gap-1.5 shrink-0">
               {canSplit && (
-                <button onClick={onOpenSplit}
-                  className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1.5 rounded-btn font-medium transition-colors">🔀 分户</button>
+                <button onClick={onOpenSplit} className="h-7 px-2.5 border border-border rounded-btn bg-white text-[11px] text-text-secondary hover:bg-warm/30 transition-colors">分户</button>
               )}
-              <button onClick={() => alert('导出功能开发中')}
-                className="text-xs bg-blue-500 text-white px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">
-                📥 导出补贴
-              </button>
-              <button onClick={onDelete}
-                className="text-xs bg-[#C04848]  px-3 py-1.5 rounded-btn font-medium shadow-md hover:brightness-95 transition-all">🗑️ 删除</button>
+              {detail.is_manually_confirmed === 1 ? (
+                <button onClick={onOpenCancelConfirm} className="h-7 px-2.5 border border-border rounded-btn bg-white text-[11px] text-[#8A6620] hover:bg-[#FDFAF3] transition-colors">取消确认</button>
+              ) : (
+                <button onClick={onOpenManualConfirm} className="h-7 px-2.5 border border-[#C9DCC9] rounded-btn bg-[#F7FAF7] text-[11px] text-[#2C6B52] hover:bg-[#EDF3EF] transition-colors">人工确认</button>
+              )}
+              <button onClick={onOpenEdit} className="h-7 px-2.5 border border-[#E8D8B8] rounded-btn bg-[#FDFAF3] text-[11px] text-[#8A6620] hover:bg-[#F6EEDC] transition-colors">编辑档案</button>
+              <button onClick={onDelete} className="h-7 px-2 text-[11px] text-text-muted hover:text-danger transition-colors">删除</button>
             </div>
           )}
         </div>
 
-        {/* 快照备注信息 */}
+        {/* 面积与发放条 */}
+        <div className="flex items-center gap-0 px-4 py-2.5 bg-gradient-to-r from-[#0F3D2E] via-[#1A5C46] to-[#2C7A63] text-[#F7F3E7]">
+          <div className="flex items-center gap-2 min-w-0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D8B567" strokeWidth="1.6" aria-hidden="true"><path d="M3 9.5 12 3l9 6.5" /><path d="M5 11v9h14v-9" /><path d="M9 20v-5h6v5" /></svg>
+            <div className="min-w-0">
+              <div className="text-[11.5px] font-semibold truncate">面积与发放</div>
+              <div className="text-[9.5px] text-white/55">{areaYear > 0 ? `${areaYear} 年度` : '全部年度'} · 按季节累计</div>
+            </div>
+          </div>
+          <div className="flex items-center ml-auto">
+            <div className="px-4 border-l border-white/15">
+              <div className="text-[9.5px] text-white/55">参考面积</div>
+              <div className="text-[15px] font-bold text-[#E6C288] font-mono">{refArea.toFixed(2)} 亩</div>
+            </div>
+            <div className="px-4 border-l border-white/15">
+              <div className="text-[9.5px] text-white/55">已使用</div>
+              <div className="text-[15px] font-bold font-mono">{effectiveUsedArea.toFixed(2)} 亩</div>
+            </div>
+            <div className="px-4 border-l border-white/15">
+              <div className="text-[9.5px] text-white/55">剩余</div>
+              <div className="text-[15px] font-bold font-mono">{effectiveRemainingArea.toFixed(2)} 亩</div>
+            </div>
+            <div className="px-4 border-l border-white/15">
+              <div className="text-[9.5px] text-white/55">超出</div>
+              <div className={`text-[15px] font-bold font-mono ${effectiveIsOverdrawn ? 'text-[#F2B8A8]' : ''}`}>
+                {effectiveIsOverdrawn ? `+${effectiveOverdrawAmount.toFixed(2)} 亩` : '—'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 快照备注 */}
         {historyEventId !== null && (() => {
           const currentEvent = historyDates.find(e => e.event_id === historyEventId)
           if (currentEvent?.description) {
             const cfg = EVENT_TYPE_CFG[currentEvent.event_type] || EVENT_TYPE_CFG.REMARK
             return (
-              <div className="bg-warm/30 border-b border-border px-5 py-3">
-                <div className="flex items-start gap-2">
-                  <span className="text-lg shrink-0">{cfg.icon}</span>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${cfg.color}`}>{cfg.label}</span>
-                      <span className="text-xs text-text-muted">{currentEvent.date || `${currentEvent.event_year}年`}</span>
-                    </div>
-                    <p className="text-sm text-text-primary">{currentEvent.description}</p>
-                  </div>
-                </div>
+              <div className="bg-[#FBF8F1] border-t border-[#F0E6D2] px-4 py-2 flex items-start gap-2">
+                <span className={`text-[9.5px] px-1.5 py-[1px] rounded-[2px] shrink-0 ${cfg.color}`}>{cfg.label}</span>
+                <span className="text-[11px] text-[#6B5322] flex-1">
+                  {currentEvent.date || `${currentEvent.event_year} 年`} · {currentEvent.description}
+                </span>
               </div>
             )
           }
           return null
         })()}
 
-        {/* 人口和面积概览 */}
-        <div className="px-4 py-3 bg-gradient-to-b from-stone-50 to-white border-b border-border bg-primary-100">
-          <div className="flex items-center gap-4">
-            {/* 人口 */}
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">👥</span>
-              <div>
-                <div className="text-[20px] font-bold text-primary">{displayMembers.length}</div>
-                <div className="text-xs text-text-muted">人口</div>
-              </div>
+        {/* 面积构成 */}
+        <div className="grid grid-cols-4 border-t border-[#F2EDE3]">
+          {[
+            ['承包面积', `${areaUsage.contracted_area ?? 0} 亩`],
+            ['确权面积', detail.confirmed_area != null ? `${detail.confirmed_area} 亩` : '—'],
+            ['转入 / 转出', `${(areaUsage.trust_in_area ?? 0).toFixed(2)} / ${(areaUsage.trust_out_area ?? 0).toFixed(2)}`],
+            ['不予补贴', `${detail.no_subsidy_area ?? 0} 亩`],
+          ].map(([k, v], i) => (
+            <div key={k} className={`px-4 py-2 ${i < 3 ? 'border-r border-[#F2EDE3]' : ''}`}>
+              <div className="text-[9.5px] text-[#9A9588]">{k}</div>
+              <div className="text-[11.5px] text-[#5A5A4F] mt-px font-mono">{v}</div>
             </div>
-
-            <div className="w-px h-10 bg-stone-200" />
-
-            {/* 承包面积 */}
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">📐</span>
-              <div>
-                <div className="text-lg font-bold font-mono text-text-primary">{areaUsage.contracted_area} 亩
-                  {(areaUsage.trust_in_area ?? 0) > 0 && <span className="text-orange-500 text-sm ml-1">+{(areaUsage.trust_in_area ?? 0).toFixed(2)}亩</span>}
-                  {(areaUsage.trust_out_area ?? 0) > 0 && <span className="text-orange-400 text-sm ml-1">-{(areaUsage.trust_out_area ?? 0).toFixed(2)}亩</span>}
-                </div>
-                <div className="text-xs text-text-muted" title="确权面积与承包面积取较大值">{areaUsage.cultivable_area != null && areaUsage.cultivable_area !== areaUsage.contracted_area
-                  ? `可耕${areaUsage.cultivable_area.toFixed(2)}亩`
-                  : '参考面积（确权/承包取大）'}
-                </div>
-              </div>
-            </div>
-
-            {detail.confirmed_area != null && (
-              <>
-                <div className="w-px h-10 bg-stone-200" />
-                {/* 确权面积 */}
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">📋</span>
-                  <div>
-                    <div className="text-lg font-bold font-mono text-blue-700">{detail.confirmed_area} 亩</div>
-                    <div className="text-xs text-text-muted">确权面积</div>
-                  </div>
-                </div>
-                {(() => {
-                  const diff = Math.round((detail.confirmed_area! - Number(detail.contract_area ?? detail.contracted_area ?? 0)) * 100) / 100
-                  if (Math.abs(diff) <= 0.001) return null
-                  return (
-                    <>
-                      <div className="w-px h-10 bg-stone-200" />
-                      <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-btn border text-xs font-medium ${diff > 0 ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-sky-50 border-sky-200 text-sky-700'}`}>
-                        {diff > 0 ? `确权多 ${diff}亩` : `承包多 ${Math.abs(diff)}亩`}
-                      </div>
-                    </>
-                  )
-                })()}
-              </>
-            )}
-
-            <div className="w-px h-10 bg-stone-200" />
-
-            {/* 已用面积 */}
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">📊</span>
-              <div>
-                <div className={"text-lg font-bold font-mono " + (effectiveIsOverdrawn ? 'text-red-500' : 'text-primary')}>
-                  {effectiveUsedArea.toFixed(1)} 亩
-                </div>
-                <div className="text-xs text-text-muted">已用面积</div>
-              </div>
-            </div>
-
-            <div className="w-px h-10 bg-stone-200" />
-
-            {/* 剩余 */}
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">✨</span>
-              <div>
-                <div className={"text-lg font-bold font-mono " + (effectiveRemainingArea < 0 ? 'text-red-500' : 'text-blue-600')}>
-                  {effectiveRemainingArea.toFixed(1)} 亩
-                </div>
-                <div className="text-xs text-text-muted">剩余可申请</div>
-              </div>
-            </div>
-
-            {effectiveIsOverdrawn && (
-              <>
-                <div className="w-px h-10 bg-stone-200" />
-                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-btn px-3 py-1">
-                  <span className="text-lg">⚠️</span>
-                  <div>
-                    <div className="text-sm font-bold text-red-600">超限 {effectiveOverdrawAmount.toFixed(1)} 亩</div>
-                    <div className="text-xs text-red-400">请注意</div>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+          ))}
         </div>
 
-        {/* 流转面积明细 */}
-        {areaUsage && ((areaUsage.trust_out_area ?? 0) > 0 || (areaUsage.trust_in_area ?? 0) > 0) && (
-          <div className="bg-main border-b border-border px-4 py-2">
-            <div className="flex items-center gap-4 text-xs flex-wrap">
-              <span className="text-text-muted font-medium">🔄 流转面积</span>
-              {(areaUsage.trust_out_area ?? 0) > 0 && (
-                <span className="text-orange-500">
-                  流出: <span className="font-mono font-bold">-{(areaUsage.trust_out_area ?? 0).toFixed(2)}亩</span>
-                </span>
+        {/* 季节面积使用 */}
+        {areaUsage.season_breakdown && Object.keys(areaUsage.season_breakdown).length > 0 && (
+          <div className="border-t border-[#F2EDE3] px-4 py-2">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-[11px] font-semibold">各季面积使用</span>
+              {areaYears.length > 0 && (
+                <select value={areaYear || areaYears[0]} onChange={e => setAreaYear(Number(e.target.value))}
+                  className="h-6 border border-border rounded-btn px-1.5 text-[10.5px] bg-white outline-none">
+                  {areaYears.map(y => <option key={y} value={y}>{y} 年</option>)}
+                </select>
               )}
-              {(areaUsage.trust_in_area ?? 0) > 0 && (
-                <span className="text-orange-500">
-                  流入: <span className="font-mono font-bold">+{(areaUsage.trust_in_area ?? 0).toFixed(2)}亩</span>
-                </span>
-              )}
-              {areaUsage.cultivable_area != null && (
-                <span className="text-text-muted">
-                  可耕种: <span className="font-mono font-bold">{areaUsage.cultivable_area.toFixed(2)}亩</span>
-                </span>
-              )}
+              <span className="ml-auto text-[9.5px] text-text-muted">深绿=已发放 · 鎏金=预申请</span>
             </div>
-          </div>
-        )}
-
-        {/* 人工确认信息 */}
-        {detail.is_manually_confirmed === 1 && (
-          <div className="bg-blue-50 border-b border-blue-100 px-4 py-2.5">
-            <div className="flex items-center gap-2 text-xs text-blue-700">
-              <span className="text-lg">✅</span>
-              <span className="font-medium">已人工确认</span>
-              {detail.manually_confirmed_at && (
-                <span className="text-blue-500">
-                  · {new Date(detail.manually_confirmed_at).toLocaleString('zh-CN')}
-                </span>
-              )}
-              {detail.manually_confirmed_by && (
-                <span className="text-blue-500">· 操作人: {detail.manually_confirmed_by}</span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* 补贴面积使用情况 - 大春小春等直接展示 */}
-        {areaUsage && areaUsage.season_breakdown && Object.keys(areaUsage.season_breakdown).length > 0 && (
-          <div className="bg-main border-b border-border px-4 py-3">
-            {/* 年份选择器 - 从 app_summary 获取年份 */}
-            {(() => {
-              const allYears = [...new Set(
-                (detail.app_summary || []).map((a: { apply_year: number }) => a.apply_year)
-              )].sort((a, b) => b - a)
-              return (
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs text-text-muted font-medium">📊 补贴面积使用情况</span>
-                  {allYears.length > 0 && (
-                    <select
-                      value={areaYear || allYears[0]}
-                      onChange={e => setAreaYear(Number(e.target.value))}
-                      className="border border-border rounded-btn px-2 py-1 text-xs outline-none focus:border-primary-500 bg-main"
-                    >
-                      {allYears.map(y => (
-                        <option key={y} value={y}>{y}年</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              )
-            })()}
-            <div className="space-y-2">
+            <div className="flex flex-col gap-1.5">
               {Object.entries(areaUsage.season_breakdown).map(([season, usage]) => {
-                // 计算该季节在该年度的使用面积
-                let yearUsedArea = 0
-                let yearApplyArea = 0  // 预申请面积
-                let yearPaymentArea = 0  // 已发布面积
-                if (areaYear === 0) {
-                  // 全部年份：使用季节的总使用面积
-                  yearUsedArea = usage.used_area || 0
-                  yearApplyArea = usage.apply_area || 0
-                  yearPaymentArea = usage.payment_area || 0
-                } else {
-                  // 指定年份：从 year_totals 中获取
-                  yearUsedArea = areaUsage.year_totals?.[String(areaYear)]?.[season] || 0
-                  yearApplyArea = areaUsage.year_apply_totals?.[String(areaYear)]?.[season] || 0
-                  yearPaymentArea = areaUsage.year_payment_totals?.[String(areaYear)]?.[season] || 0
-                }
-                const seasonRef = usage.reference_area ?? (areaUsage.season_reference?.[season]) ?? areaUsage.cultivable_area ?? areaUsage.contracted_area
-                const pct = seasonRef > 0 ? Math.round(yearUsedArea / seasonRef * 100) : 0
-                const paymentPct = seasonRef > 0 ? Math.round(yearPaymentArea / seasonRef * 100) : 0
-                const applyPct = seasonRef > 0 ? Math.round((yearApplyArea - yearPaymentArea) / seasonRef * 100) : 0
-                const isOverdrawn = yearUsedArea > seasonRef + 0.001
+                const used = areaYear === 0 ? (usage.used_area || 0) : (areaUsage.year_totals?.[String(areaYear)]?.[season] || 0)
+                const applyArea = areaYear === 0 ? (usage.apply_area || 0) : (areaUsage.year_apply_totals?.[String(areaYear)]?.[season] || 0)
+                const payArea = areaYear === 0 ? (usage.payment_area || 0) : (areaUsage.year_payment_totals?.[String(areaYear)]?.[season] || 0)
+                const seasonRef = usage.reference_area ?? (areaUsage.season_reference?.[season]) ?? refArea
+                const pct = seasonRef > 0 ? Math.round(used / seasonRef * 100) : 0
+                const payPct = seasonRef > 0 ? Math.round(payArea / seasonRef * 100) : 0
+                const applyPct = seasonRef > 0 ? Math.round((applyArea - payArea) / seasonRef * 100) : 0
+                const over = used > seasonRef + 0.001
                 return (
-                  <div key={season} className="border border-border rounded-btn overflow-hidden">
-                    <div className={"flex items-center justify-between px-3 py-2 " + (isOverdrawn ? 'bg-red-50' : 'bg-warm/30')}>
-                      <div className="flex items-center gap-2">
-                        <span className={"text-sm font-bold " + (isOverdrawn ? 'text-red-600' : 'text-text-primary')}>{season}</span>
-                        {isOverdrawn && <span className="text-xs bg-red-500  px-1.5 py-0.5 rounded">超 {(yearUsedArea - seasonRef).toFixed(2)} 亩</span>}
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className={"text-sm font-mono font-bold " + (isOverdrawn ? 'text-red-500' : 'text-primary')}>{yearUsedArea.toFixed(2)} 亩</span>
-                        <span className="text-xs text-text-muted">/ {seasonRef.toFixed(2)} 亩</span>
-                        <span className="text-xs text-text-muted">({pct}%)</span>
-                        {(areaUsage.trust_in_area ?? 0) > 0 && <span className="text-orange-500 text-sm font-mono font-bold pl-2 border-l border-border/50"></span>}
-                      </div>
+                  <div key={season}>
+                    <div className="flex items-baseline justify-between text-[11px]">
+                      <span>
+                        <b className={over ? 'text-danger' : 'text-primary'}>{season}</b>
+                        <span className="text-text-muted ml-2">{used.toFixed(2)} / {seasonRef.toFixed(2)} 亩</span>
+                        {over && <span className="ml-2 text-[9.5px] bg-[#FDECEA] text-danger rounded-[2px] px-1">超 {(used - seasonRef).toFixed(2)}</span>}
+                      </span>
+                      <span className="text-text-muted">{pct}%</span>
                     </div>
-                    <div className="px-3 py-1.5 bg-main">
-                      <div className="bg-warm/30 rounded-full h-1.5 overflow-hidden flex">
-                        {/* 已发布面积用绿色 */}
-                        <div className="h-full bg-emerald-400 transition-all"
-                          style={{ width: Math.min(100, paymentPct) + "%" }} />
-                        {/* 预申请面积用蓝色 */}
-                        <div className="h-full bg-blue-400 transition-all"
-                          style={{ width: Math.min(100 - paymentPct, applyPct) + "%" }} />
-                      </div>
-                      <div className="flex gap-3 mt-1 text-xs text-text-muted">
-                        <span className="flex items-center gap-1">
-                          <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
-                          已发布 {yearPaymentArea.toFixed(2)} 亩
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                          预申请 {(yearApplyArea - yearPaymentArea).toFixed(2)} 亩
-                        </span>
-                      </div>
+                    <div className="h-[5px] bg-[#F2EDE3] rounded-full mt-1 overflow-hidden flex">
+                      <div className="h-[5px] bg-[#1A4D3A]" style={{ width: `${Math.min(100, payPct)}%` }} />
+                      <div className="h-[5px] bg-[#C9A24A]" style={{ width: `${Math.min(100 - payPct, applyPct)}%` }} />
                     </div>
                   </div>
                 )
               })}
-              {/* 不占用补贴面积卡片 - 独立于 season_breakdown 渲染 */}
               {(() => {
-                const hasNoCalc = Object.keys(noCalcByYear).length > 0
-                if (!hasNoCalc) return null
                 const noCalcTotal = areaYear === 0
                   ? Object.values(noCalcByYear).reduce((s, v) => s + v, 0)
                   : (noCalcByYear[areaYear] || 0)
                 if (noCalcTotal <= 0) return null
                 return (
-                  <div className="border border-border rounded-btn overflow-hidden opacity-70">
-                    <div className="flex items-center justify-between px-3 py-2 bg-warm/30">
-                      <span className="text-sm font-bold text-text-muted">不占用补贴面积</span>
-                      <span className="text-sm font-mono text-text-muted">{noCalcTotal.toFixed(2)} 亩</span>
-                    </div>
+                  <div className="flex items-center justify-between text-[10.5px] text-text-muted pt-1 border-t border-dashed border-border">
+                    <span>不占用补贴面积</span><b className="font-mono">{noCalcTotal.toFixed(2)} 亩</b>
                   </div>
                 )
               })()}
@@ -447,26 +284,21 @@ export function HouseholdDetailContent({
         )}
 
         {/* 流转记录 */}
-        {(detail.trust_records && detail.trust_records.length > 0) && (
-          <div className="bg-main border-b border-border px-4 py-3">
-            <details open>
-              <summary className="text-xs text-text-muted font-medium cursor-pointer mb-2">
-                🔄 流转记录 ({detail.trust_records.length}条)
-              </summary>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+        {detail.trust_records && detail.trust_records.length > 0 && (
+          <div className="border-t border-[#F2EDE3] px-4 py-2">
+            <details>
+              <summary className="text-[11px] font-semibold cursor-pointer">流转记录 <span className="text-text-muted font-normal">{detail.trust_records.length}</span></summary>
+              <div className="mt-1 max-h-32 overflow-y-auto">
                 {detail.trust_records.map((t, i) => (
-                  <div key={t.id || i} className="flex items-center gap-2 text-xs py-1 border-b border-border/20 last:border-0">
-                    <span className={`font-bold shrink-0 ${t.direction === '流入' ? 'text-emerald-600' : 'text-orange-500'}`}>
+                  <div key={t.id || i} className="flex items-center gap-2 text-[10.5px] py-1 border-b border-[#F2EDE3] last:border-0">
+                    <span className={`shrink-0 font-semibold ${t.direction === '流入' ? 'text-[#2C6B52]' : 'text-[#B8863B]'}`}>
                       {t.direction === '流入' ? '＋流入' : '－流出'}
                     </span>
-                    <span className="text-text-muted shrink-0">{t.counterparty || '—'}</span>
-                    <span className="text-text-primary font-mono shrink-0">{t.area?.toFixed(2)}亩</span>
-                    <span className="text-text-muted/50 shrink-0">{t.trust_type}</span>
-                    <span className="text-text-muted/50 shrink-0">{t.trust_year}年</span>
-                    {t.subsidy_arable === 1 && <span className="text-emerald-600 shrink-0">耕地✓</span>}
-                    {t.subsidy_cash_crop === 1 && <span className="text-blue-600 shrink-0">作物✓</span>}
-                    {t.end_date && <span className="text-text-muted/50 shrink-0">至{t.end_date}</span>}
-                    {t.note && <span className="text-text-muted/40 truncate">{t.note}</span>}
+                    <span className="text-text-muted shrink-0 truncate max-w-[120px]">{t.counterparty || '—'}</span>
+                    <span className="font-mono shrink-0">{t.area?.toFixed(2)} 亩</span>
+                    <span className="text-text-muted/70 shrink-0 truncate">{t.trust_type}</span>
+                    <span className="text-text-muted/70 shrink-0">{t.trust_year} 年</span>
+                    {t.end_date && <span className="text-text-muted/50 shrink-0">至 {t.end_date}</span>}
                   </div>
                 ))}
               </div>
@@ -474,7 +306,13 @@ export function HouseholdDetailContent({
           </div>
         )}
 
-        {/* Tab 栏已移至内容区左侧 */}
+        {historyDateIsNull && (
+          <div className="flex items-center justify-end gap-3 px-4 py-1.5 border-t border-[#F2EDE3] text-[10.5px]">
+            <button onClick={onOpenMemberImport} className="text-text-muted hover:text-primary transition-colors">导入成员</button>
+            <button onClick={onOpenEvent} className="text-text-muted hover:text-primary transition-colors">补录事件</button>
+            <button onClick={() => alert('导出功能开发中')} className="text-text-muted hover:text-primary transition-colors">导出补贴</button>
+          </div>
+        )}
       </div>
 
       {/* Tab 内容 */}
