@@ -686,6 +686,19 @@ function HouseholdDetailPanel({
     }
   }
 
+  // 快照时点序列（按事件时间排列，用于前后翻页）
+  const steps = useMemo(
+    () => [...events].filter(e => e.event_date).sort((a, b) => (a.event_date! < b.event_date! ? -1 : 1)),
+    [events]
+  )
+  const snapshotIdx = snapshot ? steps.findIndex(e => e.event_date === snapshot.target_date) : -1
+  const stepTo = (idx: number) => {
+    const ev = steps[idx]
+    if (ev) openSnapshot(ev.id)
+  }
+  const stepBack = () => { if (snapshotIdx > 0) stepTo(snapshotIdx - 1) }
+  const stepForward = () => { if (snapshotIdx >= 0 && snapshotIdx < steps.length - 1) stepTo(snapshotIdx + 1) }
+
   if (!detail) {
     return <div className="py-24 text-center text-[11.5px] text-text-muted/60">{loading ? '加载中…' : '请从左侧选择一个家庭户'}</div>
   }
@@ -935,6 +948,15 @@ function HouseholdDetailPanel({
                 })}
               </div>
               {loadingSnapshot && <div className="px-2.5 py-1.5 text-[10px] text-text-muted border-t border-[#F2EDE3]">快照加载中…</div>}
+              {steps.length > 1 && (
+                <div className="flex items-center gap-2 px-2.5 py-1.5 border-t border-[#F2EDE3] bg-[#FBF8F1]">
+                  <button onClick={stepBack} disabled={snapshotIdx <= 0}
+                    className="h-6 px-1.5 border border-border rounded-[3px] bg-white text-[10.5px] text-[#5A5A4F] disabled:opacity-40">‹ 上一时点</button>
+                  <button onClick={stepForward} disabled={snapshotIdx >= steps.length - 1}
+                    className="h-6 px-1.5 border border-border rounded-[3px] bg-white text-[10.5px] text-[#5A5A4F] disabled:opacity-40">下一时点 ›</button>
+                  <span className="ml-auto text-[9.5px] text-[#8C877A]">{snapshotIdx + 1} / {steps.length}</span>
+                </div>
+              )}
             </div>
           )}
 
