@@ -19,6 +19,31 @@ const MEMBER_COLS = [
 export function registerHouseholdHandlers(): void {
   const db = () => getDb()
 
+  /** 家庭户快照 — 写入 household_event.before/after_snapshot */
+  const snapshotHousehold = (id: number) => {
+    const hh = db().getRaw<Record<string, unknown>>('SELECT * FROM family_household WHERE id = ?', id)
+    if (!hh) return null
+    const members = db().allRaw<Record<string, unknown>>(
+      'SELECT id, real_name, relation, farmer_status FROM farmer_profile WHERE household_id = ? ORDER BY id', id
+    )
+    return {
+      id: hh.id,
+      household_code: hh.household_code,
+      household_name: hh.household_name,
+      contract_area: hh.contract_area,
+      confirmed_area: hh.confirmed_area,
+      head_farmer_id: hh.head_farmer_id,
+      member_count: members.length,
+      members: members.map(m => ({
+        id: m.id, real_name: m.real_name, relation: m.relation, farmer_status: m.farmer_status,
+      })),
+    }
+  }
+
+  /** 两户面积相加；都为空则保持为空 */
+  const sumArea = (a: unknown, b: unknown): number | null =>
+    a == null && b == null ? null : Math.round((Number(a || 0) + Number(b || 0)) * 100) / 100
+
   // ── 列表 ──
   ipcMain.handle('households:list', (_e, params: Record<string, unknown> = {}) => {
     try {
@@ -565,12 +590,96 @@ export function registerHouseholdHandlers(): void {
   // ── 合并家庭户 ──
   ipcMain.handle('households:merge', (_e, payload: any) => {
     try {
-      const { source_household_id: sourceId, target_household_id: targetId, operator } = payload
-      db().runRaw("UPDATE farmer_profile SET household_id = ?, updated_at = datetime('now','localtime') WHERE household_id = ?", targetId, sourceId)
-      db().runRaw('DELETE FROM family_household WHERE id = ?', sourceId)
-      return success({ message: '合并成功' })
+      const sourceId = Number(payload?.source_household_id)
+      const targetId = Number(payload?.target_household_id)
+      const operator = (payload?.operator as string) || '系统'
+
+      if (!sourceId || !targetId) return errorResponse('缺少源家庭户或目标家庭户ID')
+      if (sourceId === targetId) return errorResponse('不能合并到自身')
+
+      const source = db().getRaw<Record<string, any>>('SELECT * FROM family_household WHERE id = ?', sourceId)
+      const target = db().getRaw<Record<string, any>>('SELECT * FROM family_household WHERE id = ?', targetId)
+      if (!source) return errorResponse('被合并的家庭户不存在')
+      if (!target) return errorResponse('目标家庭户不存在')
+      if (Number(target.status) !== 1) return errorResponse('目标家庭户不是在册状态，无法合并')
+
+      const now = new Date()
+      const yearNow = now.getFullYear()
+      const dateStr = now.toISOString().split('T')[0]
+      const before = { source: snapshotHousehold(sourceId), target: snapshotHousehold(targetId) }
+
+      const members = db().allRaw<Record<string, any>>(
+        'SELECT id, real_name, relation FROM farmer_profile WHERE household_id = ?', sourceId
+      )
+      const sourceHead = source.head_farmer_id
+        ? db().getRaw<Record<string, any>>('SELECT id, real_name FROM farmer_profile WHERE id = ?', source.head_farmer_id)
+        : null
+
+      db().beginTransaction()
+      try {
+        // 1. 成员迁入目标户
+        db().runRaw(
+          "UPDATE farmer_profile SET household_id = ?, updated_at = datetime('now','localtime') WHERE household_id = ?",
+          targetId, sourceId
+        )
+
+        // 2. 户主关系：目标户无户主时由源户户主接任，否则源户户主降为成员
+        if (!target.head_farmer_id && sourceHead) {
+          db().runRaw('UPDATE family_household SET head_farmer_id = ? WHERE id = ?', sourceHead.id, targetId)
+        } else if (target.head_farmer_id && sourceHead) {
+          db().runRaw("UPDATE farmer_profile SET relation = '成员' WHERE id = ? AND relation = '户主'", sourceHead.id)
+        }
+
+        // 3. 土地流转：流出/流入主体都改挂到目标户
+        db().runRaw('UPDATE land_trust SET owner_household_id = ? WHERE owner_household_id = ?', targetId, sourceId)
+        db().runRaw('UPDATE land_trust SET operator_household_id = ? WHERE operator_household_id = ?', targetId, sourceId)
+
+        // 4. 大户流转主体改挂
+        db().runRaw('UPDATE large_farmer_trust SET owner_household_id = ? WHERE owner_household_id = ?', targetId, sourceId)
+
+        // 5. 面积缓存（当前代码不再写，但旧库可能残留）
+        db().runRaw('DELETE FROM household_area_usage_cache WHERE household_id = ?', sourceId)
+
+        // 6. 历史事件迁到目标户，避免删户后变孤儿
+        db().runRaw('UPDATE household_event SET household_id = ? WHERE household_id = ?', targetId, sourceId)
+
+        // 7. 面积累加
+        const newContract = sumArea(target.contract_area, source.contract_area)
+        const newConfirmed = sumArea(target.confirmed_area, source.confirmed_area)
+        db().runRaw(
+          "UPDATE family_household SET contract_area = ?, confirmed_area = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+          newContract, newConfirmed, targetId
+        )
+
+        // 8. 删除源户
+        db().runRaw('DELETE FROM family_household WHERE id = ?', sourceId)
+
+        // 9. 写合并事件（快照保留合并前两户状态与合并后目标户状态）
+        db().runRaw(
+          `INSERT INTO household_event
+             (household_id, related_hh_id, event_type, event_year, event_date, date_accuracy,
+              before_snapshot, after_snapshot, farmer_name, description, operator)
+           VALUES (?, ?, 'MERGE', ?, ?, 'EXACT', ?, ?, NULL, ?, ?)`,
+          targetId, sourceId, yearNow, dateStr,
+          JSON.stringify(before),
+          JSON.stringify({ target: snapshotHousehold(targetId), merged_members: members.length, merged_from: sourceId }),
+          `合并家庭户「${source.household_name}」（${members.length} 人），面积并入本户`,
+          operator
+        )
+
+        db().commitTransaction()
+      } catch (e) {
+        db().rollbackTransaction()
+        throw e
+      }
+
+      return success({
+        message: `已合并，迁入 ${members.length} 名成员，面积已累加`,
+        target_household_id: targetId,
+        merged_members: members.length,
+      })
     } catch (e) {
-      return errorResponse(String(e))
+      return errorResponse('合并失败：' + String(e))
     }
   })
 
@@ -617,11 +726,11 @@ export function registerHouseholdHandlers(): void {
         LEFT JOIN (
           SELECT fp2.household_id, COALESCE(SUM(sa.apply_area), 0) as total
           FROM subsidy_application sa
-          JOIN farmer_profile fp2 ON sa.beneficiary_id = fp2.id
+          JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp2.id
           GROUP BY fp2.household_id
         ) area ON area.household_id = hh.id
-        WHERE hh.contract_area IS NOT NULL AND hh.contract_area > 0
-          AND COALESCE(area.total, 0) > hh.contract_area
+        WHERE COALESCE(hh.confirmed_area, hh.contract_area, 0) > 0
+          AND COALESCE(area.total, 0) > COALESCE(hh.confirmed_area, hh.contract_area, 0)
         ORDER BY area.total DESC
       `)
       return success(rows.map(r => ({ ...r, group_display: formatGroupNo(r.group_no as number) })))
@@ -840,65 +949,153 @@ export function registerHouseholdHandlers(): void {
     try {
       const householdId = Number(payload.householdId || payload.household_id) || 0
       if (!householdId) return errorResponse('缺少源家庭户ID')
-      const newHouseholdName = payload.newHouseholdName || payload.new_household_name || '新家庭户'
-      const villageId = Number(payload.villageId || payload.village_id) || null
-      const groupNo = Number(payload.groupNo || payload.group_no) || 1
-      const memberIds: number[] = payload.memberIds || payload.member_ids || []
-      const newHeadId = Number(payload.newHeadId || payload.new_head_id) || null
-      const newLandArea = Number(payload.newLandArea || payload.new_land_area) || 0
-      const originLandArea = Number(payload.originLandArea || payload.origin_land_area) || 0
 
-      // 1. 创建新家庭户（village_id 可为 NULL）
-      const code = `HH_SPLIT_${Date.now()}`
-      const result = villageId
-        ? db().runRaw(`
-            INSERT INTO family_household (household_code, household_name, village_id, group_no, address, contract_area, status, head_farmer_id, remark)
-            VALUES (?, ?, ?, ?, '', ?, 1, ?, ?)
-          `, code, newHouseholdName, villageId, groupNo, newLandArea, newHeadId, `从家庭户 ${householdId} 分出`)
-        : db().runRaw(`
-            INSERT INTO family_household (household_code, household_name, group_no, address, contract_area, status, head_farmer_id, remark)
-            VALUES (?, ?, ?, '', ?, 1, ?, ?)
-          `, code, newHouseholdName, groupNo, newLandArea, newHeadId, `从家庭户 ${householdId} 分出`)
+      const hh = db().getRaw<Record<string, any>>('SELECT * FROM family_household WHERE id = ?', householdId)
+      if (!hh) return errorResponse('家庭户不存在')
+      if (Number(hh.status) !== 1) return errorResponse('只有在册家庭户可以分户')
 
-      const newHouseholdId = result.lastInsertRowid
-      const newCode = `HH${String(newHouseholdId).padStart(4, '0')}`
-      db().runRaw('UPDATE family_household SET household_code = ? WHERE id = ?', newCode, newHouseholdId)
+      const newHouseholdName = String(payload.newHouseholdName || payload.new_household_name || '').trim()
+      if (!newHouseholdName) return errorResponse('请填写新家庭户名称')
 
-      // 2. 迁移成员到新户
-      for (const farmerId of memberIds) {
-        if (newHeadId && farmerId === newHeadId) {
-          db().runRaw(
-            "UPDATE farmer_profile SET household_id = ?, relation = '本人', updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?",
-            newHouseholdId, farmerId, householdId
-          )
-        } else {
-          db().runRaw(
-            "UPDATE farmer_profile SET household_id = ?, updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?",
-            newHouseholdId, farmerId, householdId
-          )
+      const memberIds: number[] = [...new Set(
+        ((payload.memberIds || payload.member_ids || []) as unknown[]).map(v => Number(v)).filter(Boolean)
+      )]
+      if (memberIds.length === 0) return errorResponse('请选择要分出的成员')
+
+      const newHeadId = Number(payload.newHeadId || payload.new_head_id) || 0
+      if (!newHeadId || !memberIds.includes(newHeadId)) {
+        return errorResponse('请从分出成员中指定新户主')
+      }
+
+      // 成员必须全部属于本户
+      const placeholders = memberIds.map(() => '?').join(',')
+      const members = db().allRaw<Record<string, any>>(
+        `SELECT id, real_name FROM farmer_profile WHERE household_id = ? AND id IN (${placeholders})`,
+        householdId, ...memberIds
+      )
+      if (members.length !== memberIds.length) return errorResponse('部分成员不属于该家庭户')
+
+      const totalMembers = db().getRaw<{ cnt: number }>(
+        'SELECT COUNT(*) as cnt FROM farmer_profile WHERE household_id = ?', householdId
+      )?.cnt ?? 0
+      if (memberIds.length >= totalMembers) return errorResponse('不能将所有成员分出，原户至少保留 1 名成员')
+      if (hh.head_farmer_id && memberIds.includes(Number(hh.head_farmer_id))) {
+        return errorResponse('原户户主不能被分出，请先在原户指定新户主')
+      }
+
+      // ── 面积校验 ──
+      const sourceContract = hh.contract_area != null ? Number(hh.contract_area) : null
+      const newAreaRaw = payload.newLandArea ?? payload.new_land_area
+      const originAreaRaw = payload.originLandArea ?? payload.origin_land_area
+      const newArea = newAreaRaw !== null && newAreaRaw !== undefined && newAreaRaw !== '' ? Number(newAreaRaw) : null
+      const originArea = originAreaRaw !== null && originAreaRaw !== undefined && originAreaRaw !== '' ? Number(originAreaRaw) : null
+
+      if (sourceContract != null && sourceContract > 0) {
+        if (newArea == null || originArea == null) {
+          return errorResponse(`分户时必须填写新户面积和原户调整后面积（原户当前 ${sourceContract} 亩）`)
+        }
+        if (newArea < 0 || originArea < 0) return errorResponse('面积不能为负数')
+        if (Math.abs(newArea + originArea - sourceContract) > 0.01) {
+          return errorResponse(`新户面积 + 原户面积 必须等于分户前面积 ${sourceContract} 亩（当前 ${newArea} + ${originArea} = ${Math.round((newArea + originArea) * 100) / 100}）`)
         }
       }
 
-      // 3. 更新原户承包面积
-      if (originLandArea > 0) {
-        db().runRaw('UPDATE family_household SET contract_area = ? WHERE id = ?', originLandArea, householdId)
+      // 确权面积按新/原承包面积比例拆分，避免原户继续按分户前确权面积计算
+      const sourceConfirmed = hh.confirmed_area != null ? Number(hh.confirmed_area) : null
+      let newConfirmed: number | null = null
+      let originConfirmed: number | null = sourceConfirmed
+      if (sourceConfirmed != null && sourceContract && sourceContract > 0 && newArea != null) {
+        newConfirmed = Math.round(sourceConfirmed * (newArea / sourceContract) * 100) / 100
+        originConfirmed = Math.round((sourceConfirmed - newConfirmed) * 100) / 100
       }
 
-      // 4. 记录事件（原户）
-      db().runRaw(
-        "INSERT INTO household_event (household_id, related_hh_id, event_type, event_year, description, event_date) VALUES (?, ?, 'SPLIT', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",
-        householdId, newHouseholdId, `分户：分出家庭户 ${newHouseholdName} (${newCode})，分出成员 ${memberIds?.length || 0} 人`
-      )
+      const villageId = Number(payload.villageId || payload.village_id) || Number(hh.village_id)
+      if (!villageId) return errorResponse('源家庭户缺少所属村，无法分户')
+      const groupNo = Number(payload.groupNo || payload.group_no) || Number(hh.group_no) || 1
 
-      // 5. 记录事件（新户）
-      db().runRaw(
-        "INSERT INTO household_event (household_id, related_hh_id, event_type, event_year, description, event_date) VALUES (?, ?, 'FOUND', CAST(strftime('%Y','now') AS INTEGER), ?, date('now'))",
-        newHouseholdId, householdId, `由家庭户 ${householdId} 分出，自动建档`
-      )
+      const splitYear = Number(payload.split_year) || new Date().getFullYear()
+      const splitDate = typeof payload.split_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(payload.split_date)
+        ? payload.split_date
+        : null
+      const description = String(payload.description || '').trim()
+        || `分户：${memberIds.length} 名成员独立组建「${newHouseholdName}」`
+      const operator = (payload.operator as string) || '系统'
 
-      return success({ new_household_id: newHouseholdId, new_household_code: newCode })
+      const before = snapshotHousehold(householdId)
+
+      let newHouseholdId = 0
+      db().beginTransaction()
+      try {
+        // 1. 建新户：继承原户村组与地址
+        const tempCode = `HH_SPLIT_${Date.now()}`
+        const result = db().runRaw(
+          `INSERT INTO family_household
+             (household_code, household_name, village_id, group_no, address, registered_address,
+              contract_area, confirmed_area, status, head_farmer_id, remark)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+          tempCode, newHouseholdName, villageId, groupNo,
+          hh.address || '', hh.registered_address || '',
+          newArea, newConfirmed, newHeadId, `从家庭户 ${householdId} 分出`
+        )
+        newHouseholdId = result.lastInsertRowid
+        const newCode = `HH${String(newHouseholdId).padStart(4, '0')}`
+        db().runRaw('UPDATE family_household SET household_code = ? WHERE id = ?', newCode, newHouseholdId)
+
+        // 2. 迁移成员
+        for (const farmerId of memberIds) {
+          if (farmerId === newHeadId) {
+            db().runRaw(
+              "UPDATE farmer_profile SET household_id = ?, relation = '本人', updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?",
+              newHouseholdId, farmerId, householdId
+            )
+          } else {
+            db().runRaw(
+              "UPDATE farmer_profile SET household_id = ?, updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?",
+              newHouseholdId, farmerId, householdId
+            )
+          }
+        }
+
+        // 3. 原户面积调整（含确权面积）
+        if (originArea != null || originConfirmed !== sourceConfirmed) {
+          db().runRaw(
+            "UPDATE family_household SET contract_area = COALESCE(?, contract_area), confirmed_area = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+            originArea, originConfirmed, householdId
+          )
+        }
+
+        // 4. 事件：原户 SPLIT + 新户 FOUND，均带前后快照
+        db().runRaw(
+          `INSERT INTO household_event
+             (household_id, related_hh_id, event_type, event_year, event_date, date_accuracy,
+              before_snapshot, after_snapshot, description, evidence_type, evidence_note, operator)
+           VALUES (?, ?, 'SPLIT', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          householdId, newHouseholdId, splitYear, splitDate, splitDate ? 'EXACT' : 'YEAR',
+          JSON.stringify(before), JSON.stringify({ origin: snapshotHousehold(householdId), new_household: snapshotHousehold(newHouseholdId) }),
+          description, payload.evidence_type || null, payload.evidence_note || null, operator
+        )
+        db().runRaw(
+          `INSERT INTO household_event
+             (household_id, related_hh_id, event_type, event_year, event_date, date_accuracy,
+              after_snapshot, description, operator)
+           VALUES (?, ?, 'FOUND', ?, ?, ?, ?, ?, ?)`,
+          newHouseholdId, householdId, splitYear, splitDate, splitDate ? 'EXACT' : 'YEAR',
+          JSON.stringify(snapshotHousehold(newHouseholdId)),
+          `由家庭户 ${householdId} 分出，自动建档`, operator
+        )
+
+        db().commitTransaction()
+      } catch (e) {
+        db().rollbackTransaction()
+        throw e
+      }
+
+      return success({
+        new_household_id: newHouseholdId ?? 0,
+        new_household_code: `HH${String(newHouseholdId ?? 0).padStart(4, '0')}`,
+      })
     } catch (e) {
-      return errorResponse(String(e))
+      return errorResponse('分户失败：' + String(e))
     }
   })
 

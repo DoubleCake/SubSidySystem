@@ -291,6 +291,10 @@ export function MergeConfirmForm({ open, mergeSelectedHouseholds, mergeConfirmFo
             placeholder="可选"
             className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none" />
         </div>
+        <p className="text-xs text-text-muted">
+          合并后目标户面积将自动累加：{Math.round(mergeSelectedHouseholds.reduce((s, h) => s + Number(h.contracted_area || 0), 0) * 100) / 100} 亩
+          （历史事件与土地流转一并迁入目标户）
+        </p>
       </div>
     </Modal>
   )
@@ -512,14 +516,14 @@ export function SplitWizardForm({ open, splitStep, splitSelected, splitNewHead, 
                   className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
               </div>
               <div>
-                <label className="block text-xs text-text-muted mb-1">新户土地面积（亩）</label>
+                <label className="block text-xs text-text-muted mb-1">新户土地面积（亩）*</label>
                 <input type="number" step="0.01" value={splitForm.new_land_area} onChange={e => setSplitForm(f => ({ ...f, new_land_area: e.target.value }))}
-                  placeholder="可不填" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
+                  placeholder="必填，与右项合计等于原面积" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
               </div>
               <div>
-                <label className="block text-xs text-text-muted mb-1">原户调整后面积（亩）</label>
+                <label className="block text-xs text-text-muted mb-1">原户调整后面积（亩）*</label>
                 <input type="number" step="0.01" value={splitForm.origin_land_area} onChange={e => setSplitForm(f => ({ ...f, origin_land_area: e.target.value }))}
-                  placeholder="不变则不填" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
+                  placeholder="必填，原户保留的面积" className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs text-text-muted mb-1">分户原因/说明</label>
@@ -545,6 +549,9 @@ export function SplitWizardForm({ open, splitStep, splitSelected, splitNewHead, 
                 <p>年度：{splitForm.split_year}年{splitForm.split_date ? ` · ${splitForm.split_date}` : ''}</p>
                 {splitForm.new_land_area && <p>新户面积：{splitForm.new_land_area}亩</p>}
                 {splitForm.origin_land_area && <p>原户调整后面积：{splitForm.origin_land_area}亩</p>}
+                {splitForm.new_land_area && splitForm.origin_land_area && (
+                  <p>面积合计：{Math.round((Number(splitForm.new_land_area) + Number(splitForm.origin_land_area)) * 100) / 100} 亩（需等于原户当前面积）</p>
+                )}
               </div>
             </div>
             <p className="text-xs text-text-muted">分户后系统将自动：为新户创建户籍档案 · 将成员移入新户 · 在两户的变更历史中各记录一条分户事件</p>

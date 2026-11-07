@@ -422,6 +422,8 @@ export default function FarmersTab(props: FarmersTabProps) {
         new_head_id: actualHeadId,
         new_land_area: splitForm.new_land_area ? Number(splitForm.new_land_area) : null,
         origin_land_area: splitForm.origin_land_area ? Number(splitForm.origin_land_area) : null,
+        village_id: selectedFarmerHousehold?.village_id ?? undefined,
+        group_no: selectedFarmerHousehold?.group_no ?? undefined,
         description: splitForm.description || `分户：${splitSelected.length}名成员独立组建「${actualHouseholdName}」`,
         evidence_type: splitForm.evidence_type || null,
         evidence_note: splitForm.evidence_note || null,

@@ -48,6 +48,17 @@ class SqlJsWrapper {
     this.save()
   }
 
+  /** 回滚事务 — 放弃本次变更，不写盘 */
+  rollbackTransaction(): void {
+    try {
+      this.db.run('ROLLBACK')
+    } catch {
+      /* 没有活动事务时忽略 */
+    } finally {
+      this._inTransaction = false
+    }
+  }
+
   /** 执行 SQL（INSERT/UPDATE/DELETE），自动保存 */
   run(sql: string, params: Record<string, unknown> = {}): { changes: number; lastInsertRowid: number } {
     // 将命名参数转为位置参数

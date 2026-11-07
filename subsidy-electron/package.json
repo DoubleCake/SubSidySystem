@@ -13,7 +13,9 @@
     "dist": "electron-vite build && electron-builder",
     "db:seed": "tsx electron/database/seed.ts",
     "audit:schema": "node scripts/audit-schema.mjs",
-    "test:smoke": "node scripts/smoke-db.mjs"
+    "audit:households": "node scripts/audit-households.mjs",
+    "test:smoke": "node scripts/smoke-db.mjs",
+    "test:household-ops": "node scripts/smoke-household-ops.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
