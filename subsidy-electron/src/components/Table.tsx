@@ -19,10 +19,10 @@ export default function Table<T extends Record<string, unknown>>({ columns, data
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-warm/40 border-b-2 border-border">
+            <tr className="bg-[#F6F1E7] border-b border-border">
               {columns.map(c => (
                 <th key={c.key} style={c.width ? { width: c.width } : {}}
-                  className="px-3.5 py-2.5 text-left text-meta text-text-muted font-semibold tracking-wide whitespace-nowrap">
+                  className="px-3.5 py-2.5 text-left text-[11px] text-text-muted font-semibold tracking-wide whitespace-nowrap">
                   {c.title}
                 </th>
               ))}

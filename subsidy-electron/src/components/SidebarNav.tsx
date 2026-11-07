@@ -66,8 +66,8 @@ export default function SidebarNav() {
   }
 
   return (
-    <nav className="w-44 shrink-0 hidden lg:block">
-      <div className="sticky top-16 flex flex-col" style={{ maxHeight: 'calc(100vh - 64px)' }}>
+    <nav className="w-[206px] shrink-0 hidden lg:block">
+      <div className="sticky top-16 flex flex-col bg-white border border-border rounded-card p-2.5 shadow-card" style={{ maxHeight: 'calc(100vh - 80px)' }}>
         {/* 滚动区域：业务导航分组 */}
         <div className="flex-1 overflow-y-auto space-y-3 pr-1 pb-4">
           {sections.map(section => {
@@ -108,10 +108,10 @@ export default function SidebarNav() {
                         to={item.to}
                         end={item.end ?? true}
                         className={({ isActive }) =>
-                          `block px-3 py-1.5 text-sm rounded-btn transition-colors truncate
+                          `block pl-2.5 pr-3 py-1.5 text-sm rounded-btn transition-colors truncate border-l-[3px]
                           ${isActive
-                            ? 'bg-primary-500/10 text-primary font-medium'
-                            : 'text-text-secondary hover:text-text-primary hover:bg-warm/30'}`
+                            ? 'border-primary bg-primary-500/10 text-primary font-semibold'
+                            : 'border-transparent text-text-secondary hover:text-text-primary hover:bg-warm/30'}`
                         }
                       >
                         {item.label}

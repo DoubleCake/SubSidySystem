@@ -119,16 +119,16 @@ function Layout() {
   return (
     <div className="min-h-screen bg-bg-main flex flex-col">
       {/* 顶部横幅 — 原始尺寸，超宽完整显示，窄屏横向滚动 */}
-      <header className="overflow-x-auto" style={{ height: 100 }}>
+      <header className="overflow-x-auto" style={{ height: 96 }}>
         <img
           src="images/head.png"
           alt=""
-          style={{ height: 100, width: 'auto', maxWidth: 'none', display: 'block' }}
+          style={{ height: 96, width: 'auto', maxWidth: 'none', display: 'block' }}
         />
       </header>
 
       {/* 墨绿色导航栏 */}
-      <nav className="bg-primary-500 text-white sticky top-0 z-40 shadow-card">
+      <nav className="bg-gradient-to-r from-[#0F3D2E] via-[#1A5C46] to-[#2C7A63] text-white sticky top-0 z-40 shadow-[0_4px_14px_rgba(15,61,46,.16)]">
         <div className="max-w-screen-xl mx-auto px-6 flex items-center gap-6" style={{ height: 50 }}>
           {/* 主导航 */}
           <div className="flex gap-1 flex-1">
@@ -224,7 +224,7 @@ function Layout() {
       )}
 
       <main className="flex-1">
-        <div className="max-w-screen-xl mx-auto px-6 py-6 pb-10">
+        <div className="max-w-[1320px] mx-auto px-6 py-5 pb-10">
           <div className="flex gap-6">
             <SidebarNav />
             <div className="flex-1 min-w-0">

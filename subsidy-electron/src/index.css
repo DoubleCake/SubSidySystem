@@ -26,8 +26,44 @@ body {
   font-family: 'PingFang SC', 'Microsoft YaHei', 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   background-color: var(--bg-main);
+  background-image:
+    radial-gradient(circle at 12% 0%, #e8f6f0 0%, rgba(232, 246, 240, 0) 38%),
+    radial-gradient(circle at 92% 100%, #e8f3f8 0%, rgba(232, 243, 248, 0) 34%);
+  background-attachment: fixed;
   color: var(--text-primary);
 }
+
+/* 统一卡片 / 渐变 / 标签 */
+.ui-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(16, 94, 74, 0.04);
+}
+
+.ui-card-hover {
+  transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease;
+}
+.ui-card-hover:hover {
+  box-shadow: 0 8px 22px rgba(16, 94, 74, 0.10);
+  border-color: #cfe3d9;
+  transform: translateY(-1px);
+}
+
+.ui-hero {
+  background: linear-gradient(100deg, #0f3d2e 0%, #1a5c46 52%, #2c7a63 100%);
+  color: #f7f3e7;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(15, 61, 46, 0.18);
+}
+
+.ui-btn-primary {
+  background: linear-gradient(90deg, #1a4d3a, #2c6b52);
+  color: #f7f3e7;
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(26, 77, 58, 0.18);
+}
+.ui-btn-primary:hover { filter: brightness(1.06); }
 
 .font-mono {
   font-family: 'JetBrains Mono', 'Consolas', monospace !important;
