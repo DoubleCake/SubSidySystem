@@ -13,7 +13,6 @@ const sections: SidebarSection[] = [
     label: '🎨 新版界面',
     items: [
       { label: '户籍管理（画布）', to: '/v2/registry' },
-      { label: '家庭户（画布）', to: '/v2/households' },
     ],
   },
   {
