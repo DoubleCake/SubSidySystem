@@ -32,6 +32,7 @@ Thumbs.db
 coverage/
 .nyc_output/
 *.bak
+.tmp-*
 logs/
 *.log
 
