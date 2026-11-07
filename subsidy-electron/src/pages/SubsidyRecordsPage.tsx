@@ -821,6 +821,18 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         </div>
       </div>
 
+      {/* ═══ 项目统计条 ═══ */}
+      <div className="flex items-center gap-3 flex-wrap bg-white border border-border rounded-card px-4 py-2.5 text-[11px] text-text-muted">
+        <span>受益 <b className="text-sm text-text-primary font-mono">{stats?.totalFarmers ?? 0}</b> 人</span>
+        <span className="w-px h-3 bg-border" />
+        <span>补贴面积 <b className="text-sm text-text-primary font-mono">{Number(stats?.totalArea ?? 0).toFixed(1)}</b> 亩</span>
+        <span className="w-px h-3 bg-border" />
+        <span>申请金额 <b className="text-sm text-primary font-mono">¥{Number(stats?.totalAmount ?? 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</b></span>
+        <span className="w-px h-3 bg-border" />
+        <span>记录 <b className="text-sm text-text-primary font-mono">{total}</b> 条</span>
+        <span className="ml-auto text-text-muted/70">当前：{subsidyType.subsidy_year} 年 · {subsidyType.season || '全年'}</span>
+      </div>
+
       {/* ═══ Tab切换 ═══ */}
       <div className="flex items-center gap-1 border-b border-border/60 sticky top-[50px] z-30 bg-bg-main/95 backdrop-blur py-1">
         {[

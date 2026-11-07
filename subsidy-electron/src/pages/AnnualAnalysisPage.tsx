@@ -22,9 +22,9 @@ import * as XLSX from 'xlsx'
 import * as api from '../api'
 import type { ChainInfo, ChainDetail, ChainDetailItem } from '../api'
 
-// 图表配色（dataviz 规范：单系列用蓝色系，浅色细网格，文本用灰阶墨色）
-const SERIES_BLUE = '#2a78d6'
-const DELTA_UP = '#006300'
+// 图表配色（沿用画布：深绿主系列、鎏金辅助、浅色细网格）
+const SERIES_BLUE = '#1A5C46'
+const DELTA_UP = '#2C6B52'
 const DELTA_DOWN = '#d03b3b'
 const AXIS_MUTED = '#898781'
 const GRID_LINE = '#e1e0d9'
@@ -308,7 +308,7 @@ export default function AnnualAnalysisPage() {
   return (
     <div className="space-y-4">
       {/* ═══ 顶部横幅 ═══ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 p-5 shadow-lg">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0F3D2E] via-[#1A5C46] to-[#2C7A63] p-5 shadow-lg">
         <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-white/10" />
         <div className="relative z-10 flex items-center gap-4 flex-wrap">
           <span className="flex-shrink-0 w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-lg">📊</span>
