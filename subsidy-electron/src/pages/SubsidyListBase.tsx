@@ -396,31 +396,31 @@ export default function SubsidyListBase({
       {/* 表格区域 */}
       <div className="bg-white border border-border rounded-card overflow-x-auto shadow-card">
         {/* 筛选栏 */}
-        <div className="px-4 py-3 border-b border-border bg-warm/10 flex flex-wrap items-center gap-3">
+        <div className="px-4 py-3 border-b border-border bg-white flex flex-wrap items-center gap-3">
           <span className="text-xs text-text-muted">筛选：</span>
-          <select value={filters.village} onChange={e => handleFilterChange('village', e.target.value)} className="border border-border rounded-btn px-2 py-1.5 text-xs bg-white outline-none">
+          <select value={filters.village} onChange={e => handleFilterChange('village', e.target.value)} className="h-[30px] border border-border rounded-btn px-2.5 text-xs bg-white outline-none focus:border-primary-500 transition-colors">
             <option value="">全部村庄</option>
             {loadingVillages ? <option disabled>加载中...</option> : villages.map(v => <option key={v} value={v}>{v}</option>)}
           </select>
-          <select value={filters.payStatus} onChange={e => handleFilterChange('payStatus', e.target.value)} className="border border-border rounded-btn px-2 py-1.5 text-xs bg-white outline-none">
+          <select value={filters.payStatus} onChange={e => handleFilterChange('payStatus', e.target.value)} className="h-[30px] border border-border rounded-btn px-2.5 text-xs bg-white outline-none focus:border-primary-500 transition-colors">
             <option value="">全部状态</option>
             <option value="0">待发放</option>
             <option value="1">发放中</option>
             <option value="2">已完成</option>
           </select>
-          <div className="flex items-center gap-1 flex-1 min-w-[200px] max-w-[300px]">
-            <input type="text" value={search} onChange={e => handleSearchChange(e.target.value)} placeholder="姓名/身份证" className="flex-1 border border-border rounded-btn px-2 py-1.5 text-xs outline-none" />
-            <button onClick={() => onSearch ? onSearch() : setPage(1)} className="px-2 py-1 text-xs bg-primary-500 rounded-btn hover:bg-primary-600 text-white">搜索</button>
+          <div className="flex items-center gap-1 flex-1 min-w-[220px] max-w-[320px]">
+            <input type="text" value={search} onChange={e => handleSearchChange(e.target.value)} placeholder="姓名 / 身份证" className="flex-1 h-[30px] border border-border rounded-btn px-2.5 text-xs outline-none focus:border-primary-500 transition-colors" />
+            <button onClick={() => onSearch ? onSearch() : setPage(1)} className="h-[30px] px-3 text-xs ui-btn-primary">搜索</button>
           </div>
-          <button onClick={clearFilters} className="text-xs text-text-muted hover:text-text-primary border border-border px-2 py-1 rounded" disabled={Object.values(filters).every(v => !v) && !search}>清除</button>
-          <button onClick={handleExport} className="text-xs border border-emerald-300 text-emerald-700 px-2.5 py-1 rounded hover:bg-emerald-50 font-medium whitespace-nowrap">导出</button>
+          <button onClick={clearFilters} className="text-xs text-text-muted hover:text-text-primary border border-border px-2.5 h-[30px] rounded-btn transition-colors" disabled={Object.values(filters).every(v => !v) && !search}>清除</button>
+          <button onClick={handleExport} className="text-xs border border-emerald-300 text-emerald-700 px-2.5 h-[30px] rounded-btn hover:bg-emerald-50 font-medium whitespace-nowrap transition-colors">导出</button>
           {extraToolbar?.({ selectedIds, load, show })}
           {toolbarActions}
         </div>
 
         <table className="w-full border-collapse min-w-[950px]">
           <thead>
-            <tr className="bg-warm/30 border-b-2 border-border">
+            <tr className="bg-[#F6F1E7] border-b border-border">
               <th className="px-2 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap">
                 <button onClick={toggleSelectAll} className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${apps.length > 0 && selectedIds.length === apps.length ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-stone-300 hover:border-emerald-400'}`}>
                   {apps.length > 0 && selectedIds.length === apps.length && (
@@ -447,7 +447,7 @@ export default function SubsidyListBase({
             </td></tr>}
             {!loading && (!apps || apps.length === 0) && (<tr><td colSpan={14} className="text-center py-10 text-text-muted/50 text-sm">暂无记录，通过「Excel 导入」或「＋ 新增一条」添加</td></tr>)}
             {!loading && apps && apps.map(a => (
-              <tr key={a.id} className={`border-b border-border/50 hover:bg-warm/30 ${a.pay_status === 0 ? 'bg-amber-50/30' : ''}`}>
+              <tr key={a.id} className={`border-b border-border/50 hover:bg-[#F7FAF8] transition-colors ${a.pay_status === 0 ? 'bg-amber-50/30' : ''}`}>
                 <td className="px-2 py-2 text-center">
                   <button onClick={() => toggleSelect(a.id)} className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${selectedIds.includes(a.id) ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-stone-300 hover:border-emerald-400'}`}>
                     {selectedIds.includes(a.id) && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
@@ -483,7 +483,7 @@ export default function SubsidyListBase({
             ))}
           </tbody>
         </table>
-        <div className="px-4 py-2 border-t border-border/50 bg-warm/10 flex justify-between text-xs text-text-muted">
+        <div className="px-4 py-2 border-t border-border/50 bg-white flex justify-between text-xs text-text-muted">
           <span>共{total}条</span>
           <div className="flex gap-1">
             <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="px-2.5 py-1 border border-border rounded disabled:opacity-40">‹</button>
