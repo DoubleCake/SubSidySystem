@@ -27,6 +27,7 @@ const sections: SidebarSection[] = [
     items: [
       { label: '项目总览', to: '/projects' },
       { label: '项目年度分析', to: '/analysis' },
+      { label: '异常中心', to: '/anomalies' },
       { label: '补贴查询', to: '/links' },
     ],
   },

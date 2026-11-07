@@ -10,6 +10,7 @@ import { registerFarmerHandlers } from './farmers'
 import { registerFarmerAttributeHandlers } from './farmer-attributes'
 import { registerHouseholdHandlers } from './households'
 import { registerSubsidyHandlers } from './subsidies'
+import { registerAnomalyHandlers } from './anomalies'
 import { registerSubsidyTrendHandlers } from './subsidyTrend'
 import { registerAiHandlers } from './ai'
 import { registerLandHandlers } from './land'
@@ -210,6 +211,7 @@ export function registerAllIpcHandlers(): void {
   registerFarmerAttributeHandlers()
   registerHouseholdHandlers()
   registerSubsidyHandlers()
+  registerAnomalyHandlers()
   registerSubsidyTrendHandlers()
   registerAiHandlers()
   registerLandHandlers()

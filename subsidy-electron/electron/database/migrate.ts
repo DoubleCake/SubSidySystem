@@ -566,6 +566,46 @@ export function runMigrations(): void {
       fixed_at TEXT,
       created_at TEXT DEFAULT (datetime('now','localtime'))
     );
+
+    CREATE TABLE IF NOT EXISTS anomaly_type (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code VARCHAR(40) NOT NULL UNIQUE,
+      name VARCHAR(50) NOT NULL,
+      category VARCHAR(20) NOT NULL DEFAULT '其他',
+      severity_default VARCHAR(10) NOT NULL DEFAULT 'medium',
+      description TEXT,
+      enabled SMALLINT NOT NULL DEFAULT 1,
+      sort_order SMALLINT NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT (datetime('now','localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS anomaly_record (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type_code VARCHAR(40) NOT NULL,
+      dedup_key VARCHAR(200) NOT NULL UNIQUE,
+      subject_type VARCHAR(20) NOT NULL,
+      subject_id INTEGER NOT NULL,
+      household_id INTEGER,
+      farmer_id INTEGER,
+      subsidy_type_id INTEGER,
+      year SMALLINT,
+      season VARCHAR(20),
+      title VARCHAR(200) NOT NULL DEFAULT '',
+      detail TEXT,
+      metric_value DECIMAL(12,2),
+      reference_value DECIMAL(12,2),
+      diff_value DECIMAL(12,2),
+      severity VARCHAR(10) NOT NULL DEFAULT 'medium',
+      status VARCHAR(20) NOT NULL DEFAULT 'open',
+      source VARCHAR(20) NOT NULL DEFAULT 'auto',
+      rule_key VARCHAR(50),
+      batch_key VARCHAR(50),
+      verified_by VARCHAR(50),
+      verified_at DATETIME,
+      verified_note TEXT,
+      created_at DATETIME DEFAULT (datetime('now','localtime')),
+      updated_at DATETIME DEFAULT (datetime('now','localtime'))
+    );
   `)
 
   // ═══════════════════════════════════════════
@@ -611,6 +651,12 @@ export function runMigrations(): void {
     'CREATE INDEX IF NOT EXISTS ix_family_household_confirmed ON family_household(is_manually_confirmed)',
     'CREATE INDEX IF NOT EXISTS ix_land_trust_owner_hh ON land_trust(owner_household_id)',
     'CREATE INDEX IF NOT EXISTS ix_land_trust_operator_hh ON land_trust(operator_household_id)',
+
+    // 异常中心
+    'CREATE INDEX IF NOT EXISTS ix_anomaly_record_status ON anomaly_record(status)',
+    'CREATE INDEX IF NOT EXISTS ix_anomaly_record_year ON anomaly_record(year)',
+    'CREATE INDEX IF NOT EXISTS ix_anomaly_record_type ON anomaly_record(type_code)',
+    'CREATE INDEX IF NOT EXISTS ix_anomaly_record_household ON anomaly_record(household_id)',
   ]
 
   for (const idx of indexes) {
@@ -657,6 +703,23 @@ export function runMigrations(): void {
       }
     }
   } catch { /* precheck_rule_config 表可能不存在 */ }
+
+  // ── 确保异常类型字典存在 ──
+  try {
+    const anomalyTypes: Array<[string, string, string, string, string, number]> = [
+      ['OVER_AREA', '超领', '面积', 'high', '同户同年度同季节，计入超限的申报面积超过参考面积（确权/承包取大）', 1],
+      ['DUPLICATE_CLAIM', '重复领取', '重复', 'high', '同一身份证同一年度同一补贴项目出现多条发放记录', 2],
+      ['MULTI_CLAIM', '多人领取', '重复', 'high', '同一户同一年度按户补贴（元/户）被多个成员领取', 3],
+      ['DEATH_CLAIM', '死亡后领取', '发放', 'high', '发放日期晚于死亡日期，或死亡状态人员仍有当年发放', 4],
+    ]
+    for (const [code, name, category, severity, description, sort] of anomalyTypes) {
+      db.runRaw(
+        `INSERT OR IGNORE INTO anomaly_type (code, name, category, severity_default, description, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        code, name, category, severity, description, sort
+      )
+    }
+  } catch { /* anomaly_type 表可能不存在 */ }
 
   const alterStatements = [
     // family_household 增量

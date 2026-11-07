@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, NavLink, useNavigate, useLocation } from 're
 import FarmersPage from './pages/FarmersPage'
 import SubsidyProjectsPage from './pages/SubsidyProjectsPage'
 import AnnualAnalysisPage from './pages/AnnualAnalysisPage'
+import AnomalyCenterPage from './pages/AnomalyCenterPage'
 import DashboardPage from './pages/DashboardPage'
 import { AIPage } from './pages/SummaryAndAI'
 import ExternalLinksPage from './pages/ExternalLinksPage'
@@ -235,6 +236,7 @@ function Layout() {
             <Route path="/match-people" element={<PeopleMatchPage />} />
             <Route path="/projects"  element={<SubsidyProjectsPage />} />
             <Route path="/analysis"  element={<AnnualAnalysisPage />} />
+            <Route path="/anomalies" element={<AnomalyCenterPage />} />
             <Route path="/project-progress" element={<ProjectProgressPage />} />
             <Route path="/agri-tasks" element={<AgriTaskPage />} />
             <Route path="/land"      element={<LandTrustPage />} />

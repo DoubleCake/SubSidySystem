@@ -17,7 +17,9 @@
     "repair:households": "node scripts/repair-households.mjs",
     "test:smoke": "node scripts/smoke-db.mjs",
     "test:household-ops": "node scripts/smoke-household-ops.mjs",
-    "test:attribute": "node node_modules/tsx/dist/cli.mjs scripts/test-attribute-preview.ts"
+    "test:attribute": "node node_modules/tsx/dist/cli.mjs scripts/test-attribute-preview.ts",
+    "test:anomaly": "node node_modules/tsx/dist/cli.mjs scripts/smoke-anomaly.ts",
+    "preview:anomaly": "node node_modules/tsx/dist/cli.mjs scripts/preview-anomaly-scan.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
