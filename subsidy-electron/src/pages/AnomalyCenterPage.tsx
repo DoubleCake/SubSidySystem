@@ -143,18 +143,24 @@ export default function AnomalyCenterPage() {
     <div className="space-y-4">
       <Toast msg={toast?.msg} type={toast?.type} />
 
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-[20px] font-bold text-primary leading-tight">异常中心</h1>
+          <div className="text-meta text-text-muted mt-1">超领、重复领取、多人领取、死亡后领取 · 手动扫描生成，重复扫描不会重复生成</div>
+        </div>
+        <div className="text-meta text-text-muted">待核实 <b className="text-danger text-sm">{stats?.status.open ?? 0}</b> 条</div>
+      </div>
+
       <div className="bg-white border border-border rounded-card p-5">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-lg font-bold text-text-primary">异常中心</h1>
           <select value={year} onChange={e => { setYear(Number(e.target.value)); setPage(1) }}
             className="border border-border rounded-btn px-3 py-1.5 text-sm bg-white outline-none">
             {years.map(y => <option key={y} value={y}>{y} 年度</option>)}
           </select>
           <button onClick={handleScan} disabled={scanning}
-            className="px-4 py-1.5 bg-primary-500 text-white rounded-btn text-sm hover:bg-primary-600 disabled:opacity-50">
+            className="px-4 py-1.5 ui-btn-primary text-sm disabled:opacity-50">
             {scanning ? '扫描中…' : '扫描生成异常'}
           </button>
-          <span className="text-xs text-text-muted">手动扫描；重复扫描不会重复生成，已核对/已忽略状态会保留</span>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">

@@ -822,7 +822,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       </div>
 
       {/* ═══ Tab切换 ═══ */}
-      <div className="flex items-center gap-1 border-b border-border/60">
+      <div className="flex items-center gap-1 border-b border-border/60 sticky top-[50px] z-30 bg-bg-main/95 backdrop-blur py-1">
         {[
           { key: 'preApply' as const, label: '📋 预申请数据' },
           { key: 'disbursement' as const, label: '💰 正式分发' },

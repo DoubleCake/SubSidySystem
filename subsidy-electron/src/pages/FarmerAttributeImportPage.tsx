@@ -194,12 +194,16 @@ export default function FarmerAttributeImportPage() {
     <div className="space-y-5">
       <Toast msg={toast?.msg} type={toast?.type} />
 
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-[20px] font-bold text-primary leading-tight">人员属性导入</h1>
+          <div className="text-meta text-text-muted mt-1">按身份证号匹配已有人员，只修改人员状态、状态变更日期、死亡日期</div>
+        </div>
+        <div className="text-meta text-text-muted">姓名不一致的行会展示并跳过</div>
+      </div>
+
       <div className="bg-white border border-border rounded-card p-5">
-        <h1 className="text-lg font-bold text-text-primary">人员基本属性导入</h1>
-        <p className="text-sm text-text-muted mt-1">
-          按 <b>身份证号</b> 匹配系统中已有人员，只修改「人员状态 / 状态变更日期 / 死亡日期」。
-        </p>
-        <ul className="text-xs text-text-muted mt-2 space-y-1 list-disc pl-5">
+        <ul className="text-xs text-text-muted space-y-1 list-disc pl-5">
           <li>姓名仅用于核对：与系统姓名不一致的行会展示出来，并跳过、不覆盖任何数据。</li>
           <li>系统中不存在该身份证号的行不会自动建档。</li>
           <li>重复导入相同数据会自动跳过，不会产生重复记录。</li>

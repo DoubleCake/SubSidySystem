@@ -474,34 +474,38 @@ export function HouseholdDetailContent({
           </div>
         )}
 
-        {/* Tab 栏 */}
-        <div className="flex border-b border-border bg-warm/30 items-center">
-          {([
-            { id: 'members', label: `👥 成员 (${displayMembers.length})` },
-            { id: 'subsidy', label: `💰 补贴记录 (${detail.app_summary.length})` },
-          ] as { id: typeof detailTab; label: string }[]).map(t => (
-            <button key={t.id} onClick={() => setDetailTab(t.id)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
-                ${detailTab === t.id ? 'border-emerald-600 text-primary bg-main' : 'border-transparent text-text-muted hover:text-text-primary'}`}>
-              {t.label}
-            </button>
-          ))}
-          {historyDateIsNull && (
-            <div className="ml-auto px-2 flex gap-1.5">
-              {detailTab === 'members' && (
-                <>
-                  <button onClick={onOpenMemberImport} className="text-xs border-2 border-green-500 bg-green-500 text-white px-2.5 py-1.5 rounded-btn hover:bg-green-600 hover:border-green-600 shadow-sm transition-all font-medium">↑ 批量导入</button>
-                  <button onClick={onOpenMemberAdd} className="text-xs bg-primary-500  px-2.5 py-1.5 rounded-btn hover:bg-primary-500/90 transition-colors">＋ 成员</button>
-                  <button onClick={onOpenEvent} className="text-xs border border-border text-text-primary px-2.5 py-1.5 rounded-btn hover:bg-warm/30 transition-colors">＋ 补录</button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+        {/* Tab 栏已移至内容区左侧 */}
       </div>
 
       {/* Tab 内容 */}
-      <div className="flex-1 bg-main border border-border rounded-card overflow-hidden shadow-card">
+      <div className="flex-1 bg-white border border-border rounded-card overflow-hidden shadow-card flex min-h-0">
+        <div className="w-[128px] shrink-0 border-r border-border bg-warm/20 p-2 flex flex-col gap-1">
+          {([
+            { id: 'members', label: '家庭成员', count: displayMembers.length },
+            { id: 'subsidy', label: '补贴记录', count: detail.app_summary.length },
+          ] as { id: typeof detailTab; label: string; count: number }[]).map(t => (
+            <button key={t.id} onClick={() => setDetailTab(t.id)}
+              className={`flex items-center justify-between h-9 px-2.5 rounded-btn text-sm transition-colors border-l-[3px]
+                ${detailTab === t.id
+                  ? 'border-primary bg-primary-500/10 text-primary font-semibold'
+                  : 'border-transparent text-text-muted hover:text-text-primary hover:bg-warm/30'}`}>
+              <span>{t.label}</span>
+              <span className="text-meta opacity-70">{t.count}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 min-w-0 flex flex-col min-h-0">
+          <div className="flex items-center justify-end gap-1.5 px-3 py-2 border-b border-border/60 min-h-[40px]">
+            {historyDateIsNull && detailTab === 'members' && (
+              <>
+                <button onClick={onOpenMemberImport} className="text-xs border border-primary-500/30 text-primary bg-primary-500/[0.04] px-2.5 py-1.5 rounded-btn hover:bg-primary-500/10 transition-colors font-medium">批量导入</button>
+                <button onClick={onOpenMemberAdd} className="text-xs bg-primary-500 text-white px-2.5 py-1.5 rounded-btn hover:bg-primary-500/90 transition-colors">＋ 成员</button>
+                <button onClick={onOpenEvent} className="text-xs border border-border text-text-primary px-2.5 py-1.5 rounded-btn hover:bg-warm/30 transition-colors">＋ 补录</button>
+              </>
+            )}
+          </div>
+          <div className="flex-1 overflow-y-auto min-h-0">
         {/* 成员 */}
         {detailTab === 'members' && (
           <div className="p-4 grid gap-2">
@@ -613,6 +617,8 @@ export function HouseholdDetailContent({
           </div>
         )}
 
+          </div>
+        </div>
       </div>
     </div>
   )
