@@ -10,6 +10,7 @@ import BackupPage from './pages/BackupPage'
 import ExcelTemplatePage from './pages/ExcelTemplatePage'
 import LandTrustPage from './pages/LandTrustPage'
 import HouseholdImportPage from './pages/HouseholdImportPage'
+import FarmerAttributeImportPage from './pages/FarmerAttributeImportPage'
 import FamilyRelationImportPage from './pages/FamilyRelationImportPage'
 import ProxyManagePage from './pages/ProxyManagePage'
 import AgriTaskPage from './pages/AgriTaskPage'
@@ -246,6 +247,7 @@ function Layout() {
             <Route path="/settings/excel-templates" element={<ExcelTemplatePage />} />
             <Route path="/settings/land-trust" element={<LandTrustPage />} />
             <Route path="/settings/household-import" element={<HouseholdImportPage />} />
+            <Route path="/settings/farmer-attribute-import" element={<FarmerAttributeImportPage />} />
             <Route path="/settings/family-relation-import" element={<FamilyRelationImportPage />} />
             <Route path="/settings/large-farmers" element={<LargeFarmersPage />} />
             <Route path="/settings/users" element={<UserManagementPage />} />

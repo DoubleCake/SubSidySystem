@@ -51,6 +51,8 @@ export function runMigrations(): void {
       bank_name VARCHAR(100),
       relation VARCHAR(20) DEFAULT '本人',
       farmer_status SMALLINT NOT NULL DEFAULT 1,
+      status_date DATE,
+      death_date DATE,
       own_village_id INTEGER REFERENCES village(id),
       own_group_no SMALLINT,
       remark TEXT,
@@ -666,6 +668,8 @@ export function runMigrations(): void {
     // farmer_profile 增量
     "ALTER TABLE farmer_profile ADD COLUMN own_village_id INTEGER REFERENCES village(id)",
     "ALTER TABLE farmer_profile ADD COLUMN own_group_no INTEGER",
+    "ALTER TABLE farmer_profile ADD COLUMN status_date DATE",
+    "ALTER TABLE farmer_profile ADD COLUMN death_date DATE",
     // subsidy_application 增量
     "ALTER TABLE subsidy_application ADD COLUMN apply_village_id INTEGER REFERENCES village(id)",
     "ALTER TABLE subsidy_application ADD COLUMN apply_group_no INTEGER",

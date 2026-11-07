@@ -7,6 +7,7 @@ import { initDatabase, getDb } from '../database/connection'
 import { runMigrations } from '../database/migrate'
 import { hashPassword } from '../utils/crypto'
 import { registerFarmerHandlers } from './farmers'
+import { registerFarmerAttributeHandlers } from './farmer-attributes'
 import { registerHouseholdHandlers } from './households'
 import { registerSubsidyHandlers } from './subsidies'
 import { registerSubsidyTrendHandlers } from './subsidyTrend'
@@ -206,6 +207,7 @@ export function registerAllIpcHandlers(): void {
 
   // ── 业务领域 handlers ──
   registerFarmerHandlers()
+  registerFarmerAttributeHandlers()
   registerHouseholdHandlers()
   registerSubsidyHandlers()
   registerSubsidyTrendHandlers()

@@ -17,6 +17,7 @@ const sections: SidebarSection[] = [
       { label: '村组联系人', to: '/village-contacts' },
       { label: '人员匹配', to: '/match-people' },
       { label: '户籍导入', to: '/settings/household-import' },
+      { label: '人员属性导入', to: '/settings/farmer-attribute-import' },
       { label: '家庭关系导入', to: '/settings/family-relation-import' },
     ],
   },

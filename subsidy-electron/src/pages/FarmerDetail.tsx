@@ -80,6 +80,8 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
               ['银行卡号', <span key="bc" className="font-mono text-xs text-amber-600 select-all">{fd.bank_card || fd.bank_card_masked || '—'}</span>],
               ['开户行', fd.bank_name || '—'],
               ['农户状态', <Tag key="st" label={FARMER_STATUS[fd.farmer_status]?.label ?? '未知'} color={FARMER_STATUS[fd.farmer_status]?.color as 'green'} />],
+              ...((fd as any).status_date ? [['状态变更日期', (fd as any).status_date]] : []),
+              ...((fd as any).death_date ? [['死亡日期', (fd as any).death_date]] : []),
               ['备注', fd.remark || '—'],
               ['录入时间', fd.created_at ? fd.created_at.slice(0, 10) : '—'],
             ].map(([k, v], i) => (

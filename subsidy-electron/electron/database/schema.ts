@@ -45,6 +45,8 @@ export const farmerProfile = sqliteTable('farmer_profile', {
   bankName: text('bank_name', { length: 100 }),
   relation: text('relation', { length: 20 }).default('本人'),
   farmerStatus: integer('farmer_status').notNull().default(1), // 1在册 2注销 3迁出 4死亡
+  statusDate: text('status_date'),
+  deathDate: text('death_date'),
   ownVillageId: integer('own_village_id').references(() => village.id),
   ownGroupNo: integer('own_group_no'),
   remark: text('remark'),

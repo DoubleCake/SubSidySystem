@@ -16,7 +16,8 @@
     "audit:households": "node scripts/audit-households.mjs",
     "repair:households": "node scripts/repair-households.mjs",
     "test:smoke": "node scripts/smoke-db.mjs",
-    "test:household-ops": "node scripts/smoke-household-ops.mjs"
+    "test:household-ops": "node scripts/smoke-household-ops.mjs",
+    "test:attribute": "node node_modules/tsx/dist/cli.mjs scripts/test-attribute-preview.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
