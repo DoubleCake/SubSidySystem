@@ -10,7 +10,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import * as api from '../../api'
-import type { FarmerOut, FarmerDetail, HH, HHDetail, VillageGroup } from '../../types'
+import { EVENT_TYPE_CFG } from '../FarmerConstants'
+import type { FarmerOut, FarmerDetail, HH, HHDetail, HHEvent, SnapshotAtResponse, VillageGroup } from '../../types'
 
 const PAGE_SIZE = 20
 const HH_PAGE_SIZE = 20
@@ -659,6 +660,31 @@ function HouseholdDetailPanel({
   setTab: (t: HHTab) => void
 }) {
   const navigate = useNavigate()
+  const [events, setEvents] = useState<HHEvent[]>([])
+  const [snapshot, setSnapshot] = useState<SnapshotAtResponse | null>(null)
+  const [loadingSnapshot, setLoadingSnapshot] = useState(false)
+
+  useEffect(() => {
+    if (!detail) { setEvents([]); setSnapshot(null); return }
+    let cancelled = false
+    api.getHouseholdEvents(detail.id)
+      .then(ev => { if (!cancelled) setEvents(ev || []) })
+      .catch(() => { if (!cancelled) setEvents([]) })
+    return () => { cancelled = true }
+  }, [detail?.id])
+
+  const openSnapshot = async (eventId: number) => {
+    if (!detail) return
+    setLoadingSnapshot(true)
+    try {
+      const res = await api.getHouseholdSnapshotByEvent(detail.id, eventId)
+      setSnapshot(res)
+    } catch {
+      setSnapshot(null)
+    } finally {
+      setLoadingSnapshot(false)
+    }
+  }
 
   if (!detail) {
     return <div className="py-24 text-center text-[11.5px] text-text-muted/60">{loading ? '加载中…' : '请从左侧选择一个家庭户'}</div>
@@ -684,7 +710,7 @@ function HouseholdDetailPanel({
     { id: 'members', label: '家庭成员', count: members.length },
     { id: 'subsidy', label: '补贴记录', count: apps.length },
     { id: 'trust', label: '土地流转', count: usage?.has_trust_data ? undefined : undefined },
-    { id: 'history', label: '变更历史' },
+    { id: 'history', label: '变更历史', count: events.length || undefined },
     { id: 'anomaly', label: '异常', count: overYears.length, danger: overYears.length > 0 },
   ]
 
@@ -882,21 +908,33 @@ function HouseholdDetailPanel({
           )}
 
           {tab === 'history' && (
-            <div className="border border-[#F0EBE1] rounded-card p-3">
-              <div className="flex flex-col gap-2 text-[10.5px]">
-                {[
-                  ['人工确认', detail.manually_confirmed_at ? `${detail.manually_confirmed_at.slice(0, 10)} · ${detail.manually_confirmed_by || '操作员'}` : null],
-                  ['状态', HH_STATUS_LABEL[detail.status] || '在册'],
-                  ['成员数', `${members.length} 人 · 在册 ${members.filter(m => m.farmer_status === 1).length}`],
-                ].filter(([, v]) => v).map(([k, v]) => (
-                  <div key={k as string} className="flex items-center justify-between">
-                    <span className="text-[#8C877A]">{k}</span><span>{v}</span>
-                  </div>
-                ))}
-                {!detail.manually_confirmed_at && (
-                  <div className="text-[10px] text-text-muted pt-1 border-t border-[#F2EDE3]">本户尚未人工确认，暂无完整变更历史。</div>
-                )}
+            <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
+              <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#F2EDE3]">
+                <span className="text-[11.5px] font-semibold">变更历史</span>
+                <span className="text-[10px] text-[#8C877A]">{events.length} 条 · 点击查看当时的户快照</span>
               </div>
+              {events.length === 0 && (
+                <div className="py-10 text-center text-[11px] text-text-muted/60">本户暂无变更记录</div>
+              )}
+              <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                {events.map(ev => {
+                  const active = snapshot?.target_date && ev.event_date === snapshot.target_date
+                  const cfg = EVENT_TYPE_CFG[ev.event_type] || EVENT_TYPE_CFG.REMARK
+                  return (
+                    <div key={ev.id} onClick={() => openSnapshot(ev.id)}
+                      className={`cursor-pointer border-b border-[#F2EDE3] px-2.5 py-2 transition-colors ${active ? 'bg-[#F3F7F4]' : 'hover:bg-[#F7FAF8]'}`}>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[9px] rounded-[2px] px-1 ${cfg.color}`}>{cfg.label}</span>
+                        <span className="text-[10.5px] text-[#8C877A] font-mono">{ev.event_date || `${ev.event_year} 年`}</span>
+                        {ev.operator && <span className="text-[9.5px] text-[#9A9588]">· {ev.operator}</span>}
+                        <span className="ml-auto text-[9.5px] text-primary">查看快照 →</span>
+                      </div>
+                      <div className="text-[11px] mt-0.5 truncate">{ev.description || '（无说明）'}</div>
+                    </div>
+                  )
+                })}
+              </div>
+              {loadingSnapshot && <div className="px-2.5 py-1.5 text-[10px] text-text-muted border-t border-[#F2EDE3]">快照加载中…</div>}
             </div>
           )}
 
@@ -962,6 +1000,25 @@ function HouseholdDetailPanel({
               </div>
             </div>
           )}
+
+          {snapshot && (() => {
+            const snap = snapshot.snapshot
+            return (
+              <div className="border border-[#C9DCC9] bg-[#F7FAF7] rounded-card px-3 py-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11.5px] font-bold text-[#2C6B52]">快照 · {snapshot.target_date}</span>
+                  <button onClick={() => setSnapshot(null)} className="text-[10px] text-text-muted hover:text-primary">退出</button>
+                </div>
+                <div className="flex flex-col gap-1 text-[10.5px]">
+                  <div className="flex justify-between"><span className="text-[#8C877A]">户名</span><span className="truncate">{snap.household_name}</span></div>
+                  <div className="flex justify-between"><span className="text-[#8C877A]">参考面积</span><span className="font-mono">{Number(snap.contract_area || 0).toFixed(2)} 亩</span></div>
+                  <div className="flex justify-between"><span className="text-[#8C877A]">成员</span><span>{snap.members?.length ?? 0} 人</span></div>
+                  <div className="flex justify-between"><span className="text-[#8C877A]">补贴记录</span><span>{snap.app_summary?.length ?? 0} 条</span></div>
+                  <div className="text-[9.5px] text-text-muted pt-1 border-t border-[#DCE9E1]">该快照为事件发生时的户状态，仅供核对，不影响当前数据。</div>
+                </div>
+              </div>
+            )
+          })()}
 
           <div className="border border-[#F0EBE1] rounded-card px-3 py-2 flex-1">
             <div className="text-[11.5px] font-semibold mb-1">户档案</div>
