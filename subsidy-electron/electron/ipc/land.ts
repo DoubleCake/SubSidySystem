@@ -253,7 +253,7 @@ export function registerLandHandlers(): void {
         `SELECT hh.id, hh.household_code, hh.household_name, hh.group_no,
                 (SELECT real_name FROM farmer_profile WHERE id = hh.head_farmer_id) as head_name,
                 v.village_name,
-                COALESCE(hh.confirmed_area, hh.contract_area) as land_area
+                MAX(COALESCE(hh.confirmed_area, 0), COALESCE(hh.contract_area, 0)) as land_area
          FROM family_household hh
          LEFT JOIN village v ON hh.village_id = v.id
          LEFT JOIN farmer_profile head ON head.id = hh.head_farmer_id
@@ -334,7 +334,7 @@ export function registerLandHandlers(): void {
         'SELECT household_name, contract_area, confirmed_area FROM family_household WHERE id = ?', householdId)
       if (!hh) return errorResponse('家庭户不存在')
 
-      const contractedArea = Number(hh.confirmed_area ?? hh.contract_area ?? 0) || 0
+      const contractedArea = Math.max(Number(hh.confirmed_area || 0), Number(hh.contract_area || 0))
 
       // 流出面积（不含撂荒）
       const trustOutRow = db().getRaw<{ total: number | null }>(

@@ -90,7 +90,7 @@ export function registerHouseholdHandlers(): void {
       const areaSub = `LEFT JOIN (
              SELECT household_id,
                     COALESCE(SUM(season_effective), 0) as total,
-                    MAX(CASE WHEN season_effective > 0 AND COALESCE(hh_season.confirmed_area, hh_season.contract_area, 0) > 0 AND season_effective > COALESCE(hh_season.confirmed_area, hh_season.contract_area, 0) THEN 1 ELSE 0 END) as is_over
+                    MAX(CASE WHEN season_effective > 0 AND MAX(COALESCE(hh_season.confirmed_area, 0), COALESCE(hh_season.contract_area, 0)) > 0 AND season_effective > MAX(COALESCE(hh_season.confirmed_area, 0), COALESCE(hh_season.contract_area, 0)) THEN 1 ELSE 0 END) as is_over
              FROM (
                SELECT fp2.household_id as household_id, st.season,
                       COALESCE(SUM(sa.apply_area - COALESCE(sa.apply_area_no_calc, 0) - COALESCE(sa.trust_area,0) - COALESCE(sa.no_subsidy_area,0)), 0) as season_effective
@@ -131,12 +131,14 @@ export function registerHouseholdHandlers(): void {
 
       const items = rows.map(r => {
         const isOverdrawn = Number(r.is_overdrawn_flag || 0) > 0
+        const refArea = Math.max(Number(r.confirmed_area || 0), Number(r.contract_area || 0))
         return {
           ...r,
           group_display: formatGroupNo(r.group_no as number),
           village_full_name: r.village_name ? `${r.village_name}${formatGroupNo(r.group_no as number)}` : '未知村组',
           is_overdrawn: isOverdrawn,
           used_area: Number(r.total_subsidy_area || 0),
+          contracted_area: Math.round(refArea * 100) / 100,
         } as Record<string, unknown>
       })
 
@@ -149,7 +151,7 @@ export function registerHouseholdHandlers(): void {
            FROM (
              SELECT fp2.household_id, sa.apply_year,
                     COALESCE(SUM(sa.apply_area - COALESCE(sa.apply_area_no_calc,0) - COALESCE(sa.trust_area,0) - COALESCE(sa.no_subsidy_area,0)), 0) as season_effective,
-                    COALESCE(hh2.confirmed_area, hh2.contract_area, 0) as ref_area
+                    MAX(COALESCE(hh2.confirmed_area, 0), COALESCE(hh2.contract_area, 0)) as ref_area
              FROM subsidy_application sa
              JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp2.id
              JOIN family_household hh2 ON hh2.id = fp2.household_id
@@ -315,7 +317,7 @@ export function registerHouseholdHandlers(): void {
       } catch { /* table might not exist yet */ }
 
       // area_usage: 实时计算面积使用情况（按年份+季节汇总）
-      const contractedArea = Number(hh.confirmed_area || hh.contract_area || 0)
+      const contractedArea = Math.max(Number(hh.confirmed_area || 0), Number(hh.contract_area || 0))
       let areaUsage = {
         contracted_area: contractedArea,
         trust_out_area: 0,
@@ -441,6 +443,7 @@ export function registerHouseholdHandlers(): void {
         group_no: hh.group_no || 1,
         address: hh.address,
         contracted_area: contractedArea,
+        contract_area: hh.contract_area != null ? Number(hh.contract_area) : null,
         confirmed_area: hh.confirmed_area != null ? Number(hh.confirmed_area) : null,
         status: hh.status,
         remark: hh.remark,
@@ -729,8 +732,8 @@ export function registerHouseholdHandlers(): void {
           JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp2.id
           GROUP BY fp2.household_id
         ) area ON area.household_id = hh.id
-        WHERE COALESCE(hh.confirmed_area, hh.contract_area, 0) > 0
-          AND COALESCE(area.total, 0) > COALESCE(hh.confirmed_area, hh.contract_area, 0)
+        WHERE MAX(COALESCE(hh.confirmed_area, 0), COALESCE(hh.contract_area, 0)) > 0
+          AND COALESCE(area.total, 0) > MAX(COALESCE(hh.confirmed_area, 0), COALESCE(hh.contract_area, 0))
         ORDER BY area.total DESC
       `)
       return success(rows.map(r => ({ ...r, group_display: formatGroupNo(r.group_no as number) })))
@@ -748,9 +751,9 @@ export function registerHouseholdHandlers(): void {
         SELECT hh.household_name, head.real_name as head_name,
                v.village_name as village,
                COALESCE(hh.contract_area, 0) as contracted_area,
-               COALESCE(hh.confirmed_area, hh.contract_area, 0) as cultivable_area,
+               MAX(COALESCE(hh.confirmed_area, 0), COALESCE(hh.contract_area, 0)) as cultivable_area,
                COALESCE(area.total, 0) as used_area,
-               MAX(0, COALESCE(area.total, 0) - COALESCE(hh.confirmed_area, hh.contract_area, 0)) as overdraw_amount
+               MAX(0, COALESCE(area.total, 0) - MAX(COALESCE(hh.confirmed_area, 0), COALESCE(hh.contract_area, 0))) as overdraw_amount
         FROM family_household hh
         LEFT JOIN village v ON hh.village_id = v.id
         LEFT JOIN farmer_profile head ON head.id = hh.head_farmer_id
@@ -761,8 +764,8 @@ export function registerHouseholdHandlers(): void {
           WHERE sa.apply_year = ?
           GROUP BY fp2.household_id
         ) area ON area.household_id = hh.id
-        WHERE COALESCE(hh.confirmed_area, hh.contract_area, 0) > 0
-          AND COALESCE(area.total, 0) > COALESCE(hh.confirmed_area, hh.contract_area, 0)
+        WHERE MAX(COALESCE(hh.confirmed_area, 0), COALESCE(hh.contract_area, 0)) > 0
+          AND COALESCE(area.total, 0) > MAX(COALESCE(hh.confirmed_area, 0), COALESCE(hh.contract_area, 0))
         ORDER BY overdraw_amount DESC
       `, year)
 

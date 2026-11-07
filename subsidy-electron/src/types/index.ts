@@ -357,7 +357,7 @@ export interface SeasonUsage {
 export interface HH {
   id: number; household_code: string; household_name: string
   village_full_name: string; village_name: string; head_name: string
-  contracted_area: number; confirmed_area?: number | null
+  contracted_area: number; contract_area?: number | null; confirmed_area?: number | null
   trust_out_area?: number; trust_in_area?: number; cultivable_area?: number
   used_area: number; remaining_area: number
   is_overdrawn: boolean; overdraw_amount: number
@@ -379,7 +379,7 @@ export interface HHMember {
 export interface HHDetail {
   id: number; household_code: string; household_name: string
   village_full_name: string; village_id: number; group_no: number
-  contracted_area: number; confirmed_area?: number | null; status: number
+  contracted_area: number; contract_area?: number | null; confirmed_area?: number | null; status: number
   address: string | null; remark: string | null
   is_manually_confirmed: number
   manually_confirmed_at: string | null

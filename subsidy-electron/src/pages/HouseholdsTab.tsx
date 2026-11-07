@@ -651,7 +651,9 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
       '户主': h.head_name,
       '所在村组': h.village_full_name,
       '成员数': h.member_count,
-      '承包面积': h.contracted_area || '',
+      '参考面积(亩)': h.contracted_area || '',
+      '承包面积(亩)': h.contract_area ?? '',
+      '确权面积(亩)': h.confirmed_area ?? '',
       '已用面积': h.used_area || '',
       '状态': h.status === 1 ? '正常' : '注销',
     }))
@@ -675,7 +677,7 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
           '户主': h.head_name,
           '所在村组': h.village,
           '承包面积(亩)': h.contracted_area,
-          '可耕种面积(亩)': h.cultivable_area,
+          '参考面积(亩)': h.cultivable_area,
           '已使用面积(亩)': h.used_area,
           '超限面积(亩)': h.overdraw_amount,
         }

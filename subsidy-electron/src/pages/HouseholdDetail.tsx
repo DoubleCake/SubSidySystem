@@ -153,7 +153,7 @@ export function HouseholdDetailContent({
                 ? (snapshotData.snapshot.contract_area > 0 ? `${snapshotData.snapshot.contract_area}亩` : '未设置')
                 : (detail.contracted_area > 0 ? `${detail.contracted_area}亩` : '未设置')}
             </div>
-            <div className="text-text-muted text-xs">承包面积</div>
+            <div className="text-text-muted text-xs">参考面积</div>
           </div>
           {historyDateIsNull && (
             <div className="flex flex-col gap-1.5 shrink-0">
@@ -225,9 +225,9 @@ export function HouseholdDetailContent({
                   {(areaUsage.trust_in_area ?? 0) > 0 && <span className="text-orange-500 text-sm ml-1">+{(areaUsage.trust_in_area ?? 0).toFixed(2)}亩</span>}
                   {(areaUsage.trust_out_area ?? 0) > 0 && <span className="text-orange-400 text-sm ml-1">-{(areaUsage.trust_out_area ?? 0).toFixed(2)}亩</span>}
                 </div>
-                <div className="text-xs text-text-muted">{areaUsage.cultivable_area != null && areaUsage.cultivable_area !== areaUsage.contracted_area
+                <div className="text-xs text-text-muted" title="确权面积与承包面积取较大值">{areaUsage.cultivable_area != null && areaUsage.cultivable_area !== areaUsage.contracted_area
                   ? `可耕${areaUsage.cultivable_area.toFixed(2)}亩`
-                  : '承包面积'}
+                  : '参考面积（确权/承包取大）'}
                 </div>
               </div>
             </div>
@@ -244,7 +244,7 @@ export function HouseholdDetailContent({
                   </div>
                 </div>
                 {(() => {
-                  const diff = Math.round((detail.confirmed_area! - areaUsage.contracted_area) * 100) / 100
+                  const diff = Math.round((detail.confirmed_area! - Number(detail.contract_area ?? detail.contracted_area ?? 0)) * 100) / 100
                   if (Math.abs(diff) <= 0.001) return null
                   return (
                     <>

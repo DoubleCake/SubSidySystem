@@ -201,7 +201,10 @@ export function registerPrecheckHandlers(): void {
         // 面积异常 + 缺失
         if (isEnabled(rules, 'area_anomalies') || isEnabled(rules, 'area_missing')) {
           const applyArea = Number(r.apply_area || 0)
-          const contractArea = Number(r.contract_area || r.hh_contract_area || 0)
+          const contractArea = Math.max(
+            Number(r.confirmed_area || 0),
+            Number(r.contract_area || r.hh_contract_area || 0)
+          )
           const trustArea = Number(r.trust_area || 0)
           const noSubsidyArea = Number(r.no_subsidy_area || 0)
           const referenceArea = contractArea + trustArea
