@@ -772,57 +772,55 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   const [statsExpanded, setStatsExpanded] = useState(false)
   const [loadingStats, setLoadingStats] = useState(false)
 
-  // 计算季节配色
-  const seasonStyle = subsidyType.season ?
-    (subsidyType.season === '耕地地力保护' ? { gradient: 'from-emerald-500 to-teal-500', icon: '🌱', badge: 'bg-emerald-500' } :
-     subsidyType.season === '大春' ? { gradient: 'from-amber-500 to-orange-500', icon: '🌻', badge: 'bg-orange-500' } :
-     subsidyType.season === '小春' ? { gradient: 'from-sky-500 to-blue-500', icon: '🌾', badge: 'bg-blue-500' } :
-     subsidyType.season === '全年单补' ? { gradient: 'from-violet-500 to-purple-500', icon: '📋', badge: 'bg-purple-500' } :
-     subsidyType.season === '临时' ? { gradient: 'from-rose-500 to-pink-500', icon: '⚡', badge: 'bg-pink-500' } :
-     { gradient: 'from-gray-500 to-slate-500', icon: '📦', badge: 'bg-slate-500' }) :
-    { gradient: 'from-emerald-500 to-teal-500', icon: '📋', badge: 'bg-emerald-500' }
+  const SEASON_TONE: Record<string, string> = {
+    '大春': '#1A4D3A',
+    '小春': '#C9A24A',
+    '耕地地力保护': '#2C6B52',
+    '全年单补': '#2E6478',
+    '临时': '#B5654F',
+  }
+  const seasonTone = SEASON_TONE[subsidyType.season || ''] || '#1A5C46'
 
   return (
     <div className="space-y-4">
-      {/* ═══ 顶部渐变横幅 ═══ */}
-      <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${seasonStyle.gradient} p-5 shadow-lg`}>
-        <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-white/10" />
-        <div className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full bg-white/5" />
-        <div className="relative z-10 flex items-center gap-4 flex-wrap">
+      {/* ═══ 顶部项目头 ═══ */}
+      <div className="relative overflow-hidden rounded-card ui-hero px-5 py-3.5 shadow-lg">
+        <div className="relative z-10 flex items-center gap-3 flex-wrap">
           <button onClick={onBack}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/15 backdrop-blur-sm text-white/90 text-xs hover:bg-white/25 transition-all">
+            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-btn bg-white/15 text-white/90 text-xs hover:bg-white/25 transition-all">
             ← 返回项目
           </button>
-          <span className="text-white/40">|</span>
-          <span className={`flex-shrink-0 w-9 h-9 rounded-xl ${seasonStyle.badge} bg-white/20 backdrop-blur-sm flex items-center justify-center text-lg`}>
-            {seasonStyle.icon}
-          </span>
+          <span className="w-px h-6 bg-white/20" />
           <div className="min-w-0">
-            <h1 className="text-lg font-bold text-white drop-shadow-sm truncate">{subsidyType.subsidy_name}</h1>
-            <div className="flex items-center gap-2 text-[11px] text-white/70 mt-0.5 flex-wrap">
-              <span>📅 {subsidyType.subsidy_year}年</span>
-              <span>·</span>
-              <span>{subsidyType.calc_mode === 'per_mu' ? '📐 按亩计算' : '💰 固定金额'}</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-[17px] font-bold text-white truncate">{subsidyType.subsidy_name}</h1>
+              {subsidyType.season && (
+                <span className="text-[10px] px-1.5 py-[1px] rounded-[3px] bg-white/15 text-white/90">{subsidyType.season}</span>
+              )}
+              <span className="text-[10px] px-1.5 py-[1px] rounded-[3px] bg-white/15 text-white/90">
+                {subsidyType.calc_mode === 'per_mu' ? '按亩计算' : '固定金额'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-[10.5px] text-white/65 mt-1 flex-wrap">
+              <span>{subsidyType.subsidy_year} 年度</span>
               {subsidyType.standard_amount && (
                 <><span>·</span><span>标准 ¥{Number(subsidyType.standard_amount).toFixed(2)}{subsidyType.standard_unit}</span></>
               )}
+              <span>·</span>
+              <span>受益 {stats?.totalFarmers ?? 0} 人</span>
+              <span>·</span>
+              <span>申请金额 ¥{Number(stats?.totalAmount ?? 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</span>
             </div>
           </div>
-          <div className="ml-auto flex items-center gap-2">
-            <div className="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur-sm text-white text-center">
-              <div className="text-sm font-bold">{stats?.totalFarmers ?? 0}</div>
-              <div className="text-[9px] text-white/60">受益</div>
-            </div>
-            <div className="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur-sm text-white text-center">
-              <div className="text-sm font-bold">¥{(stats?.totalAmount ?? 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
-              <div className="text-[9px] text-white/60">金额</div>
-            </div>
+          <div className="ml-auto flex items-center gap-1.5">
+            <button onClick={onBack} className="h-7 px-2.5 rounded-btn border border-white/25 text-white/85 text-[11px] hover:bg-white/10 transition-colors">编辑项目</button>
+            <button onClick={onBack} className="h-7 px-2.5 rounded-btn bg-white/15 text-white/90 text-[11px] hover:bg-white/25 transition-colors">项目设置</button>
           </div>
         </div>
       </div>
 
       {/* ═══ 项目统计条 ═══ */}
-      <div className="flex items-center gap-3 flex-wrap bg-white border border-border rounded-card px-4 py-2.5 text-[11px] text-text-muted">
+      <div className="flex items-center gap-3 flex-wrap bg-white border border-border rounded-card px-4 py-2 text-[11px] text-text-muted">
         <span>受益 <b className="text-sm text-text-primary font-mono">{stats?.totalFarmers ?? 0}</b> 人</span>
         <span className="w-px h-3 bg-border" />
         <span>补贴面积 <b className="text-sm text-text-primary font-mono">{Number(stats?.totalArea ?? 0).toFixed(1)}</b> 亩</span>
@@ -834,19 +832,19 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       </div>
 
       {/* ═══ Tab切换 ═══ */}
-      <div className="flex items-center gap-1 border-b border-border/60 sticky top-[50px] z-30 bg-bg-main/95 backdrop-blur py-1">
+      <div className="flex items-center gap-1.5 border-b border-border sticky top-[50px] z-30 bg-bg-main/95 backdrop-blur py-1">
         {[
-          { key: 'preApply' as const, label: '📋 预申请数据' },
-          { key: 'disbursement' as const, label: '💰 正式分发' },
-          { key: 'proxy' as const, label: '👥 代领关系' },
-          { key: 'precheckHistory' as const, label: '📋 预检管理' },
-          { key: 'villageProgress' as const, label: '📊 进度查看' },
+          { key: 'preApply' as const, label: '预申请' },
+          { key: 'disbursement' as const, label: '正式分发' },
+          { key: 'proxy' as const, label: '代领关系' },
+          { key: 'precheckHistory' as const, label: '预检管理' },
+          { key: 'villageProgress' as const, label: '进度查看' },
         ].map(tab => (
           <button key={tab.key} onClick={() => switchTab(tab.key)}
-            className={`px-3.5 py-2.5 text-xs font-medium border-b-2 transition-all ${
+            className={`h-8 px-2.5 text-[12px] border-b-2 transition-colors ${
               activeTab === tab.key
-                ? `border-emerald-500 text-emerald-700 bg-emerald-50/30`
-                : 'border-transparent text-text-muted hover:text-text-primary hover:border-gray-200'
+                ? 'border-primary text-primary font-semibold'
+                : 'border-transparent text-text-muted hover:text-text-primary'
             }`}>
             {tab.label}
           </button>

@@ -353,16 +353,16 @@ export default function AnnualAnalysisPage() {
                 <button key={c.chain_id} onClick={() => setSelectedChain(c)}
                   className={`w-full text-left p-3 rounded-xl border transition-all ${
                     active
-                      ? 'bg-indigo-50 border-indigo-300 shadow-sm'
-                      : 'bg-white border-border/60 hover:border-indigo-200 hover:bg-indigo-50/30'
+                      ? 'bg-[#F3F7F4] border-primary/40 shadow-sm'
+                      : 'bg-white border-border/60 hover:border-primary/30 hover:bg-[#F3F7F4]'
                   }`}>
                   <div className="flex items-center gap-2">
-                    <span className={`text-sm font-semibold truncate ${active ? 'text-indigo-700' : 'text-text-primary'}`}>
+                    <span className={`text-sm font-semibold truncate ${active ? 'text-primary' : 'text-text-primary'}`}>
                       {c.chain_name}
                     </span>
                   </div>
                   <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                    <span className="px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 text-[10px] font-mono">
+                    <span className="px-1.5 py-0.5 rounded-md bg-indigo-100 text-primary text-[10px] font-mono">
                       {c.year_from}–{c.year_to}
                     </span>
                     <span className="text-[10px] text-text-muted">{c.years.length} 个年度项目</span>
@@ -379,7 +379,7 @@ export default function AnnualAnalysisPage() {
         {/* ═══ 右侧：选中链的分析 ═══ */}
         <div className="flex-1 min-w-0 space-y-4">
           {!selectedChain ? (
-            <div className="bg-white rounded-2xl border border-border/60 shadow-sm">
+            <div className="bg-white rounded-card border border-border shadow-card">
               {chains.length === 0 ? emptyState : (
                 <div className="py-20 text-center text-text-muted text-sm">
                   ← 请从左侧选择一条补贴链进行观察
@@ -387,22 +387,22 @@ export default function AnnualAnalysisPage() {
               )}
             </div>
           ) : loading && !detail ? (
-            <div className="bg-white rounded-2xl border border-border/60 shadow-sm flex items-center justify-center py-16 gap-2 text-text-muted/50 text-xs">
-              <span className="w-5 h-5 border-2 border-text-muted/20 border-t-indigo-500 rounded-full animate-spin" />
+            <div className="bg-white rounded-card border border-border shadow-card flex items-center justify-center py-16 gap-2 text-text-muted/50 text-xs">
+              <span className="w-5 h-5 border-2 border-text-muted/20 border-t-primary rounded-full animate-spin" />
               数据计算中…
             </div>
           ) : detail ? (
             <>
               {/* ── 模式切换 + 链信息 ── */}
-              <div className="bg-white rounded-2xl border border-border/60 shadow-sm p-4">
+              <div className="bg-white rounded-card border border-border shadow-card p-4">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
+                  <div className="flex items-center gap-0.5 bg-[#F1EDE4] rounded-btn p-0.5">
                     <button onClick={() => setMode('farmer')}
-                      className={`px-3 py-1.5 text-xs rounded-lg transition-all ${mode === 'farmer' ? 'bg-white shadow-sm text-text-primary font-medium' : 'text-gray-400 hover:text-text-primary'}`}>
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-all ${mode === 'farmer' ? 'bg-white shadow-card text-primary font-semibold' : 'text-text-muted hover:text-primary'}`}>
                       👤 农户模式
                     </button>
                     <button onClick={() => setMode('household')}
-                      className={`px-3 py-1.5 text-xs rounded-lg transition-all ${mode === 'household' ? 'bg-white shadow-sm text-text-primary font-medium' : 'text-gray-400 hover:text-text-primary'}`}>
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-all ${mode === 'household' ? 'bg-white shadow-card text-primary font-semibold' : 'text-text-muted hover:text-primary'}`}>
                       🏠 家庭户模式
                     </button>
                   </div>
@@ -415,8 +415,8 @@ export default function AnnualAnalysisPage() {
                         <button key={y.type_id} onClick={() => toggleYear(y.subsidy_year)}
                           className={`px-2 py-0.5 rounded-md font-mono text-[11px] border transition-all ${
                             on
-                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                              : 'bg-gray-50 text-text-muted border-border/60 hover:border-indigo-300 hover:text-indigo-600'
+                              ? 'bg-primary text-white border-primary'
+                              : 'bg-gray-50 text-text-muted border-border/60 hover:border-primary/40 hover:text-primary'
                           }`}>
                           {y.subsidy_year}年
                         </button>
@@ -425,8 +425,8 @@ export default function AnnualAnalysisPage() {
                     <button onClick={() => setSelectedYears(detail.years.map(y => y.subsidy_year))}
                       className={`px-2 py-0.5 rounded-md text-[11px] border transition-all ${
                         selectedYears.length === detail.years.length
-                          ? 'bg-indigo-50 text-indigo-600 border-indigo-200'
-                          : 'bg-white text-text-muted border-border/60 hover:text-indigo-600'
+                          ? 'bg-[#EDF3EF] text-primary border-primary/30'
+                          : 'bg-white text-text-muted border-border/60 hover:text-primary'
                       }`}>
                       全选
                     </button>
@@ -435,7 +435,7 @@ export default function AnnualAnalysisPage() {
                     {(['count', 'area', 'amount'] as Metric[]).map(m => (
                       <button key={m} onClick={() => setMetric(m)}
                         className={`px-2.5 py-1 text-[11px] rounded-lg transition-all ${
-                          metric === m ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-text-muted hover:bg-gray-200'
+                          metric === m ? 'bg-primary text-white' : 'bg-[#F1EDE4] text-text-muted hover:bg-[#E8E2D9]'
                         }`}>
                         {m === 'count' ? (mode === 'farmer' ? '人数' : '户数') : m === 'area' ? '面积' : '金额'}
                       </button>
@@ -446,7 +446,7 @@ export default function AnnualAnalysisPage() {
 
               {/* ── 总览图表 ── */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white rounded-2xl border border-border/60 shadow-sm p-4">
+                <div className="bg-white rounded-card border border-border shadow-card p-4">
                   <div className="text-sm font-semibold text-text-primary mb-3">📊 {metricLabel} 逐年对比</div>
                   <div className="h-56">
                     <ResponsiveContainer width="100%" height="100%">
@@ -468,7 +468,7 @@ export default function AnnualAnalysisPage() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-border/60 shadow-sm p-4">
+                <div className="bg-white rounded-card border border-border shadow-card p-4">
                   <div className="text-sm font-semibold text-text-primary mb-3">
                     📈 受益{mode === 'farmer' ? '农户' : '家庭户'}数 趋势
                   </div>
@@ -504,7 +504,7 @@ export default function AnnualAnalysisPage() {
               </div>
 
               {/* ── 明细矩阵 ── */}
-              <div className="bg-white rounded-2xl border border-border/60 shadow-sm overflow-hidden">
+              <div className="bg-white rounded-card border border-border shadow-card overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-text-primary">
@@ -516,11 +516,11 @@ export default function AnnualAnalysisPage() {
                     <input value={search} onChange={e => setSearch(e.target.value)}
                       placeholder="搜索姓名/户名/村名"
                       className="px-2.5 py-1 text-xs border border-border/60 rounded-lg outline-none focus:ring-1 focus:ring-indigo-300 w-44" />
-                    <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
+                    <div className="flex items-center gap-0.5 bg-[#F1EDE4] rounded-btn p-0.5">
                       <button onClick={() => setCellMetric('area')}
-                        className={`px-2 py-0.5 text-[10px] rounded transition-all ${cellMetric === 'area' ? 'bg-white shadow-sm text-text-primary font-medium' : 'text-gray-400 hover:text-text-primary'}`}>面积</button>
+                        className={`px-2 py-0.5 text-[10px] rounded transition-all ${cellMetric === 'area' ? 'bg-white shadow-card text-primary font-semibold' : 'text-text-muted hover:text-primary'}`}>面积</button>
                       <button onClick={() => setCellMetric('amount')}
-                        className={`px-2 py-0.5 text-[10px] rounded transition-all ${cellMetric === 'amount' ? 'bg-white shadow-sm text-text-primary font-medium' : 'text-gray-400 hover:text-text-primary'}`}>金额</button>
+                        className={`px-2 py-0.5 text-[10px] rounded transition-all ${cellMetric === 'amount' ? 'bg-white shadow-card text-primary font-semibold' : 'text-text-muted hover:text-primary'}`}>金额</button>
                     </div>
                     <button onClick={exportExcel} disabled={rows.length === 0}
                       className="px-2.5 py-1 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
@@ -563,7 +563,7 @@ export default function AnnualAnalysisPage() {
                     { label: '>30', mn: '30', mx: '' },
                   ] as const).map(p => (
                     <button key={p.label} onClick={() => { setVolMin(p.mn); setVolMax(p.mx) }}
-                      className={`px-2 py-0.5 text-[10px] rounded border transition-colors ${volMin === p.mn && volMax === p.mx ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-white text-text-muted border-border/60 hover:text-text-primary'}`}>
+                      className={`px-2 py-0.5 text-[10px] rounded border transition-colors ${volMin === p.mn && volMax === p.mx ? 'bg-[#EDF3EF] text-primary border-primary/30' : 'bg-white text-text-muted border-border/60 hover:text-text-primary'}`}>
                       {p.label}
                     </button>
                   ))}
@@ -585,7 +585,7 @@ export default function AnnualAnalysisPage() {
                           {yearCols.map(y => (
                             <th key={y.type_id} className="px-2 py-2 text-right font-medium whitespace-nowrap">
                               <button onClick={() => handleSortYear(y.subsidy_year)}
-                                className={`hover:text-indigo-600 ${sortYear === y.subsidy_year ? 'text-indigo-600' : 'text-text-primary'}`}>
+                                className={`hover:text-primary ${sortYear === y.subsidy_year ? 'text-indigo-600' : 'text-text-primary'}`}>
                                 {y.subsidy_year}年
                                 {sortYear === y.subsidy_year && (sortDir === 'desc' ? ' ↓' : ' ↑')}
                               </button>
@@ -593,7 +593,7 @@ export default function AnnualAnalysisPage() {
                           ))}
                           <th className="px-3 py-2 text-right font-medium whitespace-nowrap">
                             <button onClick={handleSortTotal}
-                              className={`hover:text-indigo-600 ${sortTotal ? 'text-indigo-600' : 'text-text-muted'}`}>
+                              className={`hover:text-primary ${sortTotal ? 'text-indigo-600' : 'text-text-muted'}`}>
                               多年合计{sortTotal && (sortDir === 'desc' ? ' ↓' : ' ↑')}
                             </button>
                           </th>
@@ -685,7 +685,7 @@ export default function AnnualAnalysisPage() {
         {drill && detail && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 text-xs text-text-muted flex-wrap">
-              <span className="px-2 py-1 rounded-md bg-indigo-50 text-indigo-700">
+              <span className="px-2 py-1 rounded-md bg-indigo-50 text-primary">
                 {mode === 'farmer' ? '👤 农户' : '🏠 家庭户'}
               </span>
               <span>{[drill.household_name, drill.village, drill.group].filter(Boolean).join(' · ') || '—'}</span>
