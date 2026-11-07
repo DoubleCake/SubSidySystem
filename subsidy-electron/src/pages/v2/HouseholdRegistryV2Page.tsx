@@ -398,7 +398,7 @@ export default function HouseholdRegistryV2Page() {
           ) : (
             <>
               {/* 档案头 */}
-              <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-[#F2EDE3]">
+              <div className="flex items-start justify-between px-4 py-3 border-b border-[#F2EDE3]">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-[38px] h-[38px] rounded-card bg-primary text-[#E6C288] flex items-center justify-center text-[14px] font-bold shrink-0">
                     {farmer.real_name?.slice(-1)}
@@ -417,9 +417,11 @@ export default function HouseholdRegistryV2Page() {
                       )}
                     </div>
                     <div className="text-[11px] text-[#8C877A] mt-[3px] truncate">
-                      {farmer.village_full_name}
+                      <span className="font-mono">{farmer.id_card || farmer.id_card_masked || '—'}</span>
                       <span className="mx-1.5">·</span>
-                      {farmer.gender === 1 ? '男' : '女'}{age ? ` · ${age} 岁` : ''}
+                      <span className="font-mono">{farmer.phone || farmer.phone_masked || '—'}</span>
+                      <span className="mx-1.5">·</span>
+                      {farmer.village_full_name}
                     </div>
                   </div>
                 </div>
@@ -431,8 +433,8 @@ export default function HouseholdRegistryV2Page() {
               </div>
 
               {/* 家庭户面积条 */}
-              <div className="flex items-center px-4 py-2.5 bg-gradient-to-r from-[#0F3D2E] via-[#1A5C46] to-[#2C7A63] text-[#F7F3E7]">
-                <div className="flex items-center gap-2 min-w-0 w-[210px]">
+              <div className="flex items-center px-4 bg-gradient-to-r from-[#0F3D2E] via-[#1A5C46] to-[#2C7A63] text-[#F7F3E7] shadow-[0_6px_16px_rgba(15,61,46,.14)] shrink-0" style={{ height: 58 }}>
+                <div className="flex items-center gap-2 w-[210px]">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D8B567" strokeWidth="1.6" aria-hidden="true"><path d="M3 9.5 12 3l9 6.5" /><path d="M5 11v9h14v-9" /><path d="M9 20v-5h6v5" /></svg>
                   <div className="min-w-0">
                     <div className="text-[12px] font-semibold truncate">{household?.household_name || '未关联家庭户'}</div>
@@ -442,21 +444,21 @@ export default function HouseholdRegistryV2Page() {
                   </div>
                 </div>
                 <div className="flex items-center ml-auto">
-                  <div className="px-4 border-l border-white/15">
+                  <div className="px-[18px] border-l border-white/15">
                     <div className="text-[9.5px] text-white/55">参考面积</div>
                     <div className="text-[16px] font-bold text-[#E6C288] font-mono">{refArea.toFixed(2)} 亩</div>
                   </div>
-                  <div className="px-4 border-l border-white/15">
+                  <div className="px-[18px] border-l border-white/15">
                     <div className="text-[9.5px] text-white/55">已使用</div>
                     <div className="text-[16px] font-bold font-mono">{usedArea.toFixed(2)} 亩</div>
                   </div>
-                  <div className="px-4 border-l border-white/15">
+                  <div className="px-[18px] border-l border-white/15">
                     <div className="text-[9.5px] text-white/55">超出</div>
                     <div className={`text-[16px] font-bold font-mono ${isOver ? 'text-[#F2B8A8]' : ''}`}>
                       {isOver ? `+${overAmount.toFixed(2)} 亩` : '—'}
                     </div>
                   </div>
-                  <button onClick={() => navigate(`/v2/households?householdId=${household?.id ?? ''}`)}
+                  <button onClick={() => { setSideTab('households'); if (household?.id) setSelectedHhId(household.id) }}
                     className="ml-3.5 h-7 px-2.5 border border-white/25 rounded-btn text-[10.5px] text-[#F7F3E7] hover:bg-white/10 transition-colors">
                     查看家庭户
                   </button>
@@ -477,9 +479,8 @@ export default function HouseholdRegistryV2Page() {
                   </div>
                 ))}
               </div>
-
-              {/* 分类 */}
-              <div className="flex items-end gap-4 px-4 h-8 border-b border-border">
+              {/* 分类（画布：补贴记录 / 家庭成员 / 异常） */}
+              <div className="flex items-end gap-5 px-4 h-8 border-b border-[#E8E2D9]">
                 {tabs.map(t => (
                   <button key={t.id} onClick={() => setTab(t.id)}
                     className={`h-8 flex items-center gap-1 border-b-2 text-[12px] transition-colors ${
@@ -495,8 +496,7 @@ export default function HouseholdRegistryV2Page() {
               </div>
 
               {/* 主体两栏 */}
-              <div className="grid grid-cols-[minmax(0,1fr)_270px] gap-3 p-3">
-                {/* 左：分类内容 */}
+              <div className="grid grid-cols-[minmax(0,1fr)_270px] gap-3 px-3 py-2.5">
                 <div className="flex flex-col gap-2.5 min-w-0">
                   {tab === 'subsidy' && (
                     <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
@@ -538,7 +538,7 @@ export default function HouseholdRegistryV2Page() {
                     <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
                       <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#F2EDE3]">
                         <span className="text-[11.5px] font-semibold">家庭成员</span>
-                        <button onClick={() => navigate(`/v2/households?householdId=${household?.id ?? ''}`)}
+                        <button onClick={() => { setSideTab('households'); if (household?.id) setSelectedHhId(household.id) }}
                           className="text-[10px] text-[#8C877A] hover:text-primary">家庭户详情 →</button>
                       </div>
                       <table className="w-full border-collapse text-[11px]">
@@ -585,15 +585,9 @@ export default function HouseholdRegistryV2Page() {
                       )}
                     </div>
                   )}
-
-                  {tab === 'history' && (
-                    <div className="border border-[#F0EBE1] rounded-card p-3">
-                      <div className="text-[11px] text-text-muted">变更历史暂未接入，后续在此展示户与人员的状态变更记录。</div>
-                    </div>
-                  )}
                 </div>
 
-                {/* 右：家庭户信息 / 异常 / 变更 */}
+                {/* 右侧：家庭户信息 / 本户异常 / 人员档案 */}
                 <div className="flex flex-col gap-2.5 min-w-0">
                   <div className="border border-[#F0EBE1] rounded-card px-3 py-2">
                     <div className="text-[11.5px] font-semibold mb-1.5">家庭户信息</div>
