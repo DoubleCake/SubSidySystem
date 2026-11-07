@@ -14,6 +14,7 @@
     "db:seed": "tsx electron/database/seed.ts",
     "audit:schema": "node scripts/audit-schema.mjs",
     "audit:households": "node scripts/audit-households.mjs",
+    "repair:households": "node scripts/repair-households.mjs",
     "test:smoke": "node scripts/smoke-db.mjs",
     "test:household-ops": "node scripts/smoke-household-ops.mjs"
   },
