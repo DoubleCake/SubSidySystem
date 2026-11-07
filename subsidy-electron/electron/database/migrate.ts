@@ -86,6 +86,7 @@ export function runMigrations(): void {
       apply_amount DECIMAL(10,2),
       actual_amount DECIMAL(10,2),
       apply_area DECIMAL(10,2),
+      apply_area_no_calc DECIMAL(10,2),
       contract_area DECIMAL(10,2),
       trust_area DECIMAL(10,2),
       no_subsidy_area DECIMAL(10,2),
@@ -117,6 +118,7 @@ export function runMigrations(): void {
       payment_village_name VARCHAR(50),
       payment_group_display VARCHAR(20),
       apply_area DECIMAL(10,2),
+      apply_area_no_calc DECIMAL(10,2),
       contract_area DECIMAL(10,2),
       trust_area DECIMAL(10,2),
       no_subsidy_area DECIMAL(10,2),
@@ -669,6 +671,7 @@ export function runMigrations(): void {
     "ALTER TABLE subsidy_application ADD COLUMN apply_group_no INTEGER",
     "ALTER TABLE subsidy_application ADD COLUMN apply_village_name VARCHAR(50)",
     "ALTER TABLE subsidy_application ADD COLUMN apply_group_display VARCHAR(20)",
+    "ALTER TABLE subsidy_application ADD COLUMN apply_area_no_calc DECIMAL(10,2)",
     "ALTER TABLE subsidy_application ADD COLUMN is_proxy SMALLINT DEFAULT 0",
     "ALTER TABLE subsidy_application ADD COLUMN beneficiary_id INTEGER REFERENCES farmer_profile(id)",
     // subsidy_payment 增量
@@ -679,6 +682,7 @@ export function runMigrations(): void {
     "ALTER TABLE subsidy_payment ADD COLUMN is_proxy SMALLINT DEFAULT 0",
     "ALTER TABLE subsidy_payment ADD COLUMN proxy_remark TEXT",
     "ALTER TABLE subsidy_payment ADD COLUMN pay_status SMALLINT DEFAULT 2",
+    "ALTER TABLE subsidy_payment ADD COLUMN apply_area_no_calc DECIMAL(10,2)",
     "ALTER TABLE subsidy_payment ADD COLUMN beneficiary_id INTEGER REFERENCES farmer_profile(id)",
     // subsidy_proxy 增量
     "ALTER TABLE subsidy_proxy ADD COLUMN subsidy_type_id INTEGER REFERENCES subsidy_type(id)",

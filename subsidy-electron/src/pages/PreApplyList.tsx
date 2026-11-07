@@ -26,8 +26,11 @@ export default function PreApplyList(props: Omit<SubsidyListBaseProps, 'config'>
         if (!confirm(`将选中 ${selectedIds.length} 条预申请记录转为发放记录？\n\n已存在的发放记录将自动跳过。`)) return
         setConverting(true)
         try {
-          const data = await window.electronAPI.invoke('subsidies:convertToPayment', { application_ids: selectedIds }) as { message: string }
-          show(`✓ ${data.message}`)
+          const res = await window.electronAPI.invoke<{ code: number; data?: { message: string }; message?: string }>(
+            'subsidies:convertToPayment', { application_ids: selectedIds }
+          )
+          if (res?.code !== 0) throw new Error(res?.message || '转换失败')
+          show(`✓ ${res?.data?.message || '转换完成'}`)
           props.setSelectedIds([])
           load()
         } catch (error) {

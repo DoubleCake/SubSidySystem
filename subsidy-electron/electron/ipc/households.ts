@@ -502,12 +502,64 @@ export function registerHouseholdHandlers(): void {
 
   ipcMain.handle('households:removeMember', (_e, payload: any) => {
     try {
-      const { householdId, farmerId } = payload
-      db().runRaw("UPDATE farmer_profile SET household_id = NULL, updated_at = datetime('now','localtime') WHERE id = ? AND household_id = ?", farmerId, householdId)
-      return success(null, '移出成功')
-    } catch (e) {
-      return errorResponse(String(e))
-    }
+      const { householdId, farmerId, action = 'detach' } = payload || {}
+      if (!householdId || !farmerId) return errorResponse('缺少家庭户或成员ID')
+
+      const member = db().getRaw<Record<string, unknown>>(
+        'SELECT * FROM farmer_profile WHERE id = ? AND household_id = ?', farmerId, householdId
+      )
+      if (!member) return errorResponse('成员不存在或不属于该家庭户')
+      const hh = db().getRaw<Record<string, unknown>>('SELECT * FROM family_household WHERE id = ?', householdId)
+      if (!hh) return errorResponse('家庭户不存在')
+      if (Number(hh.head_farmer_id) === Number(farmerId)) {
+        return errorResponse('户主不能被移出，请先将其他成员设为户主后再操作')
+      }
+
+      const now = new Date()
+      const yearNow = now.getFullYear()
+      const dateStr = now.toISOString().split('T')[0]
+
+      if (action === 'delete') {
+        const appCount = db().getRaw<{ cnt: number }>(
+          'SELECT COUNT(*) as cnt FROM subsidy_application WHERE farmer_id = ?', farmerId
+        )?.cnt ?? 0
+        if (appCount > 0) {
+          return errorResponse(`该成员有 ${appCount} 条补贴记录，不能彻底删除，请使用「迁出」操作`)
+        }
+        db().runRaw('DELETE FROM farmer_profile WHERE id = ?', farmerId)
+        db().runRaw(
+          `INSERT INTO household_event (household_id, event_type, event_year, event_date, farmer_id, farmer_name, description, operator)
+           VALUES (?, 'MEMBER_REMOVE', ?, ?, ?, ?, ?, '系统')`,
+          householdId, yearNow, dateStr, farmerId, member.real_name, `彻底删除成员「${member.real_name}」`
+        )
+        return success({ message: '已彻底删除' })
+      }
+
+      // 迁出：保留档案与历史补贴，仅标记状态（farmer_profile.household_id 为 NOT NULL，不能置空）
+      db().runRaw(
+        "UPDATE farmer_profile SET farmer_status = 3, updated_at = datetime('now','localtime') WHERE id = ?",
+        farmerId
+      )
+      db().runRaw(
+        `INSERT INTO household_event (household_id, event_type, event_year, event_date, farmer_id, farmer_name, description, operator)
+         VALUES (?, 'MEMBER_REMOVE', ?, ?, ?, ?, ?, '系统')`,
+        householdId, yearNow, dateStr, farmerId, member.real_name,
+        `移出成员「${member.real_name}」，标记为迁出（历史补贴记录保留）`
+      )
+
+      // 户内已无在册成员时，家庭户同步标记为迁出
+      const remaining = db().getRaw<{ cnt: number }>(
+        'SELECT COUNT(*) as cnt FROM farmer_profile WHERE household_id = ? AND farmer_status = 1', householdId
+      )?.cnt ?? 0
+      if (remaining === 0) {
+        db().runRaw(
+          "UPDATE family_household SET status = 3, updated_at = datetime('now','localtime') WHERE id = ? AND status = 1",
+          householdId
+        )
+      }
+
+      return success({ message: '已标记为迁出，历史补贴记录保留' })
+    } catch (e) { return errorResponse('移出成员失败：' + String(e)) }
   })
 
   // ── 合并家庭户 ──
@@ -587,7 +639,7 @@ export function registerHouseholdHandlers(): void {
         SELECT hh.household_name, head.real_name as head_name,
                v.village_name as village,
                COALESCE(hh.contract_area, 0) as contracted_area,
-               COALESCE(hh.cultivable_area, 0) as cultivable_area,
+               COALESCE(hh.confirmed_area, hh.contract_area, 0) as cultivable_area,
                COALESCE(area.total, 0) as used_area,
                MAX(0, COALESCE(area.total, 0) - COALESCE(hh.confirmed_area, hh.contract_area, 0)) as overdraw_amount
         FROM family_household hh

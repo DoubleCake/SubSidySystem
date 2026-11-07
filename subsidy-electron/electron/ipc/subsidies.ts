@@ -735,19 +735,59 @@ export function registerSubsidyHandlers(): void {
   // ── 预申请转发放 ──
   ipcMain.handle('subsidies:convertToPayment', (_e, payload: any) => {
     try {
-      const ids = payload.application_ids || []
-      let count = 0
-      for (const appId of ids) {
-        const app = db().getRaw<any>('SELECT * FROM subsidy_application WHERE id=?', appId)
-        if (!app) continue
-        // check if payment already exists
-        const exist = db().getRaw<{ id: number }>('SELECT id FROM subsidy_payment WHERE application_id=?', appId)
-        if (exist) continue
-        db().runRaw(`INSERT INTO subsidy_payment (subsidy_type_id, beneficiary_id, farmer_id, payment_year, applicant_name, id_card, apply_area, contract_area, trust_area, no_subsidy_area, amount, pay_status, is_proxy, payment_village_name, payment_group_display, application_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-          app.subsidy_type_id, app.beneficiary_id, app.farmer_id, app.apply_year, app.applicant_name, app.id_card, app.apply_area, app.contract_area, app.trust_area, app.no_subsidy_area, app.actual_amount || app.apply_amount, 2, app.is_proxy, app.apply_village_name, app.apply_group_display, appId)
-        count++
+      const ids: number[] = Array.isArray(payload?.application_ids) ? payload.application_ids : []
+      if (ids.length === 0) return errorResponse('请提供要转换的预申请记录ID列表')
+
+      let created = 0
+      let skipped = 0
+      const errors: string[] = []
+
+      db().beginTransaction()
+      try {
+        for (const appId of ids) {
+          const app = db().getRaw<any>('SELECT * FROM subsidy_application WHERE id=?', appId)
+          if (!app) { errors.push(`记录#${appId}：预申请不存在`); continue }
+          const farmer = db().getRaw<any>('SELECT * FROM farmer_profile WHERE id=?', app.farmer_id)
+          if (!farmer) { errors.push(`记录#${appId}：农户不存在`); continue }
+
+          // 发放记录唯一键：农户 + 补贴类型 + 年度
+          const exist = db().getRaw<{ id: number }>(
+            'SELECT id FROM subsidy_payment WHERE farmer_id=? AND subsidy_type_id=? AND payment_year=?',
+            app.farmer_id, app.subsidy_type_id, app.apply_year
+          )
+          if (exist) {
+            skipped++
+            if (Number(app.pay_status) !== 2) {
+              db().runRaw("UPDATE subsidy_application SET pay_status=2, updated_at=datetime('now','localtime') WHERE id=?", appId)
+            }
+            continue
+          }
+
+          db().runRaw(`INSERT INTO subsidy_payment (
+              farmer_id, beneficiary_id, subsidy_type_id, payment_year, amount, payment_date,
+              payment_village_id, payment_group_no, payment_village_name, payment_group_display,
+              apply_area, apply_area_no_calc, contract_area, trust_area, no_subsidy_area,
+              bank_card, bank_name, remark, pay_status, is_proxy
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            app.farmer_id, app.beneficiary_id || app.farmer_id, app.subsidy_type_id, app.apply_year,
+            app.actual_amount ?? app.apply_amount, app.pay_date,
+            app.apply_village_id, app.apply_group_no, app.apply_village_name, app.apply_group_display,
+            app.apply_area, app.apply_area_no_calc, app.contract_area, app.trust_area, app.no_subsidy_area,
+            app.bank_card_snapshot ?? farmer.bank_card, farmer.bank_name, app.remark, 2, app.is_proxy ?? 0
+          )
+          db().runRaw("UPDATE subsidy_application SET pay_status=2, updated_at=datetime('now','localtime') WHERE id=?", appId)
+          created++
+        }
+      } finally {
+        db().commitTransaction()
       }
-      return success({ message: `已转换 ${count} 条` })
+
+      return success({
+        created,
+        skipped,
+        errors,
+        message: `成功转换 ${created} 条，跳过 ${skipped} 条${errors.length ? `，失败 ${errors.length} 条` : ''}`,
+      })
     } catch (e) { return errorResponse(String(e)) }
   })
 
@@ -853,8 +893,8 @@ export function registerSubsidyHandlers(): void {
     'farmer_id', 'beneficiary_id', 'subsidy_type_id', 'payment_year',
     'amount', 'payment_date', 'payment_village_id', 'payment_group_no',
     'payment_village_name', 'payment_group_display',
-    'apply_area', 'contract_area', 'trust_area', 'no_subsidy_area',
-    'bank_card', 'bank_name', 'operator_id', 'remark', 'pay_status', 'is_proxy',
+    'apply_area', 'apply_area_no_calc', 'contract_area', 'trust_area', 'no_subsidy_area',
+    'bank_card', 'bank_name', 'operator_id', 'remark', 'proxy_remark', 'pay_status', 'is_proxy',
   ])
 
   ipcMain.handle('subsidies:batchImportPayments', (_e, payload: any) => {

@@ -11,7 +11,9 @@
     "preview": "electron-vite preview",
     "pack": "electron-builder --dir",
     "dist": "electron-vite build && electron-builder",
-    "db:seed": "tsx electron/database/seed.ts"
+    "db:seed": "tsx electron/database/seed.ts",
+    "audit:schema": "node scripts/audit-schema.mjs",
+    "test:smoke": "node scripts/smoke-db.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",

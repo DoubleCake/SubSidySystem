@@ -28,6 +28,17 @@ export function maskBankCard(card: string): string {
 }
 
 /**
+ * 姓名脱敏：张三 → 张*；张小明 → 张*明；欧阳小明 → 欧**明
+ * 用于上传 AI 模型前的数据脱敏
+ */
+export function maskName(name: string): string {
+  const s = (name || '').trim()
+  if (s.length <= 1) return s
+  if (s.length === 2) return s[0] + '*'
+  return s[0] + '*'.repeat(s.length - 2) + s[s.length - 1]
+}
+
+/**
  * 对农户对象做完整脱敏，返回新对象（不修改原数据）
  */
 export function desensitizeFarmer<T extends Record<string, unknown>>(farmer: T): T {

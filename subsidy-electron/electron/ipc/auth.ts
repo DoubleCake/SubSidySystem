@@ -74,7 +74,7 @@ export function registerAuthHandlers(): void {
       if (role) { updates.push('role=?'); vals.push(role) }
       if (updates.length === 0) return errorResponse('无更新数据')
       vals.push(id)
-      getDb().runRaw(`UPDATE users SET ${updates.join(',')}, created_at=datetime('now','localtime') WHERE id=?`, ...vals)
+      getDb().runRaw(`UPDATE users SET ${updates.join(',')} WHERE id=?`, ...vals)
       return success(null, '更新成功')
     } catch (e) { return errorResponse('更新用户失败') }
   })

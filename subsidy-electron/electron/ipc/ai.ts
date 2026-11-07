@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../database/connection'
-import { desensitizeFarmer, desensitizeText } from '../utils/masking'
+import { desensitizeFarmer, desensitizeText, maskName } from '../utils/masking'
 import { success, errorResponse } from './response'
 
 export function registerAiHandlers(): void {
@@ -33,7 +33,7 @@ export function registerAiHandlers(): void {
 
       // 构建脱敏数据
       const desensitizedApps = apps.map(a => desensitizeFarmer({
-        farmer_name: a.real_name,
+        farmer_name: maskName(String(a.real_name || '')),
         farmer_id_masked: a.id_card,
         village: `${a.village_name || ''}${a.group_no || ''}`,
         subsidy_name: a.subsidy_name,
@@ -65,7 +65,7 @@ export function registerAiHandlers(): void {
           const client = new Anthropic({ apiKey })
           const safeQuestion = desensitizeText(question)
 
-          const prompt = `你是一位农村补贴管理专家助手。以下是${year}年度的补贴发放脱敏数据（所有身份证、手机号均已脱敏处理）：
+          const prompt = `你是一位农村补贴管理专家助手。以下是${year}年度的补贴发放脱敏数据（姓名、身份证、手机号均已脱敏处理）：
 
 \`\`\`json
 ${JSON.stringify({ statistics: stats, records: desensitizedApps.slice(0, 50) }, null, 2)}

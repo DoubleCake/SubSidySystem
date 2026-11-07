@@ -520,12 +520,12 @@ export function registerLandHandlers(): void {
 
   ipcMain.handle('land:createLargeFarmerTrust', (_e, payload: any) => {
     try {
-      const { large_farmer_id, trust_type, land_area, area, trust_year, start_date, end_date, remark } = payload
+      const { large_farmer_id, trust_type, land_area, area, trust_year, start_date, end_date, note, remark } = payload
       // 兼容两种字段名：实际列名为 area，前端若传 land_area 则取用
       const areaVal = area ?? land_area
       const r = db().runRaw(
-        'INSERT INTO large_farmer_trust (large_farmer_id, trust_type, area, trust_year, start_date, end_date, remark) VALUES (?,?,?,?,?,?,?)',
-        large_farmer_id, trust_type, areaVal, trust_year, start_date || null, end_date || null, remark || ''
+        'INSERT INTO large_farmer_trust (large_farmer_id, trust_type, area, trust_year, start_date, end_date, note) VALUES (?,?,?,?,?,?,?)',
+        large_farmer_id, trust_type, areaVal, trust_year, start_date || null, end_date || null, note || remark || ''
       )
       return success({ id: r.lastInsertRowid })
     } catch (e) { return errorResponse(String(e)) }

@@ -653,13 +653,13 @@ function resolveGender(idCard: string, genderStr: string): number {
 }
 
 function mapFarmerStatus(status: string): number {
-  const lower = status.toLowerCase()
-  const deadKeywords = ['死亡', '去世', 'deceased', 'dead']
-  const movedKeywords = ['移居', '迁出', 'moved', '移出']
-  const abroadKeywords = ['出国', 'overseas', 'abroad']
-  const missingKeywords = ['失踪', 'missing']
+  const s = String(status || '').trim().toLowerCase()
+  if (!s) return 1
+  // 兼容直接填数字（1在册 / 2注销 / 3迁出 / 4死亡）
+  if (/^[1-4]$/.test(s)) return Number(s)
 
-  const allBad = [...deadKeywords, ...movedKeywords, ...abroadKeywords, ...missingKeywords]
-  if (allBad.some(kw => lower.includes(kw))) return 0
+  if (['死亡', '去世', '已故', 'deceased', 'dead'].some(kw => s.includes(kw))) return 4
+  if (['迁出', '移居', '移民', '迁往', '出国', '失踪', 'moved', 'move out', 'abroad', 'missing'].some(kw => s.includes(kw))) return 3
+  if (['注销', '取消', 'cancelled', 'canceled', 'removed'].some(kw => s.includes(kw))) return 2
   return 1
 }
