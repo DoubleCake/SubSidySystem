@@ -32,99 +32,92 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
     : (fd.applications || [])
   const totalAmt = apps.reduce((s: number, a: any) => s + Number(a.actual_amount || 0), 0)
   const age = calcAge(fd.birth_date)
+  const statusLabel = FARMER_STATUS[fd.farmer_status]?.label ?? '未知'
 
   return (
-    <div className="bg-white border border-border rounded-card overflow-hidden shadow-card mb-4">
-      <div className="bg-gradient-to-r from-emerald-50 to-emerald-100/70 border-b border-emerald-100 px-6 py-5 flex items-center gap-5">
-        <div className="w-14 h-14 rounded-full bg-primary-500/10 flex items-center justify-center text-2xl font-bold text-primary shrink-0">
-          {fd.real_name.slice(-1)}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-1 flex-wrap">
-            <span className="text-[20px] font-bold text-primary">{fd.real_name}</span>
-            <span className="text-text-muted text-sm">{GENDER(fd.gender)}</span>
-            {age && <span className="text-text-muted text-sm">{age} 岁</span>}
-            <span className="text-xs bg-primary-500/10 text-primary px-2 py-0.5 rounded">{FARMER_STATUS[fd.farmer_status]?.label ?? '未知'}</span>
-            {fd.is_head ? <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">户主</span> : <span className="text-xs bg-warm/50 text-text-muted px-2 py-0.5 rounded">{fd.relation || '成员'}</span>}
+    <div className="bg-white border border-border rounded-card overflow-hidden shadow-card mb-2.5">
+      {/* 档案头 */}
+      <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-[#F2EDE3]">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-[38px] h-[38px] rounded-card bg-primary text-[#E6C288] flex items-center justify-center text-[14px] font-bold shrink-0">
+            {fd.real_name.slice(-1)}
           </div>
-          <div className="text-text-muted text-sm">📍 {fd.village_full_name}</div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h2 className="text-[18px] font-bold text-primary m-0 leading-tight">{fd.real_name}</h2>
+              <span className={`text-[10px] rounded-full px-1.5 py-[1px] ${fd.farmer_status === 1 ? 'bg-[#EDF3EF] text-[#2C6B52]' : 'bg-[#F1EDE4] text-[#6B6B60]'}`}>{statusLabel}</span>
+              <span className={`text-[10px] rounded-[3px] px-1.5 py-[1px] ${fd.is_head ? 'bg-[#EDF3EF] text-[#2C6B52]' : 'bg-[#F1EDE4] text-[#6B6B60]'}`}>
+                {fd.is_head ? '户主' : (fd.relation || '成员')}
+              </span>
+              <span className="text-[10px] text-text-muted">{GENDER(fd.gender)}{age ? ` · ${age} 岁` : ''}</span>
+            </div>
+            <div className="text-[11px] text-[#8C877A] mt-[3px] truncate">
+              {fd.id_card || fd.id_card_masked}
+              <span className="mx-1.5">·</span>
+              {fd.phone || fd.phone_masked || '—'}
+              <span className="mx-1.5">·</span>
+              {fd.village_full_name}
+            </div>
+          </div>
         </div>
-        <div className="text-right shrink-0">
-          <div className="text-2xl font-bold font-mono text-primary">¥{totalAmt.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}</div>
-          <div className="text-text-muted text-xs mt-0.5">累计获得补贴</div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-[11px] text-text-muted mr-1">
+            累计 <b className="font-mono text-primary text-[13px]">{fmt(totalAmt)}</b>
+          </span>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-0 divide-x divide-stone-100">
-        <div className="p-5">
-          <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">个人信息</h3>
-          <div className="space-y-3">
-            {[
-              ['姓名', fd.real_name],
-              ['性别', GENDER(fd.gender)],
-              ['年龄', age ? `${age} 岁` : '—'],
-              ['身份证号', <span key="id" className="font-mono text-amber-600 text-xs select-all">{fd.id_card || fd.id_card_masked}</span>],
-              ['手机号', <span key="ph" className="font-mono text-xs">{fd.phone || fd.phone_masked || '—'}</span>],
-              ['所在村组', fd.village_full_name],
-            ].map(([k, v], i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-xs text-text-muted w-20 shrink-0">{k}</span>
-                <span className="text-sm text-text-primary">{v as React.ReactNode}</span>
-              </div>
-            ))}
+
+      {/* 四列基础信息 */}
+      <div className="grid grid-cols-4 border-b border-[#F2EDE3]">
+        {[
+          ['身份证号', fd.id_card || fd.id_card_masked || '—'],
+          ['手机号', fd.phone || fd.phone_masked || '—'],
+          ['出生日期', fd.birth_date ? `${fd.birth_date.slice(0, 10)}${age ? ` · ${age} 岁` : ''}` : '—'],
+          ['银行卡', fd.bank_card || fd.bank_card_masked || '—'],
+        ].map(([k, v], i) => (
+          <div key={k} className={`px-4 py-2 ${i < 3 ? 'border-r border-[#F2EDE3]' : ''}`}>
+            <div className="text-[9.5px] text-[#9A9588]">{k}</div>
+            <div className="text-[11.5px] text-[#5A5A4F] mt-px font-mono truncate">{v}</div>
           </div>
-        </div>
-        <div className="p-5">
-          <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">银行 & 其他</h3>
-          <div className="space-y-3">
-            {[
-              ['银行卡号', <span key="bc" className="font-mono text-xs text-amber-600 select-all">{fd.bank_card || fd.bank_card_masked || '—'}</span>],
-              ['开户行', fd.bank_name || '—'],
-              ['农户状态', <Tag key="st" label={FARMER_STATUS[fd.farmer_status]?.label ?? '未知'} color={FARMER_STATUS[fd.farmer_status]?.color as 'green'} />],
-              ...((fd as any).status_date ? [['状态变更日期', (fd as any).status_date]] : []),
-              ...((fd as any).death_date ? [['死亡日期', (fd as any).death_date]] : []),
-              ['备注', fd.remark || '—'],
-              ['录入时间', fd.created_at ? fd.created_at.slice(0, 10) : '—'],
-            ].map(([k, v], i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-xs text-text-muted w-20 shrink-0">{k}</span>
-                <span className="text-sm text-text-primary">{v as React.ReactNode}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        ))}
       </div>
+
       {/* 补贴记录 */}
       {apps.length > 0 && (
-        <div className="border-t border-border">
-          <div className="px-5 py-3 bg-warm/30 border-b border-border/50">
-            <span className="text-sm font-medium text-text-primary">补贴记录 ({apps.length})</span>
+        <div>
+          <div className="flex items-center justify-between px-4 py-1.5 border-b border-[#F2EDE3]">
+            <span className="text-[11.5px] font-semibold">补贴记录 <span className="text-[10px] text-text-muted font-normal">{apps.length}</span></span>
+            <span className="text-[10px] text-text-muted">合计 <b className="font-mono text-primary">{fmt(totalAmt)}</b></span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead><tr className="bg-warm/30 border-b border-border">
-                {['年度', '补贴项目', '面积', '申请金额', '实发金额', '状态'].map(h => (
-                  <th key={h} className="px-4 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap">{h}</th>
-                ))}
-              </tr></thead>
+          <div className="overflow-x-auto max-h-[196px] overflow-y-auto">
+            <table className="w-full border-collapse text-[11px]">
+              <thead className="sticky top-0">
+                <tr className="bg-[#F6F1E7] text-[#8C877A] text-[10px] text-left">
+                  {['年度', '补贴项目', '面积', '申请金额', '实发金额', '状态'].map(h => (
+                    <th key={h} className="font-medium px-2.5 py-1.5 whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
               <tbody>
                 {apps.map((a, idx) => (
-                  <tr key={a.id ?? `app-${a.farmer_id}-${a.apply_year}-${a.subsidy_name}`} className="border-b border-border/50 hover:bg-warm/30 transition-colors">
-                    <td className="px-4 py-2 text-sm font-bold text-primary">{a.apply_year}</td>
-                    <td className="px-4 py-2 text-sm">{a.subsidy_name}</td>
-                    <td className="px-4 py-2 text-sm font-mono">{a.apply_area ? `${a.apply_area}亩` : '—'}</td>
-                    <td className="px-4 py-2 text-sm font-mono text-text-muted">{fmt(a.apply_amount)}</td>
-                    <td className="px-4 py-2 text-sm font-mono font-bold" style={{ color: a.actual_amount ? '#059669' : '#d97706' }}>
+                  <tr key={a.id ?? `app-${a.farmer_id}-${a.apply_year}-${a.subsidy_name}`}
+                    className="border-t border-[#F2EDE3] hover:bg-[#F7FAF8] transition-colors">
+                    <td className="px-2.5 py-1.5 font-semibold text-primary">{a.apply_year}</td>
+                    <td className="px-2.5 py-1.5">{a.subsidy_name}</td>
+                    <td className="px-2.5 py-1.5 font-mono text-right">{a.apply_area ? `${a.apply_area}` : '—'}</td>
+                    <td className="px-2.5 py-1.5 font-mono text-text-muted text-right">{a.apply_amount ? fmt(a.apply_amount) : '—'}</td>
+                    <td className="px-2.5 py-1.5 font-mono font-semibold text-right" style={{ color: a.actual_amount ? '#2C6B52' : '#B8863B' }}>
                       {a.actual_amount ? fmt(a.actual_amount) : '待发放'}
                     </td>
-                    <td className="px-4 py-2"><Tag label={PAY_STATUS[a.pay_status]?.label} color={PAY_STATUS[a.pay_status]?.color as 'green'} /></td>
+                    <td className="px-2.5 py-1.5">
+                      <span className={`text-[9px] rounded-full px-1.5 py-[1px] ${a.pay_status === 2 ? 'bg-[#EDF3EF] text-[#2C6B52]' : a.pay_status === 1 ? 'bg-[#F6EEDC] text-[#8A6620]' : 'bg-[#F1EDE4] text-[#6B6B60]'}`}>
+                        {PAY_STATUS[a.pay_status]?.label || '—'}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-          <div className="px-4 py-2 bg-primary-500/5 border-t border-primary-500/10 flex justify-end gap-6 text-sm">
-            <span className="text-text-muted">合计 {apps.length} 笔</span>
-            <span className="font-bold font-mono text-primary">¥{totalAmt.toFixed(2)}</span>
           </div>
         </div>
       )}

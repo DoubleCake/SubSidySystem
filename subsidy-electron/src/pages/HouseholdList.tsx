@@ -1,5 +1,8 @@
 /**
  * 户籍管理页 - 家庭户列表组件
+ *
+ * 画布样式：首行「户名 + 状态/超领标签」，次行「村组 · 编码 · 人数 · 面积」。
+ * 合并模式与批量确认模式沿用同一行骨架，只切换左侧选择控件。
  */
 import type { HH } from '../types'
 
@@ -17,6 +20,19 @@ export interface HouseholdListProps {
   onToggleBatch: (h: HH) => void
 }
 
+const AVATAR_TONES = [
+  'bg-[#1A4D3A] text-[#E6C288]',
+  'bg-[#F6EEDC] text-[#8A6620]',
+  'bg-[#EDF3EF] text-[#1A4D3A]',
+  'bg-[#E3EEF2] text-[#2E6478]',
+  'bg-[#F1EDE4] text-[#5A5A4F]',
+]
+
+function tone(name: string) {
+  const code = name.charCodeAt(0) || 0
+  return AVATAR_TONES[code % AVATAR_TONES.length]
+}
+
 export default function HouseholdList({
   households,
   loading,
@@ -30,123 +46,106 @@ export default function HouseholdList({
   onToggleMerge,
   onToggleBatch,
 }: HouseholdListProps) {
+  const rowBody = (h: HH) => (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`w-6 h-6 rounded-card flex items-center justify-center text-[10px] font-bold shrink-0 ${tone(h.household_name)}`}>
+            {h.household_name?.slice(0, 1) || '—'}
+          </span>
+          <b className="text-[12.5px] text-text-primary truncate">{h.household_name}</b>
+          {h.is_manually_confirmed === 1 && (
+            <span className="text-[9px] bg-[#EDF3EF] text-[#2C6B52] rounded-[2px] px-1 shrink-0">已确认</span>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          {(h.overdrawn_years?.length ?? 0) > 0
+            ? h.overdrawn_years!.slice(0, 2).map(y => (
+                <span key={y} className="text-[9px] bg-[#FDECEA] text-danger rounded-[2px] px-1">{y}超领</span>
+              ))
+            : h.is_overdrawn && <span className="text-[9px] bg-[#FDECEA] text-danger rounded-[2px] px-1">超领</span>}
+        </div>
+      </div>
+      <div className="text-[10px] text-[#8C877A] mt-[3px] pl-[32px] truncate">
+        {h.village_full_name || '—'}
+        <span className="mx-1">·</span>
+        <span className="font-mono">{h.household_code}</span>
+        <span className="mx-1">·</span>
+        {h.member_count ?? '?'} 人
+        {h.contracted_area > 0 && <><span className="mx-1">·</span>{h.contracted_area} 亩</>}
+      </div>
+    </>
+  )
+
+  const rowClass = (active: boolean, extra = '') =>
+    `cursor-pointer border-b border-[#F2EDE3] transition-colors ${extra} ${
+      active ? 'bg-[#F3F7F4] border-l-[3px] border-l-primary pl-[13px] pr-2.5' : 'pl-4 pr-2.5 hover:bg-[#F7FAF8]'
+    }`
+
   return (
     <>
-      {/* 合并模式：已选家庭户固定置顶显示 */}
+      {/* 合并模式：已选家庭户固定置顶 */}
       {mergeMode && mergeSelectedHouseholds.length > 0 && (
-        <div className="border-b-2 border-orange-tag/20 bg-orange-tag/5">
-          <div className="px-4 py-1.5 text-xs text-orange-tag font-semibold border-b border-orange-tag/10 flex items-center gap-1">
+        <div className="bg-[#FDFAF3] border-b border-[#E8D8B8]">
+          <div className="px-3 py-1 text-[9.5px] text-[#8A6620] font-semibold flex items-center gap-1">
             <span>已选（搜索不影响）</span>
-            <span className="bg-orange-tag/15 text-amber-800 rounded-full px-1.5 py-0.5 ml-1">{mergeSelectedHouseholds.length}</span>
+            <span className="bg-[#F6EEDC] rounded-full px-1.5">{mergeSelectedHouseholds.length}</span>
           </div>
           {mergeSelectedHouseholds.map((h, i) => (
-            <div key={`pinned-${h.id}`} className="px-4 py-2.5 border-b border-orange-tag/10 flex items-center gap-2.5 bg-orange-tag/5">
-              <span className={`text-xs font-bold px-1.5 py-0.5 rounded shrink-0 ${i === 0 ? 'bg-primary-500 text-white' : 'bg-orange-tag/15 text-amber-800'}`}>
+            <div key={`pinned-${h.id}`} className="px-3 py-2 border-t border-[#F0E6D2] flex items-center gap-2">
+              <span className={`text-[9px] font-bold px-1 py-[1px] rounded-[2px] shrink-0 ${i === 0 ? 'bg-primary text-[#F7F3E7]' : 'bg-[#F6EEDC] text-[#8A6620]'}`}>
                 {i === 0 ? '目标' : `被合并${i}`}
               </span>
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-sm text-text-primary truncate">{h.household_name}</div>
-                <div className="text-xs text-text-muted">{h.head_name} · {h.member_count ?? '?'}人 · {h.village_full_name}</div>
+                <div className="text-[11.5px] font-semibold truncate">{h.household_name}</div>
+                <div className="text-[9.5px] text-text-muted truncate">{h.head_name} · {h.member_count ?? '?'} 人 · {h.village_full_name}</div>
               </div>
               <button onClick={() => onToggleMerge(h)}
-                className="shrink-0 text-text-muted hover:text-red-500 transition-colors text-lg leading-none px-1">×</button>
+                className="shrink-0 text-text-muted hover:text-danger text-base leading-none px-1">×</button>
             </div>
           ))}
         </div>
       )}
-      {loading && <div className="text-center py-12 text-text-muted/50">加载中…</div>}
-      {!loading && households.length === 0 && <div className="text-center py-12 text-text-muted/50 text-sm">暂无数据</div>}
+
+      {loading && <div className="text-center py-12 text-text-muted/60 text-xs">加载中…</div>}
+      {!loading && households.length === 0 && <div className="text-center py-12 text-text-muted/60 text-xs">暂无数据</div>}
+
       {households.map(h => {
         const isSelected = mergeSelected.includes(h.id)
         const isBatchSelected = batchSelected.includes(h.id)
         if (mergeMode && isSelected) return null
+
         if (batchConfirmMode) {
-          // 批量确认模式：显示复选框，已确认的显示为禁用状态
+          const done = h.is_manually_confirmed === 1
           return (
             <div key={h.id}
-              className={`px-5 py-4 border-b border-border/50 transition-all
-                ${h.is_manually_confirmed === 1 ? 'bg-warm/30 opacity-60' : 'hover:bg-blue-50 cursor-pointer'}
-                ${isBatchSelected && h.is_manually_confirmed !== 1 ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}`}>
-              <div className="flex items-center gap-3">
-                <input type="checkbox"
-                  checked={isBatchSelected}
-                  onChange={() => h.is_manually_confirmed !== 1 && onToggleBatch(h)}
-                  disabled={h.is_manually_confirmed === 1}
-                  className="w-4 h-4 text-blue-600 rounded disabled:opacity-40" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2.5 mb-1.5">
-                    <span className="font-semibold text-base text-text-primary">{h.household_name}</span>
-                    <span className="text-xs font-mono text-primary bg-primary-500/5 px-2 py-0.5 rounded border border-primary-500/20">{h.household_code}</span>
-                    {h.is_manually_confirmed === 1 && <span className="text-xs text-primary font-medium bg-primary-500/10 px-2 py-0.5 rounded-full">✓已确认</span>}
-                    {(h.overdrawn_years?.length ?? 0) > 0 && h.overdrawn_years!.map(y => (
-                      <span key={y} className="text-xs text-red-600 font-medium bg-red-100 px-1.5 py-0.5 rounded">{y}超领</span>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-text-muted">
-                    <span>{h.head_name ? `户主:${h.head_name}` : '无户主'}</span>
-                    <span className="bg-warm/30 px-2 py-0.5 rounded">{h.member_count}人</span>
-                    <span>{h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'}</span>
-                    <span className="ml-auto truncate max-w-[180px]">{h.village_full_name}</span>
-                  </div>
-                </div>
+              onClick={() => !done && onToggleBatch(h)}
+              className={rowClass(isBatchSelected && !done, done ? 'opacity-60' : '')}>
+              <div className="flex items-start gap-2">
+                <input type="checkbox" checked={isBatchSelected} disabled={done}
+                  onChange={() => !done && onToggleBatch(h)}
+                  className="mt-1 w-3.5 h-3.5 accent-[#1A4D3A] shrink-0" />
+                <div className="flex-1 min-w-0">{rowBody(h)}</div>
               </div>
             </div>
           )
         }
+
         if (mergeMode) {
           return (
-            <div key={h.id}
-              onClick={() => onToggleMerge(h)}
-              className={`px-5 py-4 border-b border-border/50 cursor-pointer transition-all
-                ${isSelected ? 'border-l-4 border-l-amber-500 bg-orange-tag/5' : 'hover:bg-warm/30'}
-                ${h.is_overdrawn && !isSelected ? 'bg-red-50/40' : ''}`}>
-              <div className="flex items-center gap-3">
+            <div key={h.id} onClick={() => onToggleMerge(h)} className={rowClass(isSelected)}>
+              <div className="flex items-start gap-2">
                 <input type="checkbox" checked={isSelected} onChange={() => onToggleMerge(h)}
-                  className="w-4 h-4 text-orange-tag rounded" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2.5 mb-1.5">
-                    <span className="font-semibold text-base text-text-primary">{h.household_name}</span>
-                    <span className="text-xs font-mono text-primary bg-primary-500/5 px-2 py-0.5 rounded border border-primary-500/20">{h.household_code}</span>
-                    {h.is_manually_confirmed === 1 && <span className="text-xs text-primary font-medium bg-primary-500/10 px-2 py-0.5 rounded-full">✓已确认</span>}
-                    {(h.overdrawn_years?.length ?? 0) > 0 && h.overdrawn_years!.map(y => (
-                      <span key={y} className="text-xs text-red-600 font-medium bg-red-100 px-1.5 py-0.5 rounded">{y}超领</span>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-text-muted">
-                    <span>{h.head_name ? `户主:${h.head_name}` : '无户主'}</span>
-                    <span className="bg-warm/30 px-2 py-0.5 rounded">{h.member_count}人</span>
-                    <span>{h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'}</span>
-                    <span className="ml-auto truncate max-w-[180px]">{h.village_full_name}</span>
-                  </div>
-                </div>
+                  className="mt-1 w-3.5 h-3.5 accent-[#1A4D3A] shrink-0" />
+                <div className="flex-1 min-w-0">{rowBody(h)}</div>
               </div>
             </div>
           )
         }
+
         return (
-          <div key={h.id}
-            onClick={() => onSelect(h.id)}
-            className={`px-5 py-4 border-b border-border/50 cursor-pointer transition-all hover:bg-warm/30
-              ${h.is_overdrawn ? 'bg-red-50/40' : ''}`}
-            style={selectedId === h.id ? {
-              backgroundImage: 'url(images/focus.png)',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            } : undefined}>
-            <div className="flex items-center gap-2.5 mb-1.5">
-              <span className="font-semibold text-base text-text-primary">{h.household_name}</span>
-              <span className="text-xs font-mono text-primary bg-primary-500/5 px-2 py-0.5 rounded border border-primary-500/20">{h.household_code}</span>
-              {h.is_manually_confirmed === 1 && <span className="text-xs text-primary font-medium bg-primary-500/10 px-2 py-0.5 rounded-full">✓已确认</span>}
-              {(h.overdrawn_years?.length ?? 0) > 0 && h.overdrawn_years!.map(y => (
-                <span key={y} className="text-xs text-red-600 font-medium bg-red-100 px-1.5 py-0.5 rounded">{y}超领</span>
-              ))}
-            </div>
-            <div className="flex items-center gap-4 text-xs text-text-muted">
-              <span>{h.head_name ? `户主:${h.head_name}` : '无户主'}</span>
-              <span className="bg-warm/30 px-2 py-0.5 rounded">{h.member_count}人</span>
-              <span>{h.contracted_area > 0 ? `${h.contracted_area}亩` : '—'}</span>
-              <span className="ml-auto truncate max-w-[180px]">{h.village_full_name}</span>
-            </div>
+          <div key={h.id} onClick={() => onSelect(h.id)} className={rowClass(selectedId === h.id)} style={{ paddingTop: 9, paddingBottom: 9 }}>
+            {rowBody(h)}
           </div>
         )
       })}
