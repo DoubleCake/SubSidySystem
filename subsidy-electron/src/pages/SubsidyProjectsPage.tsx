@@ -30,36 +30,36 @@ const SEASON_COLORS: Record<string, {
   gradient: string; badge: string; icon: string; chart: string
 }> = {
   '耕地地力保护': {
-    gradient: 'from-emerald-400 via-emerald-500 to-teal-500',
-    badge: 'bg-emerald-500 text-white shadow-sm shadow-emerald-300',
-    icon: '🌱', chart: 'text-emerald-600',
+    gradient: 'from-[#1A4D3A] to-[#2C6B52]',
+    badge: 'bg-[#1A4D3A] text-white shadow-sm',
+    icon: '🌱', chart: 'text-[#1A5C46]',
   },
   '大春': {
-    gradient: 'from-amber-400 via-orange-500 to-rose-500',
-    badge: 'bg-orange-500 text-white shadow-sm shadow-orange-300',
-    icon: '🌻', chart: 'text-orange-600',
+    gradient: 'from-[#1A4D3A] to-[#2C6B52]',
+    badge: 'bg-[#1A4D3A] text-white shadow-sm',
+    icon: '🌻', chart: 'text-[#1A4D3A]',
   },
   '小春': {
-    gradient: 'from-sky-400 via-blue-500 to-indigo-500',
-    badge: 'bg-blue-500 text-white shadow-sm shadow-blue-300',
-    icon: '🌾', chart: 'text-blue-600',
+    gradient: 'from-[#B8863B] to-[#C9A24A]',
+    badge: 'bg-[#B8863B] text-white shadow-sm',
+    icon: '🌾', chart: 'text-[#8A6620]',
   },
   '全年单补': {
-    gradient: 'from-violet-400 via-purple-500 to-fuchsia-500',
-    badge: 'bg-purple-500 text-white shadow-sm shadow-purple-300',
-    icon: '📋', chart: 'text-purple-600',
+    gradient: 'from-[#2E6478] to-[#4A8FA8]',
+    badge: 'bg-[#2E6478] text-white shadow-sm',
+    icon: '📋', chart: 'text-[#2E6478]',
   },
   '临时': {
-    gradient: 'from-rose-400 via-pink-500 to-red-500',
-    badge: 'bg-pink-500 text-white shadow-sm shadow-pink-300',
-    icon: '⚡', chart: 'text-pink-600',
+    gradient: 'from-[#8A4B3A] to-[#B5654F]',
+    badge: 'bg-[#8A4B3A] text-white shadow-sm',
+    icon: '⚡', chart: 'text-[#8A4B3A]',
   },
 }
 
 const DEFAULT_COLOR = {
-  gradient: 'from-gray-400 via-slate-500 to-gray-600',
-  badge: 'bg-slate-500 text-white shadow-sm shadow-slate-300',
-  icon: '📦', chart: 'text-slate-600',
+  gradient: 'from-[#C9C2B2] to-[#B9B3A4]',
+  badge: 'bg-[#B9B3A4] text-white shadow-sm',
+  icon: '📦', chart: 'text-text-muted',
 }
 
 function getSeasonStyle(season: string | null) {
@@ -339,13 +339,13 @@ export default function SubsidyProjectsPage() {
   return (
     <div className="space-y-5">
       {/* ═══ 顶部横幅 ═══ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 p-6 shadow-lg shadow-emerald-200/50">
+      <div className="relative overflow-hidden rounded-card ui-hero px-6 py-5">
         <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10" />
         <div className="absolute -bottom-6 -left-6 w-28 h-28 rounded-full bg-white/5" />
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-white drop-shadow-sm">📋 补贴项目</h1>
-            <p className="text-emerald-50/80 text-sm mt-1">管理年度补贴项目，查看人员明细与发放记录</p>
+            <p className="text-white/65 text-[12px] mt-1">管理年度补贴项目，查看人员明细与发放记录</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <div className="px-3 py-1.5 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 text-white text-center min-w-[64px]">
@@ -371,8 +371,8 @@ export default function SubsidyProjectsPage() {
             <button key={y} onClick={() => handleYearChange(y)}
               className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200
                 ${yearFilter === y
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-200'
-                  : 'text-text-muted hover:text-emerald-600 hover:bg-emerald-50'}`}>
+                  ? 'ui-btn-primary text-white'
+                  : 'text-text-muted hover:text-primary hover:bg-[#F3F7F4]'}`}>
               {y}年
             </button>
           ))}
@@ -381,7 +381,7 @@ export default function SubsidyProjectsPage() {
         <div className="flex-1" />
 
         <button onClick={openAdd}
-          className="group inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium rounded-xl shadow-md shadow-emerald-200/50 hover:shadow-lg hover:shadow-emerald-200/70 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200">
+          className="group inline-flex items-center gap-2 px-4 py-2 ui-btn-primary text-white font-medium rounded-btn hover:shadow-lg hover:shadow-emerald-200/70 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200">
           <span className="text-lg group-hover:rotate-90 transition-transform duration-300">＋</span>
           <span>新增项目</span>
         </button>
@@ -404,19 +404,19 @@ export default function SubsidyProjectsPage() {
       {/* ═══ 加载 ═══ */}
       {loading && (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
-          <span className="w-8 h-8 border-[3px] border-emerald-400 border-t-transparent rounded-full animate-spin" />
+          <span className="w-8 h-8 border-[3px] border-primary-500 border-t-transparent rounded-full animate-spin" />
           <span className="text-sm text-text-muted/50">加载项目数据…</span>
         </div>
       )}
 
       {/* ═══ 空状态 ═══ */}
       {!loading && types.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border-2 border-dashed border-border">
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-card border border-dashed border-border">
           <span className="text-5xl mb-4">📭</span>
           <p className="text-lg font-medium text-text-muted/50 mb-1">暂无 {yearFilter} 年度补贴项目</p>
           <p className="text-sm text-text-muted/30 mb-4">点击上方「新增项目」开始创建</p>
           <button onClick={openAdd}
-            className="px-5 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl shadow-md hover:shadow-lg transition-all">
+            className="px-5 py-2 ui-btn-primary text-white rounded-btn transition-all">
             ＋ 立即创建
           </button>
         </div>
@@ -433,7 +433,7 @@ export default function SubsidyProjectsPage() {
 
           return (
             <div key={t.id}
-              className="group relative overflow-hidden rounded-2xl bg-white border border-border/60 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5">
+              className="group relative overflow-hidden rounded-card bg-white border border-border shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-0.5">
               {/* 顶部彩色装饰条 */}
               <div className={`h-2 bg-gradient-to-r ${s.gradient}`} />
 
@@ -561,14 +561,14 @@ export default function SubsidyProjectsPage() {
             <span className="text-xs text-text-muted">{deletedTypes.length} 项</span>
           </div>
           {deletedTypes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 bg-white rounded-2xl border-2 border-dashed border-border">
+            <div className="flex flex-col items-center justify-center py-12 bg-white rounded-card border border-dashed border-border">
               <span className="text-4xl mb-2">🗑️</span>
               <p className="text-sm text-text-muted/50">回收站是空的</p>
             </div>
           ) : (
             <div className="grid gap-2">
               {deletedTypes.map(t => (
-                <div key={t.id} className="bg-gradient-to-r from-amber-50/80 to-orange-50/80 border border-amber-200 rounded-2xl p-4 flex items-center gap-4 group hover:shadow-md transition-shadow">
+                <div key={t.id} className="bg-[#FDFAF3] border border-[#E8D8B8] rounded-card p-4 flex items-center gap-4 group hover:shadow-md transition-shadow">
                   <span className="text-2xl">📄</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -578,7 +578,7 @@ export default function SubsidyProjectsPage() {
                     </div>
                   </div>
                   <button onClick={() => restoreProject(t.id)} disabled={restoring === t.id}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-medium rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:hover:translate-y-0 transition-all duration-200">
+                    className="inline-flex items-center gap-1.5 px-4 py-2 ui-btn-primary text-white text-sm font-medium rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:hover:translate-y-0 transition-all duration-200">
                     <span>↩</span>
                     <span>{restoring === t.id ? '恢复中…' : '恢复项目'}</span>
                   </button>
@@ -639,7 +639,7 @@ function ScanDirInput({ projectId }: { projectId: number }) {
       <span className="flex items-center gap-0.5 shrink-0 text-text-muted">📁 本地路径:</span>
       <input value={path} onChange={e => updatePath(e.target.value)}
         placeholder="D:\材料\2024耕地补贴"
-        className="flex-1 bg-white/80 border border-border/60 rounded px-2 py-0.5 text-xs outline-none focus:border-emerald-400 focus:bg-white transition-all placeholder:text-text-muted/30" />
+        className="flex-1 bg-white/80 border border-border/60 rounded px-2 py-0.5 text-xs outline-none focus:border-primary-500 focus:bg-white transition-all placeholder:text-text-muted/30" />
       {path && (
         <span className="text-text-muted font-mono truncate max-w-[200px]" title={path}>📂 {path}</span>
       )}
