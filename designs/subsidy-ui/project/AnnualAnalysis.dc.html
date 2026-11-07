@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>项目年度分析</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body{margin:0}
+  a{color:#1A4D3A;text-decoration:none}
+  a:hover{color:#2C6B52}
+  input::placeholder{color:#9A9588}
+  *{box-sizing:border-box}
+</style>
+</helmet>
+
+<div style="width:1440px;height:900px;background:radial-gradient(circle at 12% 0%,#E8F6F0 0%,rgba(232,246,240,0) 38%),radial-gradient(circle at 92% 100%,#E8F3F8 0%,rgba(232,243,248,0) 34%),#F8F5F0;font-family:'Microsoft YaHei','PingFang SC',-apple-system,'Segoe UI',sans-serif;color:#2B2B26;overflow:hidden;font-size:13px;line-height:1.5">
+  <header style="height:96px;overflow:hidden;background:#F8F5F0;border-bottom:1px solid #E8E2D9">
+    <img src="/_blob/10f58ada1f4cc6d30b2d358df418bc53" alt="农户补贴管理系统" style="width:100%;height:96px;object-fit:cover;object-position:left center;display:block">
+  </header>
+
+  <nav style="height:48px;background:linear-gradient(90deg,#0F3D2E,#1A5C46 55%,#2C7A63);display:flex;align-items:center;padding:0 28px;box-shadow:0 4px 14px rgba(15,61,46,.16);gap:2px">
+    <a href="Main.dc.html" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">首页</a>
+    <a href="Farmers.dc.html" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">农户列表</a>
+    <a href="Subsidies.dc.html" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">补贴总览</a>
+    <a href="AnnualAnalysis.dc.html" style="padding:0 16px;height:48px;display:flex;align-items:center;color:#F7F3E7;font-size:13px;background:rgba(255,255,255,.12);border-bottom:2px solid #D8B567;font-weight:600">数据分析</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">土地流转</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">大户管理</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">补贴查询</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">数据工具</a>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px">
+      <span style="font-size:12px;color:rgba(255,255,255,.7)">王平</span>
+      <div style="width:28px;height:28px;border-radius:99px;background:#E6C288;color:#1A4D3A;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">WP</div>
+    </div>
+  </nav>
+
+  <div style="max-width:1320px;margin:0 auto;padding:16px 24px 18px;display:flex;gap:16px;height:756px">
+    <aside style="width:206px;flex-shrink:0;background:#fff;border:1px solid #E8E2D9;border-radius:8px;padding:10px 8px;height:100%">
+      <div style="font-size:11px;color:#9A9588;letter-spacing:.08em;padding:6px 10px 5px">户籍管理</div>
+      <a href="Farmers.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">农户列表</a>
+      <a href="Household.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">家庭户</a>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">村组联系人</a>
+      <a href="AttributeImport.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">人员属性导入</a>
+      <div style="height:1px;background:#F0EBE1;margin:8px 10px"></div>
+      <div style="font-size:11px;color:#9A9588;letter-spacing:.08em;padding:6px 10px 5px">补贴管理</div>
+      <a href="Subsidies.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">项目总览</a>
+      <a href="AnnualAnalysis.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border-left:3px solid #1A4D3A;background:#EDF3EF;color:#1A4D3A;font-size:12.5px;font-weight:600;border-radius:0 4px 4px 0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 20V9m5 11V4m5 16v-7m5 7V7"/></svg>
+        项目年度分析
+      </a>
+      <a href="Anomalies.dc.html" style="display:flex;align-items:center;justify-content:space-between;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">
+        <span style="display:flex;align-items:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M12 4 2.8 20h18.4L12 4Z"/><path d="M12 10v4M12 17.2v.1"/></svg>
+          异常中心
+        </span>
+        <span style="font-size:10px;background:#D32F2F;color:#fff;border-radius:99px;padding:0 5px;line-height:15px">18</span>
+      </a>
+      <div style="height:1px;background:#F0EBE1;margin:8px 10px"></div>
+      <div style="font-size:11px;color:#9A9588;letter-spacing:.08em;padding:6px 10px 5px">土地与工具</div>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">土地流转台账</a>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">数据预检</a>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">Excel 模板</a>
+    </aside>
+
+    <main style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;height:40px;margin-bottom:8px">
+        <div>
+          <h1 style="margin:0;font-size:20px;font-weight:700;color:#1A4D3A">年度补贴数据分析</h1>
+          <div style="font-size:11px;color:#8C877A;margin-top:2px">沿补贴链观察同一项目在多年间的受益户、面积与金额变化</div>
+        </div>
+        <div style="display:flex;gap:7px">
+          <div style="display:flex;border:1px solid #E8E2D9;border-radius:4px;overflow:hidden">
+            <button style="height:28px;padding:0 11px;border:0;background:#1A4D3A;color:#F7F3E7;font-size:11px;cursor:pointer">预申请</button>
+            <button style="height:28px;padding:0 11px;border:0;border-left:1px solid #E8E2D9;background:#fff;color:#5A5A4F;font-size:11px;cursor:pointer">发放记录</button>
+          </div>
+          <button style="height:28px;padding:0 11px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:11px;color:#5A5A4F;cursor:pointer">导出明细</button>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #E8E2D9;border-radius:8px;padding:9px 14px">
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#8C877A">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1A4D3A" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1"/></svg>
+          补贴链
+        </div>
+        <select aria-label="补贴链" style="height:30px;border:1px solid #E8E2D9;border-radius:4px;background:#fff;padding:0 8px;font-size:12px;color:#2B2B26;min-width:210px"><option>水稻补贴（2023 - 2026）</option><option>油菜补贴（2024 - 2026）</option></select>
+        <div style="display:flex;gap:5px;margin-left:4px">
+          <span style="font-size:10px;background:#EDF3EF;color:#2C6B52;border-radius:99px;padding:2px 8px">2023</span>
+          <span style="font-size:10px;background:#EDF3EF;color:#2C6B52;border-radius:99px;padding:2px 8px">2024</span>
+          <span style="font-size:10px;background:#EDF3EF;color:#2C6B52;border-radius:99px;padding:2px 8px">2025</span>
+          <span style="font-size:10px;background:#1A4D3A;color:#F7F3E7;border-radius:99px;padding:2px 8px">2026</span>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <select aria-label="观察维度" style="height:28px;border:1px solid #E8E2D9;border-radius:4px;background:#fff;padding:0 7px;font-size:11px;color:#5A5A4F"><option>按农户</option><option>按家庭户</option></select>
+          <button style="height:28px;padding:0 9px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:11px;color:#5A5A4F;cursor:pointer">刷新</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:10px">
+        <div style="background:#fff;border:1px solid #E8E2D9;border-radius:8px;padding:9px 12px"><div style="font-size:10.5px;color:#8C877A">链上年份</div><div style="font-size:19px;font-weight:700;margin-top:1px">4 <span style="font-size:10px;font-weight:400;color:#9A9588">年</span></div><div style="font-size:9.5px;color:#9A9588">2023 - 2026</div></div>
+        <div style="background:#fff;border:1px solid #E8E2D9;border-radius:8px;padding:9px 12px"><div style="font-size:10.5px;color:#8C877A">2026 受益农户</div><div style="font-size:19px;font-weight:700;margin-top:1px">1,246</div><div style="font-size:9.5px;color:#2C6B52">较上年 +38 户</div></div>
+        <div style="background:#fff;border:1px solid #E8E2D9;border-radius:8px;padding:9px 12px"><div style="font-size:10.5px;color:#8C877A">链上累计金额</div><div style="font-size:19px;font-weight:700;margin-top:1px">¥3,284,600</div><div style="font-size:9.5px;color:#9A9588">4 年合计</div></div>
+        <div style="background:#fff;border:1px solid #E8E2D9;border-radius:8px;padding:9px 12px"><div style="font-size:10.5px;color:#8C877A">2026 较上年</div><div style="font-size:19px;font-weight:700;margin-top:1px;color:#2C6B52">+8.2%</div><div style="font-size:9.5px;color:#9A9588">金额增长</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:10px;margin-top:10px;height:204px;flex-shrink:0">
+        <div style="background:#fff;border:1px solid #E8E2D9;border-radius:8px;padding:10px 14px;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:12.5px;font-weight:700">逐年趋势</div>
+            <div style="display:flex;gap:12px;font-size:9.5px;color:#8C877A">
+              <span><i style="display:inline-block;width:7px;height:7px;background:#1A4D3A;border-radius:1px;margin-right:4px"></i>金额</span>
+              <span><i style="display:inline-block;width:9px;height:2px;background:#C9A24A;margin-right:4px;vertical-align:middle"></i>受益户</span>
+            </div>
+          </div>
+          <svg role="img" aria-label="2023 至 2026 年补贴金额与受益户趋势" viewBox="0 0 720 140" style="width:100%;height:150px;margin-top:2px">
+            <line x1="42" y1="115" x2="700" y2="115" stroke="#E8E2D9" stroke-width="1"/>
+            <line x1="42" y1="80" x2="700" y2="80" stroke="#F2EDE3" stroke-width="1" stroke-dasharray="3 4"/>
+            <line x1="42" y1="45" x2="700" y2="45" stroke="#F2EDE3" stroke-width="1" stroke-dasharray="3 4"/>
+            <line x1="42" y1="10" x2="700" y2="10" stroke="#F2EDE3" stroke-width="1" stroke-dasharray="3 4"/>
+            <text x="8" y="118" font-size="9" fill="#9A9588">0</text>
+            <text x="4" y="83" font-size="9" fill="#9A9588">25万</text>
+            <text x="4" y="48" font-size="9" fill="#9A9588">50万</text>
+            <text x="4" y="13" font-size="9" fill="#9A9588">75万</text>
+            <rect x="100" y="76" width="52" height="39" fill="#1A4D3A" opacity=".85" rx="1"/>
+            <rect x="270" y="58" width="52" height="57" fill="#1A4D3A" opacity=".85" rx="1"/>
+            <rect x="440" y="44" width="52" height="71" fill="#1A4D3A" opacity=".85" rx="1"/>
+            <rect x="610" y="36" width="52" height="79" fill="#1A4D3A" rx="1"/>
+            <polyline points="126,92 296,82 466,70 636,64" fill="none" stroke="#C9A24A" stroke-width="2"/>
+            <circle cx="126" cy="92" r="3" fill="#C9A24A"/><circle cx="296" cy="82" r="3" fill="#C9A24A"/><circle cx="466" cy="70" r="3" fill="#C9A24A"/><circle cx="636" cy="64" r="3" fill="#C9A24A"/>
+            <text x="116" y="131" font-size="9" fill="#8C877A">2023</text>
+            <text x="286" y="131" font-size="9" fill="#8C877A">2024</text>
+            <text x="456" y="131" font-size="9" fill="#8C877A">2025</text>
+            <text x="626" y="131" font-size="9" fill="#8C877A">2026</text>
+          </svg>
+        </div>
+
+        <div style="background:#fff;border:1px solid #E8E2D9;border-radius:8px;padding:10px 14px">
+          <div style="font-size:12.5px;font-weight:700;margin-bottom:6px">年度对比</div>
+          <div style="display:flex;flex-direction:column;gap:7px;font-size:10.5px">
+            <div><div style="display:flex;justify-content:space-between"><span style="color:#6B6B60">2026</span><b>¥1,010,400</b></div><div style="height:4px;background:#F2EDE3;border-radius:99px;margin-top:3px"><div style="height:4px;width:100%;background:#1A4D3A;border-radius:99px"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between"><span style="color:#6B6B60">2025</span><b>¥972,720</b></div><div style="height:4px;background:#F2EDE3;border-radius:99px;margin-top:3px"><div style="height:4px;width:86%;background:#2C6B52;border-radius:99px"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between"><span style="color:#6B6B60">2024</span><b>¥806,400</b></div><div style="height:4px;background:#F2EDE3;border-radius:99px;margin-top:3px"><div style="height:4px;width:68%;background:#C9A24A;border-radius:99px"></div></div></div>
+            <div><div style="display:flex;justify-content:space-between"><span style="color:#6B6B60">2023</span><b>¥495,080</b></div><div style="height:4px;background:#F2EDE3;border-radius:99px;margin-top:3px"><div style="height:4px;width:42%;background:#C9C2B2;border-radius:99px"></div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#fff;border:1px solid #E8E2D9;border-radius:8px;margin-top:10px;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:7px;padding:8px 12px;border-bottom:1px solid #F2EDE3">
+          <span style="font-size:12.5px;font-weight:700;margin-right:4px">明细矩阵</span>
+          <select aria-label="村" style="height:26px;border:1px solid #E8E2D9;border-radius:4px;background:#fff;padding:0 6px;font-size:10.5px;color:#5A5A4F"><option>全部村</option><option>红星村</option></select>
+          <select aria-label="组" style="height:26px;border:1px solid #E8E2D9;border-radius:4px;background:#fff;padding:0 6px;font-size:10.5px;color:#5A5A4F"><option>全部组</option><option>二组</option></select>
+          <select aria-label="波动" style="height:26px;border:1px solid #E8E2D9;border-radius:4px;background:#fff;padding:0 6px;font-size:10.5px;color:#5A5A4F"><option>全部变化</option><option>仅看金额下降</option><option>仅看新增</option></select>
+          <div style="display:flex;align-items:center;gap:5px;border:1px solid #E8E2D9;border-radius:4px;padding:0 7px;height:26px;width:150px">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9A9588" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+            <input aria-label="搜索" placeholder="姓名 / 身份证" style="border:0;outline:0;background:transparent;font-size:10.5px;width:100%;color:#2B2B26">
+          </div>
+          <span style="margin-left:auto;font-size:10px;color:#9A9588">共 1,246 人 · 按 2026 金额排序</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead><tr style="background:#F6F1E7;color:#8C877A;font-size:10px;text-align:left;height:28px">
+            <th style="font-weight:500;padding:0 12px">农户</th>
+            <th style="font-weight:500;padding:0 6px">村组</th>
+            <th style="font-weight:500;padding:0 6px;text-align:right">2023</th>
+            <th style="font-weight:500;padding:0 6px;text-align:right">2024</th>
+            <th style="font-weight:500;padding:0 6px;text-align:right">2025</th>
+            <th style="font-weight:500;padding:0 6px;text-align:right">2026</th>
+            <th style="font-weight:500;padding:0 6px;text-align:right">合计</th>
+            <th style="font-weight:500;padding:0 6px;text-align:right">变化</th>
+            <th style="font-weight:500;padding:0 12px">趋势</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-top:1px solid #F2EDE3;height:36px"><td style="padding:0 12px;font-weight:600">侯武碧</td><td style="padding:0 6px;color:#6B6B60">红星村二组</td><td style="padding:0 6px;text-align:right">¥720</td><td style="padding:0 6px;text-align:right">¥960</td><td style="padding:0 6px;text-align:right">¥1,620</td><td style="padding:0 6px;text-align:right;font-weight:600">¥1,305</td><td style="padding:0 6px;text-align:right">¥4,605</td><td style="padding:0 6px;text-align:right;color:#2C6B52">+8.2%</td><td style="padding:0 12px"><svg width="54" height="14" viewBox="0 0 54 14" aria-hidden="true"><polyline points="2,11 18,8 34,4 52,6" fill="none" stroke="#2C6B52" stroke-width="1.5"/></svg></td></tr>
+            <tr style="border-top:1px solid #F2EDE3;height:36px"><td style="padding:0 12px;font-weight:600">李玉波</td><td style="padding:0 6px;color:#6B6B60">幸福村一组</td><td style="padding:0 6px;text-align:right">—</td><td style="padding:0 6px;text-align:right">¥640</td><td style="padding:0 6px;text-align:right">¥1,080</td><td style="padding:0 6px;text-align:right;font-weight:600">¥1,240</td><td style="padding:0 6px;text-align:right">¥2,960</td><td style="padding:0 6px;text-align:right;color:#2C6B52">+14.8%</td><td style="padding:0 12px"><svg width="54" height="14" viewBox="0 0 54 14" aria-hidden="true"><polyline points="2,12 18,9 34,5 52,3" fill="none" stroke="#2C6B52" stroke-width="1.5"/></svg></td></tr>
+            <tr style="border-top:1px solid #F2EDE3;height:36px"><td style="padding:0 12px;font-weight:600">张仁全</td><td style="padding:0 6px;color:#6B6B60">青山村三组</td><td style="padding:0 6px;text-align:right">¥480</td><td style="padding:0 6px;text-align:right">¥560</td><td style="padding:0 6px;text-align:right">¥620</td><td style="padding:0 6px;text-align:right;font-weight:600">¥372</td><td style="padding:0 6px;text-align:right">¥2,032</td><td style="padding:0 6px;text-align:right;color:#D32F2F">-12.4%</td><td style="padding:0 12px"><svg width="54" height="14" viewBox="0 0 54 14" aria-hidden="true"><polyline points="2,6 18,5 34,3 52,10" fill="none" stroke="#D32F2F" stroke-width="1.5"/></svg></td></tr>
+            <tr style="border-top:1px solid #F2EDE3;height:36px"><td style="padding:0 12px;font-weight:600">凡力兵</td><td style="padding:0 6px;color:#6B6B60">民主村二组</td><td style="padding:0 6px;text-align:right">¥360</td><td style="padding:0 6px;text-align:right">¥420</td><td style="padding:0 6px;text-align:right">¥450</td><td style="padding:0 6px;text-align:right;font-weight:600">¥480</td><td style="padding:0 6px;text-align:right">¥1,710</td><td style="padding:0 6px;text-align:right;color:#2C6B52">+6.7%</td><td style="padding:0 12px"><svg width="54" height="14" viewBox="0 0 54 14" aria-hidden="true"><polyline points="2,10 18,9 34,7 52,5" fill="none" stroke="#2C6B52" stroke-width="1.5"/></svg></td></tr>
+            <tr style="border-top:1px solid #F2EDE3;height:36px"><td style="padding:0 12px;font-weight:600">王秀兰</td><td style="padding:0 6px;color:#6B6B60">红星村一组</td><td style="padding:0 6px;text-align:right">¥240</td><td style="padding:0 6px;text-align:right">¥300</td><td style="padding:0 6px;text-align:right">¥320</td><td style="padding:0 6px;text-align:right;font-weight:600">¥336</td><td style="padding:0 6px;text-align:right">¥1,196</td><td style="padding:0 6px;text-align:right;color:#2C6B52">+5.0%</td><td style="padding:0 12px"><svg width="54" height="14" viewBox="0 0 54 14" aria-hidden="true"><polyline points="2,11 18,9 34,7 52,6" fill="none" stroke="#2C6B52" stroke-width="1.5"/></svg></td></tr>
+            <tr style="border-top:1px solid #F2EDE3;height:36px"><td style="padding:0 12px;font-weight:600">周德明</td><td style="padding:0 6px;color:#6B6B60">新建村一组</td><td style="padding:0 6px;text-align:right">¥320</td><td style="padding:0 6px;text-align:right">¥360</td><td style="padding:0 6px;text-align:right">—</td><td style="padding:0 6px;text-align:right;font-weight:600">¥420</td><td style="padding:0 6px;text-align:right">¥1,100</td><td style="padding:0 6px;text-align:right;color:#2C6B52">新增</td><td style="padding:0 12px"><svg width="54" height="14" viewBox="0 0 54 14" aria-hidden="true"><polyline points="2,12 18,10 34,10 52,4" fill="none" stroke="#C9A24A" stroke-width="1.5"/></svg></td></tr>
+          </tbody>
+        </table>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-top:1px solid #E8E2D9;font-size:10px;color:#8C877A;margin-top:auto">
+          <span>当前显示 6 / 1,246 条</span>
+          <div style="display:flex;align-items:center;gap:4px"><button style="height:22px;padding:0 7px;border:1px solid #E8E2D9;background:#fff;border-radius:3px;font-size:10px;color:#C9C2B2" disabled>上一页</button><span style="background:#1A4D3A;color:#F7F3E7;border-radius:3px;padding:1px 6px">1</span><span style="padding:1px 4px">2</span><span style="padding:1px 4px">…</span><span style="padding:1px 4px">208</span><button style="height:22px;padding:0 7px;border:1px solid #E8E2D9;background:#fff;border-radius:3px;font-size:10px;color:#5A5A4F">下一页</button></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

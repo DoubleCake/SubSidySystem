@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>补贴 · 项目总览</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body{margin:0}
+  a{color:#1A4D3A;text-decoration:none}
+  a:hover{color:#2C6B52}
+  input::placeholder{color:#9A9588}
+  *{box-sizing:border-box}
+</style>
+</helmet>
+
+<div style="width:1440px;height:900px;background:radial-gradient(circle at 12% 0%,#E8F6F0 0%,rgba(232,246,240,0) 38%),radial-gradient(circle at 92% 100%,#E8F3F8 0%,rgba(232,243,248,0) 34%),#F8F5F0;font-family:'Microsoft YaHei','PingFang SC',-apple-system,'Segoe UI',sans-serif;color:#2B2B26;overflow:hidden;font-size:13px;line-height:1.5">
+  <header style="height:96px;overflow:hidden;background:#F8F5F0;border-bottom:1px solid #E8E2D9">
+    <img src="/_blob/10f58ada1f4cc6d30b2d358df418bc53" alt="农户补贴管理系统" style="width:100%;height:96px;object-fit:cover;object-position:left center;display:block">
+  </header>
+
+  <nav style="height:48px;background:linear-gradient(90deg,#0F3D2E,#1A5C46 55%,#2C7A63);display:flex;align-items:center;padding:0 28px;box-shadow:0 4px 14px rgba(15,61,46,.16);gap:2px">
+    <a href="Main.dc.html" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">首页</a>
+    <a href="Farmers.dc.html" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">农户列表</a>
+    <a href="Subsidies.dc.html" style="padding:0 16px;height:48px;display:flex;align-items:center;color:#F7F3E7;font-size:13px;background:rgba(255,255,255,.12);border-bottom:2px solid #D8B567;font-weight:600">补贴总览</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">数据分析</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">土地流转</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">大户管理</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">补贴查询</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">数据工具</a>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px">
+      <span style="font-size:12px;color:rgba(255,255,255,.7)">王平</span>
+      <div style="width:28px;height:28px;border-radius:99px;background:#E6C288;color:#1A4D3A;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">WP</div>
+    </div>
+  </nav>
+
+  <div style="max-width:1320px;margin:0 auto;padding:16px 24px 18px;display:flex;gap:16px;height:756px">
+    <aside style="width:206px;flex-shrink:0;background:#fff;border:1px solid #E8E2D9;border-radius:8px;padding:10px 8px;height:100%">
+      <div style="font-size:11px;color:#9A9588;letter-spacing:.08em;padding:6px 10px 5px">户籍管理</div>
+      <a href="Farmers.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">农户列表</a>
+      <a href="Household.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">家庭户</a>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">村组联系人</a>
+      <a href="AttributeImport.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">人员属性导入</a>
+      <div style="height:1px;background:#F0EBE1;margin:8px 10px"></div>
+      <div style="font-size:11px;color:#9A9588;letter-spacing:.08em;padding:6px 10px 5px">补贴管理</div>
+      <a href="Subsidies.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border-left:3px solid #1A4D3A;background:#EDF3EF;color:#1A4D3A;font-size:12.5px;font-weight:600;border-radius:0 4px 4px 0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16v12H4z"/><path d="M8 10h8M8 14h5"/></svg>
+        项目总览
+      </a>
+      <a href="AnnualAnalysis.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">项目年度分析</a>
+      <a href="Anomalies.dc.html" style="display:flex;align-items:center;justify-content:space-between;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">
+        <span style="display:flex;align-items:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M12 4 2.8 20h18.4L12 4Z"/><path d="M12 10v4M12 17.2v.1"/></svg>
+          异常中心
+        </span>
+        <span style="font-size:10px;background:#D32F2F;color:#fff;border-radius:99px;padding:0 5px;line-height:15px">18</span>
+      </a>
+      <div style="height:1px;background:#F0EBE1;margin:8px 10px"></div>
+      <div style="font-size:11px;color:#9A9588;letter-spacing:.08em;padding:6px 10px 5px">土地与工具</div>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">土地流转台账</a>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">数据预检</a>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">Excel 模板</a>
+    </aside>
+
+    <main style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <!-- 活力横幅 -->
+      <div style="position:relative;height:92px;flex-shrink:0;border-radius:8px;overflow:hidden;background:linear-gradient(90deg,#1A4D3A 0%,#2C6B52 55%,#3E8E7E 100%);box-shadow:0 6px 18px rgba(26,77,58,.18)">
+        <div style="position:absolute;right:-30px;top:-42px;width:150px;height:150px;border-radius:99px;background:rgba(255,255,255,.10)"></div>
+        <div style="position:absolute;right:120px;bottom:-52px;width:110px;height:110px;border-radius:99px;background:rgba(230,194,136,.14)"></div>
+        <div style="position:relative;display:flex;align-items:center;height:100%;padding:0 22px">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:30px;height:30px;border-radius:7px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;color:#E6C288">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
+              </div>
+              <h1 style="margin:0;font-size:21px;font-weight:700;color:#fff;letter-spacing:.02em">补贴项目</h1>
+            </div>
+            <div style="font-size:11px;color:rgba(255,255,255,.72);margin-top:4px;padding-left:38px">按年度管理补贴项目，查看人员明细与发放记录</div>
+          </div>
+          <div style="display:flex;gap:8px;margin-left:auto">
+            <div style="min-width:72px;padding:6px 10px;border-radius:6px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);color:#fff;text-align:center">
+              <div style="font-size:18px;font-weight:700;line-height:1.2">6</div><div style="font-size:9.5px;color:rgba(255,255,255,.66)">项目</div>
+            </div>
+            <div style="min-width:82px;padding:6px 10px;border-radius:6px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);color:#fff;text-align:center">
+              <div style="font-size:18px;font-weight:700;line-height:1.2">8,642</div><div style="font-size:9.5px;color:rgba(255,255,255,.66)">受益人次</div>
+            </div>
+            <div style="min-width:112px;padding:6px 10px;border-radius:6px;background:rgba(230,194,136,.2);border:1px solid rgba(230,194,136,.4);color:#fff;text-align:center">
+              <div style="font-size:18px;font-weight:700;line-height:1.2;color:#F6E3BE">¥2,534,100</div><div style="font-size:9.5px;color:rgba(255,255,255,.66)">实发总额</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 年份与操作 -->
+      <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-shrink:0">
+        <div style="display:flex;gap:2px;background:#fff;border:1px solid #E8E2D9;border-radius:6px;padding:3px">
+          <button style="height:26px;padding:0 11px;border:0;border-radius:4px;background:linear-gradient(90deg,#1A4D3A,#2C6B52);color:#F7F3E7;font-size:11.5px;font-weight:600;cursor:pointer">2026 年</button>
+          <button style="height:26px;padding:0 11px;border:0;border-radius:4px;background:transparent;color:#6B6B60;font-size:11.5px;cursor:pointer">2025 年</button>
+          <button style="height:26px;padding:0 11px;border:0;border-radius:4px;background:transparent;color:#6B6B60;font-size:11.5px;cursor:pointer">2024 年</button>
+          <button style="height:26px;padding:0 11px;border:0;border-radius:4px;background:transparent;color:#6B6B60;font-size:11.5px;cursor:pointer">2023 年</button>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:7px">
+          <button style="height:30px;padding:0 13px;border:1px solid #D9A441;background:#FDF8EE;border-radius:5px;font-size:11.5px;color:#8A6620;cursor:pointer">回收站 2</button>
+          <button style="height:30px;padding:0 14px;border:0;border-radius:5px;background:linear-gradient(90deg,#1A4D3A,#2C6B52);color:#F7F3E7;font-size:11.5px;font-weight:600;cursor:pointer;box-shadow:0 4px 10px rgba(26,77,58,.18)">＋ 新增项目</button>
+        </div>
+      </div>
+
+      <!-- 项目卡片 -->
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;flex:1;min-height:0;overflow:hidden">
+        <!-- 水稻补贴 -->
+        <div style="position:relative;background:#fff;border:1px solid #E8E2D9;border-radius:7px;overflow:hidden;box-shadow:0 1px 2px rgba(26,77,58,.05)">
+          <div style="height:3px;background:linear-gradient(90deg,#1A4D3A,#2C6B52)"></div>
+          <div style="padding:8px 13px 7px">
+            <div style="display:flex;align-items:flex-start;gap:9px">
+              <div style="width:34px;height:34px;border-radius:7px;background:#EDF3EF;color:#1A4D3A;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0">稻</div>
+              <div style="min-width:0;flex:1">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                  <b style="font-size:14px;color:#1A4D3A">水稻补贴</b>
+                  <span style="font-size:9px;background:#F1EDE4;color:#6B6B60;border-radius:2px;padding:1px 5px">2026</span>
+                  <span style="font-size:9px;background:#EDF3EF;color:#2C6B52;border-radius:2px;padding:1px 5px">大春</span>
+                  <span style="font-size:9px;background:#F1EDE4;color:#6B6B60;border-radius:2px;padding:1px 5px">按亩计算</span>
+                  <span style="font-size:9px;background:#FDECEA;color:#B3402F;border-radius:2px;padding:1px 5px">中央</span>
+                  <span style="font-size:9px;color:#2C6B52">已发放</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;font-size:10px;color:#6B6B60">
+                  <span style="background:#FBF8F1;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">标准 ¥120.00/亩</span>
+                  <span style="background:#FBF8F1;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">受益 1,246 人</span>
+                  <span style="background:#FBF8F1;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">记录 1,246 条</span>
+                  <span style="background:#FBF8F1;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">应发 ¥1,010,400</span>
+                  <span style="background:#EDF3EF;border:1px solid #DCE9E1;border-radius:3px;padding:1px 6px;color:#2C6B52">实发 ¥960,000</span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+                <a href="PreApply.dc.html" style="height:26px;padding:0 10px;border:0;border-radius:4px;background:linear-gradient(90deg,#1A4D3A,#2C6B52);color:#F7F3E7;font-size:10.5px;font-weight:600;display:flex;align-items:center">查看人员 →</a>
+                <button style="height:26px;padding:0 8px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:10px;color:#6B6B60;cursor:pointer">进度</button>
+                <button style="height:26px;padding:0 8px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:10px;color:#6B6B60;cursor:pointer">编辑</button>
+                <button style="height:26px;padding:0 8px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:10px;color:#B3402F;cursor:pointer">删除</button>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:5px">
+              <span style="font-size:9.5px;color:#8C877A;white-space:nowrap">发放进度</span>
+              <div style="flex:1;height:5px;background:#F2EDE3;border-radius:99px;overflow:hidden"><div style="height:5px;width:95%;background:linear-gradient(90deg,#1A4D3A,#2C6B52);border-radius:99px"></div></div>
+              <span style="font-size:10px;font-weight:700;color:#1A4D3A">95%</span>
+              <span style="font-size:9.5px;color:#9A9588">截止 2026-05-31 · 累计面积</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 油菜补贴 -->
+        <div style="position:relative;background:#fff;border:1px solid #E8E2D9;border-radius:7px;overflow:hidden;box-shadow:0 1px 2px rgba(26,77,58,.05)">
+          <div style="height:3px;background:linear-gradient(90deg,#B8863B,#D9A441)"></div>
+          <div style="padding:8px 13px 7px">
+            <div style="display:flex;align-items:flex-start;gap:9px">
+              <div style="width:34px;height:34px;border-radius:7px;background:#F6EEDC;color:#8A6620;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0">油</div>
+              <div style="min-width:0;flex:1">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                  <b style="font-size:14px;color:#1A4D3A">油菜补贴</b>
+                  <span style="font-size:9px;background:#F1EDE4;color:#6B6B60;border-radius:2px;padding:1px 5px">2026</span>
+                  <span style="font-size:9px;background:#F6EEDC;color:#8A6620;border-radius:2px;padding:1px 5px">小春</span>
+                  <span style="font-size:9px;background:#F1EDE4;color:#6B6B60;border-radius:2px;padding:1px 5px">按亩计算</span>
+                  <span style="font-size:9px;background:#E3EEF2;color:#2E6478;border-radius:2px;padding:1px 5px">省级</span>
+                  <span style="font-size:9px;color:#8A6620">进行中</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;font-size:10px;color:#6B6B60">
+                  <span style="background:#FBF8F1;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">标准 ¥80.00/亩</span>
+                  <span style="background:#FBF8F1;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">受益 986 人</span>
+                  <span style="background:#FBF8F1;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">记录 986 条</span>
+                  <span style="background:#FBF8F1;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">应发 ¥416,640</span>
+                  <span style="background:#FDF8EE;border:1px solid #E8DCC2;border-radius:3px;padding:1px 6px;color:#8A6620">实发 ¥358,400</span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+                <a href="PreApply.dc.html" style="height:26px;padding:0 10px;border:0;border-radius:4px;background:linear-gradient(90deg,#B8863B,#D9A441);color:#fff;font-size:10.5px;font-weight:600;display:flex;align-items:center">查看人员 →</a>
+                <button style="height:26px;padding:0 8px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:10px;color:#6B6B60;cursor:pointer">进度</button>
+                <button style="height:26px;padding:0 8px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:10px;color:#6B6B60;cursor:pointer">编辑</button>
+                <button style="height:26px;padding:0 8px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:10px;color:#B3402F;cursor:pointer">删除</button>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:5px">
+              <span style="font-size:9.5px;color:#8C877A;white-space:nowrap">发放进度</span>
+              <div style="flex:1;height:5px;background:#F2EDE3;border-radius:99px;overflow:hidden"><div style="height:5px;width:86%;background:linear-gradient(90deg,#B8863B,#D9A441);border-radius:99px"></div></div>
+              <span style="font-size:10px;font-weight:700;color:#8A6620">86%</span>
+              <span style="font-size:9.5px;color:#9A9588">截止 2026-06-30 · 累计面积</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 耕地地力 -->
+        <div style="position:relative;background:#fff;border:1px solid #E8E2D9;border-radius:7px;overflow:hidden;box-shadow:0 1px 2px rgba(26,77,58,.05)">
+          <div style="height:3px;background:linear-gradient(90deg,#2E6478,#4A8FA8)"></div>
+          <div style="padding:8px 13px 7px">
+            <div style="display:flex;align-items:flex-start;gap:9px">
+              <div style="width:34px;height:34px;border-radius:7px;background:#E3EEF2;color:#2E6478;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0">地</div>
+              <div style="min-width:0;flex:1">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                  <b style="font-size:14px;color:#1A4D3A">耕地地力保护</b>
+                  <span style="font-size:9px;background:#F1EDE4;color:#6B6B60;border-radius:2px;padding:1px 5px">2026</span>
+                  <span style="font-size:9px;background:#E3EEF2;color:#2E6478;border-radius:2px;padding:1px 5px">全年单补</span>
+                  <span style="font-size:9px;background:#F1EDE4;color:#6B6B60;border-radius:2px;padding:1px 5px">按亩计算</span>
+                  <span style="font-size:9px;background:#EDF3EF;color:#2C6B52;border-radius:2px;padding:1px 5px">县级</span>
+                  <span style="font-size:9px;color:#2C6B52">已发放</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;font-size:10px;color:#6B6B60">
+                  <span style="background:#FBF8F1;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">标准 ¥95.00/亩</span>
+                  <span style="background:#FBF8F1;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">受益 4,920 人</span>
+                  <span style="background:#FBF8F1;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">记录 4,920 条</span>
+                  <span style="background:#FBF8F1;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">应发 ¥1,219,800</span>
+                  <span style="background:#EDF3EF;border:1px solid #DCE9E1;border-radius:3px;padding:1px 6px;color:#2C6B52">实发 ¥1,158,810</span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+                <a href="PreApply.dc.html" style="height:26px;padding:0 10px;border:0;border-radius:4px;background:linear-gradient(90deg,#2E6478,#4A8FA8);color:#fff;font-size:10.5px;font-weight:600;display:flex;align-items:center">查看人员 →</a>
+                <button style="height:26px;padding:0 8px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:10px;color:#6B6B60;cursor:pointer">进度</button>
+                <button style="height:26px;padding:0 8px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:10px;color:#6B6B60;cursor:pointer">编辑</button>
+                <button style="height:26px;padding:0 8px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:10px;color:#B3402F;cursor:pointer">删除</button>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:5px">
+              <span style="font-size:9.5px;color:#8C877A;white-space:nowrap">发放进度</span>
+              <div style="flex:1;height:5px;background:#F2EDE3;border-radius:99px;overflow:hidden"><div style="height:5px;width:95%;background:linear-gradient(90deg,#2E6478,#4A8FA8);border-radius:99px"></div></div>
+              <span style="font-size:10px;font-weight:700;color:#2E6478">95%</span>
+              <span style="font-size:9.5px;color:#9A9588">截止 2026-08-31 · 累计面积</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 抗旱补贴 -->
+        <div style="position:relative;background:#fff;border:1px solid #E8E2D9;border-radius:7px;overflow:hidden;box-shadow:0 1px 2px rgba(26,77,58,.05)">
+          <div style="height:3px;background:linear-gradient(90deg,#8A4B3A,#B5654F)"></div>
+          <div style="padding:8px 13px 7px">
+            <div style="display:flex;align-items:flex-start;gap:9px">
+              <div style="width:34px;height:34px;border-radius:7px;background:#F7E5E0;color:#8A4B3A;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0">抗</div>
+              <div style="min-width:0;flex:1">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                  <b style="font-size:14px;color:#1A4D3A">抗旱补贴</b>
+                  <span style="font-size:9px;background:#F1EDE4;color:#6B6B60;border-radius:2px;padding:1px 5px">2026</span>
+                  <span style="font-size:9px;background:#F7E5E0;color:#8A4B3A;border-radius:2px;padding:1px 5px">临时</span>
+                  <span style="font-size:9px;background:#F1EDE4;color:#6B6B60;border-radius:2px;padding:1px 5px">固定金额</span>
+                  <span style="font-size:9px;background:#FDECEA;color:#B3402F;border-radius:2px;padding:1px 5px">中央</span>
+                  <span style="font-size:9px;color:#8A6620">待发放</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;font-size:10px;color:#6B6B60">
+                  <span style="background:#FBF8F1;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">标准 ¥100.00/户</span>
+                  <span style="background:#FBF8F1;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">受益 128 人</span>
+                  <span style="background:#FBF8F1;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">记录 128 条</span>
+                  <span style="background:#FBF8F1;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">应发 ¥12,800</span>
+                  <span style="background:#FDF8EE;border:1px solid #E8DCC2;border-radius:3px;padding:1px 6px;color:#8A6620">实发 ¥8,200</span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+                <a href="PreApply.dc.html" style="height:26px;padding:0 10px;border:0;border-radius:4px;background:linear-gradient(90deg,#8A4B3A,#B5654F);color:#fff;font-size:10.5px;font-weight:600;display:flex;align-items:center">查看人员 →</a>
+                <button style="height:26px;padding:0 8px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:10px;color:#6B6B60;cursor:pointer">进度</button>
+                <button style="height:26px;padding:0 8px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:10px;color:#6B6B60;cursor:pointer">编辑</button>
+                <button style="height:26px;padding:0 8px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:10px;color:#B3402F;cursor:pointer">删除</button>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:5px">
+              <span style="font-size:9.5px;color:#8C877A;white-space:nowrap">发放进度</span>
+              <div style="flex:1;height:5px;background:#F2EDE3;border-radius:99px;overflow:hidden"><div style="height:5px;width:64%;background:linear-gradient(90deg,#8A4B3A,#B5654F);border-radius:99px"></div></div>
+              <span style="font-size:10px;font-weight:700;color:#8A4B3A">64%</span>
+              <span style="font-size:9.5px;color:#9A9588">截止 2026-09-30 · 不累计面积</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2025 水稻 -->
+        <div style="position:relative;background:#fff;border:1px solid #E8E2D9;border-radius:7px;overflow:hidden;box-shadow:0 1px 2px rgba(26,77,58,.05);opacity:.92">
+          <div style="height:3px;background:linear-gradient(90deg,#C9C2B2,#DCD6C8)"></div>
+          <div style="padding:8px 13px 7px">
+            <div style="display:flex;align-items:flex-start;gap:9px">
+              <div style="width:34px;height:34px;border-radius:7px;background:#F1EDE4;color:#6B6B60;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0">稻</div>
+              <div style="min-width:0;flex:1">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                  <b style="font-size:14px;color:#6B6B60">水稻补贴</b>
+                  <span style="font-size:9px;background:#F1EDE4;color:#8C877A;border-radius:2px;padding:1px 5px">2025</span>
+                  <span style="font-size:9px;background:#F1EDE4;color:#8C877A;border-radius:2px;padding:1px 5px">大春</span>
+                  <span style="font-size:9px;background:#F1EDE4;color:#8C877A;border-radius:2px;padding:1px 5px">按亩计算</span>
+                  <span style="font-size:9px;color:#8C877A">已归档</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;font-size:10px;color:#8C877A">
+                  <span style="background:#FAF8F2;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">标准 ¥120.00/亩</span>
+                  <span style="background:#FAF8F2;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">受益 1,208 人</span>
+                  <span style="background:#FAF8F2;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">记录 1,208 条</span>
+                  <span style="background:#FAF8F2;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">应发 ¥972,720</span>
+                  <span style="background:#FAF8F2;border:1px solid #F0EBE1;border-radius:3px;padding:1px 6px">实发 ¥972,720</span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+                <a href="PreApply.dc.html" style="height:26px;padding:0 10px;border:1px solid #E8E2D9;border-radius:4px;background:#fff;color:#6B6B60;font-size:10.5px;display:flex;align-items:center">查看明细 →</a>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:5px">
+              <span style="font-size:9.5px;color:#9A9588;white-space:nowrap">发放进度</span>
+              <div style="flex:1;height:5px;background:#F2EDE3;border-radius:99px;overflow:hidden"><div style="height:5px;width:100%;background:#C9C2B2;border-radius:99px"></div></div>
+              <span style="font-size:10px;font-weight:700;color:#8C877A">100%</span>
+              <span style="font-size:9.5px;color:#9A9588">已归档 · 仅查看</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px dashed #E8E2D9;font-size:10px;color:#8C877A">
+        <span>共 5 个项目 · 2026 年度 4 个 · 已归档 1 个</span>
+        <div style="display:flex;gap:14px"><a href="#" style="color:#8A6620">回收站 2 项 →</a><a href="#" style="color:#8C877A">项目字段说明</a></div>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

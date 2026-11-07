@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>异常中心</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body{margin:0}
+  a{color:#1A4D3A;text-decoration:none}
+  a:hover{color:#2C6B52}
+  input::placeholder{color:#9A9588}
+  *{box-sizing:border-box}
+</style>
+</helmet>
+
+<div style="width:1440px;height:900px;background:radial-gradient(circle at 12% 0%,#E8F6F0 0%,rgba(232,246,240,0) 38%),radial-gradient(circle at 92% 100%,#E8F3F8 0%,rgba(232,243,248,0) 34%),#F8F5F0;font-family:'Microsoft YaHei','PingFang SC',-apple-system,'Segoe UI',sans-serif;color:#2B2B26;overflow:hidden;font-size:13px;line-height:1.5">
+  <header style="height:96px;overflow:hidden;background:#F8F5F0;border-bottom:1px solid #E8E2D9">
+    <img src="/_blob/10f58ada1f4cc6d30b2d358df418bc53" alt="农户补贴管理系统" style="width:100%;height:96px;object-fit:cover;object-position:left center;display:block">
+  </header>
+
+  <nav style="height:48px;background:linear-gradient(90deg,#0F3D2E,#1A5C46 55%,#2C7A63);display:flex;align-items:center;padding:0 28px;box-shadow:0 4px 14px rgba(15,61,46,.16);gap:2px">
+    <a href="Main.dc.html" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">首页</a>
+    <a href="Farmers.dc.html" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">农户列表</a>
+    <a href="Subsidies.dc.html" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">补贴总览</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">数据分析</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">土地流转</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">大户管理</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">补贴查询</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">数据工具</a>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px">
+      <span style="font-size:12px;color:rgba(255,255,255,.7)">王平</span>
+      <div style="width:28px;height:28px;border-radius:99px;background:#E6C288;color:#1A4D3A;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">WP</div>
+    </div>
+  </nav>
+
+  <div style="max-width:1320px;margin:0 auto;padding:16px 24px 18px;display:flex;gap:16px;height:756px">
+    <aside style="width:206px;flex-shrink:0;background:#fff;border:1px solid #E8E2D9;border-radius:8px;padding:10px 8px;height:100%">
+      <div style="font-size:11px;color:#9A9588;letter-spacing:.08em;padding:6px 10px 5px">户籍管理</div>
+      <a href="Farmers.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">农户列表</a>
+      <a href="Household.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">家庭户</a>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">村组联系人</a>
+      <a href="AttributeImport.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">人员属性导入</a>
+      <div style="height:1px;background:#F0EBE1;margin:8px 10px"></div>
+      <div style="font-size:11px;color:#9A9588;letter-spacing:.08em;padding:6px 10px 5px">补贴管理</div>
+      <a href="Subsidies.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">项目总览</a>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">项目年度分析</a>
+      <a href="Anomalies.dc.html" style="display:flex;align-items:center;justify-content:space-between;height:30px;padding:0 10px;border-left:3px solid #1A4D3A;background:#EDF3EF;color:#1A4D3A;font-size:12.5px;font-weight:600;border-radius:0 4px 4px 0">
+        <span style="display:flex;align-items:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M12 4 2.8 20h18.4L12 4Z"/><path d="M12 10v4M12 17.2v.1"/></svg>
+          异常中心
+        </span>
+        <span style="font-size:10px;background:#D32F2F;color:#fff;border-radius:99px;padding:0 5px;line-height:15px">18</span>
+      </a>
+      <div style="height:1px;background:#F0EBE1;margin:8px 10px"></div>
+      <div style="font-size:11px;color:#9A9588;letter-spacing:.08em;padding:6px 10px 5px">土地与工具</div>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">土地流转台账</a>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">农业任务分解</a>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">数据预检</a>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">Excel 模板</a>
+    </aside>
+
+    <main style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;height:38px;margin-bottom:8px">
+        <div>
+          <h1 style="margin:0;font-size:20px;font-weight:700;color:#1A4D3A">异常中心</h1>
+          <div style="font-size:11px;color:#8C877A;margin-top:2px">超领、重复领取、多人领取、死亡后领取 · 手动扫描生成</div>
+        </div>
+        <div style="display:flex;gap:7px">
+          <select aria-label="年度" style="height:30px;border:1px solid #E8E2D9;border-radius:4px;background:#fff;padding:0 8px;font-size:12px"><option>2026 年度</option><option>2025 年度</option></select>
+          <button style="height:30px;padding:0 12px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:12px;color:#5A5A4F;cursor:pointer">导出清单</button>
+          <button style="height:30px;padding:0 12px;border:1px solid #1A4D3A;background:#1A4D3A;border-radius:4px;font-size:12px;color:#F7F3E7;cursor:pointer">扫描生成异常</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">
+        <div style="background:#fff;border:1px solid #E8E2D9;border-radius:8px;padding:9px 12px"><div style="font-size:10.5px;color:#8C877A">待核实</div><div style="display:flex;align-items:baseline;gap:6px;margin-top:1px"><span style="font-size:20px;font-weight:700;color:#D32F2F">18</span><span style="font-size:10px;color:#9A9588">需要人工判断</span></div></div>
+        <div style="background:#fff;border:1px solid #E8E2D9;border-radius:8px;padding:9px 12px"><div style="font-size:10.5px;color:#8C877A">已核对</div><div style="display:flex;align-items:baseline;gap:6px;margin-top:1px"><span style="font-size:20px;font-weight:700;color:#2C6B52">6</span><span style="font-size:10px;color:#9A9588">确认无问题</span></div></div>
+        <div style="background:#fff;border:1px solid #E8E2D9;border-radius:8px;padding:9px 12px"><div style="font-size:10.5px;color:#8C877A">已忽略</div><div style="display:flex;align-items:baseline;gap:6px;margin-top:1px"><span style="font-size:20px;font-weight:700;color:#6B6B60">2</span><span style="font-size:10px;color:#9A9588">不纳入处理</span></div></div>
+        <div style="background:#fff;border:1px solid #E8E2D9;border-radius:8px;padding:9px 12px"><div style="font-size:10.5px;color:#8C877A">全部异常</div><div style="display:flex;align-items:baseline;gap:6px;margin-top:1px"><span style="font-size:20px;font-weight:700;color:#1A4D3A">26</span><span style="font-size:10px;color:#9A9588">2026 年度</span></div></div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:7px;margin-top:10px">
+        <button style="padding:3px 10px;border-radius:99px;border:1px solid #1A4D3A;background:#1A4D3A;color:#F7F3E7;font-size:10.5px;cursor:pointer">全部 26</button>
+        <button style="padding:3px 10px;border-radius:99px;border:1px solid #E8C9C2;background:#FDF7F5;color:#D32F2F;font-size:10.5px;cursor:pointer">超领 12</button>
+        <button style="padding:3px 10px;border-radius:99px;border:1px solid #E8D8B8;background:#FDFAF3;color:#8A6620;font-size:10.5px;cursor:pointer">重复领取 3</button>
+        <button style="padding:3px 10px;border-radius:99px;border:1px solid #C9DCE2;background:#F6FAFB;color:#2C6B52;font-size:10.5px;cursor:pointer">多人领取 2</button>
+        <button style="padding:3px 10px;border-radius:99px;border:1px solid #DCCDBA;background:#FBF8F3;color:#7A5A3A;font-size:10.5px;cursor:pointer">死亡后领取 1</button>
+        <div style="margin-left:auto;display:flex;gap:7px">
+          <select aria-label="状态" style="height:28px;border:1px solid #E8E2D9;border-radius:4px;background:#fff;padding:0 7px;font-size:11px"><option>待核实</option><option>已核对</option><option>已忽略</option></select>
+          <div style="display:flex;align-items:center;gap:6px;border:1px solid #E8E2D9;border-radius:4px;padding:0 9px;height:28px;width:180px;background:#fff">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9A9588" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+            <input aria-label="搜索异常" placeholder="户名 / 姓名" style="border:0;outline:0;background:transparent;font-size:11px;width:100%;color:#2B2B26">
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#fff;border:1px solid #E8E2D9;border-radius:8px;margin-top:8px;overflow:hidden;flex:1;min-height:0;display:flex;flex-direction:column">
+        <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+          <thead><tr style="background:#F6F1E7;color:#8C877A;font-size:10.5px;text-align:left;height:30px">
+            <th style="font-weight:500;padding:0 12px">类型</th><th style="font-weight:500;padding:0 6px">对象</th><th style="font-weight:500;padding:0 6px">年度 / 季节</th><th style="font-weight:500;padding:0 6px">异常说明</th><th style="font-weight:500;padding:0 6px;text-align:right">实际</th><th style="font-weight:500;padding:0 6px;text-align:right">参考</th><th style="font-weight:500;padding:0 6px;text-align:right">差额</th><th style="font-weight:500;padding:0 6px">级别</th><th style="font-weight:500;padding:0 6px">状态</th><th style="font-weight:500;padding:0 6px">核实</th><th style="font-weight:500;padding:0 12px;text-align:right">操作</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-top:1px solid #F2EDE3;height:48px">
+              <td style="padding:0 12px"><span style="font-size:9.5px;background:#FDECEA;color:#D32F2F;border-radius:3px;padding:1px 5px">超领</span></td>
+              <td style="padding:0 6px"><div style="font-weight:600">侯武碧户</div><div style="font-size:9.5px;color:#9A9588;font-family:Consolas,monospace">HH18256</div></td>
+              <td style="padding:0 6px;color:#6B6B60">2026 / 小春</td>
+              <td style="padding:0 6px"><div style="font-weight:600">计入 10.88 亩，参考 10.00 亩</div><div style="font-size:9.5px;color:#9A9588">超出 0.88 亩</div></td>
+              <td style="padding:0 6px;text-align:right">10.88</td><td style="padding:0 6px;text-align:right">10.00</td><td style="padding:0 6px;text-align:right;color:#D32F2F;font-weight:700">+0.88</td>
+              <td style="padding:0 6px"><span style="font-size:9.5px;background:#FDECEA;color:#D32F2F;border-radius:2px;padding:1px 5px">高</span></td>
+              <td style="padding:0 6px"><span style="font-size:9.5px;background:#F6EEDC;color:#8A6620;border-radius:99px;padding:1px 6px">待核实</span></td>
+              <td style="padding:0 6px;color:#C9C2B2">—</td>
+              <td style="padding:0 12px;text-align:right;white-space:nowrap"><a href="#" style="color:#2C6B52;font-weight:600">核对</a><span style="color:#D8D2C4;margin:0 4px">|</span><a href="#" style="color:#8C877A">忽略</a></td>
+            </tr>
+            <tr style="border-top:1px solid #F2EDE3;height:48px">
+              <td style="padding:0 12px"><span style="font-size:9.5px;background:#FDECEA;color:#D32F2F;border-radius:3px;padding:1px 5px">超领</span></td>
+              <td style="padding:0 6px"><div style="font-weight:600">李玉波户</div><div style="font-size:9.5px;color:#9A9588;font-family:Consolas,monospace">HH04218</div></td>
+              <td style="padding:0 6px;color:#6B6B60">2025 / 大春</td>
+              <td style="padding:0 6px"><div style="font-weight:600">计入 13.50 亩，参考 10.00 亩</div><div style="font-size:9.5px;color:#9A9588">超出 3.50 亩</div></td>
+              <td style="padding:0 6px;text-align:right">13.50</td><td style="padding:0 6px;text-align:right">10.00</td><td style="padding:0 6px;text-align:right;color:#D32F2F;font-weight:700">+3.50</td>
+              <td style="padding:0 6px"><span style="font-size:9.5px;background:#FDECEA;color:#D32F2F;border-radius:2px;padding:1px 5px">高</span></td>
+              <td style="padding:0 6px"><span style="font-size:9.5px;background:#EDF3EF;color:#2C6B52;border-radius:99px;padding:1px 6px">已核对</span></td>
+              <td style="padding:0 6px"><div>王平</div><div style="font-size:9.5px;color:#9A9588">11-06 14:20</div></td>
+              <td style="padding:0 12px;text-align:right;white-space:nowrap"><a href="#" style="color:#8C877A">恢复</a></td>
+            </tr>
+            <tr style="border-top:1px solid #F2EDE3;height:48px">
+              <td style="padding:0 12px"><span style="font-size:9.5px;background:#F6EEDC;color:#8A6620;border-radius:3px;padding:1px 5px">重复领取</span></td>
+              <td style="padding:0 6px"><div style="font-weight:600">张仁全</div><div style="font-size:9.5px;color:#9A9588;font-family:Consolas,monospace">5101********3345</div></td>
+              <td style="padding:0 6px;color:#6B6B60">2026 / —</td>
+              <td style="padding:0 6px"><div style="font-weight:600">同一身份证 2 条水稻补贴发放</div><div style="font-size:9.5px;color:#9A9588">合计 ¥1,240.00</div></td>
+              <td style="padding:0 6px;text-align:right">2</td><td style="padding:0 6px;text-align:right">1</td><td style="padding:0 6px;text-align:right;color:#D32F2F;font-weight:700">+1</td>
+              <td style="padding:0 6px"><span style="font-size:9.5px;background:#FDECEA;color:#D32F2F;border-radius:2px;padding:1px 5px">高</span></td>
+              <td style="padding:0 6px"><span style="font-size:9.5px;background:#F6EEDC;color:#8A6620;border-radius:99px;padding:1px 6px">待核实</span></td>
+              <td style="padding:0 6px;color:#C9C2B2">—</td>
+              <td style="padding:0 12px;text-align:right;white-space:nowrap"><a href="#" style="color:#2C6B52;font-weight:600">核对</a><span style="color:#D8D2C4;margin:0 4px">|</span><a href="#" style="color:#8C877A">忽略</a></td>
+            </tr>
+            <tr style="border-top:1px solid #F2EDE3;height:48px">
+              <td style="padding:0 12px"><span style="font-size:9.5px;background:#EDF3EF;color:#2C6B52;border-radius:3px;padding:1px 5px">多人领取</span></td>
+              <td style="padding:0 6px"><div style="font-weight:600">凡力兵户</div><div style="font-size:9.5px;color:#9A9588;font-family:Consolas,monospace">HH09237</div></td>
+              <td style="padding:0 6px;color:#6B6B60">2026 / 全年单补</td>
+              <td style="padding:0 6px"><div style="font-weight:600">按户补贴被 3 名成员领取</div><div style="font-size:9.5px;color:#9A9588">共 3 条发放，合计 ¥300.00</div></td>
+              <td style="padding:0 6px;text-align:right">3</td><td style="padding:0 6px;text-align:right">1</td><td style="padding:0 6px;text-align:right;color:#D32F2F;font-weight:700">+2</td>
+              <td style="padding:0 6px"><span style="font-size:9.5px;background:#F6EEDC;color:#8A6620;border-radius:2px;padding:1px 5px">中</span></td>
+              <td style="padding:0 6px"><span style="font-size:9.5px;background:#F1EDE4;color:#6B6B60;border-radius:99px;padding:1px 6px">已忽略</span></td>
+              <td style="padding:0 6px"><div>李敏</div><div style="font-size:9.5px;color:#9A9588">11-05 09:12</div></td>
+              <td style="padding:0 12px;text-align:right;white-space:nowrap"><a href="#" style="color:#8C877A">恢复</a></td>
+            </tr>
+            <tr style="border-top:1px solid #F2EDE3;height:48px">
+              <td style="padding:0 12px"><span style="font-size:9.5px;background:#F6EEDC;color:#8A6620;border-radius:3px;padding:1px 5px">死亡后领取</span></td>
+              <td style="padding:0 6px"><div style="font-weight:600">沈光明</div><div style="font-size:9.5px;color:#9A9588;font-family:Consolas,monospace">5101********6677</div></td>
+              <td style="padding:0 6px;color:#6B6B60">2026 / —</td>
+              <td style="padding:0 6px"><div style="font-weight:600">死亡日期 2026-01-12 早于发放</div><div style="font-size:9.5px;color:#9A9588">发放 2026-05-06 · ¥420.00</div></td>
+              <td style="padding:0 6px;text-align:right">¥420</td><td style="padding:0 6px;text-align:right">¥0</td><td style="padding:0 6px;text-align:right;color:#D32F2F;font-weight:700">+¥420</td>
+              <td style="padding:0 6px"><span style="font-size:9.5px;background:#FDECEA;color:#D32F2F;border-radius:2px;padding:1px 5px">高</span></td>
+              <td style="padding:0 6px"><span style="font-size:9.5px;background:#F6EEDC;color:#8A6620;border-radius:99px;padding:1px 6px">待核实</span></td>
+              <td style="padding:0 6px;color:#C9C2B2">—</td>
+              <td style="padding:0 12px;text-align:right;white-space:nowrap"><a href="#" style="color:#2C6B52;font-weight:600">核对</a><span style="color:#D8D2C4;margin:0 4px">|</span><a href="#" style="color:#8C877A">忽略</a></td>
+            </tr>
+            <tr style="border-top:1px solid #F2EDE3;height:48px">
+              <td style="padding:0 12px"><span style="font-size:9.5px;background:#FDECEA;color:#D32F2F;border-radius:3px;padding:1px 5px">超领</span></td>
+              <td style="padding:0 6px"><div style="font-weight:600">高泽枝户</div><div style="font-size:9.5px;color:#9A9588;font-family:Consolas,monospace">HH07315</div></td>
+              <td style="padding:0 6px;color:#6B6B60">2026 / 小春</td>
+              <td style="padding:0 6px"><div style="font-weight:600">计入 8.08 亩，参考 8.00 亩</div><div style="font-size:9.5px;color:#9A9588">超出 0.08 亩</div></td>
+              <td style="padding:0 6px;text-align:right">8.08</td><td style="padding:0 6px;text-align:right">8.00</td><td style="padding:0 6px;text-align:right;color:#D32F2F;font-weight:700">+0.08</td>
+              <td style="padding:0 6px"><span style="font-size:9.5px;background:#F1EDE4;color:#6B6B60;border-radius:2px;padding:1px 5px">低</span></td>
+              <td style="padding:0 6px"><span style="font-size:9.5px;background:#F6EEDC;color:#8A6620;border-radius:99px;padding:1px 6px">待核实</span></td>
+              <td style="padding:0 6px;color:#C9C2B2">—</td>
+              <td style="padding:0 12px;text-align:right;white-space:nowrap"><a href="#" style="color:#2C6B52;font-weight:600">核对</a><span style="color:#D8D2C4;margin:0 4px">|</span><a href="#" style="color:#8C877A">忽略</a></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-top:1px solid #E8E2D9;font-size:10.5px;color:#8C877A;margin-top:auto">
+          <span>共 26 条 · 当前筛选：待核实</span>
+          <div style="display:flex;align-items:center;gap:5px"><button style="height:24px;padding:0 8px;border:1px solid #E8E2D9;background:#fff;border-radius:3px;font-size:10.5px;color:#C9C2B2" disabled>上一页</button><span style="background:#1A4D3A;color:#F7F3E7;border-radius:3px;padding:2px 7px">1</span><span style="padding:2px 5px">2</span><button style="height:24px;padding:0 8px;border:1px solid #E8E2D9;background:#fff;border-radius:3px;font-size:10.5px;color:#5A5A4F">下一页</button></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

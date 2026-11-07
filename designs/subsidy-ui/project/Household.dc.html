@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>户籍管理 · 家庭户</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body{margin:0}
+  a{color:#1A4D3A;text-decoration:none}
+  a:hover{color:#2C6B52}
+  input::placeholder{color:#9A9588}
+  *{box-sizing:border-box}
+</style>
+</helmet>
+
+<div style="width:1440px;height:900px;background:radial-gradient(circle at 12% 0%,#E8F6F0 0%,rgba(232,246,240,0) 38%),radial-gradient(circle at 92% 100%,#E8F3F8 0%,rgba(232,243,248,0) 34%),#F8F5F0;font-family:'Microsoft YaHei','PingFang SC',-apple-system,'Segoe UI',sans-serif;color:#2B2B26;overflow:hidden;font-size:13px;line-height:1.5">
+  <header style="height:96px;overflow:hidden;background:#F8F5F0;border-bottom:1px solid #E8E2D9">
+    <img src="/_blob/10f58ada1f4cc6d30b2d358df418bc53" alt="农户补贴管理系统" style="width:100%;height:96px;object-fit:cover;object-position:left center;display:block">
+  </header>
+
+  <nav style="height:48px;background:linear-gradient(90deg,#0F3D2E,#1A5C46 55%,#2C7A63);display:flex;align-items:center;padding:0 28px;box-shadow:0 4px 14px rgba(15,61,46,.16);gap:2px">
+    <a href="Main.dc.html" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">首页</a>
+    <a href="Farmers.dc.html" style="padding:0 16px;height:48px;display:flex;align-items:center;color:#F7F3E7;font-size:13px;background:rgba(255,255,255,.12);border-bottom:2px solid #D8B567;font-weight:600">农户列表</a>
+    <a href="Subsidies.dc.html" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">补贴总览</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">数据分析</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">土地流转</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">大户管理</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">补贴查询</a>
+    <a href="#" style="padding:0 16px;height:48px;display:flex;align-items:center;color:rgba(255,255,255,.82);font-size:13px;border-bottom:2px solid transparent">数据工具</a>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:14px">
+      <span style="font-size:12px;color:rgba(255,255,255,.7)">王平</span>
+      <div style="width:28px;height:28px;border-radius:99px;background:#E6C288;color:#1A4D3A;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">WP</div>
+    </div>
+  </nav>
+
+  <div style="max-width:1320px;margin:0 auto;padding:16px 24px 18px;display:flex;gap:16px;height:756px">
+    <aside style="width:206px;flex-shrink:0;background:#fff;border:1px solid #E8E2D9;border-radius:8px;padding:10px 8px;height:100%">
+      <div style="font-size:11px;color:#9A9588;letter-spacing:.08em;padding:6px 10px 5px">户籍管理</div>
+      <a href="Farmers.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">农户列表</a>
+      <a href="Household.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border-left:3px solid #1A4D3A;background:#EDF3EF;color:#1A4D3A;font-size:12.5px;font-weight:600;border-radius:0 4px 4px 0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 11v9h14v-9"/><path d="M9 20v-5h6v5"/></svg>
+        家庭户
+      </a>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">村组联系人</a>
+      <a href="AttributeImport.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">人员属性导入</a>
+      <div style="height:1px;background:#F0EBE1;margin:8px 10px"></div>
+      <div style="font-size:11px;color:#9A9588;letter-spacing:.08em;padding:6px 10px 5px">补贴管理</div>
+      <a href="Subsidies.dc.html" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">项目总览</a>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">项目年度分析</a>
+      <a href="Anomalies.dc.html" style="display:flex;align-items:center;justify-content:space-between;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">
+        <span style="display:flex;align-items:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M12 4 2.8 20h18.4L12 4Z"/><path d="M12 10v4M12 17.2v.1"/></svg>
+          异常中心
+        </span>
+        <span style="font-size:10px;background:#D32F2F;color:#fff;border-radius:99px;padding:0 5px;line-height:15px">18</span>
+      </a>
+      <div style="height:1px;background:#F0EBE1;margin:8px 10px"></div>
+      <div style="font-size:11px;color:#9A9588;letter-spacing:.08em;padding:6px 10px 5px">土地与工具</div>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">土地流转台账</a>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">农业任务分解</a>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">数据预检</a>
+      <a href="#" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;color:#5A5A4F;font-size:12.5px">Excel 模板</a>
+    </aside>
+
+    <main style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;height:38px;margin-bottom:8px">
+        <div>
+          <h1 style="margin:0;font-size:20px;font-weight:700;color:#1A4D3A">户籍管理</h1>
+          <div style="font-size:11px;color:#8C877A;margin-top:2px">左侧选择人员或家庭户，右侧查看档案与关联信息</div>
+        </div>
+        <div style="display:flex;gap:7px">
+          <a href="AttributeImport.dc.html" style="height:30px;padding:0 12px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:12px;color:#5A5A4F;display:flex;align-items:center">导入户籍</a>
+          <button style="height:30px;padding:0 12px;border:1px solid #1A4D3A;background:#1A4D3A;border-radius:4px;font-size:12px;color:#F7F3E7;cursor:pointer">新增家庭户</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:338px minmax(0,1fr);gap:12px;flex:1;min-height:0">
+        <!-- 左列：家庭户列表 -->
+        <div style="background:#fff;border:1px solid #E8E2D9;border-radius:8px;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:14px;padding:0 12px;height:34px;border-bottom:1px solid #E8E2D9">
+            <a href="Farmers.dc.html" style="height:34px;display:flex;align-items:center;border-bottom:2px solid transparent;color:#6B6B60;font-size:12px">农户 <span style="font-size:10px;color:#9A9588;margin-left:3px">12,092</span></a>
+            <a href="Household.dc.html" style="height:34px;display:flex;align-items:center;border-bottom:2px solid #1A4D3A;color:#1A4D3A;font-size:12px;font-weight:700">家庭户 <span style="font-size:10px;color:#8C877A;font-weight:400;margin-left:3px">4,862</span></a>
+          </div>
+
+          <div style="padding:8px 10px;border-bottom:1px solid #F2EDE3;display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:6px;border:1px solid #E8E2D9;border-radius:4px;padding:0 8px;height:30px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9A9588" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+              <input aria-label="搜索家庭户" placeholder="户名 / 户编码 / 户主" style="border:0;outline:0;background:transparent;font-size:12px;width:100%;color:#2B2B26">
+            </div>
+            <div style="display:flex;gap:6px">
+              <select aria-label="村" style="height:28px;border:1px solid #E8E2D9;border-radius:4px;background:#fff;padding:0 6px;font-size:11px;color:#5A5A4F;flex:1"><option>全部村</option><option>红星村</option></select>
+              <select aria-label="状态" style="height:28px;border:1px solid #E8E2D9;border-radius:4px;background:#fff;padding:0 6px;font-size:11px;color:#5A5A4F;flex:1"><option>全部状态</option><option>在册</option><option>迁出</option></select>
+            </div>
+          </div>
+
+          <div style="flex:1;overflow:hidden">
+            <a href="Household.dc.html" style="display:block;padding:9px 10px 9px 12px;border-left:3px solid #1A4D3A;background:#F3F7F4;border-bottom:1px solid #F2EDE3">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:7px"><span style="width:24px;height:24px;border-radius:6px;background:#1A4D3A;color:#E6C288;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">侯</span><b style="font-size:12px">侯武碧户</b><span style="font-size:9px;background:#EDF3EF;color:#2C6B52;border-radius:2px;padding:0 4px">在册</span></div>
+                <span style="font-size:9px;background:#FDECEA;color:#D32F2F;border-radius:2px;padding:0 4px">超领</span>
+              </div>
+              <div style="font-size:10px;color:#8C877A;margin-top:3px;padding-left:31px">红星村二组 · HH18256 · 5 人 · 10.00 亩</div>
+            </a>
+            <a href="Household.dc.html" style="display:block;padding:9px 10px 9px 15px;border-bottom:1px solid #F2EDE3">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:7px"><span style="width:24px;height:24px;border-radius:6px;background:#F6EEDC;color:#8A6620;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">李</span><b style="font-size:12px">李玉波户</b><span style="font-size:9px;background:#EDF3EF;color:#2C6B52;border-radius:2px;padding:0 4px">在册</span></div>
+                <span style="font-size:9px;background:#FDECEA;color:#D32F2F;border-radius:2px;padding:0 4px">超领</span>
+              </div>
+              <div style="font-size:10px;color:#8C877A;margin-top:3px;padding-left:31px">幸福村一组 · HH04218 · 4 人 · 10.00 亩</div>
+            </a>
+            <a href="Household.dc.html" style="display:block;padding:9px 10px 9px 15px;border-bottom:1px solid #F2EDE3">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:7px"><span style="width:24px;height:24px;border-radius:6px;background:#EDF3EF;color:#1A4D3A;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">张</span><b style="font-size:12px">张德全户</b><span style="font-size:9px;background:#EDF3EF;color:#2C6B52;border-radius:2px;padding:0 4px">在册</span></div>
+                <span style="font-size:9px;background:#F6EEDC;color:#8A6620;border-radius:2px;padding:0 4px">重复领取</span>
+              </div>
+              <div style="font-size:10px;color:#8C877A;margin-top:3px;padding-left:31px">青山村三组 · HH03342 · 3 人 · 8.50 亩</div>
+            </a>
+            <a href="Household.dc.html" style="display:block;padding:9px 10px 9px 15px;border-bottom:1px solid #F2EDE3">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:7px"><span style="width:24px;height:24px;border-radius:6px;background:#F6EEDC;color:#8A6620;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">凡</span><b style="font-size:12px">凡力兵户</b><span style="font-size:9px;background:#EDF3EF;color:#2C6B52;border-radius:2px;padding:0 4px">在册</span></div>
+                <span style="font-size:9px;background:#EDF3EF;color:#2C6B52;border-radius:2px;padding:0 4px">多人领取</span>
+              </div>
+              <div style="font-size:10px;color:#8C877A;margin-top:3px;padding-left:31px">民主村二组 · HH09237 · 4 人 · 10.00 亩</div>
+            </a>
+            <a href="Household.dc.html" style="display:block;padding:9px 10px 9px 15px;border-bottom:1px solid #F2EDE3">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:7px"><span style="width:24px;height:24px;border-radius:6px;background:#F1EDE4;color:#5A5A4F;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">周</span><b style="font-size:12px">周德明户</b><span style="font-size:9px;background:#F6EEDC;color:#8A6620;border-radius:2px;padding:0 4px">迁出</span></div>
+              </div>
+              <div style="font-size:10px;color:#8C877A;margin-top:3px;padding-left:31px">新建村一组 · HH03127 · 2 人 · 8.00 亩</div>
+            </a>
+            <a href="Household.dc.html" style="display:block;padding:9px 10px 9px 15px;border-bottom:1px solid #F2EDE3">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:7px"><span style="width:24px;height:24px;border-radius:6px;background:#F1EDE4;color:#8C877A;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">沈</span><b style="font-size:12px">沈光明户</b><span style="font-size:9px;background:#F1EDE4;color:#6B6B60;border-radius:2px;padding:0 4px">死亡</span></div>
+              </div>
+              <div style="font-size:10px;color:#8C877A;margin-top:3px;padding-left:31px">青山村二组 · HH02618 · 1 人 · 5.00 亩</div>
+            </a>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-top:1px solid #E8E2D9;font-size:10px;color:#8C877A">
+            <span>共 4,862 户</span>
+            <div style="display:flex;align-items:center;gap:4px"><button style="height:22px;padding:0 7px;border:1px solid #E8E2D9;background:#fff;border-radius:3px;font-size:10px;color:#C9C2B2" disabled>上一页</button><span style="background:#1A4D3A;color:#F7F3E7;border-radius:3px;padding:1px 6px">1</span><span style="padding:1px 4px">2</span><span style="padding:1px 4px">…</span><button style="height:22px;padding:0 7px;border:1px solid #E8E2D9;background:#fff;border-radius:3px;font-size:10px;color:#5A5A4F">下一页</button></div>
+          </div>
+        </div>
+
+        <!-- 右列：家庭户详情 -->
+        <div style="background:#fff;border:1px solid #E8E2D9;border-radius:8px;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #F2EDE3">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:38px;height:38px;border-radius:8px;background:#1A4D3A;color:#E6C288;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700">侯</div>
+              <div>
+                <div style="display:flex;align-items:center;gap:7px">
+                  <h2 style="margin:0;font-size:18px;font-weight:700;color:#1A4D3A">侯武碧户</h2>
+                  <span style="font-size:10px;border:1px solid #E8E2D9;border-radius:3px;padding:0 5px;color:#8C877A;font-family:Consolas,monospace">HH18256</span>
+                  <span style="font-size:10px;background:#EDF3EF;color:#2C6B52;border-radius:99px;padding:1px 7px">在册</span>
+                  <span style="font-size:10px;background:#FDECEA;color:#D32F2F;border-radius:99px;padding:1px 7px">超领 1 项</span>
+                </div>
+                <div style="font-size:11px;color:#8C877A;margin-top:3px">红星村二组 · 户主 侯武碧 · 5 名成员 · 人工确认 2026-03-02</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:7px">
+              <button style="height:28px;padding:0 10px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:11px;color:#5A5A4F;cursor:pointer">分户</button>
+              <button style="height:28px;padding:0 10px;border:1px solid #E8E2D9;background:#fff;border-radius:4px;font-size:11px;color:#5A5A4F;cursor:pointer">合户</button>
+              <button style="height:28px;padding:0 10px;border:1px solid #E6C288;background:#E6C288;border-radius:4px;font-size:11px;color:#5A4215;cursor:pointer">编辑档案</button>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:0;background:linear-gradient(100deg,#0F3D2E 0%,#1A5C46 52%,#2C7A63 100%);color:#F7F3E7;padding:10px 16px;height:58px;box-shadow:0 6px 16px rgba(15,61,46,.14);flex-shrink:0">
+            <div style="display:flex;align-items:center;gap:8px;width:210px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D8B567" stroke-width="1.6" aria-hidden="true"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 11v9h14v-9"/><path d="M9 20v-5h6v5"/></svg>
+              <div><div style="font-size:12px;font-weight:600">面积与发放</div><div style="font-size:9.5px;color:rgba(247,243,231,.55)">按当前年度汇总</div></div>
+            </div>
+            <div style="display:flex;align-items:center;margin-left:auto">
+              <div style="padding:0 18px;border-left:1px solid rgba(255,255,255,.14)"><div style="font-size:9.5px;color:rgba(247,243,231,.55)">参考面积</div><div style="font-size:16px;font-weight:700;color:#E6C288;font-variant-numeric:tabular-nums">10.00 亩</div></div>
+              <div style="padding:0 18px;border-left:1px solid rgba(255,255,255,.14)"><div style="font-size:9.5px;color:rgba(247,243,231,.55)">已使用</div><div style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums">10.88 亩</div></div>
+              <div style="padding:0 18px;border-left:1px solid rgba(255,255,255,.14)"><div style="font-size:9.5px;color:rgba(247,243,231,.55)">超出</div><div style="font-size:16px;font-weight:700;color:#F2B8A8;font-variant-numeric:tabular-nums">+0.88 亩</div></div>
+              <div style="padding:0 18px;border-left:1px solid rgba(255,255,255,.14)"><div style="font-size:9.5px;color:rgba(247,243,231,.55)">本年发放</div><div style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums">¥2,110</div></div>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:flex-end;gap:20px;padding:0 16px;height:32px;border-bottom:1px solid #E8E2D9">
+            <a href="Household.dc.html" style="height:32px;display:flex;align-items:center;border-bottom:2px solid #1A4D3A;color:#1A4D3A;font-size:12px;font-weight:700">概览</a>
+            <a href="#" style="height:32px;display:flex;align-items:center;border-bottom:2px solid transparent;color:#6B6B60;font-size:12px">家庭成员 <span style="font-size:10px;color:#9A9588;margin-left:3px">5</span></a>
+            <a href="#" style="height:32px;display:flex;align-items:center;border-bottom:2px solid transparent;color:#6B6B60;font-size:12px">补贴记录 <span style="font-size:10px;color:#9A9588;margin-left:3px">6</span></a>
+            <a href="#" style="height:32px;display:flex;align-items:center;border-bottom:2px solid transparent;color:#6B6B60;font-size:12px">土地流转 <span style="font-size:10px;color:#9A9588;margin-left:3px">2</span></a>
+            <a href="#" style="height:32px;display:flex;align-items:center;border-bottom:2px solid transparent;color:#6B6B60;font-size:12px">变更历史 <span style="font-size:10px;color:#9A9588;margin-left:3px">9</span></a>
+            <a href="Anomalies.dc.html" style="margin-left:auto;height:32px;display:flex;align-items:center;font-size:10.5px;color:#D32F2F">本户异常 2 →</a>
+          </div>
+
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) 274px;gap:12px;padding:10px 12px 12px;flex:1;min-height:0;overflow:hidden">
+            <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+              <div style="border:1px solid #F0EBE1;border-radius:6px;overflow:hidden">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 11px;border-bottom:1px solid #F2EDE3"><span style="font-size:11.5px;font-weight:600">家庭成员</span><div style="display:flex;gap:9px;font-size:10px"><a href="#" style="color:#8C877A">导入成员</a><a href="#" style="color:#1A4D3A;font-weight:600">新增成员</a></div></div>
+                <table style="width:100%;border-collapse:collapse;font-size:11px">
+                  <thead><tr style="background:#F6F1E7;color:#8C877A;font-size:10px;text-align:left;height:26px"><th style="font-weight:500;padding:0 11px">姓名</th><th style="font-weight:500;padding:0 5px">关系</th><th style="font-weight:500;padding:0 5px">身份证号</th><th style="font-weight:500;padding:0 5px">状态</th><th style="font-weight:500;padding:0 5px">状态日期</th><th style="font-weight:500;padding:0 11px;text-align:right">操作</th></tr></thead>
+                  <tbody>
+                    <tr style="border-top:1px solid #F2EDE3;height:32px"><td style="padding:0 11px"><b>侯武碧</b><span style="font-size:9px;background:#EDF3EF;color:#2C6B52;border-radius:2px;padding:0 4px;margin-left:4px">户主</span></td><td style="padding:0 5px">本人</td><td style="padding:0 5px;font-family:Consolas,monospace;color:#6B6B60">5101********4231</td><td style="padding:0 5px"><span style="font-size:9px;background:#EDF3EF;color:#2C6B52;border-radius:99px;padding:0 5px">在册</span></td><td style="padding:0 5px;color:#9A9588">—</td><td style="padding:0 11px;text-align:right"><a href="#" style="color:#8C877A">编辑</a></td></tr>
+                    <tr style="border-top:1px solid #F2EDE3;height:32px"><td style="padding:0 11px"><b>王秀兰</b></td><td style="padding:0 5px">妻子</td><td style="padding:0 5px;font-family:Consolas,monospace;color:#6B6B60">5101********5566</td><td style="padding:0 5px"><span style="font-size:9px;background:#EDF3EF;color:#2C6B52;border-radius:99px;padding:0 5px">在册</span></td><td style="padding:0 5px;color:#9A9588">—</td><td style="padding:0 11px;text-align:right"><a href="#" style="color:#8C877A">编辑</a></td></tr>
+                    <tr style="border-top:1px solid #F2EDE3;height:32px"><td style="padding:0 11px"><b>侯志强</b></td><td style="padding:0 5px">儿子</td><td style="padding:0 5px;font-family:Consolas,monospace;color:#6B6B60">5101********8832</td><td style="padding:0 5px"><span style="font-size:9px;background:#EDF3EF;color:#2C6B52;border-radius:99px;padding:0 5px">在册</span></td><td style="padding:0 5px;color:#9A9588">—</td><td style="padding:0 11px;text-align:right"><a href="#" style="color:#8C877A">编辑</a></td></tr>
+                    <tr style="border-top:1px solid #F2EDE3;height:32px;background:#FDFBF7"><td style="padding:0 11px;color:#6B6B60"><b>刘桂英</b></td><td style="padding:0 5px;color:#6B6B60">母亲</td><td style="padding:0 5px;font-family:Consolas,monospace;color:#9A9588">5101********1024</td><td style="padding:0 5px"><span style="font-size:9px;background:#F1EDE4;color:#6B6B60;border-radius:99px;padding:0 5px">死亡</span></td><td style="padding:0 5px;color:#5A5A4F">2026-01-12</td><td style="padding:0 11px;text-align:right"><a href="#" style="color:#8C877A">编辑</a></td></tr>
+                    <tr style="border-top:1px solid #F2EDE3;height:32px"><td style="padding:0 11px"><b>侯小燕</b></td><td style="padding:0 5px">女儿</td><td style="padding:0 5px;font-family:Consolas,monospace;color:#6B6B60">5101********6644</td><td style="padding:0 5px"><span style="font-size:9px;background:#EDF3EF;color:#2C6B52;border-radius:99px;padding:0 5px">在册</span></td><td style="padding:0 5px;color:#9A9588">—</td><td style="padding:0 11px;text-align:right"><a href="#" style="color:#8C877A">编辑</a></td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div style="border:1px solid #F0EBE1;border-radius:6px;overflow:hidden;flex:1;min-height:0">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 11px;border-bottom:1px solid #F2EDE3"><span style="font-size:11.5px;font-weight:600">补贴记录</span><a href="Subsidies.dc.html" style="font-size:10px;color:#8C877A">全部 →</a></div>
+                <table style="width:100%;border-collapse:collapse;font-size:11px">
+                  <thead><tr style="background:#F6F1E7;color:#8C877A;font-size:10px;text-align:left;height:26px"><th style="font-weight:500;padding:0 11px">年度</th><th style="font-weight:500;padding:0 5px">补贴项目</th><th style="font-weight:500;padding:0 5px;text-align:right">面积</th><th style="font-weight:500;padding:0 5px;text-align:right">金额</th><th style="font-weight:500;padding:0 5px">状态</th><th style="font-weight:500;padding:0 11px">发放日期</th></tr></thead>
+                  <tbody>
+                    <tr style="border-top:1px solid #F2EDE3;height:30px"><td style="padding:0 11px;font-weight:600;color:#1A4D3A">2026</td><td style="padding:0 5px">大春 · 水稻补贴</td><td style="padding:0 5px;text-align:right">6.20</td><td style="padding:0 5px;text-align:right">¥744.00</td><td style="padding:0 5px"><span style="font-size:9px;background:#EDF3EF;color:#2C6B52;border-radius:99px;padding:0 5px">已发放</span></td><td style="padding:0 11px;color:#8C877A">2026-04-18</td></tr>
+                    <tr style="border-top:1px solid #F2EDE3;height:30px"><td style="padding:0 11px;font-weight:600;color:#1A4D3A">2026</td><td style="padding:0 5px">小春 · 油菜补贴</td><td style="padding:0 5px;text-align:right">5.20</td><td style="padding:0 5px;text-align:right">¥416.00</td><td style="padding:0 5px"><span style="font-size:9px;background:#EDF3EF;color:#2C6B52;border-radius:99px;padding:0 5px">已发放</span></td><td style="padding:0 11px;color:#8C877A">2026-06-09</td></tr>
+                    <tr style="border-top:1px solid #F2EDE3;height:30px"><td style="padding:0 11px;font-weight:600;color:#1A4D3A">2026</td><td style="padding:0 5px">耕地地力保护</td><td style="padding:0 5px;text-align:right">10.00</td><td style="padding:0 5px;text-align:right">¥950.00</td><td style="padding:0 5px"><span style="font-size:9px;background:#EDF3EF;color:#2C6B52;border-radius:99px;padding:0 5px">已发放</span></td><td style="padding:0 11px;color:#8C877A">2026-07-22</td></tr>
+                    <tr style="border-top:1px solid #F2EDE3;height:30px;background:#FDFBF7"><td style="padding:0 11px;font-weight:600;color:#8C877A">2025</td><td style="padding:0 5px;color:#6B6B60">大春 · 水稻补贴</td><td style="padding:0 5px;text-align:right;color:#6B6B60">13.50</td><td style="padding:0 5px;text-align:right;color:#6B6B60">¥1,620.00</td><td style="padding:0 5px"><span style="font-size:9px;background:#F1EDE4;color:#6B6B60;border-radius:99px;padding:0 5px">已归档</span></td><td style="padding:0 11px;color:#8C877A">2025-05-06</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+              <div style="border:1px solid #F0EBE1;border-radius:6px;padding:9px 11px">
+                <div style="font-size:11.5px;font-weight:600;margin-bottom:6px">面积构成</div>
+                <div style="display:flex;flex-direction:column;gap:5px;font-size:10.5px">
+                  <div style="display:flex;justify-content:space-between"><span style="color:#8C877A">承包面积</span><span>10.00 亩</span></div>
+                  <div style="display:flex;justify-content:space-between"><span style="color:#8C877A">确权面积</span><span>9.80 亩</span></div>
+                  <div style="display:flex;justify-content:space-between"><span style="color:#8C877A">转入 / 转出</span><span>0.00 / 0.00</span></div>
+                  <div style="display:flex;justify-content:space-between"><span style="color:#8C877A">不予补贴</span><span>0.00 亩</span></div>
+                  <div style="display:flex;justify-content:space-between;border-top:1px solid #F2EDE3;padding-top:5px"><b>参考面积</b><b style="color:#1A4D3A">10.00 亩</b></div>
+                </div>
+              </div>
+
+              <div style="border:1px solid #E8C9C2;background:#FDF7F5;border-radius:6px;padding:9px 11px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><span style="font-size:11.5px;font-weight:600;color:#A6402E">本户异常</span><a href="Anomalies.dc.html" style="font-size:10px;color:#A6402E">核对 →</a></div>
+                <div style="font-size:10.5px;color:#6B4236;line-height:1.8"><div>2026 小春 超领 <b>0.88 亩</b></div><div>2025 大春 超领 <b>3.50 亩</b></div></div>
+              </div>
+
+              <div style="border:1px solid #F0EBE1;border-radius:6px;padding:9px 11px;flex:1">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><span style="font-size:11.5px;font-weight:600">最近变更</span><a href="#" style="font-size:10px;color:#8C877A">全部</a></div>
+                <div style="font-size:10px;color:#6B6B60;line-height:1.9">
+                  <div><span style="color:#2C6B52">●</span> 人工确认家庭户</div><div style="color:#9A9588">2026-03-02 · 王平</div>
+                  <div style="margin-top:4px"><span style="color:#D32F2F">●</span> 刘桂英 状态改为死亡</div><div style="color:#9A9588">2026-01-12 · 属性导入</div>
+                  <div style="margin-top:4px"><span style="color:#C9A24A">●</span> 分户：侯小燕 迁入新户</div><div style="color:#9A9588">2025-11-08 · 王平</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "threads": [
+    {
+      "id": "c_0a214de671",
+      "anchor": "#dc-root > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > dcfx1hinik2:nth-of-type(1) > dct:nth-of-type(58) > dcef32c1458d83c65522353:nth-of-type(1)",
+      "label": "农户列表 › text \"农户 12,092 家庭户 4,862 村组联系人 126\"",
+      "detail": "Farmers.dc.html: #57:1/2/1/1 text \"农户 12,092 家庭户 4,862 村组联系人 126\"",
+      "location": {
+        "file": "project/Farmers.dc.html",
+        "board": "Farmers.dc.html"
+      },
+      "status": "resolved",
+      "createdAt": "2026-11-07T12:42:44.745Z",
+      "updatedAt": "2026-11-07T12:44:11.660Z",
+      "messages": [
+        {
+          "id": "m_f5004d27bf",
+          "author": {
+            "kind": "user",
+            "name": "WINDOWS"
+          },
+          "text": "这里，是否可以和我之前那种，分为两列，左侧是数据列，右侧是详细的信息列呢？ 包括在家庭户里的分类也是这种设计，你觉得如何",
+          "at": "2026-11-07T12:42:44.745Z"
+        },
+        {
+          "id": "m_6a8e71b818",
+          "author": {
+            "kind": "agent",
+            "name": "agent"
+          },
+          "text": "已改成两栏：左侧是农户/家庭户的数据列表（搜索、筛选、列表、分页），右侧是选中对象的详情（人员档案、所属家庭户面积、补贴记录、成员、异常）。家庭户页的分类也挪到左侧竖栏，右侧显示详情。",
+          "at": "2026-11-07T12:44:11.660Z"
+        }
+      ],
+      "agent": {
+        "status": "replied",
+        "sentAt": "2026-11-07T12:42:44.745Z",
+        "deliveredAt": "2026-11-07T12:42:44.758Z",
+        "via": "wait",
+        "repliedAt": "2026-11-07T12:44:11.660Z"
+      },
+      "resolvedAt": "2026-11-07T12:43:52.344Z"
+    },
+    {
+      "id": "c_136c635ba8",
+      "anchor": "#dc-root > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > dcfx0o8sph3:nth-of-type(1) > dct:nth-of-type(18) > dce3b0964cdeecf54520106:nth-of-type(1)",
+      "label": "家庭户详情 › shape \"户籍管理 农户列表 家庭户 村组联系人 人员属性导入 补贴管理…\"",
+      "detail": "Household.dc.html: #17:1/2 shape \"户籍管理 农户列表 家庭户 村组联系人 人员属性导入 补贴管理 项目总览 项目…\"",
+      "location": {
+        "file": "project/Household.dc.html",
+        "board": "Household.dc.html"
+      },
+      "status": "open",
+      "createdAt": "2026-11-07T12:46:03.296Z",
+      "updatedAt": "2026-11-07T12:46:03.296Z",
+      "messages": [
+        {
+          "id": "m_a6ca7fa291",
+          "author": {
+            "kind": "user",
+            "name": "WINDOWS"
+          },
+          "text": "家庭户在之前已经改成了 左右列的形式，那么比如此处的  分户 合户 在列表上的操作页面是不是也需要做调整了？",
+          "at": "2026-11-07T12:46:03.296Z"
+        }
+      ]
+    },
+    {
+      "id": "c_b4923fdc16",
+      "anchor": "#dc-root > div:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > dct:nth-of-type(4) > dce3b0964cdeecf54140833:nth-of-type(1)",
+      "label": "家庭户详情 › shape",
+      "detail": "Household.dc.html: #3:1/0 shape",
+      "location": {
+        "file": "project/Household.dc.html",
+        "board": "Household.dc.html"
+      },
+      "status": "open",
+      "createdAt": "2026-11-07T12:49:14.359Z",
+      "updatedAt": "2026-11-07T12:50:06.708Z",
+      "messages": [
+        {
+          "id": "m_8497ea2325",
+          "author": {
+            "kind": "user",
+            "name": "WINDOWS"
+          },
+          "text": "前文左右侧分裂了，这个页面是不是不再去要存在了？",
+          "at": "2026-11-07T12:49:14.359Z"
+        },
+        {
+          "id": "m_165bd51ce5",
+          "author": {
+            "kind": "agent",
+            "name": "agent"
+          },
+          "text": "已统一：家庭户不再是一套独立布局，改成户籍管理里的家庭户选中态，和农户页共用左列表+右详情；右侧用分类标签切换概览、成员、补贴、流转、历史，避免两套页面分裂。",
+          "at": "2026-11-07T12:50:06.708Z"
+        }
+      ],
+      "agent": {
+        "status": "replied",
+        "sentAt": "2026-11-07T12:49:14.359Z",
+        "deliveredAt": "2026-11-07T12:49:14.368Z",
+        "via": "wait",
+        "repliedAt": "2026-11-07T12:50:06.708Z"
+      }
+    }
+  ]
+}

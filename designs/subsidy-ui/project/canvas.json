@@ -1,0 +1,35 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-11-07T12:23:00Z" },
+  "title": "农户补贴系统 · 界面改版",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1440, "h": 900, "title": "工作台", "is_interactive": true },
+    "Farmers.dc.html": { "x": 1520, "y": 0, "w": 1440, "h": 900, "title": "户籍管理 · 农户", "is_interactive": true },
+    "Household.dc.html": { "x": 0, "y": 1020, "w": 1440, "h": 900, "title": "户籍管理 · 家庭户", "is_interactive": true },
+    "Subsidies.dc.html": { "x": 1520, "y": 1020, "w": 1440, "h": 900, "title": "补贴 · 项目总览", "is_interactive": true },
+    "Anomalies.dc.html": { "x": 0, "y": 2040, "w": 1440, "h": 900, "title": "异常中心", "is_interactive": true },
+    "AttributeImport.dc.html": { "x": 1520, "y": 2040, "w": 1440, "h": 900, "title": "人员属性导入", "is_interactive": true },
+    "PreApply.dc.html": { "x": 0, "y": 3060, "w": 1440, "h": 900, "title": "项目明细 · 预申请", "is_interactive": true },
+    "Payments.dc.html": { "x": 1520, "y": 3060, "w": 1440, "h": 900, "title": "项目明细 · 发放记录", "is_interactive": true },
+    "AnnualAnalysis.dc.html": { "x": 0, "y": 4080, "w": 1440, "h": 900, "title": "项目年度分析", "is_interactive": true },
+    "ProjectForm.dc.html": { "x": 1520, "y": 4080, "w": 1440, "h": 900, "title": "新建补贴项目", "is_interactive": true }
+  },
+  "order": [
+    "Main.dc.html",
+    "Farmers.dc.html",
+    "Household.dc.html",
+    "Subsidies.dc.html",
+    "Anomalies.dc.html",
+    "AttributeImport.dc.html",
+    "PreApply.dc.html",
+    "Payments.dc.html",
+    "AnnualAnalysis.dc.html",
+    "ProjectForm.dc.html"
+  ],
+  "notes": {
+    "title": { "x": 0, "y": -320, "text": "在原界面基础上改版", "kind": "title1", "maxW": 1840 }
+  },
+  "designSystems": []
+}
