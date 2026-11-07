@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../database/connection'
-import { formatGroupNo } from '../utils/format'
+import { formatGroupNo, parseGroupNoToInt } from '../utils/format'
 import { parseIdCard } from '../utils/id-card'
 import { maskIdCard, maskPhone, maskBankCard } from '../utils/masking'
 import { parsePagination, successList, success, errorResponse } from './response'
@@ -418,10 +418,25 @@ export function registerFarmerHandlers(): void {
   // ── 导入时自动创建缺失农户（批量版）──
   ipcMain.handle('farmers:batchEnsure', (_e, rows: { id_card: string; real_name: string; village_name?: string; group_no?: string }[]) => {
     try {
-      const validRows = rows.filter(r => (r.id_card || '').trim().length === 18)
-      if (!validRows.length) return success({ results: {}, info: {}, new_count: 0 })
+      // 规范化身份证：统一 trim，避免与渲染进程 trim 后取值不一致导致全部"身份证无效"
+      const normalized = (rows || []).map(r => ({
+        ...r,
+        id_card: String(r.id_card || '').trim(),
+      }))
+      const validRows = normalized.filter(r => r.id_card.length === 18)
+      // 非18位身份证明细，供前端明确提示原因（而非笼统报"身份证无效"）
+      const invalidRows = normalized
+        .map((r, idx) => ({ idx, card: r.id_card }))
+        .filter(x => x.card.length !== 18)
+        .map(x => ({
+          index: x.idx, id_card: x.card || '(空)',
+          reason: x.card ? `长度${x.card.length}位（应为18位）` : '身份证号为空',
+        }))
+      if (!validRows.length) {
+        return success({ results: {}, info: {}, new_count: 0, invalid_rows: invalidRows })
+      }
 
-      const idCards = validRows.map(r => r.id_card.trim())
+      const idCards = validRows.map(r => r.id_card)
       const placeholders = idCards.map(() => '?').join(',')
 
       // ① 一次性查出所有已存在的农户
@@ -446,7 +461,7 @@ export function registerFarmerHandlers(): void {
         if (ex) {
           results[row.id_card] = ex.id as number
           const vId = Number(ex.village_id || 0)
-          const gNo = Number(ex.group_no || 1)
+          const gNo = parseGroupNoToInt(ex.group_no)
           const vgId = vId ? (db().getRaw<{ id: number }>(
             'SELECT id FROM village_group WHERE village_id = ? AND group_no = ?', vId, gNo
           )?.id ?? 0) : 0
@@ -480,7 +495,7 @@ export function registerFarmerHandlers(): void {
           const idCard = row.id_card
           const realName = row.real_name || '未知'
           const villageName = row.village_name || '未分配'
-          const groupNo = Number(row.group_no || 1)
+          const groupNo = parseGroupNoToInt(row.group_no)
 
           // 确保村庄+村组存在
           let vc = villageCache.get(villageName)
@@ -517,7 +532,7 @@ export function registerFarmerHandlers(): void {
         }
       }
 
-      return success({ results, info, new_count: newCount })
+      return success({ results, info, new_count: newCount, invalid_rows: invalidRows })
     } catch (e) { return errorResponse(String(e)) }
   })
 }

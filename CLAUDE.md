@@ -56,6 +56,7 @@ subsidy-electron/
 │   │   ├── farmers.ts      # 农户相关
 │   │   ├── households.ts   # 家庭户
 │   │   ├── subsidies.ts    # 补贴申请/发放
+│   │   ├── subsidyTrend.ts # 年度同类补贴关系链 + 数据分析
 │   │   ├── land.ts         # 土地流转
 │   │   └── ...
 │   └── utils/              # 主进程工具
@@ -71,6 +72,7 @@ subsidy-electron/
 │   ├── pages/              # 页面组件
 │   │   ├── SubsidyProjectsPage.tsx   # 补贴项目管理
 │   │   ├── SubsidyRecordsPage.tsx    # 项目明细
+│   │   ├── AnnualAnalysisPage.tsx    # 年度补贴数据分析（补贴链）
 │   │   ├── FarmersPage.tsx           # 农户列表
 │   │   ├── DashboardPage.tsx         # 仪表盘
 │   │   └── ...
@@ -108,7 +110,7 @@ ipcMain.handle('subsidies:listTypes', async (_, params) => {
 ```
 
 ## 关键模型
-- **subsidy_type** — 补贴项目类型 (名称、年度、季节、计算模式、标准金额)
+- **subsidy_type** — 补贴项目类型 (名称、年度、季节、计算模式、标准金额、`prev_year_type_id` 上一年同类项目，自引用成链)
 - **farmer_profile** — 农户档案 (姓名、身份证、电话、状态)
 - **family_household** — 家庭户 (户主、承包面积、村组)
 - **subsidy_application** — 补贴申请 (农户-项目关联、面积、金额)

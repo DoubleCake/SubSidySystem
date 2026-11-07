@@ -76,6 +76,7 @@ export default function UpdatePage() {
   const [dlProgress, setDlProgress] = useState(0)
   const [dlSpeed, setDlSpeed] = useState('')
   const [downloadingVersion, setDownloadingVersion] = useState('')
+  const [downloadedVersion, setDownloadedVersion] = useState('')
 
   useEffect(() => {
     window.electronAPI.onUpdateProgress((p: any) => {
@@ -85,7 +86,32 @@ export default function UpdatePage() {
     window.electronAPI.onUpdateStatus((s: string) => {
       if (s === 'downloaded') setDlProgress(100)
     })
+    // 挂载时恢复主进程持久化的下载状态：切页重进后进度条/已下载状态不丢失
+    restoreUpdateState()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 从主进程查询全局下载状态并恢复界面
+  const restoreUpdateState = async () => {
+    try {
+      const r = await window.electronAPI.invoke<{ code: number; data: any }>('update:getState')
+      const s = r?.data
+      if (!s) return
+      if (s.status === 'downloading') {
+        setDownloadingVersion(s.version || '')
+        setDlProgress(s.progress || 0)
+        if (s.speed) setDlSpeed(s.speed)
+        setStatus('downloading')
+      } else if (s.status === 'downloaded') {
+        setDownloadedVersion(s.version || '')
+        setDlProgress(100)
+        setStatus('downloaded')
+      } else if (s.status === 'error' && s.error) {
+        setError(s.error)
+        setStatus('error')
+      }
+    } catch { /* ignore */ }
+  }
 
   const downloadVersion = async (v: VersionItem) => {
     const changes = v.changes?.length ? '\n\n更新内容:\n' + v.changes.map(c => '• ' + c).join('\n') : ''
@@ -97,7 +123,7 @@ export default function UpdatePage() {
     try {
       const r = await window.electronAPI.invoke<{ code: number; data: any }>('update:downloadVersion', { version: v.version, url: v.downloadUrl })
       if (r?.data?.error) { setError(r.data.error); setStatus('error') }
-      else setStatus('downloaded')
+      else { setStatus('downloaded'); setDownloadedVersion(v.version); setDlProgress(100) }
     } catch (e) { setError(String(e)); setStatus('error') }
     finally { setDownloadingVersion('') }
   }
@@ -147,7 +173,7 @@ export default function UpdatePage() {
         </div>
 
         {/* 下载进度条 */}
-        {downloadingVersion && (
+        {(downloadingVersion || (downloadedVersion && dlProgress >= 100)) && (
           <div className="space-y-1 bg-amber-50 border border-amber-200 rounded-card p-3">
             <div className="text-xs text-amber-700 mb-1 font-medium">正在下载 v{downloadingVersion} ...</div>
             {dlProgress > 0 && (
@@ -209,7 +235,9 @@ export default function UpdatePage() {
                         ? 'bg-amber-500 text-white border-amber-600 shadow-amber-200 animate-pulse'
                         : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-200 border-emerald-600'
                     }`}>
-                    {downloadingVersion === v.version ? `⏳ 下载中 ${dlProgress}%` : '⬇️ 安装此版本'}
+                    {downloadingVersion === v.version ? `⏳ 下载中 ${dlProgress}%`
+                      : downloadedVersion === v.version ? '✅ 已下载，重启安装'
+                      : '⬇️ 安装此版本'}
                   </button>
                 )}
               </div>

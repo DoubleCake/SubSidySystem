@@ -21,6 +21,31 @@ import { getUpdateServerUrl, setLastUpdateCheck } from './store'
 let mainWindow: BrowserWindow | null = null
 let pendingInstallPath: string | null = null
 
+export interface UpdateState {
+  status: string
+  version: string
+  progress: number
+  speed: string
+  transferred: number
+  total: number
+  filePath: string | null
+  error: string | null
+}
+
+// 主进程维护的全局下载状态：渲染进程切页后通过 update:getState 恢复进度，不会因组件卸载而丢失
+const updateState: UpdateState = {
+  status: 'idle', version: '', progress: 0, speed: '0.0 MB/s',
+  transferred: 0, total: 0, filePath: null, error: null,
+}
+
+export function getUpdateState(): UpdateState {
+  return { ...updateState }
+}
+
+function setUpdateState(partial: Partial<UpdateState>) {
+  Object.assign(updateState, partial)
+}
+
 export function setUpdateWindow(win: BrowserWindow) {
   mainWindow = win
 }
@@ -155,7 +180,9 @@ export async function checkForUpdatesAndInstall() {
       }
       steps.push(`✅ 解析更新信息成功 (v${checkResult.updateInfo.version})`)
 
+      setUpdateState({ status: 'downloading', version: serverVersion, progress: 0, error: null })
       await autoUpdater.downloadUpdate()
+      setUpdateState({ status: 'downloaded', version: serverVersion, progress: 100, error: null })
       steps.push(`✅ 下载完成`)
       setLastUpdateCheck(new Date().toISOString())
       return {
@@ -165,6 +192,7 @@ export async function checkForUpdatesAndInstall() {
         serverVersion,
       }
     } catch (downloadErr) {
+      setUpdateState({ status: 'error', version: serverVersion, error: (downloadErr as Error).message })
       return {
         error: `下载失败: ${(downloadErr as Error).message}`,
         steps: [...steps, `❌ 下载失败: ${(downloadErr as Error).message}`],
@@ -195,10 +223,12 @@ export function registerUpdateEvents() {
   autoUpdater.autoInstallOnAppQuit = true
 
   autoUpdater.on('checking-for-update', () => {
+    setUpdateState({ status: 'checking' })
     mainWindow?.webContents.send('update:status', 'checking')
   })
 
   autoUpdater.on('update-available', (info) => {
+    setUpdateState({ status: 'available', version: info.version })
     mainWindow?.webContents.send('update:status', 'available')
     mainWindow?.webContents.send('update:available', {
       version: info.version,
@@ -207,6 +237,7 @@ export function registerUpdateEvents() {
   })
 
   autoUpdater.on('update-not-available', () => {
+    setUpdateState({ status: 'up-to-date', error: null })
     mainWindow?.webContents.send('update:status', 'up-to-date')
   })
 
@@ -214,6 +245,10 @@ export function registerUpdateEvents() {
     const speedMB = progress.bytesPerSecond
       ? (progress.bytesPerSecond / (1024 * 1024)).toFixed(1)
       : '0.0'
+    setUpdateState({
+      status: 'downloading', progress: Math.round(progress.percent),
+      speed: `${speedMB} MB/s`, transferred: progress.transferred, total: progress.total, error: null,
+    })
     mainWindow?.webContents.send('update:progress', {
       percent: Math.round(progress.percent),
       speed: progress.bytesPerSecond,
@@ -224,6 +259,7 @@ export function registerUpdateEvents() {
   })
 
   autoUpdater.on('update-downloaded', () => {
+    setUpdateState({ status: 'downloaded', progress: 100, error: null })
     mainWindow?.webContents.send('update:status', 'downloaded')
     // 如果用 autoUpdater 下载的，弹原生对话框
     if (!pendingInstallPath) {
@@ -240,6 +276,7 @@ export function registerUpdateEvents() {
   })
 
   autoUpdater.on('error', (error) => {
+    setUpdateState({ status: 'error', error: error.message })
     mainWindow?.webContents.send('update:status', 'error')
     mainWindow?.webContents.send('update:error', error.message)
   })
@@ -264,6 +301,7 @@ export async function downloadVersionExe(downloadUrl: string, version: string): 
     const stat = fs.statSync(filePath)
     if (stat.size > 50 * 1024 * 1024) {
       pendingInstallPath = filePath
+      setUpdateState({ status: 'downloaded', version, progress: 100, speed: '已缓存', filePath, error: null })
       mainWindow?.webContents.send('update:progress', { percent: 100, speedMB: '已缓存' })
       mainWindow?.webContents.send('update:status', 'downloaded')
       mainWindow?.webContents.send('update:downloadPath', filePath)
@@ -272,6 +310,7 @@ export async function downloadVersionExe(downloadUrl: string, version: string): 
     }
   }
 
+  setUpdateState({ status: 'downloading', version, progress: 0, speed: '0.0 MB/s', transferred: 0, total: 0, error: null })
   mainWindow?.webContents.send('update:status', 'downloading')
   mainWindow?.webContents.send('update:progress', { percent: 0, speedMB: '0.0 MB/s' })
 
@@ -287,6 +326,7 @@ export async function downloadVersionExe(downloadUrl: string, version: string): 
       }
 
       if (res.statusCode !== 200) {
+        setUpdateState({ status: 'error', version, error: `HTTP ${res.statusCode}` })
         return reject(new Error(`HTTP ${res.statusCode}`))
       }
 
@@ -303,6 +343,7 @@ export async function downloadVersionExe(downloadUrl: string, version: string): 
           const elapsed = (Date.now() - startTime) / 1000
           const speed = elapsed > 0 ? downloaded / elapsed : 0
           const speedMB = (speed / (1024 * 1024)).toFixed(1)
+          setUpdateState({ status: 'downloading', progress: pct, speed: `${speedMB} MB/s`, transferred: downloaded, total, error: null })
           mainWindow?.webContents.send('update:progress', {
             percent: pct,
             speedMB: `${speedMB} MB/s`,
@@ -321,10 +362,12 @@ export async function downloadVersionExe(downloadUrl: string, version: string): 
           const errMsg = total === 0
             ? `下载失败：服务器未返回文件大小（Content-Length），下载内容仅 ${(finalSize/1024).toFixed(0)}KB，可能该版本安装包不存在于服务器`
             : `下载的文件不完整（${(finalSize/1024/1024).toFixed(1)}MB < ${(total/1024/1024).toFixed(1)}MB），请检查服务器`
+          setUpdateState({ status: 'error', version, error: errMsg })
           reject(new Error(errMsg))
           return
         }
         pendingInstallPath = filePath
+        setUpdateState({ status: 'downloaded', version, progress: 100, filePath, error: null })
         mainWindow?.webContents.send('update:status', 'downloaded')
         mainWindow?.webContents.send('update:downloadPath', filePath)
         // 弹重启对话框
@@ -335,8 +378,12 @@ export async function downloadVersionExe(downloadUrl: string, version: string): 
       res.on('error', (err: Error) => {
         file.close()
         fs.unlink(filePath, () => {})
+        setUpdateState({ status: 'error', version, error: err.message })
         reject(err)
       })
-    }).on('error', reject)
+    }).on('error', (err: Error) => {
+      setUpdateState({ status: 'error', version, error: err.message })
+      reject(err)
+    })
   })
 }

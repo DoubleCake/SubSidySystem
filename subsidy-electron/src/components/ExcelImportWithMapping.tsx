@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import * as XLSX from 'xlsx'
 import Modal from './Modal'
 
@@ -101,6 +101,15 @@ export default function ExcelImportWithMapping({
   const [detecting, setDetecting] = useState(false)
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false)
 
+  // 预览/导入用的已映射数据（进入预览时才计算一次，避免映射步骤每次改下拉都全量重算几万行）
+  const [previewData, setPreviewData] = useState<{ fields: string[]; rows: Record<string, unknown>[] }>({ fields: [], rows: [] })
+  // 解析中 loading 反馈（全量 sheet_to_json 是同步阻塞，先渲染提示再解析）
+  const [parsing, setParsing] = useState(false)
+  // 列名签名缓存：同一列头集合的 Sheet/跳行不重复重建映射、不重复调 detectColumns
+  const lastColsRef = useRef('')
+  // 检测序号守卫：快速切换 Sheet 时防止旧的检测结果覆盖新映射
+  const detectSeqRef = useRef(0)
+
   // 预检查状态
   const [preCheckStatus, setPreCheckStatus] = useState<PreCheckStatus | null>(null)
 
@@ -142,6 +151,7 @@ export default function ExcelImportWithMapping({
     setRows([])
     setResult(null)
     setColumnMappings([])
+    setPreviewData({ fields: [], rows: [] })
     setImportStage('')
     setStatusText('')
     setWritten(0)
@@ -182,7 +192,21 @@ export default function ExcelImportWithMapping({
     const ws = wb.Sheets[sheetName]
     const range = XLSX.utils.decode_range(ws['!ref'] || 'A1')
     const headerRowNum = range.s.r + skip
-    const newRange = XLSX.utils.encode_range({ s: { r: headerRowNum, c: range.s.c }, e: range.e })
+
+    // 收敛到实际有内容的行列：部分 Excel 因整表格式/样式导致 !ref 覆盖全表（如 A1:XFD1048576），
+    // 若直接按 !ref 全量解析会生成上万个空列（用户遇到的 16000 列）且极慢。
+    // 改为按实际存在的单元格推算真实边界。
+    let maxR = range.s.r
+    let maxC = range.s.c
+    for (const key of Object.keys(ws)) {
+      if (key[0] === '!') continue
+      const cell = XLSX.utils.decode_cell(key)
+      if (cell.r > maxR) maxR = cell.r
+      if (cell.c > maxC) maxC = cell.c
+    }
+    maxR = Math.max(maxR, headerRowNum)
+
+    const newRange = XLSX.utils.encode_range({ s: { r: headerRowNum, c: range.s.c }, e: { r: maxR, c: maxC } })
     const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { range: newRange, defval: '', raw: false })
 
     if (data.length === 0) {
@@ -192,48 +216,79 @@ export default function ExcelImportWithMapping({
     return data
   }
 
+  // 按映射关系把 Excel 原始行转换为「系统字段键名」行。
+  // 仅进入预览/导入前调用一次，避免映射页每次改下拉都全量重算几万行。
+  const buildMappedData = (sourceRows: Record<string, unknown>[], mappings: ColumnMapping[]) => {
+    const fields = mappings.filter(cm => cm.system_field).map(cm => cm.system_field!)
+    const mappedRows = sourceRows.map(row => {
+      const mr: Record<string, unknown> = {}
+      mappings.forEach(cm => {
+        if (cm.system_field && row[cm.excel_column] !== undefined) {
+          mr[cm.system_field] = row[cm.excel_column]
+        }
+      })
+      return mr
+    })
+    return { fields, rows: mappedRows }
+  }
+
   const parseSheet = async (wb: XLSX.WorkBook, sheetName: string, skip: number) => {
-    const data = parseSheetData(wb, sheetName, skip)
-    if (!data) return
+    setParsing(true)
+    // 让 UI 先渲染「解析中…」提示，再执行同步的全量解析，避免界面像卡死
+    await new Promise(r => setTimeout(r, 20))
+    try {
+      const data = parseSheetData(wb, sheetName, skip)
+      if (!data) return
 
-    const fileColumns = Object.keys(data[0])
-    setRows(data)
-    // 保留 workbook 以便映射页可切换 Sheet/跳行重新解析
+      const fileColumns = Object.keys(data[0])
+      setRows(data)
 
-    // 先创建空映射并进入映射步骤
-    const baseMappings: ColumnMapping[] = fileColumns.map(col => ({
-      excel_column: col,
-      system_field: null,
-      system_field_options: systemFields,
-      sample_value: data[0]?.[col] ? String(data[0][col]).substring(0, 20) : ''
-    }))
-    setColumnMappings(baseMappings)
-    setStep('mapping')
+      // 列名集合与上次一致（切同结构 Sheet / 改跳行）→ 保留现有映射，跳过重建与重复检测
+      const colKey = fileColumns.join('|')
+      const sameCols = colKey === lastColsRef.current
+      lastColsRef.current = colKey
 
-    // 后台智能检测列名
-    if (onDetectColumns) {
-      setDetecting(true)
-      try {
-        const sampleRows = data.slice(0, 3)
-        const result = await onDetectColumns(fileColumns, sampleRows)
+      setStep('mapping')
+      if (sameCols) return
 
-        const mappings: ColumnMapping[] = fileColumns.map(col => {
-          const detected = (result as { columns?: Array<{ excel_column: string; suggested_field?: string | null; confidence?: number }> }).columns?.find(d => d.excel_column === col)
-          const sampleValue = data[0]?.[col] ? String(data[0][col]).substring(0, 20) : ''
-          return {
-            excel_column: col,
-            system_field: detected?.suggested_field || null,
-            system_field_options: systemFields,
-            sample_value: sampleValue,
-            confidence: detected?.confidence ?? 0
-          }
-        })
-        setColumnMappings(mappings)
-      } catch (error) {
-        console.error('检测列名失败:', error)
-      } finally {
-        setDetecting(false)
+      // 列名变化 → 重建空映射并进入映射步骤
+      const baseMappings: ColumnMapping[] = fileColumns.map(col => ({
+        excel_column: col,
+        system_field: null,
+        system_field_options: systemFields,
+        sample_value: data[0]?.[col] ? String(data[0][col]).substring(0, 20) : ''
+      }))
+      setColumnMappings(baseMappings)
+
+      // 后台智能检测列名（带序号守卫：快速切换 Sheet 时旧检测结果不覆盖新映射）
+      if (onDetectColumns) {
+        setDetecting(true)
+        const seq = ++detectSeqRef.current
+        try {
+          const sampleRows = data.slice(0, 3)
+          const result = await onDetectColumns(fileColumns, sampleRows)
+          if (seq !== detectSeqRef.current) return
+
+          const mappings: ColumnMapping[] = fileColumns.map(col => {
+            const detected = (result as { columns?: Array<{ excel_column: string; suggested_field?: string | null; confidence?: number }> }).columns?.find(d => d.excel_column === col)
+            const sampleValue = data[0]?.[col] ? String(data[0][col]).substring(0, 20) : ''
+            return {
+              excel_column: col,
+              system_field: detected?.suggested_field || null,
+              system_field_options: systemFields,
+              sample_value: sampleValue,
+              confidence: detected?.confidence ?? 0
+            }
+          })
+          setColumnMappings(mappings)
+        } catch (error) {
+          console.error('检测列名失败:', error)
+        } finally {
+          setDetecting(false)
+        }
       }
+    } finally {
+      setParsing(false)
     }
   }
 
@@ -261,24 +316,6 @@ export default function ExcelImportWithMapping({
     XLSX.writeFile(wb, `${title}导入模板.xlsx`)
   }
 
-  // 映射后的数据（Excel原始值+系统字段键名）
-  const mappedData = useMemo(() => {
-    // 映射的列名列表（已映射的系统字段按映射表顺序排列）
-    const fields = columnMappings.filter(cm => cm.system_field).map(cm => cm.system_field!)
-    const mapping: Record<string, string> = {}
-    columnMappings.forEach(cm => { if (cm.system_field) mapping[cm.excel_column] = cm.system_field })
-    const mappedRows = rows.map(row => {
-      const mr: Record<string, unknown> = {}
-      columnMappings.forEach(cm => {
-        if (cm.system_field && row[cm.excel_column] !== undefined) {
-          mr[cm.system_field] = row[cm.excel_column]
-        }
-      })
-      return mr
-    })
-    return { fields, rows: mappedRows }
-  }, [rows, columnMappings])
-
   const handleMappingConfirm = () => {
     // 检查是否有必填字段未映射
     const requiredFields = systemFields.filter(f => f.required).map(f => f.field)
@@ -297,6 +334,8 @@ export default function ExcelImportWithMapping({
       return
     }
 
+    // 进入预览时一次性构建映射数据（此后 mapping 步骤改下拉不再触发全量重算）
+    setPreviewData(buildMappedData(rows, columnMappings))
     setStep('preview')
     setPreCheckStatus(null)
   }
@@ -343,7 +382,7 @@ export default function ExcelImportWithMapping({
     // 映射关系（Excel列名→系统字段）
     const mapping: Record<string, string> = {}
     columnMappings.forEach(m => { if (m.system_field) mapping[m.excel_column] = m.system_field })
-    const dataToImport = mappedData.rows
+    const dataToImport = previewData.rows
 
     try {
       const res = await onImport(dataToImport, mapping, overwrite, (s) => {
@@ -624,6 +663,13 @@ export default function ExcelImportWithMapping({
             </div>
           )}
 
+          {parsing && (
+            <div className="mb-3 bg-blue-50 border border-blue-100 rounded-btn px-4 py-2.5 flex items-center gap-3">
+              <div className="w-5 h-5 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin shrink-0" />
+              <span className="text-sm text-blue-700">正在解析 Excel 数据，请稍候…</span>
+            </div>
+          )}
+
           {detecting && (
             <div className="mb-3 bg-blue-50 border border-blue-100 rounded-btn px-4 py-2.5 flex items-center gap-3">
               <div className="w-5 h-5 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin shrink-0" />
@@ -859,7 +905,7 @@ export default function ExcelImportWithMapping({
               <thead className="bg-warm/30 sticky top-0">
                 <tr>
                   <th className="px-2 py-2 text-center text-xs text-text-muted font-semibold border-b border-border w-8">#</th>
-                  {mappedData.fields.map(f => {
+                  {previewData.fields.map(f => {
                     const fieldInfo = systemFields.find(sf => sf.field === f)
                     return (
                       <th key={f} className="px-3 py-2 text-left text-text-muted font-semibold border-b border-border whitespace-nowrap">
@@ -870,10 +916,10 @@ export default function ExcelImportWithMapping({
                 </tr>
               </thead>
               <tbody>
-                {mappedData.rows.slice(0, 30).map((row, i) => (
+                {previewData.rows.slice(0, 30).map((row, i) => (
                   <tr key={i} className="border-b border-border/50 hover:bg-warm/30">
                     <td className="px-2 py-1.5 text-center text-xs text-text-muted/50">{i + 1}</td>
-                    {mappedData.fields.map(f => (
+                    {previewData.fields.map(f => (
                       <td key={f} className="px-3 py-1.5 text-text-primary whitespace-nowrap font-mono">{String(row[f] ?? '')}</td>
                     ))}
                   </tr>

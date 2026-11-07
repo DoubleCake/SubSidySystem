@@ -42,8 +42,31 @@ export default function UpdatePanel() {
       setError(e)
       setChecking(false)
     })
+    // 挂载时从主进程恢复下载状态（切页重进进度/已下载状态不丢失）
+    restoreUpdateState()
     return () => { window.electronAPI.removeUpdateListeners() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 从主进程查询全局下载状态并恢复界面
+  const restoreUpdateState = async () => {
+    try {
+      const r = await window.electronAPI.invoke<{ code: number; data: any }>('update:getState')
+      const s = r?.data
+      if (!s) return
+      if (s.status === 'downloading') {
+        setStatus('downloading')
+        setProgress(s.progress || 0)
+        if (s.speed) setSpeedInfo(s.speed)
+      } else if (s.status === 'downloaded') {
+        setStatus('downloaded')
+        setProgress(100)
+      } else if (s.status === 'error' && s.error) {
+        setStatus('error')
+        setError(s.error)
+      }
+    } catch { /* ignore */ }
+  }
 
   const loadConfig = async () => {
     try {
@@ -109,6 +132,7 @@ export default function UpdatePanel() {
     checking: { text: '正在检查更新...', color: 'text-blue-600' },
     'up-to-date': { text: '当前已是最新版本 ✓', color: 'text-green-600' },
     available: { text: '发现新版本！', color: 'text-amber-600' },
+    downloading: { text: '正在下载更新...', color: 'text-amber-600' },
     downloaded: { text: '更新已下载，重启后安装', color: 'text-primary' },
     error: { text: '更新出错', color: 'text-red-600' },
   }

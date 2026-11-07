@@ -4,7 +4,7 @@
 import { ipcMain, app } from 'electron'
 import { getUpdateServerUrl } from '../store'
 import { success, errorResponse } from './response'
-import { downloadVersionExe } from '../updater'
+import { downloadVersionExe, getUpdateState } from '../updater'
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 
@@ -51,6 +51,11 @@ export function registerUpdateHandlers(): void {
         versions,
       })
     } catch (e) { return errorResponse(String(e)) }
+  })
+
+  // ── 查询全局下载状态（切页后渲染进程挂载时恢复进度/已下载状态） ──
+  ipcMain.handle('update:getState', () => {
+    return success(getUpdateState())
   })
 
   // ── 版本选择：下载指定版本的 NSIS 安装包 ──

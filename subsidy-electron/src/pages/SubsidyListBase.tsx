@@ -244,13 +244,17 @@ export default function SubsidyListBase({
     let farmerMap: Record<string, number> = {}
     let villageInfo: Record<string, { village_id: number; village_name: string; group_no: number; village_group_id: number }> = {}
     let newFarmers = 0
+    let ensureError = ''
+    let invalidCards = new Set<string>()
     if (ensureRows.length) {
       try {
         const r = await api.batchEnsureFarmers(ensureRows)
         farmerMap = r.results
         villageInfo = (r as any).info || {}
         newFarmers = r.new_count || 0
-      } catch { /* ignore */ }
+        ensureError = (r as any).message || ''
+        invalidCards = new Set(((r as any).invalid_rows || []).map((x: any) => String(x.id_card)))
+      } catch (e) { ensureError = (e as Error).message }
     }
 
     // 阶段2: 组装导入数据
@@ -265,7 +269,15 @@ export default function SubsidyListBase({
       if (!realName) { errors.push(`第${i + 1}行：缺少姓名`); continue }
 
       const farmerId = farmerMap[idCard] || 0
-      if (!farmerId) { errors.push(`第${i + 1}行：身份证号无效或无法匹配`); continue }
+      if (!farmerId) {
+        if (invalidCards.has(idCard)) {
+          errors.push(`第${i + 1}行：身份证号「${idCard}」长度不是18位，请检查Excel中该列是否被转成科学计数法/含空格`)
+          continue
+        }
+        if (ensureError) { errors.push(`第${i + 1}行：身份证匹配失败（${ensureError}）`); continue }
+        errors.push(`第${i + 1}行：身份证号无效或无法匹配`)
+        continue
+      }
       const vi = villageInfo[idCard]
       const applyArea = Number(row.apply_area || 0)
       const data: Record<string, unknown> = {
