@@ -373,7 +373,7 @@ export default function WorkflowDocPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-stone-800 flex items-center gap-2">
+        <h1 className="text-[20px] font-bold text-primary flex items-center gap-2">
           <span>📖</span> 操作流程文档
         </h1>
         <p className="text-sm text-stone-400 mt-1">系统功能模块的操作流程和技术说明</p>

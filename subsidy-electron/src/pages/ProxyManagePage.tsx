@@ -132,7 +132,7 @@ export default function ProxyManagePage() {
           >
             ← 返回
           </button>
-          <h1 className="text-lg font-bold text-text-primary">代领关系管理</h1>
+          <h1 className="text-[20px] font-bold text-primary">代领关系管理</h1>
         </div>
       </div>
 

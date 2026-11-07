@@ -75,7 +75,7 @@ export default function ToolsPage() {
     <div className="p-6 max-w-screen-xl mx-auto">
       {/* 标题区 */}
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-text-primary">数据工具</h1>
+        <h1 className="text-[20px] font-bold text-primary">数据工具</h1>
         <p className="text-sm text-text-muted mt-1">常用的数据处理和导入工具，点击卡片进入</p>
       </div>
 

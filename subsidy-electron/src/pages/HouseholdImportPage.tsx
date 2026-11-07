@@ -100,7 +100,7 @@ export default function HouseholdImportPage() {
       {/* 标题 + 导入按钮 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-text-primary">家庭户批量导入</h1>
+          <h1 className="text-[20px] font-bold text-primary">家庭户批量导入</h1>
           <p className="text-sm text-text-muted mt-0.5">智能识别表格列，自动匹配/合并数据库家庭户</p>
         </div>
         <button onClick={() => setOpen(true)}

@@ -155,7 +155,7 @@ export default function FamilyRelationImportPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">家庭关系导入</h1>
+      <h1 className="text-[20px] font-bold text-primary mb-6">家庭关系导入</h1>
 
       <div className="bg-white rounded-btn shadow p-6 space-y-6">
         {/* 文件上传 */}

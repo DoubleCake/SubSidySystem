@@ -41,7 +41,7 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-1 flex-wrap">
-            <span className="text-xl font-bold text-text-primary">{fd.real_name}</span>
+            <span className="text-[20px] font-bold text-primary">{fd.real_name}</span>
             <span className="text-text-muted text-sm">{GENDER(fd.gender)}</span>
             {age && <span className="text-text-muted text-sm">{age} 岁</span>}
             <span className="text-xs bg-primary-500/10 text-primary px-2 py-0.5 rounded">{FARMER_STATUS[fd.farmer_status]?.label ?? '未知'}</span>

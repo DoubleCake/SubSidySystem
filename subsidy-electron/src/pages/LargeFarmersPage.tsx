@@ -377,7 +377,15 @@ export default function LargeFarmersPage() {
   const totalManaged = ownArea + totalTrustArea
 
   return (
-    <div className="grid grid-cols-[1fr_440px] gap-4">
+    <div className="space-y-4">
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-[20px] font-bold text-primary leading-tight">大户管理</h1>
+          <div className="text-meta text-text-muted mt-1">管理种粮大户、合作社等经营主体及其流转土地</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-[1fr_440px] gap-4">
       {/* ── 左列：大户列表 ── */}
       <div>
         {/* 工具栏 */}
@@ -846,6 +854,7 @@ export default function LargeFarmersPage() {
       </Modal>
 
       <Toast {...toast} />
+      </div>
     </div>
   )
 }

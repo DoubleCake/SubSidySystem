@@ -93,7 +93,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-stone-100">
       <div className="bg-white rounded-card shadow-lg p-8 w-full max-w-sm">
         <div className="text-center mb-6">
-          <h1 className="text-xl font-bold text-text-primary">农户补贴管理系统</h1>
+          <h1 className="text-[20px] font-bold text-primary">农户补贴管理系统</h1>
           <p className="text-sm text-text-muted mt-1">
             {authDisabled ? '认证已关闭，可直接进入系统' : '请登录后使用'}
           </p>

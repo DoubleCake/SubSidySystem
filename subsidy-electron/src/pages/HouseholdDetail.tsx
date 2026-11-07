@@ -210,7 +210,7 @@ export function HouseholdDetailContent({
             <div className="flex items-center gap-2">
               <span className="text-2xl">👥</span>
               <div>
-                <div className="text-lg font-bold text-text-primary">{displayMembers.length}</div>
+                <div className="text-[20px] font-bold text-primary">{displayMembers.length}</div>
                 <div className="text-xs text-text-muted">人口</div>
               </div>
             </div>

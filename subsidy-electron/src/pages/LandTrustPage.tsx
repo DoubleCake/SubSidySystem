@@ -354,12 +354,20 @@ export default function LandTrustPage() {
   }
 
   return (
-    <div className="grid grid-cols-[1fr_340px] gap-4">
+    <div className="space-y-4">
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-[20px] font-bold text-primary leading-tight">土地流转</h1>
+          <div className="text-meta text-text-muted mt-1">维护承包地转入转出，核对流转面积与补贴资格</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-[1fr_340px] gap-4">
       {/* ── 左列：流转台账 ── */}
       <div>
         {/* 标题 */}
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-bold text-text-primary">土地流转</h2>
+          <h2 className="text-[20px] font-bold text-primary">土地流转</h2>
           <span className="text-xs text-text-muted">共 {total} 条</span>
         </div>
         {/* 工具栏 */}
@@ -951,6 +959,7 @@ export default function LandTrustPage() {
       />
 
       <Toast {...toast} />
+      </div>
     </div>
   )
 }

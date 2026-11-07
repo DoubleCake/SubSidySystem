@@ -205,7 +205,7 @@ export default function AgriTaskPage() {
   return (
     <div>
       <Toast {...toast} />
-      <h1 className="text-xl font-bold text-text-primary mb-4">农业任务分解</h1>
+      <h1 className="text-[20px] font-bold text-primary mb-4">农业任务分解</h1>
 
       {/* 筛选栏 */}
       <div className="flex flex-wrap items-center gap-3 mb-4">

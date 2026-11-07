@@ -45,7 +45,7 @@ export default function ProjectProgressPage() {
       {/* 顶部导航 */}
       <div className="flex items-center gap-3 mb-4">
         <button onClick={() => navigate(-1)} className="text-text-muted hover:text-text-primary">← 返回</button>
-        <h1 className="text-lg font-bold">📋 {projectName || '项目进度'}</h1>
+        <h1 className="text-[20px] font-bold text-primary">📋 {projectName || '项目进度'}</h1>
       </div>
 
       {/* 项目选择器 */}

@@ -322,7 +322,7 @@ export default function SettingsPage() {
     <div>
       {/* Tab 切换 */}
       <div className="flex items-center gap-4 mb-5">
-        <h1 className="text-xl font-bold text-text-primary">村组管理</h1>
+        <h1 className="text-[20px] font-bold text-primary">村组管理</h1>
         <div className="flex gap-1 bg-warm/30 p-1 rounded-btn text-sm">
           {([['groups', '村组结构'], ['land', '土地基础信息']] as const).map(([t, label]) => (
             <button key={t} onClick={() => setTab(t)}
@@ -611,7 +611,7 @@ function VillageGroupsLayout(props: {
             {/* 村名标题 */}
             <div className="bg-white border border-border rounded-card shadow-card p-4">
               <div className="flex items-center gap-3">
-                <h2 className="text-lg font-bold text-text-primary">{villageDetail.village_name}</h2>
+                <h2 className="text-[20px] font-bold text-primary">{villageDetail.village_name}</h2>
                 <span className="text-xs bg-primary-500/10 text-primary px-2 py-0.5 rounded-full">{villageDetail.groups.length}个组</span>
                 <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{villageDetail.household_count}户</span>
               </div>

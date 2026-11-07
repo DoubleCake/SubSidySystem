@@ -246,7 +246,7 @@ export default function DataVerifyPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-text-primary">📋 身份信息验证</h1>
+        <h1 className="text-[20px] font-bold text-primary">📋 身份信息验证</h1>
         <p className="text-sm text-text-muted mt-0.5">粘贴姓名+身份证号，自动校验格式、检测重复、比对数据库</p>
       </div>
 

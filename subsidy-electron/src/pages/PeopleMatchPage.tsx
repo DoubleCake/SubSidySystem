@@ -126,7 +126,7 @@ export default function PeopleMatchPage() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <h1 className="text-xl font-bold text-text-primary mb-2">🔍 人员模糊匹配</h1>
+      <h1 className="text-[20px] font-bold text-primary mb-2">🔍 人员模糊匹配</h1>
       <p className="text-sm text-text-muted mb-5">
         粘贴姓名、村名、电话数据，系统自动匹配数据库中的农户。支持 Tab / 逗号 / 双空格分隔。
       </p>
