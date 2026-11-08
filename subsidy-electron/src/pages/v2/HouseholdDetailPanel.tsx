@@ -91,7 +91,7 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
         ))}
       </div>
       <div className="grid grid-cols-[minmax(0,1fr)_270px] gap-3 px-3 py-2.5">
-        <div className="flex flex-col gap-2.5 min-w-0 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 470px)' }}>
+        <div className="flex flex-col gap-2.5 min-w-0">
 
           {/* ① 家庭人口 */}
           <div className="border border-[#F0EBE1] rounded-card overflow-hidden flex flex-col shrink-0">
