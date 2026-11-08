@@ -13,8 +13,6 @@ const sections: SidebarSection[] = [
     label: '👥 主体管理',
     items: [
       { label: '主体管理', to: '/farmers' },
-      { label: '大户管理', to: '/large-farmers' },
-      { label: '村组联系人', to: '/village-contacts' },
       { label: '人员匹配', to: '/match-people' },
       { label: '户籍导入', to: '/settings/household-import' },
       { label: '人员属性导入', to: '/settings/farmer-attribute-import' },

@@ -39,7 +39,6 @@ const mainNav = [
   { to: '/projects',     label: '补贴总览',  icon: 'subsidies' as const },
   { to: '/analysis',     label: '数据分析',  icon: 'chart' as const },
   { to: '/land',         label: '土地流转',  icon: 'land' as const },
-  { to: '/large-farmers',label: '大户管理',  icon: 'household' as const },
   { to: '/links',        label: '补贴查询',  icon: 'link' as const },
   { to: '/tools',        label: '数据工具',  icon: 'menu' as const },
 ]
