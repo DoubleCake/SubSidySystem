@@ -16,12 +16,10 @@ import HouseholdRegistryV2Page from './pages/v2/HouseholdRegistryV2Page'
 import FamilyRelationImportPage from './pages/FamilyRelationImportPage'
 import ProxyManagePage from './pages/ProxyManagePage'
 import AgriTaskPage from './pages/AgriTaskPage'
-import LargeFarmersPage from './pages/LargeFarmersPage'
 import ProjectProgressPage from './pages/ProjectProgressPage'
 import WorkflowDocPage from './pages/WorkflowDocPage'
 import ToolsPage from './pages/ToolsPage'
 import DataVerifyPage from './pages/DataVerifyPage'
-import VillageContactsPage from './pages/VillageContactsPage'
 import UserManagementPage from './pages/UserManagementPage'
 import PeopleMatchPage from './pages/PeopleMatchPage'
 import UpdatePage from './pages/UpdatePage'
@@ -232,7 +230,6 @@ function Layout() {
               <Routes>
             <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
             <Route path="/farmers"   element={<HouseholdRegistryV2Page />} />
-            <Route path="/village-contacts" element={<VillageContactsPage />} />
             <Route path="/match-people" element={<PeopleMatchPage />} />
             <Route path="/projects"  element={<SubsidyProjectsPage />} />
             <Route path="/analysis"  element={<AnnualAnalysisPage />} />
@@ -240,7 +237,6 @@ function Layout() {
             <Route path="/project-progress" element={<ProjectProgressPage />} />
             <Route path="/agri-tasks" element={<AgriTaskPage />} />
             <Route path="/land"      element={<LandTrustPage />} />
-            <Route path="/large-farmers" element={<LargeFarmersPage />} />
             <Route path="/links"     element={<ExternalLinksPage />} />
             <Route path="/tools"     element={<ToolsPage />} />
             <Route path="/data-verify" element={<DataVerifyPage />} />
@@ -252,7 +248,6 @@ function Layout() {
             <Route path="/settings/farmer-attribute-import" element={<FarmerAttributeImportPage />} />
             <Route path="/farmers-legacy" element={<FarmersPage />} />
             <Route path="/settings/family-relation-import" element={<FamilyRelationImportPage />} />
-            <Route path="/settings/large-farmers" element={<LargeFarmersPage />} />
             <Route path="/settings/users" element={<UserManagementPage />} />
             <Route path="/settings/update" element={<UpdatePage />} />
             <Route path="/proxy/application/:applicationId" element={<ProxyManagePage />} />
