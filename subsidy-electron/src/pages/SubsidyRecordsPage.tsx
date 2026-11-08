@@ -237,9 +237,9 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       const pays = payRes.items || []
 
       const appMap: Record<string, any> = {}
-      for (const a of apps) { const ic = a.id_card || ''; if (ic) appMap[ic] = { real_name: a.farmer_name, village: a.village, apply_area: Number(a.apply_area || 0) } }
+      for (const a of apps as any[]) { const ic = a.id_card || ''; if (ic) appMap[ic] = { real_name: a.farmer_name, village: a.village, apply_area: Number(a.apply_area || 0) } }
       const payMap: Record<string, any> = {}
-      for (const p of pays) { const ic = p.id_card || ''; if (ic) payMap[ic] = { real_name: p.farmer_name, village: p.village, apply_area: Number(p.apply_area || 0) } }
+      for (const p of pays as any[]) { const ic = p.id_card || ''; if (ic) payMap[ic] = { real_name: p.farmer_name, village: p.village, apply_area: Number(p.apply_area || 0) } }
 
       const appIds = new Set(Object.keys(appMap)), payIds = new Set(Object.keys(payMap))
       setDisbCompareResult({
@@ -374,7 +374,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         ? 'subsidies:batchDeletePayments'
         : 'subsidies:batchDeleteApplications'
       const response = await window.electronAPI.invoke(endpoint, { ids: selectedIds })
-      const data = response?.data ?? response
+      const data: any = (response as any)?.data ?? response
       if (data?.code !== undefined && data.code !== 0) throw new Error('批量删除失败')
       show(`✓ 已删除 ${selectedIds.length} 条记录`)
       setSelectedIds([])
@@ -402,7 +402,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         ? 'subsidies:batchDeletePayments'
         : 'subsidies:batchDeleteApplications'
       const response = await window.electronAPI.invoke(endpoint, { delete_all: true, subsidy_type_id: subsidyType.id })
-      const result = response?.data ?? response
+      const result: any = (response as any)?.data ?? response
       show(`✓ 已删除全部 ${result.deleted} 条记录`)
       setSelectedIds([])
       setStatsRefreshKey(k => k + 1)
@@ -538,7 +538,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         year: subsidyType.subsidy_year,
         data_source: dataSource,
       })
-      const rows = response?.data ?? response
+      const rows: any = (response as any)?.data ?? response
       setVillages(Array.isArray(rows) ? [...new Set(rows.map(r => r.village_name).filter(Boolean))] : [])
     } catch (error) {
       console.error('加载村庄列表失败:', error)
@@ -563,7 +563,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         if (sortField) { params.sort_field = sortField; params.sort_dir = sortDir }
 
         const res = await window.electronAPI.invoke('subsidies:listPayments', params)
-        const data = res?.data ?? res
+        const data: any = (res as any)?.data ?? res
         setApps(data.items.map((p: any) => ({
           id: p.id,
           farmer_id: p.farmer_id,
@@ -638,8 +638,8 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
       if (filters.village) precheckParams.village_name = filters.village
 
       const response = await window.electronAPI.invoke('subsidies:precheck', precheckParams)
-      const result = response?.data ?? response
-      if (response?.code !== undefined && response.code !== 0) throw new Error('预检请求失败')
+      const result: any = (response as any)?.data ?? response
+      if ((response as any)?.code !== undefined && (response as any).code !== 0) throw new Error('预检请求失败')
       const summary = result.summary || {}
       const okCount = summary.ok_rows || 0
       const errorCount = summary.error_rows || 0
@@ -703,7 +703,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         category: subsidyType.category,
         current_type_id: subsidyType.id
       })
-      const data = response?.data ?? response
+      const data: any = (response as any)?.data ?? response
       setComparableTypes(data)
     } catch (error) {
       console.error('加载可对比项目失败:', error)
@@ -725,7 +725,7 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
         statsParams.compare_type_id = selectedCompareType
       }
       const response = await window.electronAPI.invoke('subsidies:applicationStats', statsParams)
-      const data = response?.data ?? response
+      const data: any = (response as any)?.data ?? response
       setStats(data)
     } catch (error) {
       console.error('加载统计数据失败:', error)
