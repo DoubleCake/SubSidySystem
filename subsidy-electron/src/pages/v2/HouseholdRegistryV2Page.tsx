@@ -28,6 +28,7 @@ type SideTab = 'farmers' | 'households' | 'large' | 'villages'
 
 const PAGE_SIZE = 20
 const HH_PAGE_SIZE = 20
+const LARGE_PAGE_SIZE = 20
 
 
 export default function HouseholdRegistryV2Page() {
@@ -161,7 +162,7 @@ export default function HouseholdRegistryV2Page() {
   const loadLargeList = useCallback(async () => {
     setLoadingLarge(true)
     try {
-      const params: Record<string, unknown> = { page: largePage, page_size: 20 }
+      const params: Record<string, unknown> = { page: largePage, page_size: LARGE_PAGE_SIZE }
       if (largeVillage) params.village_id = largeVillage
       if (largeType) params.operator_type = largeType
       const r = await window.electronAPI.invoke<any>('land:listLargeFarmers', params)
@@ -250,6 +251,8 @@ export default function HouseholdRegistryV2Page() {
     api.getHouseholdDetail(selectedHhId).then(setHousehold).catch(() => {})
   }, [selectedHhId])
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const hhTotalPages = Math.max(1, Math.ceil(hhTotal / HH_PAGE_SIZE))
+  const largeTotalPages = Math.max(1, Math.ceil(largeTotal / LARGE_PAGE_SIZE))
 
   // ── 派生 ──
   const apps = farmer?.applications || []
@@ -406,22 +409,41 @@ export default function HouseholdRegistryV2Page() {
           </div>
 
           <div className="flex items-center justify-between px-2.5 py-1.5 border-t border-border text-[10px] text-[#8C877A]">
-            <span>{sideTab === 'farmers' ? `共 ${total} 人` : `共 ${hhTotal} 户`}</span>
-            {sideTab === 'farmers' ? (
+            <span>
+              {sideTab === 'farmers' && `共 ${total} 人`}
+              {sideTab === 'households' && `共 ${hhTotal} 户`}
+              {sideTab === 'large' && `共 ${largeTotal} 户大户`}
+              {sideTab === 'villages' && `共 ${villageList.length} 个村`}
+            </span>
+
+            {sideTab === 'farmers' && (
               <div className="flex items-center gap-1">
                 <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">上一页</button>
                 <span className="bg-primary text-[#F7F3E7] rounded-[3px] px-1.5">{page}</span>
                 <span>/ {totalPages}</span>
                 <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">下一页</button>
               </div>
-            ) : (
+            )}
+
+            {sideTab === 'households' && (
               <div className="flex items-center gap-1">
                 <button disabled={hhPage <= 1} onClick={() => setHhPage(p => p - 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">上一页</button>
                 <span className="bg-primary text-[#F7F3E7] rounded-[3px] px-1.5">{hhPage}</span>
-                <span>/ {Math.max(1, Math.ceil(hhTotal / HH_PAGE_SIZE))}</span>
-                <button disabled={hhPage >= Math.max(1, Math.ceil(hhTotal / HH_PAGE_SIZE))} onClick={() => setHhPage(p => p + 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">下一页</button>
+                <span>/ {hhTotalPages}</span>
+                <button disabled={hhPage >= hhTotalPages} onClick={() => setHhPage(p => p + 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">下一页</button>
               </div>
             )}
+
+            {sideTab === 'large' && (
+              <div className="flex items-center gap-1">
+                <button disabled={largePage <= 1} onClick={() => setLargePage(p => p - 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">上一页</button>
+                <span className="bg-primary text-[#F7F3E7] rounded-[3px] px-1.5">{largePage}</span>
+                <span>/ {largeTotalPages}</span>
+                <button disabled={largePage >= largeTotalPages} onClick={() => setLargePage(p => p + 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">下一页</button>
+              </div>
+            )}
+
+            {sideTab === 'villages' && <span className="text-[9.5px]">村组不分页</span>}
           </div>
         </div>
 
