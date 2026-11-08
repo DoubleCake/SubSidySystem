@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>主体色系规范</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F3EFE7;font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+a{color:#2F5C46}a:hover{color:#234A38}
+.sec{margin-bottom:11px}
+.sec-h{font-size:11.5px;font-weight:700;color:#1C1B16;margin:0 0 6px;display:flex;align-items:baseline;gap:7px}
+.sec-h small{font-weight:400;color:#5C5749;font-size:10.5px}
+.row{display:grid;grid-template-columns:repeat(10,1fr);gap:5px}
+.row6{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.s{border-radius:6px;overflow:hidden;border:1px solid #E6E0D4;background:#fff}
+.s-c{height:40px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;letter-spacing:.2px}
+.s-t{padding:3px 5px;line-height:1.4}
+.s-k{font-size:9px;font-weight:700;color:#1C1B16}
+.s-v{font-size:8.5px;color:#5C5749;font-family:ui-monospace,Consolas,monospace}
+.s-cr{font-size:8px;color:#5C5749;margin-top:1px}
+.ok{color:#1B5E36;font-weight:700}
+.no{color:#A81D1D;font-weight:700}
+.bd{display:inline-block;font-size:8px;font-weight:700;border-radius:2px;padding:0 3px;margin-left:2px}
+.b-ok{background:#E7F2EA;color:#1B5E36}
+.b-no{background:#FCEAE8;color:#A81D1D}
+.panel{background:#fff;border:1px solid #E6E0D4;border-radius:8px;padding:9px 11px}
+.flexw{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:11px}
+.btn{height:27px;padding:0 11px;border-radius:6px;font-size:11.5px;font-weight:600;border:1px solid transparent;display:inline-flex;align-items:center;gap:4px}
+.chip{font-size:9.5px;font-weight:700;border-radius:999px;padding:2px 7px}
+.tbl{width:100%;border-collapse:collapse;font-size:10.5px}
+.tbl th{background:#EFE9DC;color:#434035;font-size:9.5px;font-weight:700;text-align:left;height:24px;padding:0 7px;border-bottom:1px solid #D2CBBC}
+.tbl td{height:27px;padding:0 7px;border-top:1px solid #E6E0D4;color:#2C2A23}
+.tbl tbody tr:hover{background:#F2F7F4}
+.mono{font-family:ui-monospace,Consolas,monospace}
+</style>
+</helmet>
+
+<div style="width:1440px;height:900px;box-sizing:border-box;padding:13px 18px;display:flex;flex-direction:column;gap:8px;background:#F3EFE7">
+
+  <!-- 抬头 -->
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;border-bottom:2px solid #D2CBBC;padding-bottom:6px">
+    <div>
+      <h1 style="margin:0;font-size:17px;font-weight:700;color:#1A3A2C;letter-spacing:.2px">主体色系规范 · 农户补贴系统</h1>
+      <div style="font-size:10.5px;color:#5C5749;margin-top:2px">单一主色相 158° · 明度等距 10 阶 · 全部文字对底色 ≥ 4.5:1</div>
+    </div>
+    <div style="display:flex;gap:13px;font-size:9.5px;color:#5C5749">
+      <span><span class="bd b-ok">4.5+</span> 正文可用</span>
+      <span><span class="bd b-no">低于</span> 禁作正文</span>
+      <span><b>三条铁律</b>：深底白字 / 浅底深字 / 灰阶不跨档</span>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;flex:1;min-height:0">
+
+    <!-- 左列：色阶体系 -->
+    <div style="display:flex;flex-direction:column;gap:9px;overflow:hidden">
+
+      <div class="sec">
+        <h2 class="sec-h">主色 · 墨绿 <small>色相 158°，10 阶明度等距 → 任意两阶都可拉开层次</small></h2>
+        <div class="row">
+          <div class="s"><div class="s-c" style="background:#F2F7F4;color:#1A3A2C">50</div><div class="s-t"><div class="s-k">moss-50</div><div class="s-v">#F2F7F4</div><div class="s-cr">底色</div></div></div>
+          <div class="s"><div class="s-c" style="background:#E2EDE6;color:#1A3A2C">100</div><div class="s-t"><div class="s-k">moss-100</div><div class="s-v">#E2EDE6</div><div class="s-cr">浅底 ★</div></div></div>
+          <div class="s"><div class="s-c" style="background:#C4DACC;color:#122B20">200</div><div class="s-t"><div class="s-k">moss-200</div><div class="s-v">#C4DACC</div><div class="s-cr">边框</div></div></div>
+          <div class="s"><div class="s-c" style="background:#9BC0A8;color:#122B20">300</div><div class="s-t"><div class="s-k">moss-300</div><div class="s-v">#9BC0A8</div><div class="s-cr">图表</div></div></div>
+          <div class="s"><div class="s-c" style="background:#6C9C7D;color:#fff">400</div><div class="s-t"><div class="s-k">moss-400</div><div class="s-v">#6C9C7D</div><div class="s-cr">大字 <span class="bd b-no">3.1</span></div></div></div>
+          <div class="s"><div class="s-c" style="background:#43765A;color:#fff">500</div><div class="s-t"><div class="s-k">moss-500 ★</div><div class="s-v">#43765A</div><div class="s-cr">白底 <span class="ok">5.3</span></div></div></div>
+          <div class="s"><div class="s-c" style="background:#2F5C46;color:#fff">600</div><div class="s-t"><div class="s-k">moss-600</div><div class="s-v">#2F5C46</div><div class="s-cr">主按钮</div></div></div>
+          <div class="s"><div class="s-c" style="background:#234A38;color:#fff">700</div><div class="s-t"><div class="s-k">moss-700</div><div class="s-v">#234A38</div><div class="s-cr">标题</div></div></div>
+          <div class="s"><div class="s-c" style="background:#1A3A2C;color:#fff">800</div><div class="s-t"><div class="s-k">moss-800</div><div class="s-v">#1A3A2C</div><div class="s-cr">横幅起</div></div></div>
+          <div class="s"><div class="s-c" style="background:#122B20;color:#fff">900</div><div class="s-t"><div class="s-k">moss-900</div><div class="s-v">#122B20</div><div class="s-cr">横幅止</div></div></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h2 class="sec-h">中性色 · 暖灰 <small>带同族微绿调，与墨绿不打架；500 阶刚好过 4.5</small></h2>
+        <div class="row">
+          <div class="s"><div class="s-c" style="background:#FAF8F4;color:#2C2A23">50</div><div class="s-t"><div class="s-k">warm-50</div><div class="s-v">#FAF8F4</div><div class="s-cr">卡片</div></div></div>
+          <div class="s"><div class="s-c" style="background:#F3EFE7;color:#2C2A23">100</div><div class="s-t"><div class="s-k">warm-100</div><div class="s-v">#F3EFE7</div><div class="s-cr">页面底</div></div></div>
+          <div class="s"><div class="s-c" style="background:#E6E0D4;color:#2C2A23">200</div><div class="s-t"><div class="s-k">warm-200</div><div class="s-v">#E6E0D4</div><div class="s-cr">分隔线</div></div></div>
+          <div class="s"><div class="s-c" style="background:#D2CBBC;color:#2C2A23">300</div><div class="s-t"><div class="s-k">warm-300</div><div class="s-v">#D2CBBC</div><div class="s-cr">强调边框</div></div></div>
+          <div class="s"><div class="s-c" style="background:#A8A091;color:#fff">400</div><div class="s-t"><div class="s-k">warm-400</div><div class="s-v">#A8A091</div><div class="s-cr">图标 <span class="bd b-no">2.6</span></div></div></div>
+          <div class="s"><div class="s-c" style="background:#7A7466;color:#fff">500</div><div class="s-t"><div class="s-k">warm-500 ★</div><div class="s-v">#7A7466</div><div class="s-cr">次要文字 <span class="ok">4.7</span></div></div></div>
+          <div class="s"><div class="s-c" style="background:#5C5749;color:#fff">600</div><div class="s-t"><div class="s-k">warm-600</div><div class="s-v">#5C5749</div><div class="s-cr">正文 <span class="ok">7.2</span></div></div></div>
+          <div class="s"><div class="s-c" style="background:#434035;color:#fff">700</div><div class="s-t"><div class="s-k">warm-700</div><div class="s-v">#434035</div><div class="s-cr">表头字</div></div></div>
+          <div class="s"><div class="s-c" style="background:#2C2A23;color:#fff">800</div><div class="s-t"><div class="s-k">warm-800</div><div class="s-v">#2C2A23</div><div class="s-cr">正文强</div></div></div>
+          <div class="s"><div class="s-c" style="background:#1C1B16;color:#fff">900</div><div class="s-t"><div class="s-k">warm-900</div><div class="s-v">#1C1B16</div><div class="s-cr">黑</div></div></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h2 class="sec-h">强调色 · 谷金 <small>只做装饰与关键数字，永不作底色承载白字</small></h2>
+        <div class="row6">
+          <div class="s"><div class="s-c" style="background:#FBF3E2;color:#6B4A0F">50</div><div class="s-t"><div class="s-k">gold-50</div><div class="s-v">#FBF3E2</div><div class="s-cr">浅底</div></div></div>
+          <div class="s"><div class="s-c" style="background:#F2E0B8;color:#6B4A0F">100</div><div class="s-t"><div class="s-k">gold-100</div><div class="s-v">#F2E0B8</div><div class="s-cr">标签底</div></div></div>
+          <div class="s"><div class="s-c" style="background:#DDBE84;color:#5A3D0B">200</div><div class="s-t"><div class="s-k">gold-200</div><div class="s-v">#DDBE84</div><div class="s-cr">装饰</div></div></div>
+          <div class="s"><div class="s-c" style="background:#C29A55;color:#fff">300</div><div class="s-t"><div class="s-k">gold-300</div><div class="s-v">#C29A55</div><div class="s-cr">白字 <span class="bd b-no">2.4</span></div></div></div>
+          <div class="s"><div class="s-c" style="background:#8A6118;color:#fff">600</div><div class="s-t"><div class="s-k">gold-600</div><div class="s-v">#8A6118</div><div class="s-cr">金字 <span class="ok">5.6</span></div></div></div>
+          <div class="s"><div class="s-c" style="background:#6B4A0F;color:#fff">700</div><div class="s-t"><div class="s-k">gold-700</div><div class="s-v">#6B4A0F</div><div class="s-cr">金底配字 <span class="ok">7.4</span></div></div></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h2 class="sec-h">语义色 <small>每组浅底 + 同族深字，配对对比已校验 6.1–7.7</small></h2>
+        <div class="row6">
+          <div class="s"><div class="s-c" style="background:#E7F2EA;color:#1B5E36">在册</div><div class="s-t"><div class="s-k">success</div><div class="s-v">#E7F2EA / #1B5E36</div><div class="s-cr"><span class="ok">6.8</span></div></div></div>
+          <div class="s"><div class="s-c" style="background:#FBF0DA;color:#7A5210">待发放</div><div class="s-t"><div class="s-k">warning</div><div class="s-v">#FBF0DA / #7A5210</div><div class="s-cr"><span class="ok">6.1</span></div></div></div>
+          <div class="s"><div class="s-c" style="background:#FCEAE8;color:#A81D1D">超领</div><div class="s-t"><div class="s-k">danger</div><div class="s-v">#FCEAE8 / #A81D1D</div><div class="s-cr"><span class="ok">6.3</span></div></div></div>
+          <div class="s"><div class="s-c" style="background:#E7EFF4;color:#1F4F63">大户</div><div class="s-t"><div class="s-k">info</div><div class="s-v">#E7EFF4 / #1F4F63</div><div class="s-cr"><span class="ok">7.7</span></div></div></div>
+          <div class="s"><div class="s-c" style="background:#B45309;color:#fff">白字</div><div class="s-t"><div class="s-k">warning 实底</div><div class="s-v">#B45309</div><div class="s-cr">白字 <span class="ok">5.0</span></div></div></div>
+          <div class="s"><div class="s-c" style="background:#B91C1C;color:#fff">白字</div><div class="s-t"><div class="s-k">danger 实底</div><div class="s-v">#B91C1C</div><div class="s-cr">白字 <span class="ok">6.5</span></div></div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 右列：应用 -->
+    <div style="display:flex;flex-direction:column;gap:8px;overflow:hidden">
+
+      <div class="panel" style="padding:8px 11px">
+        <h2 class="sec-h" style="margin-bottom:5px">按钮层级 <small>同族绿，靠明度区分主次</small></h2>
+        <div class="flexw">
+          <button class="btn" style="background:#2F5C46;color:#fff;border-color:#2F5C46">新增农户</button>
+          <button class="btn" style="background:#E2EDE6;color:#1A3A2C;border-color:#C4DACC">编辑档案</button>
+          <button class="btn" style="background:#FBF3E2;color:#6B4A0F;border-color:#F2E0B8">取消确认</button>
+          <button class="btn" style="background:#FCEAE8;color:#A81D1D;border-color:#F5D3CF">删除</button>
+          <button class="btn" style="background:#fff;color:#5C5749;border-color:#D2CBBC">导入户籍</button>
+        </div>
+        <div style="font-size:9.5px;color:#A81D1D;margin-top:4px;font-weight:600">✕ 禁用：浅底（#FBF3E2 / #E2EDE6 / #FCEAE8）上写白字 — 对比仅 1.1–1.7</div>
+      </div>
+
+      <div class="panel" style="padding:8px 11px">
+        <h2 class="sec-h" style="margin-bottom:5px">状态标签 <small>浅底 + 深字，统一 9.5px 700</small></h2>
+        <div class="flexw">
+          <span class="chip" style="background:#E7F2EA;color:#1B5E36">在册</span>
+          <span class="chip" style="background:#F3EFE7;color:#5C5749">注销</span>
+          <span class="chip" style="background:#FBF0DA;color:#7A5210">发放中</span>
+          <span class="chip" style="background:#B91C1C;color:#fff">超领 2 项</span>
+          <span class="chip" style="background:#E7EFF4;color:#1F4F63">大户</span>
+          <span class="chip" style="background:#F2E0B8;color:#6B4A0F">户主</span>
+        </div>
+      </div>
+
+      <div class="panel" style="padding:8px 11px">
+        <h2 class="sec-h" style="margin-bottom:5px">表格 <small>表头 warm-100+700 字，分隔线 warm-200</small></h2>
+        <table class="tbl">
+          <thead><tr><th>年度</th><th>补贴项目</th><th>成员</th><th style="text-align:right">面积</th><th>状态</th></tr></thead>
+          <tbody>
+            <tr><td class="mono" style="color:#234A38;font-weight:700">2024</td><td>耕地地力保护</td><td>陈国华</td><td class="mono" style="text-align:right">6.20</td><td><span class="chip" style="background:#E7F2EA;color:#1B5E36">已发放</span></td></tr>
+            <tr><td class="mono" style="color:#234A38;font-weight:700">2024</td><td>大春玉米</td><td>陈小华</td><td class="mono" style="text-align:right">8.60</td><td><span class="chip" style="background:#FBF0DA;color:#7A5210">发放中</span></td></tr>
+            <tr><td class="mono" style="color:#234A38;font-weight:700">2023</td><td>耕地地力保护</td><td>陈国华</td><td class="mono" style="text-align:right">9.40</td><td><span class="chip" style="background:#B91C1C;color:#fff">超领</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="background:linear-gradient(90deg,#1A3A2C,#234A38 52%,#2F5C46);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:15px;color:#fff">
+        <div><div style="font-size:9px;opacity:.75">流转面积</div><div class="mono" style="font-size:14px;font-weight:700;color:#F2E0B8">12.50 亩</div></div>
+        <div style="border-left:1px solid rgba(255,255,255,.2);padding-left:15px"><div style="font-size:9px;opacity:.75">种植面积</div><div class="mono" style="font-size:14px;font-weight:700">12.50 亩</div></div>
+        <div style="border-left:1px solid rgba(255,255,255,.2);padding-left:15px"><div style="font-size:9px;opacity:.75">自有面积</div><div class="mono" style="font-size:14px;font-weight:700">3.20 亩</div></div>
+        <div style="margin-left:auto;font-size:9px;opacity:.75;text-align:right;line-height:1.5">横幅仅 moss-800 → 600<br>关键数字用 gold-100</div>
+      </div>
+
+      <div class="panel" style="padding:7px 11px;background:#F2F7F4;border-color:#C4DACC">
+        <div style="font-size:10px;color:#1A3A2C;line-height:1.6">
+          <b>替换对照</b> · <span class="mono">#8C877A</span>(3.6)→<span class="mono">#7A7466</span>(4.7) ·
+          <span class="mono">#9A9588</span>(3.0)→<span class="mono">#7A7466</span> ·
+          <span class="mono">#1A4D3A</span>→<span class="mono">#234A38</span> ·
+          <span class="mono">#2C6B52</span>→<span class="mono">#2F5C46</span> ·
+          <span class="mono">#E6C288</span>→<span class="mono">#DDBE84</span> ·
+          背景 <span class="mono">#F8F5F0</span>→<span class="mono">#F3EFE7</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

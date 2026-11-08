@@ -81,6 +81,14 @@
       "w": 1440,
       "x": 1520,
       "y": 1020
+    },
+    "Palette.dc.html": {
+      "h": 900,
+      "is_interactive": false,
+      "title": "配色规范 · 语义色板",
+      "w": 1440,
+      "x": 0,
+      "y": 5100
     }
   },
   "createdOnFiles": {
@@ -111,7 +119,8 @@
     "PreApply.dc.html",
     "Payments.dc.html",
     "AnnualAnalysis.dc.html",
-    "ProjectForm.dc.html"
+    "ProjectForm.dc.html",
+    "Palette.dc.html"
   ],
   "pages": [],
   "title": "农户补贴系统 · 界面改版"
