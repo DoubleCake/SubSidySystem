@@ -24,7 +24,7 @@ export const FARMER_STATUS: Record<number, { label: string; color: string }> = {
   1: { label: '在册',  color: 'green'  },
   2: { label: '注销',  color: 'red'    },
   3: { label: '迁出',  color: 'amber'  },
-  4: { label: '死亡',  color: 'gray'   },
+  4: { label: '去世',  color: 'gray'   },
 }
 
 export const PAY_STATUS: Record<number, { label: string; color: string }> = {

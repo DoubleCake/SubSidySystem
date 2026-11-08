@@ -63,7 +63,7 @@ export default function FarmerList(p: Props) {
           <option value="1">在册</option>
           <option value="2">注销</option>
           <option value="3">迁出</option>
-          <option value="4">死亡</option>
+          <option value="4">去世</option>
         </select>
       </div>
 

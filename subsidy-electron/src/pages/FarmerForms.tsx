@@ -320,7 +320,7 @@ export function MemberForm({ open, memberEditTarget, memberForm, setMemberForm, 
         <div><label className="block text-xs text-text-muted mb-1">状态</label>
           <select value={memberForm.farmer_status} onChange={e => setMemberForm(f => ({ ...f, farmer_status: e.target.value }))}
             className="w-full border border-border rounded-btn px-3 py-2 text-sm bg-white outline-none">
-            <option value="1">在册</option><option value="2">注销</option><option value="3">迁出</option><option value="4">死亡</option>
+            <option value="1">在册</option><option value="2">注销</option><option value="3">迁出</option><option value="4">去世</option>
           </select></div>
         <div><label className="block text-xs text-text-muted mb-1">受限身份</label>
           <select value={memberForm.restricted_identity ?? '0'} onChange={e => setMemberForm(f => ({ ...f, restricted_identity: e.target.value }))}

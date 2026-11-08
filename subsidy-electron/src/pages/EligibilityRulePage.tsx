@@ -32,7 +32,7 @@ interface Props {
 
 const FARMER_STATUS_OPTS = [
   { val: 1, label: '在册' }, { val: 2, label: '注销' },
-  { val: 3, label: '迁出' }, { val: 4, label: '死亡' },
+  { val: 3, label: '迁出' }, { val: 4, label: '去世' },
 ]
 
 const LAND_TYPE_OPTS = [

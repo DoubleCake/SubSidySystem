@@ -422,7 +422,7 @@ export default function FarmerAttributeImportPage() {
           <div className="bg-white border border-border rounded-card px-3.5 py-2.5 flex-1">
             <div className="text-[11.5px] font-bold mb-1.5">字段说明</div>
             <div className="flex flex-col gap-1 text-[10px] text-text-secondary">
-              <div><b className="text-text-primary">人员状态</b>：在册 / 注销 / 迁出 / 死亡</div>
+              <div><b className="text-text-primary">人员状态</b>：在册 / 注销 / 迁出 / 去世</div>
               <div><b className="text-text-primary">状态变更日期</b>：该状态生效的日期</div>
               <div><b className="text-text-primary">死亡日期</b>：仅死亡状态需要填写</div>
             </div>

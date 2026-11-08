@@ -7,7 +7,7 @@ import { CardIco, type V2IconName as IconName } from './Icons'
  */
 import type { ReactNode } from 'react'
 
-export const FARMER_STATUS_LABEL: Record<number, string> = { 1: '在册', 2: '注销', 3: '迁出', 4: '死亡' }
+export const FARMER_STATUS_LABEL: Record<number, string> = { 1: '在册', 2: '注销', 3: '迁出', 4: '去世' }
 export const HH_STATUS_LABEL: Record<number, string> = { 1: '在册', 2: '注销', 3: '迁出' }
 export const PAY_STATUS_LABEL: Record<number, string> = { 0: '待发放', 1: '发放中', 2: '已发放' }
 
