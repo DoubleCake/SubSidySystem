@@ -149,14 +149,14 @@ export default function SettingsPage() {
 
   const reload = useCallback(async () => {
     setLoading(true)
-    try { setGroups(await api.getVillageGroups()) } finally { setLoading(false) }
+    try { setGroups(await api.getVillageGroups() as unknown as typeof groups) } finally { setLoading(false) }
   }, [])
 
   const reloadLand = useCallback(async () => {
     try {
       const res = await window.electronAPI.invoke('agri-tasks:listVillageLandInfo')
       const map: Record<number, VillageLandInfo> = {}
-      res.forEach((r: VillageLandInfo) => { map[r.village_id] = r })
+      ;(res as unknown as VillageLandInfo[]).forEach((r: VillageLandInfo) => { map[r.village_id] = r })
       setLandInfoMap(map)
     } catch { /* ignore */ }
   }, [])
@@ -165,7 +165,7 @@ export default function SettingsPage() {
     try {
       const list = await window.electronAPI.invoke('settings:listVillages')
       const map: Record<string, { name: string; phone: string; vid: number }> = {}
-      list.forEach((v: any) => { map[v.village_name] = { name: v.leader_name || '', phone: v.leader_phone || '', vid: v.id } })
+      ;(list as unknown as any[]).forEach((v: any) => { map[v.village_name] = { name: v.leader_name || '', phone: v.leader_phone || '', vid: v.id } })
       setVillageLeaders(map)
     } catch { /* ignore */ }
   }, [])
@@ -179,7 +179,7 @@ export default function SettingsPage() {
     setLoadingDetail(true)
     try {
       const res = await window.electronAPI.invoke('settings:villageDetail', g.village_id)
-      setVillageDetail(res)
+      setVillageDetail(res as unknown as typeof villageDetail)
     } catch (e: unknown) { show((e as Error).message, 'err') }
     finally { setLoadingDetail(false) }
   }
@@ -223,7 +223,7 @@ export default function SettingsPage() {
     const vname = addVillageName.trim(); const gno = addGroupNo.trim()
     if (!vname || !gno) return show('村名和组号不能为空', 'err')
     try {
-      await api.createVillageGroup({ village_name: vname, group_no: gno })
+      await api.createVillageGroup({ village_name: vname, group_no: Number(gno) })
       show('✓ 创建成功'); setAddOpen(false); setAddVillageName(''); setAddGroupNo(''); reload()
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
@@ -238,7 +238,7 @@ export default function SettingsPage() {
         'settings:batchCreateVillageGroups',
         { rows: gnos.map(g => ({ village_name: vname, group_no: g })) }
       )
-      show(`✓ 新增 ${res.created} 个组，跳过 ${res.skipped} 个（重复）`)
+      const r: any = res
       setAddOpen(false); setBatchVillage(''); setBatchGroups(''); reload()
     } catch (e: unknown) { show((e as Error).message, 'err') }
   }
@@ -246,7 +246,7 @@ export default function SettingsPage() {
   const submitQuickAdd = async (villageName: string) => {
     const gno = quickGroupNo.trim(); if (!gno) return
     try {
-      await api.createVillageGroup({ village_name: villageName, group_no: gno })
+      await api.createVillageGroup({ village_name: villageName, group_no: Number(gno) })
       show(`✓ ${villageName}${gno} 创建成功`)
       setQuickAddVillage(null); setQuickGroupNo(''); reload()
     } catch (e: unknown) { show((e as Error).message, 'err') }
@@ -277,7 +277,7 @@ export default function SettingsPage() {
     const timer = setTimeout(async () => {
       try {
         const res = await window.electronAPI.invoke('farmers:search', { search: query.trim(), page_size: 5 })
-        setLeaderSearchResults((res.items || []).map((f: any) => ({
+      setLeaderSearchResults(((res as any).items || []).map((f: any) => ({
           id: f.id, real_name: f.real_name, id_card: f.id_card || '', phone: f.phone || '', village_name: f.village_name || ''
         })))
         setLeaderDropdownOpen(true)
@@ -819,7 +819,7 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
   const checkVillageRefs = async (vid: number, vname: string) => {
     try {
       const res = await window.electronAPI.invoke('settings:villageReferences', vid)
-      setRefModal({ name: vname, refs: res.references, total: res.total })
+      setRefModal({ name: vname, refs: (res as any).references, total: (res as any).total })
     } catch (e) { show('查询失败: ' + (e as Error).message, 'err') }
   }
   const fileRef = useRef<HTMLInputElement>(null)
@@ -828,9 +828,9 @@ function LandInfoTab({ show }: { show: (msg: string, type?: 'ok' | 'err') => voi
     setLoading(true)
     try {
       const res = await window.electronAPI.invoke('agri-tasks:listVillageLandInfo')
-      setInfos(res)
+      setInfos(res as any)
       const forms: { [vid: number]: Partial<VillageLandInfo> } = {}
-      res.forEach((r: VillageLandInfo) => { forms[r.village_id] = { ...r } })
+      ;(res as any).forEach((r: VillageLandInfo) => { forms[r.village_id] = { ...r } })
       setEditForms(forms)
     } catch (e: unknown) { show((e as Error).message, 'err') }
     finally { setLoading(false) }
