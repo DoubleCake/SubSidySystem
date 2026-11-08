@@ -60,14 +60,25 @@ export function ListRow({
 }
 
 /** 小标签 */
-export function Chip({ children, tone: t = 'green' }: { children: ReactNode; tone?: 'green' | 'gray' | 'amber' | 'red' }) {
-  const cls = {
+export function Chip({ children, tone: t = 'green', solid }: { children: ReactNode; tone?: 'green' | 'gray' | 'amber' | 'red'; solid?: boolean }) {
+  const soft: Record<string, string> = {
     green: 'bg-[#E2EDE6] text-[#2F5C46]',
     gray: 'bg-[#F1EDE4] text-[#5C5749]',
     amber: 'bg-[#FBF3E2] text-[#8A6118]',
     red: 'bg-[#FCEAE8] text-danger',
-  }[t]
-  return <span className={`text-[9px] rounded-[2px] px-1 shrink-0 ${cls}`}>{children}</span>
+  }
+  const solidCls: Record<string, string> = {
+    green: 'bg-[#2F5C46] text-white',
+    gray: 'bg-[#5C5749] text-white',
+    amber: 'bg-[#B45309] text-white',
+    red: 'bg-[#B91C1C] text-white',
+  }
+  const cls = (solid ? solidCls : soft)[t]
+  return (
+    <span className={`text-[9px] rounded-[2px] px-1 shrink-0 ${solid ? 'font-semibold' : ''} ${cls}`}>
+      {children}
+    </span>
+  )
 }
 
 /** 字段行 */

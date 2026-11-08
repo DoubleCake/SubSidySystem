@@ -77,7 +77,7 @@ export default function FarmerList(p: Props) {
             tags={
               <>
                 <Chip tone={f.is_head === 1 ? 'green' : 'gray'}>{f.is_head === 1 ? '户主' : (f.relation || '成员')}</Chip>
-                <Chip tone={f.farmer_status === 1 ? 'green' : f.farmer_status === 3 ? 'amber' : 'gray'}>
+                <Chip tone={f.farmer_status === 1 ? 'green' : f.farmer_status === 3 ? 'amber' : 'red'} solid={f.farmer_status !== 1}>
                   {FARMER_STATUS_LABEL[f.farmer_status] || '未知'}
                 </Chip>
               </>
