@@ -61,7 +61,7 @@ export default function MergeHouseholdsButton({ current, onMerged }: { current: 
   return (
     <>
       <button onClick={start} disabled={!current}
-        className="h-7 px-2.5 border border-border rounded-btn bg-white text-[11px] text-[#5A5A4F] hover:bg-warm/30 transition-colors disabled:opacity-40">合户</button>
+        className="h-7 px-2.5 rounded-btn bg-[#E3EEF2] border border-[#C9DCE2] text-[11px] text-[#2E6478] font-medium hover:bg-[#D3E4EA] transition-colors disabled:opacity-40">合户</button>
 
       {open && !confirming && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setOpen(false)}>

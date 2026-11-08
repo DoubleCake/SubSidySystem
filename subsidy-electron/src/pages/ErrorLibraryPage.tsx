@@ -75,7 +75,7 @@ export default function ErrorLibraryPage({ embedded = false }: { embedded?: bool
   const detectExcelColumns = async (columns: string[], sampleRows: Record<string, unknown>[]) => {
     try {
       const raw = await api.detectExcelColumns(columns, 'ERROR_LIBRARY', sampleRows)
-      const mapping = raw.mapping || {}
+      const mapping = (raw as any).mapping || {}
       const cols = Object.entries(mapping).map(([colName, info]: [string, any]) => ({
         excel_column: colName,
         suggested_field: info.column,

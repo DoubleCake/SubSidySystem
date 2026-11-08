@@ -104,7 +104,7 @@ export default function ExcelTemplatePage() {
         const sampleRows = rows.slice(0, 3)
 
         const raw = await api.detectExcelColumns(columns, 'SUBSIDY', sampleRows)
-        const mapping = raw.mapping || {}
+        const mapping = (raw as any).mapping || {}
         const result: DetectResult = {
           columns: Object.entries(mapping).map(([colName, info]: [string, any]) => ({
             excel_column: colName,

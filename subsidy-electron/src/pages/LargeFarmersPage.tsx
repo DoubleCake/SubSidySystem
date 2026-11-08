@@ -191,7 +191,7 @@ export default function LargeFarmersPage() {
   const loadVillages = useCallback(async () => {
     try {
       const r = await window.electronAPI.invoke('settings:listVillages')
-      setVillages(r?.data ?? r ?? [])
+      setVillages((r as any)?.data ?? r ?? [])
     } catch (e) {
       console.error('加载村组失败', e)
     }
@@ -205,7 +205,7 @@ export default function LargeFarmersPage() {
       if (typeFilter) params.operator_type = typeFilter
       if (keywordFilter) params.keyword = keywordFilter
       const r = await window.electronAPI.invoke('land:listLargeFarmers', params)
-      const data = r?.data ?? r
+      const data = (r as any)?.data ?? r
       setList(data?.items ?? []); setTotal(data?.total ?? 0)
     } finally { setLoading(false) }
   }, [page, villageFilter, typeFilter, keywordFilter])
@@ -215,7 +215,7 @@ export default function LargeFarmersPage() {
     setDetailLoading(true)
     try {
       const r = await window.electronAPI.invoke('land:listLargeFarmerTrusts', { id: farmer.id, year: trustYear })
-      const data = r?.data ?? r
+      const data = (r as any)?.data ?? r
       setTrustList(Array.isArray(data) ? data : data?.items ?? [])
     } finally { setDetailLoading(false) }
   }, [trustYear])
@@ -228,7 +228,7 @@ export default function LargeFarmersPage() {
   const searchHH = async (q: string) => {
     if (q.length < 1) { setOwnerOpts([]); return }
     const r = await window.electronAPI.invoke('land:searchHousehold', { q }).catch(() => [])
-    setOwnerOpts(Array.isArray(r) ? r : r?.data ?? [])
+    setOwnerOpts(Array.isArray(r) ? r : ((r as any)?.data ?? []))
   }
   useEffect(() => { searchHH(ownerSearch) }, [ownerSearch])
 
