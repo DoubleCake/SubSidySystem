@@ -27,7 +27,7 @@ export const money = (v: unknown) =>
 
 /** 列表行：首行名称 + 标签，次行说明 */
 export function ListRow({
-  active, onClick, avatar, avatarSquare, name, tags, right, sub,
+  active, onClick, avatar, avatarSquare, name, tags, right, sub, strike,
 }: {
   active: boolean
   onClick: () => void
@@ -37,6 +37,7 @@ export function ListRow({
   tags?: ReactNode
   right?: ReactNode
   sub: ReactNode
+  strike?: boolean
 }) {
   return (
     <div onClick={onClick}
@@ -48,7 +49,7 @@ export function ListRow({
           <span className={`w-6 h-6 ${avatarSquare ? 'rounded-[5px]' : 'rounded-full'} flex items-center justify-center text-[10px] font-bold shrink-0 ${tone(name)}`}>
             {avatar}
           </span>
-          <b className="text-[12px] text-text-primary truncate">{name}</b>
+          <b className={`text-[12px] truncate ${strike ? 'line-through decoration-[#A81D1D] decoration-[1.5px] opacity-55' : 'text-text-primary'}`}>{name}</b>
           {tags}
         </div>
         {right}

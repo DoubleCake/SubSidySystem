@@ -35,10 +35,10 @@ export default function FarmerDetail({ farmer, household, loading, onChanged }: 
           <div className="w-[38px] h-[38px] rounded-card bg-primary text-[#DDBE84] flex items-center justify-center text-[14px] font-bold shrink-0">
             {farmer.real_name?.slice(-1)}
           </div>
-          <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h2 className="text-[18px] font-bold text-primary m-0 leading-tight">{farmer.real_name}</h2>
-              <span className={`text-[10px] rounded-full px-1.5 py-[1px] ${farmer.farmer_status === 1 ? 'bg-[#E2EDE6] text-[#2F5C46]' : 'bg-[#F1EDE4] text-[#5C5749]'}`}>
+          <div className="min-w-0">
+              <h2 className={`text-[18px] font-bold text-primary m-0 leading-tight ${farmer.farmer_status !== 1 ? 'line-through decoration-[#A81D1D] decoration-[2px] opacity-60' : ''}`}>{farmer.real_name}</h2>
+              <span className={`text-[10px] rounded-full px-1.5 py-[1px] font-medium ${farmer.farmer_status === 1 ? 'bg-[#E2EDE6] text-[#2F5C46]' : 'bg-[#FCEAE8] text-[#A81D1D] border border-[#F5D3CF]'}`}>
                 {FARMER_STATUS_LABEL[farmer.farmer_status] || '未知'}
               </span>
               <span className={`text-[10px] rounded-[3px] px-1.5 py-[1px] ${farmer.is_head === 1 ? 'bg-[#E2EDE6] text-[#2F5C46]' : 'bg-[#F1EDE4] text-[#5C5749]'}`}>

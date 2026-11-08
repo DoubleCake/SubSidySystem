@@ -73,7 +73,7 @@ export default function FarmerList(p: Props) {
         {!p.loading && p.list.length === 0 && <Empty text="暂无数据" />}
         {!p.loading && p.list.map(f => (
           <ListRow key={f.id} active={p.selectedId === f.id} onClick={() => p.setSelectedId(f.id)}
-            avatar={f.real_name?.slice(-1) || '—'} name={f.real_name}
+            avatar={f.real_name?.slice(-1) || '—'} name={f.real_name} strike={f.farmer_status !== 1}
             tags={
               <>
                 <Chip tone={f.is_head === 1 ? 'green' : 'gray'}>{f.is_head === 1 ? '户主' : (f.relation || '成员')}</Chip>
