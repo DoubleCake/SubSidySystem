@@ -773,10 +773,10 @@ export default function SubsidyRecordsPage({ subsidyType, onBack, farmerName }: 
   const [loadingStats, setLoadingStats] = useState(false)
 
   const SEASON_TONE: Record<string, string> = {
-    '大春': '#1A4D3A',
+    '大春': '#234A38',
     '小春': '#C9A24A',
-    '耕地地力保护': '#2C6B52',
-    '全年单补': '#2E6478',
+    '耕地地力保护': '#2F5C46',
+    '全年单补': '#1F4F63',
     '临时': '#B5654F',
   }
   const seasonTone = SEASON_TONE[subsidyType.season || ''] || '#1A5C46'

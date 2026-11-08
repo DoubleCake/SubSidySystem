@@ -420,7 +420,7 @@ export default function SubsidyListBase({
 
         <table className="w-full border-collapse min-w-[950px]">
           <thead>
-            <tr className="bg-[#F6F1E7] border-b border-border">
+            <tr className="bg-[#F3EFE7] border-b border-border">
               <th className="px-2 py-2 text-left text-xs text-text-muted font-semibold whitespace-nowrap">
                 <button onClick={toggleSelectAll} className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${apps.length > 0 && selectedIds.length === apps.length ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-stone-300 hover:border-emerald-400'}`}>
                   {apps.length > 0 && selectedIds.length === apps.length && (
@@ -447,7 +447,7 @@ export default function SubsidyListBase({
             </td></tr>}
             {!loading && (!apps || apps.length === 0) && (<tr><td colSpan={14} className="text-center py-10 text-text-muted/50 text-sm">暂无记录，通过「Excel 导入」或「＋ 新增一条」添加</td></tr>)}
             {!loading && apps && apps.map(a => (
-              <tr key={a.id} className={`border-b border-border/50 hover:bg-[#F7FAF8] transition-colors ${a.pay_status === 0 ? 'bg-amber-50/30' : ''}`}>
+              <tr key={a.id} className={`border-b border-border/50 hover:bg-[#F2F7F4] transition-colors ${a.pay_status === 0 ? 'bg-amber-50/30' : ''}`}>
                 <td className="px-2 py-2 text-center">
                   <button onClick={() => toggleSelect(a.id)} className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${selectedIds.includes(a.id) ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-stone-300 hover:border-emerald-400'}`}>
                     {selectedIds.includes(a.id) && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}

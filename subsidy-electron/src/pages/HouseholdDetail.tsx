@@ -125,22 +125,22 @@ export function HouseholdDetailContent({
     <div className="flex-1 min-w-0 flex flex-col">
       {/* 户档案头 */}
       <div className="bg-white border border-border rounded-card overflow-hidden shadow-card mb-2.5 shrink-0">
-        <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-[#F2EDE3]">
+        <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-[#E6E0D4]">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-[38px] h-[38px] rounded-card bg-primary text-[#E6C288] flex items-center justify-center text-[14px] font-bold shrink-0">
+            <div className="w-[38px] h-[38px] rounded-card bg-primary text-[#DDBE84] flex items-center justify-center text-[14px] font-bold shrink-0">
               {detail.household_name?.slice(0, 1) || '户'}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <h2 className="text-[18px] font-bold text-primary m-0 leading-tight">{detail.household_name}</h2>
-                <span className="text-[10px] border border-border rounded-[3px] px-1.5 py-[1px] text-[#8C877A] font-mono">{detail.household_code}</span>
+                <span className="text-[10px] border border-border rounded-[3px] px-1.5 py-[1px] text-[#7A7466] font-mono">{detail.household_code}</span>
                 {overYears.length > 0
-                  ? <span className="text-[10px] bg-[#FDECEA] text-danger rounded-full px-1.5 py-[1px]">超领 {overYears.length} 项</span>
-                  : <span className="text-[10px] bg-[#EDF3EF] text-[#2C6B52] rounded-full px-1.5 py-[1px]">面积正常</span>}
-                {detail.is_manually_confirmed === 1 && <span className="text-[10px] bg-[#EDF3EF] text-[#2C6B52] rounded-[3px] px-1.5 py-[1px]">已确认</span>}
-                {historyDate !== null && <span className="text-[10px] bg-[#F6EEDC] text-[#8A6620] rounded-[3px] px-1.5 py-[1px]">快照</span>}
+                  ? <span className="text-[10px] bg-[#FCEAE8] text-danger rounded-full px-1.5 py-[1px]">超领 {overYears.length} 项</span>
+                  : <span className="text-[10px] bg-[#E2EDE6] text-[#2F5C46] rounded-full px-1.5 py-[1px]">面积正常</span>}
+                {detail.is_manually_confirmed === 1 && <span className="text-[10px] bg-[#E2EDE6] text-[#2F5C46] rounded-[3px] px-1.5 py-[1px]">已确认</span>}
+                {historyDate !== null && <span className="text-[10px] bg-[#FBF3E2] text-[#8A6118] rounded-[3px] px-1.5 py-[1px]">快照</span>}
               </div>
-              <div className="text-[11px] text-[#8C877A] mt-[3px] truncate">
+              <div className="text-[11px] text-[#7A7466] mt-[3px] truncate">
                 {detail.village_full_name}
                 {detail.address ? ` · ${detail.address}` : ''}
                 <span className="mx-1.5">·</span>
@@ -155,18 +155,18 @@ export function HouseholdDetailContent({
                 <button onClick={onOpenSplit} className="h-7 px-2.5 border border-border rounded-btn bg-white text-[11px] text-text-secondary hover:bg-warm/30 transition-colors">分户</button>
               )}
               {detail.is_manually_confirmed === 1 ? (
-                <button onClick={onOpenCancelConfirm} className="h-7 px-2.5 border border-border rounded-btn bg-white text-[11px] text-[#8A6620] hover:bg-[#FDFAF3] transition-colors">取消确认</button>
+                <button onClick={onOpenCancelConfirm} className="h-7 px-2.5 border border-border rounded-btn bg-white text-[11px] text-[#8A6118] hover:bg-[#FBF3E2] transition-colors">取消确认</button>
               ) : (
-                <button onClick={onOpenManualConfirm} className="h-7 px-2.5 border border-[#C9DCC9] rounded-btn bg-[#F7FAF7] text-[11px] text-[#2C6B52] hover:bg-[#EDF3EF] transition-colors">人工确认</button>
+                <button onClick={onOpenManualConfirm} className="h-7 px-2.5 border border-[#C4DACC] rounded-btn bg-[#F7FAF7] text-[11px] text-[#2F5C46] hover:bg-[#E2EDE6] transition-colors">人工确认</button>
               )}
-              <button onClick={onOpenEdit} className="h-7 px-2.5 border border-[#E8D8B8] rounded-btn bg-[#FDFAF3] text-[11px] text-[#8A6620] hover:bg-[#F6EEDC] transition-colors">编辑档案</button>
+              <button onClick={onOpenEdit} className="h-7 px-2.5 border border-[#F2E0B8] rounded-btn bg-[#FBF3E2] text-[11px] text-[#8A6118] hover:bg-[#FBF3E2] transition-colors">编辑档案</button>
               <button onClick={onDelete} className="h-7 px-2 text-[11px] text-text-muted hover:text-danger transition-colors">删除</button>
             </div>
           )}
         </div>
 
         {/* 面积与发放条 */}
-        <div className="flex items-center gap-0 px-4 py-2.5 bg-gradient-to-r from-[#0F3D2E] via-[#1A5C46] to-[#2C7A63] text-[#F7F3E7]">
+        <div className="flex items-center gap-0 px-4 py-2.5 bg-gradient-to-r from-[#1A3A2C] via-[#1A5C46] to-[#234A38] text-[#FFFFFF]">
           <div className="flex items-center gap-2 min-w-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D8B567" strokeWidth="1.6" aria-hidden="true"><path d="M3 9.5 12 3l9 6.5" /><path d="M5 11v9h14v-9" /><path d="M9 20v-5h6v5" /></svg>
             <div className="min-w-0">
@@ -177,7 +177,7 @@ export function HouseholdDetailContent({
           <div className="flex items-center ml-auto">
             <div className="px-4 border-l border-white/15">
               <div className="text-[9.5px] text-white/55">参考面积</div>
-              <div className="text-[15px] font-bold text-[#E6C288] font-mono">{refArea.toFixed(2)} 亩</div>
+              <div className="text-[15px] font-bold text-[#DDBE84] font-mono">{refArea.toFixed(2)} 亩</div>
             </div>
             <div className="px-4 border-l border-white/15">
               <div className="text-[9.5px] text-white/55">已使用</div>
@@ -189,7 +189,7 @@ export function HouseholdDetailContent({
             </div>
             <div className="px-4 border-l border-white/15">
               <div className="text-[9.5px] text-white/55">超出</div>
-              <div className={`text-[15px] font-bold font-mono ${effectiveIsOverdrawn ? 'text-[#F2B8A8]' : ''}`}>
+              <div className={`text-[15px] font-bold font-mono ${effectiveIsOverdrawn ? 'text-[#F5D3CF]' : ''}`}>
                 {effectiveIsOverdrawn ? `+${effectiveOverdrawAmount.toFixed(2)} 亩` : '—'}
               </div>
             </div>
@@ -214,23 +214,23 @@ export function HouseholdDetailContent({
         })()}
 
         {/* 面积构成 */}
-        <div className="grid grid-cols-4 border-t border-[#F2EDE3]">
+        <div className="grid grid-cols-4 border-t border-[#E6E0D4]">
           {[
             ['承包面积', `${areaUsage.contracted_area ?? 0} 亩`],
             ['确权面积', detail.confirmed_area != null ? `${detail.confirmed_area} 亩` : '—'],
             ['转入 / 转出', `${(areaUsage.trust_in_area ?? 0).toFixed(2)} / ${(areaUsage.trust_out_area ?? 0).toFixed(2)}`],
             ['不予补贴', `${detail.no_subsidy_area ?? 0} 亩`],
           ].map(([k, v], i) => (
-            <div key={k} className={`px-4 py-2 ${i < 3 ? 'border-r border-[#F2EDE3]' : ''}`}>
-              <div className="text-[9.5px] text-[#9A9588]">{k}</div>
-              <div className="text-[11.5px] text-[#5A5A4F] mt-px font-mono">{v}</div>
+            <div key={k} className={`px-4 py-2 ${i < 3 ? 'border-r border-[#E6E0D4]' : ''}`}>
+              <div className="text-[9.5px] text-[#7A7466]">{k}</div>
+              <div className="text-[11.5px] text-[#5C5749] mt-px font-mono">{v}</div>
             </div>
           ))}
         </div>
 
         {/* 季节面积使用 */}
         {areaUsage.season_breakdown && Object.keys(areaUsage.season_breakdown).length > 0 && (
-          <div className="border-t border-[#F2EDE3] px-4 py-2">
+          <div className="border-t border-[#E6E0D4] px-4 py-2">
             <div className="flex items-center gap-2 mb-1.5">
               <span className="text-[11px] font-semibold">各季面积使用</span>
               {areaYears.length > 0 && (
@@ -257,12 +257,12 @@ export function HouseholdDetailContent({
                       <span>
                         <b className={over ? 'text-danger' : 'text-primary'}>{season}</b>
                         <span className="text-text-muted ml-2">{used.toFixed(2)} / {seasonRef.toFixed(2)} 亩</span>
-                        {over && <span className="ml-2 text-[9.5px] bg-[#FDECEA] text-danger rounded-[2px] px-1">超 {(used - seasonRef).toFixed(2)}</span>}
+                        {over && <span className="ml-2 text-[9.5px] bg-[#FCEAE8] text-danger rounded-[2px] px-1">超 {(used - seasonRef).toFixed(2)}</span>}
                       </span>
                       <span className="text-text-muted">{pct}%</span>
                     </div>
-                    <div className="h-[5px] bg-[#F2EDE3] rounded-full mt-1 overflow-hidden flex">
-                      <div className="h-[5px] bg-[#1A4D3A]" style={{ width: `${Math.min(100, payPct)}%` }} />
+                    <div className="h-[5px] bg-[#E6E0D4] rounded-full mt-1 overflow-hidden flex">
+                      <div className="h-[5px] bg-[#234A38]" style={{ width: `${Math.min(100, payPct)}%` }} />
                       <div className="h-[5px] bg-[#C9A24A]" style={{ width: `${Math.min(100 - payPct, applyPct)}%` }} />
                     </div>
                   </div>
@@ -285,13 +285,13 @@ export function HouseholdDetailContent({
 
         {/* 流转记录 */}
         {detail.trust_records && detail.trust_records.length > 0 && (
-          <div className="border-t border-[#F2EDE3] px-4 py-2">
+          <div className="border-t border-[#E6E0D4] px-4 py-2">
             <details>
               <summary className="text-[11px] font-semibold cursor-pointer">流转记录 <span className="text-text-muted font-normal">{detail.trust_records.length}</span></summary>
               <div className="mt-1 max-h-32 overflow-y-auto">
                 {detail.trust_records.map((t, i) => (
-                  <div key={t.id || i} className="flex items-center gap-2 text-[10.5px] py-1 border-b border-[#F2EDE3] last:border-0">
-                    <span className={`shrink-0 font-semibold ${t.direction === '流入' ? 'text-[#2C6B52]' : 'text-[#B8863B]'}`}>
+                  <div key={t.id || i} className="flex items-center gap-2 text-[10.5px] py-1 border-b border-[#E6E0D4] last:border-0">
+                    <span className={`shrink-0 font-semibold ${t.direction === '流入' ? 'text-[#2F5C46]' : 'text-[#B8863B]'}`}>
                       {t.direction === '流入' ? '＋流入' : '－流出'}
                     </span>
                     <span className="text-text-muted shrink-0 truncate max-w-[120px]">{t.counterparty || '—'}</span>
@@ -307,7 +307,7 @@ export function HouseholdDetailContent({
         )}
 
         {historyDateIsNull && (
-          <div className="flex items-center justify-end gap-3 px-4 py-1.5 border-t border-[#F2EDE3] text-[10.5px]">
+          <div className="flex items-center justify-end gap-3 px-4 py-1.5 border-t border-[#E6E0D4] text-[10.5px]">
             <button onClick={onOpenMemberImport} className="text-text-muted hover:text-primary transition-colors">导入成员</button>
             <button onClick={onOpenEvent} className="text-text-muted hover:text-primary transition-colors">补录事件</button>
             <button onClick={() => alert('导出功能开发中')} className="text-text-muted hover:text-primary transition-colors">导出补贴</button>

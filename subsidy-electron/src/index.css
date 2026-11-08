@@ -9,13 +9,13 @@
 }
 
 :root {
-  --primary: #1A4D3A;
-  --secondary: #2C6B52;
-  --danger: #D32F2F;
+  --primary: #234A38;
+  --secondary: #2F5C46;
+  --danger: #B91C1C;
   --success: #4CAF50;
-  --edit: #E6C288;
-  --bg-main: #F8F5F0;
-  --border: #E8E2D9;
+  --edit: #DDBE84;
+  --bg-main: #F3EFE7;
+  --border: #E6E0D4;
   --text-primary: #2E2E2E;
   --text-muted: #999999;
 }
@@ -51,15 +51,15 @@ body {
 }
 
 .ui-hero {
-  background: linear-gradient(100deg, #0f3d2e 0%, #1a5c46 52%, #2c7a63 100%);
-  color: #f7f3e7;
+  background: linear-gradient(100deg, #1A3A2C 0%, #1a5c46 52%, #234A38 100%);
+  color: #FFFFFF;
   border-radius: 10px;
   box-shadow: 0 10px 24px rgba(15, 61, 46, 0.18);
 }
 
 .ui-btn-primary {
-  background: linear-gradient(90deg, #1a4d3a, #2c6b52);
-  color: #f7f3e7;
+  background: linear-gradient(90deg, #234A38, #2F5C46);
+  color: #FFFFFF;
   border-radius: 4px;
   box-shadow: 0 4px 10px rgba(26, 77, 58, 0.18);
 }
@@ -78,7 +78,7 @@ body {
 /* 选中文本色 */
 ::selection {
   background-color: rgba(26, 77, 58, 0.12);
-  color: #1A4D3A;
+  color: #234A38;
 }
 
 /* 输入框占位符色 */

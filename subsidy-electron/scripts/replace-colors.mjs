@@ -74,6 +74,8 @@ function walk(dir) {
     const p = path.join(dir, e.name)
     if (e.isDirectory()) { if (e.name !== 'node_modules') walk(p); continue }
     if (!exts.includes(path.extname(e.name))) continue
+    // 色板定义文件本身不能被替换
+    if (e.name === 'tokens.ts' && p.includes('theme')) continue
     let t = fs.readFileSync(p, 'utf8')
     let n = 0
     for (const [from, to] of Object.entries(MAP)) {

@@ -37,21 +37,21 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
   return (
     <div className="bg-white border border-border rounded-card overflow-hidden shadow-card mb-2.5">
       {/* 档案头 */}
-      <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-[#F2EDE3]">
+      <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-[#E6E0D4]">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-[38px] h-[38px] rounded-card bg-primary text-[#E6C288] flex items-center justify-center text-[14px] font-bold shrink-0">
+          <div className="w-[38px] h-[38px] rounded-card bg-primary text-[#DDBE84] flex items-center justify-center text-[14px] font-bold shrink-0">
             {fd.real_name.slice(-1)}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <h2 className="text-[18px] font-bold text-primary m-0 leading-tight">{fd.real_name}</h2>
-              <span className={`text-[10px] rounded-full px-1.5 py-[1px] ${fd.farmer_status === 1 ? 'bg-[#EDF3EF] text-[#2C6B52]' : 'bg-[#F1EDE4] text-[#6B6B60]'}`}>{statusLabel}</span>
-              <span className={`text-[10px] rounded-[3px] px-1.5 py-[1px] ${fd.is_head ? 'bg-[#EDF3EF] text-[#2C6B52]' : 'bg-[#F1EDE4] text-[#6B6B60]'}`}>
+              <span className={`text-[10px] rounded-full px-1.5 py-[1px] ${fd.farmer_status === 1 ? 'bg-[#E2EDE6] text-[#2F5C46]' : 'bg-[#F1EDE4] text-[#5C5749]'}`}>{statusLabel}</span>
+              <span className={`text-[10px] rounded-[3px] px-1.5 py-[1px] ${fd.is_head ? 'bg-[#E2EDE6] text-[#2F5C46]' : 'bg-[#F1EDE4] text-[#5C5749]'}`}>
                 {fd.is_head ? '户主' : (fd.relation || '成员')}
               </span>
               <span className="text-[10px] text-text-muted">{GENDER(fd.gender)}{age ? ` · ${age} 岁` : ''}</span>
             </div>
-            <div className="text-[11px] text-[#8C877A] mt-[3px] truncate">
+            <div className="text-[11px] text-[#7A7466] mt-[3px] truncate">
               {fd.id_card || fd.id_card_masked}
               <span className="mx-1.5">·</span>
               {fd.phone || fd.phone_masked || '—'}
@@ -68,16 +68,16 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
       </div>
 
       {/* 四列基础信息 */}
-      <div className="grid grid-cols-4 border-b border-[#F2EDE3]">
+      <div className="grid grid-cols-4 border-b border-[#E6E0D4]">
         {[
           ['身份证号', fd.id_card || fd.id_card_masked || '—'],
           ['手机号', fd.phone || fd.phone_masked || '—'],
           ['出生日期', fd.birth_date ? `${fd.birth_date.slice(0, 10)}${age ? ` · ${age} 岁` : ''}` : '—'],
           ['银行卡', fd.bank_card || fd.bank_card_masked || '—'],
         ].map(([k, v], i) => (
-          <div key={k} className={`px-4 py-2 ${i < 3 ? 'border-r border-[#F2EDE3]' : ''}`}>
-            <div className="text-[9.5px] text-[#9A9588]">{k}</div>
-            <div className="text-[11.5px] text-[#5A5A4F] mt-px font-mono truncate">{v}</div>
+          <div key={k} className={`px-4 py-2 ${i < 3 ? 'border-r border-[#E6E0D4]' : ''}`}>
+            <div className="text-[9.5px] text-[#7A7466]">{k}</div>
+            <div className="text-[11.5px] text-[#5C5749] mt-px font-mono truncate">{v}</div>
           </div>
         ))}
       </div>
@@ -85,14 +85,14 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
       {/* 补贴记录 */}
       {apps.length > 0 && (
         <div>
-          <div className="flex items-center justify-between px-4 py-1.5 border-b border-[#F2EDE3]">
+          <div className="flex items-center justify-between px-4 py-1.5 border-b border-[#E6E0D4]">
             <span className="text-[11.5px] font-semibold">补贴记录 <span className="text-[10px] text-text-muted font-normal">{apps.length}</span></span>
             <span className="text-[10px] text-text-muted">合计 <b className="font-mono text-primary">{fmt(totalAmt)}</b></span>
           </div>
           <div className="overflow-x-auto max-h-[196px] overflow-y-auto">
             <table className="w-full border-collapse text-[11px]">
               <thead className="sticky top-0">
-                <tr className="bg-[#F6F1E7] text-[#8C877A] text-[10px] text-left">
+                <tr className="bg-[#F3EFE7] text-[#7A7466] text-[10px] text-left">
                   {['年度', '补贴项目', '面积', '申请金额', '实发金额', '状态'].map(h => (
                     <th key={h} className="font-medium px-2.5 py-1.5 whitespace-nowrap">{h}</th>
                   ))}
@@ -101,16 +101,16 @@ export function FarmerDetail({ selectedFarmer, showAppSummary, appSummary }: Far
               <tbody>
                 {apps.map((a, idx) => (
                   <tr key={a.id ?? `app-${a.farmer_id}-${a.apply_year}-${a.subsidy_name}`}
-                    className="border-t border-[#F2EDE3] hover:bg-[#F7FAF8] transition-colors">
+                    className="border-t border-[#E6E0D4] hover:bg-[#F2F7F4] transition-colors">
                     <td className="px-2.5 py-1.5 font-semibold text-primary">{a.apply_year}</td>
                     <td className="px-2.5 py-1.5">{a.subsidy_name}</td>
                     <td className="px-2.5 py-1.5 font-mono text-right">{a.apply_area ? `${a.apply_area}` : '—'}</td>
                     <td className="px-2.5 py-1.5 font-mono text-text-muted text-right">{a.apply_amount ? fmt(a.apply_amount) : '—'}</td>
-                    <td className="px-2.5 py-1.5 font-mono font-semibold text-right" style={{ color: a.actual_amount ? '#2C6B52' : '#B8863B' }}>
+                    <td className="px-2.5 py-1.5 font-mono font-semibold text-right" style={{ color: a.actual_amount ? '#2F5C46' : '#B8863B' }}>
                       {a.actual_amount ? fmt(a.actual_amount) : '待发放'}
                     </td>
                     <td className="px-2.5 py-1.5">
-                      <span className={`text-[9px] rounded-full px-1.5 py-[1px] ${a.pay_status === 2 ? 'bg-[#EDF3EF] text-[#2C6B52]' : a.pay_status === 1 ? 'bg-[#F6EEDC] text-[#8A6620]' : 'bg-[#F1EDE4] text-[#6B6B60]'}`}>
+                      <span className={`text-[9px] rounded-full px-1.5 py-[1px] ${a.pay_status === 2 ? 'bg-[#E2EDE6] text-[#2F5C46]' : a.pay_status === 1 ? 'bg-[#FBF3E2] text-[#8A6118]' : 'bg-[#F1EDE4] text-[#5C5749]'}`}>
                         {PAY_STATUS[a.pay_status]?.label || '—'}
                       </span>
                     </td>

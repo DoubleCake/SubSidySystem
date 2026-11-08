@@ -129,7 +129,7 @@ function Layout() {
       </header>
 
       {/* 墨绿色导航栏 */}
-      <nav className="bg-gradient-to-r from-[#0F3D2E] via-[#1A5C46] to-[#2C7A63] text-white sticky top-0 z-40 shadow-[0_4px_14px_rgba(15,61,46,.16)]">
+      <nav className="bg-gradient-to-r from-[#1A3A2C] via-[#1A5C46] to-[#234A38] text-white sticky top-0 z-40 shadow-[0_4px_14px_rgba(15,61,46,.16)]">
         <div className="max-w-screen-xl mx-auto px-6 flex items-center gap-6" style={{ height: 50 }}>
           {/* 主导航 */}
           <div className="flex gap-1 flex-1">

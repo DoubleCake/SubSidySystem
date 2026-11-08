@@ -228,7 +228,7 @@ export default function FarmerAttributeImportPage() {
           return (
             <div key={s.n} className="flex items-center flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold ${done ? 'bg-[#2C6B52] text-white' : active ? 'bg-[#1A4D3A] text-[#F7F3E7]' : 'bg-[#F1EDE4] text-[#9A9588]'}`}>{s.n}</span>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold ${done ? 'bg-[#2F5C46] text-white' : active ? 'bg-[#234A38] text-[#FFFFFF]' : 'bg-[#F1EDE4] text-[#7A7466]'}`}>{s.n}</span>
                 <div className="min-w-0">
                   <div className={`truncate ${active || done ? 'font-semibold text-text-primary' : 'text-text-muted'}`}>{s.t}</div>
                   <div className="text-[9.5px] text-text-muted truncate">{s.d}</div>
@@ -246,7 +246,7 @@ export default function FarmerAttributeImportPage() {
           {!fileName && (
             <button onClick={() => fileRef.current?.click()}
               className="m-4 py-14 border border-dashed border-border rounded-card flex flex-col items-center gap-2 text-text-muted hover:border-primary-500/40 hover:bg-[#FBFCFA] transition-colors">
-              <span className="w-9 h-9 rounded-card bg-[#EDF3EF] text-primary flex items-center justify-center">
+              <span className="w-9 h-9 rounded-card bg-[#E2EDE6] text-primary flex items-center justify-center">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5" /><path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" /></svg>
               </span>
               <span className="text-xs">点击选择 Excel 文件，或拖入此处</span>
@@ -254,8 +254,8 @@ export default function FarmerAttributeImportPage() {
           )}
 
           {fileName && (
-            <div className="flex items-center gap-2.5 px-3.5 py-2 border-b border-[#F2EDE3]">
-              <span className="w-6 h-6 rounded-[4px] bg-[#EDF3EF] text-primary flex items-center justify-center">
+            <div className="flex items-center gap-2.5 px-3.5 py-2 border-b border-[#E6E0D4]">
+              <span className="w-6 h-6 rounded-[4px] bg-[#E2EDE6] text-primary flex items-center justify-center">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 4h10l6 6v10H4z" /><path d="M14 4v6h6" /></svg>
               </span>
               <div className="min-w-0">
@@ -271,7 +271,7 @@ export default function FarmerAttributeImportPage() {
           )}
 
           {headers.length > 0 && (
-            <div className="px-3.5 py-2.5 border-b border-[#F2EDE3]">
+            <div className="px-3.5 py-2.5 border-b border-[#E6E0D4]">
               <div className="text-[11.5px] font-semibold mb-2">列映射</div>
               <div className="grid grid-cols-3 gap-2">
                 {FIELD_DEFS.map(def => (
@@ -292,15 +292,15 @@ export default function FarmerAttributeImportPage() {
           )}
 
           {preview && (
-            <div className="flex items-center gap-2.5 px-3.5 py-1.5 border-b border-[#F2EDE3] bg-[#FBF8F1] text-[10.5px]">
+            <div className="flex items-center gap-2.5 px-3.5 py-1.5 border-b border-[#E6E0D4] bg-[#FBF8F1] text-[10.5px]">
               <span className="font-semibold text-text-primary">预览</span>
-              <span className="text-[#2C6B52]">可更新 {preview.summary.update}</span>
+              <span className="text-[#2F5C46]">可更新 {preview.summary.update}</span>
               <span className="text-text-muted">跳过 {preview.summary.skip}</span>
               <span className="text-danger">问题 {preview.summary.error}</span>
               <div className="ml-auto flex gap-1">
                 {(['all', 'update', 'skip', 'error'] as const).map(f => (
                   <button key={f} onClick={() => setFilter(f)}
-                    className={`px-2 py-[2px] rounded-full text-[9.5px] border transition-colors ${filter === f ? 'bg-primary text-[#F7F3E7] border-primary' : 'bg-white border-border text-text-muted hover:border-primary/30'}`}>
+                    className={`px-2 py-[2px] rounded-full text-[9.5px] border transition-colors ${filter === f ? 'bg-primary text-[#FFFFFF] border-primary' : 'bg-white border-border text-text-muted hover:border-primary/30'}`}>
                     {f === 'all' ? '全部' : f === 'update' ? '更新' : f === 'skip' ? '跳过' : '问题'}
                   </button>
                 ))}
@@ -312,7 +312,7 @@ export default function FarmerAttributeImportPage() {
             <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
               <table className="w-full border-collapse text-[10.5px]">
                 <thead className="sticky top-0">
-                  <tr className="bg-[#F6F1E7] text-text-muted text-[9.5px] text-left">
+                  <tr className="bg-[#F3EFE7] text-text-muted text-[9.5px] text-left">
                     <th className="font-medium px-3 py-1.5">行</th>
                     <th className="font-medium px-1.5 py-1.5">身份证号</th>
                     <th className="font-medium px-1.5 py-1.5">输入姓名</th>
@@ -326,7 +326,7 @@ export default function FarmerAttributeImportPage() {
                 </thead>
                 <tbody>
                   {visibleItems.map(it => (
-                    <tr key={it.row_index} className={`border-t border-[#F2EDE3] ${it.action === 'error' ? 'bg-[#FDF7F5]' : ''}`}>
+                    <tr key={it.row_index} className={`border-t border-[#E6E0D4] ${it.action === 'error' ? 'bg-[#FDF7F5]' : ''}`}>
                       <td className="px-3 py-1.5 text-text-muted">{it.row_index}</td>
                       <td className="px-1.5 py-1.5 font-mono text-text-secondary">{it.id_card_masked || '—'}</td>
                       <td className="px-1.5 py-1.5">{it.input_name || '—'}</td>
@@ -358,16 +358,16 @@ export default function FarmerAttributeImportPage() {
           ) : null}
 
           {result && (
-            <div className="px-3.5 py-2.5 border-t border-[#F2EDE3]">
+            <div className="px-3.5 py-2.5 border-t border-[#E6E0D4]">
               <div className="flex items-center gap-3 text-[11px]">
                 <span className="font-semibold">导入结果</span>
-                <span className="text-[#2C6B52]">更新 {result.updated} 条</span>
+                <span className="text-[#2F5C46]">更新 {result.updated} 条</span>
                 <span className="text-text-muted">跳过 {result.skipped} 条</span>
                 <span className="text-danger">问题 {result.error_count} 条</span>
                 <button onClick={reset} className="ml-auto text-[10.5px] text-text-muted hover:text-primary">再导入一批</button>
               </div>
               {result.errors.length > 0 && (
-                <div className="mt-2 border border-[#E8C9C2] bg-[#FDF7F5] rounded-btn p-2 text-[10px] text-[#A6402E] max-h-28 overflow-y-auto">
+                <div className="mt-2 border border-[#F5D3CF] bg-[#FDF7F5] rounded-btn p-2 text-[10px] text-[#A6402E] max-h-28 overflow-y-auto">
                   <div className="font-semibold mb-1">未导入的问题记录</div>
                   <ul className="space-y-0.5">
                     {result.errors.map(e => (
@@ -397,7 +397,7 @@ export default function FarmerAttributeImportPage() {
         <div className="flex flex-col gap-2.5">
           <div className="bg-[#FBF8F0] border border-[#E8DCC2] rounded-card px-3.5 py-2.5">
             <div className="flex items-center gap-1.5 text-[11.5px] font-bold text-[#6B5322]">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A6620" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8v.1" /></svg>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A6118" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8v.1" /></svg>
               导入规则
             </div>
             <ul className="mt-1.5 pl-4 list-disc text-[10px] leading-relaxed text-[#6B5322]">
@@ -412,10 +412,10 @@ export default function FarmerAttributeImportPage() {
             <div className="text-[11.5px] font-bold mb-1.5">本批统计</div>
             <div className="flex flex-col gap-1 text-[10.5px]">
               <div className="flex justify-between"><span className="text-text-secondary">文件总行数</span><span className="font-mono">{rawRows.length}</span></div>
-              <div className="flex justify-between"><span className="text-text-secondary">可更新</span><span className="font-mono text-[#2C6B52]">{preview?.summary.update ?? '—'}</span></div>
+              <div className="flex justify-between"><span className="text-text-secondary">可更新</span><span className="font-mono text-[#2F5C46]">{preview?.summary.update ?? '—'}</span></div>
               <div className="flex justify-between"><span className="text-text-secondary">无变化跳过</span><span className="font-mono">{preview?.summary.skip ?? '—'}</span></div>
               <div className="flex justify-between"><span className="text-text-secondary">问题记录</span><span className="font-mono text-danger">{preview?.summary.error ?? '—'}</span></div>
-              <div className="flex justify-between border-t border-[#F2EDE3] pt-1.5"><b>预计写入事件</b><b className="font-mono">{preview?.summary.update ?? 0} 条</b></div>
+              <div className="flex justify-between border-t border-[#E6E0D4] pt-1.5"><b>预计写入事件</b><b className="font-mono">{preview?.summary.update ?? 0} 条</b></div>
             </div>
           </div>
 

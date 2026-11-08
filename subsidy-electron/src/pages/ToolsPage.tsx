@@ -15,14 +15,14 @@ const tools: ToolCard[] = [
     desc: '批量校验身份证号有效性，查看校验历史和错误明细',
     icon: 'search',
     path: '/data-verify',
-    color: '#1A4D3A',
+    color: '#234A38',
   },
   {
     title: '人员匹配',
     desc: '按姓名/身份证跨村组匹配人员，支持批量导入对照',
     icon: 'link',
     path: '/match-people',
-    color: '#2C6B52',
+    color: '#2F5C46',
   },
   {
     title: '家庭户批量导入',
@@ -43,7 +43,7 @@ const tools: ToolCard[] = [
     desc: '管理 Excel 列映射模板，适配各村镇不同格式的导入文件',
     icon: 'export',
     path: '/settings/excel-templates',
-    color: '#E6C288',
+    color: '#DDBE84',
   },
   {
     title: '数据备份迁移',

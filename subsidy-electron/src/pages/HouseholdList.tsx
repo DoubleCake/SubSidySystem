@@ -21,11 +21,11 @@ export interface HouseholdListProps {
 }
 
 const AVATAR_TONES = [
-  'bg-[#1A4D3A] text-[#E6C288]',
-  'bg-[#F6EEDC] text-[#8A6620]',
-  'bg-[#EDF3EF] text-[#1A4D3A]',
-  'bg-[#E3EEF2] text-[#2E6478]',
-  'bg-[#F1EDE4] text-[#5A5A4F]',
+  'bg-[#234A38] text-[#DDBE84]',
+  'bg-[#FBF3E2] text-[#8A6118]',
+  'bg-[#E2EDE6] text-[#234A38]',
+  'bg-[#E7EFF4] text-[#1F4F63]',
+  'bg-[#F1EDE4] text-[#5C5749]',
 ]
 
 function tone(name: string) {
@@ -55,18 +55,18 @@ export default function HouseholdList({
           </span>
           <b className="text-[12.5px] text-text-primary truncate">{h.household_name}</b>
           {h.is_manually_confirmed === 1 && (
-            <span className="text-[9px] bg-[#EDF3EF] text-[#2C6B52] rounded-[2px] px-1 shrink-0">已确认</span>
+            <span className="text-[9px] bg-[#E2EDE6] text-[#2F5C46] rounded-[2px] px-1 shrink-0">已确认</span>
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {(h.overdrawn_years?.length ?? 0) > 0
             ? h.overdrawn_years!.slice(0, 2).map(y => (
-                <span key={y} className="text-[9px] bg-[#FDECEA] text-danger rounded-[2px] px-1">{y}超领</span>
+                <span key={y} className="text-[9px] bg-[#FCEAE8] text-danger rounded-[2px] px-1">{y}超领</span>
               ))
-            : h.is_overdrawn && <span className="text-[9px] bg-[#FDECEA] text-danger rounded-[2px] px-1">超领</span>}
+            : h.is_overdrawn && <span className="text-[9px] bg-[#FCEAE8] text-danger rounded-[2px] px-1">超领</span>}
         </div>
       </div>
-      <div className="text-[10px] text-[#8C877A] mt-[3px] pl-[32px] truncate">
+      <div className="text-[10px] text-[#7A7466] mt-[3px] pl-[32px] truncate">
         {h.village_full_name || '—'}
         <span className="mx-1">·</span>
         <span className="font-mono">{h.household_code}</span>
@@ -78,22 +78,22 @@ export default function HouseholdList({
   )
 
   const rowClass = (active: boolean, extra = '') =>
-    `cursor-pointer border-b border-[#F2EDE3] transition-colors ${extra} ${
-      active ? 'bg-[#F3F7F4] border-l-[3px] border-l-primary pl-[13px] pr-2.5' : 'pl-4 pr-2.5 hover:bg-[#F7FAF8]'
+    `cursor-pointer border-b border-[#E6E0D4] transition-colors ${extra} ${
+      active ? 'bg-[#F2F7F4] border-l-[3px] border-l-primary pl-[13px] pr-2.5' : 'pl-4 pr-2.5 hover:bg-[#F2F7F4]'
     }`
 
   return (
     <>
       {/* 合并模式：已选家庭户固定置顶 */}
       {mergeMode && mergeSelectedHouseholds.length > 0 && (
-        <div className="bg-[#FDFAF3] border-b border-[#E8D8B8]">
-          <div className="px-3 py-1 text-[9.5px] text-[#8A6620] font-semibold flex items-center gap-1">
+        <div className="bg-[#FBF3E2] border-b border-[#F2E0B8]">
+          <div className="px-3 py-1 text-[9.5px] text-[#8A6118] font-semibold flex items-center gap-1">
             <span>已选（搜索不影响）</span>
-            <span className="bg-[#F6EEDC] rounded-full px-1.5">{mergeSelectedHouseholds.length}</span>
+            <span className="bg-[#FBF3E2] rounded-full px-1.5">{mergeSelectedHouseholds.length}</span>
           </div>
           {mergeSelectedHouseholds.map((h, i) => (
             <div key={`pinned-${h.id}`} className="px-3 py-2 border-t border-[#F0E6D2] flex items-center gap-2">
-              <span className={`text-[9px] font-bold px-1 py-[1px] rounded-[2px] shrink-0 ${i === 0 ? 'bg-primary text-[#F7F3E7]' : 'bg-[#F6EEDC] text-[#8A6620]'}`}>
+              <span className={`text-[9px] font-bold px-1 py-[1px] rounded-[2px] shrink-0 ${i === 0 ? 'bg-primary text-[#FFFFFF]' : 'bg-[#FBF3E2] text-[#8A6118]'}`}>
                 {i === 0 ? '目标' : `被合并${i}`}
               </span>
               <div className="flex-1 min-w-0">
@@ -124,7 +124,7 @@ export default function HouseholdList({
               <div className="flex items-start gap-2">
                 <input type="checkbox" checked={isBatchSelected} disabled={done}
                   onChange={() => !done && onToggleBatch(h)}
-                  className="mt-1 w-3.5 h-3.5 accent-[#1A4D3A] shrink-0" />
+                  className="mt-1 w-3.5 h-3.5 accent-[#234A38] shrink-0" />
                 <div className="flex-1 min-w-0">{rowBody(h)}</div>
               </div>
             </div>
@@ -136,7 +136,7 @@ export default function HouseholdList({
             <div key={h.id} onClick={() => onToggleMerge(h)} className={rowClass(isSelected)}>
               <div className="flex items-start gap-2">
                 <input type="checkbox" checked={isSelected} onChange={() => onToggleMerge(h)}
-                  className="mt-1 w-3.5 h-3.5 accent-[#1A4D3A] shrink-0" />
+                  className="mt-1 w-3.5 h-3.5 accent-[#234A38] shrink-0" />
                 <div className="flex-1 min-w-0">{rowBody(h)}</div>
               </div>
             </div>

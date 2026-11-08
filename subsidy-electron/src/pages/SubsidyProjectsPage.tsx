@@ -30,24 +30,24 @@ const SEASON_COLORS: Record<string, {
   gradient: string; badge: string; icon: string; chart: string
 }> = {
   '耕地地力保护': {
-    gradient: 'from-[#1A4D3A] to-[#2C6B52]',
-    badge: 'bg-[#1A4D3A] text-white shadow-sm',
+    gradient: 'from-[#234A38] to-[#2F5C46]',
+    badge: 'bg-[#234A38] text-white shadow-sm',
     icon: '🌱', chart: 'text-[#1A5C46]',
   },
   '大春': {
-    gradient: 'from-[#1A4D3A] to-[#2C6B52]',
-    badge: 'bg-[#1A4D3A] text-white shadow-sm',
-    icon: '🌻', chart: 'text-[#1A4D3A]',
+    gradient: 'from-[#234A38] to-[#2F5C46]',
+    badge: 'bg-[#234A38] text-white shadow-sm',
+    icon: '🌻', chart: 'text-[#234A38]',
   },
   '小春': {
-    gradient: 'from-[#B8863B] to-[#C9A24A]',
-    badge: 'bg-[#B8863B] text-white shadow-sm',
-    icon: '🌾', chart: 'text-[#8A6620]',
+      gradient: 'from-[#8A6118] to-[#B08A3E]',
+      badge: 'bg-[#8A6118] text-white shadow-sm',
+    icon: '🌾', chart: 'text-[#8A6118]',
   },
   '全年单补': {
-    gradient: 'from-[#2E6478] to-[#4A8FA8]',
-    badge: 'bg-[#2E6478] text-white shadow-sm',
-    icon: '📋', chart: 'text-[#2E6478]',
+    gradient: 'from-[#1F4F63] to-[#4A8FA8]',
+    badge: 'bg-[#1F4F63] text-white shadow-sm',
+    icon: '📋', chart: 'text-[#1F4F63]',
   },
   '临时': {
     gradient: 'from-[#8A4B3A] to-[#B5654F]',
@@ -57,8 +57,8 @@ const SEASON_COLORS: Record<string, {
 }
 
 const DEFAULT_COLOR = {
-  gradient: 'from-[#C9C2B2] to-[#B9B3A4]',
-  badge: 'bg-[#B9B3A4] text-white shadow-sm',
+      gradient: 'from-[#6E6A5D] to-[#A8A091]',
+      badge: 'bg-[#5C5749] text-white shadow-sm',
   icon: '📦', chart: 'text-text-muted',
 }
 
@@ -372,7 +372,7 @@ export default function SubsidyProjectsPage() {
               className={`px-3.5 py-1.5 text-sm font-medium rounded-lg transition-all duration-200
                 ${yearFilter === y
                   ? 'ui-btn-primary text-white'
-                  : 'text-text-muted hover:text-primary hover:bg-[#F3F7F4]'}`}>
+                  : 'text-text-muted hover:text-primary hover:bg-[#F2F7F4]'}`}>
               {y}年
             </button>
           ))}
@@ -568,7 +568,7 @@ export default function SubsidyProjectsPage() {
           ) : (
             <div className="grid gap-2">
               {deletedTypes.map(t => (
-                <div key={t.id} className="bg-[#FDFAF3] border border-[#E8D8B8] rounded-card p-4 flex items-center gap-4 group hover:shadow-md transition-shadow">
+                <div key={t.id} className="bg-[#FBF3E2] border border-[#F2E0B8] rounded-card p-4 flex items-center gap-4 group hover:shadow-md transition-shadow">
                   <span className="text-2xl">📄</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">

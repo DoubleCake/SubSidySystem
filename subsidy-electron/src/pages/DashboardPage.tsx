@@ -35,10 +35,10 @@ type SeasonSummary = {
 }
 
 const SEASON_STYLE: Record<string, { color: string; bar: string }> = {
-  '大春':        { color: 'text-[#1A4D3A]', bar: 'bg-[#1A4D3A]' },
+  '大春':        { color: 'text-[#234A38]', bar: 'bg-[#234A38]' },
   '小春':        { color: 'text-[#B8863B]', bar: 'bg-[#C9A24A]' },
-  '耕地地力保护': { color: 'text-[#2C6B52]', bar: 'bg-[#2C6B52]' },
-  '临时':        { color: 'text-[#D32F2F]', bar: 'bg-[#D32F2F]' },
+  '耕地地力保护': { color: 'text-[#2F5C46]', bar: 'bg-[#2F5C46]' },
+  '临时':        { color: 'text-[#B91C1C]', bar: 'bg-[#B91C1C]' },
 }
 
 export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }) {
@@ -132,7 +132,7 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
 
       {/* 深绿概览 */}
       <div className="relative overflow-hidden rounded-card ui-hero h-[118px] flex-shrink-0">
-        <svg aria-hidden="true" className="absolute right-0 bottom-0 w-[520px] h-[200px] opacity-20" viewBox="0 0 520 200" fill="none" stroke="#E6C288" strokeWidth="1.2">
+        <svg aria-hidden="true" className="absolute right-0 bottom-0 w-[520px] h-[200px] opacity-20" viewBox="0 0 520 200" fill="none" stroke="#DDBE84" strokeWidth="1.2">
           <path d="M0 170 80 118 140 146 220 82 286 132 352 96 420 140 520 104" />
           <path d="M0 194 96 146 168 172 244 118 320 160 390 128 460 162 520 138" />
         </svg>
@@ -145,7 +145,7 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
           <div className="flex items-center ml-auto">
             <div className="px-7 border-l border-white/15">
               <div className="text-[11px] text-white/55">年度补贴总额</div>
-              <div className="text-[24px] font-bold text-[#E6C288] mt-1 font-mono">{c ? fmt(c.total_amount) : '—'}</div>
+              <div className="text-[24px] font-bold text-[#DDBE84] mt-1 font-mono">{c ? fmt(c.total_amount) : '—'}</div>
             </div>
             <div className="px-7 border-l border-white/15">
               <div className="text-[11px] text-white/55">已发放</div>
@@ -214,7 +214,7 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
                       <span className="text-text-muted ml-2">{sd.rate.toFixed(0)}%</span>
                     </span>
                   </div>
-                  <div className="h-[5px] bg-[#F2EDE3] rounded-full mt-1 overflow-hidden">
+                  <div className="h-[5px] bg-[#E6E0D4] rounded-full mt-1 overflow-hidden">
                     <div className={`h-[5px] rounded-full ${st.bar}`} style={{ width: `${Math.max(2, sd.rate)}%` }} />
                   </div>
                 </div>
@@ -245,10 +245,10 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
             )}
             {todoItems.slice(0, 3).map(t => (
               <button key={t.key} onClick={() => onGoTab(t.tab)}
-                className="flex items-center gap-2 py-2 border-b border-[#F2EDE3] last:border-0 text-left hover:bg-warm/20 transition-colors">
+                className="flex items-center gap-2 py-2 border-b border-[#E6E0D4] last:border-0 text-left hover:bg-warm/20 transition-colors">
                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${t.tone === 'red' ? 'bg-danger' : 'bg-orange-tag'}`} />
                 <span className="flex-1 text-[11.5px] font-medium">{t.label}</span>
-                <span className={`text-[11px] font-bold font-mono ${t.tone === 'red' ? 'text-danger' : 'text-[#8A6620]'}`}>{t.val} {t.unit}</span>
+                <span className={`text-[11px] font-bold font-mono ${t.tone === 'red' ? 'text-danger' : 'text-[#8A6118]'}`}>{t.val} {t.unit}</span>
               </button>
             ))}
           </div>
@@ -279,14 +279,14 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
               {byVillage.slice(0, 4).map(v => {
                 const pct = totalV ? (v.total_amount / totalV) * 100 : 0
                 return (
-                  <tr key={v.village_name} className="border-t border-[#F2EDE3]">
+                  <tr key={v.village_name} className="border-t border-[#E6E0D4]">
                     <td className="py-1.5 font-semibold">{v.village_name}</td>
                     <td className="py-1.5 text-right font-mono">{v.beneficiaries}</td>
                     <td className="py-1.5 text-right font-mono">{fmt(v.total_amount)}</td>
                     <td className="py-1.5 pl-5">
                       <div className="flex items-center gap-2">
-                        <div className="h-1 w-[120px] bg-[#F2EDE3] rounded-full overflow-hidden">
-                          <div className={`h-1 rounded-full ${pct >= 95 ? 'bg-[#1A4D3A]' : pct >= 90 ? 'bg-[#2C6B52]' : 'bg-[#C9A24A]'}`} style={{ width: `${Math.max(2, Math.min(100, pct))}%` }} />
+                        <div className="h-1 w-[120px] bg-[#E6E0D4] rounded-full overflow-hidden">
+                          <div className={`h-1 rounded-full ${pct >= 95 ? 'bg-[#234A38]' : pct >= 90 ? 'bg-[#2F5C46]' : 'bg-[#C9A24A]'}`} style={{ width: `${Math.max(2, Math.min(100, pct))}%` }} />
                         </div>
                         <span className="text-text-secondary">{pct.toFixed(0)}%</span>
                       </div>
@@ -304,17 +304,17 @@ export default function DashboardPage({ onGoTab }: { onGoTab: (t: Tab) => void }
           <div className="grid grid-cols-2 gap-1.5">
             <button onClick={() => navigate('/settings/farmer-attribute-import')}
               className="border border-border rounded-btn px-2.5 py-1.5 flex items-center gap-1.5 text-[11px] hover:border-primary-500/30 hover:bg-warm/20 transition-colors">
-              <span className="w-[22px] h-[22px] rounded-[5px] bg-[#EDF3EF] text-primary flex items-center justify-center"><Icon name="import" size={12} /></span>
+              <span className="w-[22px] h-[22px] rounded-[5px] bg-[#E2EDE6] text-primary flex items-center justify-center"><Icon name="import" size={12} /></span>
               属性导入
             </button>
             <button onClick={() => navigate('/anomalies')}
               className="border border-border rounded-btn px-2.5 py-1.5 flex items-center gap-1.5 text-[11px] hover:border-danger/30 hover:bg-danger/5 transition-colors">
-              <span className="w-[22px] h-[22px] rounded-[5px] bg-[#FDECEA] text-danger flex items-center justify-center"><Icon name="warning" size={12} /></span>
+              <span className="w-[22px] h-[22px] rounded-[5px] bg-[#FCEAE8] text-danger flex items-center justify-center"><Icon name="warning" size={12} /></span>
               异常扫描
             </button>
             <button onClick={() => navigate('/data-verify')}
               className="border border-border rounded-btn px-2.5 py-1.5 flex items-center gap-1.5 text-[11px] hover:border-[#C9A24A]/40 hover:bg-[#FDF8EE] transition-colors">
-              <span className="w-[22px] h-[22px] rounded-[5px] bg-[#F6EEDC] text-[#8A6620] flex items-center justify-center"><Icon name="chart" size={12} /></span>
+              <span className="w-[22px] h-[22px] rounded-[5px] bg-[#FBF3E2] text-[#8A6118] flex items-center justify-center"><Icon name="chart" size={12} /></span>
               数据预检
             </button>
             <button onClick={() => navigate('/settings/excel-templates')}

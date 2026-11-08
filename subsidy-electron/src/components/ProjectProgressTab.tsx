@@ -315,12 +315,12 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
       <div className="bg-white border border-border rounded-card p-4 mb-4 shadow-sm">
         <div className="flex items-center gap-5 flex-wrap">
           <svg width="52" height="52" viewBox="0 0 52 52">
-            <circle cx="26" cy="26" r="22" fill="none" stroke="#f0ebe1" strokeWidth="5" />
-            <circle cx="26" cy="26" r="22" fill="none" stroke={stats.totalCells > 0 && stats.doneCells === stats.totalCells ? '#5ebd9a' : '#1A4D3A'}
+            <circle cx="26" cy="26" r="22" fill="none" stroke="#E6E0D4" strokeWidth="5" />
+            <circle cx="26" cy="26" r="22" fill="none" stroke={stats.totalCells > 0 && stats.doneCells === stats.totalCells ? '#5ebd9a' : '#234A38'}
               strokeWidth="5" strokeLinecap="round" strokeDasharray={`${2*Math.PI*22}`}
               strokeDashoffset={`${2*Math.PI*22*(1-(stats.totalCells>0?stats.doneCells/stats.totalCells:0))}`}
               transform="rotate(-90 26 26)" style={{transition:'stroke-dashoffset .6s ease'}} />
-            <text x="26" y="30" textAnchor="middle" fontSize="12" fontWeight="bold" fill="#1A4D3A">
+            <text x="26" y="30" textAnchor="middle" fontSize="12" fontWeight="bold" fill="#234A38">
               {stats.totalCells>0?Math.round(stats.doneCells/stats.totalCells*100):0}%
             </text>
           </svg>

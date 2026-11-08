@@ -24,7 +24,7 @@ import type { ChainInfo, ChainDetail, ChainDetailItem } from '../api'
 
 // 图表配色（沿用画布：深绿主系列、鎏金辅助、浅色细网格）
 const SERIES_BLUE = '#1A5C46'
-const DELTA_UP = '#2C6B52'
+const DELTA_UP = '#2F5C46'
 const DELTA_DOWN = '#d03b3b'
 const AXIS_MUTED = '#898781'
 const GRID_LINE = '#e1e0d9'
@@ -308,7 +308,7 @@ export default function AnnualAnalysisPage() {
   return (
     <div className="space-y-4">
       {/* ═══ 顶部横幅 ═══ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0F3D2E] via-[#1A5C46] to-[#2C7A63] p-5 shadow-lg">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#1A3A2C] via-[#1A5C46] to-[#234A38] p-5 shadow-lg">
         <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-white/10" />
         <div className="relative z-10 flex items-center gap-4 flex-wrap">
           <span className="flex-shrink-0 w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-lg">📊</span>
@@ -353,8 +353,8 @@ export default function AnnualAnalysisPage() {
                 <button key={c.chain_id} onClick={() => setSelectedChain(c)}
                   className={`w-full text-left p-3 rounded-xl border transition-all ${
                     active
-                      ? 'bg-[#F3F7F4] border-primary/40 shadow-sm'
-                      : 'bg-white border-border/60 hover:border-primary/30 hover:bg-[#F3F7F4]'
+                      ? 'bg-[#F2F7F4] border-primary/40 shadow-sm'
+                      : 'bg-white border-border/60 hover:border-primary/30 hover:bg-[#F2F7F4]'
                   }`}>
                   <div className="flex items-center gap-2">
                     <span className={`text-sm font-semibold truncate ${active ? 'text-primary' : 'text-text-primary'}`}>
@@ -425,7 +425,7 @@ export default function AnnualAnalysisPage() {
                     <button onClick={() => setSelectedYears(detail.years.map(y => y.subsidy_year))}
                       className={`px-2 py-0.5 rounded-md text-[11px] border transition-all ${
                         selectedYears.length === detail.years.length
-                          ? 'bg-[#EDF3EF] text-primary border-primary/30'
+                          ? 'bg-[#E2EDE6] text-primary border-primary/30'
                           : 'bg-white text-text-muted border-border/60 hover:text-primary'
                       }`}>
                       全选
@@ -435,7 +435,7 @@ export default function AnnualAnalysisPage() {
                     {(['count', 'area', 'amount'] as Metric[]).map(m => (
                       <button key={m} onClick={() => setMetric(m)}
                         className={`px-2.5 py-1 text-[11px] rounded-lg transition-all ${
-                          metric === m ? 'bg-primary text-white' : 'bg-[#F1EDE4] text-text-muted hover:bg-[#E8E2D9]'
+                          metric === m ? 'bg-primary text-white' : 'bg-[#F1EDE4] text-text-muted hover:bg-[#E6E0D4]'
                         }`}>
                         {m === 'count' ? (mode === 'farmer' ? '人数' : '户数') : m === 'area' ? '面积' : '金额'}
                       </button>
@@ -563,7 +563,7 @@ export default function AnnualAnalysisPage() {
                     { label: '>30', mn: '30', mx: '' },
                   ] as const).map(p => (
                     <button key={p.label} onClick={() => { setVolMin(p.mn); setVolMax(p.mx) }}
-                      className={`px-2 py-0.5 text-[10px] rounded border transition-colors ${volMin === p.mn && volMax === p.mx ? 'bg-[#EDF3EF] text-primary border-primary/30' : 'bg-white text-text-muted border-border/60 hover:text-text-primary'}`}>
+                      className={`px-2 py-0.5 text-[10px] rounded border transition-colors ${volMin === p.mn && volMax === p.mx ? 'bg-[#E2EDE6] text-primary border-primary/30' : 'bg-white text-text-muted border-border/60 hover:text-text-primary'}`}>
                       {p.label}
                     </button>
                   ))}
