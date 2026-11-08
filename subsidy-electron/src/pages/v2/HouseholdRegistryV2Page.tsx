@@ -3,7 +3,7 @@
  *
  * 左侧 338px：农户 / 家庭户切换、搜索、村组与状态筛选、人员列表、分页
  * 右侧：人员档案头、家庭户面积条、四列基础信息、
- *       补贴记录 / 家庭成员 分类、家庭户信息、本户异常、历史快照（按事件回放）
+ *       家庭成员 / 补贴记录 / 土地流转 / 异常 垂直排列，右侧为面积/家庭户信息/历史快照
  *
  * 这一版以复刻版式为主，数据只读；编辑/新增等操作后续再接。
  */
@@ -16,8 +16,8 @@ import type { FarmerOut, FarmerDetail, HH, HHDetail, HHEvent, SnapshotAtResponse
 const PAGE_SIZE = 20
 const HH_PAGE_SIZE = 20
 
-/** 家庭户详情分类（对应画布 Household 页：概览/成员/补贴/流转/历史/异常） */
-type HHTab = 'members' | 'subsidy' | 'trust' | 'anomaly'
+
+
 
 const FARMER_STATUS_LABEL: Record<number, string> = { 1: '在册', 2: '注销', 3: '迁出', 4: '死亡' }
 const HH_STATUS_LABEL: Record<number, string> = { 1: '在册', 2: '注销', 3: '迁出' }
@@ -69,7 +69,7 @@ export default function HouseholdRegistryV2Page() {
   const [selectedHhId, setSelectedHhId] = useState<number | null>(
     searchParams.get('householdId') ? Number(searchParams.get('householdId')) : null
   )
-  const [hhTab, setHhTab] = useState<HHTab>('members')
+  
 
   // ── 详情 ──
   const [selectedId, setSelectedId] = useState<number | null>(
@@ -382,7 +382,7 @@ export default function HouseholdRegistryV2Page() {
 
         {/* ── 右列：详情 ── */}
         <div className="bg-white border border-border rounded-card flex flex-col overflow-hidden shadow-card min-w-0">
-          {sideTab === 'households' && <HouseholdDetailPanel detail={household} loading={loadingDetail} tab={hhTab} setTab={setHhTab} />}
+          {sideTab === 'households' && <HouseholdDetailPanel detail={household} loading={loadingDetail}  />}
           {sideTab === 'farmers' && (!farmer ? (
             <div className="py-24 text-center text-[11.5px] text-text-muted/60">
               {loadingDetail ? '加载中…' : '请从左侧选择一名农户'}
@@ -604,14 +604,14 @@ export default function HouseholdRegistryV2Page() {
   )
 }
 
-/** 家庭户详情面板（画布 Household 右列：概览条 + 成员/补贴/流转/历史/异常 分类） */
+/** 家庭户详情面板：档案头 + 面积条 + 左栏四块垂直排列 + 右栏面积/家庭户/快照 */
 function HouseholdDetailPanel({
   detail, loading, tab, setTab,
 }: {
   detail: HHDetail | null
   loading: boolean
-  tab: HHTab
-  setTab: (t: HHTab) => void
+
+
 }) {
 
   if (!detail) {
@@ -633,14 +633,6 @@ function HouseholdDetailPanel({
     .map(([y, seasons]) => ({ year: y, used: Math.max(...Object.values(seasons)) }))
   const trustIn = Number(usage?.trust_in_area ?? 0)
   const trustOut = Number(usage?.trust_out_area ?? 0)
-
-  const tabs: { id: HHTab; label: string; count?: number; danger?: boolean }[] = [
-    { id: 'members', label: '家庭成员', count: members.length },
-    { id: 'subsidy', label: '补贴记录', count: apps.length },
-    { id: 'trust', label: '土地流转' },
-    { id: 'anomaly', label: '异常', count: overYears.length, danger: overYears.length > 0 },
-  ]
-
   return (
     <>
       {/* 档案头 */}
@@ -723,26 +715,9 @@ function HouseholdDetailPanel({
         ))}
       </div>
 
-      {/* 分类 */}
-      <div className="flex items-end gap-4 px-4 h-8 border-b border-border">
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`h-8 flex items-center gap-1 border-b-2 text-[12px] transition-colors ${
-              tab === t.id ? 'border-primary text-primary font-bold' : 'border-transparent text-[#6B6B60] hover:text-text-primary'
-            }`}>
-            {t.label}
-            {t.count != null && (
-              <span className={`text-[10px] font-normal ${t.danger ? 'text-danger' : 'text-[#8C877A]'}`}>{t.count}</span>
-            )}
-          </button>
-        ))}
-        <span className="ml-auto h-8 flex items-center text-[10.5px] text-[#8C877A]">{detail.village_full_name}</span>
-      </div>
-
-      {/* 内容 */}
+      {/* 主体：左侧记录区（垂直滚动，四块上下排列）+ 右侧信息栏 */}
       <div className="grid grid-cols-[minmax(0,1fr)_270px] gap-3 p-3">
-        <div className="flex flex-col gap-2.5 min-w-0">
-          {tab === 'members' && (
+        <div className="flex flex-col gap-2.5 min-w-0 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 430px)' }}>
             <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
               <table className="w-full border-collapse text-[11px]">
                 <thead>
@@ -775,9 +750,6 @@ function HouseholdDetailPanel({
                 </tbody>
               </table>
             </div>
-          )}
-
-          {tab === 'subsidy' && (
             <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
               <table className="w-full border-collapse text-[11px]">
                 <thead>
@@ -809,9 +781,6 @@ function HouseholdDetailPanel({
                 </tbody>
               </table>
             </div>
-          )}
-
-          {tab === 'trust' && (
             <div className="border border-[#F0EBE1] rounded-card p-3">
               <div className="flex flex-col gap-2 text-[11px]">
                 <div className="flex items-center justify-between">
@@ -832,10 +801,6 @@ function HouseholdDetailPanel({
                 <button onClick={() => navigate('/land')} className="mt-1 h-7 border border-border rounded-btn text-[11px] text-[#5A5A4F]">打开土地流转台账</button>
               </div>
             </div>
-          )}
-
-
-          {tab === 'anomaly' && (
             <div className="border border-[#F0EBE1] rounded-card p-3">
               {overYears.length === 0 ? (
                 <div className="py-6 text-center text-[11px] text-text-muted/60">本户没有超领记录</div>
@@ -853,9 +818,7 @@ function HouseholdDetailPanel({
                 </div>
               )}
             </div>
-          )}
         </div>
-
         <div className="flex flex-col gap-2.5 min-w-0">
           <div className="border border-[#F0EBE1] rounded-card px-3 py-2">
             <div className="text-[11.5px] font-semibold mb-1.5">各季面积使用</div>
