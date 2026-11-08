@@ -315,7 +315,7 @@ export default function HouseholdRegistryV2Page() {
       villageDetail={villageDetail} loadingVillage={loadingVillage}
       selectedId={selectedId} setSelectedId={setSelectedId}
       farmer={farmer} household={household} loadingDetail={loadingDetail}
-      reloadHousehold={reloadHousehold} reloadFarmer={reloadFarmer}
+      reloadHousehold={reloadHousehold} reloadFarmer={reloadFarmer} reloadLarge={loadLargeList}
     />
   )
 }

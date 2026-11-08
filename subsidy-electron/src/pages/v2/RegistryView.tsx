@@ -16,6 +16,7 @@ import FarmerList from './farmers/FarmerList'
 import HouseholdList from './households/HouseholdList'
 import LargeList from './large/LargeList'
 import VillageList from './villages/VillageList'
+import { CreateLargeButton } from './large/LargeActions'
 
 interface P {
   navigate: (to: string) => void
@@ -38,7 +39,7 @@ interface P {
   villageDetail: any; loadingVillage: boolean
   selectedId: number | null; setSelectedId: (id: number) => void
   farmer: any; household: any; loadingDetail: boolean
-  reloadHousehold: () => void; reloadFarmer: () => void
+  reloadHousehold: () => void; reloadFarmer: () => void; reloadLarge: () => void
 }
 
 export default function RegistryView(p: P) {
@@ -66,6 +67,7 @@ export default function RegistryView(p: P) {
             className="h-[30px] px-3 border border-border rounded-btn bg-white text-[12px] text-[#5C5749] hover:bg-warm/30 transition-colors inline-flex items-center gap-1.5">
             <Ico name="upload" size={13} />
             导入户籍
+          {p.sideTab === 'large' && <CreateLargeButton onCreated={p.reloadLarge} />}
           </button>
         </div>
       </div>
@@ -111,7 +113,7 @@ export default function RegistryView(p: P) {
           <>
             {p.sideTab === 'households' && <HouseholdDetail detail={p.household} loading={p.loadingDetail} onChanged={p.reloadHousehold} />}
             {p.sideTab === 'large' && (
-              <LargeDetail farmer={p.largeList.find(l => l.id === p.selectedLargeId) || null} trusts={p.largeTrusts} loading={p.loadingTrusts} />
+              <LargeDetail farmer={p.largeList.find(l => l.id === p.selectedLargeId) || null} trusts={p.largeTrusts} loading={p.loadingTrusts} onChanged={p.reloadLarge} />
             )}
             {p.sideTab === 'villages' && <VillageDetail detail={p.villageDetail} loading={p.loadingVillage} />}
             {p.sideTab === 'farmers' && <FarmerDetail farmer={p.farmer} household={p.household} loading={p.loadingDetail} onChanged={p.reloadFarmer} />}
