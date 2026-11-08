@@ -4,7 +4,7 @@ import { formatGroupNo, parseGroupNoToInt } from '../utils/format'
 import { parseIdCard } from '../utils/id-card'
 import { maskIdCard, maskPhone, maskBankCard } from '../utils/masking'
 import { parsePagination, successList, success, errorResponse } from './response'
-import { safeUpdate } from '../utils/sql-guard'
+import { safeUpdate, collectRefCounts, formatRefCounts, type BlockingRef } from '../utils/sql-guard'
 import logger from '../utils/logger'
 
 const FARMER_COLS = [
@@ -12,6 +12,54 @@ const FARMER_COLS = [
   'bank_card', 'bank_name', 'relation', 'farmer_status',
   'own_village_id', 'own_group_no', 'remark',
 ]
+
+/**
+ * 删除农户前的关联检查项
+ * 补贴申请/发放记录：本人是申报人（farmer_id）或受益人（beneficiary_id）都算关联
+ * 代领关系：本人是受益人或代领人都算关联
+ */
+const FARMER_DELETE_REFS: BlockingRef[] = [
+  {
+    name: '补贴申请',
+    sql: 'SELECT COUNT(*) as cnt FROM subsidy_application WHERE farmer_id = ? OR beneficiary_id = ?',
+  },
+  {
+    name: '发放记录',
+    sql: 'SELECT COUNT(*) as cnt FROM subsidy_payment WHERE farmer_id = ? OR beneficiary_id = ?',
+  },
+  {
+    name: '代领关系',
+    sql: 'SELECT COUNT(*) as cnt FROM subsidy_proxy WHERE beneficiary_farmer_id = ? OR proxy_farmer_id = ?',
+  },
+]
+
+/** 规范化身份证号：去空格、末位小写 x 统一为大写 X */
+function normalizeIdCard(raw: unknown): string {
+  return String(raw ?? '').trim().toUpperCase()
+}
+
+/**
+ * 检查身份证号是否已被其他农户占用
+ * @param idCard 规范化后的身份证号
+ * @param excludeFarmerId 编辑场景排除自身 id，避免误判自己与自己冲突
+ */
+function findIdCardOwner(
+  idCard: string,
+  excludeFarmerId?: number
+): { id: number; real_name: string; household_id: number | null } | undefined {
+  if (!idCard) return undefined
+  const db = getDb()
+  if (excludeFarmerId != null) {
+    return db.getRaw<{ id: number; real_name: string; household_id: number | null }>(
+      'SELECT id, real_name, household_id FROM farmer_profile WHERE UPPER(TRIM(id_card)) = ? AND id <> ? LIMIT 1',
+      idCard, excludeFarmerId
+    )
+  }
+  return db.getRaw<{ id: number; real_name: string; household_id: number | null }>(
+    'SELECT id, real_name, household_id FROM farmer_profile WHERE UPPER(TRIM(id_card)) = ? LIMIT 1',
+    idCard
+  )
+}
 
 export function registerFarmerHandlers(): void {
   const db = () => getDb()
@@ -165,11 +213,17 @@ export function registerFarmerHandlers(): void {
   // ── 新增 ──
   ipcMain.handle('farmers:create', (_e, data: Record<string, unknown>) => {
     try {
-      const idCard = data.id_card as string
+      const idCard = normalizeIdCard(data.id_card)
       if (idCard) {
+        // 身份证号重复校验：已存在则拒绝，并提示重复农户姓名
+        const dup = findIdCardOwner(idCard)
+        if (dup) {
+          return errorResponse(`身份证号已存在，对应农户：${dup.real_name}（ID ${dup.id}），不能重复建档`)
+        }
         const info = parseIdCard(idCard)
         if (info.gender && !data.gender) data.gender = info.gender
       }
+      data.id_card = idCard || null
 
       const fields = ['household_id', 'real_name', 'gender', 'id_card', 'phone', 'bank_card', 'bank_name', 'relation', 'farmer_status', 'own_village_id', 'own_group_no', 'remark']
       const vals = fields.map(f => data[f] ?? null)
@@ -187,10 +241,97 @@ export function registerFarmerHandlers(): void {
     try {
       const { id, ...data } = payload
       if (!id) return errorResponse('缺少农户ID')
-      const changed = safeUpdate('farmer_profile', id, data, FARMER_COLS)
+      const farmerId = Number(id)
+      if (!Number.isFinite(farmerId)) return errorResponse('农户ID格式错误')
+      // 身份证号重复校验：排除自身，避免编辑时误判自己与自己冲突
+      if ('id_card' in data) {
+        const idCard = normalizeIdCard(data.id_card)
+        if (idCard) {
+          const dup = findIdCardOwner(idCard, farmerId)
+          if (dup) {
+            return errorResponse(`身份证号已存在，对应农户：${dup.real_name}（ID ${dup.id}），不能重复建档`)
+          }
+        }
+        data.id_card = idCard || null
+      }
+      const changed = safeUpdate('farmer_profile', farmerId, data, FARMER_COLS)
       if (!changed) return errorResponse('无更新数据')
       return success(null, '更新成功')
     } catch (e) { return errorResponse('更新农户失败') }
+  })
+
+  // ── 删除 ──
+  /**
+   * 删除农户
+   * @param payload number（仅农户ID）或 { id, force }；force=true 强制删除
+   *
+   * 默认拒绝：存在补贴申请、发放记录或代领关系
+   * 强制删除：档案一并删除（注意：关联的补贴记录会变成孤儿，仅在确认清理策略时使用）
+   */
+  ipcMain.handle('farmers:delete', (_e, payload: unknown) => {
+    try {
+      const params = payload && typeof payload === 'object'
+        ? (payload as { id?: unknown; force?: unknown })
+        : { id: payload, force: undefined }
+      const id = Number(params.id)
+      const force = params.force === true || params.force === 1 || params.force === 'true'
+      if (!id || !Number.isFinite(id)) return errorResponse('缺少农户ID')
+
+      const farmer = db().getRaw<{ id: number; real_name: string; household_id: number | null }>(
+        'SELECT id, real_name, household_id FROM farmer_profile WHERE id = ?', id
+      )
+      if (!farmer) return errorResponse('农户不存在', 404)
+
+      // 户主不能直接删除，否则家庭户会失去户主指向（强制删除也不允许）
+      if (farmer.household_id) {
+        const hh = db().getRaw<{ id: number; head_farmer_id: number | null }>(
+          'SELECT id, head_farmer_id FROM family_household WHERE id = ?', farmer.household_id
+        )
+        if (hh && Number(hh.head_farmer_id) === id) {
+          return errorResponse('该农户是当前家庭户户主，不能直接删除，请先将其他成员设为户主')
+        }
+      }
+
+      const { items, errors } = collectRefCounts(FARMER_DELETE_REFS, id, id)
+      if (errors.length > 0) {
+        return errorResponse(`删除前关联检查失败，已中止删除：${errors.join('；')}`)
+      }
+      const total = items.reduce((sum, i) => sum + i.count, 0)
+
+      if (total > 0 && !force) {
+        return errorResponse(
+          `农户「${farmer.real_name}」存在 ${formatRefCounts(items)}，无法删除。请先处理关联记录或确认删除策略。`
+        )
+      }
+
+      if (total > 0 && force) {
+        // 强制删除：先清理代领关系，再删档案（补贴申请/发放记录按业务要求保留）
+        db().beginTransaction()
+        try {
+          db().runRaw('DELETE FROM subsidy_proxy WHERE beneficiary_farmer_id = ? OR proxy_farmer_id = ?', id, id)
+          db().runRaw('DELETE FROM farmer_profile WHERE id = ?', id)
+          db().commitTransaction()
+        } catch (e) {
+          db().rollbackTransaction()
+          throw e
+        }
+        logger.audit('强制删除农户', String(farmer.real_name || ''), 'farmer_profile', {
+          id, retained: items,
+        })
+        return success({
+          message: `已强制删除农户档案「${farmer.real_name}」，代领关系已清理，补贴申请与发放记录保留`,
+          farmer_id: id,
+          forced: true,
+          retained_refs: items,
+        })
+      }
+
+      db().runRaw('DELETE FROM farmer_profile WHERE id = ?', id)
+      logger.audit('删除农户', String(farmer.real_name || ''), 'farmer_profile', { id })
+      return success({ message: '删除成功', farmer_id: id })
+    } catch (e) {
+      return errorResponse(String(e))
+    }
   })
 
   // ── 注销 ──
