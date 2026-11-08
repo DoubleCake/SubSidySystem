@@ -93,7 +93,46 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
       <div className="grid grid-cols-[minmax(0,1fr)_270px] gap-3 px-3 py-2.5">
         <div className="flex flex-col gap-2.5 min-w-0">
 
-          {/* ① 家庭人口 */}
+          {/* ① 补贴记录 */}
+          <div className="border border-[#F0EBE1] rounded-card overflow-hidden flex flex-col shrink-0">
+            <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#F2EDE3] shrink-0">
+              <span className="text-[11.5px] font-semibold">补贴记录 <span className="text-[10px] text-[#8C877A] font-normal">{apps.length}</span></span>
+              <span className="text-[10px] text-[#8C877A]">累计 <b className="font-mono text-primary">{money(appTotal)}</b></span>
+            </div>
+            <div className="overflow-y-auto" style={{ maxHeight: 238 }}>
+              <table className="w-full border-collapse text-[11px]">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-[#EFE7D8] text-[#6B6B60] text-[10px] text-left h-[28px] border-b border-[#DDD3C2]">
+                    <th className="font-semibold px-2.5">年度</th>
+                    <th className="font-semibold px-1.5">补贴项目</th>
+                    <th className="font-semibold px-1.5">成员</th>
+                    <th className="font-semibold px-1.5 text-right">面积</th>
+                    <th className="font-semibold px-1.5 text-right">金额</th>
+                    <th className="font-semibold px-2.5">状态</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {apps.map((a, i) => (
+                    <tr key={`${a.farmer_id}-${a.subsidy_name}-${i}`} className="border-t border-[#E4DCCD] h-[34px] hover:bg-[#F0F5F2] transition-colors">
+                      <td className="px-2.5 font-semibold text-[#1A4D3A]">{a.apply_year}</td>
+                      <td className="px-1.5 truncate">{a.subsidy_name}</td>
+                      <td className="px-1.5 text-[#6B6B60]">{a.farmer_name}</td>
+                      <td className="px-1.5 text-right font-mono">{a.apply_area != null ? Number(a.apply_area).toFixed(2) : '—'}</td>
+                      <td className="px-1.5 text-right font-mono">{a.actual_amount ? money(a.actual_amount) : (a.apply_amount ? money(a.apply_amount) : '—')}</td>
+                      <td className="px-2.5">
+                        <span className={`text-[9px] rounded-full px-1.5 py-[1px] ${a.pay_status === 2 ? 'bg-[#EDF3EF] text-[#2C6B52]' : 'bg-[#F6EEDC] text-[#8A6620]'}`}>
+                          {PAY_STATUS_LABEL[a.pay_status] || '—'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {apps.length === 0 && <tr><td colSpan={6} className="py-8 text-center text-[11px] text-text-muted/60">暂无补贴记录</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ② 家庭人口 */}
           <div className="border border-[#F0EBE1] rounded-card overflow-hidden flex flex-col shrink-0">
             <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#F2EDE3] shrink-0">
               <span className="text-[11.5px] font-semibold">家庭人口 <span className="text-[10px] text-[#8C877A] font-normal">{members.length}</span></span>
@@ -130,45 +169,6 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
                     </tr>
                   ))}
                   {members.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-[11px] text-text-muted/60">暂无成员</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* ② 补贴记录 */}
-          <div className="border border-[#F0EBE1] rounded-card overflow-hidden flex flex-col shrink-0">
-            <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#F2EDE3] shrink-0">
-              <span className="text-[11.5px] font-semibold">补贴记录 <span className="text-[10px] text-[#8C877A] font-normal">{apps.length}</span></span>
-              <span className="text-[10px] text-[#8C877A]">累计 <b className="font-mono text-primary">{money(appTotal)}</b></span>
-            </div>
-            <div className="overflow-y-auto" style={{ maxHeight: 238 }}>
-              <table className="w-full border-collapse text-[11px]">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-[#F6F1E7] text-[#8C877A] text-[10px] text-left h-[26px]">
-                    <th className="font-medium px-2.5">年度</th>
-                    <th className="font-medium px-1.5">补贴项目</th>
-                    <th className="font-medium px-1.5">成员</th>
-                    <th className="font-medium px-1.5 text-right">面积</th>
-                    <th className="font-medium px-1.5 text-right">金额</th>
-                    <th className="font-medium px-2.5">状态</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {apps.map((a, i) => (
-                    <tr key={`${a.farmer_id}-${a.subsidy_name}-${i}`} className="border-t border-[#F2EDE3] h-[34px] hover:bg-[#F7FAF8] transition-colors">
-                      <td className="px-2.5 font-semibold text-[#1A4D3A]">{a.apply_year}</td>
-                      <td className="px-1.5 truncate">{a.subsidy_name}</td>
-                      <td className="px-1.5 text-[#6B6B60]">{a.farmer_name}</td>
-                      <td className="px-1.5 text-right font-mono">{a.apply_area != null ? Number(a.apply_area).toFixed(2) : '—'}</td>
-                      <td className="px-1.5 text-right font-mono">{a.actual_amount ? money(a.actual_amount) : (a.apply_amount ? money(a.apply_amount) : '—')}</td>
-                      <td className="px-2.5">
-                        <span className={`text-[9px] rounded-full px-1.5 py-[1px] ${a.pay_status === 2 ? 'bg-[#EDF3EF] text-[#2C6B52]' : 'bg-[#F6EEDC] text-[#8A6620]'}`}>
-                          {PAY_STATUS_LABEL[a.pay_status] || '—'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {apps.length === 0 && <tr><td colSpan={6} className="py-8 text-center text-[11px] text-text-muted/60">暂无补贴记录</td></tr>}
                 </tbody>
               </table>
             </div>
