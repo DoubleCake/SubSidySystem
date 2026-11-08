@@ -232,7 +232,7 @@ function Layout() {
               <ErrorBoundary>
               <Routes>
             <Route path="/"          element={<DashboardPage onGoTab={(t) => navigate(`/${t === 'projects' ? 'projects' : t}`)} />} />
-            <Route path="/farmers"   element={<FarmersPage />} />
+            <Route path="/farmers"   element={<HouseholdRegistryV2Page />} />
             <Route path="/village-contacts" element={<VillageContactsPage />} />
             <Route path="/match-people" element={<PeopleMatchPage />} />
             <Route path="/projects"  element={<SubsidyProjectsPage />} />
@@ -251,7 +251,7 @@ function Layout() {
             <Route path="/settings/land-trust" element={<LandTrustPage />} />
             <Route path="/settings/household-import" element={<HouseholdImportPage />} />
             <Route path="/settings/farmer-attribute-import" element={<FarmerAttributeImportPage />} />
-            <Route path="/v2/registry" element={<HouseholdRegistryV2Page />} />
+            <Route path="/farmers-legacy" element={<FarmersPage />} />
             <Route path="/settings/family-relation-import" element={<FamilyRelationImportPage />} />
             <Route path="/settings/large-farmers" element={<LargeFarmersPage />} />
             <Route path="/settings/users" element={<UserManagementPage />} />

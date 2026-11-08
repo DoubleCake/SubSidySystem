@@ -7,13 +7,22 @@ import { useEffect, useState } from 'react'
 import * as api from '../../api'
 import { useToast } from '../../hooks/useToast'
 import { ConfirmForm, DeleteConfirmForm, EditHouseholdForm, MemberForm, SplitWizardForm } from '../FarmerForms'
-import type { HHDetail, HHMember, VillageGroup } from '../../types'
+import type { HH, HHDetail, HHMember, VillageGroup } from '../../types'
+import MergeHouseholdsButton from './MergeHouseholds'
 import {
   buildEditForm, emptyMemberForm, emptySplitForm,
   submitConfirm, submitDeleteHousehold, submitEditHousehold, submitMember, submitSplit,
 } from './actions'
 
 export default function HouseholdActions({ detail, onChanged }: { detail: HHDetail; onChanged: () => void }) {
+  const currentHh = {
+    id: detail.id,
+    household_name: detail.household_name,
+    household_code: detail.household_code,
+    head_name: detail.members?.find(m => m.is_head === 1)?.real_name || '',
+    member_count: detail.members?.length ?? 0,
+    contracted_area: detail.contracted_area,
+  } as unknown as HH
   const { show } = useToast()
   const [groups, setGroups] = useState<VillageGroup[]>([])
   const [busy, setBusy] = useState(false)
@@ -69,7 +78,7 @@ export default function HouseholdActions({ detail, onChanged }: { detail: HHDeta
         setSplitForm({ ...emptySplitForm, origin_land_area: String(detail.contracted_area || '') })
         setSplitOpen(true)
       }} disabled={busy || (detail.members?.length ?? 0) < 2}
-        className="h-7 px-2.5 border border-border rounded-btn bg-white text-[11px] text-[#5A5A4F] hover:bg-warm/30 transition-colors disabled:opacity-40">分户</button>
+        className="h-7 px-2.5 border border-border rounded-btn bg-white text-[11px] text-[#5A5A4F] hover:bg-warm/30 transition-colors disabled:opacity-40">分户</button>\n\n      <MergeHouseholdsButton current={currentHh} onMerged={onChanged} />
 
       <button onClick={() => setDeleteOpen(true)} disabled={busy}
         className="h-7 px-2 text-[11px] text-text-muted hover:text-danger transition-colors disabled:opacity-40">删除</button>
