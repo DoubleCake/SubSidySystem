@@ -101,7 +101,7 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)_270px] gap-3 px-3 py-2.5">
+      <div className="grid grid-cols-[minmax(0,1fr)_270px] gap-3 px-3 py-2.5 items-start">
         <div className="flex flex-col gap-2.5 min-w-0">
 
           {/* ① 补贴记录 */}

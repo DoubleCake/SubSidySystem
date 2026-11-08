@@ -42,8 +42,8 @@ export default function YearTimeline({ years, value, onChange, isCurrent }: Prop
             <button key={y.year} onClick={() => onChange(y.year)}
               className={`relative h-[24px] px-2.5 rounded-full text-[11px] transition-all shrink-0 inline-flex items-center gap-1
                 ${active
-                  ? 'bg-primary text-[#FFFFFF] font-semibold shadow-[0_1px_4px_rgba(26,77,58,.28)]'
-                  : 'bg-white border border-[#E6E0D4] text-[#5C5749] hover:border-[#234A38]/40 hover:text-primary'}`}>
+                  ? 'bg-[#2F5C46] text-white font-bold shadow-[0_1px_4px_rgba(26,58,44,.32)]'
+                  : 'bg-white border border-[#E6E0D4] text-[#5C5749] hover:border-[#2F5C46] hover:text-[#234A38]'}`}>
               {y.year}
               {y.over && <span className={`w-[5px] h-[5px] rounded-full ${active ? 'bg-[#FFD5D0]' : 'bg-danger'}`} />}
             </button>
