@@ -26,7 +26,6 @@ import type { FarmerOut, FarmerDetail, HH, HHDetail, HHEvent, SnapshotAtResponse
 type SideTab = 'farmers' | 'households' | 'large' | 'villages'
 
 
-const OPERATOR_LABEL: Record<string, string> = { FAMILY_FARM: '家庭农场', COOPERATIVE: '合作社', LARGE_PLANTER: '种植大户', OTHER: '其他' }
 const PAGE_SIZE = 20
 const HH_PAGE_SIZE = 20
 

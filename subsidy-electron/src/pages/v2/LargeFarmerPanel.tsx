@@ -1,5 +1,6 @@
 /** 大户详情面板 */
 import { Card, FieldRow, money } from './shared'
+import { OPERATOR_LABEL } from './types'
 import type { LargeFarmer, LargeFarmerTrust } from './types'
 export default function LargeFarmerPanel({ farmer, trusts, loading }: { farmer: LargeFarmer | null; trusts: LargeFarmerTrust[]; loading: boolean }) {
   if (!farmer) {

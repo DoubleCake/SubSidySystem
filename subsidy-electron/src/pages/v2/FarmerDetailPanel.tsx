@@ -1,5 +1,6 @@
 /** 农户详情面板 */
 import { Card, FieldRow, FARMER_STATUS_LABEL, PAY_STATUS_LABEL, money } from './shared'
+import { FarmerActions } from './FarmerActions'
 import SnapshotCard from './SnapshotCard'
 import SeasonBars from './SeasonBars'
 import type { FarmerDetail, HHDetail } from '../../types'
