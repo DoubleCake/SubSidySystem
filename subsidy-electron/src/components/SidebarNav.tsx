@@ -9,17 +9,10 @@ interface SidebarSection {
 
 const sections: SidebarSection[] = [
   {
-    id: 'v2',
-    label: '🎨 新版界面',
-    items: [
-      { label: '户籍管理（画布）', to: '/v2/registry' },
-    ],
-  },
-  {
     id: 'farmers',
-    label: '👥 户籍管理',
+    label: '👥 主体管理',
     items: [
-      { label: '农户列表', to: '/farmers' },
+      { label: '主体管理', to: '/farmers' },
       { label: '大户管理', to: '/large-farmers' },
       { label: '村组联系人', to: '/village-contacts' },
       { label: '人员匹配', to: '/match-people' },
