@@ -42,34 +42,12 @@ interface LargeFarmerTrust {
 }
 
 const OPERATOR_LABEL: Record<string, string> = { FAMILY_FARM: '家庭农场', COOPERATIVE: '合作社', LARGE_PLANTER: '种植大户', OTHER: '其他' }
-
 const PAGE_SIZE = 20
 const HH_PAGE_SIZE = 20
 
 
-
-
-const AVATAR_TONES = [
-  'bg-[#1A4D3A] text-[#E6C288]',
-  'bg-[#F6EEDC] text-[#8A6620]',
-  'bg-[#EDF3EF] text-[#1A4D3A]',
-  'bg-[#E3EEF2] text-[#2E6478]',
-  'bg-[#F1EDE4] text-[#5A5A4F]',
-]
-const tone = (name: string) => AVATAR_TONES[(name.charCodeAt(0) || 0) % AVATAR_TONES.length]
-
-const money = (v: unknown) =>
-  `¥${Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-
-
 export default function HouseholdRegistryV2Page() {
   const navigate = useNavigate()
-  const [anomalyEnabled] = useHouseholdAnomalyTab()
-
-  // 开关关闭时若正停留在异常分类，回落到家庭成员
-  useEffect(() => {
-    if (!anomalyEnabled && hhTab === 'anomaly') setHhTab('members')
-  }, [anomalyEnabled, hhTab])
   const [searchParams] = useSearchParams()
 
   // ── 左侧 Tab：农户 / 家庭户 ──
@@ -662,7 +640,7 @@ function SeasonBars({ usage, refArea }: { usage: HHDetail['area_usage'] | undefi
   return (
     <div className="flex flex-col gap-1.5">
       {seasons.map(([season, s]) => {
-        const seasonRef = s.reference_area ?? refArea
+        const seasonRef = (s as { reference_area?: number }).reference_area ?? refArea
         const used = s.used_area || 0
         const over = used > seasonRef + 0.001
         const pct = seasonRef > 0 ? Math.min(100, Math.round(used / seasonRef * 100)) : 0
@@ -967,7 +945,7 @@ function SnapshotCard({ householdId }: { householdId: number | null }) {
         })}
       </div>
       {loading && <div className="py-1 text-[10px] text-text-muted">快照加载中…</div>}
-      {snapshot && (
+      {snapshot && snapshot.snapshot && (
         <div className="mt-1.5 pt-1.5 border-t border-[#F2EDE3] text-[10.5px]">
           <div className="flex items-center justify-between mb-1">
             <span className="font-semibold text-[#2C6B52]">{snapshot.target_date} 快照</span>
