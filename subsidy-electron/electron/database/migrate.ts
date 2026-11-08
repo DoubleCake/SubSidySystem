@@ -764,6 +764,21 @@ export function runMigrations(): void {
     "ALTER TABLE large_farmer_trust ADD COLUMN is_demonstration SMALLINT DEFAULT 0",
     "ALTER TABLE large_farmer_trust ADD COLUMN zone_name VARCHAR(100)",
     "ALTER TABLE large_farmer_trust ADD COLUMN reminder_sent SMALLINT DEFAULT 0",
+    // 大户流转明细：支持「与某农户/村组流转」的自由对手方记录（老数据 owner_household_id 保持兼容）
+    "ALTER TABLE large_farmer_trust ADD COLUMN counterparty_type VARCHAR(20) DEFAULT 'HOUSEHOLD'",
+    "ALTER TABLE large_farmer_trust ADD COLUMN counterparty_name VARCHAR(100)",
+    "ALTER TABLE large_farmer_trust ADD COLUMN counterparty_village VARCHAR(50)",
+    "ALTER TABLE large_farmer_trust ADD COLUMN counterparty_group VARCHAR(20)",
+    "ALTER TABLE large_farmer_trust ADD COLUMN trust_days INTEGER",
+    "ALTER TABLE large_farmer_trust ADD COLUMN planted_area DECIMAL(10,2)",
+    "ALTER TABLE large_farmer_trust ADD COLUMN own_area DECIMAL(10,2)",
+    "ALTER TABLE large_farmer_trust ADD COLUMN crop_type VARCHAR(100)",
+    // 大户经营主体信息扩展
+    "ALTER TABLE large_farmer ADD COLUMN legal_person VARCHAR(100)",
+    "ALTER TABLE large_farmer ADD COLUMN contact_person VARCHAR(100)",
+    "ALTER TABLE large_farmer ADD COLUMN public_account VARCHAR(50)",
+    "ALTER TABLE large_farmer ADD COLUMN public_bank VARCHAR(100)",
+    "ALTER TABLE large_farmer ADD COLUMN doc_folder VARCHAR(500)",
     // village_contact 旧表升级（v0.0.16/17 创建的无时间列版本）
     "ALTER TABLE village_contact ADD COLUMN start_year INTEGER",
     "ALTER TABLE village_contact ADD COLUMN end_year INTEGER",

@@ -509,10 +509,17 @@ export function registerLandHandlers(): void {
   ipcMain.handle('land:listLargeFarmerTrusts', (_e, payload: any) => {
     try {
       const { id, year } = payload || {}
-      let sql = 'SELECT * FROM large_farmer_trust WHERE large_farmer_id=?'
+      let sql = `
+        SELECT t.*,
+               COALESCE(t.counterparty_name, h.household_name, '') AS owner_household_name,
+               COALESCE(h.household_code, '') AS owner_household_code,
+               COALESCE(t.trust_type, 'ENTRUST') AS trust_type
+        FROM large_farmer_trust t
+        LEFT JOIN family_household h ON h.id = t.owner_household_id
+        WHERE t.large_farmer_id=?`
       const params: any[] = [id]
-      if (year) { sql += ' AND trust_year=?'; params.push(year) }
-      sql += ' ORDER BY trust_year DESC'
+      if (year) { sql += ' AND t.trust_year=?'; params.push(year) }
+      sql += ' ORDER BY t.trust_year DESC, t.id DESC'
       const rows = db().allRaw<Record<string, unknown>>(sql, ...params)
       return success(rows)
     } catch (e) { return errorResponse(String(e)) }
@@ -520,12 +527,24 @@ export function registerLandHandlers(): void {
 
   ipcMain.handle('land:createLargeFarmerTrust', (_e, payload: any) => {
     try {
-      const { large_farmer_id, trust_type, land_area, area, trust_year, start_date, end_date, note, remark } = payload
+      const {
+        large_farmer_id, trust_type, land_area, area, trust_year, start_date, end_date, note, remark,
+        owner_household_id, counterparty_type, counterparty_name, counterparty_village, counterparty_group,
+        trust_days, planted_area, own_area, crop_type,
+      } = payload
       // 兼容两种字段名：实际列名为 area，前端若传 land_area 则取用
       const areaVal = area ?? land_area
+      // owner_household_id 在老表结构下非空，演示数据若无对应家庭户则落 0 占位
+      const ownerId = owner_household_id ?? 0
       const r = db().runRaw(
-        'INSERT INTO large_farmer_trust (large_farmer_id, trust_type, area, trust_year, start_date, end_date, note) VALUES (?,?,?,?,?,?,?)',
-        large_farmer_id, trust_type, areaVal, trust_year, start_date || null, end_date || null, note || remark || ''
+        `INSERT INTO large_farmer_trust
+          (large_farmer_id, owner_household_id, trust_type, area, trust_year, start_date, end_date, note,
+           counterparty_type, counterparty_name, counterparty_village, counterparty_group, trust_days,
+           planted_area, own_area, crop_type)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        large_farmer_id, ownerId, trust_type, areaVal, trust_year, start_date || null, end_date || null, note || remark || '',
+        counterparty_type || 'HOUSEHOLD', counterparty_name || '', counterparty_village || '', counterparty_group || '',
+        trust_days ?? null, planted_area ?? null, own_area ?? null, crop_type || ''
       )
       return success({ id: r.lastInsertRowid })
     } catch (e) { return errorResponse(String(e)) }
