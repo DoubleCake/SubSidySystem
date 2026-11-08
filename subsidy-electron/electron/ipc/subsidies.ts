@@ -148,6 +148,7 @@ export function registerSubsidyHandlers(): void {
 
       const rows = db().allRaw<Record<string, unknown>>(`
         SELECT sa.*, fp.real_name as farmer_name, fp.id_card, fp.phone,
+               hh.id as household_id,
                st.subsidy_name, st.season, st.calc_mode,
                COALESCE(NULLIF(sa.apply_village_name,''), v.village_name) as village,
                COALESCE(NULLIF(sa.apply_group_display,''), CAST(hh.group_no AS TEXT)) as group_no
@@ -506,6 +507,7 @@ export function registerSubsidyHandlers(): void {
           COUNT(DISTINCT sa.beneficiary_id) as farmer_count,
           COUNT(*) as record_count,
           COALESCE(SUM(sa.apply_area), 0) as total_apply_area,
+          COALESCE(SUM(sa.apply_area_no_calc), 0) as total_apply_area_no_calc,
           COALESCE(SUM(sa.contract_area), 0) as total_contract_area,
           COALESCE(SUM(sa.trust_area), 0) as total_trust_area,
           COALESCE(SUM(sa.no_subsidy_area), 0) as total_no_subsidy_area,
@@ -532,6 +534,7 @@ export function registerSubsidyHandlers(): void {
         farmer_count: rows.reduce((s, r) => s + Number(r.farmer_count || 0), 0),
         record_count: rows.reduce((s, r) => s + Number(r.record_count || 0), 0),
         total_apply_area: rows.reduce((s, r) => s + Number(r.total_apply_area || 0), 0),
+        total_apply_area_no_calc: rows.reduce((s, r) => s + Number(r.total_apply_area_no_calc || 0), 0),
         total_contract_area: rows.reduce((s, r) => s + Number(r.total_contract_area || 0), 0),
         total_trust_area: rows.reduce((s, r) => s + Number(r.total_trust_area || 0), 0),
         total_no_subsidy_area: rows.reduce((s, r) => s + Number(r.total_no_subsidy_area || 0), 0),
@@ -685,7 +688,8 @@ export function registerSubsidyHandlers(): void {
 
       const paymentJoins = ' FROM subsidy_payment sp LEFT JOIN farmer_profile fp ON sp.beneficiary_id=fp.id LEFT JOIN family_household hh ON fp.household_id=hh.id LEFT JOIN village v ON hh.village_id = v.id'
       const countRow = db().getRaw<{ cnt: number }>(`SELECT COUNT(*) as cnt${paymentJoins} ${where}`, ...vals)
-      const rows = db().allRaw(`SELECT sp.*, fp.real_name as farmer_name, hh.household_name, hh.household_code,
+      const rows = db().allRaw(`SELECT sp.*, fp.real_name as farmer_name, hh.id as household_id,
+        hh.household_name, hh.household_code,
         COALESCE(NULLIF(sp.payment_village_name,''), v.village_name) as village,
         COALESCE(NULLIF(sp.payment_group_display,''), CAST(hh.group_no AS TEXT)) as group_no
         ${paymentJoins} ${where} ${orderClause} LIMIT ? OFFSET ?`, ...vals, pageSize, offset)

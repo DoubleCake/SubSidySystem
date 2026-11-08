@@ -15,10 +15,8 @@ import * as api from '../api'
 interface BackupInfo {
   db_path: string; db_size_kb: number; db_size_mb: number
   total_records: number
-  record_counts: {
-    farmer_profile: number; family_household: number; village_group: number
-    subsidy_type: number; subsidy_application: number
-  }
+  // 后端按「表名 → 记录数」动态统计（表可能不存在，缺失即视为 0），故为 Record 而非固定字段
+  record_counts: Record<string, number>
   backups: { filename: string; size_kb: number; created: string }[]
   backup_dir: string
 }
@@ -39,7 +37,7 @@ export default function BackupPage() {
   const [localBacking, setLocalBacking] = useState(false)
   const [restoring, setRestoring] = useState(false)
   const [confirmRestore, setConfirmRestore] = useState(false)
-  const [restorePreview, setRestorePreview] = useState<{ fileName: string; fileSizeMb: string; tables: { name: string; count: number }[]; tableCount: number; totalRecords: number } | null>(null)
+  const [restorePreview, setRestorePreview] = useState<{ filePath: string; fileName: string; fileSizeMb: string; tables: { name: string; count: number }[]; tableCount: number; totalRecords: number } | null>(null)
   const [restoreResult, setRestoreResult] = useState<{ message: string; details: string[] } | null>(null)
 
   const loadInfo = async () => {
@@ -102,7 +100,9 @@ export default function BackupPage() {
     if (!restorePreview) return
     setRestoring(true)
     try {
-      const r: any = await window.electronAPI.invoke('settings:restore', (restorePreview as any).filePath)
+      const r = await window.electronAPI.invoke<{ message?: string; details?: string[]; data?: { message?: string; details?: string[] } }>(
+        'settings:restore', restorePreview.filePath
+      )
       const result = r?.data || r
       setRestoreResult({
         message: result?.message || '恢复成功',

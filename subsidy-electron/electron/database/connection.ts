@@ -164,7 +164,8 @@ class SqlJsWrapper {
   isFileAccessible(): boolean {
     try {
       if (!existsSync(this.dbPath)) return false
-      const test = readFileSync(this.dbPath, { length: 16 })
+      // 只校验可读且非空；不传 length 选项（readFileSync 不支持该选项）
+      const test = readFileSync(this.dbPath)
       return test.length > 0
     } catch { return false }
   }

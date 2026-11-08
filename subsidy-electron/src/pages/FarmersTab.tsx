@@ -546,12 +546,9 @@ export default function FarmersTab(props: FarmersTabProps) {
 
   const detectExcelColumns = async (columns: string[], sampleRows: Record<string, unknown>[]) => {
     try {
-      const raw = await api.detectExcelColumns(columns, 'FARMER', sampleRows) as unknown as {
-        mapping?: Record<string, { column: string; confidence?: number }>
-        recommended_templates?: { id: number; template_name: string; match_rate: number }[]
-      }
+      const raw = await api.detectExcelColumns(columns, 'FARMER', sampleRows)
       const mapping = raw.mapping || {}
-      const cols = Object.entries(mapping).map(([colName, info]: [string, any]) => ({
+      const cols = Object.entries(mapping).map(([colName, info]) => ({
         excel_column: colName,
         suggested_field: info.column,
         confidence: info.confidence ?? 0,

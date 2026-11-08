@@ -4,6 +4,8 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join, dirname } from 'path'
+// sql.js 的绑定参数类型（@types/sql.js 提供）
+import type { SqlValue } from 'sql.js'
 import { randomSeed } from '../utils/random'
 
 // 使用确定性随机
@@ -58,7 +60,7 @@ export async function runSeed(dbPath?: string): Promise<void> {
   const initSqlJs = (await import('sql.js')).default
   const SQL = await initSqlJs()
 
-  let db: ReturnType<typeof SQL.Database>
+  let db: InstanceType<typeof SQL.Database>
   if (existsSync(resolvedPath)) {
     db = new SQL.Database(readFileSync(resolvedPath))
   } else {
@@ -70,7 +72,7 @@ export async function runSeed(dbPath?: string): Promise<void> {
   }
 
   function run(sql: string, ...params: unknown[]): { lastInsertRowid: number } {
-    db.run(sql, params)
+    db.run(sql, params as SqlValue[])
     save()
     const rows = db.exec('SELECT last_insert_rowid() as id')
     return { lastInsertRowid: Number(rows[0]?.values[0]?.[0] || 0) }
@@ -78,7 +80,7 @@ export async function runSeed(dbPath?: string): Promise<void> {
 
   function get<T extends Record<string, unknown>>(sql: string, ...params: unknown[]): T | undefined {
     const stmt = db.prepare(sql)
-    if (params.length > 0) stmt.bind(params)
+    if (params.length > 0) stmt.bind(params as SqlValue[])
     if (stmt.step()) {
       const obj = stmt.getAsObject() as unknown as T
       stmt.free()
@@ -90,7 +92,7 @@ export async function runSeed(dbPath?: string): Promise<void> {
 
   function all<T extends Record<string, unknown>>(sql: string, ...params: unknown[]): T[] {
     const stmt = db.prepare(sql)
-    if (params.length > 0) stmt.bind(params)
+    if (params.length > 0) stmt.bind(params as SqlValue[])
     const results: T[] = []
     while (stmt.step()) {
       results.push(stmt.getAsObject() as unknown as T)

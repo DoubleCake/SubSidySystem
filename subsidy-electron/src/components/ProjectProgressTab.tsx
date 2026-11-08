@@ -85,14 +85,14 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
   useEffect(() => {
     (async () => {
       try {
-        const cfg = await window.electronAPI.invoke<{ folderPath?: string }>('progress:loadConfig', configKey)
+        const cfg = await window.electronAPI.invoke<{ folderPath?: string }>('progress:loadConfig', { key: configKey })
         if (cfg?.folderPath) setFolderPath(cfg.folderPath)
       } catch { /* ignore */ }
     })()
   }, [configKey])
 
   const saveFolder = async (fp: string) => {
-    await window.electronAPI.invoke('progress:saveConfig', configKey, { folderPath: fp })
+    await window.electronAPI.invoke('progress:saveConfig', { key: configKey, data: { folderPath: fp } })
   }
 
   const selectFolder = async () => {
@@ -106,7 +106,7 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
     try {
       const villageNames = records.filter(r => r.person_name?.trim()).map(r => r.village_name)
       const res = await window.electronAPI.invoke<{ stages: { stage: string; villages: string[] }[] }>(
-        'progress:scan', folderPath, allStages, villageNames
+        'progress:scan', { folderPath, stages: allStages, villageNames }
       )
       if (!res?.stages) return
 
@@ -370,7 +370,7 @@ export default function ProjectProgressTab({ subsidyType }: Props) {
         </div>
 
         {viewMode === 'cards' ? (
-          <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value as any)}
+          <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value as 'all' | 'undone' | 'done')}
             className="border border-border rounded-btn px-2 py-1.5 text-xs outline-none bg-white">
             <option value="all">全部</option><option value="undone">有未完成</option><option value="done">全部完成</option>
           </select>

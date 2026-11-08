@@ -20,8 +20,9 @@ export default function UserManagementPage() {
 
   const load = async () => {
     try {
-      const r = await window.electronAPI.invoke('auth:listUsers')
-      setUsers(r?.data ?? r ?? [])
+      const r = await window.electronAPI.invoke<UserInfo[] | { data?: UserInfo[] }>('auth:listUsers')
+      // 后端可能直接返回数组，也可能包一层 { code, data }
+      setUsers(Array.isArray(r) ? r : (r?.data ?? []))
     } catch { /* ignore */ }
   }
   useEffect(() => { load() }, [])

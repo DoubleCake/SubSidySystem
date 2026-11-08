@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import Icon from '../components/Icon'
+import type { IconName } from '../components/Icon'
 
 interface ToolCard {
   title: string
   desc: string
-  icon: 'excel' | 'search' | 'link' | 'land' | 'household' | 'export' | 'download' | 'tasks' | 'dashboard'
+  icon: IconName
   path: string
   color: string
 }
@@ -94,7 +95,7 @@ export default function ToolsPage() {
               className="w-10 h-10 rounded-btn flex items-center justify-center mb-3"
               style={{ backgroundColor: tool.color + '15' }}
             >
-              <Icon name={tool.icon} size={22} color={tool.color} />
+              <Icon name={tool.icon} size={22} />
             </div>
 
             {/* 标题 */}

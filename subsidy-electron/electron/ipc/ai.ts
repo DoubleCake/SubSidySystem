@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../database/connection'
-import { desensitizeFarmer, desensitizeText, maskName } from '../utils/masking'
+import { desensitizeFarmer, desensitizeText, maskName, maskIdCard } from '../utils/masking'
 import { success, errorResponse } from './response'
 
 export function registerAiHandlers(): void {
@@ -31,10 +31,13 @@ export function registerAiHandlers(): void {
 
       const apps = db().allRaw<Record<string, unknown>>(appsQuery, ...params)
 
-      // 构建脱敏数据
+      // 构建脱敏数据（上传 AI 前必须打码，见 CLAUDE.md 脱敏要求）
       const desensitizedApps = apps.map(a => desensitizeFarmer({
         farmer_name: maskName(String(a.real_name || '')),
-        farmer_id_masked: a.id_card,
+        // 注意：字段名必须用 id_card/phone/bank_card 才能被 desensitizeFarmer 识别并打码
+        id_card: a.id_card ? maskIdCard(String(a.id_card)) : '',
+        phone: a.phone ? String(a.phone) : '',
+        bank_card: a.bank_card ? String(a.bank_card) : '',
         village: `${a.village_name || ''}${a.group_no || ''}`,
         subsidy_name: a.subsidy_name,
         apply_amount: Number(a.apply_amount || 0),

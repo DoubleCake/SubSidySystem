@@ -128,12 +128,17 @@ export interface ApplicationForPrecheck {
   group_no?: string
 }
 
-// API搜索返回的应用程序类型（独立接口，不继承ApplicationOut）
+// API搜索返回的申请记录（独立接口，不继承 ApplicationOut）
+// 注意：字段需与 electron/ipc/subsidies.ts 中 listApplications / listPayments 的 SELECT 保持一致
 export interface ApplicationSearchResult {
   id: number
   farmer_id: number
   farmer_name: string
+  /** 家庭户 ID，用于点击农户名跳转家庭户详情 */
+  household_id?: number | null
   id_card_masked?: string
+  /** 明文身份证（system内查询，后端 listApplications/listPayments/export* 均返回，界面按需选择是否展示） */
+  id_card?: string | null
   phone?: string | null
   village?: string
   group_no?: string
@@ -142,6 +147,8 @@ export interface ApplicationSearchResult {
   calc_mode?: string
   apply_year: number
   apply_area: string | null
+  /** 不计入超限计算的补贴面积 */
+  apply_area_no_calc: string | null
   contract_area: string | null
   trust_area: string | null
   no_subsidy_area: string | null
@@ -212,32 +219,6 @@ export interface SubsidyProxyCreate {
   remark?: string
 }
 
-// ApplicationSearchResult 扩展 is_proxy 字段
-export interface ApplicationSearchResult {
-  id: number
-  farmer_id: number
-  farmer_name: string
-  id_card_masked?: string
-  phone?: string | null
-  village?: string
-  group_no?: string
-  subsidy_type_id: number
-  subsidy_name: string
-  calc_mode?: string
-  apply_year: number
-  apply_area: string | null
-  contract_area: string | null
-  trust_area: string | null
-  no_subsidy_area: string | null
-  apply_amount: string | null
-  actual_amount: string | null
-  pay_status: number
-  pay_date: string | null
-  remark: string | null
-  proxy_remark?: string | null
-  is_proxy?: number
-}
-
 export interface ApplicationCreate {
   farmer_id: number
   subsidy_type_id: number
@@ -245,6 +226,8 @@ export interface ApplicationCreate {
   apply_amount?: number
   actual_amount?: number
   apply_area?: number
+  /** 不计入超限计算的补贴面积 */
+  apply_area_no_calc?: number
   contract_area?: number
   trust_area?: number
   no_subsidy_area?: number
@@ -543,6 +526,19 @@ export interface HouseholdBuildRow {
   contract_area?: number
 }
 
+// ── 预检方案配置 ──
+/** 面积检查模式：固定金额类不检查 / 大春·小春按季节累计 / 耕地地力保护·临时单独计算 */
+export type CheckAreaMode = 'disabled' | 'seasonal' | 'standalone'
+
+export interface CheckConfig {
+  /** 各项检查开关，键为检查项名称 */
+  checks: Record<string, boolean>
+  /** 面积检查模式 */
+  area_mode: CheckAreaMode
+  /** 流转出 + 不补贴面积是否超过承包地 */
+  check_trust_deduction: boolean
+}
+
 // ── 预检结果 ──
 export interface CheckResult {
   summary: {
@@ -559,6 +555,7 @@ export interface CheckResult {
     area_missing: number
     age_anomaly: number
     deceased_farmers: number
+    restricted_farmers: number
     household_duplicates: number
     new_farmers: number
     removed_farmers: number
@@ -575,6 +572,7 @@ export interface CheckResult {
   area_missing: Array<{ row: number; name: string; id_card: string; village: string; group: string; contract_area: number; error: string }>
   age_anomaly: Array<{ row: number; name: string; id_card: string; village: string; group: string; age: number; birth_year: number; error: string }>
   deceased_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
+  restricted_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; error: string }>
   household_duplicates: Array<{ row: number; name: string; id_card: string; village: string; group: string; household_id: string; total_count: number; other_members: string[]; excel_remark: string; db_existing_apps: Array<{ real_name: string; subsidy_name: string; remark: string }> }>
   new_farmers: Array<{ row: number; name: string; id_card: string; village: string; group: string; village_group_id: number | null }>
   removed_farmers: Array<{ id_card: string; name: string; village: string; group: string; farmer_id: number; note: string }>

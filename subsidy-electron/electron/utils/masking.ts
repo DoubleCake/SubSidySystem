@@ -38,15 +38,31 @@ export function maskName(name: string): string {
   return s[0] + '*'.repeat(s.length - 2) + s[s.length - 1]
 }
 
+/** 需要脱敏的字段名 */
+type SensitiveKey = 'id_card' | 'phone' | 'bank_card'
+
+/**
+ * 脱敏结果类型：
+ * - 若入参本身声明了某敏感字段，则返回对象中该字段保持原类型（值已被打码）
+ * - 若入参没声明某敏感字段，返回对象中该字段可选、类型为 unknown（不再多出必填属性）
+ */
+type Desensitized<T extends Record<string, unknown>> = Omit<T, SensitiveKey> & {
+  [K in SensitiveKey & keyof T]?: T[K]
+} & {
+  [K in Exclude<SensitiveKey, keyof T>]?: unknown
+}
+
 /**
  * 对农户对象做完整脱敏，返回新对象（不修改原数据）
+ * 键结构与入参保持一致；空值（null/undefined/''）与原始值原样保留，
+ * 仅非空值按身份证/手机号/银行卡规则打码。
  */
-export function desensitizeFarmer<T extends Record<string, unknown>>(farmer: T): T {
-  const d = { ...farmer }
-  if (d.id_card) d.id_card = maskIdCard(d.id_card as string)
-  if (d.phone) d.phone = maskPhone(d.phone as string)
-  if (d.bank_card) d.bank_card = maskBankCard(d.bank_card as string)
-  return d
+export function desensitizeFarmer<T extends Record<string, unknown>>(farmer: T): Desensitized<T> {
+  const d: Record<string, unknown> = { ...farmer }
+  if (d.id_card) d.id_card = maskIdCard(String(d.id_card))
+  if (d.phone) d.phone = maskPhone(String(d.phone))
+  if (d.bank_card) d.bank_card = maskBankCard(String(d.bank_card))
+  return d as Desensitized<T>
 }
 
 /**

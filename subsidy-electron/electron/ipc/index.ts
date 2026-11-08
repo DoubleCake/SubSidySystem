@@ -102,8 +102,12 @@ export function registerAllIpcHandlers(): void {
   })
 
   // ── 首次运行设置（绕过登录直接创建管理员） ──
-  ipcMain.handle('auth:setup', (_e, username: string, password: string) => {
+  // 注意：preload 的 invoke 只透传一个 data 参数，这里必须收单个对象，不能用位置参数
+  ipcMain.handle('auth:setup', (_e, payload: { username: string; password: string }) => {
     try {
+      const username = payload?.username
+      const password = payload?.password
+      if (!username || !password) return { ok: false, error: '用户名和密码不能为空' }
       const wrapper = getDb()
       // 确保表存在
       wrapper.runRaw(`
@@ -152,12 +156,17 @@ export function registerAllIpcHandlers(): void {
     writeFileSync(progressConfigPath(), JSON.stringify(cfg, null, 2), 'utf-8')
   }
 
-  ipcMain.handle('progress:loadConfig', (_e, key: string) => {
+  // 注意：preload 的 invoke 只透传一个 data 参数，这里统一收 { key }
+  ipcMain.handle('progress:loadConfig', (_e, payload: { key: string }) => {
     const cfg = loadProgressConfig()
-    return cfg[key] || { folderPath: '', stages: [] }
+    return cfg[payload?.key] || { folderPath: '', stages: [] }
   })
 
-  ipcMain.handle('progress:saveConfig', (_e, key: string, data: { folderPath?: string; stages?: string[] }) => {
+  // 注意：统一收 { key, data }
+  ipcMain.handle('progress:saveConfig', (_e, payload: { key: string; data: { folderPath?: string; stages?: string[] } }) => {
+    const key = payload?.key
+    const data = payload?.data ?? {}
+    if (!key) return { ok: false, error: '缺少 key' }
     const cfg = loadProgressConfig()
     cfg[key] = { ...cfg[key], ...data }
     saveProgressConfig(cfg)
@@ -165,8 +174,12 @@ export function registerAllIpcHandlers(): void {
   })
 
   // ── 扫描文件夹，匹配阶段和村名 ──
-  ipcMain.handle('progress:scan', (_e, folderPath: string, stages: string[], villageNames: string[]) => {
+  // 注意：统一收 { folderPath, stages, villageNames }
+  ipcMain.handle('progress:scan', (_e, payload: { folderPath: string; stages: string[]; villageNames: string[] }) => {
     try {
+      const folderPath = payload?.folderPath
+      const stages = payload?.stages ?? []
+      const villageNames = payload?.villageNames ?? []
       if (!folderPath || !existsSync(folderPath)) {
         return { stages: [], villageResults: [], error: '文件夹路径不存在' }
       }

@@ -89,7 +89,8 @@ export async function checkForUpdatesSilent() {
 
   try {
     const result = await autoUpdater.checkForUpdates()
-    if (result?.updateInfo?.version !== autoUpdater.currentVersion) {
+    // checkForUpdates 在未找到更新源时可能返回 null，需先判空
+    if (result && result.updateInfo?.version !== autoUpdater.currentVersion) {
       // 有新版本，通知渲染进程
       mainWindow?.webContents.send('update:available', {
         version: result.updateInfo.version,

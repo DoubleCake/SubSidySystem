@@ -15,6 +15,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   LineChart, Line,
 } from 'recharts'
+import type { TooltipValueType } from 'recharts'
 import Modal from '../components/Modal'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
@@ -36,6 +37,22 @@ type Metric = 'count' | 'area' | 'amount'
 const fmtMoney = (v: number) => '¥' + v.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
 const fmtArea = (v: number) => v.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 const fmtNum = (v: number) => v.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
+
+/** 中文排序（村名/组名） */
+const sortZh = (arr: string[]) => arr.sort((a, b) => a.localeCompare(b, 'zh'))
+
+/**
+ * Recharts 3.x 的 Tooltip formatter 签名放宽为
+ * `(value: ValueType | undefined, name, item, index, payload) => ReactNode`，
+ * 这里统一包一层：只处理值格式化，其余参数原样透传；值为空时显示占位符。
+ */
+const formatTooltipValue = (format: (v: number | string) => string) =>
+  (value: TooltipValueType | undefined): string => {
+    if (value === undefined || value === null) return '—'
+    // 数组值（如 scatter 的 [x, y]）取最后一项，兼容 Recharts 的 ValueType 联合类型
+    const raw = Array.isArray(value) ? value[value.length - 1] : value
+    return format(raw)
+  }
 
 export default function AnnualAnalysisPage() {
   const { toast, show } = useToast()
@@ -134,17 +151,21 @@ export default function AnnualAnalysisPage() {
     : metric === 'area' ? '总面积(亩)' : '总金额(元)'
   const metricKey = metric === 'count' ? 'count' : metric === 'area' ? 'area' : 'amount'
 
-  // 村 / 组筛选下拉选项（来自当前模式明细）
+  // 村 / 组筛选下拉选项（来自当前模式明细，过滤空村名/组名后排序）
   const villages = useMemo(() => {
     if (!detail) return []
     const list = mode === 'farmer' ? detail.farmers : detail.households
-    return [...new Set(list.map(r => r.village).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'zh'))
+    return sortZh([...new Set(list.map(r => r.village).filter((v): v is string => !!v))])
   }, [detail, mode])
 
   const groups = useMemo(() => {
     if (!detail) return []
     const list = mode === 'farmer' ? detail.farmers : detail.households
-    return [...new Set(list.filter(r => !villageFilter || r.village === villageFilter).map(r => r.group).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'zh'))
+    return sortZh([...new Set(
+      list.filter(r => !villageFilter || r.village === villageFilter)
+        .map(r => r.group)
+        .filter((g): g is string => !!g)
+    )])
   }, [detail, mode, villageFilter])
 
   // 波动 = 多年有值数据中"最大值 − 最小值"的数值差值（跟随面积/金额切换）
@@ -457,10 +478,10 @@ export default function AnnualAnalysisPage() {
                         <Tooltip
                           cursor={{ fill: 'rgba(42,120,214,0.06)' }}
                           contentStyle={{ borderRadius: 10, border: '1px solid #e5e5e0', fontSize: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}
-                          formatter={(v: number | string) => {
+                          formatter={formatTooltipValue(v => {
                             const n = Number(v)
                             return metric === 'amount' ? fmtMoney(n) : metric === 'area' ? fmtArea(n) + ' 亩' : fmtNum(n)
-                          }}
+                          })}
                         />
                         <Bar dataKey={metricKey} name={metricLabel} fill={SERIES_BLUE} radius={[4, 4, 0, 0]} maxBarSize={56} />
                       </BarChart>
@@ -700,7 +721,7 @@ export default function AnnualAnalysisPage() {
                     <CartesianGrid stroke={GRID_LINE} strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="year" tick={{ fill: AXIS_MUTED, fontSize: 11 }} axisLine={{ stroke: GRID_LINE }} tickLine={false} />
                     <YAxis tick={{ fill: AXIS_MUTED, fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
-                    <Tooltip formatter={(v: number | string) => fmtArea(Number(v)) + ' 亩'}
+                    <Tooltip formatter={formatTooltipValue(v => fmtArea(Number(v)) + ' 亩')}
                       contentStyle={{ borderRadius: 10, border: '1px solid #e5e5e0', fontSize: 12 }} />
                     <Bar dataKey="面积" fill={SERIES_BLUE} radius={[4, 4, 0, 0]} maxBarSize={48} />
                   </BarChart>
@@ -716,7 +737,7 @@ export default function AnnualAnalysisPage() {
                     <CartesianGrid stroke={GRID_LINE} strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="year" tick={{ fill: AXIS_MUTED, fontSize: 11 }} axisLine={{ stroke: GRID_LINE }} tickLine={false} />
                     <YAxis tick={{ fill: AXIS_MUTED, fontSize: 11 }} axisLine={false} tickLine={false} width={44} />
-                    <Tooltip formatter={(v: number | string) => fmtMoney(Number(v))}
+                    <Tooltip formatter={formatTooltipValue(v => fmtMoney(Number(v)))}
                       contentStyle={{ borderRadius: 10, border: '1px solid #e5e5e0', fontSize: 12 }} />
                     <Bar dataKey="金额" fill={SERIES_BLUE} radius={[4, 4, 0, 0]} maxBarSize={48} />
                   </BarChart>

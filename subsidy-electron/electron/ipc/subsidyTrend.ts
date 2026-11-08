@@ -104,15 +104,22 @@ export function registerSubsidyTrendHandlers(): void {
           return errorResponse(`上一年同类补贴的年份必须为 ${Number(cur.subsidy_year) - 1} 年（所选为 ${prev.subsidy_year} 年）`)
         }
         // 防环：沿 prev 回溯，若遇到自身则成环
-        let cursor = prevId
+        // cursor 为当前追溯到的项目 id；存在上一年同类时继续，不存在（null）则终止
+        let cursor: number | null = prevId
         const seen = new Set<number>()
-        while (cursor) {
-          if (cursor === typeId) return errorResponse('关联会形成循环，请重新选择')
-          if (seen.has(cursor)) break
-          seen.add(cursor)
+        while (cursor !== null) {
+          const currentId: number = cursor
+          if (currentId === typeId) return errorResponse('关联会形成循环，请重新选择')
+          if (seen.has(currentId)) break
+          seen.add(currentId)
           const row = db().getRaw<{ prev_year_type_id: number | null }>(
-            'SELECT prev_year_type_id FROM subsidy_type WHERE id = ?', cursor)
-          cursor = row?.prev_year_type_id ? Number(row.prev_year_type_id) : null
+            'SELECT prev_year_type_id FROM subsidy_type WHERE id = ?', currentId)
+          // 当前项目没有上一年同类项目，终止回溯
+          if (row?.prev_year_type_id == null) {
+            cursor = null
+            break
+          }
+          cursor = Number(row.prev_year_type_id)
         }
       }
 

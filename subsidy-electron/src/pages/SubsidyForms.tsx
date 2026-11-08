@@ -92,14 +92,14 @@ export default function SubsidyForms({
   }, [form.season, form.calc_mode, form.category])
 
   // 切换某个检查项的开关（处理两种层级：checks.xxx 和 check_trust_deduction）
-  const toggleCheck = (key: string) => {
+  const toggleCheck = (key: CheckItemKey) => {
     setCheckConfig(prev => {
       if (key === 'check_trust_deduction') {
         return { ...prev, check_trust_deduction: !prev.check_trust_deduction }
       }
       return {
         ...prev,
-        checks: { ...prev.checks, [key as keyof CheckConfig['checks']]: !prev.checks[key as keyof CheckConfig['checks']] },
+        checks: { ...prev.checks, [key]: !prev.checks[key] },
       }
     })
   }
@@ -113,9 +113,9 @@ export default function SubsidyForms({
   }
 
   // 判断某项是否选中
-  const isChecked = (key: string): boolean => {
+  const isChecked = (key: CheckItemKey): boolean => {
     if (key === 'check_trust_deduction') return checkConfig.check_trust_deduction
-    return checkConfig.checks[key as keyof CheckConfig['checks']] ?? true
+    return checkConfig.checks[key] ?? true
   }
 
   const isPerMu = form.calc_mode === 'per_mu'

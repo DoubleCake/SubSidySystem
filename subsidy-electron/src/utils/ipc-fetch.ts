@@ -11,7 +11,8 @@
  */
 
 // URL → IPC channel 映射表
-const URL_TO_CHANNEL: Record<string, { get: string; post?: string; put?: string; delete?: string }> = {
+// get 省略时表示该路径不支持 GET 查询（仅登记写操作），调用方按实际需要补全
+const URL_TO_CHANNEL: Record<string, { get?: string; post?: string; put?: string; delete?: string }> = {
   '/api/farmers': { get: 'farmers:list', post: 'farmers:create' },
   '/api/settings/village-groups': { get: 'settings:createVillageGroup', post: 'settings:createVillageGroup' },
   '/api/households/group-options': { get: 'households:groupOptions' },
@@ -53,6 +54,9 @@ export async function ipcFetch(url: string, opts?: RequestInit): Promise<Respons
       : method === 'PUT' ? (exact.put || exact.get)
       : method === 'DELETE' ? (exact.delete || exact.get)
       : exact.get
+    if (!channel) {
+      throw new Error(`IPC 映射缺失：${path} 不支持 ${method} 请求`)
+    }
 
     const data = method === 'GET' ? searchParams : body
     const result = await window.electronAPI.invoke(channel, data)

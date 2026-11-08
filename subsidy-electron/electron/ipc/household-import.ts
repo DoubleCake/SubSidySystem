@@ -149,10 +149,11 @@ export function registerHouseholdImportHandlers(): void {
         // household_code 匹配 DB
         let codeMatchedHh: Record<string, unknown> | null = null
         if (meta.household_code) {
+          // getRaw 未命中时返回 undefined，统一归一为 null 供后续判空
           codeMatchedHh = db().getRaw<Record<string, unknown>>(
             'SELECT * FROM family_household WHERE household_code = ? AND status = 1',
             meta.household_code
-          )
+          ) ?? null
           if (codeMatchedHh) {
             matchedHhIds.add(codeMatchedHh.id as number)
             if (!allHouseholds.has(codeMatchedHh.id as number)) {

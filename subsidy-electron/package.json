@@ -35,8 +35,10 @@
     "zustand": "^4.5.4"
   },
   "devDependencies": {
+    "@types/emscripten": "^1.41.6",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@types/sql.js": "^1.4.11",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.19",
     "electron": "^33.2.0",

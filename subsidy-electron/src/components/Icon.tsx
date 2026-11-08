@@ -27,8 +27,8 @@ export type IconName =
   | 'check' | 'warning' | 'error' | 'info' | 'question'
   // 数据
   | 'money' | 'area' | 'chart' | 'calendar' | 'village' | 'history'
-  // 通用
-  | 'menu' | 'more' | 'filter' | 'link' | 'home' | 'ai'
+  // 常用通用图标
+  | 'menu' | 'more' | 'filter' | 'link' | 'home' | 'ai' | 'excel'
 
 interface IconProps {
   name: IconName
@@ -122,4 +122,5 @@ const SVG_MAP: Record<string, string> = {
   link: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="{size}" height="{size}"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
   home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="{size}" height="{size}"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
   ai: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="{size}" height="{size}"><path d="M12 2a4 4 0 0 1 4 4c0 2-2 4-4 6-2-2-4-4-4-6a4 4 0 0 1 4-4z"/><path d="M9 13h6"/><path d="M7 17h10"/><path d="M5 21h14"/></svg>`,
+  excel: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="{size}" height="{size}"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13l6 6"/><path d="M15 13l-6 6"/></svg>`,
 }

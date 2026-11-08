@@ -22,7 +22,7 @@ export interface SubsidyListConfig {
   /** 导入覆盖时的批量导入端点 */
   batchImportEndpoint: string
   /** 导出函数 */
-  onExport: (subsidyTypeId: number) => Promise<{ items: ApplicationSearchResult[] }>
+  onExport: (subsidyTypeId: number) => Promise<{ items: api.SubsidyExportRow[] }>
   /** 额外工具栏按钮（放在导出按钮后面） */
   extraToolbar?: (props: { selectedIds: number[]; load: () => void; show: (msg: string, type?: 'ok' | 'err') => void }) => ReactNode
   /** 预检回调 */
@@ -156,11 +156,11 @@ export default function SubsidyListBase({
   // 按亩自动计算
   useEffect(() => {
     if (subsidyType.calc_mode !== 'per_mu') return
-    const totalArea = Number(form.apply_area || 0) + Number((form as any).apply_area_no_calc || 0)
+    const totalArea = Number(form.apply_area || 0) + Number(form.apply_area_no_calc || 0)
     if (totalArea <= 0) return
     const amt = Number(subsidyType.standard_amount || 0) * totalArea
     setForm(f => ({ ...f, apply_amount: Math.round(amt * 100) / 100, actual_amount: Math.round(amt * 100) / 100 }))
-  }, [form.apply_area, (form as any).apply_area_no_calc, subsidyType, setForm])
+  }, [form.apply_area, form.apply_area_no_calc, subsidyType, setForm])
 
   // ── 提交新增 ──
   const submitAdd = async () => {
@@ -183,7 +183,7 @@ export default function SubsidyListBase({
     try {
       await api.updateApplication(editTarget.id, {
         actual_amount: form.actual_amount, apply_area: form.apply_area,
-        apply_area_no_calc: (form as any).apply_area_no_calc,
+        apply_area_no_calc: form.apply_area_no_calc,
         contract_area: form.contract_area, trust_area: form.trust_area,
         no_subsidy_area: form.no_subsidy_area, pay_date: form.pay_date,
         remark: form.remark, pay_status: form.pay_status,
@@ -342,7 +342,7 @@ export default function SubsidyListBase({
       const res = await onExport(subsidyType.id)
       const rows = res.items.map(a => ({
         '姓名': a.farmer_name + (a.is_proxy === 1 ? '（代领）' : ''),
-        '身份证': (a as any).id_card || a.id_card_masked || '', '手机号': a.phone || '',
+        '身份证': a.id_card || a.id_card_masked || '', '手机号': a.phone || '',
         '所在村': a.village || '', '所在组': a.group_no || '',
         '计入超限面积': a.apply_area ?? '', '不计超限面积': a.apply_area_no_calc ?? '',
         '承包地面积': a.contract_area ?? '', '代耕代种面积': a.trust_area ?? '',
@@ -375,7 +375,7 @@ export default function SubsidyListBase({
       const raw = await api.detectExcelColumns(columns, 'SUBSIDY', sampleRows)
       // 后端返回 { mapping: {colName: {column, confidence}} }，转换为columns数组
       const mapping = raw.mapping || {}
-      const cols = Object.entries(mapping).map(([colName, info]: [string, any]) => ({
+      const cols = Object.entries(mapping).map(([colName, info]) => ({
         excel_column: colName,
         suggested_field: info.column,
         confidence: info.confidence ?? 0,
@@ -459,7 +459,7 @@ export default function SubsidyListBase({
                     {a.is_proxy === 1 && <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">代领</span>}
                   </div>
                 </td>
-                <td className="px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap">{(a as any).id_card || a.id_card_masked || '—'}</td>
+                <td className="px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap">{a.id_card || a.id_card_masked || '—'}</td>
                 <td className="px-2 py-2 text-xs font-mono text-text-muted whitespace-nowrap">{a.phone || '—'}</td>
                 <td className="px-2 py-2 text-xs text-text-muted whitespace-nowrap">{a.village || '—'}</td>
                 <td className="px-2 py-2 text-xs text-text-muted whitespace-nowrap">{a.group_no || '—'}</td>
@@ -510,7 +510,7 @@ export default function SubsidyListBase({
                 <div><label className="block text-xs text-text-muted mb-1">计入超限计算的补贴面积(亩) <span className="text-text-muted/50">— 可手动填写</span></label>
                   <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
                 <div><label className="block text-xs text-text-muted mb-1">不计入超限计算的补贴面积(亩)</label>
-                  <input type="number" step="0.01" value={(form as any).apply_area_no_calc ?? ''} onChange={e => setForm(f => ({ ...f, apply_area_no_calc: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
+                  <input type="number" step="0.01" value={form.apply_area_no_calc ?? ''} onChange={e => setForm(f => ({ ...f, apply_area_no_calc: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
               </div>
             </>)}
             <div><label className="block text-xs text-text-muted mb-1">不予补贴面积(亩)</label>
@@ -538,7 +538,7 @@ export default function SubsidyListBase({
               <div><label className="block text-xs text-text-muted mb-1">计入超限计算的补贴面积(亩) <span className="text-text-muted/50">— 可手动填写</span></label>
                 <input type="number" step="0.01" value={form.apply_area ?? ''} onChange={e => setForm(f => ({ ...f, apply_area: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
               <div><label className="block text-xs text-text-muted mb-1">不计入超限计算的补贴面积(亩)</label>
-                <input type="number" step="0.01" value={(form as any).apply_area_no_calc ?? ''} onChange={e => setForm(f => ({ ...f, apply_area_no_calc: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
+                <input type="number" step="0.01" value={form.apply_area_no_calc ?? ''} onChange={e => setForm(f => ({ ...f, apply_area_no_calc: Number(e.target.value) || undefined }))} className="w-full border border-border rounded-btn px-3 py-2 text-sm outline-none focus:border-primary-500" /></div>
             </div>
           </>)}
           <div><label className="block text-xs text-text-muted mb-1">不予补贴面积(亩)</label>

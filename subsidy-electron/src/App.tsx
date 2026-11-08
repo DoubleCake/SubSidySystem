@@ -89,7 +89,9 @@ function Layout() {
     if (!setupUser.trim() || !setupPass.trim()) { setSetupError('用户名和密码不能为空'); return }
     setSetupLoading(true); setSetupError('')
     try {
-      const res = await window.electronAPI.invoke<{ ok: boolean; error?: string }>('auth:setup', setupUser.trim(), setupPass)
+      const res = await window.electronAPI.invoke<{ ok: boolean; error?: string }>('auth:setup', {
+        username: setupUser.trim(), password: setupPass,
+      })
       if (!res?.ok) throw new Error(res?.error || '设置失败')
       setSetupOpen(false)
       setIsFirstRun(false)

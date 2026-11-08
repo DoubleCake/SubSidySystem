@@ -8,6 +8,7 @@ import type {
   HouseholdCreate, MemberCreate, MemberUpdate, MemberMoveRequest,
   SubsidyProxyOut, SubsidyProxyCreate,
   PrecheckRecordItem, PrecheckRecordBatch,
+  CheckConfig, CheckAreaMode,
 } from '../types'
 
 // ── Electron IPC 调用封装 ──
@@ -216,6 +217,8 @@ export interface VillageAreaStats {
   farmer_count: number
   record_count: number
   total_apply_area: number
+  /** 不计入超限计算的补贴面积合计 */
+  total_apply_area_no_calc: number
   total_contract_area: number
   total_trust_area: number
   total_no_subsidy_area: number
@@ -247,9 +250,15 @@ export const getExcelTemplates = (businessType?: string) =>
 export const getExcelTemplate = (id: number) =>
   req<ExcelColumnTemplate>('excel-templates:get', id)
 
+// 后端 excel-templates:detectColumns 实际返回 { business_type, detected_count, unmatched_count, mapping, unmatched }
+// 其中 mapping 为「Excel 列名 → { 系统字段, 置信度(0-100) }」
 export const detectExcelColumns = (columns: string[], businessType: string, sampleRows: Record<string, unknown>[]) =>
   req<{
-    columns: Array<{ excel_column: string; suggested_field: string | null; confidence: number; alternatives: Array<{ field: string; confidence: number }> }>
+    business_type?: string
+    detected_count?: number
+    unmatched_count?: number
+    mapping?: Record<string, { column: string; confidence: number }>
+    unmatched?: string[]
     recommended_templates?: Array<{ id: number; template_name: string; match_rate: number }>
     auto_confirm_count?: number; unrecognized_count?: number
   }>('excel-templates:detectColumns', { columns, business_type: businessType, sample_rows: sampleRows })
@@ -436,7 +445,8 @@ export const executeHouseholdImport = (rows: HouseholdImportRow[], defaultVillag
   req<HouseholdImportResult>('household-import:execute', { rows, default_village_name: defaultVillageName, default_group_no: defaultGroupNo })
 
 // ── 预检记录 ──
-export interface CheckConfig { checks: Record<string, boolean> }
+// CheckConfig / CheckAreaMode 统一定义在 src/types，这里重新导出以兼容既有引用
+export type { CheckConfig, CheckAreaMode }
 
 export const getCheckConfig = (typeId: number) =>
   req<{ check_config: CheckConfig; raw: string | null }>('subsidies:getCheckConfig', typeId)
@@ -468,11 +478,23 @@ export const deletePrecheckRecord = (id: number) =>
 export const autoResolvePrecheck = (subsidy_type_id: number, year: number) =>
   req<{ resolved_count: number; total: number }>('precheck:autoResolve', { subsidy_type_id, year })
 
+// 导出用行数据：SELECT sa.* / sp.* + farmer_profile / household / village 关联字段，不做打码（含明文 id_card）
+// 注意：发放表的 SELECT 未带 fp.phone，故 phone 可能缺失；两表金额/年度列名不同，未列出的用索引签名兜底
+export interface SubsidyExportRow extends ApplicationSearchResult {
+  /** 发放表：sp.amount */
+  amount?: string | number | null
+  /** 发放表：sp.payment_year */
+  payment_year?: number
+  household_name?: string | null
+  household_code?: string | null
+  [key: string]: unknown
+}
+
 export const exportApplications = (subsidyTypeId: number) =>
-  req<{ items: unknown[] }>('subsidies:exportApplications', subsidyTypeId)
+  req<{ items: SubsidyExportRow[] }>('subsidies:exportApplications', subsidyTypeId)
 
 export const exportPayments = (subsidyTypeId: number) =>
-  req<{ items: unknown[] }>('subsidies:exportPayments', subsidyTypeId)
+  req<{ items: SubsidyExportRow[] }>('subsidies:exportPayments', subsidyTypeId)
 
 // ── 仪表盘 ──
 export const getDashboardTodos = (year: number) =>
