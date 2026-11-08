@@ -16,8 +16,8 @@ export default function SeasonBars({ usage, refArea }: { usage: HHDetail['area_u
               <span className={over ? 'text-danger font-semibold' : 'text-primary font-semibold'}>{season}</span>
               <span className={`font-mono ${over ? 'text-danger font-semibold' : 'text-text-muted'}`}>{used.toFixed(2)} / {seasonRef.toFixed(2)}</span>
             </div>
-            <div className="h-[4px] bg-[#F2EDE3] rounded-full mt-1 overflow-hidden">
-              <div className={`h-[4px] rounded-full ${over ? 'bg-danger' : 'bg-[#1A4D3A]'}`} style={{ width: `${Math.max(2, pct)}%` }} />
+            <div className="h-[4px] bg-[#E6E0D4] rounded-full mt-1 overflow-hidden">
+              <div className={`h-[4px] rounded-full ${over ? 'bg-danger' : 'bg-[#234A38]'}`} style={{ width: `${Math.max(2, pct)}%` }} />
             </div>
             {over && <div className="text-[9.5px] text-danger mt-0.5">超出 {(used - seasonRef).toFixed(2)} 亩</div>}
           </div>

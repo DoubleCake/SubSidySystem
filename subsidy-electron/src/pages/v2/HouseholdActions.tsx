@@ -65,14 +65,14 @@ export default function HouseholdActions({ detail, onChanged }: { detail: HHDeta
   return (
     <div className="flex items-center gap-1.5 shrink-0">
       <button onClick={() => { setEditForm(buildEditForm(detail)); setEditOpen(true) }} disabled={busy}
-        className="h-7 px-2.5 rounded-btn bg-[#FDFAF3] inline-flex items-center gap-1 border border-[#E8D8B8] text-[11px] text-[#8A6620] font-medium hover:bg-[#F6EEDC] transition-colors disabled:opacity-40"><Ico name="edit" size={12} />编辑档案</button>
+        className="h-7 px-2.5 rounded-btn bg-[#FBF3E2] inline-flex items-center gap-1 border border-[#F2E0B8] text-[11px] text-[#8A6118] font-medium hover:bg-[#FBF3E2] transition-colors disabled:opacity-40"><Ico name="edit" size={12} />编辑档案</button>
 
       {detail.is_manually_confirmed === 1 ? (
         <button onClick={() => { setConfirmType('cancel_confirm'); setConfirmForm({ operator: '', remark: '' }); setConfirmOpen(true) }} disabled={busy}
-          className="h-7 px-2.5 rounded-btn bg-[#F6EEDC] inline-flex items-center gap-1 border border-[#E8D8B8] text-[11px] text-[#8A6620] font-medium hover:bg-[#EFE3C9] transition-colors disabled:opacity-40"><Ico name="cancel" size={12} />取消确认</button>
+          className="h-7 px-2.5 rounded-btn bg-[#FBF3E2] inline-flex items-center gap-1 border border-[#F2E0B8] text-[11px] text-[#8A6118] font-medium hover:bg-[#EFE3C9] transition-colors disabled:opacity-40"><Ico name="cancel" size={12} />取消确认</button>
       ) : (
         <button onClick={() => { setConfirmType('manual_confirm'); setConfirmForm({ operator: '', remark: '' }); setConfirmOpen(true) }} disabled={busy}
-          className="h-7 px-2.5 rounded-btn bg-[#2C6B52] inline-flex items-center gap-1 text-[11px] text-white font-medium hover:bg-[#245944] transition-colors disabled:opacity-40"><Ico name="confirm" size={12} />人工确认</button>
+          className="h-7 px-2.5 rounded-btn bg-[#2F5C46] inline-flex items-center gap-1 text-[11px] text-white font-medium hover:bg-[#245944] transition-colors disabled:opacity-40"><Ico name="confirm" size={12} />人工确认</button>
       )}
 
       <button onClick={() => {
@@ -80,12 +80,12 @@ export default function HouseholdActions({ detail, onChanged }: { detail: HHDeta
         setSplitForm({ ...emptySplitForm, origin_land_area: String(detail.contracted_area || '') })
         setSplitOpen(true)
       }} disabled={busy || (detail.members?.length ?? 0) < 2}
-        className="h-7 px-2.5 rounded-btn bg-[#EDF3EF] border border-[#C9DCC9] inline-flex items-center gap-1 text-[11px] text-[#2C6B52] font-medium hover:bg-[#DCE9E1] transition-colors disabled:opacity-40"><Ico name="split" size={12} />分户</button>
+        className="h-7 px-2.5 rounded-btn bg-[#E2EDE6] border border-[#C4DACC] inline-flex items-center gap-1 text-[11px] text-[#2F5C46] font-medium hover:bg-[#C4DACC] transition-colors disabled:opacity-40"><Ico name="split" size={12} />分户</button>
 
       <MergeHouseholdsButton current={currentHh} onMerged={onChanged} />
 
       <button onClick={() => setDeleteOpen(true)} disabled={busy}
-        className="h-7 px-2.5 rounded-btn bg-[#FDECEA] border border-[#E8C9C2] inline-flex items-center gap-1 text-[11px] text-danger font-medium hover:bg-[#F9D9D4] transition-colors disabled:opacity-40"><Ico name="delete" size={12} />删除</button>
+        className="h-7 px-2.5 rounded-btn bg-[#FCEAE8] border border-[#F5D3CF] inline-flex items-center gap-1 text-[11px] text-danger font-medium hover:bg-[#F5D3CF] transition-colors disabled:opacity-40"><Ico name="delete" size={12} />删除</button>
 
       <EditHouseholdForm open={editOpen} editForm={editForm} groups={groups} setEditForm={setEditForm}
         onClose={() => setEditOpen(false)}
@@ -172,9 +172,9 @@ export function MemberRowActions({ detail, member, onChanged }: { detail: HHDeta
 
   return (
     <>
-      <button onClick={openEdit} disabled={busy} className="text-[10px] px-1.5 py-[1px] rounded-[3px] bg-[#EDF3EF] text-[#2C6B52] hover:bg-[#DCE9E1] transition-colors disabled:opacity-40 inline-flex items-center gap-0.5"><Ico name="edit" size={9} />编辑</button>
+      <button onClick={openEdit} disabled={busy} className="text-[10px] px-1.5 py-[1px] rounded-[3px] bg-[#E2EDE6] text-[#2F5C46] hover:bg-[#C4DACC] transition-colors disabled:opacity-40 inline-flex items-center gap-0.5"><Ico name="edit" size={9} />编辑</button>
       {member.is_head !== 1 && (
-        <button onClick={remove} disabled={busy} className="ml-1.5 text-[10px] px-1.5 py-[1px] rounded-[3px] bg-[#FDECEA] text-danger hover:bg-[#F9D9D4] transition-colors disabled:opacity-40 inline-flex items-center gap-0.5"><Ico name="cancel" size={9} />移出</button>
+        <button onClick={remove} disabled={busy} className="ml-1.5 text-[10px] px-1.5 py-[1px] rounded-[3px] bg-[#FCEAE8] text-danger hover:bg-[#F5D3CF] transition-colors disabled:opacity-40 inline-flex items-center gap-0.5"><Ico name="cancel" size={9} />移出</button>
       )}
       <MemberForm open={open} memberEditTarget={member} memberForm={form}
         setMemberForm={setForm} groups={groups} showToast={show} setGroups={setGroups}
@@ -210,7 +210,7 @@ export function AddMemberButton({ detail, onChanged }: { detail: HHDetail; onCha
 
   return (
     <>
-      <button onClick={() => { setForm(emptyMemberForm); setOpen(true) }} className="text-[10px] px-2 py-[2px] rounded-[3px] bg-primary text-[#F7F3E7] font-medium hover:bg-[#154031] transition-colors inline-flex items-center gap-0.5"><Ico name="create" size={9} />新增成员</button>
+      <button onClick={() => { setForm(emptyMemberForm); setOpen(true) }} className="text-[10px] px-2 py-[2px] rounded-[3px] bg-primary text-[#FFFFFF] font-medium hover:bg-[#154031] transition-colors inline-flex items-center gap-0.5"><Ico name="create" size={9} />新增成员</button>
       <MemberForm open={open} memberEditTarget={null} memberForm={form}
         setMemberForm={setForm} groups={groups} showToast={show} setGroups={setGroups}
         onClose={() => setOpen(false)}

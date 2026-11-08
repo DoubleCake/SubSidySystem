@@ -33,8 +33,8 @@ export default function YearTimeline({ years, value, onChange, isCurrent }: Prop
   const cur = years.find(y => y.year === value)
 
   return (
-    <div className="border-b border-[#F2EDE3] bg-gradient-to-r from-[#F7FAF8] to-white px-3 py-1.5 flex items-center gap-2">
-      <span className="text-[10px] text-[#8C877A] shrink-0">年度</span>
+    <div className="border-b border-[#E6E0D4] bg-gradient-to-r from-[#F2F7F4] to-white px-3 py-1.5 flex items-center gap-2">
+      <span className="text-[10px] text-[#7A7466] shrink-0">年度</span>
       <div className="flex items-center gap-1 overflow-x-auto">
         {years.map(y => {
           const active = value === y.year
@@ -42,8 +42,8 @@ export default function YearTimeline({ years, value, onChange, isCurrent }: Prop
             <button key={y.year} onClick={() => onChange(y.year)}
               className={`relative h-[24px] px-2.5 rounded-full text-[11px] transition-all shrink-0 inline-flex items-center gap-1
                 ${active
-                  ? 'bg-primary text-[#F7F3E7] font-semibold shadow-[0_1px_4px_rgba(26,77,58,.28)]'
-                  : 'bg-white border border-[#E8E2D9] text-[#6B6B60] hover:border-[#1A4D3A]/40 hover:text-primary'}`}>
+                  ? 'bg-primary text-[#FFFFFF] font-semibold shadow-[0_1px_4px_rgba(26,77,58,.28)]'
+                  : 'bg-white border border-[#E6E0D4] text-[#5C5749] hover:border-[#234A38]/40 hover:text-primary'}`}>
               {y.year}
               {y.over && <span className={`w-[5px] h-[5px] rounded-full ${active ? 'bg-[#FFD5D0]' : 'bg-danger'}`} />}
             </button>
@@ -53,11 +53,11 @@ export default function YearTimeline({ years, value, onChange, isCurrent }: Prop
       {cur && (
         <div className="ml-auto flex items-center gap-2.5 shrink-0">
           {cur.over && <span className="text-[9px] bg-danger text-white font-semibold rounded-full px-1.5 py-[1px]">超领</span>}
-          <span className="text-[10px] text-[#8C877A]">
-            成员 <b className="text-[#5A5A4F]">{cur.members}</b> 人 · 补贴 <b className="text-[#5A5A4F]">{cur.apps}</b> 条
+          <span className="text-[10px] text-[#7A7466]">
+            成员 <b className="text-[#5C5749]">{cur.members}</b> 人 · 补贴 <b className="text-[#5C5749]">{cur.apps}</b> 条
           </span>
           {!isCurrent && (
-            <span className="text-[9px] text-[#8A6620] bg-[#F6EEDC] border border-[#E8D8B8] rounded-[3px] px-1.5 py-[1px]">
+            <span className="text-[9px] text-[#8A6118] bg-[#FBF3E2] border border-[#F2E0B8] rounded-[3px] px-1.5 py-[1px]">
               历史视图 · 只读
             </span>
           )}

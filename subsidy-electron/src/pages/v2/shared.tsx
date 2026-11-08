@@ -12,11 +12,11 @@ export const HH_STATUS_LABEL: Record<number, string> = { 1: '在册', 2: '注销
 export const PAY_STATUS_LABEL: Record<number, string> = { 0: '待发放', 1: '发放中', 2: '已发放' }
 
 const AVATAR_TONES = [
-  'bg-[#1A4D3A] text-[#E6C288]',
-  'bg-[#F6EEDC] text-[#8A6620]',
-  'bg-[#EDF3EF] text-[#1A4D3A]',
-  'bg-[#E3EEF2] text-[#2E6478]',
-  'bg-[#F1EDE4] text-[#5A5A4F]',
+  'bg-[#234A38] text-[#DDBE84]',
+  'bg-[#FBF3E2] text-[#8A6118]',
+  'bg-[#E2EDE6] text-[#234A38]',
+  'bg-[#E7EFF4] text-[#1F4F63]',
+  'bg-[#F1EDE4] text-[#5C5749]',
 ]
 
 export const tone = (name: string) =>
@@ -40,8 +40,8 @@ export function ListRow({
 }) {
   return (
     <div onClick={onClick}
-      className={`cursor-pointer border-b border-[#F2EDE3] transition-colors py-[9px] ${
-        active ? 'bg-[#F3F7F4] border-l-[3px] border-l-primary pl-3 pr-2.5' : 'pl-[15px] pr-2.5 hover:bg-[#F7FAF8]'
+      className={`cursor-pointer border-b border-[#E6E0D4] transition-colors py-[9px] ${
+        active ? 'bg-[#F2F7F4] border-l-[3px] border-l-primary pl-3 pr-2.5' : 'pl-[15px] pr-2.5 hover:bg-[#F2F7F4]'
       }`}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -53,7 +53,7 @@ export function ListRow({
         </div>
         {right}
       </div>
-      <div className="text-[10px] text-[#8C877A] mt-[3px] pl-[31px] truncate">{sub}</div>
+      <div className="text-[10px] text-[#7A7466] mt-[3px] pl-[31px] truncate">{sub}</div>
     </div>
   )
 }
@@ -61,10 +61,10 @@ export function ListRow({
 /** 小标签 */
 export function Chip({ children, tone: t = 'green' }: { children: ReactNode; tone?: 'green' | 'gray' | 'amber' | 'red' }) {
   const cls = {
-    green: 'bg-[#EDF3EF] text-[#2C6B52]',
-    gray: 'bg-[#F1EDE4] text-[#6B6B60]',
-    amber: 'bg-[#F6EEDC] text-[#8A6620]',
-    red: 'bg-[#FDECEA] text-danger',
+    green: 'bg-[#E2EDE6] text-[#2F5C46]',
+    gray: 'bg-[#F1EDE4] text-[#5C5749]',
+    amber: 'bg-[#FBF3E2] text-[#8A6118]',
+    red: 'bg-[#FCEAE8] text-danger',
   }[t]
   return <span className={`text-[9px] rounded-[2px] px-1 shrink-0 ${cls}`}>{children}</span>
 }
@@ -73,7 +73,7 @@ export function Chip({ children, tone: t = 'green' }: { children: ReactNode; ton
 export function FieldRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex justify-between gap-2">
-      <span className="text-[#8C877A] shrink-0">{label}</span>
+      <span className="text-[#7A7466] shrink-0">{label}</span>
       <span className="truncate text-right">{value}</span>
     </div>
   )
@@ -81,7 +81,7 @@ export function FieldRow({ label, value }: { label: string; value: ReactNode }) 
 
 export function Card({ title, icon, extra, children, className = '' }: { title?: ReactNode; icon?: IconName; extra?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <div className={`border border-[#F0EBE1] rounded-card px-3 py-2 ${className}`}>
+    <div className={`border border-[#E6E0D4] rounded-card px-3 py-2 ${className}`}>
       {(title || extra) && (
         <div className="flex items-center justify-between mb-1.5">
           {typeof title === 'string'

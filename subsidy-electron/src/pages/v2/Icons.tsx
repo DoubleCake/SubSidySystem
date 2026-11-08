@@ -29,7 +29,7 @@ export function ThIco({ name }: { name: V2IconName }) {
 /** 卡片标题图标（绿色圆形底） */
 export function CardIco({ name }: { name: V2IconName }) {
   return (
-    <span className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[5px] bg-[#EDF3EF] text-[#2C6B52] mr-1.5">
+    <span className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-[5px] bg-[#E2EDE6] text-[#2F5C46] mr-1.5">
       <BaseIcon name={name} size={11} />
     </span>
   )

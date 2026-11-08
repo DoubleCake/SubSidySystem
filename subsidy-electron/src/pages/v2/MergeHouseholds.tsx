@@ -63,13 +63,13 @@ export default function MergeHouseholdsButton({ current, onMerged }: { current: 
   return (
     <>
       <button onClick={start} disabled={!current}
-        className="h-7 px-2.5 rounded-btn bg-[#E3EEF2] border border-[#C9DCE2] inline-flex items-center gap-1 text-[11px] text-[#2E6478] font-medium hover:bg-[#D3E4EA] transition-colors disabled:opacity-40"><Ico name="merge" size={12} />合户</button>
+        className="h-7 px-2.5 rounded-btn bg-[#E7EFF4] border border-[#C4D9E4] inline-flex items-center gap-1 text-[11px] text-[#1F4F63] font-medium hover:bg-[#D2E2EA] transition-colors disabled:opacity-40"><Ico name="merge" size={12} />合户</button>
 
       {open && !confirming && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setOpen(false)}>
           <div className="bg-white rounded-card shadow-xl w-[520px] max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="px-4 py-2.5 border-b border-border text-[13px] font-semibold">合户 · 选择要并入的家庭户</div>
-            <div className="px-3 py-2 border-b border-[#F2EDE3]">
+            <div className="px-3 py-2 border-b border-[#E6E0D4]">
               <input value={keyword} onChange={e => setKeyword(e.target.value)} placeholder="搜索户名 / 户编码"
                 className="w-full h-8 border border-border rounded-btn px-2.5 text-[12px] outline-none focus:border-primary-500" />
             </div>
@@ -79,23 +79,23 @@ export default function MergeHouseholdsButton({ current, onMerged }: { current: 
                 const isTarget = selected[0]?.id === h.id
                 return (
                   <div key={h.id} onClick={() => !isTarget && toggle(h)}
-                    className={`flex items-center gap-2 px-3 py-1.5 border-b border-[#F2EDE3] text-[11.5px] ${isTarget ? 'bg-[#F3F7F4] opacity-70 cursor-default' : 'cursor-pointer hover:bg-[#F7FAF8]'}`}>
-                    <input type="checkbox" checked={on} disabled={isTarget} onChange={() => toggle(h)} className="w-3.5 h-3.5 accent-[#1A4D3A]" />
+                    className={`flex items-center gap-2 px-3 py-1.5 border-b border-[#E6E0D4] text-[11.5px] ${isTarget ? 'bg-[#F2F7F4] opacity-70 cursor-default' : 'cursor-pointer hover:bg-[#F2F7F4]'}`}>
+                    <input type="checkbox" checked={on} disabled={isTarget} onChange={() => toggle(h)} className="w-3.5 h-3.5 accent-[#234A38]" />
                     <span className="font-semibold">{h.household_name}</span>
-                    <span className="text-[#8C877A] font-mono text-[10px]">{h.household_code}</span>
-                    <span className="ml-auto text-[10px] text-[#8C877A]">{h.member_count ?? '?'} 人 · {h.contracted_area || 0} 亩</span>
-                    {isTarget && <span className="text-[9px] bg-primary text-[#F7F3E7] rounded-[2px] px-1">目标户</span>}
+                    <span className="text-[#7A7466] font-mono text-[10px]">{h.household_code}</span>
+                    <span className="ml-auto text-[10px] text-[#7A7466]">{h.member_count ?? '?'} 人 · {h.contracted_area || 0} 亩</span>
+                    {isTarget && <span className="text-[9px] bg-primary text-[#FFFFFF] rounded-[2px] px-1">目标户</span>}
                   </div>
                 )
               })}
               {list.length === 0 && <div className="py-8 text-center text-[11px] text-text-muted/60">没有匹配的家庭户</div>}
             </div>
             <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-warm/20">
-              <span className="text-[10.5px] text-[#8C877A]">已选 {selected.length} 户（首个为目标户）</span>
+              <span className="text-[10.5px] text-[#7A7466]">已选 {selected.length} 户（首个为目标户）</span>
               <div className="flex gap-2">
-                <button onClick={() => setOpen(false)} className="h-7 px-3 border border-border rounded-btn bg-white text-[11px] text-[#5A5A4F]">取消</button>
+                <button onClick={() => setOpen(false)} className="h-7 px-3 border border-border rounded-btn bg-white text-[11px] text-[#5C5749]">取消</button>
                 <button disabled={selected.length < 2} onClick={() => { setConfirmForm({ contract_area: '', remark: '' }); setConfirming(true) }}
-                  className="h-7 px-3 rounded-btn bg-primary text-[11px] text-[#F7F3E7] disabled:opacity-40">下一步</button>
+                  className="h-7 px-3 rounded-btn bg-primary text-[11px] text-[#FFFFFF] disabled:opacity-40">下一步</button>
               </div>
             </div>
           </div>

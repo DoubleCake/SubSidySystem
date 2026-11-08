@@ -303,16 +303,16 @@ export default function HouseholdRegistryV2Page() {
       <div className="flex items-end justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-[26px] h-[26px] rounded-[8px] bg-gradient-to-br from-[#1A5C46] to-[#2C7A63] text-[#E6C288]">
+            <span className="inline-flex items-center justify-center w-[26px] h-[26px] rounded-[8px] bg-gradient-to-br from-[#1A5C46] to-[#234A38] text-[#DDBE84]">
               <Ico name="farmers" size={15} />
             </span>
             <h1 className="text-[20px] font-bold text-primary leading-tight">主体管理</h1>
           </div>
-          <div className="text-[11px] text-[#8C877A] mt-1">农户、家庭户、大户与村组统一管理，左侧选择对象，右侧查看档案与关联信息</div>
+          <div className="text-[11px] text-[#7A7466] mt-1">农户、家庭户、大户与村组统一管理，左侧选择对象，右侧查看档案与关联信息</div>
         </div>
         <div className="flex items-center gap-1.5">
           <button onClick={() => navigate('/settings/farmer-attribute-import')}
-            className="h-[30px] px-3 border border-border rounded-btn bg-white text-[12px] text-[#5A5A4F] hover:bg-warm/30 transition-colors inline-flex items-center gap-1.5">
+            className="h-[30px] px-3 border border-border rounded-btn bg-white text-[12px] text-[#5C5749] hover:bg-warm/30 transition-colors inline-flex items-center gap-1.5">
             <Ico name="upload" size={13} />
             导入户籍
           </button>
@@ -332,16 +332,16 @@ export default function HouseholdRegistryV2Page() {
               ['villages', '村组', null, 'village'],
             ] as const).map(([id, label, count, icon]) => (
               <button key={id} onClick={() => setSideTab(id as SideTab)}
-                className={`h-[34px] flex items-center gap-1.5 border-b-2 text-[12px] transition-colors ${sideTab === id ? 'border-primary text-primary font-bold' : 'border-transparent text-[#6B6B60] hover:text-text-primary'}`}>
+                className={`h-[34px] flex items-center gap-1.5 border-b-2 text-[12px] transition-colors ${sideTab === id ? 'border-primary text-primary font-bold' : 'border-transparent text-[#5C5749] hover:text-text-primary'}`}>
                 <Ico name={icon} size={12} />
                 {label}
-                {count != null && <span className={`text-[10px] font-normal ${sideTab === id ? 'text-[#8C877A]' : 'text-[#9A9588]'}`}>{count}</span>}
+                {count != null && <span className={`text-[10px] font-normal ${sideTab === id ? 'text-[#7A7466]' : 'text-[#7A7466]'}`}>{count}</span>}
               </button>
             ))}
           </div>
-          <div className="px-2.5 py-2 border-b border-[#F2EDE3] flex flex-col gap-1.5">
+          <div className="px-2.5 py-2 border-b border-[#E6E0D4] flex flex-col gap-1.5">
             <div className="flex items-center gap-1.5 border border-border rounded-btn px-2 h-[30px]">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9A9588" strokeWidth="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" /></svg>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7A7466" strokeWidth="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" /></svg>
               {sideTab === 'farmers' ? (
                 <input value={searchInput} onChange={e => setSearchInput(e.target.value)}
                   placeholder="姓名 / 身份证 / 手机号" className="flex-1 text-[12px] outline-none bg-transparent" />
@@ -353,13 +353,13 @@ export default function HouseholdRegistryV2Page() {
             <div className="flex gap-1.5">
               <select value={sideTab === 'farmers' ? village : hhVillage}
                 onChange={e => { if (sideTab === 'farmers') { setVillage(e.target.value); setPage(1) } else { setHhVillage(e.target.value); setHhPage(1) } }}
-                className="flex-1 h-7 border border-border rounded-btn px-1.5 text-[11px] text-[#5A5A4F] bg-white outline-none">
+                className="flex-1 h-7 border border-border rounded-btn px-1.5 text-[11px] text-[#5C5749] bg-white outline-none">
                 <option value="">全部村</option>
                 {villages.map(v => <option key={v} value={v}>{v}</option>)}
               </select>
               <select value={sideTab === 'farmers' ? status : hhStatus}
                 onChange={e => { if (sideTab === 'farmers') { setStatus(e.target.value); setPage(1) } else { setHhStatus(e.target.value); setHhPage(1) } }}
-                className="flex-1 h-7 border border-border rounded-btn px-1.5 text-[11px] text-[#5A5A4F] bg-white outline-none">
+                className="flex-1 h-7 border border-border rounded-btn px-1.5 text-[11px] text-[#5C5749] bg-white outline-none">
                 <option value="">全部状态</option>
                 <option value="1">在册</option>
                 <option value="2">注销</option>
@@ -398,8 +398,8 @@ export default function HouseholdRegistryV2Page() {
                     avatar={h.household_name?.slice(0, 1) || '户'} avatarSquare name={h.household_name}
                     tags={<Chip tone={h.status === 1 ? 'green' : 'amber'}>{HH_STATUS_LABEL[h.status] || '未知'}</Chip>}
                     right={(h.overdrawn_years?.length ?? 0) > 0
-                      ? <span className="text-[9px] bg-[#FDECEA] text-danger rounded-[2px] px-1 shrink-0">{h.overdrawn_years!.slice(0, 2).join('、')}超领</span>
-                      : h.is_overdrawn ? <span className="text-[9px] bg-[#FDECEA] text-danger rounded-[2px] px-1 shrink-0">超领</span> : null}
+                      ? <span className="text-[9px] bg-[#FCEAE8] text-danger rounded-[2px] px-1 shrink-0">{h.overdrawn_years!.slice(0, 2).join('、')}超领</span>
+                      : h.is_overdrawn ? <span className="text-[9px] bg-[#FCEAE8] text-danger rounded-[2px] px-1 shrink-0">超领</span> : null}
                     sub={<>{h.village_full_name || '—'} · <span className="font-mono">{h.household_code}</span> · {h.member_count ?? '?'} 人{h.contracted_area > 0 ? ` · ${h.contracted_area} 亩` : ''}</>} />
                 ))}
               </>
@@ -429,7 +429,7 @@ export default function HouseholdRegistryV2Page() {
             )}
           </div>
 
-          <div className="flex items-center justify-between px-2.5 py-1.5 border-t border-border text-[10px] text-[#8C877A]">
+          <div className="flex items-center justify-between px-2.5 py-1.5 border-t border-border text-[10px] text-[#7A7466]">
             <span>
               {sideTab === 'farmers' && `共 ${total} 人`}
               {sideTab === 'households' && `共 ${hhTotal} 户`}
@@ -440,7 +440,7 @@ export default function HouseholdRegistryV2Page() {
             {sideTab === 'farmers' && (
               <div className="flex items-center gap-1">
                 <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">上一页</button>
-                <span className="bg-primary text-[#F7F3E7] rounded-[3px] px-1.5">{page}</span>
+                <span className="bg-primary text-[#FFFFFF] rounded-[3px] px-1.5">{page}</span>
                 <span>/ {totalPages}</span>
                 <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">下一页</button>
               </div>
@@ -449,7 +449,7 @@ export default function HouseholdRegistryV2Page() {
             {sideTab === 'households' && (
               <div className="flex items-center gap-1">
                 <button disabled={hhPage <= 1} onClick={() => setHhPage(p => p - 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">上一页</button>
-                <span className="bg-primary text-[#F7F3E7] rounded-[3px] px-1.5">{hhPage}</span>
+                <span className="bg-primary text-[#FFFFFF] rounded-[3px] px-1.5">{hhPage}</span>
                 <span>/ {hhTotalPages}</span>
                 <button disabled={hhPage >= hhTotalPages} onClick={() => setHhPage(p => p + 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">下一页</button>
               </div>
@@ -458,7 +458,7 @@ export default function HouseholdRegistryV2Page() {
             {sideTab === 'large' && (
               <div className="flex items-center gap-1">
                 <button disabled={largePage <= 1} onClick={() => setLargePage(p => p - 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">上一页</button>
-                <span className="bg-primary text-[#F7F3E7] rounded-[3px] px-1.5">{largePage}</span>
+                <span className="bg-primary text-[#FFFFFF] rounded-[3px] px-1.5">{largePage}</span>
                 <span>/ {largeTotalPages}</span>
                 <button disabled={largePage >= largeTotalPages} onClick={() => setLargePage(p => p + 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">下一页</button>
               </div>
