@@ -114,6 +114,7 @@ export default function RegistryView(p: P) {
               <LargeDetail farmer={p.largeList.find(l => l.id === p.selectedLargeId) || null} trusts={p.largeTrusts} loading={p.loadingTrusts} />
             )}
             {p.sideTab === 'villages' && <VillageDetail detail={p.villageDetail} loading={p.loadingVillage} />}
+            {p.sideTab === 'farmers' && <FarmerDetail farmer={p.farmer} household={p.household} loading={p.loadingDetail} onChanged={p.reloadFarmer} />}
           </>
         )}
       />
