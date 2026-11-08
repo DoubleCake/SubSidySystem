@@ -649,7 +649,7 @@ export function ConfirmForm({ open, title, description, confirmForm, setConfirmF
 
 // ── 删除家庭户确认弹窗 ──
 export function DeleteConfirmForm({ open, deleteTarget, loading, onSubmit, onClose }: DeleteConfirmFormProps) {
-  if (!deleteTarget) return null
+  if (!open || !deleteTarget) return null
   const memberCount = 'member_count' in deleteTarget ? deleteTarget.member_count : (deleteTarget as any).members?.length ?? 0
 
   return (

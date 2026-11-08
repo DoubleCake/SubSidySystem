@@ -78,7 +78,9 @@ export default function HouseholdActions({ detail, onChanged }: { detail: HHDeta
         setSplitForm({ ...emptySplitForm, origin_land_area: String(detail.contracted_area || '') })
         setSplitOpen(true)
       }} disabled={busy || (detail.members?.length ?? 0) < 2}
-        className="h-7 px-2.5 border border-border rounded-btn bg-white text-[11px] text-[#5A5A4F] hover:bg-warm/30 transition-colors disabled:opacity-40">分户</button>\n\n      <MergeHouseholdsButton current={currentHh} onMerged={onChanged} />
+        className="h-7 px-2.5 border border-border rounded-btn bg-white text-[11px] text-[#5A5A4F] hover:bg-warm/30 transition-colors disabled:opacity-40">分户</button>
+
+      <MergeHouseholdsButton current={currentHh} onMerged={onChanged} />
 
       <button onClick={() => setDeleteOpen(true)} disabled={busy}
         className="h-7 px-2 text-[11px] text-text-muted hover:text-danger transition-colors disabled:opacity-40">删除</button>
