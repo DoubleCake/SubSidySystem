@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Modal from '../components/Modal'
 import { useToast } from '../hooks/useToast'
+import { useHouseholdAnomalyTab } from '../hooks/useUiSettings'
 import Toast from '../components/Toast'
 import * as api from '../api'
 
@@ -101,7 +102,8 @@ const SOIL_OPTS       = ['优', '良', '一般', '差']
 
 // ══════════════════════════════════════════
 export default function SettingsPage() {
-  const [tab, setTab] = useState<'groups' | 'land'>('groups')
+  const [uiTab, setUiTab] = useState<'groups' | 'land' | 'display'>('groups')
+  const [anomalyTabEnabled, setAnomalyTabEnabled] = useHouseholdAnomalyTab()
   const { toast, show } = useToast()
   const navigate = useNavigate()
   const [groups, setGroups] = useState<VillageGroup[]>([])
@@ -324,9 +326,9 @@ export default function SettingsPage() {
       <div className="flex items-center gap-4 mb-5">
         <h1 className="text-[20px] font-bold text-primary">村组管理</h1>
         <div className="flex gap-1 bg-warm/30 p-1 rounded-btn text-sm">
-          {([['groups', '村组结构'], ['land', '土地基础信息']] as const).map(([t, label]) => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-1.5 rounded-md transition-colors ${tab === t
+          {([['groups', '村组结构'], ['land', '土地基础信息'], ['display', '界面显示']] as const).map(([t, label]) => (
+            <button key={t} onClick={() => setUiTab(t)}
+              className={`px-4 py-1.5 rounded-md transition-colors ${uiTab === t
                 ? 'bg-white shadow text-primary font-medium'
                 : 'text-text-muted hover:text-text-primary'}`}>
               {label}
@@ -335,7 +337,32 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {tab === 'groups' ? (
+      {uiTab === 'display' && (
+        <div className="max-w-2xl space-y-3">
+          <div className="bg-white border border-border rounded-card shadow-card">
+            <div className="px-4 py-2.5 border-b border-border">
+              <div className="text-sm font-semibold text-text-primary">家庭户详情</div>
+              <div className="text-meta text-text-muted mt-0.5">控制户籍管理中家庭户右侧内容的显示方式</div>
+            </div>
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="pr-4">
+                <div className="text-body text-text-primary">显示「异常」分类</div>
+                <div className="text-meta text-text-muted mt-0.5">
+                  开启后，家庭成员 / 补贴记录 / 土地流转 三个分类旁会多出「异常」分类；有超领时在该分类上显示红点提示。
+                </div>
+              </div>
+              <button onClick={() => setAnomalyTabEnabled(!anomalyTabEnabled)}
+                role="switch" aria-checked={anomalyTabEnabled}
+                className={`relative w-[38px] h-[20px] rounded-full transition-colors shrink-0 ${anomalyTabEnabled ? 'bg-primary' : 'bg-[#D9D2C6]'}`}>
+                <span className={`absolute top-[2px] w-4 h-4 rounded-full bg-white shadow transition-all ${anomalyTabEnabled ? 'left-[20px]' : 'left-[2px]'}`} />
+              </button>
+            </div>
+          </div>
+          <div className="text-meta text-text-muted">设置保存在本机，重新打开应用后依然有效。</div>
+        </div>
+      )}
+
+      {uiTab === 'groups' ? (
         <>
         <VillageGroupsLayout
           villages={villages}
@@ -477,7 +504,7 @@ export default function SettingsPage() {
           </Modal>
         </>
       ) : (
-        <LandInfoTab show={show} />
+        uiTab === 'land' ? <LandInfoTab show={show} /> : null
       )}
 
       <Toast {...toast} />

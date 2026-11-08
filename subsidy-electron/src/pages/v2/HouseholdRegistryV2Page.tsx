@@ -3,7 +3,7 @@
  *
  * 左侧 338px：农户 / 家庭户切换、搜索、村组与状态筛选、人员列表、分页
  * 右侧：人员档案头、家庭户面积条、四列基础信息、
- *       家庭成员 / 补贴记录 / 土地流转 / 异常 垂直排列，右侧为面积/家庭户信息/历史快照
+ *       家庭成员与补贴记录垂直排列；土地流转/异常为分类切换（异常可在设置中关闭）
  *
  * 这一版以复刻版式为主，数据只读；编辑/新增等操作后续再接。
  */
@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import * as api from '../../api'
 import { EVENT_TYPE_CFG } from '../FarmerConstants'
+import { useHouseholdAnomalyTab } from '../../hooks/useUiSettings'
 import type { FarmerOut, FarmerDetail, HH, HHDetail, HHEvent, SnapshotAtResponse, VillageGroup } from '../../types'
 
 const PAGE_SIZE = 20
@@ -38,6 +39,13 @@ const money = (v: unknown) =>
 
 export default function HouseholdRegistryV2Page() {
   const navigate = useNavigate()
+  const [hhTab, setHhTab] = useState<'members' | 'subsidy' | 'trust' | 'anomaly'>('members')
+  const [anomalyEnabled] = useHouseholdAnomalyTab()
+
+  // 开关关闭时若正停留在异常分类，回落到家庭成员
+  useEffect(() => {
+    if (!anomalyEnabled && hhTab === 'anomaly') setHhTab('members')
+  }, [anomalyEnabled, hhTab])
   const [searchParams] = useSearchParams()
 
   // ── 左侧 Tab：农户 / 家庭户 ──
@@ -604,7 +612,7 @@ export default function HouseholdRegistryV2Page() {
   )
 }
 
-/** 家庭户详情面板：档案头 + 面积条 + 左栏四块垂直排列 + 右栏面积/家庭户/快照 */
+/** 家庭户详情面板：档案头 + 面积条 + 左栏分类内容 + 右栏面积/家庭户/快照 */
 function HouseholdDetailPanel({
   detail, loading, tab, setTab,
 }: {
@@ -715,109 +723,171 @@ function HouseholdDetailPanel({
         ))}
       </div>
 
-      {/* 主体：左侧记录区（垂直滚动，四块上下排列）+ 右侧信息栏 */}
+      {/* 主体：左栏 家庭成员 + 补贴记录 垂直滚动；土地流转/异常为 Tab 切换（可在设置中开关异常） */}
       <div className="grid grid-cols-[minmax(0,1fr)_270px] gap-3 p-3">
-        <div className="flex flex-col gap-2.5 min-w-0 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 430px)' }}>
-            <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
-              <table className="w-full border-collapse text-[11px]">
-                <thead>
-                  <tr className="bg-[#F6F1E7] text-[#8C877A] text-[10px] text-left h-[26px]">
-                    <th className="font-medium px-2.5">姓名</th>
-                    <th className="font-medium px-1.5">关系</th>
-                    <th className="font-medium px-1.5">身份证号</th>
-                    <th className="font-medium px-1.5">状态</th>
-                    <th className="font-medium px-2.5 text-right">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {members.map(m => (
-                    <tr key={m.id} className={`border-t border-[#F2EDE3] h-[34px] hover:bg-[#F7FAF8] transition-colors ${m.farmer_status !== 1 ? 'opacity-70' : ''}`}>
-                      <td className="px-2.5 font-semibold">
-                        {m.real_name}
-                        {m.is_head === 1 && <span className="ml-1 text-[9px] bg-[#EDF3EF] text-[#2C6B52] rounded-[2px] px-1">户主</span>}
-                      </td>
-                      <td className="px-1.5 text-[#6B6B60]">{m.relation || (m.is_head === 1 ? '本人' : '成员')}</td>
-                      <td className="px-1.5 font-mono text-[#8C877A]">{m.id_card_masked || '—'}</td>
-                      <td className="px-1.5">
-                        <span className={`text-[9px] rounded-full px-1.5 py-[1px] ${m.farmer_status === 1 ? 'bg-[#EDF3EF] text-[#2C6B52]' : 'bg-[#F1EDE4] text-[#6B6B60]'}`}>
-                          {FARMER_STATUS_LABEL[m.farmer_status] || '—'}
-                        </span>
-                      </td>
-                      <td className="px-2.5 text-right text-[10px] text-[#8C877A]">—</td>
-                    </tr>
-                  ))}
-                  {members.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-[11px] text-text-muted/60">暂无成员</td></tr>}
-                </tbody>
-              </table>
-            </div>
-            <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
-              <table className="w-full border-collapse text-[11px]">
-                <thead>
-                  <tr className="bg-[#F6F1E7] text-[#8C877A] text-[10px] text-left h-[26px]">
-                    <th className="font-medium px-2.5">年度</th>
-                    <th className="font-medium px-1.5">补贴项目</th>
-                    <th className="font-medium px-1.5">成员</th>
-                    <th className="font-medium px-1.5 text-right">面积</th>
-                    <th className="font-medium px-1.5 text-right">金额</th>
-                    <th className="font-medium px-2.5">状态</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {apps.map((a, i) => (
-                    <tr key={`${a.farmer_id}-${a.subsidy_name}-${i}`} className="border-t border-[#F2EDE3] h-[34px] hover:bg-[#F7FAF8] transition-colors">
-                      <td className="px-2.5 font-semibold text-[#1A4D3A]">{a.apply_year}</td>
-                      <td className="px-1.5 truncate">{a.subsidy_name}</td>
-                      <td className="px-1.5 text-[#6B6B60]">{a.farmer_name}</td>
-                      <td className="px-1.5 text-right font-mono">{a.apply_area != null ? Number(a.apply_area).toFixed(2) : '—'}</td>
-                      <td className="px-1.5 text-right font-mono">{a.actual_amount ? money(a.actual_amount) : (a.apply_amount ? money(a.apply_amount) : '—')}</td>
-                      <td className="px-2.5">
-                        <span className={`text-[9px] rounded-full px-1.5 py-[1px] ${a.pay_status === 2 ? 'bg-[#EDF3EF] text-[#2C6B52]' : 'bg-[#F6EEDC] text-[#8A6620]'}`}>
-                          {PAY_STATUS_LABEL[a.pay_status] || '—'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {apps.length === 0 && <tr><td colSpan={6} className="py-8 text-center text-[11px] text-text-muted/60">暂无补贴记录</td></tr>}
-                </tbody>
-              </table>
-            </div>
-            <div className="border border-[#F0EBE1] rounded-card p-3">
-              <div className="flex flex-col gap-2 text-[11px]">
-                <div className="flex items-center justify-between">
-                  <span className="text-[#8C877A]">转入面积</span>
-                  <b className="font-mono">{trustIn.toFixed(2)} 亩</b>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[#8C877A]">转出面积</span>
-                  <b className="font-mono">{trustOut.toFixed(2)} 亩</b>
-                </div>
-                <div className="flex items-center justify-between border-t border-[#F2EDE3] pt-2">
-                  <span className="text-[#8C877A]">可耕种面积</span>
-                  <b className="font-mono text-primary">{Number(usage?.cultivable_area ?? 0).toFixed(2)} 亩</b>
-                </div>
-                <div className="text-[10px] text-text-muted pt-1">
-                  {usage?.has_trust_data ? '本户存在流转记录，详细台账请在「土地流转」中查看。' : '本户暂无土地流转记录。'}
-                </div>
-                <button onClick={() => navigate('/land')} className="mt-1 h-7 border border-border rounded-btn text-[11px] text-[#5A5A4F]">打开土地流转台账</button>
+        <div className="flex flex-col gap-2.5 min-w-0">
+          {hhTab === 'members' || hhTab === 'subsidy' ? (
+            <>
+              <div className="flex items-end gap-5 px-1 h-7 border-b border-[#E8E2D9]">
+                {([
+                  { id: 'members' as const, label: '家庭成员', count: members.length },
+                  { id: 'subsidy' as const, label: '补贴记录', count: apps.length },
+                  { id: 'trust' as const, label: '土地流转' },
+                  ...(anomalyEnabled
+                    ? [{ id: 'anomaly' as const, label: '异常', count: overYears.length, danger: overYears.length > 0 }]
+                    : []),
+                ]).map(t => (
+                  <button key={t.id} onClick={() => setHhTab(t.id)}
+                    className={`relative h-7 flex items-center gap-1 border-b-2 text-[12px] transition-colors ${
+                      hhTab === t.id ? 'border-primary text-primary font-bold' : 'border-transparent text-[#6B6B60] hover:text-text-primary'
+                    }`}>
+                    {t.label}
+                    {t.count != null && (
+                      <span className={`text-[10px] font-normal ${t.danger ? 'text-danger' : 'text-[#8C877A]'}`}>{t.count}</span>
+                    )}
+                    {t.danger && <span className="absolute -top-0.5 -right-2 w-1.5 h-1.5 rounded-full bg-danger" />}
+                  </button>
+                ))}
               </div>
-            </div>
-            <div className="border border-[#F0EBE1] rounded-card p-3">
-              {overYears.length === 0 ? (
-                <div className="py-6 text-center text-[11px] text-text-muted/60">本户没有超领记录</div>
-              ) : (
-                <div className="flex flex-col gap-1.5">
-                  {overYears.map(o => (
-                    <div key={o.year} className="flex items-center gap-2">
-                      <span className="text-[9px] bg-[#FDECEA] text-danger rounded-[2px] px-1">超领</span>
-                      <span className="text-[11.5px] font-semibold">{o.year} 年度</span>
-                      <span className="text-[10px] text-[#9A9588]">{o.used.toFixed(2)} / {refArea.toFixed(2)} 亩</span>
-                      <span className="ml-auto text-[11px] font-bold text-danger">+{Math.max(0, o.used - refArea).toFixed(2)}</span>
-                    </div>
-                  ))}
-                  <button onClick={() => navigate('/anomalies')} className="mt-1 h-7 border border-border rounded-btn text-[11px] text-[#5A5A4F]">进入异常中心</button>
+
+              <div className="flex flex-col gap-2.5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 470px)' }}>
+                <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
+                  <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#F2EDE3]">
+                    <span className="text-[11.5px] font-semibold">家庭成员 <span className="text-[10px] text-[#8C877A] font-normal">{members.length}</span></span>
+                  </div>
+                  <table className="w-full border-collapse text-[11px]">
+                    <thead>
+                      <tr className="bg-[#F6F1E7] text-[#8C877A] text-[10px] text-left h-[26px]">
+                        <th className="font-medium px-2.5">姓名</th>
+                        <th className="font-medium px-1.5">关系</th>
+                        <th className="font-medium px-1.5">身份证号</th>
+                        <th className="font-medium px-2.5">状态</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {members.map(m => (
+                        <tr key={m.id} className={`border-t border-[#F2EDE3] h-[34px] hover:bg-[#F7FAF8] transition-colors ${m.farmer_status !== 1 ? 'opacity-70' : ''}`}>
+                          <td className="px-2.5 font-semibold">
+                            {m.real_name}
+                            {m.is_head === 1 && <span className="ml-1 text-[9px] bg-[#EDF3EF] text-[#2C6B52] rounded-[2px] px-1">户主</span>}
+                          </td>
+                          <td className="px-1.5 text-[#6B6B60]">{m.relation || (m.is_head === 1 ? '本人' : '成员')}</td>
+                          <td className="px-1.5 font-mono text-[#8C877A]">{m.id_card_masked || '—'}</td>
+                          <td className="px-2.5">
+                            <span className={`text-[9px] rounded-full px-1.5 py-[1px] ${m.farmer_status === 1 ? 'bg-[#EDF3EF] text-[#2C6B52]' : 'bg-[#F1EDE4] text-[#6B6B60]'}`}>
+                              {FARMER_STATUS_LABEL[m.farmer_status] || '—'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {members.length === 0 && <tr><td colSpan={4} className="py-8 text-center text-[11px] text-text-muted/60">暂无成员</td></tr>}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-            </div>
+
+                <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
+                  <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#F2EDE3]">
+                    <span className="text-[11.5px] font-semibold">补贴记录 <span className="text-[10px] text-[#8C877A] font-normal">{apps.length}</span></span>
+                    <span className="text-[10px] text-[#8C877A]">累计 <b className="font-mono text-primary">{money(appTotal)}</b></span>
+                  </div>
+                  <table className="w-full border-collapse text-[11px]">
+                    <thead>
+                      <tr className="bg-[#F6F1E7] text-[#8C877A] text-[10px] text-left h-[26px]">
+                        <th className="font-medium px-2.5">年度</th>
+                        <th className="font-medium px-1.5">补贴项目</th>
+                        <th className="font-medium px-1.5">成员</th>
+                        <th className="font-medium px-1.5 text-right">面积</th>
+                        <th className="font-medium px-1.5 text-right">金额</th>
+                        <th className="font-medium px-2.5">状态</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {apps.map((a, i) => (
+                        <tr key={`${a.farmer_id}-${a.subsidy_name}-${i}`} className="border-t border-[#F2EDE3] h-[34px] hover:bg-[#F7FAF8] transition-colors">
+                          <td className="px-2.5 font-semibold text-[#1A4D3A]">{a.apply_year}</td>
+                          <td className="px-1.5 truncate">{a.subsidy_name}</td>
+                          <td className="px-1.5 text-[#6B6B60]">{a.farmer_name}</td>
+                          <td className="px-1.5 text-right font-mono">{a.apply_area != null ? Number(a.apply_area).toFixed(2) : '—'}</td>
+                          <td className="px-1.5 text-right font-mono">{a.actual_amount ? money(a.actual_amount) : (a.apply_amount ? money(a.apply_amount) : '—')}</td>
+                          <td className="px-2.5">
+                            <span className={`text-[9px] rounded-full px-1.5 py-[1px] ${a.pay_status === 2 ? 'bg-[#EDF3EF] text-[#2C6B52]' : 'bg-[#F6EEDC] text-[#8A6620]'}`}>
+                              {PAY_STATUS_LABEL[a.pay_status] || '—'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {apps.length === 0 && <tr><td colSpan={6} className="py-8 text-center text-[11px] text-text-muted/60">暂无补贴记录</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-end gap-5 px-1 h-7 border-b border-[#E8E2D9]">
+                {([
+                  { id: 'members' as const, label: '家庭成员', count: members.length },
+                  { id: 'subsidy' as const, label: '补贴记录', count: apps.length },
+                  { id: 'trust' as const, label: '土地流转' },
+                  ...(anomalyEnabled
+                    ? [{ id: 'anomaly' as const, label: '异常', count: overYears.length, danger: overYears.length > 0 }]
+                    : []),
+                ]).map(t => (
+                  <button key={t.id} onClick={() => setHhTab(t.id)}
+                    className={`relative h-7 flex items-center gap-1 border-b-2 text-[12px] transition-colors ${
+                      hhTab === t.id ? 'border-primary text-primary font-bold' : 'border-transparent text-[#6B6B60] hover:text-text-primary'
+                    }`}>
+                    {t.label}
+                    {t.count != null && (
+                      <span className={`text-[10px] font-normal ${t.danger ? 'text-danger' : 'text-[#8C877A]'}`}>{t.count}</span>
+                    )}
+                    {t.danger && <span className="absolute -top-0.5 -right-2 w-1.5 h-1.5 rounded-full bg-danger" />}
+                  </button>
+                ))}
+              </div>
+
+              <div className="border border-[#F0EBE1] rounded-card p-3">
+                {hhTab === 'trust' && (
+                  <div className="flex flex-col gap-2 text-[11px]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#8C877A]">转入面积</span>
+                      <b className="font-mono">{trustIn.toFixed(2)} 亩</b>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#8C877A]">转出面积</span>
+                      <b className="font-mono">{trustOut.toFixed(2)} 亩</b>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-[#F2EDE3] pt-2">
+                      <span className="text-[#8C877A]">可耕种面积</span>
+                      <b className="font-mono text-primary">{Number(usage?.cultivable_area ?? 0).toFixed(2)} 亩</b>
+                    </div>
+                    <div className="text-[10px] text-text-muted pt-1">
+                      {usage?.has_trust_data ? '本户存在流转记录，详细台账请在「土地流转」中查看。' : '本户暂无土地流转记录。'}
+                    </div>
+                    <button onClick={() => navigate('/land')} className="mt-1 h-7 border border-border rounded-btn text-[11px] text-[#5A5A4F]">打开土地流转台账</button>
+                  </div>
+                )}
+
+                {hhTab === 'anomaly' && (
+                  overYears.length === 0 ? (
+                    <div className="py-6 text-center text-[11px] text-text-muted/60">本户没有超领记录</div>
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      {overYears.map(o => (
+                        <div key={o.year} className="flex items-center gap-2">
+                          <span className="text-[9px] bg-[#FDECEA] text-danger rounded-[2px] px-1">超领</span>
+                          <span className="text-[11.5px] font-semibold">{o.year} 年度</span>
+                          <span className="text-[10px] text-[#9A9588]">{o.used.toFixed(2)} / {refArea.toFixed(2)} 亩</span>
+                          <span className="ml-auto text-[11px] font-bold text-danger">+{Math.max(0, o.used - refArea).toFixed(2)}</span>
+                        </div>
+                      ))}
+                      <button onClick={() => navigate('/anomalies')} className="mt-1 h-7 border border-border rounded-btn text-[11px] text-[#5A5A4F]">进入异常中心</button>
+                    </div>
+                  )
+                )}
+              </div>
+            </>
+          )}
         </div>
         <div className="flex flex-col gap-2.5 min-w-0">
           <div className="border border-[#F0EBE1] rounded-card px-3 py-2">
