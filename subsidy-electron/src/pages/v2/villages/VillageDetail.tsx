@@ -1,8 +1,9 @@
 /** 村组详情面板（村集体作为申报主体） */
 import { Card, FieldRow } from '../shared'
 import { Ico, ThIco } from '../Icons'
+import { VillageActions, VillageContactTable, GroupLeaderEditor } from './VillageActions'
 import type { VillageDetail } from '../types'
-export default function VillageDetail({ detail, loading }: { detail: VillageDetail | null; loading: boolean }) {
+export default function VillageDetail({ detail, loading, onChanged }: { detail: VillageDetail | null; loading: boolean; onChanged?: () => void }) {
   if (!detail) {
     return <div className="py-24 text-center text-[11.5px] text-text-muted/60">{loading ? '加载中…' : '请从左侧选择一个村'}</div>
   }
@@ -29,7 +30,7 @@ export default function VillageDetail({ detail, loading }: { detail: VillageDeta
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="h-7 px-2.5 border border-[#DDBE84] rounded-btn bg-[#DDBE84] text-[11px] text-[#6B4A0F] flex items-center">只读预览</span>
+          {onChanged && <VillageActions villageId={detail.id} onChanged={onChanged} />}
         </div>
       </div>
 
@@ -53,10 +54,11 @@ export default function VillageDetail({ detail, loading }: { detail: VillageDeta
               <span className="text-[11.5px] font-semibold">村民组 <span className="text-[10px] text-[#7A7466] font-normal">{groups.length}</span></span>
             </div>
             <table className="w-full border-collapse text-[11px]">
-              <thead>
-                <tr className="bg-[#F3EFE7] text-[#7A7466] text-[10px] text-left h-[26px]">
-                  <th className="font-medium px-2.5">组号</th>
-                  <th className="font-medium px-2.5">组长</th>
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-[#EFE7D8] text-[#5C5749] text-[10px] text-left h-[26px] border-b border-[#D2CBBC]">
+                  <th className="font-semibold px-2.5">组号</th>
+                  <th className="font-semibold px-2.5">组长</th>
+                  <th className="font-semibold px-2.5 text-right">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -64,9 +66,12 @@ export default function VillageDetail({ detail, loading }: { detail: VillageDeta
                   <tr key={g.id} className="border-t border-[#E6E0D4] h-[30px] hover:bg-[#F2F7F4] transition-colors">
                     <td className="px-2.5 font-semibold">{g.group_no} 组</td>
                     <td className="px-2.5 text-[#5C5749]">{g.leader_name || '—'}</td>
+                    <td className="px-2.5 text-right">
+                      {onChanged && <GroupLeaderEditor villageId={detail.id} group={g} onChanged={onChanged} />}
+                    </td>
                   </tr>
                 ))}
-                {groups.length === 0 && <tr><td colSpan={2} className="py-8 text-center text-[11px] text-text-muted/60">暂无村民组</td></tr>}
+                {groups.length === 0 && <tr><td colSpan={3} className="py-8 text-center text-[11px] text-[#A8A091]">暂无村民组</td></tr>}
               </tbody>
             </table>
           </div>
@@ -75,18 +80,7 @@ export default function VillageDetail({ detail, loading }: { detail: VillageDeta
             <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#E6E0D4]">
               <span className="text-[11.5px] font-semibold">负责人记录 <span className="text-[10px] text-[#7A7466] font-normal">{contacts.length}</span></span>
             </div>
-            <table className="w-full border-collapse text-[11px]">
-              <tbody>
-                {contacts.map(c => (
-                  <tr key={c.id} className="border-t border-[#E6E0D4] h-[30px] hover:bg-[#F2F7F4] transition-colors">
-                    <td className="px-2.5 font-semibold">{c.leader_name}</td>
-                    <td className="px-1.5 font-mono text-[#7A7466]">{c.leader_phone}</td>
-                    <td className="px-2.5 text-[10px] text-[#7A7466] text-right">{c.start_year} — {c.end_year ?? '至今'}</td>
-                  </tr>
-                ))}
-                {contacts.length === 0 && <tr><td colSpan={3} className="py-8 text-center text-[11px] text-text-muted/60">暂无负责人记录</td></tr>}
-              </tbody>
-            </table>
+            <VillageContactTable villageId={detail.id} contacts={contacts as any} onChanged={onChanged || (() => {})} />
           </div>
         </div>
 

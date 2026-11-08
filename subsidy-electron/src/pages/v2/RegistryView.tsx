@@ -39,7 +39,7 @@ interface P {
   villageDetail: any; loadingVillage: boolean
   selectedId: number | null; setSelectedId: (id: number) => void
   farmer: any; household: any; loadingDetail: boolean
-  reloadHousehold: () => void; reloadFarmer: () => void; reloadLarge: () => void
+  reloadHousehold: () => void; reloadFarmer: () => void; reloadLarge: () => void; reloadVillage: () => void
 }
 
 export default function RegistryView(p: P) {
@@ -115,7 +115,7 @@ export default function RegistryView(p: P) {
             {p.sideTab === 'large' && (
               <LargeDetail farmer={p.largeList.find(l => l.id === p.selectedLargeId) || null} trusts={p.largeTrusts} loading={p.loadingTrusts} onChanged={p.reloadLarge} />
             )}
-            {p.sideTab === 'villages' && <VillageDetail detail={p.villageDetail} loading={p.loadingVillage} />}
+            {p.sideTab === 'villages' && <VillageDetail detail={p.villageDetail} loading={p.loadingVillage} onChanged={p.reloadVillage} />}
             {p.sideTab === 'farmers' && <FarmerDetail farmer={p.farmer} household={p.household} loading={p.loadingDetail} onChanged={p.reloadFarmer} />}
           </>
         )}

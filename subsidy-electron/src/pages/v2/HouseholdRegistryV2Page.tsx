@@ -240,6 +240,13 @@ export default function HouseholdRegistryV2Page() {
 
   // 重新加载当前家庭户 / 农户详情
 
+  const reloadVillage = useCallback(() => {
+    if (selectedVillageId == null) return
+    window.electronAPI.invoke<any>('settings:villageDetail', selectedVillageId)
+      .then((r: any) => setVillageDetail(r?.data ?? r ?? null))
+      .catch(() => {})
+  }, [selectedVillageId])
+
   const reloadFarmer = useCallback(() => {
     if (selectedId == null) return
     api.getFarmer(selectedId).then(f => {
@@ -315,7 +322,7 @@ export default function HouseholdRegistryV2Page() {
       villageDetail={villageDetail} loadingVillage={loadingVillage}
       selectedId={selectedId} setSelectedId={setSelectedId}
       farmer={farmer} household={household} loadingDetail={loadingDetail}
-      reloadHousehold={reloadHousehold} reloadFarmer={reloadFarmer} reloadLarge={loadLargeList}
+      reloadHousehold={reloadHousehold} reloadFarmer={reloadFarmer} reloadLarge={loadLargeList} reloadVillage={reloadVillage}
     />
   )
 }

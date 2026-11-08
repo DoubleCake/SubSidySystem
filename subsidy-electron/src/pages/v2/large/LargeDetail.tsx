@@ -7,7 +7,6 @@ import { useEffect, useState } from 'react'
 
 import { Card, FieldRow } from '../shared'
 import { Ico, ThIco } from '../Icons'
-import { LargeActions } from './LargeActions'
 import { OPERATOR_LABEL } from '../types'
 import type { LargeFarmer, LargeFarmerTrust } from '../types'
 
@@ -84,7 +83,6 @@ export default function LargeDetail({ farmer, trusts, loading, onChanged }: Prop
               className="h-7 px-2.5 rounded-btn bg-[#E7EFF4] border border-[#C4D9E4] text-[11px] text-[#1F4F63] font-medium hover:bg-[#D2E2EA] transition-colors inline-flex items-center gap-1"><Ico name="create" size={12} />绑定资料文件夹</button>
           )}
         </div>
-          <LargeActions farmer={farmer} onChanged={onChanged || (() => {})} />
       </div>
 
       {/* 资料文件夹路径 */}
