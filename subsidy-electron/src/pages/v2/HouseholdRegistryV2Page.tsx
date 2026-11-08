@@ -49,10 +49,6 @@ const HH_PAGE_SIZE = 20
 
 
 
-const FARMER_STATUS_LABEL: Record<number, string> = { 1: '在册', 2: '注销', 3: '迁出', 4: '死亡' }
-const HH_STATUS_LABEL: Record<number, string> = { 1: '在册', 2: '注销', 3: '迁出' }
-const PAY_STATUS_LABEL: Record<number, string> = { 0: '待发放', 1: '发放中', 2: '已发放' }
-
 const AVATAR_TONES = [
   'bg-[#1A4D3A] text-[#E6C288]',
   'bg-[#F6EEDC] text-[#8A6620]',
