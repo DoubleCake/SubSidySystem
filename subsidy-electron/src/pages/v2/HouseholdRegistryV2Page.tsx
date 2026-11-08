@@ -13,6 +13,7 @@ import * as api from '../../api'
 import { EVENT_TYPE_CFG } from '../FarmerConstants'
 import { useHouseholdAnomalyTab } from '../../hooks/useUiSettings'
 import { Card, Chip, FieldRow, ListRow, FARMER_STATUS_LABEL, HH_STATUS_LABEL, PAY_STATUS_LABEL, money } from './shared'
+import HouseholdActions, { AddMemberButton, MemberRowActions } from './HouseholdActions'
 import type { FarmerOut, FarmerDetail, HH, HHDetail, HHEvent, SnapshotAtResponse, VillageGroup } from '../../types'
 
 type SideTab = 'farmers' | 'households' | 'large' | 'villages'
@@ -275,6 +276,12 @@ export default function HouseholdRegistryV2Page() {
     return () => { cancelled = true }
   }, [selectedId])
 
+
+  // 重新加载当前家庭户 / 农户详情
+  const reloadHousehold = useCallback(() => {
+    if (selectedHhId == null) return
+    api.getHouseholdDetail(selectedHhId).then(setHousehold).catch(() => {})
+  }, [selectedHhId])
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   // ── 派生 ──
@@ -454,7 +461,7 @@ export default function HouseholdRegistryV2Page() {
 
         {/* ── 右列 ── */}
         <div className="bg-white border border-border rounded-card flex flex-col overflow-hidden shadow-card min-w-0">
-          {sideTab === 'households' && <HouseholdDetailPanel detail={household} loading={loadingDetail} />}
+          {sideTab === 'households' && <HouseholdDetailPanel detail={household} loading={loadingDetail} onChanged={reloadHousehold} />}
           {sideTab === 'large' && (
             <LargeFarmerPanel farmer={largeList.find(l => l.id === selectedLargeId) || null} trusts={largeTrusts} loading={loadingTrusts} />
           )}
@@ -676,7 +683,7 @@ function SeasonBars({ usage, refArea }: { usage: HHDetail['area_usage'] | undefi
 }
 
 /** 家庭户详情面板 */
-function HouseholdDetailPanel({ detail, loading }: { detail: HHDetail | null; loading: boolean }) {
+function HouseholdDetailPanel({ detail, loading, onChanged }: { detail: HHDetail | null; loading: boolean; onChanged: () => void }) {
   const navigate = useNavigate()
   const [hhTab, setHhTab] = useState<'trust' | 'anomaly'>('trust')
   const [anomalyEnabled] = useHouseholdAnomalyTab()
@@ -725,9 +732,7 @@ function HouseholdDetailPanel({ detail, loading }: { detail: HHDetail | null; lo
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="h-7 px-2.5 border border-[#E6C288] rounded-btn bg-[#E6C288] text-[11px] text-[#5A4215] flex items-center">只读预览</span>
-        </div>
+        <HouseholdActions detail={detail} onChanged={onChanged} />
       </div>
 
       <div className="flex items-center px-4 py-2.5 bg-gradient-to-r from-[#0F3D2E] via-[#1A5C46] to-[#2C7A63] text-[#F7F3E7]">
@@ -767,14 +772,15 @@ function HouseholdDetailPanel({ detail, loading }: { detail: HHDetail | null; lo
             <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
               <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#F2EDE3]">
                 <span className="text-[11.5px] font-semibold">家庭成员 <span className="text-[10px] text-[#8C877A] font-normal">{members.length}</span></span>
+                <AddMemberButton detail={detail} onChanged={onChanged} />
               </div>
               <table className="w-full border-collapse text-[11px]">
                 <thead>
                   <tr className="bg-[#F6F1E7] text-[#8C877A] text-[10px] text-left h-[26px]">
                     <th className="font-medium px-2.5">姓名</th>
                     <th className="font-medium px-1.5">关系</th>
-                    <th className="font-medium px-1.5">身份证号</th>
                     <th className="font-medium px-2.5">状态</th>
+                    <th className="font-medium px-2.5 text-right">操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -791,9 +797,12 @@ function HouseholdDetailPanel({ detail, loading }: { detail: HHDetail | null; lo
                           {FARMER_STATUS_LABEL[m.farmer_status] || '—'}
                         </span>
                       </td>
+                      <td className="px-2.5 text-right whitespace-nowrap">
+                        <MemberRowActions detail={detail} member={m} onChanged={onChanged} />
+                      </td>
                     </tr>
                   ))}
-                  {members.length === 0 && <tr><td colSpan={4} className="py-8 text-center text-[11px] text-text-muted/60">暂无成员</td></tr>}
+                  {members.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-[11px] text-text-muted/60">暂无成员</td></tr>}
                 </tbody>
               </table>
             </div>
