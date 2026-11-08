@@ -16,6 +16,27 @@ const MEMBER_COLS = [
   'relation', 'farmer_status', 'own_village_id', 'own_group_no', 'remark',
 ]
 
+/**
+ * 补贴面积归属规则（显式语义，不再依赖 beneficiary_id 被改写的副作用）
+ *
+ * 数据模型中：
+ *   sa.farmer_id      —— 面积归属主体（这块地在谁名下申报）
+ *   sa.beneficiary_id —— 补贴金额最终归谁（代领时会不同于 farmer_id）
+ *   sa.is_proxy = 1   —— 该记录存在代领关系
+ *
+ * 业务规则（见 PLAN.md）：
+ *   · 被别人代领的（本人是受益人）—— 面积计入本家庭
+ *   · 替他人领取的（本人是代领人）—— 面积不计入本家庭
+ *
+ * 因此面积一律按 farmer_id 归属：谁的地算谁家，与钱最终进谁口袋无关。
+ * 代领人若用自己的地替别人申报，面积仍属代领人家庭——这是正确的，
+ * 因为面积超限约束的是"地"，不是"钱"。
+ *
+ * 用法：`JOIN farmer_profile fp ON ${AREA_OWNER_JOIN}`
+ * 非代领记录 beneficiary_id 为 NULL 或等于 farmer_id，取 farmer_id 结果不变。
+ */
+const AREA_OWNER_JOIN = 'sa.farmer_id = fp.id'
+
 export function registerHouseholdHandlers(): void {
   const db = () => getDb()
 
@@ -95,7 +116,7 @@ export function registerHouseholdHandlers(): void {
                SELECT fp2.household_id as household_id, st.season,
                       COALESCE(SUM(sa.apply_area - COALESCE(sa.apply_area_no_calc, 0) - COALESCE(sa.trust_area,0) - COALESCE(sa.no_subsidy_area,0)), 0) as season_effective
                FROM subsidy_application sa
-               JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp2.id
+               JOIN farmer_profile fp2 ON ${AREA_OWNER_JOIN}
                LEFT JOIN subsidy_type st ON sa.subsidy_type_id = st.id
                ${yearFilter}
                GROUP BY fp2.household_id, st.season
@@ -153,7 +174,7 @@ export function registerHouseholdHandlers(): void {
                     COALESCE(SUM(sa.apply_area - COALESCE(sa.apply_area_no_calc,0) - COALESCE(sa.trust_area,0) - COALESCE(sa.no_subsidy_area,0)), 0) as season_effective,
                     MAX(COALESCE(hh2.confirmed_area, 0), COALESCE(hh2.contract_area, 0)) as ref_area
              FROM subsidy_application sa
-             JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp2.id
+             JOIN farmer_profile fp2 ON ${AREA_OWNER_JOIN}
              JOIN family_household hh2 ON hh2.id = fp2.household_id
              WHERE fp2.household_id IN (${placeholders})
              GROUP BY fp2.household_id, sa.apply_year
@@ -345,7 +366,7 @@ export function registerHouseholdHandlers(): void {
                  COALESCE(SUM(sa.apply_area - COALESCE(sa.apply_area_no_calc, 0)), 0) as apply_area,
                  COALESCE(SUM(CASE WHEN sa.pay_status >= 2 THEN sa.apply_area ELSE 0 END), 0) as payment_area
           FROM subsidy_application sa
-          JOIN farmer_profile fp ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp.id
+          JOIN farmer_profile fp ON ${AREA_OWNER_JOIN}
           LEFT JOIN subsidy_type st ON sa.subsidy_type_id = st.id
           WHERE fp.household_id = ?
           GROUP BY sa.apply_year, st.season
@@ -729,7 +750,7 @@ export function registerHouseholdHandlers(): void {
         LEFT JOIN (
           SELECT fp2.household_id, COALESCE(SUM(sa.apply_area), 0) as total
           FROM subsidy_application sa
-          JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp2.id
+          JOIN farmer_profile fp2 ON ${AREA_OWNER_JOIN}
           GROUP BY fp2.household_id
         ) area ON area.household_id = hh.id
         WHERE MAX(COALESCE(hh.confirmed_area, 0), COALESCE(hh.contract_area, 0)) > 0
@@ -760,7 +781,7 @@ export function registerHouseholdHandlers(): void {
         LEFT JOIN (
           SELECT fp2.household_id, COALESCE(SUM(sa.apply_area - COALESCE(sa.apply_area_no_calc, 0)), 0) as total
           FROM subsidy_application sa
-          JOIN farmer_profile fp2 ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp2.id
+          JOIN farmer_profile fp2 ON ${AREA_OWNER_JOIN}
           WHERE sa.apply_year = ?
           GROUP BY fp2.household_id
         ) area ON area.household_id = hh.id
@@ -828,7 +849,7 @@ export function registerHouseholdHandlers(): void {
                COALESCE(SUM(sa.trust_area), 0) as total_trust_area,
                COALESCE(SUM(sa.actual_amount), 0) as total_amount
         FROM subsidy_application sa
-        JOIN farmer_profile fp ON COALESCE(sa.beneficiary_id, sa.farmer_id) = fp.id
+        JOIN farmer_profile fp ON ${AREA_OWNER_JOIN}
         WHERE fp.household_id = ?
         GROUP BY sa.apply_year
         ORDER BY sa.apply_year DESC
@@ -1275,7 +1296,7 @@ export function registerHouseholdHandlers(): void {
       const areaRows = db().allRaw<{ household_id: number; total_area: number }>(`
         SELECT fp.household_id, COALESCE(SUM(sa.contract_area), 0) as total_area
         FROM subsidy_application sa
-        JOIN farmer_profile fp ON fp.id = COALESCE(sa.beneficiary_id, sa.farmer_id)
+        JOIN farmer_profile fp ON ${AREA_OWNER_JOIN}
         JOIN family_household hh ON hh.id = fp.household_id
         WHERE hh.is_manually_confirmed = 0
           AND sa.apply_year = CAST(strftime('%Y','now') AS INTEGER)
