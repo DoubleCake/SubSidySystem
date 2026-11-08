@@ -85,3 +85,49 @@ export function parseGenderFromId(idCard: string): number {
   }
   return 0
 }
+
+/**
+ * 身份证号入库前规范化：去首尾空格（含全角空格、零宽字符）+ 统一大写
+ * 第 18 位校验码可能是 x/X，必须统一为大写后再比较与入库
+ */
+export function normalizeIdCard(raw: unknown): string {
+  return String(raw ?? '').replace(/[\s\u3000\u200B]+/g, '').toUpperCase()
+}
+
+/** 解析用户显式提供的性别：支持 1/2 数字与「男/女」 */
+function parseGenderInput(raw: unknown): number | null {
+  if (raw == null || raw === '') return null
+  if (typeof raw === 'number') {
+    return raw === 1 || raw === 2 ? raw : null
+  }
+  const text = String(raw).trim()
+  if (text === '1' || text === '男') return 1
+  if (text === '2' || text === '女') return 2
+  return null
+}
+
+/**
+ * 计算入库用的性别：用户显式提供则以其为准；否则由身份证推导；
+ * 身份证不合法（或无法解析）时不再推导，返回 null 交给调用方处理。
+ */
+export function resolveGender(rawGender: unknown, idCard: unknown): number | null {
+  const explicit = parseGenderInput(rawGender)
+  if (explicit != null) return explicit
+  const card = normalizeIdCard(idCard)
+  if (!validateIdCard(card)[0]) return null
+  const derived = parseGenderFromId(card)
+  return derived || null
+}
+
+/**
+ * 新增/编辑入参的身份证号预处理：规范化 → 格式校验（不合法即拒绝）
+ * 只用于入参，不要对数据库存量数据调用，避免历史脏数据阻塞日常编辑。
+ * 空值视为「未填写」，原样返回空串。
+ */
+export function prepareIdCard(raw: unknown): { ok: boolean; idCard: string; error?: string } {
+  const idCard = normalizeIdCard(raw)
+  if (!idCard) return { ok: true, idCard: '' }
+  const [valid, msg] = validateIdCard(idCard)
+  if (!valid) return { ok: false, idCard, error: `身份证号格式不正确：${msg}` }
+  return { ok: true, idCard }
+}

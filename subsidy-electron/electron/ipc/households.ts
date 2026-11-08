@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../database/connection'
 import { formatGroupNo } from '../utils/format'
+import { prepareIdCard, resolveGender } from '../utils/id-card'
 import { maskIdCard, maskPhone, maskBankCard } from '../utils/masking'
 import { parsePagination, successList, success, errorResponse } from './response'
 import { safeUpdate, collectRefCounts, formatRefCounts, type BlockingRef } from '../utils/sql-guard'
@@ -40,7 +41,8 @@ const AREA_OWNER_JOIN = 'sa.farmer_id = fp.id'
 
 /**
  * 删除家庭户前的关联检查项
- * 补贴申请/发放记录按「该户下所有成员」统计（含已迁出成员，避免误删导致孤儿记录）
+ * 成员数用于「仅空户可删」判定（含已迁出/注销成员，只要还有档案就不能删）；
+ * 补贴申请/发放记录按「该户下所有成员」统计，属防御性检查
  */
 const HH_DELETE_REFS: BlockingRef[] = [
   {
@@ -577,72 +579,48 @@ export function registerHouseholdHandlers(): void {
   // ── 删除 ──
   /**
    * 删除家庭户
-   * @param payload number（仅家庭户ID）或 { id, force }；force=true 强制删除
+   * @param payload number（仅家庭户ID）或 { id }
    *
-   * 默认拒绝：该户下有成员，或成员名下有补贴申请/发放记录
-   * 强制删除：成员改为「迁出」状态挂在原户下（farmer_profile.household_id 为 NOT NULL，
-   *           无法真正置空，因此不能删户；补贴记录原样保留）
+   * 产品规则：只有「空户」才允许删除 —— 该户下不存在任何成员档案
+   * （不论在册、迁出、注销、死亡）时才物理删除；不提供强制删除的绕过方式。
+   * farmer_profile.household_id 为 NOT NULL 且带外键，成员为空时删除户是安全的。
    */
   ipcMain.handle('households:delete', (_e, payload: unknown) => {
     try {
       const params = payload && typeof payload === 'object'
-        ? (payload as { id?: unknown; force?: unknown })
-        : { id: payload, force: undefined }
+        ? (payload as { id?: unknown })
+        : { id: payload }
       const id = Number(params.id)
-      const force = params.force === true || params.force === 1 || params.force === 'true'
       if (!id || !Number.isFinite(id)) return errorResponse('缺少家庭户ID')
 
-      const hh = db().getRaw<Record<string, unknown>>('SELECT * FROM family_household WHERE id = ?', id)
+      const hh = db().getRaw<{ id: number; household_name: string | null }>(
+        'SELECT id, household_name FROM family_household WHERE id = ?', id
+      )
       if (!hh) return errorResponse('家庭户不存在', 404)
 
+      // ① 成员检查（含所有状态）：有成员一律拒绝
+      const memberCount = db().getRaw<{ cnt: number }>(
+        'SELECT COUNT(*) as cnt FROM farmer_profile WHERE household_id = ?', id
+      )?.cnt ?? 0
+      if (memberCount > 0) {
+        return errorResponse(
+          `家庭户「${String(hh.household_name ?? '')}」下还有 ${memberCount} 名成员，不能删除。请先移出成员后再删除该户。`
+        )
+      }
+
+      // ② 补贴记录检查（防御性保留：空户理论上有成员必定也有记录，但避免异常数据被误删）
       const { items, errors } = collectRefCounts(HH_DELETE_REFS, id)
       if (errors.length > 0) {
         return errorResponse(`删除前关联检查失败，已中止删除：${errors.join('；')}`)
       }
-      const memberCount = items.find(i => i.name === '成员')?.count ?? 0
-      const applyCount = items.find(i => i.name === '补贴申请')?.count ?? 0
-      const paymentCount = items.find(i => i.name === '发放记录')?.count ?? 0
-      const subsidyCount = applyCount + paymentCount
-
-      if ((memberCount > 0 || subsidyCount > 0) && !force) {
+      const subsidyItems = items.filter(i => i.name !== '成员' && i.count > 0)
+      if (subsidyItems.length > 0) {
         return errorResponse(
-          `该家庭户下有 ${memberCount} 名成员且存在 ${subsidyCount} 条补贴记录，无法删除。请先移出成员或确认删除策略。`
+          `家庭户「${String(hh.household_name ?? '')}」下存在 ${formatRefCounts(subsidyItems)}，不能删除。请先核实并处理这些补贴记录。`
         )
       }
 
-      if (force && memberCount > 0) {
-        // 强制删除：成员不能跟着删（会破坏补贴记录），改为迁出状态留在原户下
-        db().beginTransaction()
-        try {
-          db().runRaw(
-            "UPDATE farmer_profile SET farmer_status = 3, updated_at = datetime('now','localtime') WHERE household_id = ?",
-            id
-          )
-          db().runRaw(
-            "UPDATE family_household SET status = 3, updated_at = datetime('now','localtime') WHERE id = ?",
-            id
-          )
-          db().runRaw(
-            `INSERT INTO household_event (household_id, event_type, event_year, event_date, farmer_name, description, operator)
-             VALUES (?, 'MEMBER_REMOVE', CAST(strftime('%Y','now') AS INTEGER), date('now'), NULL, ?, '系统')`,
-            id,
-            `强制删除家庭户「${String(hh.household_name ?? '')}」：${memberCount} 名成员改为迁出并保留档案，补贴记录保留`
-          )
-          db().commitTransaction()
-        } catch (e) {
-          db().rollbackTransaction()
-          throw e
-        }
-        return success({
-          message: `已强制删除：${memberCount} 名成员改为迁出状态并保留档案，补贴记录保留`,
-          household_id: id,
-          forced: true,
-          detached_members: memberCount,
-          retained_subsidy_records: subsidyCount,
-          ref_counts: { members: memberCount, applications: applyCount, payments: paymentCount },
-        })
-      }
-
+      // ③ 成员为空 → 物理删除
       db().runRaw('DELETE FROM family_household WHERE id = ?', id)
       return success({ message: '删除成功', household_id: id })
     } catch (e) {
@@ -654,8 +632,10 @@ export function registerHouseholdHandlers(): void {
   ipcMain.handle('households:addMember', (_e, payload: any) => {
     try {
       const { householdId, ...data } = payload
-      // 身份证号重复校验：同一身份证号只能建立一个农户档案
-      const idCard = String(data.id_card ?? '').trim().toUpperCase()
+      // 顺序：去空格转大写 → 格式校验 → 重复校验（同一身份证号只能建立一个农户档案）
+      const card = prepareIdCard(data.id_card)
+      if (!card.ok) return errorResponse(card.error || '身份证号格式不正确')
+      const idCard = card.idCard
       if (idCard) {
         const dup = db().getRaw<{ id: number; real_name: string }>(
           'SELECT id, real_name FROM farmer_profile WHERE UPPER(TRIM(id_card)) = ? LIMIT 1', idCard
@@ -664,10 +644,15 @@ export function registerHouseholdHandlers(): void {
           return errorResponse(`身份证号已存在，对应成员：${dup.real_name}（ID ${dup.id}），不能重复建档`)
         }
       }
+      // 性别：用户显式提供优先，未提供且身份证合法时自动推导
+      const gender = resolveGender(data.gender, idCard)
       const result = db().runRaw(`
         INSERT INTO farmer_profile (household_id, real_name, gender, id_card, phone, bank_card, bank_name, relation, farmer_status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-      `, householdId, data.real_name, data.gender, idCard || data.id_card, data.phone, data.bank_card, data.bank_name, data.relation)
+      `,
+      // 可选字段缺省时统一写 null（sql.js 不接受 undefined 绑定）
+      householdId, data.real_name, gender, idCard || null, data.phone ?? null, data.bank_card ?? null,
+      data.bank_name ?? null, data.relation ?? null)
       return success({ id: result.lastInsertRowid, household_id: householdId })
     } catch (e) {
       return errorResponse(String(e))
@@ -676,15 +661,19 @@ export function registerHouseholdHandlers(): void {
 
   ipcMain.handle('households:updateMember', (_e, payload: any) => {
     try {
-      const { householdId, farmerId, ...data } = payload
+      const { farmerId, ...data } = payload
       if (!farmerId) return errorResponse('缺少成员ID')
-      // 身份证号重复校验：排除成员自身
+      const memberId = Number(farmerId)
+      if (!Number.isFinite(memberId)) return errorResponse('成员ID格式错误')
+      // 顺序：去空格转大写 → 格式校验 → 重复校验（排除成员自身）
       if ('id_card' in data) {
-        const idCard = String(data.id_card ?? '').trim().toUpperCase()
+        const card = prepareIdCard(data.id_card)
+        if (!card.ok) return errorResponse(card.error || '身份证号格式不正确')
+        const idCard = card.idCard
         if (idCard) {
           const dup = db().getRaw<{ id: number; real_name: string }>(
             'SELECT id, real_name FROM farmer_profile WHERE UPPER(TRIM(id_card)) = ? AND id <> ? LIMIT 1',
-            idCard, Number(farmerId)
+            idCard, memberId
           )
           if (dup) {
             return errorResponse(`身份证号已存在，对应成员：${dup.real_name}（ID ${dup.id}），不能重复建档`)
@@ -692,7 +681,16 @@ export function registerHouseholdHandlers(): void {
         }
         data.id_card = idCard || null
       }
-      const changed = safeUpdate('farmer_profile', farmerId, data, MEMBER_COLS)
+      // 性别：本次未显式传 gender 时按（本次传入或库中现有的）身份证推导；
+      // 身份证不合法/为空则不推导，保留库中原值，避免存量脏数据阻塞编辑
+      if (!('gender' in data)) {
+        const currentCard = 'id_card' in data
+          ? data.id_card
+          : db().getRaw<{ id_card: string | null }>('SELECT id_card FROM farmer_profile WHERE id = ?', memberId)?.id_card
+        const gender = resolveGender(null, currentCard)
+        if (gender != null) data.gender = gender
+      }
+      const changed = safeUpdate('farmer_profile', memberId, data, MEMBER_COLS)
       if (!changed) return errorResponse('无更新数据')
       return success(null, '更新成功')
     } catch (e) { return errorResponse('更新成员失败') }
@@ -1323,14 +1321,32 @@ export function registerHouseholdHandlers(): void {
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i]
         try {
+          // 顺序：去空格转大写 → 格式校验 → 重复校验
+          const card = prepareIdCard(row?.id_card)
+          if (!card.ok) {
+            errors.push({ row: i + 1, message: card.error || '身份证号格式不正确' })
+            continue
+          }
+          const idCard = card.idCard
+          if (idCard) {
+            const dup = db().getRaw<{ id: number; real_name: string }>(
+              'SELECT id, real_name FROM farmer_profile WHERE UPPER(TRIM(id_card)) = ? LIMIT 1', idCard
+            )
+            if (dup) {
+              errors.push({ row: i + 1, message: `身份证号已存在，对应成员：${dup.real_name}（ID ${dup.id}）` })
+              continue
+            }
+          }
+          // 性别：用户显式提供优先，未提供且身份证合法时自动推导
+          const gender = resolveGender(row.gender, idCard)
           const result = db().runRaw(`
             INSERT INTO farmer_profile (household_id, real_name, gender, id_card, phone, bank_card, bank_name, relation, farmer_status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
           `,
             householdId,
             row.real_name || '',
-            row.gender || 1,
-            row.id_card || '',
+            gender ?? 1,
+            idCard || null,
             row.phone || null,
             row.bank_card || null,
             row.bank_name || null,

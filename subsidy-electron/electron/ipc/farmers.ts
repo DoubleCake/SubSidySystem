@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../database/connection'
 import { formatGroupNo, parseGroupNoToInt } from '../utils/format'
-import { parseIdCard } from '../utils/id-card'
+import { parseIdCard, prepareIdCard, resolveGender } from '../utils/id-card'
 import { maskIdCard, maskPhone, maskBankCard } from '../utils/masking'
 import { parsePagination, successList, success, errorResponse } from './response'
 import { safeUpdate, collectRefCounts, formatRefCounts, type BlockingRef } from '../utils/sql-guard'
@@ -33,13 +33,8 @@ const FARMER_DELETE_REFS: BlockingRef[] = [
   },
 ]
 
-/** 规范化身份证号：去空格、末位小写 x 统一为大写 X */
-function normalizeIdCard(raw: unknown): string {
-  return String(raw ?? '').trim().toUpperCase()
-}
-
 /**
- * 检查身份证号是否已被其他农户占用
+ * 检查身份证号是否已被其他农户占用（身份证号的规范化/校验见 utils/id-card.ts）
  * @param idCard 规范化后的身份证号
  * @param excludeFarmerId 编辑场景排除自身 id，避免误判自己与自己冲突
  */
@@ -213,17 +208,24 @@ export function registerFarmerHandlers(): void {
   // ── 新增 ──
   ipcMain.handle('farmers:create', (_e, data: Record<string, unknown>) => {
     try {
-      const idCard = normalizeIdCard(data.id_card)
+      // 顺序：去空格转大写 → 格式校验 → 重复校验（唯一索引按原始文本比较，必须先规范化）
+      const card = prepareIdCard(data.id_card)
+      if (!card.ok) return errorResponse(card.error || '身份证号格式不正确')
+      const idCard = card.idCard
       if (idCard) {
         // 身份证号重复校验：已存在则拒绝，并提示重复农户姓名
         const dup = findIdCardOwner(idCard)
         if (dup) {
           return errorResponse(`身份证号已存在，对应农户：${dup.real_name}（ID ${dup.id}），不能重复建档`)
         }
-        const info = parseIdCard(idCard)
-        if (info.gender && !data.gender) data.gender = info.gender
       }
       data.id_card = idCard || null
+      // 性别：用户显式提供优先，未提供且身份证合法时自动推导
+      const gender = resolveGender(data.gender, idCard)
+      if (gender != null) data.gender = gender
+      // household_id / gender / id_card / farmer_status 均为 NOT NULL，缺省时给默认值避免插入失败
+      if (data.farmer_status == null) data.farmer_status = 1
+      if (data.gender == null) data.gender = 1
 
       const fields = ['household_id', 'real_name', 'gender', 'id_card', 'phone', 'bank_card', 'bank_name', 'relation', 'farmer_status', 'own_village_id', 'own_group_no', 'remark']
       const vals = fields.map(f => data[f] ?? null)
@@ -245,7 +247,10 @@ export function registerFarmerHandlers(): void {
       if (!Number.isFinite(farmerId)) return errorResponse('农户ID格式错误')
       // 身份证号重复校验：排除自身，避免编辑时误判自己与自己冲突
       if ('id_card' in data) {
-        const idCard = normalizeIdCard(data.id_card)
+        // 顺序：去空格转大写 → 格式校验 → 重复校验
+        const card = prepareIdCard(data.id_card)
+        if (!card.ok) return errorResponse(card.error || '身份证号格式不正确')
+        const idCard = card.idCard
         if (idCard) {
           const dup = findIdCardOwner(idCard, farmerId)
           if (dup) {
@@ -253,6 +258,15 @@ export function registerFarmerHandlers(): void {
           }
         }
         data.id_card = idCard || null
+      }
+      // 性别：本次未显式传 gender 时按（本次传入或库中现有的）身份证推导；
+      // 身份证不合法/为空则不推导，保留库中原值，避免存量脏数据阻塞编辑
+      if (!('gender' in data)) {
+        const currentCard = 'id_card' in data
+          ? data.id_card
+          : db().getRaw<{ id_card: string | null }>('SELECT id_card FROM farmer_profile WHERE id = ?', farmerId)?.id_card
+        const gender = resolveGender(null, currentCard)
+        if (gender != null) data.gender = gender
       }
       const changed = safeUpdate('farmer_profile', farmerId, data, FARMER_COLS)
       if (!changed) return errorResponse('无更新数据')
@@ -263,18 +277,17 @@ export function registerFarmerHandlers(): void {
   // ── 删除 ──
   /**
    * 删除农户
-   * @param payload number（仅农户ID）或 { id, force }；force=true 强制删除
+   * @param payload number（仅农户ID）或 { id }
    *
-   * 默认拒绝：存在补贴申请、发放记录或代领关系
-   * 强制删除：档案一并删除（注意：关联的补贴记录会变成孤儿，仅在确认清理策略时使用）
+   * 只要存在补贴申请、发放记录或代领关系，一律拒绝删除（不提供强制删除，
+   * 否则会留下指向已删农户的孤儿补贴记录）。需要清理时请走「迁出/注销」。
    */
   ipcMain.handle('farmers:delete', (_e, payload: unknown) => {
     try {
       const params = payload && typeof payload === 'object'
-        ? (payload as { id?: unknown; force?: unknown })
-        : { id: payload, force: undefined }
+        ? (payload as { id?: unknown })
+        : { id: payload }
       const id = Number(params.id)
-      const force = params.force === true || params.force === 1 || params.force === 'true'
       if (!id || !Number.isFinite(id)) return errorResponse('缺少农户ID')
 
       const farmer = db().getRaw<{ id: number; real_name: string; household_id: number | null }>(
@@ -282,7 +295,7 @@ export function registerFarmerHandlers(): void {
       )
       if (!farmer) return errorResponse('农户不存在', 404)
 
-      // 户主不能直接删除，否则家庭户会失去户主指向（强制删除也不允许）
+      // 户主不能直接删除，否则家庭户会失去户主指向
       if (farmer.household_id) {
         const hh = db().getRaw<{ id: number; head_farmer_id: number | null }>(
           'SELECT id, head_farmer_id FROM family_household WHERE id = ?', farmer.household_id
@@ -298,32 +311,10 @@ export function registerFarmerHandlers(): void {
       }
       const total = items.reduce((sum, i) => sum + i.count, 0)
 
-      if (total > 0 && !force) {
+      if (total > 0) {
         return errorResponse(
-          `农户「${farmer.real_name}」存在 ${formatRefCounts(items)}，无法删除。请先处理关联记录或确认删除策略。`
+          `农户「${farmer.real_name}」存在 ${formatRefCounts(items)}，无法删除。请先处理关联记录，或改用「迁出/注销」保留档案。`
         )
-      }
-
-      if (total > 0 && force) {
-        // 强制删除：先清理代领关系，再删档案（补贴申请/发放记录按业务要求保留）
-        db().beginTransaction()
-        try {
-          db().runRaw('DELETE FROM subsidy_proxy WHERE beneficiary_farmer_id = ? OR proxy_farmer_id = ?', id, id)
-          db().runRaw('DELETE FROM farmer_profile WHERE id = ?', id)
-          db().commitTransaction()
-        } catch (e) {
-          db().rollbackTransaction()
-          throw e
-        }
-        logger.audit('强制删除农户', String(farmer.real_name || ''), 'farmer_profile', {
-          id, retained: items,
-        })
-        return success({
-          message: `已强制删除农户档案「${farmer.real_name}」，代领关系已清理，补贴申请与发放记录保留`,
-          farmer_id: id,
-          forced: true,
-          retained_refs: items,
-        })
       }
 
       db().runRaw('DELETE FROM farmer_profile WHERE id = ?', id)
@@ -355,25 +346,38 @@ export function registerFarmerHandlers(): void {
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i]
         try {
-          const idCard = row.id_card as string
+          if (!row || typeof row !== 'object') { skipped++; continue }
+          // 顺序：去空格转大写 → 格式校验 → 查重（空值跳过，不阻断整批导入）
+          const card = prepareIdCard((row as Record<string, unknown>).id_card)
+          if (!card.ok) { errors.push(`第${i + 1}行: ${card.error}`); skipped++; continue }
+          const idCard = card.idCard
           if (!idCard) { skipped++; continue }
-          if (idCard) {
-            const info = parseIdCard(idCard)
-            if (info.gender && !row.gender) row.gender = info.gender
-          }
+          row.id_card = idCard
+          // 性别：用户显式提供优先，未提供时由身份证推导
+          const gender = resolveGender(row.gender, idCard)
+          if (gender != null) row.gender = gender
 
-          const existing = db().getRaw<{ id: number }>('SELECT id FROM farmer_profile WHERE id_card = ?', idCard)
+          const existing = db().getRaw<{ id: number }>(
+            'SELECT id FROM farmer_profile WHERE UPPER(TRIM(id_card)) = ?', idCard
+          )
           if (existing) {
             if (overwrite) {
               const keys = Object.keys(row).filter(k => k !== 'id_card' && k !== 'id')
               const sets = keys.map(k => `${k} = ?`).join(', ')
               const vals = keys.map(k => row[k])
-              db().runRaw(`UPDATE farmer_profile SET ${sets}, updated_at = datetime('now','localtime') WHERE id_card = ?`, ...vals, idCard)
+              db().runRaw(`UPDATE farmer_profile SET ${sets}, updated_at = datetime('now','localtime') WHERE id = ?`, ...vals, existing.id)
               updated++
             } else { skipped++ }
           } else {
             const fields = ['household_id', 'real_name', 'gender', 'id_card', 'phone', 'bank_card', 'bank_name', 'relation', 'farmer_status']
-            const vals = fields.map(f => row[f] ?? null)
+            // household_id / gender / farmer_status 为 NOT NULL，缺省时给默认值
+            const merged: Record<string, unknown> = {
+              ...row,
+              household_id: row.household_id ?? null,
+              gender: row.gender ?? 1,
+              farmer_status: row.farmer_status ?? 1,
+            }
+            const vals = fields.map(f => merged[f] ?? null)
             db().runRaw(`INSERT INTO farmer_profile (${fields.join(', ')}) VALUES (${fields.map(() => '?').join(', ')})`, ...vals)
             created++
           }
