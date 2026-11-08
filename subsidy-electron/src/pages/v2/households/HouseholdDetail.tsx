@@ -10,7 +10,7 @@ import SeasonBars from '../households/SeasonBars'
 import { useHouseholdAnomalyTab } from '../../../hooks/useUiSettings'
 import { useState } from 'react'
 import type { HHDetail } from '../../../types'
-export default function HouseholdDetailPanel({ detail, loading, onChanged }: { detail: HHDetail | null; loading: boolean; onChanged: () => void }) {
+export default function HouseholdDetail({ detail, loading, onChanged }: { detail: HHDetail | null; loading: boolean; onChanged: () => void }) {
   const navigate = useNavigate()
   const [hhTab, setHhTab] = useState<'trust' | 'anomaly'>('trust')
   const [anomalyEnabled] = useHouseholdAnomalyTab()

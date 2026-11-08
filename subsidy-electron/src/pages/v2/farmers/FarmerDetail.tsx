@@ -5,7 +5,7 @@ import { FarmerActions } from './FarmerActions'
 import SnapshotCard from '../households/SnapshotCard'
 import SeasonBars from '../households/SeasonBars'
 import type { FarmerDetail, HHDetail } from '../../../types'
-export default function FarmerDetailPanel({ farmer, household, loading, onChanged }: { farmer: FarmerDetail | null; household: HHDetail | null; loading: boolean; onChanged: () => void }) {
+export default function FarmerDetail({ farmer, household, loading, onChanged }: { farmer: FarmerDetail | null; household: HHDetail | null; loading: boolean; onChanged: () => void }) {
   if (!farmer) {
     return <div className="py-24 text-center text-[11.5px] text-text-muted/60">{loading ? '加载中…' : '请从左侧选择一名农户'}</div>
   }
