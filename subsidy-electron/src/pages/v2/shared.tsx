@@ -1,0 +1,94 @@
+/**
+ * 主体管理 - 共用组件与常量
+ *
+ * 统一两栏外壳里的列表行、弹窗、标签样式集中在这里，
+ * 农户 / 家庭户 / 大户 / 村组 四个 Tab 复用。
+ */
+import type { ReactNode } from 'react'
+
+export const FARMER_STATUS_LABEL: Record<number, string> = { 1: '在册', 2: '注销', 3: '迁出', 4: '死亡' }
+export const HH_STATUS_LABEL: Record<number, string> = { 1: '在册', 2: '注销', 3: '迁出' }
+export const PAY_STATUS_LABEL: Record<number, string> = { 0: '待发放', 1: '发放中', 2: '已发放' }
+
+const AVATAR_TONES = [
+  'bg-[#1A4D3A] text-[#E6C288]',
+  'bg-[#F6EEDC] text-[#8A6620]',
+  'bg-[#EDF3EF] text-[#1A4D3A]',
+  'bg-[#E3EEF2] text-[#2E6478]',
+  'bg-[#F1EDE4] text-[#5A5A4F]',
+]
+
+export const tone = (name: string) =>
+  AVATAR_TONES[(name?.charCodeAt(0) || 0) % AVATAR_TONES.length]
+
+export const money = (v: unknown) =>
+  `¥${Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+/** 列表行：首行名称 + 标签，次行说明 */
+export function ListRow({
+  active, onClick, avatar, avatarSquare, name, tags, right, sub,
+}: {
+  active: boolean
+  onClick: () => void
+  avatar: string
+  avatarSquare?: boolean
+  name: string
+  tags?: ReactNode
+  right?: ReactNode
+  sub: ReactNode
+}) {
+  return (
+    <div onClick={onClick}
+      className={`cursor-pointer border-b border-[#F2EDE3] transition-colors py-[9px] ${
+        active ? 'bg-[#F3F7F4] border-l-[3px] border-l-primary pl-3 pr-2.5' : 'pl-[15px] pr-2.5 hover:bg-[#F7FAF8]'
+      }`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className={`w-6 h-6 ${avatarSquare ? 'rounded-[5px]' : 'rounded-full'} flex items-center justify-center text-[10px] font-bold shrink-0 ${tone(name)}`}>
+            {avatar}
+          </span>
+          <b className="text-[12px] text-text-primary truncate">{name}</b>
+          {tags}
+        </div>
+        {right}
+      </div>
+      <div className="text-[10px] text-[#8C877A] mt-[3px] pl-[31px] truncate">{sub}</div>
+    </div>
+  )
+}
+
+/** 小标签 */
+export function Chip({ children, tone: t = 'green' }: { children: ReactNode; tone?: 'green' | 'gray' | 'amber' | 'red' }) {
+  const cls = {
+    green: 'bg-[#EDF3EF] text-[#2C6B52]',
+    gray: 'bg-[#F1EDE4] text-[#6B6B60]',
+    amber: 'bg-[#F6EEDC] text-[#8A6620]',
+    red: 'bg-[#FDECEA] text-danger',
+  }[t]
+  return <span className={`text-[9px] rounded-[2px] px-1 shrink-0 ${cls}`}>{children}</span>
+}
+
+/** 字段行 */
+export function FieldRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex justify-between gap-2">
+      <span className="text-[#8C877A] shrink-0">{label}</span>
+      <span className="truncate text-right">{value}</span>
+    </div>
+  )
+}
+
+/** 卡片容器 */
+export function Card({ title, extra, children, className = '' }: { title?: ReactNode; extra?: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <div className={`border border-[#F0EBE1] rounded-card px-3 py-2 ${className}`}>
+      {(title || extra) && (
+        <div className="flex items-center justify-between mb-1.5">
+          {typeof title === 'string' ? <span className="text-[11.5px] font-semibold">{title}</span> : title}
+          {extra}
+        </div>
+      )}
+      {children}
+    </div>
+  )
+}
