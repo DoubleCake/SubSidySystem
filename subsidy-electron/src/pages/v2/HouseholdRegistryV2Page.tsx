@@ -35,7 +35,6 @@ const tone = (name: string) => AVATAR_TONES[(name.charCodeAt(0) || 0) % AVATAR_T
 const money = (v: unknown) =>
   `¥${Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-type Tab = 'subsidy' | 'members' | 'anomaly' | 'history'
 
 export default function HouseholdRegistryV2Page() {
   const navigate = useNavigate()
@@ -79,7 +78,6 @@ export default function HouseholdRegistryV2Page() {
   const [farmer, setFarmer] = useState<FarmerDetail | null>(null)
   const [household, setHousehold] = useState<HHDetail | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
-  const [tab, setTab] = useState<Tab>('subsidy')
 
   useEffect(() => {
     api.getVillageGroups().then((gs: VillageGroup[]) => setVillages([...new Set(gs.map(g => g.village_name))])).catch(() => {})
@@ -196,12 +194,6 @@ export default function HouseholdRegistryV2Page() {
     if (!y) return null
     return new Date().getFullYear() - y
   })()
-
-  const tabs: { id: Tab; label: string; count?: number; danger?: boolean }[] = [
-    { id: 'subsidy', label: '补贴记录', count: apps.length },
-    { id: 'members', label: '家庭成员', count: members.length },
-    { id: 'anomaly', label: '异常', count: overYears.length, danger: overYears.length > 0 },
-  ]
 
   return (
     <div className="space-y-3">
@@ -479,116 +471,109 @@ export default function HouseholdRegistryV2Page() {
                   </div>
                 ))}
               </div>
-              {/* 分类（画布：补贴记录 / 家庭成员 / 异常） */}
-              <div className="flex items-end gap-5 px-4 h-8 border-b border-[#E8E2D9]">
-                {tabs.map(t => (
-                  <button key={t.id} onClick={() => setTab(t.id)}
-                    className={`h-8 flex items-center gap-1 border-b-2 text-[12px] transition-colors ${
-                      tab === t.id ? 'border-primary text-primary font-bold' : 'border-transparent text-[#6B6B60] hover:text-text-primary'
-                    }`}>
-                    {t.label}
-                    {t.count != null && (
-                      <span className={`text-[10px] font-normal ${t.danger ? 'text-danger' : 'text-[#8C877A]'}`}>{t.count}</span>
-                    )}
-                  </button>
-                ))}
-                <span className="ml-auto h-8 flex items-center text-[10.5px] text-[#8C877A]">累计发放 {money(appTotal)}</span>
-              </div>
-
-              {/* 主体两栏 */}
+              {/* 主体两栏：左为补贴记录 + 家庭成员（各自滚动），右为面积/家庭户/快照 */}
               <div className="grid grid-cols-[minmax(0,1fr)_270px] gap-3 px-3 py-2.5">
-                <div className="flex flex-col gap-2.5 min-w-0">
-                  {tab === 'subsidy' && (
-                    <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
-                      <table className="w-full border-collapse text-[11px]">
-                        <thead>
-                          <tr className="bg-[#F6F1E7] text-[#8C877A] text-[10px] text-left h-[26px]">
-                            <th className="font-medium px-2.5">年度</th>
-                            <th className="font-medium px-1.5">补贴项目</th>
-                            <th className="font-medium px-1.5 text-right">面积</th>
-                            <th className="font-medium px-1.5 text-right">金额</th>
-                            <th className="font-medium px-1.5">状态</th>
-                            <th className="font-medium px-2.5">发放日期</th>
+                {/* 左：两张表上下堆叠，整体垂直滚动 */}
+                <div className="flex flex-col gap-2.5 min-w-0 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 430px)' }}>
+                  <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
+                    <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#F2EDE3]">
+                      <span className="text-[11.5px] font-semibold">补贴记录 <span className="text-[10px] text-[#8C877A] font-normal">{apps.length}</span></span>
+                      <span className="text-[10px] text-[#8C877A]">累计 <b className="font-mono text-primary">{money(appTotal)}</b></span>
+                    </div>
+                    <table className="w-full border-collapse text-[11px]">
+                      <thead className="sticky top-0">
+                        <tr className="bg-[#F6F1E7] text-[#8C877A] text-[10px] text-left h-[26px]">
+                          <th className="font-medium px-2.5">年度</th>
+                          <th className="font-medium px-1.5">补贴项目</th>
+                          <th className="font-medium px-1.5 text-right">面积</th>
+                          <th className="font-medium px-1.5 text-right">金额</th>
+                          <th className="font-medium px-1.5">状态</th>
+                          <th className="font-medium px-2.5">发放日期</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {apps.map((a, i) => (
+                          <tr key={a.id ?? i} className="border-t border-[#F2EDE3] h-[34px] hover:bg-[#F7FAF8] transition-colors">
+                            <td className="px-2.5 font-semibold text-[#1A4D3A]">{a.apply_year}</td>
+                            <td className="px-1.5 truncate">{a.subsidy_name}</td>
+                            <td className="px-1.5 text-right font-mono">{a.apply_area != null ? Number(a.apply_area).toFixed(2) : '—'}</td>
+                            <td className="px-1.5 text-right font-mono">{a.actual_amount ? money(a.actual_amount) : (a.apply_amount ? money(a.apply_amount) : '—')}</td>
+                            <td className="px-1.5">
+                              <span className={`text-[9px] rounded-full px-1.5 py-[1px] ${a.pay_status === 2 ? 'bg-[#EDF3EF] text-[#2C6B52]' : 'bg-[#F6EEDC] text-[#8A6620]'}`}>
+                                {PAY_STATUS_LABEL[a.pay_status] || '—'}
+                              </span>
+                            </td>
+                            <td className="px-2.5 text-[#8C877A]">{a.pay_date || '—'}</td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {apps.map((a, i) => (
-                            <tr key={a.id ?? i} className="border-t border-[#F2EDE3] h-[34px] hover:bg-[#F7FAF8] transition-colors">
-                              <td className="px-2.5 font-semibold text-[#1A4D3A]">{a.apply_year}</td>
-                              <td className="px-1.5 truncate">{a.subsidy_name}</td>
-                              <td className="px-1.5 text-right font-mono">{a.apply_area != null ? Number(a.apply_area).toFixed(2) : '—'}</td>
-                              <td className="px-1.5 text-right font-mono">{a.actual_amount ? money(a.actual_amount) : (a.apply_amount ? money(a.apply_amount) : '—')}</td>
-                              <td className="px-1.5">
-                                <span className={`text-[9px] rounded-full px-1.5 py-[1px] ${a.pay_status === 2 ? 'bg-[#EDF3EF] text-[#2C6B52]' : 'bg-[#F6EEDC] text-[#8A6620]'}`}>
-                                  {PAY_STATUS_LABEL[a.pay_status] || '—'}
-                                </span>
-                              </td>
-                              <td className="px-2.5 text-[#8C877A]">{a.pay_date || '—'}</td>
-                            </tr>
-                          ))}
-                          {apps.length === 0 && (
-                            <tr><td colSpan={6} className="py-8 text-center text-[11px] text-text-muted/60">暂无补贴记录</td></tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                        ))}
+                        {apps.length === 0 && (
+                          <tr><td colSpan={6} className="py-8 text-center text-[11px] text-text-muted/60">暂无补贴记录</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
 
-                  {tab === 'members' && (
-                    <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
-                      <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#F2EDE3]">
-                        <span className="text-[11.5px] font-semibold">家庭成员</span>
-                        <button onClick={() => { setSideTab('households'); if (household?.id) setSelectedHhId(household.id) }}
-                          className="text-[10px] text-[#8C877A] hover:text-primary">家庭户详情 →</button>
-                      </div>
-                      <table className="w-full border-collapse text-[11px]">
-                        <tbody>
-                          {members.map(m => (
-                            <tr key={m.id} className="border-t border-[#F2EDE3] h-[30px]">
-                              <td className="px-2.5 font-semibold">{m.real_name}{m.is_head === 1 && <span className="ml-1 text-[9px] bg-[#EDF3EF] text-[#2C6B52] rounded-[2px] px-1">户主</span>}</td>
-                              <td className="px-1.5 text-[#6B6B60]">{m.relation || (m.is_head === 1 ? '本人' : '成员')}</td>
-                              <td className="px-1.5">
-                                <span className={`text-[9px] rounded-full px-1.5 py-[1px] ${m.farmer_status === 1 ? 'bg-[#EDF3EF] text-[#2C6B52]' : 'bg-[#F1EDE4] text-[#6B6B60]'}`}>
-                                  {FARMER_STATUS_LABEL[m.farmer_status] || '—'}
-                                </span>
-                              </td>
-                              <td className="px-1.5 font-mono text-[#8C877A]">{m.id_card_masked || '—'}</td>
-                            </tr>
-                          ))}
-                          {members.length === 0 && (
-                            <tr><td colSpan={4} className="py-8 text-center text-[11px] text-text-muted/60">暂无成员</td></tr>
-                          )}
-                        </tbody>
-                      </table>
+                  <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
+                    <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#F2EDE3]">
+                      <span className="text-[11.5px] font-semibold">家庭成员 <span className="text-[10px] text-[#8C877A] font-normal">{members.length}</span></span>
+                      <button onClick={() => { setSideTab('households'); if (household?.id) setSelectedHhId(household.id) }}
+                        className="text-[10px] text-[#8C877A] hover:text-primary">家庭户详情 →</button>
                     </div>
-                  )}
-
-                  {tab === 'anomaly' && (
-                    <div className="border border-[#F0EBE1] rounded-card p-3">
-                      {overYears.length === 0 ? (
-                        <div className="py-6 text-center text-[11px] text-text-muted/60">本户没有超领记录</div>
-                      ) : (
-                        <div className="flex flex-col gap-1.5">
-                          {overYears.map(y => {
-                            const yearMax = usage?.year_totals?.[y] ? Math.max(...Object.values(usage.year_totals[y])) : 0
-                            return (
-                              <div key={y} className="flex items-center gap-2">
-                                <span className="text-[9px] bg-[#FDECEA] text-danger rounded-[2px] px-1">超领</span>
-                                <span className="text-[11.5px] font-semibold">{y} 年度</span>
-                                <span className="text-[10px] text-[#9A9588]">{yearMax.toFixed(2)} / {refArea.toFixed(2)} 亩</span>
-                                <span className="ml-auto text-[11px] font-bold text-danger">+{Math.max(0, yearMax - refArea).toFixed(2)}</span>
-                              </div>
-                            )
-                          })}
-                          <button onClick={() => navigate('/anomalies')} className="mt-1 h-7 border border-border rounded-btn text-[11px] text-[#5A5A4F]">进入异常中心</button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    <table className="w-full border-collapse text-[11px]">
+                      <tbody>
+                        {members.map(m => (
+                          <tr key={m.id} className="border-t border-[#F2EDE3] h-[30px] hover:bg-[#F7FAF8] transition-colors">
+                            <td className="px-2.5 font-semibold">{m.real_name}{m.is_head === 1 && <span className="ml-1 text-[9px] bg-[#EDF3EF] text-[#2C6B52] rounded-[2px] px-1">户主</span>}</td>
+                            <td className="px-1.5 text-[#6B6B60]">{m.relation || (m.is_head === 1 ? '本人' : '成员')}</td>
+                            <td className="px-1.5">
+                              <span className={`text-[9px] rounded-full px-1.5 py-[1px] ${m.farmer_status === 1 ? 'bg-[#EDF3EF] text-[#2C6B52]' : 'bg-[#F1EDE4] text-[#6B6B60]'}`}>
+                                {FARMER_STATUS_LABEL[m.farmer_status] || '—'}
+                              </span>
+                            </td>
+                            <td className="px-1.5 font-mono text-[#8C877A]">{m.id_card_masked || '—'}</td>
+                          </tr>
+                        ))}
+                        {members.length === 0 && (
+                          <tr><td colSpan={4} className="py-8 text-center text-[11px] text-text-muted/60">暂无成员</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
-                {/* 右侧：家庭户信息 / 本户异常 / 人员档案 */}
+                {/* 右：各季面积使用 → 家庭户信息 → 历史快照 */}
                 <div className="flex flex-col gap-2.5 min-w-0">
+                  <div className="border border-[#F0EBE1] rounded-card px-3 py-2">
+                    <div className="text-[11.5px] font-semibold mb-1.5">各季面积使用</div>
+                    <div className="flex flex-col gap-1.5">
+                      {Object.entries(usage?.season_breakdown || {}).map(([season, s]) => {
+                        const seasonRef = s.reference_area ?? refArea
+                        const used = s.used_area || 0
+                        const over = used > seasonRef + 0.001
+                        const pct = seasonRef > 0 ? Math.min(100, Math.round(used / seasonRef * 100)) : 0
+                        return (
+                          <div key={season}>
+                            <div className="flex items-baseline justify-between text-[10.5px]">
+                              <span className={over ? 'text-danger font-semibold' : 'text-primary font-semibold'}>{season}</span>
+                              <span className={`font-mono ${over ? 'text-danger font-semibold' : 'text-text-muted'}`}>
+                                {used.toFixed(2)} / {seasonRef.toFixed(2)}
+                              </span>
+                            </div>
+                            <div className="h-[4px] bg-[#F2EDE3] rounded-full mt-1 overflow-hidden">
+                              <div className={`h-[4px] rounded-full ${over ? 'bg-danger' : 'bg-[#1A4D3A]'}`} style={{ width: `${Math.max(2, pct)}%` }} />
+                            </div>
+                            {over && (
+                              <div className="text-[9.5px] text-danger mt-0.5">超出 {(used - seasonRef).toFixed(2)} 亩</div>
+                            )}
+                          </div>
+                        )
+                      })}
+                      {Object.keys(usage?.season_breakdown || {}).length === 0 && (
+                        <div className="text-[10.5px] text-text-muted/60 py-2 text-center">暂无面积使用记录</div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="border border-[#F0EBE1] rounded-card px-3 py-2">
                     <div className="text-[11.5px] font-semibold mb-1.5">家庭户信息</div>
                     <div className="flex flex-col gap-1 text-[10.5px]">
@@ -608,31 +593,7 @@ export default function HouseholdRegistryV2Page() {
                     </div>
                   </div>
 
-                  {overYears.length > 0 && (
-                    <div className="border border-[#E8C9C2] bg-[#FDF7F5] rounded-card px-3 py-2">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[11.5px] font-bold text-[#A6402E]">本户异常</span>
-                        <button onClick={() => setTab('anomaly')} className="text-[10px] text-[#A6402E]">核对 →</button>
-                      </div>
-                      <div className="text-[10.5px] text-[#6B4236] leading-relaxed">
-                        {overYears.slice(0, 3).map(y => {
-                          const yearMax = usage?.year_totals?.[y] ? Math.max(...Object.values(usage.year_totals[y])) : 0
-                          return <div key={y}>{y} 年度 超领 <b>{Math.max(0, yearMax - refArea).toFixed(2)} 亩</b></div>
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="border border-[#F0EBE1] rounded-card px-3 py-2 flex-1">
-                    <div className="text-[11.5px] font-semibold mb-1">人员档案</div>
-                    <div className="flex flex-col gap-1 text-[10.5px]">
-                      <div className="flex justify-between"><span className="text-[#8C877A]">性别</span><span>{farmer.gender === 1 ? '男' : '女'}</span></div>
-                      <div className="flex justify-between"><span className="text-[#8C877A]">开户行</span><span className="truncate">{farmer.bank_name || '—'}</span></div>
-                      <div className="flex justify-between"><span className="text-[#8C877A]">地址</span><span className="truncate">{farmer.address || '—'}</span></div>
-                      <div className="flex justify-between"><span className="text-[#8C877A]">录入时间</span><span>{farmer.created_at?.slice(0, 10) || '—'}</span></div>
-                      {farmer.remark && <div className="text-[10px] text-text-muted pt-1 border-t border-[#F2EDE3]">{farmer.remark}</div>}
-                    </div>
-                  </div>
+                  <SnapshotCard householdId={household?.id ?? null} />
                 </div>
               </div>
             </>
@@ -652,45 +613,6 @@ function HouseholdDetailPanel({
   tab: HHTab
   setTab: (t: HHTab) => void
 }) {
-  const navigate = useNavigate()
-  const [events, setEvents] = useState<HHEvent[]>([])
-  const [snapshot, setSnapshot] = useState<SnapshotAtResponse | null>(null)
-  const [loadingSnapshot, setLoadingSnapshot] = useState(false)
-
-  useEffect(() => {
-    if (!detail) { setEvents([]); setSnapshot(null); return }
-    let cancelled = false
-    api.getHouseholdEvents(detail.id)
-      .then(ev => { if (!cancelled) setEvents(ev || []) })
-      .catch(() => { if (!cancelled) setEvents([]) })
-    return () => { cancelled = true }
-  }, [detail?.id])
-
-  const openSnapshot = async (eventId: number) => {
-    if (!detail) return
-    setLoadingSnapshot(true)
-    try {
-      const res = await api.getHouseholdSnapshotByEvent(detail.id, eventId)
-      setSnapshot(res)
-    } catch {
-      setSnapshot(null)
-    } finally {
-      setLoadingSnapshot(false)
-    }
-  }
-
-  // 快照时点序列（按事件时间排列，用于前后翻页）
-  const steps = useMemo(
-    () => [...events].filter(e => e.event_date).sort((a, b) => (a.event_date! < b.event_date! ? -1 : 1)),
-    [events]
-  )
-  const snapshotIdx = snapshot ? steps.findIndex(e => e.event_date === snapshot.target_date) : -1
-  const stepTo = (idx: number) => {
-    const ev = steps[idx]
-    if (ev) openSnapshot(ev.id)
-  }
-  const stepBack = () => { if (snapshotIdx > 0) stepTo(snapshotIdx - 1) }
-  const stepForward = () => { if (snapshotIdx >= 0 && snapshotIdx < steps.length - 1) stepTo(snapshotIdx + 1) }
 
   if (!detail) {
     return <div className="py-24 text-center text-[11.5px] text-text-muted/60">{loading ? '加载中…' : '请从左侧选择一个家庭户'}</div>
@@ -935,122 +857,147 @@ function HouseholdDetailPanel({
         </div>
 
         <div className="flex flex-col gap-2.5 min-w-0">
-              <div className="border border-[#F0EBE1] rounded-card px-2.5 py-2">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11.5px] font-semibold">历史快照</span>
-                  <span className="text-[10px] text-[#8C877A]">{events.length} 条 · 点击回放</span>
-                </div>
-                {events.length === 0 && (
-                  <div className="py-6 text-center text-[10.5px] text-text-muted/60">本户暂无变更记录</div>
-                )}
-                <div style={{ maxHeight: 260, overflowY: 'auto' }}>
-                  {events.map(ev => {
-                    const active = snapshot?.target_date && ev.event_date === snapshot.target_date
-                    const cfg = EVENT_TYPE_CFG[ev.event_type] || EVENT_TYPE_CFG.REMARK
-                    return (
-                      <div key={ev.id} onClick={() => openSnapshot(ev.id)}
-                        className={`cursor-pointer border-b border-[#F2EDE3] px-2.5 py-2 transition-colors ${active ? 'bg-[#F3F7F4]' : 'hover:bg-[#F7FAF8]'}`}>
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-[9px] rounded-[2px] px-1 ${cfg.color}`}>{cfg.label}</span>
-                          <span className="text-[10.5px] text-[#8C877A] font-mono">{ev.event_date || `${ev.event_year} 年`}</span>
-                          {ev.operator && <span className="text-[9.5px] text-[#9A9588]">· {ev.operator}</span>}
-                          <span className="ml-auto text-[9.5px] text-primary">查看快照 →</span>
-                        </div>
-                        <div className="text-[11px] mt-0.5 truncate">{ev.description || '（无说明）'}</div>
-                      </div>
-                    )
-                  })}
-                </div>
-                {loadingSnapshot && <div className="px-2.5 py-1.5 text-[10px] text-text-muted border-t border-[#F2EDE3]">快照加载中…</div>}
-                {steps.length > 1 && (
-                  <div className="flex items-center gap-2 px-2.5 py-1.5 border-t border-[#F2EDE3] bg-[#FBF8F1]">
-                    <button onClick={stepBack} disabled={snapshotIdx <= 0}
-                      className="h-6 px-1.5 border border-border rounded-[3px] bg-white text-[10.5px] text-[#5A5A4F] disabled:opacity-40">‹ 上一时点</button>
-                    <button onClick={stepForward} disabled={snapshotIdx >= steps.length - 1}
-                      className="h-6 px-1.5 border border-border rounded-[3px] bg-white text-[10.5px] text-[#5A5A4F] disabled:opacity-40">下一时点 ›</button>
-                    <span className="ml-auto text-[9.5px] text-[#8C877A]">{snapshotIdx + 1} / {steps.length}</span>
-                  </div>
-                )}
-              </div>
-              <div className="border border-[#F0EBE1] rounded-card px-2.5 py-2">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11.5px] font-semibold">各季面积使用</span>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  {Object.entries(usage?.season_breakdown || {}).map(([season, s]) => {
-                    const seasonRef = s.reference_area ?? refArea
-                    const used = s.used_area || 0
-                    const pct = seasonRef > 0 ? Math.min(100, Math.round(used / seasonRef * 100)) : 0
-                    const over = used > seasonRef + 0.001
-                    return (
-                      <div key={season}>
-                        <div className="flex items-baseline justify-between text-[10.5px]">
-                          <span className={over ? 'text-danger font-semibold' : 'text-primary font-semibold'}>{season}</span>
-                          <span className="text-text-muted font-mono">{used.toFixed(2)} / {seasonRef.toFixed(2)}</span>
-                        </div>
-                        <div className="h-[4px] bg-[#F2EDE3] rounded-full mt-1 overflow-hidden">
-                          <div className={`h-[4px] rounded-full ${over ? 'bg-danger' : 'bg-[#1A4D3A]'}`} style={{ width: `${Math.max(2, pct)}%` }} />
-                        </div>
-                      </div>
-                    )
-                  })}
-                  {Object.keys(usage?.season_breakdown || {}).length === 0 && (
-                    <div className="text-[10.5px] text-text-muted/60 py-2 text-center">暂无面积使用记录</div>
-                  )}
-                </div>
-              </div>
-
-              {snapshot && (() => {
-                const snap = snapshot.snapshot
+          <div className="border border-[#F0EBE1] rounded-card px-3 py-2">
+            <div className="text-[11.5px] font-semibold mb-1.5">各季面积使用</div>
+            <div className="flex flex-col gap-1.5">
+              {Object.entries(usage?.season_breakdown || {}).map(([season, s]) => {
+                const seasonRef = s.reference_area ?? refArea
+                const used = s.used_area || 0
+                const over = used > seasonRef + 0.001
+                const pct = seasonRef > 0 ? Math.min(100, Math.round(used / seasonRef * 100)) : 0
                 return (
-                  <div className="border border-[#C9DCC9] bg-[#F7FAF7] rounded-card px-3 py-2">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11.5px] font-bold text-[#2C6B52]">快照 · {snapshot.target_date}</span>
-                      <button onClick={() => setSnapshot(null)} className="text-[10px] text-text-muted hover:text-primary">退出</button>
+                  <div key={season}>
+                    <div className="flex items-baseline justify-between text-[10.5px]">
+                      <span className={over ? 'text-danger font-semibold' : 'text-primary font-semibold'}>{season}</span>
+                      <span className={`font-mono ${over ? 'text-danger font-semibold' : 'text-text-muted'}`}>
+                        {used.toFixed(2)} / {seasonRef.toFixed(2)}
+                      </span>
                     </div>
-                    <div className="flex flex-col gap-1 text-[10.5px]">
-                      <div className="flex justify-between"><span className="text-[#8C877A]">户名</span><span className="truncate">{snap.household_name}</span></div>
-                      <div className="flex justify-between"><span className="text-[#8C877A]">参考面积</span><span className="font-mono">{Number(snap.contract_area || 0).toFixed(2)} 亩</span></div>
-                      <div className="flex justify-between"><span className="text-[#8C877A]">成员</span><span>{snap.members?.length ?? 0} 人</span></div>
-                      <div className="flex justify-between"><span className="text-[#8C877A]">补贴记录</span><span>{snap.app_summary?.length ?? 0} 条</span></div>
-                      {(snap.members || []).slice(0, 4).map(m => (
-                        <div key={m.id} className="flex justify-between text-[10px] pl-2">
-                          <span className="truncate">{m.real_name}{m.is_head === 1 ? '（户主）' : ''}</span>
-                          <span className="text-text-muted">{FARMER_STATUS_LABEL[m.farmer_status] || '—'}</span>
-                        </div>
-                      ))}
-                      <div className="text-[9.5px] text-text-muted pt-1 border-t border-[#DCE9E1]">该快照为事件发生时的户状态，仅供核对，不影响当前数据。</div>
+                    <div className="h-[4px] bg-[#F2EDE3] rounded-full mt-1 overflow-hidden">
+                      <div className={`h-[4px] rounded-full ${over ? 'bg-danger' : 'bg-[#1A4D3A]'}`} style={{ width: `${Math.max(2, pct)}%` }} />
                     </div>
+                    {over && <div className="text-[9.5px] text-danger mt-0.5">超出 {(used - seasonRef).toFixed(2)} 亩</div>}
                   </div>
                 )
-              })()}
-
-              {overYears.length > 0 && (
-                <div className="border border-[#E8C9C2] bg-[#FDF7F5] rounded-card px-3 py-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[11.5px] font-bold text-[#A6402E]">本户异常</span>
-                    <button onClick={() => setTab('anomaly')} className="text-[10px] text-[#A6402E]">核对 →</button>
-                  </div>
-                  <div className="text-[10.5px] text-[#6B4236] leading-relaxed">
-                    {overYears.slice(0, 3).map(o => (
-                      <div key={o.year}>{o.year} 年度 超领 <b>{Math.max(0, o.used - refArea).toFixed(2)} 亩</b></div>
-                    ))}
-                  </div>
-                </div>
+              })}
+              {Object.keys(usage?.season_breakdown || {}).length === 0 && (
+                <div className="text-[10.5px] text-text-muted/60 py-2 text-center">暂无面积使用记录</div>
               )}
-
-              <div className="border border-[#F0EBE1] rounded-card px-3 py-2 flex-1">
-                <div className="text-[11.5px] font-semibold mb-1">户档案</div>
-                <div className="flex flex-col gap-1 text-[10.5px]">
-                  <div className="flex justify-between"><span className="text-[#8C877A]">户编码</span><span className="font-mono">{detail.household_code}</span></div>
-                  <div className="flex justify-between"><span className="text-[#8C877A]">村组</span><span className="truncate">{detail.village_full_name}</span></div>
-                  <div className="flex justify-between"><span className="text-[#8C877A]">成员</span><span>{members.length} 人 · 在册 {members.filter(m => m.farmer_status === 1).length}</span></div>
-                  <div className="flex justify-between"><span className="text-[#8C877A]">人工确认</span><span className={detail.is_manually_confirmed === 1 ? 'text-[#2C6B52]' : 'text-text-muted'}>{detail.manually_confirmed_at?.slice(0, 10) || '未确认'}</span></div>
-                  {detail.remark && <div className="text-[10px] text-text-muted pt-1 border-t border-[#F2EDE3]">{detail.remark}</div>}
-                </div>
-              </div>
             </div>
           </div>
+
+          <div className="border border-[#F0EBE1] rounded-card px-3 py-2">
+            <div className="text-[11.5px] font-semibold mb-1.5">家庭户信息</div>
+            <div className="flex flex-col gap-1 text-[10.5px]">
+              {[
+                ['户名', detail.household_name],
+                ['户编码', detail.household_code],
+                ['村组', detail.village_full_name],
+                ['成员', `${members.length} 人 · 在册 ${members.filter(m => m.farmer_status === 1).length}`],
+                ['参考面积', `${refArea.toFixed(2)} 亩`],
+                ['人工确认', detail.manually_confirmed_at?.slice(0, 10) || '未确认'],
+              ].map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-2">
+                  <span className="text-[#8C877A] shrink-0">{k}</span>
+                  <span className="truncate">{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <SnapshotCard householdId={detail.id} />
+        </div>
+      </div>
     </>
+  )
+}
+
+/** 历史快照卡片：按家庭户事件回放，可切换时点（农户页与家庭户页共用） */
+function SnapshotCard({ householdId }: { householdId: number | null }) {
+  const [events, setEvents] = useState<HHEvent[]>([])
+  const [snapshot, setSnapshot] = useState<SnapshotAtResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    setSnapshot(null)
+    if (!householdId) { setEvents([]); return }
+    let cancelled = false
+    api.getHouseholdEvents(householdId)
+      .then(ev => { if (!cancelled) setEvents(ev || []) })
+      .catch(() => { if (!cancelled) setEvents([]) })
+    return () => { cancelled = true }
+  }, [householdId])
+
+  const openSnapshot = async (eventId: number) => {
+    if (!householdId) return
+    setLoading(true)
+    try {
+      setSnapshot(await api.getHouseholdSnapshotByEvent(householdId, eventId))
+    } catch {
+      setSnapshot(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const steps = useMemo(
+    () => [...events].filter(e => e.event_date).sort((a, b) => (a.event_date! < b.event_date! ? -1 : 1)),
+    [events]
+  )
+  const idx = snapshot ? steps.findIndex(e => e.event_date === snapshot.target_date) : -1
+  const stepTo = (i: number) => { const ev = steps[i]; if (ev) openSnapshot(ev.id) }
+
+  return (
+    <div className="border border-[#F0EBE1] rounded-card px-2.5 py-2 flex-1 flex flex-col min-h-0">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[11.5px] font-semibold">历史快照</span>
+        <span className="text-[10px] text-[#8C877A]">{events.length} 条</span>
+      </div>
+      {events.length === 0 && <div className="py-4 text-center text-[10.5px] text-text-muted/60">暂无变更记录</div>}
+      <div className="flex flex-col overflow-y-auto" style={{ maxHeight: 180 }}>
+        {events.map(ev => {
+          const active = snapshot?.target_date && ev.event_date === snapshot.target_date
+          const cfg = EVENT_TYPE_CFG[ev.event_type] || EVENT_TYPE_CFG.REMARK
+          return (
+            <div key={ev.id} onClick={() => openSnapshot(ev.id)}
+              className={`cursor-pointer border-b border-[#F2EDE3] py-1.5 px-1 rounded-[3px] transition-colors ${active ? 'bg-[#F3F7F4]' : 'hover:bg-[#F7FAF8]'}`}>
+              <div className="flex items-center gap-1.5">
+                <span className={`text-[9px] rounded-[2px] px-1 ${cfg.color}`}>{cfg.label}</span>
+                <span className="text-[10px] text-[#8C877A] font-mono">{ev.event_date || `${ev.event_year} 年`}</span>
+                <span className="ml-auto text-[9.5px] text-primary">快照 →</span>
+              </div>
+              <div className="text-[10.5px] mt-0.5 truncate" title={ev.description}>{ev.description || '（无说明）'}</div>
+            </div>
+          )
+        })}
+      </div>
+      {loading && <div className="py-1 text-[10px] text-text-muted">快照加载中…</div>}
+      {snapshot && (
+        <div className="mt-1.5 pt-1.5 border-t border-[#F2EDE3] text-[10.5px]">
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-semibold text-[#2C6B52]">{snapshot.target_date} 快照</span>
+            <button onClick={() => setSnapshot(null)} className="text-[10px] text-text-muted hover:text-primary">退出</button>
+          </div>
+          <div className="flex justify-between"><span className="text-[#8C877A]">参考面积</span><span className="font-mono">{Number(snapshot.snapshot.contract_area || 0).toFixed(2)} 亩</span></div>
+          <div className="flex justify-between"><span className="text-[#8C877A]">成员</span><span>{snapshot.snapshot.members?.length ?? 0} 人</span></div>
+          <div className="flex justify-between"><span className="text-[#8C877A]">补贴记录</span><span>{snapshot.snapshot.app_summary?.length ?? 0} 条</span></div>
+          {(snapshot.snapshot.members || []).slice(0, 4).map(m => (
+            <div key={m.id} className="flex justify-between text-[10px] pl-2">
+              <span className="truncate">{m.real_name}{m.is_head === 1 ? '（户主）' : ''}</span>
+              <span className="text-text-muted">{FARMER_STATUS_LABEL[m.farmer_status] || '—'}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {steps.length > 1 && (
+        <div className="flex items-center gap-1.5 pt-1.5 mt-auto">
+          <button onClick={() => stepTo(idx - 1)} disabled={idx <= 0}
+            className="h-6 px-1.5 border border-border rounded-[3px] bg-white text-[10px] text-[#5A5A4F] disabled:opacity-40">‹ 上一时点</button>
+          <button onClick={() => stepTo(idx + 1)} disabled={idx < 0 || idx >= steps.length - 1}
+            className="h-6 px-1.5 border border-border rounded-[3px] bg-white text-[10px] text-[#5A5A4F] disabled:opacity-40">下一时点 ›</button>
+          <span className="ml-auto text-[9.5px] text-[#8C877A]">{idx >= 0 ? `${idx + 1} / ${steps.length}` : '—'}</span>
+        </div>
+      )}
+    </div>
   )
 }
