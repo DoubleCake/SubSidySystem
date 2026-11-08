@@ -6,13 +6,13 @@
  */
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import * as api from '../../api'
-import { useToast } from '../../hooks/useToast'
+import * as api from '../../../api'
+import { useToast } from '../../../hooks/useToast'
 
-import { CreateFarmerForm } from '../FarmerForms'
-import { Ico } from './Icons'
-import type { FarmerDetail, VillageGroup } from '../../types'
-import { submitCreateFarmer, submitUpdateFarmer } from './actions'
+import { CreateFarmerForm } from '../../FarmerForms'
+import { Ico } from '../Icons'
+import type { FarmerDetail, VillageGroup } from '../../../types'
+import { submitCreateFarmer, submitUpdateFarmer } from '../actions'
 
 const emptyCreate = {
   real_name: '', id_card: '', gender: 1 as 1 | 2, phone: '',

@@ -5,8 +5,8 @@
  * 年份上的红点表示该年触发超领。
  */
 import { useEffect, useState } from 'react'
-import * as api from '../../api'
-import type { HHMember, HHEvent, SnapshotAtResponse } from '../../types'
+import * as api from '../../../api'
+import type { HHMember, HHEvent, SnapshotAtResponse } from '../../../types'
 
 export interface YearInfo {
   year: number

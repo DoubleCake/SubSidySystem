@@ -1,10 +1,10 @@
 /** 农户详情面板 */
-import { Card, FieldRow, FARMER_STATUS_LABEL, PAY_STATUS_LABEL, money } from './shared'
-import { Ico, ThIco } from './Icons'
+import { Card, FieldRow, FARMER_STATUS_LABEL, PAY_STATUS_LABEL, money } from '../shared'
+import { Ico, ThIco } from '../Icons'
 import { FarmerActions } from './FarmerActions'
-import SnapshotCard from './SnapshotCard'
-import SeasonBars from './SeasonBars'
-import type { FarmerDetail, HHDetail } from '../../types'
+import SnapshotCard from '../households/SnapshotCard'
+import SeasonBars from '../households/SeasonBars'
+import type { FarmerDetail, HHDetail } from '../../../types'
 export default function FarmerDetailPanel({ farmer, household, loading, onChanged }: { farmer: FarmerDetail | null; household: HHDetail | null; loading: boolean; onChanged: () => void }) {
   if (!farmer) {
     return <div className="py-24 text-center text-[11.5px] text-text-muted/60">{loading ? '加载中…' : '请从左侧选择一名农户'}</div>

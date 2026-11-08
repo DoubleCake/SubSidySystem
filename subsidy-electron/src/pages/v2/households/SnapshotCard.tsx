@@ -1,9 +1,9 @@
 /** 历史快照卡片：按家庭户事件回放，可切换时点 */
 import { useEffect, useMemo, useState } from 'react'
-import * as api from '../../api'
-import { EVENT_TYPE_CFG } from '../FarmerConstants'
-import { FARMER_STATUS_LABEL } from './shared'
-import type { HHEvent, SnapshotAtResponse } from '../../types'
+import * as api from '../../../api'
+import { EVENT_TYPE_CFG } from '../../FarmerConstants'
+import { FARMER_STATUS_LABEL } from '../shared'
+import type { HHEvent, SnapshotAtResponse } from '../../../types'
 export default function SnapshotCard({ householdId }: { householdId: number | null }) {
   const [events, setEvents] = useState<HHEvent[]>([])
   const [snapshot, setSnapshot] = useState<SnapshotAtResponse | null>(null)

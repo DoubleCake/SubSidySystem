@@ -1,8 +1,8 @@
 /** 村组详情面板（村集体作为申报主体） */
-import { Card, FieldRow } from './shared'
-import { Ico, ThIco } from './Icons'
-import type { VillageDetail } from './types'
-export default function VillagePanel({ detail, loading }: { detail: VillageDetail | null; loading: boolean }) {
+import { Card, FieldRow } from '../shared'
+import { Ico, ThIco } from '../Icons'
+import type { VillageDetail } from '../types'
+export default function VillageDetail({ detail, loading }: { detail: VillageDetail | null; loading: boolean }) {
   if (!detail) {
     return <div className="py-24 text-center text-[11.5px] text-text-muted/60">{loading ? '加载中…' : '请从左侧选择一个村'}</div>
   }

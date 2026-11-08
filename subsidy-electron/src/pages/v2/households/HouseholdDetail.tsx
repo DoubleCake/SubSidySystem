@@ -1,15 +1,15 @@
 /** 家庭户详情面板（三块垂直排列：家庭人口 / 补贴记录 / 土地流转与异常 Tab） */
 import { useNavigate } from 'react-router-dom'
-import { AddMemberButton, MemberRowActions } from './HouseholdActions'
-import HouseholdActions from './HouseholdActions'
-import { Card, FieldRow, FARMER_STATUS_LABEL, HH_STATUS_LABEL, PAY_STATUS_LABEL, money } from './shared'
-import { Ico, ThIco } from './Icons'
+import { AddMemberButton, MemberRowActions } from '../households/HouseholdActions'
+import HouseholdActions from '../households/HouseholdActions'
+import { Card, FieldRow, FARMER_STATUS_LABEL, HH_STATUS_LABEL, PAY_STATUS_LABEL, money } from '../shared'
+import { Ico, ThIco } from '../Icons'
 import YearTimeline, { buildYears, useYearSnapshots } from './YearTimeline'
-import SnapshotCard from './SnapshotCard'
-import SeasonBars from './SeasonBars'
-import { useHouseholdAnomalyTab } from '../../hooks/useUiSettings'
+import SnapshotCard from '../households/SnapshotCard'
+import SeasonBars from '../households/SeasonBars'
+import { useHouseholdAnomalyTab } from '../../../hooks/useUiSettings'
 import { useState } from 'react'
-import type { HHDetail } from '../../types'
+import type { HHDetail } from '../../../types'
 export default function HouseholdDetailPanel({ detail, loading, onChanged }: { detail: HHDetail | null; loading: boolean; onChanged: () => void }) {
   const navigate = useNavigate()
   const [hhTab, setHhTab] = useState<'trust' | 'anomaly'>('trust')

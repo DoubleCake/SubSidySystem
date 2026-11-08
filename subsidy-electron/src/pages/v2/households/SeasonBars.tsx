@@ -1,5 +1,5 @@
 /** 各季面积使用条（超限标红） */
-import type { HHDetail } from '../../types'
+import type { HHDetail } from '../../../types'
 export default function SeasonBars({ usage, refArea }: { usage: HHDetail['area_usage'] | undefined; refArea: number }) {
   const seasons = Object.entries(usage?.season_breakdown || {})
   if (seasons.length === 0) return <div className="text-[10.5px] text-text-muted/60 py-2 text-center">暂无面积使用记录</div>
@@ -26,5 +26,3 @@ export default function SeasonBars({ usage, refArea }: { usage: HHDetail['area_u
     </div>
   )
 }
-
-/** 家庭户详情面板 */

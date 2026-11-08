@@ -4,13 +4,13 @@
  * 选择「目标户」与一个或多个「被合并户」，合并到目标户名下。
  */
 import { useEffect, useState } from 'react'
-import * as api from '../../api'
-import { useToast } from '../../hooks/useToast'
+import * as api from '../../../api'
+import { useToast } from '../../../hooks/useToast'
 
-import { MergeConfirmForm } from '../FarmerForms'
-import { Ico } from './Icons'
-import type { HH } from '../../types'
-import { submitMerge } from './actions'
+import { MergeConfirmForm } from '../../FarmerForms'
+import { Ico } from '../Icons'
+import type { HH } from '../../../types'
+import { submitMerge } from '../actions'
 
 export default function MergeHouseholdsButton({ current, onMerged }: { current: HH | null; onMerged: () => void }) {
   const { show } = useToast()

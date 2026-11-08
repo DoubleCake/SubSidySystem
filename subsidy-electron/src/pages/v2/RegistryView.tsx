@@ -7,10 +7,10 @@
 import { Ico } from './Icons'
 import { Chip, ListRow, FARMER_STATUS_LABEL, HH_STATUS_LABEL } from './shared'
 import { OPERATOR_LABEL } from './types'
-import FarmerDetailPanel from './FarmerDetailPanel'
-import HouseholdDetailPanel from './HouseholdDetailPanel'
-import LargeFarmerPanel from './LargeFarmerPanel'
-import VillagePanel from './VillagePanel'
+import FarmerDetail from './farmers/FarmerDetail'
+import HouseholdDetail from './households/HouseholdDetail'
+import LargeDetail from './large/LargeDetail'
+import VillageDetail from './villages/VillageDetail'
 import RegistryShell, { type SideTab } from './RegistryShell'
 import FarmerList from './farmers/FarmerList'
 import HouseholdList from './households/HouseholdList'
@@ -109,11 +109,11 @@ export default function RegistryView(p: P) {
         )}
         detail={(
           <>
-            {p.sideTab === 'households' && <HouseholdDetailPanel detail={p.household} loading={p.loadingDetail} onChanged={p.reloadHousehold} />}
+            {p.sideTab === 'households' && <HouseholdDetail detail={p.household} loading={p.loadingDetail} onChanged={p.reloadHousehold} />}
             {p.sideTab === 'large' && (
-              <LargeFarmerPanel farmer={p.largeList.find(l => l.id === p.selectedLargeId) || null} trusts={p.largeTrusts} loading={p.loadingTrusts} />
+              <LargeDetail farmer={p.largeList.find(l => l.id === p.selectedLargeId) || null} trusts={p.largeTrusts} loading={p.loadingTrusts} />
             )}
-            {p.sideTab === 'villages' && <VillagePanel detail={p.villageDetail} loading={p.loadingVillage} />}
+            {p.sideTab === 'villages' && <VillageDetail detail={p.villageDetail} loading={p.loadingVillage} />}
           </>
         )}
       />

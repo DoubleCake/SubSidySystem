@@ -4,17 +4,17 @@
  * 独立组件，自带弹窗状态；主页面只需渲染 <HouseholdActions detail={detail} onChanged={...} />。
  */
 import { useEffect, useState } from 'react'
-import * as api from '../../api'
-import { useToast } from '../../hooks/useToast'
+import * as api from '../../../api'
+import { useToast } from '../../../hooks/useToast'
 
-import { ConfirmForm, DeleteConfirmForm, EditHouseholdForm, MemberForm, SplitWizardForm } from '../FarmerForms'
-import { Ico } from './Icons'
-import type { HH, HHDetail, HHMember, VillageGroup } from '../../types'
-import MergeHouseholdsButton from './MergeHouseholds'
+import { ConfirmForm, DeleteConfirmForm, EditHouseholdForm, MemberForm, SplitWizardForm } from '../../FarmerForms'
+import { Ico } from '../Icons'
+import type { HH, HHDetail, HHMember, VillageGroup } from '../../../types'
+import MergeHouseholdsButton from '../households/MergeHouseholds'
 import {
   buildEditForm, emptyMemberForm, emptySplitForm,
   submitConfirm, submitDeleteHousehold, submitEditHousehold, submitMember, submitSplit,
-} from './actions'
+} from '../actions'
 
 export default function HouseholdActions({ detail, onChanged }: { detail: HHDetail; onChanged: () => void }) {
   const currentHh = {

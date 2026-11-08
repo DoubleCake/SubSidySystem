@@ -5,10 +5,10 @@
  */
 import { useEffect, useState } from 'react'
 
-import { Card, FieldRow } from './shared'
-import { Ico, ThIco } from './Icons'
-import { OPERATOR_LABEL } from './types'
-import type { LargeFarmer, LargeFarmerTrust } from './types'
+import { Card, FieldRow } from '../shared'
+import { Ico, ThIco } from '../Icons'
+import { OPERATOR_LABEL } from '../types'
+import type { LargeFarmer, LargeFarmerTrust } from '../types'
 
 interface Props {
   farmer: LargeFarmer | null
@@ -17,7 +17,7 @@ interface Props {
   onChanged?: () => void
 }
 
-export default function LargeFarmerPanel({ farmer, trusts, loading }: Props) {
+export default function LargeDetail({ farmer, trusts, loading }: Props) {
   const [folder, setFolder] = useState('')
 
   useEffect(() => {
