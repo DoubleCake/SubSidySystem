@@ -114,10 +114,10 @@ export default function ExcelTemplatePage() {
             alternatives: [],
             auto_confirm: false,
           })),
-          recommended_templates: (raw.recommended_templates || []).map(t => ({ ...t, use_count: 0 })),
+          recommended_templates: [],
           system_fields: [],
-          auto_confirm_count: raw.auto_confirm_count || 0,
-          unrecognized_count: raw.unrecognized_count || 0,
+          auto_confirm_count: 0,
+          unrecognized_count: raw.unmatched_count || 0,
         }
         setDetectResult(result)
         setMappings(result.columns.map(c => ({
@@ -308,28 +308,7 @@ export default function ExcelTemplatePage() {
                   </div>
                 </div>
 
-                {/* 推荐模板 */}
-                {detectResult.recommended_templates.length > 0 && (
-                  <div className="bg-amber-50 border border-amber-100 rounded-card p-3 mb-3">
-                    <p className="text-xs text-amber-700 font-semibold mb-2">找到相似模板，可直接复用：</p>
-                    <div className="flex gap-2 flex-wrap">
-                      {detectResult.recommended_templates.map(t => (
-                        <button key={t.id}
-                          onClick={async () => {
-                            const tmpl = await api.getExcelTemplate(t.id)
-                            setMappings(tmpl.column_mapping.map(m => ({
-                              excel_column: m.excel_column, system_field: m.system_field,
-                              confidence: 1, auto_confirm: true,
-                            })))
-                            show(`✓ 已应用模板「${tmpl.template_name}」`)
-                          }}
-                          className="text-xs bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded-btn hover:bg-amber-50">
-                          {t.template_name} <span className="text-amber-400 ml-1">匹配度 {Math.round(t.match_rate*100)}%</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {/* 推荐模板：后端 detectColumns 不返回 recommended_templates，该功能已停用 */}
               </div>
 
               {/* 列映射配置表格 */}

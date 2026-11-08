@@ -252,6 +252,7 @@ export const getExcelTemplate = (id: number) =>
 
 // 后端 excel-templates:detectColumns 实际返回 { business_type, detected_count, unmatched_count, mapping, unmatched }
 // 其中 mapping 为「Excel 列名 → { 系统字段, 置信度(0-100) }」
+// 注：recommended_templates / match_rate / auto_confirm_count 等后端并不返回，模板推荐功能已停用
 export const detectExcelColumns = (columns: string[], businessType: string, sampleRows: Record<string, unknown>[]) =>
   req<{
     business_type?: string
@@ -259,8 +260,6 @@ export const detectExcelColumns = (columns: string[], businessType: string, samp
     unmatched_count?: number
     mapping?: Record<string, { column: string; confidence: number }>
     unmatched?: string[]
-    recommended_templates?: Array<{ id: number; template_name: string; match_rate: number }>
-    auto_confirm_count?: number; unrecognized_count?: number
   }>('excel-templates:detectColumns', { columns, business_type: businessType, sample_rows: sampleRows })
 
 export const saveExcelTemplate = (data: Record<string, unknown>) =>

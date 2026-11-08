@@ -554,7 +554,7 @@ export default function FarmersTab(props: FarmersTabProps) {
         confidence: info.confidence ?? 0,
         alternatives: [],
       }))
-      return { columns: cols, recommended_templates: raw.recommended_templates || [] }
+      return { columns: cols, recommended_templates: [] }
     } catch {
       return { columns: columns.map(c => ({ excel_column: c, suggested_field: null, confidence: 0, alternatives: [] as Array<{ field: string; confidence: number }> })), recommended_templates: [] as Array<{ field: string; confidence: number }> }
     }

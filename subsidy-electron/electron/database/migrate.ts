@@ -76,6 +76,7 @@ export function runMigrations(): void {
       count_toward_area SMALLINT NOT NULL DEFAULT 1,
       is_deleted SMALLINT NOT NULL DEFAULT 0,
       prev_year_type_id INTEGER REFERENCES subsidy_type(id),
+      check_config TEXT,
       created_at DATETIME DEFAULT (datetime('now','localtime'))
     );
 
@@ -821,6 +822,18 @@ export function runMigrations(): void {
     }
   } catch (e) {
     console.error('[Migrate] Failed to ensure prev_year_type_id column:', e)
+  }
+
+  // ── 确保 subsidy_type.check_config 列存在（预检方案配置，JSON 文本）──
+  try {
+    const cols = db.allRaw<{ name: string }>("PRAGMA table_info('subsidy_type')")
+    const hasCheckConfig = cols.some(c => c.name === 'check_config')
+    if (!hasCheckConfig) {
+      db.exec("ALTER TABLE subsidy_type ADD COLUMN check_config TEXT")
+      console.log('[Migrate] Added subsidy_type.check_config column')
+    }
+  } catch (e) {
+    console.error('[Migrate] Failed to ensure check_config column:', e)
   }
 
   // ── land_trust 表结构升级：支持村/村组主体 + 补贴享受类型 + 结束年度 ──

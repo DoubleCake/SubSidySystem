@@ -553,15 +553,34 @@ export function registerSubsidyHandlers(): void {
   })
 
   // ── 检查配置 ──
+  // 存于 subsidy_type.check_config（JSON 文本）。未配置时返回空配置，由前端套用默认值。
   ipcMain.handle('subsidies:getCheckConfig', (_e, typeId: number) => {
     try {
-      return success({ check_config: { checks: {} }, raw: null })
+      const raw = db().getRaw<{ check_config: string | null }>(
+        'SELECT check_config FROM subsidy_type WHERE id = ?', typeId
+      )
+      if (!raw?.check_config) return success({ check_config: { checks: {} }, raw: null })
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(raw.check_config)
+      } catch {
+        // 历史脏数据：按未配置处理，不阻塞编辑
+        return success({ check_config: { checks: {} }, raw: raw.check_config })
+      }
+      return success({ check_config: parsed, raw: raw.check_config })
     } catch (e) { return errorResponse(String(e)) }
   })
 
-  ipcMain.handle('subsidies:updateCheckConfig', (_e, payload: any) => {
+  ipcMain.handle('subsidies:updateCheckConfig', (_e, payload: { typeId: number; config: unknown }) => {
     try {
-      return success(null)
+      const typeId = Number(payload?.typeId)
+      if (!typeId) return errorResponse('缺少类型ID')
+      const text = payload?.config == null ? null : JSON.stringify(payload.config)
+      db().runRaw(
+        'UPDATE subsidy_type SET check_config = ? WHERE id = ?',
+        text, typeId
+      )
+      return success(null, '预检方案已保存')
     } catch (e) { return errorResponse(String(e)) }
   })
 
@@ -674,10 +693,13 @@ export function registerSubsidyHandlers(): void {
       if (dateTo) { where += ' AND sp.payment_date <= ?'; vals.push(dateTo) }
 
       // 排序
+      // 注意：subsidy_payment 表没有 apply_amount 列，金额只在 amount 中；
+      // apply_amount 与 actual_amount 都映射到 sp.amount，避免点表头排序时 SQL 报错
       const PAY_SORT_MAP: Record<string, string> = {
-        apply_area: 'sp.apply_area', contract_area: 'sp.contract_area',
+        apply_area: 'sp.apply_area', apply_area_no_calc: 'sp.apply_area_no_calc',
+        contract_area: 'sp.contract_area',
         trust_area: 'sp.trust_area', no_subsidy_area: 'sp.no_subsidy_area',
-        apply_amount: 'sp.apply_amount', actual_amount: 'sp.amount',
+        apply_amount: 'sp.amount', actual_amount: 'sp.amount',
       }
       const sortField = params.sort_field as string || ''
       const sortDir = (params.sort_dir as string || 'desc') === 'asc' ? 'ASC' : 'DESC'

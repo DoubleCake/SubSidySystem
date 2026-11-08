@@ -381,7 +381,7 @@ export default function SubsidyListBase({
         confidence: info.confidence ?? 0,
         alternatives: [],
       }))
-      return { columns: cols, recommended_templates: raw.recommended_templates || [] }
+      return { columns: cols, recommended_templates: [] }
     } catch { return { columns: columns.map(col => ({ excel_column: col, suggested_field: null, confidence: 0, alternatives: [] })) } }
   }
 

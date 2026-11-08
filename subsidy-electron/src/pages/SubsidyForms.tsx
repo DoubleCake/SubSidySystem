@@ -66,7 +66,18 @@ export default function SubsidyForms({
     if (editing) {
       setLoadingConfig(true)
       getCheckConfig(editing.id)
-        .then(res => setCheckConfig(res.check_config))
+        .then(res => {
+          // 已存配置可能只含部分字段（如老数据或从未保存过），与默认值逐层合并，避免 area_mode 等丢失
+          const saved = res.check_config as Partial<CheckConfig> | null | undefined
+          const base = genDefaultConfig(form.season ?? '耕地地力保护', form.category, form.calc_mode ?? 'fixed')
+          setCheckConfig({
+            ...base,
+            ...(saved ?? {}),
+            checks: { ...base.checks, ...(saved?.checks ?? {}) },
+            area_mode: saved?.area_mode ?? base.area_mode,
+            check_trust_deduction: saved?.check_trust_deduction ?? base.check_trust_deduction,
+          })
+        })
         .catch(() => setCheckConfig(DEFAULT_CHECK_CONFIG))
         .finally(() => setLoadingConfig(false))
     } else {
