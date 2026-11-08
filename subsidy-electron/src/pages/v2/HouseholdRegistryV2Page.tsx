@@ -14,6 +14,7 @@ import { EVENT_TYPE_CFG } from '../FarmerConstants'
 import { useHouseholdAnomalyTab } from '../../hooks/useUiSettings'
 import { Card, Chip, FieldRow, ListRow, FARMER_STATUS_LABEL, HH_STATUS_LABEL, PAY_STATUS_LABEL, money } from './shared'
 import HouseholdActions, { AddMemberButton, MemberRowActions } from './HouseholdActions'
+import { CreateFarmerButton, FarmerActions } from './FarmerActions'
 import type { FarmerOut, FarmerDetail, HH, HHDetail, HHEvent, SnapshotAtResponse, VillageGroup } from '../../types'
 
 type SideTab = 'farmers' | 'households' | 'large' | 'villages'
@@ -278,6 +279,14 @@ export default function HouseholdRegistryV2Page() {
 
 
   // 重新加载当前家庭户 / 农户详情
+
+  const reloadFarmer = useCallback(() => {
+    if (selectedId == null) return
+    api.getFarmer(selectedId).then(f => {
+      setFarmer(f)
+      if (f.household_id) api.getHouseholdDetail(f.household_id).then(setHousehold).catch(() => {})
+    }).catch(() => {})
+  }, [selectedId])
   const reloadHousehold = useCallback(() => {
     if (selectedHhId == null) return
     api.getHouseholdDetail(selectedHhId).then(setHousehold).catch(() => {})
@@ -323,8 +332,7 @@ export default function HouseholdRegistryV2Page() {
             className="h-[30px] px-3 border border-border rounded-btn bg-white text-[12px] text-[#5A5A4F] hover:bg-warm/30 transition-colors">
             导入户籍
           </button>
-          <button disabled
-            className="h-[30px] px-3 rounded-btn bg-primary text-[#F7F3E7] text-[12px] opacity-70 cursor-default">新增农户</button>
+          <CreateFarmerButton villages={villages} onCreated={loadList} />
         </div>
       </div>
 
@@ -466,7 +474,7 @@ export default function HouseholdRegistryV2Page() {
             <LargeFarmerPanel farmer={largeList.find(l => l.id === selectedLargeId) || null} trusts={largeTrusts} loading={loadingTrusts} />
           )}
           {sideTab === 'villages' && <VillagePanel detail={villageDetail} loading={loadingVillage} />}
-          {sideTab === 'farmers' && <FarmerDetailPanel farmer={farmer} household={household} loading={loadingDetail} />}
+          {sideTab === 'farmers' && <FarmerDetailPanel farmer={farmer} household={household} loading={loadingDetail} onChanged={reloadFarmer} />}
         </div>
       </div>
     </div>
@@ -474,7 +482,7 @@ export default function HouseholdRegistryV2Page() {
 }
 
 /** 农户详情面板 */
-function FarmerDetailPanel({ farmer, household, loading }: { farmer: FarmerDetail | null; household: HHDetail | null; loading: boolean }) {
+function FarmerDetailPanel({ farmer, household, loading, onChanged }: { farmer: FarmerDetail | null; household: HHDetail | null; loading: boolean; onChanged: () => void }) {
   if (!farmer) {
     return <div className="py-24 text-center text-[11.5px] text-text-muted/60">{loading ? '加载中…' : '请从左侧选择一名农户'}</div>
   }
@@ -524,10 +532,7 @@ function FarmerDetailPanel({ farmer, household, loading }: { farmer: FarmerDetai
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button disabled className="h-7 px-2.5 border border-border rounded-btn bg-white text-[11px] text-[#5A5A4F] opacity-70 cursor-default">编辑</button>
-          <span className="h-7 px-2.5 border border-[#E6C288] rounded-btn bg-[#E6C288] text-[11px] text-[#5A4215] flex items-center">属性导入</span>
-        </div>
+        <FarmerActions farmer={farmer} onChanged={onChanged} />
       </div>
 
       <div className="flex items-center px-4 bg-gradient-to-r from-[#0F3D2E] via-[#1A5C46] to-[#2C7A63] text-[#F7F3E7] shadow-[0_6px_16px_rgba(15,61,46,.14)] shrink-0" style={{ height: 58 }}>
