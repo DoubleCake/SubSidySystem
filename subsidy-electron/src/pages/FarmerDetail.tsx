@@ -154,6 +154,7 @@ export interface FarmerHouseholdDetailProps {
     bank_card: string
     bank_name: string
     farmer_status: string
+    restricted_identity: string
     event_date: string
     village_id: number
     group_no: number
@@ -170,6 +171,7 @@ export interface FarmerHouseholdDetailProps {
     bank_card: string
     bank_name: string
     farmer_status: string
+    restricted_identity: string
     event_date: string
     village_id: number
     group_no: number

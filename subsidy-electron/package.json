@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "node -e \"delete process.env.ELECTRON_RUN_AS_NODE; require('child_process').execSync('electron-vite dev',{stdio:'inherit'})\"",
     "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "preview": "electron-vite preview",
     "pack": "electron-builder --dir",
     "dist": "electron-vite build && electron-builder",

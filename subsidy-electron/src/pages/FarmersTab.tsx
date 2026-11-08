@@ -546,7 +546,10 @@ export default function FarmersTab(props: FarmersTabProps) {
 
   const detectExcelColumns = async (columns: string[], sampleRows: Record<string, unknown>[]) => {
     try {
-      const raw = await api.detectExcelColumns(columns, 'FARMER', sampleRows)
+      const raw = await api.detectExcelColumns(columns, 'FARMER', sampleRows) as unknown as {
+        mapping?: Record<string, { column: string; confidence?: number }>
+        recommended_templates?: { id: number; template_name: string; match_rate: number }[]
+      }
       const mapping = raw.mapping || {}
       const cols = Object.entries(mapping).map(([colName, info]: [string, any]) => ({
         excel_column: colName,
@@ -664,9 +667,6 @@ export default function FarmersTab(props: FarmersTabProps) {
               selectedFarmer={selectedFarmer}
               showAppSummary={true}
               appSummary={selectedFarmerHousehold?.app_summary?.filter(a => a.farmer_id === selectedFarmer.id)}
-              groups={groups}
-              onUpdate={() => openFarmer(selectedFarmer!.id)}
-              onNavigateToProject={(typeId, farmerName) => navigate(`/projects?subsidy_type_id=${typeId}&farmer_name=${encodeURIComponent(farmerName)}`)}
             />
             {selectedFarmerHousehold && (
               <div className="flex gap-4 flex-1 min-h-0">

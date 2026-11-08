@@ -796,7 +796,7 @@ export function ConfirmedAreaImport({ open, confirmedAreaRows, setConfirmedAreaR
           )}
           {confirmedAreaImportResult && (
             <button onClick={async () => {
-              const resp = await api.exportConfirmedAreaDiff()
+              const resp = await api.exportConfirmedAreaDiff() as unknown as { blob: () => Promise<Blob> }
               const blob = await resp.blob()
               const url = URL.createObjectURL(blob)
               const a = document.createElement('a'); a.href = url; a.download = '确权面积对比.xlsx'; a.click()

@@ -193,7 +193,7 @@ export default function HouseholdsTab(props: HouseholdsTabProps) {
   }, [areaYear]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 打开户详情 ──
-  const openDetail = async (id: number, skipUrlUpdate = false, initialTab = 'members') => {
+  const openDetail = async (id: number, skipUrlUpdate = false, initialTab: 'members' | 'subsidy' = 'members') => {
     setAreaYear(yearFilter)
     const d = await api.getHouseholdDetail(id, yearFilter)
     setDetail(d); setDetailTab(initialTab); setEvents([])
