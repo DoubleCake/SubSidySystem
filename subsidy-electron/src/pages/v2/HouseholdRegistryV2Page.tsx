@@ -894,3 +894,302 @@ function HouseholdDetailPanel({ detail, loading, onChanged }: { detail: HHDetail
     </>
   )
 }
+
+/** 历史快照卡片 */
+function SnapshotCard({ householdId }: { householdId: number | null }) {
+  const [events, setEvents] = useState<HHEvent[]>([])
+  const [snapshot, setSnapshot] = useState<SnapshotAtResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    setSnapshot(null)
+    if (!householdId) { setEvents([]); return }
+    let cancelled = false
+    api.getHouseholdEvents(householdId)
+      .then(ev => { if (!cancelled) setEvents(ev || []) })
+      .catch(() => { if (!cancelled) setEvents([]) })
+    return () => { cancelled = true }
+  }, [householdId])
+
+  const openSnapshot = async (eventId: number) => {
+    if (!householdId) return
+    setLoading(true)
+    try { setSnapshot(await api.getHouseholdSnapshotByEvent(householdId, eventId)) }
+    catch { setSnapshot(null) }
+    finally { setLoading(false) }
+  }
+
+  const steps = useMemo(
+    () => [...events].filter(e => e.event_date).sort((a, b) => (a.event_date! < b.event_date! ? -1 : 1)),
+    [events]
+  )
+  const idx = snapshot ? steps.findIndex(e => e.event_date === snapshot.target_date) : -1
+  const stepTo = (i: number) => { const ev = steps[i]; if (ev) openSnapshot(ev.id) }
+
+  return (
+    <div className="border border-[#F0EBE1] rounded-card px-2.5 py-2">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[11.5px] font-semibold">历史快照</span>
+        <span className="text-[10px] text-[#8C877A]">{events.length} 条</span>
+      </div>
+      {events.length === 0 && <div className="py-4 text-center text-[10.5px] text-text-muted/60">暂无变更记录</div>}
+      <div className="flex flex-col overflow-y-auto" style={{ maxHeight: 180 }}>
+        {events.map(ev => {
+          const active = snapshot?.target_date && ev.event_date === snapshot.target_date
+          const cfg = EVENT_TYPE_CFG[ev.event_type] || EVENT_TYPE_CFG.REMARK
+          return (
+            <div key={ev.id} onClick={() => openSnapshot(ev.id)}
+              className={`cursor-pointer border-b border-[#F2EDE3] py-1.5 px-1 rounded-[3px] transition-colors ${active ? 'bg-[#F3F7F4]' : 'hover:bg-[#F7FAF8]'}`}>
+              <div className="flex items-center gap-1.5">
+                <span className={`text-[9px] rounded-[2px] px-1 ${cfg.color}`}>{cfg.label}</span>
+                <span className="text-[10px] text-[#8C877A] font-mono">{ev.event_date || `${ev.event_year} 年`}</span>
+                <span className="ml-auto text-[9.5px] text-primary">快照 →</span>
+              </div>
+              <div className="text-[10.5px] mt-0.5 truncate" title={ev.description}>{ev.description || '（无说明）'}</div>
+            </div>
+          )
+        })}
+      </div>
+      {loading && <div className="py-1 text-[10px] text-text-muted">快照加载中…</div>}
+      {snapshot && snapshot.snapshot && (
+        <div className="mt-1.5 pt-1.5 border-t border-[#F2EDE3] text-[10.5px]">
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-semibold text-[#2C6B52]">{snapshot.target_date} 快照</span>
+            <button onClick={() => setSnapshot(null)} className="text-[10px] text-text-muted hover:text-primary">退出</button>
+          </div>
+          <div className="flex justify-between"><span className="text-[#8C877A]">参考面积</span><span className="font-mono">{Number(snapshot.snapshot.contract_area || 0).toFixed(2)} 亩</span></div>
+          <div className="flex justify-between"><span className="text-[#8C877A]">成员</span><span>{snapshot.snapshot.members?.length ?? 0} 人</span></div>
+          <div className="flex justify-between"><span className="text-[#8C877A]">补贴记录</span><span>{snapshot.snapshot.app_summary?.length ?? 0} 条</span></div>
+          {(snapshot.snapshot.members || []).slice(0, 4).map(m => (
+            <div key={m.id} className="flex justify-between text-[10px] pl-2">
+              <span className="truncate">{m.real_name}{m.is_head === 1 ? '（户主）' : ''}</span>
+              <span className="text-text-muted">{FARMER_STATUS_LABEL[m.farmer_status] || '—'}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {steps.length > 1 && (
+        <div className="flex items-center gap-1.5 pt-1.5 mt-1.5 border-t border-[#F2EDE3]">
+          <button onClick={() => stepTo(idx - 1)} disabled={idx <= 0}
+            className="h-6 px-1.5 border border-border rounded-[3px] bg-white text-[10px] text-[#5A5A4F] disabled:opacity-40">‹ 上一时点</button>
+          <button onClick={() => stepTo(idx + 1)} disabled={idx < 0 || idx >= steps.length - 1}
+            className="h-6 px-1.5 border border-border rounded-[3px] bg-white text-[10px] text-[#5A5A4F] disabled:opacity-40">下一时点 ›</button>
+          <span className="ml-auto text-[9.5px] text-[#8C877A]">{idx >= 0 ? `${idx + 1} / ${steps.length}` : '—'}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** 大户详情面板 */
+function LargeFarmerPanel({ farmer, trusts, loading }: { farmer: LargeFarmer | null; trusts: LargeFarmerTrust[]; loading: boolean }) {
+  if (!farmer) {
+    return <div className="py-24 text-center text-[11.5px] text-text-muted/60">{loading ? '加载中…' : '请从左侧选择一名大户'}</div>
+  }
+  const trustTotal = trusts.reduce((s, t) => s + Number(t.area || 0), 0)
+  return (
+    <>
+      <div className="flex items-start justify-between px-4 py-3 border-b border-[#F2EDE3]">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-[38px] h-[38px] rounded-card bg-primary text-[#E6C288] flex items-center justify-center text-[14px] font-bold shrink-0">
+            {farmer.operator_name?.slice(0, 1)}
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h2 className="text-[18px] font-bold text-primary m-0 leading-tight">{farmer.operator_name}</h2>
+              <span className="text-[10px] bg-[#F6EEDC] text-[#8A6620] rounded-full px-1.5 py-[1px]">{OPERATOR_LABEL[farmer.operator_type] || farmer.operator_type_label}</span>
+            </div>
+            <div className="text-[11px] text-[#8C877A] mt-[3px] truncate">
+              <span className="font-mono">{farmer.id_card || '—'}</span>
+              <span className="mx-1.5">·</span>
+              <span className="font-mono">{farmer.phone || '—'}</span>
+              <span className="mx-1.5">·</span>
+              {farmer.village_name}{farmer.group_no ? ` ${farmer.group_no} 组` : ''}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="h-7 px-2.5 border border-[#E6C288] rounded-btn bg-[#E6C288] text-[11px] text-[#5A4215] flex items-center">只读预览</span>
+        </div>
+      </div>
+
+      <div className="flex items-center px-4 bg-gradient-to-r from-[#0F3D2E] via-[#1A5C46] to-[#2C7A63] text-[#F7F3E7]" style={{ height: 58 }}>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="min-w-0">
+            <div className="text-[11.5px] font-semibold">经营规模</div>
+            <div className="text-[9.5px] text-white/55">按当前流转台账汇总</div>
+          </div>
+        </div>
+        <div className="flex items-center ml-auto">
+          <div className="px-4 border-l border-white/15"><div className="text-[9.5px] text-white/55">经营面积</div><div className="text-[15px] font-bold text-[#E6C288] font-mono">{Number(farmer.total_managed_area || 0).toFixed(2)} 亩</div></div>
+          <div className="px-4 border-l border-white/15"><div className="text-[9.5px] text-white/55">自有承包</div><div className="text-[15px] font-bold font-mono">{Number(farmer.own_contract_area || 0).toFixed(2)} 亩</div></div>
+          <div className="px-4 border-l border-white/15"><div className="text-[9.5px] text-white/55">流入</div><div className="text-[15px] font-bold font-mono">{Number(farmer.trust_in_area || 0).toFixed(2)} 亩</div></div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 border-b border-[#F2EDE3]">
+        {[
+          ['身份证号', farmer.id_card || '—'],
+          ['手机号', farmer.phone || '—'],
+          ['所在村组', `${farmer.village_name}${farmer.group_no ? ` ${farmer.group_no} 组` : ''}`],
+          ['地址', farmer.address || '—'],
+        ].map(([k, v], i) => (
+          <div key={k} className={`px-4 py-2 ${i < 3 ? 'border-r border-[#F2EDE3]' : ''}`}>
+            <div className="text-[9.5px] text-[#9A9588]">{k}</div>
+            <div className="text-[11.5px] text-[#5A5A4F] mt-px truncate">{v}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-[minmax(0,1fr)_270px] gap-3 px-3 py-2.5">
+        <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
+          <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#F2EDE3]">
+            <span className="text-[11.5px] font-semibold">流转明细 <span className="text-[10px] text-[#8C877A] font-normal">{trusts.length}</span></span>
+            <span className="text-[10px] text-[#8C877A]">合计 <b className="font-mono text-primary">{trustTotal.toFixed(2)} 亩</b></span>
+          </div>
+          <table className="w-full border-collapse text-[11px]">
+            <thead>
+              <tr className="bg-[#F6F1E7] text-[#8C877A] text-[10px] text-left h-[26px]">
+                <th className="font-medium px-2.5">转出户</th>
+                <th className="font-medium px-1.5">类型</th>
+                <th className="font-medium px-1.5 text-right">面积</th>
+                <th className="font-medium px-2.5">起止</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trusts.map(t => (
+                <tr key={t.id} className="border-t border-[#F2EDE3] h-[34px] hover:bg-[#F7FAF8] transition-colors">
+                  <td className="px-2.5">
+                    <b>{t.owner_household_name}</b>
+                    <span className="ml-1 text-[9.5px] text-[#8C877A] font-mono">{t.owner_household_code}</span>
+                  </td>
+                  <td className="px-1.5 text-[#6B6B60]">{t.trust_type_label}</td>
+                  <td className="px-1.5 text-right font-mono">{Number(t.area || 0).toFixed(2)}</td>
+                  <td className="px-2.5 text-[10px] text-[#8C877A]">
+                    {t.trust_year} 年{t.start_date ? ` · ${t.start_date.slice(0, 10)}` : ''}
+                  </td>
+                </tr>
+              ))}
+              {trusts.length === 0 && <tr><td colSpan={4} className="py-8 text-center text-[11px] text-text-muted/60">{loading ? '加载中…' : '暂无流转记录'}</td></tr>}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex flex-col gap-2.5 min-w-0">
+          <Card title="经营构成">
+            <div className="flex flex-col gap-1 text-[10.5px]">
+              <FieldRow label="自有承包" value={`${Number(farmer.own_contract_area || 0).toFixed(2)} 亩`} />
+              <FieldRow label="流入面积" value={`${Number(farmer.trust_in_area || 0).toFixed(2)} 亩`} />
+              <FieldRow label="流转笔数" value={`${trusts.length} 笔`} />
+              <FieldRow label="合计" value={`${trustTotal.toFixed(2)} 亩`} />
+            </div>
+          </Card>
+        </div>
+      </div>
+    </>
+  )
+}
+
+/** 村组详情面板（村集体作为申报主体） */
+function VillagePanel({ detail, loading }: { detail: VillageDetail | null; loading: boolean }) {
+  if (!detail) {
+    return <div className="py-24 text-center text-[11.5px] text-text-muted/60">{loading ? '加载中…' : '请从左侧选择一个村'}</div>
+  }
+  const groups = detail.groups || []
+  const contacts = detail.contacts || []
+  return (
+    <>
+      <div className="flex items-start justify-between px-4 py-3 border-b border-[#F2EDE3]">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-[38px] h-[38px] rounded-card bg-primary text-[#E6C288] flex items-center justify-center text-[14px] font-bold shrink-0">
+            {detail.village_name?.slice(0, 1)}
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h2 className="text-[18px] font-bold text-primary m-0 leading-tight">{detail.village_name}</h2>
+              <span className="text-[10px] bg-[#EDF3EF] text-[#2C6B52] rounded-[3px] px-1.5 py-[1px]">村集体主体</span>
+            </div>
+            <div className="text-[11px] text-[#8C877A] mt-[3px] truncate">
+              {detail.leader_name ? `负责人 ${detail.leader_name}` : '暂无在册负责人'}
+              {detail.leader_phone ? <><span className="mx-1.5">·</span><span className="font-mono">{detail.leader_phone}</span></> : null}
+              <span className="mx-1.5">·</span>
+              {groups.length} 个组
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="h-7 px-2.5 border border-[#E6C288] rounded-btn bg-[#E6C288] text-[11px] text-[#5A4215] flex items-center">只读预览</span>
+        </div>
+      </div>
+
+      <div className="flex items-center px-4 bg-gradient-to-r from-[#0F3D2E] via-[#1A5C46] to-[#2C7A63] text-[#F7F3E7]" style={{ height: 58 }}>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="min-w-0">
+            <div className="text-[11.5px] font-semibold">村集体概况</div>
+            <div className="text-[9.5px] text-white/55">村集体可作为补贴申报主体</div>
+          </div>
+        </div>
+        <div className="flex items-center ml-auto">
+          <div className="px-4 border-l border-white/15"><div className="text-[9.5px] text-white/55">村民组</div><div className="text-[15px] font-bold text-[#E6C288] font-mono">{groups.length} 个</div></div>
+          <div className="px-4 border-l border-white/15"><div className="text-[9.5px] text-white/55">历任负责人</div><div className="text-[15px] font-bold font-mono">{contacts.length} 人</div></div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-[minmax(0,1fr)_270px] gap-3 px-3 py-2.5">
+        <div className="flex flex-col gap-2.5 min-w-0">
+          <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
+            <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#F2EDE3]">
+              <span className="text-[11.5px] font-semibold">村民组 <span className="text-[10px] text-[#8C877A] font-normal">{groups.length}</span></span>
+            </div>
+            <table className="w-full border-collapse text-[11px]">
+              <thead>
+                <tr className="bg-[#F6F1E7] text-[#8C877A] text-[10px] text-left h-[26px]">
+                  <th className="font-medium px-2.5">组号</th>
+                  <th className="font-medium px-2.5">组长</th>
+                </tr>
+              </thead>
+              <tbody>
+                {groups.map(g => (
+                  <tr key={g.id} className="border-t border-[#F2EDE3] h-[30px] hover:bg-[#F7FAF8] transition-colors">
+                    <td className="px-2.5 font-semibold">{g.group_no} 组</td>
+                    <td className="px-2.5 text-[#6B6B60]">{g.leader_name || '—'}</td>
+                  </tr>
+                ))}
+                {groups.length === 0 && <tr><td colSpan={2} className="py-8 text-center text-[11px] text-text-muted/60">暂无村民组</td></tr>}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="border border-[#F0EBE1] rounded-card overflow-hidden">
+            <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#F2EDE3]">
+              <span className="text-[11.5px] font-semibold">负责人记录 <span className="text-[10px] text-[#8C877A] font-normal">{contacts.length}</span></span>
+            </div>
+            <table className="w-full border-collapse text-[11px]">
+              <tbody>
+                {contacts.map(c => (
+                  <tr key={c.id} className="border-t border-[#F2EDE3] h-[30px] hover:bg-[#F7FAF8] transition-colors">
+                    <td className="px-2.5 font-semibold">{c.leader_name}</td>
+                    <td className="px-1.5 font-mono text-[#8C877A]">{c.leader_phone}</td>
+                    <td className="px-2.5 text-[10px] text-[#8C877A] text-right">{c.start_year} — {c.end_year ?? '至今'}</td>
+                  </tr>
+                ))}
+                {contacts.length === 0 && <tr><td colSpan={3} className="py-8 text-center text-[11px] text-text-muted/60">暂无负责人记录</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2.5 min-w-0">
+          <Card title="村集体信息">
+            <div className="flex flex-col gap-1 text-[10.5px]">
+              <FieldRow label="村名" value={detail.village_name} />
+              <FieldRow label="负责人" value={detail.leader_name || '—'} />
+              <FieldRow label="联系电话" value={detail.leader_phone || '—'} />
+              <FieldRow label="村民组" value={`${groups.length} 个`} />
+            </div>
+          </Card>
+        </div>
+      </div>
+    </>
+  )
+}
