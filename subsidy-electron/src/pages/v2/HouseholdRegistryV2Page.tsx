@@ -20,6 +20,7 @@ import FarmerDetailPanel from './FarmerDetailPanel'
 import HouseholdDetailPanel from './HouseholdDetailPanel'
 import LargeFarmerPanel from './LargeFarmerPanel'
 import VillagePanel from './VillagePanel'
+import { Ico } from './Icons'
 import { OPERATOR_LABEL } from './types'
 import type { LargeFarmer, LargeFarmerTrust, VillageDetail, VillageRow } from './types'
 import type { FarmerOut, FarmerDetail, HH, HHDetail, HHEvent, SnapshotAtResponse, VillageGroup } from '../../types'
@@ -301,15 +302,20 @@ export default function HouseholdRegistryV2Page() {
       {/* 页头 */}
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-[20px] font-bold text-primary leading-tight">主体管理</h1>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center justify-center w-[26px] h-[26px] rounded-[8px] bg-gradient-to-br from-[#1A5C46] to-[#2C7A63] text-[#E6C288]">
+              <Ico name="farmers" size={15} />
+            </span>
+            <h1 className="text-[20px] font-bold text-primary leading-tight">主体管理</h1>
+          </div>
           <div className="text-[11px] text-[#8C877A] mt-1">农户、家庭户、大户与村组统一管理，左侧选择对象，右侧查看档案与关联信息</div>
         </div>
         <div className="flex items-center gap-1.5">
           <button onClick={() => navigate('/settings/farmer-attribute-import')}
-            className="h-[30px] px-3 border border-border rounded-btn bg-white text-[12px] text-[#5A5A4F] hover:bg-warm/30 transition-colors">
+            className="h-[30px] px-3 border border-border rounded-btn bg-white text-[12px] text-[#5A5A4F] hover:bg-warm/30 transition-colors inline-flex items-center gap-1.5">
+            <Ico name="upload" size={13} />
             导入户籍
           </button>
-          <CreateFarmerButton villages={villages} onCreated={loadList} />
         </div>
       </div>
 
@@ -320,13 +326,14 @@ export default function HouseholdRegistryV2Page() {
           {/* 农户 / 家庭户 / 大户 / 村组 */}
           <div className="flex items-center gap-3.5 px-3 h-[34px] border-b border-border">
             {([
-              ['farmers', '农户', total],
-              ['households', '家庭户', householdTotal],
-              ['large', '大户', null],
-              ['villages', '村组', null],
-            ] as const).map(([id, label, count]) => (
+              ['farmers', '农户', total, 'person'],
+              ['households', '家庭户', householdTotal, 'household'],
+              ['large', '大户', null, 'farmers'],
+              ['villages', '村组', null, 'village'],
+            ] as const).map(([id, label, count, icon]) => (
               <button key={id} onClick={() => setSideTab(id as SideTab)}
-                className={`h-[34px] flex items-center gap-1 border-b-2 text-[12px] transition-colors ${sideTab === id ? 'border-primary text-primary font-bold' : 'border-transparent text-[#6B6B60] hover:text-text-primary'}`}>
+                className={`h-[34px] flex items-center gap-1.5 border-b-2 text-[12px] transition-colors ${sideTab === id ? 'border-primary text-primary font-bold' : 'border-transparent text-[#6B6B60] hover:text-text-primary'}`}>
+                <Ico name={icon} size={12} />
                 {label}
                 {count != null && <span className={`text-[10px] font-normal ${sideTab === id ? 'text-[#8C877A]' : 'text-[#9A9588]'}`}>{count}</span>}
               </button>

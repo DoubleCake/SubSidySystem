@@ -4,7 +4,9 @@
  * 结构：档案头 → 经营规模条 → 主体信息 + 经营数据 → 流转明细表 / 右侧信息卡
  */
 import { useEffect, useState } from 'react'
+
 import { Card, FieldRow } from './shared'
+import { Ico, ThIco } from './Icons'
 import { OPERATOR_LABEL } from './types'
 import type { LargeFarmer, LargeFarmerTrust } from './types'
 
@@ -72,13 +74,13 @@ export default function LargeFarmerPanel({ farmer, trusts, loading }: Props) {
           {folder ? (
             <>
               <button onClick={() => window.electronAPI.invoke('shell:openFolder', folder)}
-                className="h-7 px-2.5 rounded-btn bg-[#E3EEF2] border border-[#C9DCE2] text-[11px] text-[#2E6478] font-medium hover:bg-[#D3E4EA] transition-colors">📂 打开资料</button>
+                className="h-7 px-2.5 rounded-btn bg-[#E3EEF2] border border-[#C9DCE2] text-[11px] text-[#2E6478] font-medium hover:bg-[#D3E4EA] transition-colors inline-flex items-center gap-1"><Ico name="link" size={12} />打开资料</button>
               <button onClick={pickFolder}
                 className="h-7 px-2.5 rounded-btn bg-white border border-border text-[11px] text-[#5A5A4F] hover:bg-warm/30 transition-colors">更换</button>
             </>
           ) : (
             <button onClick={pickFolder}
-              className="h-7 px-2.5 rounded-btn bg-[#E3EEF2] border border-[#C9DCE2] text-[11px] text-[#2E6478] font-medium hover:bg-[#D3E4EA] transition-colors">＋ 绑定资料文件夹</button>
+              className="h-7 px-2.5 rounded-btn bg-[#E3EEF2] border border-[#C9DCE2] text-[11px] text-[#2E6478] font-medium hover:bg-[#D3E4EA] transition-colors inline-flex items-center gap-1"><Ico name="create" size={12} />绑定资料文件夹</button>
           )}
         </div>
       </div>
@@ -132,10 +134,10 @@ export default function LargeFarmerPanel({ farmer, trusts, loading }: Props) {
             <table className="w-full border-collapse text-[11px]">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#EFE7D8] text-[#6B6B60] text-[10px] text-left h-[28px] border-b border-[#DDD3C2]">
-                  <th className="font-semibold px-2.5">与谁流转</th>
-                  <th className="font-semibold px-1.5">类型</th>
-                  <th className="font-semibold px-1.5 text-right">面积</th>
-                  <th className="font-semibold px-2.5">流转时限</th>
+                  <th className="font-semibold px-2.5"><ThIco name="land" /><ThIco name="land" />与谁流转</th>
+                  <th className="font-semibold px-1.5"><ThIco name="filter" /><ThIco name="filter" />类型</th>
+                  <th className="font-semibold px-1.5 text-right"><ThIco name="area" /><ThIco name="area" />面积</th>
+                  <th className="font-semibold px-2.5"><ThIco name="calendar" /><ThIco name="calendar" />流转时限</th>
                 </tr>
               </thead>
               <tbody>
@@ -172,7 +174,7 @@ export default function LargeFarmerPanel({ farmer, trusts, loading }: Props) {
 
         {/* 右栏 */}
         <div className="flex flex-col gap-2.5 min-w-0">
-          <Card title="经营构成">
+          <Card title="经营构成" icon="chart">
             <div className="flex flex-col gap-1 text-[10.5px]">
               <FieldRow label="流转面积" value={`${trustArea.toFixed(2)} 亩`} />
               <FieldRow label="种植面积" value={`${plantedArea.toFixed(2)} 亩`} />
@@ -180,7 +182,7 @@ export default function LargeFarmerPanel({ farmer, trusts, loading }: Props) {
               <FieldRow label="流转笔数" value={`${trusts.length} 笔`} />
             </div>
           </Card>
-          <Card title="主体信息">
+          <Card title="主体信息" icon="person">
             <div className="flex flex-col gap-1 text-[10.5px]">
               <FieldRow label="经营人" value={farmer.operator_name || '—'} />
               <FieldRow label="法人" value={(farmer as any).legal_person || '—'} />

@@ -1,5 +1,6 @@
 /** 农户详情面板 */
 import { Card, FieldRow, FARMER_STATUS_LABEL, PAY_STATUS_LABEL, money } from './shared'
+import { Ico, ThIco } from './Icons'
 import { FarmerActions } from './FarmerActions'
 import SnapshotCard from './SnapshotCard'
 import SeasonBars from './SeasonBars'
@@ -105,11 +106,11 @@ export default function FarmerDetailPanel({ farmer, household, loading, onChange
             <table className="w-full border-collapse text-[11px]">
               <thead>
                 <tr className="bg-[#F6F1E7] text-[#8C877A] text-[10px] text-left h-[26px]">
-                  <th className="font-medium px-2.5">年度</th>
-                  <th className="font-medium px-1.5">补贴项目</th>
-                  <th className="font-medium px-1.5 text-right">面积</th>
-                  <th className="font-medium px-1.5 text-right">金额</th>
-                  <th className="font-medium px-1.5">状态</th>
+                  <th className="font-medium px-2.5"><ThIco name="calendar" />年度</th>
+                  <th className="font-medium px-1.5"><ThIco name="subsidies" />补贴项目</th>
+                  <th className="font-medium px-1.5 text-right"><ThIco name="area" />面积</th>
+                  <th className="font-medium px-1.5 text-right"><ThIco name="money" />金额</th>
+                  <th className="font-medium px-1.5"><ThIco name="check" />状态</th>
                   <th className="font-medium px-2.5">发放日期</th>
                 </tr>
               </thead>

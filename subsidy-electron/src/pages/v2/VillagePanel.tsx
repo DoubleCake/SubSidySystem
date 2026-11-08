@@ -1,5 +1,6 @@
 /** 村组详情面板（村集体作为申报主体） */
 import { Card, FieldRow } from './shared'
+import { Ico, ThIco } from './Icons'
 import type { VillageDetail } from './types'
 export default function VillagePanel({ detail, loading }: { detail: VillageDetail | null; loading: boolean }) {
   if (!detail) {

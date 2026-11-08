@@ -6,7 +6,9 @@
 import { useEffect, useState } from 'react'
 import * as api from '../../api'
 import { useToast } from '../../hooks/useToast'
+
 import { MergeConfirmForm } from '../FarmerForms'
+import { Ico } from './Icons'
 import type { HH } from '../../types'
 import { submitMerge } from './actions'
 
@@ -61,7 +63,7 @@ export default function MergeHouseholdsButton({ current, onMerged }: { current: 
   return (
     <>
       <button onClick={start} disabled={!current}
-        className="h-7 px-2.5 rounded-btn bg-[#E3EEF2] border border-[#C9DCE2] text-[11px] text-[#2E6478] font-medium hover:bg-[#D3E4EA] transition-colors disabled:opacity-40">合户</button>
+        className="h-7 px-2.5 rounded-btn bg-[#E3EEF2] border border-[#C9DCE2] inline-flex items-center gap-1 text-[11px] text-[#2E6478] font-medium hover:bg-[#D3E4EA] transition-colors disabled:opacity-40"><Ico name="merge" size={12} />合户</button>
 
       {open && !confirming && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setOpen(false)}>

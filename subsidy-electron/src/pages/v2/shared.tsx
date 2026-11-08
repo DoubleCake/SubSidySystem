@@ -1,3 +1,4 @@
+import { CardIco, type V2IconName as IconName } from './Icons'
 /**
  * 主体管理 - 共用组件与常量
  *
@@ -78,13 +79,14 @@ export function FieldRow({ label, value }: { label: string; value: ReactNode }) 
   )
 }
 
-/** 卡片容器 */
-export function Card({ title, extra, children, className = '' }: { title?: ReactNode; extra?: ReactNode; children: ReactNode; className?: string }) {
+export function Card({ title, icon, extra, children, className = '' }: { title?: ReactNode; icon?: IconName; extra?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <div className={`border border-[#F0EBE1] rounded-card px-3 py-2 ${className}`}>
       {(title || extra) && (
         <div className="flex items-center justify-between mb-1.5">
-          {typeof title === 'string' ? <span className="text-[11.5px] font-semibold">{title}</span> : title}
+          {typeof title === 'string'
+            ? <span className="inline-flex items-center text-[11.5px] font-semibold"><CardIco name={icon || 'info'} />{title}</span>
+            : title}
           {extra}
         </div>
       )}

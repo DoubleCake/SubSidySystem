@@ -8,7 +8,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as api from '../../api'
 import { useToast } from '../../hooks/useToast'
+
 import { CreateFarmerForm } from '../FarmerForms'
+import { Ico } from './Icons'
 import type { FarmerDetail, VillageGroup } from '../../types'
 import { submitCreateFarmer, submitUpdateFarmer } from './actions'
 
@@ -43,9 +45,9 @@ export function FarmerActions({ farmer, onChanged }: { farmer: FarmerDetail; onC
   return (
     <div className="flex items-center gap-1.5 shrink-0">
       <button onClick={() => setOpen(true)} disabled={busy}
-        className="h-7 px-2.5 border border-border rounded-btn bg-white text-[11px] text-[#5A5A4F] hover:bg-warm/30 transition-colors disabled:opacity-40">编辑农户</button>
+        className="h-7 px-2.5 border border-border rounded-btn bg-white text-[11px] text-[#5A5A4F] hover:bg-warm/30 transition-colors disabled:opacity-40 inline-flex items-center gap-1"><Ico name="edit" size={12} />编辑农户</button>
       <button onClick={() => navigate('/settings/farmer-attribute-import')}
-        className="h-7 px-2.5 border border-[#E6C288] rounded-btn bg-[#E6C288] text-[11px] text-[#5A4215]">属性导入</button>
+        className="h-7 px-2.5 border border-[#E6C288] rounded-btn bg-[#E6C288] text-[11px] text-[#5A4215] inline-flex items-center gap-1"><Ico name="upload" size={12} />属性导入</button>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => !busy && setOpen(false)}>
@@ -134,7 +136,7 @@ export function CreateFarmerButton({ villages, onCreated }: { villages: string[]
   return (
     <>
       <button onClick={() => { setForm({ ...emptyCreate, village_name: villages[0] || '' }); setOpen(true) }}
-        className="h-[30px] px-3 rounded-btn bg-primary text-[#F7F3E7] text-[12px]">新增农户</button>
+        className="h-[30px] px-3 rounded-btn bg-primary text-[#F7F3E7] text-[12px] inline-flex items-center gap-1"><Ico name="create" size={13} />新增农户</button>
       <CreateFarmerForm open={open} villages={villages} createFarmerForm={form} setCreateFarmerForm={setForm}
         onClose={() => setOpen(false)}
         onSubmit={async () => {

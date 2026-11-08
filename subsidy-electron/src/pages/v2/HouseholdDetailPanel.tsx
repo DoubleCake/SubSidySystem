@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AddMemberButton, MemberRowActions } from './HouseholdActions'
 import HouseholdActions from './HouseholdActions'
 import { Card, FieldRow, FARMER_STATUS_LABEL, HH_STATUS_LABEL, PAY_STATUS_LABEL, money } from './shared'
+import { Ico, ThIco } from './Icons'
 import SnapshotCard from './SnapshotCard'
 import SeasonBars from './SeasonBars'
 import { useHouseholdAnomalyTab } from '../../hooks/useUiSettings'
@@ -103,12 +104,12 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
               <table className="w-full border-collapse text-[11px]">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-[#EFE7D8] text-[#6B6B60] text-[10px] text-left h-[28px] border-b border-[#DDD3C2]">
-                    <th className="font-semibold px-2.5">年度</th>
-                    <th className="font-semibold px-1.5">补贴项目</th>
-                    <th className="font-semibold px-1.5">成员</th>
-                    <th className="font-semibold px-1.5 text-right">面积</th>
-                    <th className="font-semibold px-1.5 text-right">金额</th>
-                    <th className="font-semibold px-2.5">状态</th>
+                    <th className="font-semibold px-2.5"><ThIco name="calendar" />年度</th>
+                    <th className="font-semibold px-1.5"><ThIco name="subsidies" />补贴项目</th>
+                    <th className="font-semibold px-1.5"><ThIco name="person" />成员</th>
+                    <th className="font-semibold px-1.5 text-right"><ThIco name="area" />面积</th>
+                    <th className="font-semibold px-1.5 text-right"><ThIco name="money" />金额</th>
+                    <th className="font-semibold px-2.5"><ThIco name="check" />状态</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -142,11 +143,11 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
               <table className="w-full border-collapse text-[11px]">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-[#F6F1E7] text-[#8C877A] text-[10px] text-left h-[26px]">
-                    <th className="font-medium px-2.5">姓名</th>
-                    <th className="font-medium px-1.5">关系</th>
-                    <th className="font-medium px-1.5">身份证号</th>
-                    <th className="font-medium px-1.5">状态</th>
-                    <th className="font-medium px-2.5 text-right">操作</th>
+                    <th className="font-medium px-2.5"><ThIco name="person" />姓名</th>
+                    <th className="font-medium px-1.5"><ThIco name="link" />关系</th>
+                    <th className="font-medium px-1.5"><ThIco name="person" />身份证号</th>
+                    <th className="font-medium px-1.5"><ThIco name="check" />状态</th>
+                    <th className="font-medium px-2.5 text-right"><ThIco name="settings" />操作</th>
                   </tr>
                 </thead>
                 <tbody>
