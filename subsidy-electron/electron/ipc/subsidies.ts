@@ -302,34 +302,45 @@ export function registerSubsidyHandlers(): void {
 
   ipcMain.handle('subsidies:yearCompare', (_e, year: number) => {
     try {
+      // 统计口径：全部记录都算，不按 pay_status 过滤
+      // 理由：反映「今年确定要发多少钱」，而非「已发出去多少钱」；
+      //       与 summaryByVillage / summaryBySeason 保持口径一致，三处金额之和必须对得上。
       // 当年统计
       const current = db().getRaw<{ total_amount: number; farmer_count: number; application_count: number }>(`
-        SELECT COALESCE(SUM(actual_amount), 0) as total_amount,
-               COUNT(DISTINCT beneficiary_id) as farmer_count,
+        SELECT COALESCE(SUM(sa.actual_amount), 0) as total_amount,
+               COUNT(DISTINCT sa.beneficiary_id) as farmer_count,
                COUNT(*) as application_count
-        FROM subsidy_application WHERE apply_year = ? AND pay_status >= 1
+        FROM subsidy_application sa
+        LEFT JOIN subsidy_type st ON sa.subsidy_type_id = st.id
+        WHERE sa.apply_year = ? AND COALESCE(st.is_deleted, 0) = 0
       `, year)
 
-      // 上一年统计
+      // 上一年统计（同样全量口径，保证同比可比）
       const prev = db().getRaw<{ total_amount: number; farmer_count: number; application_count: number }>(`
-        SELECT COALESCE(SUM(actual_amount), 0) as total_amount,
-               COUNT(DISTINCT beneficiary_id) as farmer_count,
+        SELECT COALESCE(SUM(sa.actual_amount), 0) as total_amount,
+               COUNT(DISTINCT sa.beneficiary_id) as farmer_count,
                COUNT(*) as application_count
-        FROM subsidy_application WHERE apply_year = ? AND pay_status >= 1
+        FROM subsidy_application sa
+        LEFT JOIN subsidy_type st ON sa.subsidy_type_id = st.id
+        WHERE sa.apply_year = ? AND COALESCE(st.is_deleted, 0) = 0
       `, year - 1)
 
-      // 当年受益农户ID
+      // 当年受益农户ID（统计基础与总额一致：全量）
       const curFarmers = db().allRaw<{ beneficiary_id: number; id: number; real_name: string; village_name: string; farmer_status: number }>(
         `SELECT DISTINCT sa.beneficiary_id, fp.id, fp.real_name, COALESCE(sa.apply_village_name, '') as village_name, fp.farmer_status
          FROM subsidy_application sa
          JOIN farmer_profile fp ON sa.beneficiary_id = fp.id
-         WHERE sa.apply_year = ? AND sa.pay_status >= 1`, year
+         LEFT JOIN subsidy_type st ON sa.subsidy_type_id = st.id
+         WHERE sa.apply_year = ? AND COALESCE(st.is_deleted, 0) = 0`, year
       )
       const curIds = new Set(curFarmers.map(f => f.beneficiary_id))
 
-      // 上一年受益农户ID
+      // 上一年受益农户ID（全量，保证新增/退出农户口径与总额一致）
       const prevFarmers = db().allRaw<{ beneficiary_id: number }>(
-        `SELECT DISTINCT beneficiary_id FROM subsidy_application WHERE apply_year = ? AND pay_status >= 1`, year - 1
+        `SELECT DISTINCT sa.beneficiary_id
+         FROM subsidy_application sa
+         LEFT JOIN subsidy_type st ON sa.subsidy_type_id = st.id
+         WHERE sa.apply_year = ? AND COALESCE(st.is_deleted, 0) = 0`, year - 1
       )
       const prevIds = new Set(prevFarmers.map(f => f.beneficiary_id))
 
@@ -371,6 +382,7 @@ export function registerSubsidyHandlers(): void {
 
   ipcMain.handle('subsidies:summaryByVillage', (_e, year: number) => {
     try {
+      // 统计口径：全部记录都算，不按 pay_status 过滤（与 yearCompare 一致）
       const rows = db().allRaw(`
         SELECT v.village_name,
                COUNT(DISTINCT sa.beneficiary_id) as farmer_count,
@@ -381,7 +393,8 @@ export function registerSubsidyHandlers(): void {
         LEFT JOIN farmer_profile fp ON sa.farmer_id = fp.id
         LEFT JOIN family_household hh ON fp.household_id = hh.id
         LEFT JOIN village v ON hh.village_id = v.id
-        WHERE sa.apply_year = ?
+        LEFT JOIN subsidy_type st ON sa.subsidy_type_id = st.id
+        WHERE sa.apply_year = ? AND COALESCE(st.is_deleted, 0) = 0
         GROUP BY v.id
         ORDER BY total_amount DESC
       `, year)
@@ -393,6 +406,7 @@ export function registerSubsidyHandlers(): void {
 
   ipcMain.handle('subsidies:summaryBySeason', (_e, year: number) => {
     try {
+      // 统计口径：全部记录都算，不按 pay_status 过滤（与 yearCompare 一致）
       const rows = db().allRaw(`
         SELECT st.season,
                COUNT(DISTINCT st.id) as project_count,
@@ -402,7 +416,7 @@ export function registerSubsidyHandlers(): void {
                COUNT(*) as application_count
         FROM subsidy_application sa
         JOIN subsidy_type st ON sa.subsidy_type_id = st.id
-        WHERE sa.apply_year = ?
+        WHERE sa.apply_year = ? AND COALESCE(st.is_deleted, 0) = 0
         GROUP BY st.season
       `, year)
       return success(rows)

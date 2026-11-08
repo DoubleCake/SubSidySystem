@@ -27,11 +27,11 @@ export const FARMER_STATUS: Record<number, { label: string; color: string }> = {
   4: { label: '去世',  color: 'gray'   },
 }
 
+// 发放状态：系统不存在「驳回」状态（被驳回的记录直接删除，不保留）
 export const PAY_STATUS: Record<number, { label: string; color: string }> = {
   0: { label: '待发放',  color: 'amber'  },
   1: { label: '部分发放', color: 'blue'   },
   2: { label: '已发放',  color: 'green'  },
-  3: { label: '驳回',    color: 'red'    },
 }
 
 export const SUBSIDY_PAY_STATUS: Record<number, { label: string; color: string }> = {

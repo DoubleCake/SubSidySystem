@@ -836,6 +836,40 @@ export function runMigrations(): void {
     console.error('[Migrate] Failed to ensure check_config column:', e)
   }
 
+  // ── 清理历史脏数据：pay_status = 3（驳回）──
+  // 产品语义：系统已不存在「驳回」状态，被驳回的记录应当直接删除、不保留。
+  // 该状态在现行代码中已无法产生，只可能来自旧版本/Excel 导入的历史脏数据。
+  // 统计口径为「全部记录都算」，若保留这些记录会让它们被计入年度总额/分村/分季统计，
+  // 因此这里按产品语义物理删除（而非归一化为 0），并输出删除条数便于追溯。
+  try {
+    const badApps = db.getRaw<{ cnt: number }>(
+      'SELECT COUNT(*) as cnt FROM subsidy_application WHERE pay_status = 3'
+    )?.cnt ?? 0
+    const badPays = db.getRaw<{ cnt: number }>(
+      'SELECT COUNT(*) as cnt FROM subsidy_payment WHERE pay_status = 3'
+    )?.cnt ?? 0
+
+    if (badApps > 0 || badPays > 0) {
+      db.beginTransaction()
+      try {
+        // 先清掉指向这些记录的代领关系，避免外键悬挂（subsidy_proxy 显式引用 application_id / payment_id）
+        db.runRaw(`DELETE FROM subsidy_proxy WHERE application_id IN (
+          SELECT id FROM subsidy_application WHERE pay_status = 3)`)
+        db.runRaw(`DELETE FROM subsidy_proxy WHERE payment_id IN (
+          SELECT id FROM subsidy_payment WHERE pay_status = 3)`)
+        const delApps = db.runRaw('DELETE FROM subsidy_application WHERE pay_status = 3').changes
+        const delPays = db.runRaw('DELETE FROM subsidy_payment WHERE pay_status = 3').changes
+        db.commitTransaction()
+        console.log(`[Migrate] 已清理 pay_status=3（驳回）历史脏数据：申请 ${delApps} 条、发放 ${delPays} 条`)
+      } catch (e) {
+        db.rollbackTransaction()
+        console.error('[Migrate] 清理 pay_status=3 失败，已回滚:', e)
+      }
+    }
+  } catch (e) {
+    console.error('[Migrate] 检查 pay_status=3 脏数据失败:', e)
+  }
+
   // ── land_trust 表结构升级：支持村/村组主体 + 补贴享受类型 + 结束年度 ──
   // 旧库（无 owner_type 列）需要重建表，因为 SQLite 无法用 ALTER 修改列/加非空约束
   try {
