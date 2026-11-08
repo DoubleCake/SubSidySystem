@@ -143,6 +143,7 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
             </div>
           </div>
 
+          <div className="border border-[#E6E0D4] rounded-card overflow-hidden flex flex-col shrink-0">
           {/* ② 家庭人口 */}
             <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#E6E0D4] shrink-0">
               <span className="text-[11.5px] font-semibold">家庭人口 <span className="text-[10px] text-[#7A7466] font-normal">{isCurrent ? members.length : `${selYear} 年 · ${members.length}`}</span></span>
@@ -231,6 +232,8 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
                   </div>
                 )
               )}
+          </div>
+
             </div>
         </div>
 
