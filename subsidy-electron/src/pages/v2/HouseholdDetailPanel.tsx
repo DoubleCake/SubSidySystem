@@ -45,8 +45,7 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
             <div className="flex items-center gap-1.5 flex-wrap">
               <h2 className="text-[18px] font-bold text-primary m-0 leading-tight">{detail.household_name}</h2>
               <span className="text-[10px] border border-border rounded-[3px] px-1.5 py-[1px] text-[#8C877A] font-mono">{detail.household_code}</span>
-              <span className="text-[10px] bg-[#EDF3EF] text-[#2C6B52] rounded-full px-1.5 py-[1px]">{HH_STATUS_LABEL[detail.status] || '在册'}</span>
-              {overYears.length > 0 && <span className="text-[10px] bg-[#FDECEA] text-danger rounded-full px-1.5 py-[1px]">超领 {overYears.length} 项</span>}
+              {overYears.length > 0 && <span className="text-[10px] bg-danger text-white font-semibold rounded-full px-2 py-[1px] shadow-[0_1px_3px_rgba(211,47,47,.35)]">超领 {overYears.length} 项</span>}
               {detail.is_manually_confirmed === 1 && <span className="text-[10px] bg-[#EDF3EF] text-[#2C6B52] rounded-[3px] px-1.5 py-[1px]">已确认</span>}
             </div>
             <div className="text-[11px] text-[#8C877A] mt-[3px] truncate">
@@ -210,7 +209,7 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
                   <div className="flex flex-col gap-1.5">
                     {overYears.map(o => (
                       <div key={o.year} className="flex items-center gap-2">
-                        <span className="text-[9px] bg-[#FDECEA] text-danger rounded-[2px] px-1">超领</span>
+                        <span className="text-[9px] bg-danger text-white font-semibold rounded-[2px] px-1.5 py-[1px]">超领</span>
                         <span className="text-[11.5px] font-semibold">{o.year} 年度</span>
                         <span className="text-[10px] text-[#9A9588]">{o.used.toFixed(2)} / {refArea.toFixed(2)} 亩</span>
                         <span className="ml-auto text-[11px] font-bold text-danger">+{Math.max(0, o.used - refArea).toFixed(2)}</span>
