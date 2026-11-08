@@ -381,25 +381,52 @@ export interface HHDetail {
   id: number; household_code: string; household_name: string
   village_full_name: string; village_id: number; group_no: number
   contracted_area: number; contract_area?: number | null; confirmed_area?: number | null; status: number
+  no_subsidy_area?: number
   address: string | null; remark: string | null
   is_manually_confirmed: number
   manually_confirmed_at: string | null
   manually_confirmed_by: string | null
   members: HHMember[]
+  trust_records?: HHTrustRecord[]
   area_usage: {
     contracted_area: number; trust_out_area?: number; trust_in_area?: number
     cultivable_area?: number; used_area: number; remaining_area: number
     is_overdrawn: boolean; overdraw_amount?: number; has_trust_data?: boolean
     season_breakdown?: Record<string, SeasonUsage>
+    season_reference?: Record<string, number>
     subsidy_breakdown: { subsidy_name: string; apply_area: number; calc_mode: string }[]
     year_totals?: Record<string, Record<string, number>>
+    year_apply_totals?: Record<string, Record<string, number>>
+    year_payment_totals?: Record<string, Record<string, number>>
   }
   app_summary: {
-    apply_year: number; farmer_id: number; farmer_name: string; subsidy_name: string
-    calc_mode: string; apply_area: number | null; apply_amount: number | null; actual_amount: number | null
+    id?: number; apply_year: number; farmer_id: number; farmer_name: string; subsidy_name: string
+    subsidy_type_id?: number
+    calc_mode: string; apply_area: number | null; apply_area_no_calc?: number | null
+    apply_amount: number | null; actual_amount: number | null
     pay_status: number; apply_village_name: string; apply_group_display: string; is_proxy: number
-    proxy_info?: { type: string; proxy_name?: string; beneficiary_name?: string; proxy_farmer_id?: number; beneficiary_farmer_id?: number; remark?: string } | null
+    proxy_info?: {
+      type: string; proxy_name?: string; beneficiary_name?: string
+      proxy_farmer_id?: number; beneficiary_farmer_id?: number
+      proxy_household_id?: number | null; beneficiary_household_id?: number | null
+      remark?: string
+    } | null
   }[]
+}
+
+/** 土地流转记录（家庭户详情展示用） */
+export interface HHTrustRecord {
+  id?: number
+  direction: string
+  counterparty?: string | null
+  area?: number | null
+  trust_type?: string | null
+  trust_year?: number | null
+  start_date?: string | null
+  end_date?: string | null
+  subsidy_arable?: number
+  subsidy_cash_crop?: number
+  note?: string | null
 }
 
 export interface HHEvent {
@@ -425,6 +452,7 @@ export interface SnapshotMember {
   is_head: number
   relation: string | null
   farmer_status: number
+  restricted_identity?: number | null
   phone_masked?: string | null
   id_card?: string
   phone?: string

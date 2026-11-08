@@ -417,7 +417,7 @@ export function HouseholdDetailContent({
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              if (targetHhId) onOpenHousehold(Number(targetHhId))
+                              if (targetHhId) onOpenHousehold?.(Number(targetHhId))
                             }}
                             disabled={!targetHhId}
                             className="cursor-pointer hover:brightness-90 transition-all disabled:opacity-50 disabled:cursor-default"
