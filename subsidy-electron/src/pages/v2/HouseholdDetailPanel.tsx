@@ -4,6 +4,7 @@ import { AddMemberButton, MemberRowActions } from './HouseholdActions'
 import HouseholdActions from './HouseholdActions'
 import { Card, FieldRow, FARMER_STATUS_LABEL, HH_STATUS_LABEL, PAY_STATUS_LABEL, money } from './shared'
 import { Ico, ThIco } from './Icons'
+import YearTimeline, { buildYears, useYearSnapshots } from './YearTimeline'
 import SnapshotCard from './SnapshotCard'
 import SeasonBars from './SeasonBars'
 import { useHouseholdAnomalyTab } from '../../hooks/useUiSettings'
@@ -32,6 +33,14 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
     .sort(([a], [b]) => Number(b) - Number(a))
     .map(([y, seasons]) => ({ year: y, used: Math.max(...Object.values(seasons)) }))
   const trustIn = Number(usage?.trust_in_area ?? 0)
+  const currentYear = new Date().getFullYear()
+  const [selYear, setSelYear] = useState<number>(currentYear)
+  const yearList = buildYears(apps, usage, refArea, members, currentYear)
+  const snapMap = useYearSnapshots(detail.id, yearList.map(y => y.year))
+  const isCurrent = selYear === currentYear
+  const years = buildYears(apps, usage, refArea, members, currentYear, snapMap)
+  const yearApps = selYear ? apps.filter(a => Number(a.apply_year) === selYear) : apps
+
   const trustOut = Number(usage?.trust_out_area ?? 0)
 
   return (
@@ -59,6 +68,8 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
         </div>
         <HouseholdActions detail={detail} onChanged={onChanged} />
       </div>
+
+      <YearTimeline years={years} value={selYear} onChange={setSelYear} isCurrent={selYear === currentYear} />
 
       <div className="flex items-center px-4 py-2.5 bg-gradient-to-r from-[#0F3D2E] via-[#1A5C46] to-[#2C7A63] text-[#F7F3E7]">
         <div className="flex items-center gap-2 min-w-0">
@@ -96,8 +107,8 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
           {/* ① 补贴记录 */}
           <div className="border border-[#F0EBE1] rounded-card overflow-hidden flex flex-col shrink-0">
             <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#F2EDE3] shrink-0">
-              <span className="text-[11.5px] font-semibold">补贴记录 <span className="text-[10px] text-[#8C877A] font-normal">{apps.length}</span></span>
-              <span className="text-[10px] text-[#8C877A]">累计 <b className="font-mono text-primary">{money(appTotal)}</b></span>
+              <span className="text-[11.5px] font-semibold">补贴记录 <span className="text-[10px] text-[#8C877A] font-normal">{selYear} · {yearApps.length}</span></span>
+              <span className="text-[10px] text-[#8C877A]">当年累计 <b className="font-mono text-primary">{money(yearApps.reduce((s, a) => s + Number(a.actual_amount || a.apply_amount || 0), 0))}</b></span>
             </div>
             <div className="overflow-y-auto" style={{ maxHeight: 238 }}>
               <table className="w-full border-collapse text-[11px]">
@@ -112,7 +123,7 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
                   </tr>
                 </thead>
                 <tbody>
-                  {apps.map((a, i) => (
+                  {yearApps.map((a, i) => (
                     <tr key={`${a.farmer_id}-${a.subsidy_name}-${i}`} className="border-t border-[#E4DCCD] h-[34px] hover:bg-[#F0F5F2] transition-colors">
                       <td className="px-2.5 font-semibold text-[#1A4D3A]">{a.apply_year}</td>
                       <td className="px-1.5 truncate">{a.subsidy_name}</td>
@@ -126,17 +137,18 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
                       </td>
                     </tr>
                   ))}
-                  {apps.length === 0 && <tr><td colSpan={6} className="py-8 text-center text-[11px] text-text-muted/60">暂无补贴记录</td></tr>}
+                  {yearApps.length === 0 && <tr><td colSpan={6} className="py-8 text-center text-[11px] text-text-muted/60">{selYear} 年暂无补贴记录</td></tr>}
                 </tbody>
               </table>
             </div>
           </div>
 
           {/* ② 家庭人口 */}
-          <div className="border border-[#F0EBE1] rounded-card overflow-hidden flex flex-col shrink-0">
             <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#F2EDE3] shrink-0">
-              <span className="text-[11.5px] font-semibold">家庭人口 <span className="text-[10px] text-[#8C877A] font-normal">{members.length}</span></span>
-              <AddMemberButton detail={detail} onChanged={onChanged} />
+              <span className="text-[11.5px] font-semibold">家庭人口 <span className="text-[10px] text-[#8C877A] font-normal">{isCurrent ? members.length : `${selYear} 年 · ${members.length}`}</span></span>
+              {isCurrent
+                ? <AddMemberButton detail={detail} onChanged={onChanged} />
+                : <span className="text-[10px] text-[#9A9588]">历史视图不可编辑</span>}
             </div>
             <div className="overflow-y-auto" style={{ maxHeight: 238 }}>
               <table className="w-full border-collapse text-[11px]">
@@ -164,7 +176,7 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
                         </span>
                       </td>
                       <td className="px-2.5 text-right whitespace-nowrap">
-                        <MemberRowActions detail={detail} member={m} onChanged={onChanged} />
+                        {isCurrent && <MemberRowActions detail={detail} member={m} onChanged={onChanged} />}
                       </td>
                     </tr>
                   ))}
@@ -220,7 +232,6 @@ export default function HouseholdDetailPanel({ detail, loading, onChanged }: { d
                 )
               )}
             </div>
-          </div>
         </div>
 
 
