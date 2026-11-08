@@ -12,6 +12,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import * as api from '../../api'
 import { EVENT_TYPE_CFG } from '../FarmerConstants'
 import { useHouseholdAnomalyTab } from '../../hooks/useUiSettings'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { Card, Chip, FieldRow, ListRow, FARMER_STATUS_LABEL, HH_STATUS_LABEL, PAY_STATUS_LABEL, money } from './shared'
 import HouseholdActions, { AddMemberButton, MemberRowActions } from './HouseholdActions'
 import { CreateFarmerButton, FarmerActions } from './FarmerActions'
@@ -250,6 +251,21 @@ export default function HouseholdRegistryV2Page() {
     if (selectedHhId == null) return
     api.getHouseholdDetail(selectedHhId).then(setHousehold).catch(() => {})
   }, [selectedHhId])
+  // ── 搜索防抖：输入后 350ms 自动生效 ──
+  const debouncedSearch = useDebouncedValue(searchInput, 350)
+  const debouncedHhSearch = useDebouncedValue(hhSearchInput, 350)
+
+  useEffect(() => {
+    setSearch(debouncedSearch.trim())
+    setPage(1)
+  }, [debouncedSearch])
+
+  useEffect(() => {
+    setHhSearch(debouncedHhSearch.trim())
+    setHhPage(1)
+  }, [debouncedHhSearch])
+
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const hhTotalPages = Math.max(1, Math.ceil(hhTotal / HH_PAGE_SIZE))
   const largeTotalPages = Math.max(1, Math.ceil(largeTotal / LARGE_PAGE_SIZE))
@@ -321,11 +337,9 @@ export default function HouseholdRegistryV2Page() {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9A9588" strokeWidth="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" /></svg>
               {sideTab === 'farmers' ? (
                 <input value={searchInput} onChange={e => setSearchInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') { setSearch(searchInput.trim()); setPage(1) } }}
                   placeholder="姓名 / 身份证 / 手机号" className="flex-1 text-[12px] outline-none bg-transparent" />
               ) : (
                 <input value={hhSearchInput} onChange={e => setHhSearchInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') { setHhSearch(hhSearchInput.trim()); setHhPage(1) } }}
                   placeholder="户名 / 户编码 / 户主" className="flex-1 text-[12px] outline-none bg-transparent" />
               )}
             </div>
