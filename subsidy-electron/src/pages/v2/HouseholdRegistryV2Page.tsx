@@ -21,6 +21,7 @@ import HouseholdDetailPanel from './HouseholdDetailPanel'
 import LargeFarmerPanel from './LargeFarmerPanel'
 import VillagePanel from './VillagePanel'
 import { Ico } from './Icons'
+import RegistryView from './RegistryView'
 import { OPERATOR_LABEL } from './types'
 import type { LargeFarmer, LargeFarmerTrust, VillageDetail, VillageRow } from './types'
 import type { FarmerOut, FarmerDetail, HH, HHDetail, HHEvent, SnapshotAtResponse, VillageGroup } from '../../types'
@@ -298,187 +299,26 @@ export default function HouseholdRegistryV2Page() {
   })()
 
   return (
-    <div className="space-y-3">
-      {/* 页头 */}
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-[26px] h-[26px] rounded-[8px] bg-gradient-to-br from-[#1A5C46] to-[#234A38] text-[#DDBE84]">
-              <Ico name="farmers" size={15} />
-            </span>
-            <h1 className="text-[20px] font-bold text-primary leading-tight">主体管理</h1>
-          </div>
-          <div className="text-[11px] text-[#7A7466] mt-1">农户、家庭户、大户与村组统一管理，左侧选择对象，右侧查看档案与关联信息</div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button onClick={() => navigate('/settings/farmer-attribute-import')}
-            className="h-[30px] px-3 border border-border rounded-btn bg-white text-[12px] text-[#5C5749] hover:bg-warm/30 transition-colors inline-flex items-center gap-1.5">
-            <Ico name="upload" size={13} />
-            导入户籍
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-[338px_minmax(0,1fr)] gap-3 items-start">
-        {/* ── 左列 ── */}
-        <div className="bg-white border border-border rounded-card flex flex-col overflow-hidden shadow-card sticky top-[88px]"
-          style={{ maxHeight: 'calc(100vh - 104px)' }}>
-          {/* 农户 / 家庭户 / 大户 / 村组 */}
-          <div className="flex items-center gap-3.5 px-3 h-[34px] border-b border-border">
-            {([
-              ['farmers', '农户', total, 'person'],
-              ['households', '家庭户', householdTotal, 'household'],
-              ['large', '大户', null, 'farmers'],
-              ['villages', '村组', null, 'village'],
-            ] as const).map(([id, label, count, icon]) => (
-              <button key={id} onClick={() => setSideTab(id as SideTab)}
-                className={`h-[34px] flex items-center gap-1.5 border-b-2 text-[12px] transition-colors ${sideTab === id ? 'border-primary text-primary font-bold' : 'border-transparent text-[#5C5749] hover:text-text-primary'}`}>
-                <Ico name={icon} size={12} />
-                {label}
-                {count != null && <span className={`text-[10px] font-normal ${sideTab === id ? 'text-[#7A7466]' : 'text-[#7A7466]'}`}>{count}</span>}
-              </button>
-            ))}
-          </div>
-          <div className="px-2.5 py-2 border-b border-[#E6E0D4] flex flex-col gap-1.5">
-            <div className="flex items-center gap-1.5 border border-border rounded-btn px-2 h-[30px]">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7A7466" strokeWidth="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" /></svg>
-              {sideTab === 'farmers' ? (
-                <input value={searchInput} onChange={e => setSearchInput(e.target.value)}
-                  placeholder="姓名 / 身份证 / 手机号" className="flex-1 text-[12px] outline-none bg-transparent" />
-              ) : (
-                <input value={hhSearchInput} onChange={e => setHhSearchInput(e.target.value)}
-                  placeholder="户名 / 户编码 / 户主" className="flex-1 text-[12px] outline-none bg-transparent" />
-              )}
-            </div>
-            <div className="flex gap-1.5">
-              <select value={sideTab === 'farmers' ? village : hhVillage}
-                onChange={e => { if (sideTab === 'farmers') { setVillage(e.target.value); setPage(1) } else { setHhVillage(e.target.value); setHhPage(1) } }}
-                className="flex-1 h-7 border border-border rounded-btn px-1.5 text-[11px] text-[#5C5749] bg-white outline-none">
-                <option value="">全部村</option>
-                {villages.map(v => <option key={v} value={v}>{v}</option>)}
-              </select>
-              <select value={sideTab === 'farmers' ? status : hhStatus}
-                onChange={e => { if (sideTab === 'farmers') { setStatus(e.target.value); setPage(1) } else { setHhStatus(e.target.value); setHhPage(1) } }}
-                className="flex-1 h-7 border border-border rounded-btn px-1.5 text-[11px] text-[#5C5749] bg-white outline-none">
-                <option value="">全部状态</option>
-                <option value="1">在册</option>
-                <option value="2">注销</option>
-                <option value="3">迁出</option>
-                {sideTab === 'farmers' && <option value="4">死亡</option>}
-              </select>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-            {sideTab === 'farmers' && (
-              <>
-                {loadingList && <div className="py-10 text-center text-[11px] text-text-muted/60">加载中…</div>}
-                {!loadingList && list.length === 0 && <div className="py-10 text-center text-[11px] text-text-muted/60">暂无数据</div>}
-                {!loadingList && list.map(f => (
-                  <ListRow key={f.id} active={selectedId === f.id} onClick={() => setSelectedId(f.id)}
-                    avatar={f.real_name?.slice(-1) || '—'} name={f.real_name}
-                    tags={
-                      <>
-                        <Chip tone={f.is_head === 1 ? 'green' : 'gray'}>{f.is_head === 1 ? '户主' : (f.relation || '成员')}</Chip>
-                        <Chip tone={f.farmer_status === 1 ? 'green' : f.farmer_status === 3 ? 'amber' : 'gray'}>
-                          {FARMER_STATUS_LABEL[f.farmer_status] || '未知'}
-                        </Chip>
-                      </>
-                    }
-                    sub={<>{f.village_full_name || '—'}{f.contract_area ? ` · ${f.contract_area} 亩` : ''} · <span className="font-mono">{f.id_card_masked}</span></>} />
-                ))}
-              </>
-            )}
-            {sideTab === 'households' && (
-              <>
-                {loadingHhList && <div className="py-10 text-center text-[11px] text-text-muted/60">加载中…</div>}
-                {!loadingHhList && hhList.length === 0 && <div className="py-10 text-center text-[11px] text-text-muted/60">暂无数据</div>}
-                {!loadingHhList && hhList.map(h => (
-                  <ListRow key={h.id} active={selectedHhId === h.id} onClick={() => setSelectedHhId(h.id)}
-                    avatar={h.household_name?.slice(0, 1) || '户'} avatarSquare name={h.household_name}
-                    tags={<Chip tone={h.status === 1 ? 'green' : 'amber'}>{HH_STATUS_LABEL[h.status] || '未知'}</Chip>}
-                    right={(h.overdrawn_years?.length ?? 0) > 0
-                      ? <span className="text-[9px] bg-[#FCEAE8] text-danger rounded-[2px] px-1 shrink-0">{h.overdrawn_years!.slice(0, 2).join('、')}超领</span>
-                      : h.is_overdrawn ? <span className="text-[9px] bg-[#FCEAE8] text-danger rounded-[2px] px-1 shrink-0">超领</span> : null}
-                    sub={<>{h.village_full_name || '—'} · <span className="font-mono">{h.household_code}</span> · {h.member_count ?? '?'} 人{h.contracted_area > 0 ? ` · ${h.contracted_area} 亩` : ''}</>} />
-                ))}
-              </>
-            )}
-            {sideTab === 'large' && (
-              <>
-                {loadingLarge && <div className="py-10 text-center text-[11px] text-text-muted/60">加载中…</div>}
-                {!loadingLarge && largeList.length === 0 && <div className="py-10 text-center text-[11px] text-text-muted/60">暂无大户</div>}
-                {!loadingLarge && largeList.map(l => (
-                  <ListRow key={l.id} active={selectedLargeId === l.id} onClick={() => setSelectedLargeId(l.id)}
-                    avatar={l.operator_name?.slice(0, 1) || '大'} avatarSquare name={l.operator_name}
-                    tags={<Chip tone="amber">{OPERATOR_LABEL[l.operator_type] || l.operator_type_label}</Chip>}
-                    sub={<>{l.village_name || '—'}{l.group_no ? ` ${l.group_no} 组` : ''} · 经营 {Number(l.total_managed_area || 0).toFixed(2)} 亩</>} />
-                ))}
-              </>
-            )}
-            {sideTab === 'villages' && (
-              <>
-                {villageList.length === 0 && <div className="py-10 text-center text-[11px] text-text-muted/60">暂无村组</div>}
-                {villageList.map(v => (
-                  <ListRow key={v.id} active={selectedVillageId === v.id} onClick={() => setSelectedVillageId(v.id)}
-                    avatar={v.village_name?.slice(0, 1) || '村'} avatarSquare name={v.village_name}
-                    tags={<Chip tone="gray">村集体</Chip>}
-                    sub={<>{v.leader_name ? `负责人 ${v.leader_name}` : '非在册负责人'}{v.leader_phone ? ` · ${v.leader_phone}` : ''}</>} />
-                ))}
-              </>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between px-2.5 py-1.5 border-t border-border text-[10px] text-[#7A7466]">
-            <span>
-              {sideTab === 'farmers' && `共 ${total} 人`}
-              {sideTab === 'households' && `共 ${hhTotal} 户`}
-              {sideTab === 'large' && `共 ${largeTotal} 户大户`}
-              {sideTab === 'villages' && `共 ${villageList.length} 个村`}
-            </span>
-
-            {sideTab === 'farmers' && (
-              <div className="flex items-center gap-1">
-                <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">上一页</button>
-                <span className="bg-primary text-[#FFFFFF] rounded-[3px] px-1.5">{page}</span>
-                <span>/ {totalPages}</span>
-                <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">下一页</button>
-              </div>
-            )}
-
-            {sideTab === 'households' && (
-              <div className="flex items-center gap-1">
-                <button disabled={hhPage <= 1} onClick={() => setHhPage(p => p - 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">上一页</button>
-                <span className="bg-primary text-[#FFFFFF] rounded-[3px] px-1.5">{hhPage}</span>
-                <span>/ {hhTotalPages}</span>
-                <button disabled={hhPage >= hhTotalPages} onClick={() => setHhPage(p => p + 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">下一页</button>
-              </div>
-            )}
-
-            {sideTab === 'large' && (
-              <div className="flex items-center gap-1">
-                <button disabled={largePage <= 1} onClick={() => setLargePage(p => p - 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">上一页</button>
-                <span className="bg-primary text-[#FFFFFF] rounded-[3px] px-1.5">{largePage}</span>
-                <span>/ {largeTotalPages}</span>
-                <button disabled={largePage >= largeTotalPages} onClick={() => setLargePage(p => p + 1)} className="h-[22px] px-1.5 border border-border rounded-[3px] bg-white disabled:opacity-40">下一页</button>
-              </div>
-            )}
-
-            {sideTab === 'villages' && <span className="text-[9.5px]">村组不分页</span>}
-          </div>
-        </div>
-
-        {/* ── 右列 ── */}
-        <div className="bg-white border border-border rounded-card flex flex-col overflow-hidden shadow-card min-w-0">
-          {sideTab === 'households' && <HouseholdDetailPanel detail={household} loading={loadingDetail} onChanged={reloadHousehold} />}
-          {sideTab === 'large' && (
-            <LargeFarmerPanel farmer={largeList.find(l => l.id === selectedLargeId) || null} trusts={largeTrusts} loading={loadingTrusts} />
-          )}
-          {sideTab === 'villages' && <VillagePanel detail={villageDetail} loading={loadingVillage} />}
-          {sideTab === 'farmers' && <FarmerDetailPanel farmer={farmer} household={household} loading={loadingDetail} onChanged={reloadFarmer} />}
-        </div>
-      </div>
-    </div>
+    <RegistryView
+      navigate={navigate}
+      sideTab={sideTab} setSideTab={setSideTab}
+      list={list} total={total} page={page} totalPages={totalPages} loadingList={loadingList}
+      searchInput={searchInput} setSearchInput={setSearchInput}
+      village={village} setVillage={setVillage} status={status} setStatus={setStatus}
+      villages={villages} householdTotal={householdTotal} setPage={setPage}
+      hhList={hhList} hhTotal={hhTotal} hhPage={hhPage} hhTotalPages={hhTotalPages} loadingHhList={loadingHhList}
+      hhSearchInput={hhSearchInput} setHhSearchInput={setHhSearchInput}
+      hhVillage={hhVillage} setHhVillage={setHhVillage} hhStatus={hhStatus} setHhStatus={setHhStatus}
+      selectedHhId={selectedHhId} setSelectedHhId={setSelectedHhId} setHhPage={setHhPage}
+      largeList={largeList} largeTotal={largeTotal} largePage={largePage} largeTotalPages={largeTotalPages} loadingLarge={loadingLarge}
+      selectedLargeId={selectedLargeId} setSelectedLargeId={setSelectedLargeId} setLargePage={setLargePage}
+      largeTrusts={largeTrusts} loadingTrusts={loadingTrusts}
+      villageList={villageList} selectedVillageId={selectedVillageId} setSelectedVillageId={setSelectedVillageId}
+      villageDetail={villageDetail} loadingVillage={loadingVillage}
+      selectedId={selectedId} setSelectedId={setSelectedId}
+      farmer={farmer} household={household} loadingDetail={loadingDetail}
+      reloadHousehold={reloadHousehold} reloadFarmer={reloadFarmer}
+    />
   )
 }
 
